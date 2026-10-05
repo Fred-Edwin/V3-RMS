@@ -13,11 +13,15 @@ import { StockErrorCard } from '../../../_shared/components/stock-states';
 import { useAction } from '../../../_shared/hooks/use-async';
 import { useOrder } from '../../hooks/use-order';
 import { dayMonth, fullDate, kes, kes2, METHOD_LABEL, qty as fmtQty, STATUS_LABEL, whenLabel } from '../../lib/format';
-import type { OrderStatus, PurchaseFile, TrackerItem } from '../../types';
+import type { FileDocument, OrderStatus, PurchaseFile, TrackerItem } from '../../types';
+import { AddDocumentSheet } from '../add-document-sheet';
 import { ApproveOrderSheet } from '../approve-order-sheet';
 import { CancelOrderSheet } from '../cancel-order-sheet';
 import { DemoBanner } from '../demo-banner';
+import { ReversePaymentSheet, SettleDisputeSheet, VoidInvoiceSheet } from '../fix-sheets';
+import { AddInvoiceSheet } from '../invoice-sheet';
 import { thClass } from '../parts';
+import { RecordPaymentSheet } from '../payment-sheet';
 import { RecordAdvanceSheet } from '../record-advance-sheet';
 import { SendWhatsappDialog } from '../send-whatsapp-dialog';
 
@@ -35,33 +39,50 @@ const CRUMB_STAGE: Record<OrderStatus, string> = {
 
 const STEP_LABEL: Record<TrackerItem['step'], string> = { RAISED: 'Raised', APPROVED: 'Approved', SENT: 'Sent', DELIVERED: 'Delivered', INVOICED: 'Invoiced', PAID: 'Paid' };
 
-const chipTone = (s: OrderStatus): string =>
-  s === 'CANCELLED' ? 'border-wds-error-border bg-wds-error-bg text-wds-error-fg' : s === 'AWAITING_APPROVAL' || s === 'RETURNED' || s === 'DRAFT' ? 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg' : s === 'CLOSED' ? 'border-wds-success-border bg-wds-success-bg text-wds-success-fg' : 'border-wds-info-border bg-wds-info-bg text-wds-info-fg';
+const chipTone = (o: PurchaseFile): string =>
+  o.status === 'CANCELLED' || o.invoice?.disputed
+    ? o.status === 'CANCELLED'
+      ? 'border-wds-error-border bg-wds-error-bg text-wds-error-fg'
+      : 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg'
+    : o.status === 'AWAITING_APPROVAL' || o.status === 'RETURNED' || o.status === 'DRAFT'
+      ? 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg'
+      : o.status === 'CLOSED'
+        ? 'border-wds-success-border bg-wds-success-bg text-wds-success-fg'
+        : 'border-wds-info-border bg-wds-info-bg text-wds-info-fg';
+
+const statusLabel = (o: PurchaseFile): string => (o.invoice?.disputed ? 'Invoiced · disputed' : STATUS_LABEL[o.status]);
 
 function trackerNote(t: TrackerItem, o: PurchaseFile): string {
   if (t.step === 'RAISED') return dayMonth(t.at);
   if (t.step === 'APPROVED') return t.state === 'DONE' ? `${dayMonth(t.at)} · PIN` : '—';
   if (t.step === 'SENT') return t.state === 'DONE' ? `${dayMonth(t.at)}${t.note ? ` · ${t.note}` : ''}` : o.status === 'APPROVED' ? 'Ready to send' : '—';
   if (t.step === 'DELIVERED') return t.state === 'DONE' ? `${dayMonth(t.at)}${t.note ? ` · 1 ${t.note}` : ''}`.replace('· 1 short', '· short') : o.expectedDate ? `Expected ${dayMonth(o.expectedDate)}` : '—';
-  if (t.step === 'INVOICED') return o.status === 'DELIVERED' ? 'Waiting for invoice' : '—';
-  if (t.step === 'PAID') return o.money && Number.parseFloat(o.money.paid) > 0 ? `${kes(o.money.paid)} advance` : '—';
+  if (t.step === 'INVOICED') return t.state === 'DONE' ? `${dayMonth(t.at)}${t.note ? ` · ${t.note}` : ''}` : o.status === 'DELIVERED' ? 'Waiting for invoice' : '—';
+  if (t.step === 'PAID') return t.state === 'DONE' ? dayMonth(t.at) : o.money && Number.parseFloat(o.money.paid) > 0 ? `${kes(o.money.paid)} paid` : '—';
   return '—';
 }
 
 /**
  * The purchase file (Paper `07`, `15`, `22`): one page that holds the whole purchase and changes with its state. The header, stage
  * tracker, money strip, next-step card, items and the right rail are the same in every state; the buttons come from `order.can`
- * (the permissions table), so a reader sees the same page with the write buttons hidden.
+ * (the permissions table), so a reader sees the same page with the write buttons hidden. Closed, the Documents tab opens first and
+ * the rail carries the audit log (Paper `22`).
  */
 export function PurchaseFileScreen({ orderId }: { orderId: string }) {
   const { data: order, status, error, reload, service, can } = useOrder(orderId);
   const addToast = useWdsToastStore((s) => s.addToast);
-  const [tab, setTab] = React.useState<'items' | 'documents' | 'activity'>('items');
+  const [tab, setTab] = React.useState<'items' | 'documents' | 'activity' | null>(null);
   const [approveOpen, setApproveOpen] = React.useState(false);
   const [waOpen, setWaOpen] = React.useState(false);
   const [advanceOpen, setAdvanceOpen] = React.useState(false);
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [invoiceFor, setInvoiceFor] = React.useState<string | null>(null);
+  const [payFor, setPayFor] = React.useState<string | null>(null);
+  const [voidFor, setVoidFor] = React.useState<string | null>(null);
+  const [settleFor, setSettleFor] = React.useState<string | null>(null);
+  const [reverse, setReverse] = React.useState<string | null>(null);
+  const [docOpen, setDocOpen] = React.useState(false);
 
   const mark = useAction(async (via: 'PRINT' | 'LINK' | 'MANUAL') => {
     const o = await service.sendOrder(orderId, via);
@@ -94,8 +115,11 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
     );
   }
 
+  const closed = order.status === 'CLOSED';
+  const activeTab = tab ?? (closed ? 'documents' : 'items');
   const showMoney = order.money !== null;
   const delivered = order.delivery !== null;
+  const invoice = order.invoice;
   const advances = order.payments.filter((p) => p.kind === 'ADVANCE' && p.status === 'RECORDED');
   const sendNow = async (via: 'PRINT' | 'LINK'): Promise<void> => {
     if (via === 'PRINT') window.open(`/app/inventory/purchasing-print/${order.id}`, '_blank', 'noopener');
@@ -115,8 +139,14 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
     ['Delivered', order.money?.delivered ?? ''],
     ['Invoiced', order.money?.invoiced ?? ''],
     ['Paid', order.money && Number.parseFloat(order.money.paid) > 0 ? order.money.paid : ''],
-    [delivered ? 'Still to pay (est.)' : 'Still to pay (est.)', order.money?.stillToPay ?? ''],
+    [invoice ? 'Outstanding' : 'Still to pay (est.)', invoice || closed ? (order.money?.stillToPay ?? '') : (order.money?.stillToPay ?? '')],
   ];
+  const openDoc = (d: FileDocument): void => {
+    if (d.kind === 'LPO') window.open(`/app/inventory/purchasing-print/${order.id}`, '_blank', 'noopener');
+    else if (d.paymentId) window.open(`/app/inventory/purchasing-print/payment/${d.paymentId}`, '_blank', 'noopener');
+    else if (d.kind === 'GOODS_RECEIPT') setTab('items');
+    else addToast({ variant: 'info', title: d.title, description: d.fileRef ? `${d.fileRef.fileName} · ${(d.fileRef.size / 1_000_000).toFixed(1)} MB. The demo keeps the name, not the picture.` : 'The demo keeps the name, not the file.' });
+  };
 
   return (
     <>
@@ -126,7 +156,11 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
         className="shrink-0"
         actions={
           <>
-            {order.reference && order.approvedBy ? (
+            {closed ? (
+              <Button variant="secondary" onClick={() => addToast({ variant: 'info', title: 'Download all documents', description: 'In the live system this downloads every document of the purchase as one file. The demo has no files to download.' })}>
+                Download all documents
+              </Button>
+            ) : order.reference && order.approvedBy ? (
               <Button variant="secondary" asChild>
                 <Link href={`/app/inventory/purchasing-print/${order.id}`} target="_blank">
                   Print LPO
@@ -167,11 +201,12 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
               <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">{order.supplier.name}</h1>
-              <span className={cn('rounded-[2px] border px-2 py-0.5 font-wds-sans text-[11px] font-medium', chipTone(order.status))}>{STATUS_LABEL[order.status]}</span>
+              <span className={cn('rounded-[2px] border px-2 py-0.5 font-wds-sans text-[11px] font-medium', chipTone(order))}>{statusLabel(order)}</span>
             </div>
             <p className="font-wds-sans text-wds-body-sm text-wds-text-secondary">
               {order.reference ?? 'Draft'} · Raised by {order.raisedBy.name}
               {order.approvedBy ? ` · approved by ${order.approvedBy.name}` : ''}
+              {closed && order.payments.length ? ` · closed ${dayMonth(order.tracker.find((t) => t.step === 'PAID')?.at)}` : ''}
             </p>
           </div>
 
@@ -197,7 +232,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                 </span>
                 <span className="flex flex-col">
                   <span className={cn('font-wds-sans text-wds-body-sm', t.state === 'TODO' ? 'text-wds-text-secondary' : 'font-medium text-wds-neutral-950')}>{STEP_LABEL[t.step]}</span>
-                  <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{trackerNote(t, order)}</span>
+                  <span className="font-wds-mono text-[11px] leading-[14px] text-wds-text-secondary">{trackerNote(t, order)}</span>
                 </span>
               </li>
             ))}
@@ -205,26 +240,31 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
 
           {showMoney ? (
             <dl className="grid grid-cols-5 divide-x divide-wds-border rounded-wds-md border border-wds-border bg-wds-surface">
-              {moneyCells.map(([k, v]) => (
-                <div key={k} className="flex flex-col gap-1 px-4 py-3">
+              {moneyCells.map(([k, v], i) => (
+                <div key={k} className={cn('flex flex-col gap-1 px-4 py-3', i === 4 && 'bg-wds-surface-sunken')}>
                   <dt className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{k}</dt>
-                  <dd className="font-wds-mono text-wds-section text-wds-neutral-950">{v === '' ? '—' : kes(v)}</dd>
+                  <dd className={cn('font-wds-mono text-wds-section', k === 'Paid' && v !== '' ? 'text-wds-info-fg' : 'text-wds-neutral-950')}>{v === '' ? '—' : closed && i === 4 && Number.parseFloat(v) === 0 ? '0' : kes(v)}</dd>
                 </div>
               ))}
             </dl>
           ) : null}
 
-          <NextStep
-            order={order}
-            canReceive={can('orders.receive')}
-            onApprove={() => setApproveOpen(true)}
-            onWhatsapp={() => setWaOpen(true)}
-            onPrint={() => void sendNow('PRINT')}
-            onCopy={() => void sendNow('LINK')}
-            onAdvance={() => setAdvanceOpen(true)}
-            onInvoice={() => addToast({ variant: 'info', title: 'Adding the invoice comes in the next build', description: 'The invoice drawer is part of Session 2.' })}
-            busy={mark.saving}
-          />
+          {!closed ? (
+            <NextStep
+              order={order}
+              canReceive={can('orders.receive')}
+              onApprove={() => setApproveOpen(true)}
+              onWhatsapp={() => setWaOpen(true)}
+              onPrint={() => void sendNow('PRINT')}
+              onCopy={() => void sendNow('LINK')}
+              onAdvance={() => setAdvanceOpen(true)}
+              onInvoice={() => setInvoiceFor(order.id)}
+              onPay={() => setPayFor(order.id)}
+              onSettle={() => setSettleFor(order.id)}
+              onVoid={() => setVoidFor(order.id)}
+              busy={mark.saving}
+            />
+          ) : null}
 
           <div className="flex flex-col">
             <div role="tablist" className="flex gap-6 border-b border-wds-border">
@@ -238,11 +278,11 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                 <button
                   key={k}
                   role="tab"
-                  aria-selected={tab === k}
+                  aria-selected={activeTab === k}
                   onClick={() => setTab(k)}
                   className={cn(
                     '-mb-px border-b-2 pb-2.5 font-wds-sans text-wds-body-sm outline-none transition-colors focus-visible:shadow-wds-ring',
-                    tab === k ? 'border-wds-primary font-semibold text-wds-neutral-950' : 'border-transparent text-wds-text-secondary hover:text-wds-neutral-950'
+                    activeTab === k ? 'border-wds-primary font-semibold text-wds-neutral-950' : 'border-transparent text-wds-text-secondary hover:text-wds-neutral-950'
                   )}
                 >
                   {label}
@@ -250,7 +290,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
               ))}
             </div>
 
-            {tab === 'items' ? (
+            {activeTab === 'items' ? (
               <div className="flex flex-col">
                 <div className="flex h-[30px] items-center gap-4 border-b border-wds-neutral-950">
                   <span className={cn(thClass, 'grow')}>Item</span>
@@ -317,27 +357,46 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                     <span className="font-wds-mono text-wds-section font-medium text-wds-neutral-950">KES {kes2(order.orderedTotal)}</span>
                   </div>
                 ) : null}
-                {delivered ? <p className="pt-2 font-wds-sans text-wds-caption text-wds-text-secondary">Anything not supplied is dropped from the order, as agreed with the supplier.</p> : null}
+                {delivered ? <p className="pt-2 font-wds-sans text-wds-caption text-wds-text-secondary">Anything not supplied is dropped from the order, as agreed with the supplier, and stays on record here.</p> : null}
               </div>
-            ) : tab === 'documents' ? (
-              order.documents.length === 0 ? (
-                <p className="py-6 font-wds-sans text-wds-body-sm text-wds-text-secondary">No documents yet. The LPO appears here once the order is approved.</p>
-              ) : (
-                <ul className="flex flex-col">
-                  {order.documents.map((d) => (
-                    <li key={`${d.kind}-${d.at}`} className="flex items-center gap-3 border-b border-wds-neutral-100 py-3">
-                      <span className="flex h-8 w-6 items-center justify-center rounded-[2px] bg-wds-neutral-100 font-wds-mono text-[8px] text-wds-text-secondary">{d.kind === 'LPO' ? 'PDF' : 'IMG'}</span>
-                      <span className="grow font-wds-sans text-wds-body-sm text-wds-neutral-950">{d.title}</span>
-                      <span className="font-wds-mono text-wds-caption text-wds-text-secondary">{whenLabel(d.at)}</span>
-                      {d.kind === 'LPO' ? (
-                        <Link href={`/app/inventory/purchasing-print/${order.id}`} target="_blank" className="font-wds-sans text-wds-caption text-wds-primary hover:underline">
-                          Open
-                        </Link>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              )
+            ) : activeTab === 'documents' ? (
+              <div className="flex flex-col">
+                {order.documents.length === 0 ? (
+                  <p className="py-6 font-wds-sans text-wds-body-sm text-wds-text-secondary">No documents yet. The LPO appears here once the order is approved.</p>
+                ) : (
+                  <>
+                    <div className="flex h-[30px] items-center gap-4 border-b border-wds-neutral-950">
+                      <span className={cn(thClass, 'grow')}>Document</span>
+                      <span className={cn(thClass, 'w-[100px] shrink-0')}>Step</span>
+                      <span className={cn(thClass, 'w-[72px] shrink-0')}>Date</span>
+                      <span className={cn(thClass, 'w-[130px] shrink-0')}>Added by</span>
+                      <span className="w-[44px] shrink-0" />
+                    </div>
+                    {order.documents.map((d, i) => (
+                      <div key={`${d.kind}-${d.at}-${i}`} className="flex min-h-12 items-center gap-4 border-b border-wds-neutral-100 py-2">
+                        <div className="flex min-w-0 grow flex-col gap-0.5">
+                          <span className="truncate font-wds-sans text-wds-body-sm text-wds-neutral-950">{d.title}</span>
+                          <span className="truncate font-wds-mono text-[11px] leading-[14px] text-wds-text-secondary">{d.subtitle}</span>
+                        </div>
+                        <span className="w-[100px] shrink-0 font-wds-sans text-wds-body-sm text-wds-neutral-950">{d.step}</span>
+                        <span className="w-[72px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">{dayMonth(d.at)}</span>
+                        <span className="w-[130px] shrink-0 truncate font-wds-sans text-wds-body-sm text-wds-neutral-950">{d.addedBy}</span>
+                        <button type="button" onClick={() => openDoc(d)} className="w-[44px] shrink-0 text-right font-wds-sans text-wds-caption text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+                          {d.action}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {order.can.addDocument ? (
+                  <div className="flex items-baseline gap-2 pt-5">
+                    <button type="button" onClick={() => setDocOpen(true)} className="font-wds-sans text-wds-body-sm text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+                      + Add a document
+                    </button>
+                    <span className="font-wds-sans text-wds-caption text-wds-text-secondary">photos and PDFs, up to 10 MB</span>
+                  </div>
+                ) : null}
+              </div>
             ) : order.activity.length === 0 ? (
               <p className="py-6 font-wds-sans text-wds-body-sm text-wds-text-secondary">Nothing has happened on this order yet.</p>
             ) : (
@@ -356,7 +415,31 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
         </div>
 
         <aside className="flex w-[332px] shrink-0 flex-col gap-4 self-start">
-          {order.delivery ? (
+          {closed ? (
+            <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Audit log">
+              <div className="flex items-center justify-between">
+                <h2 className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Audit log</h2>
+                {can('audit.read') ? (
+                  <Link href={`/app/inventory/audit-log?q=${encodeURIComponent(order.reference ?? '')}`} className="font-wds-sans text-wds-caption text-wds-primary hover:underline">
+                    Everything
+                  </Link>
+                ) : null}
+              </div>
+              <ul className="flex flex-col gap-3">
+                {order.activity.map((a, i) => (
+                  <li key={`${a.at}-${i}`} className="flex gap-2.5">
+                    <span className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', a.area === 'Payments' ? 'bg-wds-info-fg' : 'bg-wds-neutral-800')} aria-hidden />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="font-wds-sans text-wds-body-sm leading-[18px] text-wds-neutral-950">{a.action}: {a.detail}</span>
+                      <span className="font-wds-mono text-[11px] text-wds-text-secondary">
+                        {a.actor.name} · {whenLabel(a.at)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : order.delivery ? (
             <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Delivery">
               <h2 className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Delivery</h2>
               <Field label="Delivery note" value={order.delivery.deliveryNoteNo} mono />
@@ -385,11 +468,37 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
             </section>
           )}
 
-          {showMoney ? (
+          {invoice && showMoney && !closed ? (
+            <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Invoice">
+              <div className="flex items-center justify-between">
+                <h2 className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Invoice</h2>
+                <span className={cn('rounded-[2px] border px-1.5 py-px font-wds-sans text-[11px]', invoice.disputed ? 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg' : 'border-wds-info-border bg-wds-info-bg text-wds-info-fg')}>{invoice.disputed ? 'Disputed' : 'Open'}</span>
+              </div>
+              <Field label="Number" value={invoice.number} mono />
+              <Field label="Dated · due" value={`${fullDate(invoice.date)} · ${fullDate(invoice.dueDate)}`} />
+              <Field label="Amount" value={`KES ${kes2(invoice.amount)}`} mono />
+              {invoice.disputed && invoice.varianceAmount ? (
+                <div className="flex flex-col gap-1 rounded-wds-sm border border-wds-warning-border bg-wds-warning-bg px-3 py-2">
+                  <span className="font-wds-sans text-wds-caption font-medium text-wds-warning-fg">
+                    KES {kes(Math.abs(Number.parseFloat(invoice.varianceAmount)))} {Number.parseFloat(invoice.varianceAmount) > 0 ? 'above' : 'below'} the delivery
+                  </span>
+                  <span className="font-wds-sans text-[11px] text-wds-warning-fg">{invoice.varianceReason}</span>
+                </div>
+              ) : null}
+              {invoice.settled ? <p className="font-wds-sans text-[11px] text-wds-text-secondary">Dispute settled at KES {kes2(invoice.settled.agreedAmount)} by {invoice.settled.by.name}: {invoice.settled.note}</p> : null}
+              {invoice.photo ? <p className="font-wds-mono text-[11px] text-wds-text-secondary">{invoice.photo.fileName}</p> : null}
+            </section>
+          ) : null}
+
+          {showMoney && (!closed || order.can.reversePayment) ? (
             <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Payments">
               <div className="flex items-center justify-between">
                 <h2 className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Payments</h2>
-                {order.can.recordDeposit ? (
+                {order.can.recordPayment ? (
+                  <button type="button" onClick={() => setPayFor(order.id)} className="font-wds-sans text-wds-caption text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+                    Record payment
+                  </button>
+                ) : order.can.recordDeposit && !invoice ? (
                   <button type="button" onClick={() => setAdvanceOpen(true)} className="font-wds-sans text-wds-caption text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
                     Record advance
                   </button>
@@ -398,22 +507,38 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
               {order.payments.length === 0 ? (
                 <p className="font-wds-sans text-wds-caption text-wds-text-secondary">No payments yet. An advance can be recorded any time and comes off the invoice automatically.</p>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-3">
                   {order.payments.map((p) => (
                     <li key={p.id} className="flex flex-col gap-0.5">
                       <div className="flex items-baseline justify-between">
-                        <span className="font-wds-sans text-wds-body-sm text-wds-neutral-950">{p.kind === 'ADVANCE' ? 'Advance' : p.kind === 'REVERSAL' ? 'Reversal' : 'Payment'}</span>
-                        <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(p.amount)}</span>
+                        <span className={cn('font-wds-sans text-wds-body-sm text-wds-neutral-950', p.status === 'REVERSED' && 'text-wds-text-secondary line-through')}>
+                          {p.kind === 'ADVANCE' ? 'Advance' : p.kind === 'REVERSAL' ? 'Reversal' : 'Payment'} <span className="font-wds-mono text-[11px] text-wds-text-secondary no-underline">{p.reference}</span>
+                        </span>
+                        <span className={cn('font-wds-mono text-wds-body-sm text-wds-neutral-950', p.status === 'REVERSED' && 'text-wds-text-secondary line-through', p.kind === 'REVERSAL' && 'text-wds-error-fg')}>{kes(p.amount)}</span>
                       </div>
                       <span className="font-wds-sans text-[11px] text-wds-text-secondary">
                         {dayMonth(p.paidOn)} · {p.method === 'CHEQUE' ? `Cheque ${p.chequeNo ?? ''}` : METHOD_LABEL[p.method]}
                         {p.methodRef ? ` ${p.methodRef}` : ''} · {p.recordedBy.name}
+                        {p.status === 'REVERSED' ? ' · Reversed' : ''}
                       </span>
+                      {p.kind === 'REVERSAL' && p.reason ? <span className="font-wds-sans text-[11px] text-wds-text-secondary">Approved by {p.approvedBy?.name}: {p.reason.split(': ').slice(-1)[0]?.replaceAll('_', ' ').toLowerCase()}</span> : null}
+                      {p.kind === 'INVOICE' && p.status === 'RECORDED' ? (
+                        <span className="flex gap-3 pt-0.5">
+                          <Link href={`/app/inventory/purchasing-print/payment/${p.id}`} target="_blank" className="font-wds-sans text-[11px] text-wds-primary hover:underline">
+                            Print advice
+                          </Link>
+                          {order.can.reversePayment ? (
+                            <button type="button" onClick={() => setReverse(p.id)} className="font-wds-sans text-[11px] text-wds-error-fg outline-none hover:underline focus-visible:shadow-wds-ring">
+                              Reverse
+                            </button>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
               )}
-              {advances.length > 0 && !delivered ? <p className="font-wds-sans text-[11px] text-wds-text-secondary">Applied to the invoice when you add it. Any amount left over stays as credit with the supplier.</p> : null}
+              {advances.length > 0 && !invoice ? <p className="font-wds-sans text-[11px] text-wds-text-secondary">Applied to the invoice when you add it. Any amount left over stays as credit with the supplier.</p> : null}
             </section>
           ) : null}
         </aside>
@@ -423,6 +548,12 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
       <SendWhatsappDialog order={order} open={waOpen} onOpenChange={setWaOpen} />
       <RecordAdvanceSheet order={order} open={advanceOpen} onOpenChange={setAdvanceOpen} />
       <CancelOrderSheet order={order} open={cancelOpen} onOpenChange={setCancelOpen} />
+      <AddInvoiceSheet orderId={invoiceFor} onClose={() => setInvoiceFor(null)} />
+      <RecordPaymentSheet orderId={payFor} onClose={() => setPayFor(null)} />
+      <VoidInvoiceSheet orderId={voidFor} onClose={() => setVoidFor(null)} />
+      <SettleDisputeSheet orderId={settleFor} onClose={() => setSettleFor(null)} />
+      <ReversePaymentSheet orderId={reverse ? order.id : null} paymentId={reverse} onClose={() => setReverse(null)} />
+      <AddDocumentSheet order={order} open={docOpen} onOpenChange={setDocOpen} />
     </>
   );
 }
@@ -446,6 +577,9 @@ function NextStep({
   onCopy,
   onAdvance,
   onInvoice,
+  onPay,
+  onSettle,
+  onVoid,
   busy,
 }: {
   order: PurchaseFile;
@@ -456,9 +590,13 @@ function NextStep({
   onCopy: () => void;
   onAdvance: () => void;
   onInvoice: () => void;
+  onPay: () => void;
+  onSettle: () => void;
+  onVoid: () => void;
   busy: boolean;
 }) {
   const supplier = order.supplier.name.split(' ')[0];
+  const invoice = order.invoice;
   let title = '';
   let body = '';
   let actions: React.ReactNode = null;
@@ -527,8 +665,35 @@ function NextStep({
       actions = order.can.addInvoice ? <Button onClick={onInvoice}>Add invoice</Button> : null;
       break;
     case 'INVOICED':
-      title = 'Waiting to be paid';
-      body = 'The Accountant records the payment.';
+      if (invoice?.disputed) {
+        const v = Number.parseFloat(invoice.varianceAmount ?? '0');
+        title = 'Invoice in dispute';
+        body = `${invoice.number} is KES ${kes(Math.abs(v))} ${v > 0 ? 'above' : 'below'} what was delivered. Agree the figure with ${supplier}, then record it. It cannot be paid until then.`;
+        actions = (
+          <>
+            {order.can.settleDispute ? <Button onClick={onSettle}>Settle dispute</Button> : null}
+            {order.can.voidInvoice ? (
+              <Button variant="secondary" onClick={onVoid}>
+                Void invoice
+              </Button>
+            ) : null}
+          </>
+        );
+      } else {
+        const d = order.dueInDays ?? 0;
+        title = order.can.recordPayment ? 'Pay the supplier' : 'Waiting to be paid';
+        body = `KES ${kes(invoice?.balance)} is due ${d < 0 ? `${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'} ago` : d === 0 ? 'today' : `in ${d} day${d === 1 ? '' : 's'}`} (${dayMonth(invoice?.dueDate)}) on ${invoice?.number}.${order.can.recordPayment ? '' : ' The Accountant records the payment.'}`;
+        actions = (
+          <>
+            {order.can.recordPayment ? <Button onClick={onPay}>Record payment</Button> : null}
+            {order.can.voidInvoice ? (
+              <Button variant="secondary" onClick={onVoid}>
+                Void invoice
+              </Button>
+            ) : null}
+          </>
+        );
+      }
       break;
     case 'CLOSED':
       title = 'Paid in full';

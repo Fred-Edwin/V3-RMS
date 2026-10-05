@@ -48,7 +48,7 @@ import {
   type VoidReason,
   type WhatsappMessage,
 } from '../types';
-import { DEMO_PIN, ITEMS, LINES, PEOPLE, SUPPLIERS, type FixtureItem, type FixtureLine, type FixtureSupplier } from './fixtures';
+import { DEMO_PIN, ITEMS, KRA_PINS, LINES, PEOPLE, SUPPLIERS, type FixtureItem, type FixtureLine, type FixtureSupplier } from './fixtures';
 
 /**
  * The mock engine: the business rules of `purchasing-mock/backend-rules.md` as pure functions over a plain state object.
@@ -124,7 +124,7 @@ const pad = (n: number, w = 4): string => String(n).padStart(w, '0');
 
 const METHOD_WORD: Record<string, string> = { BANK_TRANSFER: 'Bank transfer', MPESA_PAYBILL: 'M-Pesa Paybill', MPESA_TILL: 'M-Pesa Till', MPESA_SEND_MONEY: 'M-Pesa', CHEQUE: 'Cheque', CASH: 'Cash' };
 const VOID_WORD: Record<VoidReason, string> = { WRONG_AMOUNT: 'Wrong amount entered', WRONG_SUPPLIER_OR_ORDER: 'Wrong supplier or order', DUPLICATE: 'Duplicate', OTHER: 'Other' };
-const REVERSE_WORD: Record<ReverseReason, string> = { WRONG_AMOUNT: 'Wrong amount', WRONG_INVOICE: 'Wrong invoice', PAYMENT_BOUNCED: 'Payment bounced', OTHER: 'Other' };
+const REVERSE_WORD: Record<ReverseReason, string> = { WRONG_AMOUNT: 'Wrong amount', WRONG_REFERENCE: 'Wrong reference number', WRONG_INVOICE: 'Wrong invoice', PAYMENT_BOUNCED: 'Payment bounced', OTHER: 'Other' };
 
 const supplierOf = (id: string): FixtureSupplier => {
   const s = SUPPLIERS.find((x) => x.id === id);
@@ -230,7 +230,7 @@ const tracker = (o: StoredOrder): TrackerItem[] => {
       at: o.delivery?.receivedAt ?? null,
       note: o.delivery && o.lines.some((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED') ? 'short' : null,
     },
-    { step: 'INVOICED', done: !!o.invoice, at: o.invoice?.enteredAt ?? null, note: o.invoice ? (o.invoice.disputed ? 'disputed' : o.invoice.number) : null },
+    { step: 'INVOICED', done: !!o.invoice, at: o.invoice?.enteredAt ?? null, note: o.invoice ? (o.invoice.disputed ? 'disputed' : o.invoice.settled ? 'settled' : null) : null },
     {
       step: 'PAID',
       done: o.status === 'CLOSED',
@@ -357,6 +357,19 @@ const itemSummary = (o: StoredOrder): string => {
   return `${names.length} item${names.length === 1 ? '' : 's'} · ${short.join(', ')}${more}`;
 };
 
+/** What happened at the delivery, in a line: "4 items · 1 short · price change on salt cooking oil". Null before delivery. */
+const deliverySummary = (o: StoredOrder): string | null => {
+  if (!o.delivery) return null;
+  const n = o.lines.length;
+  const short = o.lines.filter((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED').length;
+  const changed = o.lines.filter((l) => l.result === 'PRICE_CHANGED' || (l.confirmedPrice !== null && l.confirmedPrice !== l.unitPrice));
+  const parts = [`${n} item${n === 1 ? '' : 's'}`];
+  if (short) parts.push(`${short} short`);
+  if (changed.length) parts.push(`price change on ${itemOf((changed[0] as StoredLine).itemId).name.toLowerCase().split(' ').slice(0, 3).join(' ')}`);
+  if (!short && !changed.length) parts.push(o.lines.slice(0, 2).map((l) => itemOf(l.itemId).name.toLowerCase()).join(', '));
+  return parts.join(' · ');
+};
+
 function visible(o: StoredOrder, ctx: Ctx): boolean {
   if (ctx.can('orders.read')) return true;
   // Phone roles see what they raised and what is due to be received.
@@ -474,7 +487,7 @@ export function listOrders(s: State, ctx: Ctx, q: OrdersQuery, now: Date): { ord
   const orders = rows.map((o): OrderRow => {
     const { lines: _lines, ...rest } = viewOrder(o, ctx, now);
     void _lines;
-    return { ...rest, itemSummary: itemSummary(o) };
+    return { ...rest, itemSummary: itemSummary(o), deliverySummary: deliverySummary(o) };
   });
   return { orders, total: orders.length, valueTotal: ctx.can('payables.read') ? money(rows.reduce((t, o) => t + orderedTotalOf(o), 0)) : '' };
 }
@@ -887,7 +900,7 @@ export function setPreviousPrice(s: State, orderId: string, itemId: string, pric
 // ---------------------------------------------------------------- invoice, dispute, void
 
 const VOID_REASONS: VoidReason[] = ['WRONG_AMOUNT', 'WRONG_SUPPLIER_OR_ORDER', 'DUPLICATE', 'OTHER'];
-const REVERSE_REASONS: ReverseReason[] = ['WRONG_AMOUNT', 'WRONG_INVOICE', 'PAYMENT_BOUNCED', 'OTHER'];
+const REVERSE_REASONS: ReverseReason[] = ['WRONG_AMOUNT', 'WRONG_REFERENCE', 'WRONG_INVOICE', 'PAYMENT_BOUNCED', 'OTHER'];
 
 function findByInvoice(s: State, invoiceId: string): StoredOrder {
   const o = s.orders.find((x) => x.invoice?.id === invoiceId);
@@ -1082,27 +1095,30 @@ export function paymentAdvice(s: State, ctx: Ctx, paymentId: string, now: Date):
   if (p.kind !== 'INVOICE' || !inv) throw new PurchasingError('PAYMENT_NOT_FOUND', 'There is no payment advice for that payment.');
   const sup = supplierOf(o.supplierId);
   // Payments are kept in the order they were made, so "before" is whatever sits earlier in the list (timestamps can tie).
-  const before = o.payments
-    .slice(0, o.payments.indexOf(p))
-    .filter((x) => x.kind === 'INVOICE' && x.status === 'RECORDED')
-    .reduce((t, x) => t + num(x.amount), 0);
+  const earlierInvoicePayments = o.payments.slice(0, o.payments.indexOf(p)).filter((x) => x.kind === 'INVOICE' && x.status === 'RECORDED');
+  const before = earlierInvoicePayments.reduce((t, x) => t + num(x.amount), 0);
   const balanceAfter = Math.max(num(inv.amount) - num(inv.advanceApplied) - before - num(p.amount), 0);
+  const advances = o.payments.filter((x) => x.kind === 'ADVANCE' && x.status === 'RECORDED');
+  const earlier = [...advances, ...earlierInvoicePayments].map((x) => ({ reference: x.reference, kind: x.kind as 'ADVANCE' | 'INVOICE', amount: x.amount, paidOn: x.paidOn, method: x.method, methodRef: x.methodRef }));
   return {
     reference: p.reference,
     date: p.paidOn,
-    supplier: { name: sup.name, address: sup.address, contact: sup.contactName },
+    supplier: { name: sup.name, address: sup.address, contact: sup.contactName, kraPin: KRA_PINS[sup.id] ?? null },
     orderReference: o.reference ?? '',
     invoiceNumber: inv.number,
     invoiceDate: inv.date,
     invoiceAmount: inv.amount,
     advanceApplied: inv.advanceApplied,
-    paidBefore: money(before),
+    paidBefore: money(before + num(inv.advanceApplied)),
     amountPaid: p.amount,
+    amountInWords: amountInWords(num(p.amount)),
     balanceAfter: money(balanceAfter),
     method: p.method,
+    methodDetail: ctx.can('suppliers.read_payment_details') ? (sup.payMethods.find((m) => m.method === p.method)?.detail || null) : null,
     methodRef: p.methodRef,
     chequeNo: p.chequeNo,
-    paidBy: { name: p.recordedBy.name, role: p.recordedBy.role },
+    earlier,
+    preparedBy: { name: p.recordedBy.name, role: p.recordedBy.role, signedAt: p.recordedAt },
     generatedAt: now.toISOString(),
   };
 }

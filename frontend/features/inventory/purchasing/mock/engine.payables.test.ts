@@ -263,7 +263,13 @@ describe('payment advice (Paper 21, 21b)', () => {
     recordPayment(s, acc, inv.id, payInput({ amount: '7486' }), now);
     const second = recordPayment(s, acc, inv.id, payInput({ amount: '10000', method: 'CHEQUE', chequeNo: '000412' }), now).payment;
     const adv = paymentAdvice(s, acc, second.id, now);
-    expect(adv).toMatchObject({ reference: 'PAY-0003', invoiceNumber: 'INV-05188', invoiceAmount: '27486.00', advanceApplied: '10000.00', paidBefore: '7486.00', amountPaid: '10000.00', balanceAfter: '0.00', chequeNo: '000412', method: 'CHEQUE' });
+    // "Paid earlier" is everything against the invoice before this payment: the 10,000 advance plus the 7,486 payment.
+    expect(adv).toMatchObject({ reference: 'PAY-0003', invoiceNumber: 'INV-05188', invoiceAmount: '27486.00', advanceApplied: '10000.00', paidBefore: '17486.00', amountPaid: '10000.00', balanceAfter: '0.00', chequeNo: '000412', method: 'CHEQUE' });
+    expect(adv.amountInWords).toMatch(/^Ten thousand/);
+    expect(adv.supplier.kraPin).toBe('P051234567X');
+    expect(adv.methodDetail).toMatch(/Equity Bank/);
+    expect(adv.earlier.map((e) => e.reference)).toEqual(['PAY-0001', 'PAY-0002']);
+    expect(adv.preparedBy).toMatchObject({ name: 'Margaret', role: 'Accountant' });
   });
 
   it('is refused for an advance, an unknown payment and a caller who cannot read payables', () => {

@@ -144,6 +144,18 @@ export const SUPPLIERS: FixtureSupplier[] = [
   },
 ];
 
+/** Demo KRA PINs for the printed documents (made up; not real taxpayers). */
+export const KRA_PINS: Record<string, string> = {
+  'sup-samrat': 'P051234567X',
+  'sup-summer': 'P051873209K',
+  'sup-kagumo': 'A004418276Q',
+  'sup-kimathi': 'A003920145M',
+  'sup-market': 'A007731908R',
+  'sup-karatina': 'A005562314T',
+  'sup-demka': 'P052094417B',
+  'sup-palora': 'P051665281D',
+};
+
 export const ITEMS: FixtureItem[] = [
   { id: 'it-sugar', name: 'Kabras Sugar 1kg', category: 'Dry goods', usageUnit: 'kg', onHand: 18, level: 100, setupDone: true },
   { id: 'it-oil', name: 'Salt Cooking Oil 10ltr', category: 'Dry goods', usageUnit: 'L', onHand: 0, level: 40, setupDone: true },

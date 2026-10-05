@@ -82,7 +82,7 @@ export interface Invoice {
 }
 
 export type VoidReason = 'WRONG_AMOUNT' | 'WRONG_SUPPLIER_OR_ORDER' | 'DUPLICATE' | 'OTHER';
-export type ReverseReason = 'WRONG_AMOUNT' | 'WRONG_INVOICE' | 'PAYMENT_BOUNCED' | 'OTHER';
+export type ReverseReason = 'WRONG_AMOUNT' | 'WRONG_REFERENCE' | 'WRONG_INVOICE' | 'PAYMENT_BOUNCED' | 'OTHER';
 
 export interface Payment {
   id: string;
@@ -189,6 +189,8 @@ export interface Order {
 
 export interface OrderRow extends Omit<Order, 'lines'> {
   itemSummary: string;
+  /** "4 items · 1 short · price change on oil" once delivered; null before. */
+  deliverySummary: string | null;
 }
 
 export type AuditArea = 'Purchasing' | 'Payments';
@@ -380,19 +382,26 @@ export interface PaymentResult {
 export interface PaymentAdvice {
   reference: string;
   date: string;
-  supplier: { name: string; address: string; contact: string | null };
+  supplier: { name: string; address: string; contact: string | null; kraPin: string | null };
   orderReference: string;
   invoiceNumber: string;
   invoiceDate: string;
   invoiceAmount: string;
   advanceApplied: string;
+  /** Everything paid against this invoice before this payment, advance included. */
   paidBefore: string;
   amountPaid: string;
+  amountInWords: string;
   balanceAfter: string;
   method: PayMethod;
+  /** The supplier's account detail for the method ("KCB Bank · ····4471"), when the caller may see it. */
+  methodDetail: string | null;
   methodRef: string | null;
   chequeNo: string | null;
-  paidBy: { name: string; role: string };
+  /** The earlier payments that make up `paidBefore`, for the note under the table. */
+  earlier: Array<{ reference: string; kind: 'ADVANCE' | 'INVOICE'; amount: string; paidOn: string; method: PayMethod; methodRef: string | null }>;
+  /** Who recorded it and when (the "Prepared by" signature). */
+  preparedBy: { name: string; role: string; signedAt: string };
   generatedAt: string;
 }
 
