@@ -24,6 +24,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 
 | Document                        | Read When                                      |
 | ------------------------------- | ---------------------------------------------- |
+| `docs/PROJECT_STATUS.md`        | The owner's one-page state of the refactor — update its row when you finish a session |
 | `docs/FEATURE_REDO_PLAYBOOK.md` | Any feature work — the governing process       |
 | `docs/ROADMAP.md`               | Deciding what to build next — the 10 modules, cross-module rules, order, Company/Branch plan, Assistant (AI) layers |
 | `docs/PRD.md`                   | Understanding what a feature is supposed to do |

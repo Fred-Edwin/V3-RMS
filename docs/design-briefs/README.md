@@ -4,7 +4,7 @@ Reusable prompts for the **product-designer agent** (Step 1–2 of `docs/FEATURE
 the agent studies a flow, sends a brief, then builds a story-ordered walkthrough page in Paper.
 
 - **[flow-walkthrough-brief-GENERIC.md](flow-walkthrough-brief-GENERIC.md)** — the template. Paste into a fresh session and change the "THIS SESSION'S FLOW" line. One flow per session.
-- `example-*-brief.md` — filled-in versions used for Inventory (requisition, purchasing, stock and counting) and the integration pass. Use them to see how a brief is specialised; do not reuse their flow-specific parts.
+- The filled-in Inventory examples were removed in the 2026-10-05 cleanup (git history has them).
 
 Known staleness (update the generic brief before the next use):
 - Its "read first" lists name docs that were deleted in the 2026-10-03 cleanup (`milestone-*-plan.md`, `02-screens-by-role.md`, `WALKTHROUGH_FINDINGS.md`, `*-walkthrough-decisions.md`). Point it at the sub-module README (`backend/src/modules/inventory/<sub>/README.md`) and `docs/features/inventory/decisions.md` instead.
