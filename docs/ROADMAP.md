@@ -60,12 +60,9 @@ Decided 3 Oct 2026. At most **three lanes** at once: **one design lane and two c
 
 Pilot: **done 4 Oct 2026** (PR #70 tooling, PR #69 Paper catch-up, both merged). Two lanes ran at once, neither touching app code. The lane mechanics now exist: `scripts/lane.sh`, `docs/PARALLEL_WORKFLOW.md`, per-module Prisma schema files in `backend/prisma/schema/`, and `pnpm check:imports`. Follow-ups they surfaced are listed under "Carried forward" below.
 
-| Lane | Session | Brief |
-|---|---|---|
-| Tooling | Lane tooling: scripts, per-lane environment, workflow doc, module-import CI check, per-module Prisma schema files | [sessions/pilot-lane-tooling.md](sessions/pilot-lane-tooling.md) |
-| Design | Paper catch-up and Purchasing design check | [sessions/pilot-paper-catchup.md](sessions/pilot-paper-catchup.md) |
+The pilot was one tooling lane (scripts, per-lane environment, workflow doc, import check, per-module Prisma schema) and one design lane (Paper catch-up and Purchasing design check). Their session briefs were removed once merged; the history is in git.
 
-After the pilot: Company/Branch rename (alone), then a short **stock ledger door** session (one agreed way to post a stock movement, with tests, so Inventory lanes do not each invent their own), then fan out:
+After the pilot came the Company/Branch rename (alone, done, PR #72) and the **stock ledger door** (done, PRs #73 and #74), then the lanes fanned out:
 
 | Lane | Work |
 |---|---|
@@ -90,9 +87,9 @@ Why this shape: the client asked for Workforce to be prioritised, and no Workfor
 
 ## Company and Branch foundation
 
-**Status: built on branch `chore/company-site-foundation`, awaiting the owner's "merge" and a fresh production backup (Oct 2026).** Done: the `Company` table (one row, "Wendo Coffee Bistro"), `SiteType` (`BRANCH` | `CENTRAL_STORE`, kept in step with `isHub`), and the in-code rename `Organization` → `Site`, `organizationId` → `siteId` (database names unchanged; API, socket and token names unchanged through one translation layer, `backend/src/shared/utils/wire-names.ts`). Also fixed on the way: Prisma could not see `prisma/migrations` after the schema split, so migrations now live in `backend/prisma/schema/migrations/`. Still open for the multi-company readiness pass: everything under "What it does and does not give you" below, plus renaming the frontend names module by module as each is rebuilt, and finance's `branchId` fields (kept as `branchId`; they mean a branch, not the owning site).
+**Status: merged to `main` (PR #72, Oct 2026).** Done: the `Company` table (one row, "Wendo Coffee Bistro"), `SiteType` (`BRANCH` | `CENTRAL_STORE`, kept in step with `isHub`), and the in-code rename `Organization` → `Site`, `organizationId` → `siteId` (database names unchanged; API, socket and token names unchanged through one translation layer, `backend/src/shared/utils/wire-names.ts`). Also fixed on the way: Prisma could not see `prisma/migrations` after the schema split, so migrations now live in `backend/prisma/schema/migrations/`. Still open for the multi-company readiness pass: everything under "What it does and does not give you" below, plus renaming the frontend names module by module as each is rebuilt, and finance's `branchId` fields (kept as `branchId`; they mean a branch, not the owning site).
 
-Brief for the session: [sessions/foundation-company-site-rename.md](sessions/foundation-company-site-rename.md). The recommended names are `Site` / `siteId` (the Central Store is never a branch), with API and frontend names unchanged until each module is rebuilt; the owner confirms the names at the start of that session.
+The names are `Site` / `siteId` (the Central Store is never a branch), with API and frontend names unchanged until each module is rebuilt.
 
 Today the database table `Organization` is really a branch (it holds a branch's address, coordinates and M-Pesa paybill, plus an `isHub` flag for the Central Store). Nothing represents Wendo Coffee Bistro as one company. `organizationId` appears about 3,050 times in 197 backend files and in 186 places in the schema.
 
