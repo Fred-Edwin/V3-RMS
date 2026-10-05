@@ -52,9 +52,32 @@ describe('the Central Store permissions table', () => {
   });
 
   it('keeps the Store Attendant narrow and blind to money', () => {
-    expect(capabilitiesOf('STORE_ATTENDANT').sort()).toEqual(['catalog.add_missing', 'catalog.read', 'suppliers.quick_add', 'suppliers.read_basic']);
+    expect(capabilitiesOf('STORE_ATTENDANT').sort()).toEqual([
+      'catalog.add_missing',
+      'catalog.read',
+      'orders.receive',
+      'orders.request',
+      'suppliers.quick_add',
+      'suppliers.read_basic',
+    ]);
     expect(roleCan('STORE_ATTENDANT', 'catalog.see_costs')).toBe(false);
     expect(roleCan('STORE_ATTENDANT', 'payables.read')).toBe(false);
+  });
+
+  it('maps the Purchasing capabilities per role (owner decisions 4 Oct 2026)', () => {
+    const table: Record<string, string[]> = {
+      STORE_MANAGER: ['orders.read', 'orders.request', 'orders.approve', 'orders.cancel', 'orders.receive', 'payables.record_deposit'],
+      SYSTEM_ADMIN: ['orders.read', 'orders.request', 'orders.approve', 'orders.cancel', 'orders.receive', 'payables.record_deposit'],
+      STORE_ATTENDANT: ['orders.request', 'orders.receive'],
+      // The Accountant records money but does not raise orders.
+      ACCOUNTANT: ['orders.read', 'payables.record_deposit'],
+      DIRECTOR: ['orders.read'],
+      MANAGER: ['orders.read'],
+    };
+    const all = ['orders.read', 'orders.request', 'orders.approve', 'orders.cancel', 'orders.receive', 'payables.record_deposit'] as const;
+    for (const [role, held] of Object.entries(table)) {
+      for (const c of all) expect(roleCan(role, c), `${role} ${c}`).toBe(held.includes(c));
+    }
   });
 
   it('gives the System Admin everything and an unknown role nothing', () => {

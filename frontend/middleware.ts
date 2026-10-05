@@ -190,6 +190,10 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
     if (pathname.startsWith('/app/inventory/catalog')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
+    // Purchasing and Receiving (mock-first rebuild): every desktop role reads them, the Attendant works them on the phone.
+    if (pathname.startsWith('/app/inventory/purchasing') || pathname.startsWith('/app/inventory/receiving')) {
+      return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
+    }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 

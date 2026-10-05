@@ -21,6 +21,8 @@ import {
 } from '@/components/app/shell/nav-icons';
 import { roleLabel } from '@/components/app/shell/role-label';
 import { useAuthStore } from '@/store/authStore';
+import type { AppRole } from '@/types/auth';
+import { useEffectiveRole } from '../hooks/use-demo-view';
 import { performLogout } from '@/lib/logout';
 import { navGroupsFor, type NavIconKey } from '../lib/nav-groups';
 import { usePermissions } from '../hooks/use-permissions';
@@ -55,7 +57,7 @@ const NAV_ICONS: Record<NavIconKey, NavIcon> = {
  * flashes in and out.
  */
 function useNavGroups(): SidebarNavGroup[] {
-  const role = useAuthStore((s) => s.user?.role);
+  const { role } = useEffectiveRole();
   const { can } = usePermissions();
   return React.useMemo(
     () =>
@@ -72,6 +74,7 @@ function useNavGroups(): SidebarNavGroup[] {
 
 function useSidebarUser() {
   const user = useAuthStore((s) => s.user);
+  const { role: effectiveRole } = useEffectiveRole();
   const initials = React.useMemo(() => {
     if (!user?.name) return '—';
     const parts = user.name.trim().split(/\s+/);
@@ -82,7 +85,7 @@ function useSidebarUser() {
   }, [user?.name]);
   return {
     name: user?.name ?? 'Store Manager',
-    role: roleLabel(user?.role),
+    role: roleLabel(effectiveRole as AppRole | undefined),
     initials,
   };
 }

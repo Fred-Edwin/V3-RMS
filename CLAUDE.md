@@ -184,8 +184,10 @@ and `frontend/features/inventory/` (pure moves; no behaviour change).
 
 - **Rebuilt to approved design:** catalog, restock, suppliers.
 - **Approved design, code still (partly) on the old flow (rebuild next):**
-  purchasing (New purchase is still a shopping list, no LPO), stock, waste,
-  counting, prep.
+  stock, waste, counting, prep. **Purchasing and Receiving is mid-rebuild on a
+  mock-data front-end** (order to delivery built 5 Oct 2026; System Admin demo bar,
+  curated fixtures in `frontend/features/inventory/purchasing/mock/`; invoice and
+  payment screens next; the real back-end follows client approval).
 - **Design not yet approved, code on the old flow:** requisitions, dispatch, branch-day.
 - Two open owner decisions (miscount-correction ledger effect; attendant on-hand
   in dispatch fulfil) are in `docs/features/inventory/decisions.md`.

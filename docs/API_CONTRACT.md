@@ -4987,3 +4987,111 @@ Every role list in §27–§30 and §22 (suppliers, catalog, restock levels, wha
 - `GET /inventory/permissions/me` (any signed-in user) → `{role, isDepartmentHead, capabilities[]}`: the capabilities that role holds. The front end uses it for the sidebar, the page gate and every Edit/Add/Record button.
 - Supplier detail gains `paymentMethodCount` (additive).
 
+---
+
+## 31. Inventory — Purchasing and Receiving (mock-first)
+
+**Status: proposed (4 Oct 2026), not built on the server.** The front end is built first on a mock that returns exactly these shapes; the back-end is built after the client approves the flow, and replaces the old `/inventory/expected-deliveries`, `/inventory/goods-receipts`, `/inventory/purchasing/*` and `/inventory/ap/*` routes (§22 to §30 describe those, and they are removed then). Rules in plain English: `docs/features/inventory/purchasing-mock/backend-rules.md`. Screens: `…/screen-inventory.md`. Choices still open are Q-01 to Q-13 there; where a shape depends on one it says so.
+
+**Conventions.** Base `/inventory/purchasing`. Standard envelope (§1). Decimals cross the wire as **strings** (`"13776.00"`, quantities `"82.000"`); ids are strings; timestamps ISO 8601 UTC; dates `YYYY-MM-DD`. Every route has `authenticate` and a `requireCapability(...)` (never `requireRole`); hub rule D-15 applies as for the rest of the Central Store (reads: `requireHubReader`; writes: `requireHubActor`). `PIN` fields are the actor's own PIN (an approver's, where stated), 4 to 6 digits, never logged or returned. Capabilities: `orders.read` (proposed, Q-13), `orders.request`, `orders.approve`, `orders.cancel`, `orders.receive`, `payables.record_deposit`, `payables.record_invoice`, `payables.record_payment`, `payables.read`. SM = Store Manager, SA = System Admin, ATT = Store Attendant, ACC = Accountant.
+
+### 31.1 Types
+
+`OrderStatus` = `DRAFT | AWAITING_APPROVAL | RETURNED | APPROVED | SENT | DELIVERED | INVOICED | CLOSED | CANCELLED`.
+`Stage` (tabs) = `NEEDS | APPROVAL | RECEIVE | INVOICE | PAY | CLOSED`.
+`PayMethod` = `BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CHEQUE | CASH` (§28.1).
+`LineResult` = `AS_ORDERED | PRICE_CHANGED | SHORT | NOT_SUPPLIED`.
+
+```
+OrderLine {
+  id, inventoryItemId, itemName, supplierItemName | null, supplierItemCode | null,
+  buyUnit, packSize | null, orderedQty: string, unitPrice: string, lineTotal: string,
+  previousPrice: string | null,            // last order's price for this supplier line, for the "▲ 4%" flag; null for ATT callers (Q-02)
+  receivedQty: string | null, confirmedPrice: string | null, result: LineResult | null
+}
+Order {
+  id, reference: string | null,            // "LPO-0044"; null for a draft (Q-05)
+  status: OrderStatus, stage: Stage,
+  supplier: {id, name, code, contactName | null, whatsapp | null, termsDays: number | null},
+  raisedBy: {id, name, role}, raisedAt, submittedAt | null,
+  approvedBy: {id, name, role, signedAt} | null,
+  returnedNote: string | null, returnedBy: {id, name} | null,
+  sentAt | null, sentVia: 'WHATSAPP' | 'PRINT' | 'LINK' | 'MANUAL' | null,
+  expectedDate | null, supplierNote: string | null, attendantNote: string | null,
+  lines: OrderLine[], orderedTotal: string,
+  deliveredTotal: string | null, delivery: Delivery | null,
+  invoice: Invoice | null, payments: Payment[],
+  money: {ordered, delivered | null, invoiced | null, paid, stillToPay},   // strings; omitted entirely for ATT callers
+  dueLabel: 'DUE_TODAY' | 'OVERDUE' | 'UPCOMING' | null, dueInDays: number | null,
+  cancelled: {reason, note | null, by: {id, name}, at} | null,
+  tracker: [{step: 'RAISED'|'APPROVED'|'SENT'|'DELIVERED'|'INVOICED'|'PAID', state: 'DONE'|'CURRENT'|'TODO', at | null, note | null}],
+  can: {edit, submit, approve, return, send, cancel, receive, recordDeposit, addInvoice, recordPayment}   // booleans for THIS caller and state
+}
+Delivery { id, reference ("GRN-0012"), deliveryNoteNo, photo: FileRef | null, receivedBy: {id, name, role}, receivedAt, deliveredTotal: string, notSuppliedTotal: string }
+Invoice { id, number, date, dueDate, amount, status: 'OPEN'|'PAID'|'VOIDED', disputed: boolean, varianceAmount: string | null, varianceReason: string | null, advanceApplied: string, balance: string, photo: FileRef | null, enteredBy: {id, name}, enteredAt }
+Payment { id, reference ("PAY-0031"), kind: 'ADVANCE'|'INVOICE'|'REVERSAL', amount, paidOn, method: PayMethod, methodRef: string | null, chequeNo: string | null, status: 'RECORDED'|'REVERSED', reversesId: string | null, recordedBy: {id, name}, recordedAt }
+FileRef { id, fileName, size: number, thumbnail: string | null }
+```
+
+Money fields (`unitPrice`, `lineTotal`, `previousPrice`, `confirmedPrice`, `money`, `deliveredTotal`, `invoice`, `payments`) are **removed** from responses to a caller without `payables.read` (the Store Attendant), and an ATT receiving response carries `priceChanged: boolean` per line instead of figures (Q-02 default).
+
+### 31.2 Reads
+
+| Method | Path | Capability | Notes |
+|---|---|---|---|
+| `GET` | `/summary` | `orders.read` or `orders.request` | `{counts: {needs, approval, receive, invoice, pay, closed}, awaitingApprovalValue, dueToReceiveCount}` for the tab badges and sidebar |
+| `GET` | `/needs-restocking` | `orders.read` or `orders.request` | Query `group=supplier\|item` (default `supplier`), `supplierId`, `q`, `sort=urgent\|name\|value`. ATT callers get Low and Out only and no prices. Response `{itemCount, supplierCount, groups[]}`; group `{supplier \| null, termsLabel, itemCount, estimatedTotal, lines[]}`; line `{inventoryItemId, itemName, subLabel, status: 'LOW'\|'OUT', onHand, level, usageUnit, supplierOptions[{supplierId, name, lastPrice, lastBoughtAt \| null, preferred, cheaperBy \| null}], chosenSupplierId \| null, suggestedQty, buyUnit, lastPrice, estimatedTotal}` |
+| `GET` | `/orders` | `orders.read`, or `orders.request` / `orders.receive` (own orders for ATT) | Query `stage`, `supplierId`, `raisedBy`, `q`, `page`, `perPage` (default 50). `{orders: OrderRow[], total, valueTotal}`; row = Order without `lines` plus `itemSummary` ("2 items · chicken breast, chicken wings") |
+| `GET` | `/orders/:id` | as above | The purchase file: `Order` plus `documents: [{kind: 'LPO'\|'DELIVERY_NOTE'\|'INVOICE'\|'PAYMENT_ADVICE', title, at, fileRef \| null}]` and `activity: [{at, actor: {id, name}, what}]` |
+| `GET` | `/orders/:id/lpo` | `orders.read` or `orders.request` | Print data: letterhead, reference, date, supplier address and contact, terms, expected date, deliver to, raised by, lines (supplier name and code first, "Our item" second), total, amount in words, notes, signatures `{name, role, signedAt}` for Raised by and Authorised by, link for the QR |
+| `GET` | `/orders/:id/whatsapp` | `orders.approve` or `orders.request` | `{to, phone, message, pdfFileName, pdfSizeLabel}`; the link to open is built on the client |
+| `GET` | `/catalog` | `orders.request` | Query `supplierId`, `q`, `category`, `filter=low\|all\|selected`; the supplier's catalog lines for New order: `{items[{inventoryItemId, itemName, category, status: 'LOW'\|'OUT'\|'OK', onHand, level, soldAs, price, qty \| null}], shown, total}` |
+
+### 31.3 Order writes
+
+| Method | Path | Capability | Body → result |
+|---|---|---|---|
+| `POST` | `/orders` | `orders.request` | `{supplierId, expectedDate \| null, supplierNote \| null, attendantNote \| null, lines[{inventoryItemId, qty, unitPrice}]}` → `Order` in `DRAFT`. `409 SUPPLIER_ORDER_OPEN` (Q-07) with `{openOrderId, openReference}`; `409 SUPPLIER_ON_HOLD`; `409 ITEM_SETUP_INCOMPLETE`; `422` for no lines or a non-positive qty |
+| `PATCH` | `/orders/:id` | `orders.request` (raiser) or `orders.approve` | Same body, any field optional, only in `DRAFT` or `RETURNED`; `409 ORDER_WRONG_STATE` otherwise |
+| `DELETE` | `/orders/:id` | the raiser | Discards a `DRAFT` only |
+| `POST` | `/orders/:id/submit` | `orders.request` | `{}` → `AWAITING_APPROVAL` (assigns the LPO number, Q-05); clears `returnedNote` |
+| `POST` | `/orders/:id/approve` | `orders.approve` | `{pin}` → `APPROVED` (from `AWAITING_APPROVAL`, or from `DRAFT` for an approver's own order, which also assigns the number). `401 INVALID_PIN` |
+| `POST` | `/orders/:id/return` | `orders.approve` | `{note}` (required) → `RETURNED` |
+| `POST` | `/orders/:id/send` | `orders.approve` or `orders.request` (Q-09) | `{via: 'WHATSAPP'\|'PRINT'\|'LINK'\|'MANUAL'}` → `SENT`; idempotent for an already `SENT` order (keeps the first `sentAt`) |
+| `POST` | `/orders/:id/cancel` | `orders.cancel` | `{reason: 'ORDERED_BY_MISTAKE'\|'SUPPLIER_CANNOT_SUPPLY'\|'NO_LONGER_NEEDED'\|'OTHER', note \| null, pin}` → `CANCELLED`. `409 CANNOT_CANCEL_AFTER_DELIVERY` once delivered |
+
+### 31.4 Deposit, receiving
+
+| Method | Path | Capability | Body → result |
+|---|---|---|---|
+| `POST` | `/orders/:id/deposits` | `payables.record_deposit` | `{amount, paidOn, method, methodRef \| null, chequeNo \| null, note \| null}` → `Payment` (`kind: ADVANCE`). Only from `APPROVED` to `INVOICED`. `422 DEPOSIT_EXCEEDS_ORDER`; `403` for the Branch Manager's payment details on read |
+| `POST` | `/uploads` | any signed-in caller with a capability above | multipart `file` (image or PDF, ≤ 10 MB) → `FileRef`; `422 UPLOAD_TOO_LARGE`, `422 UPLOAD_BAD_TYPE`, `503 UPLOAD_FAILED` (the retry state) |
+| `POST` | `/orders/:id/receive` | `orders.receive` | `{lines[{lineId, receivedQty, priceConfirmed: boolean}], deliveryNoteNo, deliveryNotePhotoId, pin}` → `Order` in `DELIVERED` with `delivery`. `409 ORDER_WRONG_STATE` (not `SENT`/`APPROVED`); `422 RECEIVED_EXCEEDS_ORDERED` (Q-10); `422 PRICE_CHANGE_UNCONFIRMED` with `{lineIds}`; `422 DELIVERY_NOTE_REQUIRED`; `401 INVALID_PIN` |
+
+### 31.5 Invoice and payment (built in Session 2; shapes fixed now)
+
+| Method | Path | Capability | Body → result |
+|---|---|---|---|
+| `POST` | `/orders/:id/invoice` | `payables.record_invoice` | `{number, date, amount, photoId \| null, varianceReason \| null}` → `Invoice`. One per order: `409 INVOICE_EXISTS`. `409 DUPLICATE_INVOICE_NUMBER` with `{existingOrderId}`; `422 REASON_REQUIRED` when amount differs from the delivered value |
+| `POST` | `/invoices/:id/settle-dispute` | `payables.record_invoice` | `{agreedAmount, note}` → `Invoice` (Q-06) |
+| `POST` | `/invoices/:id/void` | `payables.record_invoice` | `{reason, pin}` → order back to `DELIVERED`. `409 INVOICE_HAS_PAYMENTS` |
+| `POST` | `/invoices/:id/payments` | `payables.record_payment` | `{amount, paidOn, method, methodRef \| null, chequeNo \| null, proofPhotoId \| null, confirmOverpay?: boolean}` → `Payment` (`kind: INVOICE`) and a payment advice `PAY-nnnn`. `422 PAYMENT_EXCEEDS_BALANCE` (resend with `confirmOverpay`); `422 CHEQUE_NUMBER_REQUIRED`; `409 INVOICE_DISPUTED` until settled (Q-06) |
+| `POST` | `/payments/:id/reverse` | `payables.record_payment` | `{reason, approverPin}` where `approverPin` is a Store Manager's (or System Admin's) PIN → the `REVERSAL` line; `401 INVALID_PIN`; `403` if the approver cannot approve |
+| `GET` | `/payments/:id/advice` | `payables.read` | Print data for the payment advice |
+| `GET` | `/suppliers/:id/orders` | `orders.read` | The supplier's Orders tab |
+| `GET` | `/suppliers/:id/statement` | `payables.read` | Query `from`, `to`; opening balance, transactions with running balance, ageing, totals; `?format=csv` for CSV. Branch Manager gets it without payment details |
+| `GET` | `/audit-log` | `audit.read` | Purchasing rows join the existing log (§30.12) |
+
+### 31.6 Errors
+
+Standard error envelope with a stable `code`:
+`INVALID_PIN` (401, "That PIN is not right."), `ORDER_NOT_FOUND` (404), `ORDER_WRONG_STATE` (409, "This order is {status}, so you cannot do that."), `SUPPLIER_ORDER_OPEN` (409), `SUPPLIER_ON_HOLD` (409), `ITEM_SETUP_INCOMPLETE` (409), `CANNOT_CANCEL_AFTER_DELIVERY` (409, "Once goods have arrived an order can't be cancelled."), `PRICE_CHANGE_UNCONFIRMED` (422), `RECEIVED_EXCEEDS_ORDERED` (422), `DELIVERY_NOTE_REQUIRED` (422), `DEPOSIT_EXCEEDS_ORDER` (422), `INVOICE_EXISTS` (409), `DUPLICATE_INVOICE_NUMBER` (409), `REASON_REQUIRED` (422), `INVOICE_HAS_PAYMENTS` (409), `INVOICE_DISPUTED` (409), `PAYMENT_EXCEEDS_BALANCE` (422), `CHEQUE_NUMBER_REQUIRED` (422), `UPLOAD_TOO_LARGE`/`UPLOAD_BAD_TYPE` (422), `UPLOAD_FAILED` (503), `403 FORBIDDEN` ("You do not have permission to perform this action", from `requireCapability`).
+
+### 31.7 Access and the permissions endpoint
+
+`GET /inventory/permissions/me` (§30.13) gains `orders.read`, `orders.request`, `orders.approve`, `orders.cancel`, `orders.receive`, `payables.record_deposit`. The table (`central-store-access.ts`) is the only place access is decided; a client change to who can do what is a row edit there.
+
+### 31.8 Numbering
+
+`LPO-nnnn` (order), `PAY-nnnn` (payment and advance), `GRN-nnnn` (receipt) are gap-free per site from the reference counter table, taken in the same transaction as the document. The supplier's invoice number and delivery note number are typed in and never generated.
+

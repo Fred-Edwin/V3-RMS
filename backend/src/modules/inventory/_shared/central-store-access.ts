@@ -40,6 +40,13 @@ export const CAPABILITIES = [
   'payables.read',
   'payables.record_invoice',
   'payables.record_payment', // payments, reversals, invoice adjustments
+  'payables.record_deposit', // an advance against an approved order, before any invoice exists
+  // Purchasing and Receiving (orders). The client has not approved these mappings; each is a one-row edit below.
+  'orders.read', // open every Purchasing screen (write buttons stay hidden without the matching capability below)
+  'orders.request', // save a draft and send it for approval
+  'orders.approve', // approve with a PIN, return with a note, send the approved order
+  'orders.cancel', // cancel an order before anything arrives
+  'orders.receive', // record a delivery
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -55,6 +62,7 @@ const READ_EVERYTHING: readonly Capability[] = [
   'suppliers.read_basic',
   'suppliers.read',
   'payables.read',
+  'orders.read',
   'audit.read',
   'central_store.read_any_org',
 ];
@@ -69,12 +77,13 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'suppliers.upload_documents',
     'payables.record_invoice',
     'payables.record_payment',
+    'payables.record_deposit',
   ],
   DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details'],
   // The Branch Manager reads everything except supplier payment details.
   MANAGER: READ_EVERYTHING,
-  // Narrow and phone-first; sees no money.
-  STORE_ATTENDANT: ['catalog.read', 'catalog.add_missing', 'suppliers.read_basic', 'suppliers.quick_add'],
+  // Narrow and phone-first; sees no money. Raises order requests and receives deliveries.
+  STORE_ATTENDANT: ['catalog.read', 'catalog.add_missing', 'suppliers.read_basic', 'suppliers.quick_add', 'orders.request', 'orders.receive'],
 };
 
 type Actor = NonNullable<Request['user']>;
