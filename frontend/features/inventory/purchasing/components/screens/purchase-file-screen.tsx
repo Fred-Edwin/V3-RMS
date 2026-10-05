@@ -568,7 +568,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 }
 
 /** The "Next step" card: what to do now, and the buttons for whoever may do it. Readers see the same words with no buttons. */
-function NextStep({
+export function NextStep({
   order,
   canReceive,
   onApprove,

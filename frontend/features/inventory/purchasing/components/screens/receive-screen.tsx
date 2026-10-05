@@ -17,6 +17,7 @@ import { PurchasingError } from '../../types';
 import { CompactTracker } from '../compact-tracker';
 import { DemoBanner } from '../demo-banner';
 import { PinDialog } from '../pin-dialog';
+import { UploadingRow, UploadProblemRow, type UploadProblem } from '../photo-slot';
 
 /**
  * Receive a delivery (Paper `12` to `14`, `30`, `31`, `33`): step 1 check the goods against the order, step 2 the supplier's
@@ -34,7 +35,8 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   const [confirmed, setConfirmed] = React.useState<Record<string, boolean>>({});
   const [noteNo, setNoteNo] = React.useState('');
   const [photo, setPhoto] = React.useState<FileRef | null>(null);
-  const [photoState, setPhotoState] = React.useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const [photoState, setPhotoState] = React.useState<{ busy: boolean; name: string; percent: number; problem: UploadProblem | null }>({ busy: false, name: '', percent: 0, problem: null });
+  const progress = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [pinOpen, setPinOpen] = React.useState(false);
   const [done, setDone] = React.useState<Order | null>(null);
@@ -114,13 +116,23 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
 
   const upload = async (file: File): Promise<void> => {
     lastFile.current = file;
-    setPhotoState({ busy: true, error: null });
+    setPhotoState({ busy: true, name: file.name, percent: 8, problem: null });
+    if (progress.current) clearInterval(progress.current);
+    progress.current = setInterval(() => setPhotoState((s) => (s.busy ? { ...s, percent: Math.min(92, s.percent + 14) } : s)), 70);
     try {
       setPhoto(await service.upload(file));
-      setPhotoState({ busy: false, error: null });
+      setPhotoState({ busy: false, name: '', percent: 0, problem: null });
     } catch (e) {
-      setPhotoState({ busy: false, error: e instanceof PurchasingError || e instanceof Error ? e.message : 'The photo did not upload.' });
+      const problem: UploadProblem = e instanceof PurchasingError && e.code === 'UPLOAD_TOO_LARGE' ? { kind: 'tooLarge', size: file.size } : e instanceof PurchasingError && e.code === 'UPLOAD_BAD_TYPE' ? { kind: 'badType' } : { kind: 'failed' };
+      setPhotoState({ busy: false, name: '', percent: 0, problem });
+    } finally {
+      if (progress.current) clearInterval(progress.current);
     }
+  };
+  // A file named "fail…" is the demo's dropped connection: the retry goes through once the name no longer says so.
+  const retryUpload = (): void => {
+    const f = lastFile.current;
+    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }));
   };
   const pick = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const f = e.target.files?.[0];
@@ -253,16 +265,8 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
             <span className="font-wds-sans text-[12px] text-wds-text-secondary">Lay it flat and keep the whole page in view</span>
           </button>
         )}
-        {photoState.error ? (
-          <div role="alert" className="flex items-center justify-between gap-3 border border-wds-error-border bg-wds-error-bg px-3 py-2.5">
-            <span className="font-wds-sans text-[13px] text-wds-error-fg">{photoState.error}</span>
-            {lastFile.current ? (
-              <button type="button" onClick={() => void upload(lastFile.current as File)} className="shrink-0 font-wds-sans text-[13px] font-medium text-wds-error-fg underline outline-none focus-visible:shadow-wds-ring">
-                Try again
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        {photoState.busy ? <UploadingRow fileName={photoState.name} percent={photoState.percent} /> : null}
+        {photoState.problem ? <UploadProblemRow problem={photoState.problem} onRetry={retryUpload} onChooseAnother={() => setSheetOpen(true)} /> : null}
       </div>
       <div className="flex flex-col gap-2 border border-wds-border bg-wds-surface p-3.5">
         <PhoneFieldLabel>Summary</PhoneFieldLabel>
