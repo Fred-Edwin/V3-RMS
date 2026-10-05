@@ -19,6 +19,8 @@ export function roleLabel(role: AppRole | null | undefined): string {
       return 'Accountant';
     case 'DIRECTOR':
       return 'Director';
+    case 'SYSTEM_ADMIN':
+      return 'System Admin';
     default:
       return 'Store Manager';
   }
