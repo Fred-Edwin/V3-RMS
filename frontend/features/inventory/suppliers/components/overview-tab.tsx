@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
-import type { SupplierApDetail } from '../legacy-payables/types/receiving';
+import type { SupplierOwing } from '../../purchasing/types';
 import type { SupplierDetail, SupplierSummary } from '../types/supplier';
 import { PROFILE_TOTAL, formatAmount, formatDayMonth, lateSentence, profileChecklist, type ProfileKey } from '../lib/supplier-logic';
 import { SUPPLIER_CONTACT_ROLE_LABEL } from '../lib/supplier-labels';
@@ -161,44 +161,29 @@ export function DetailsCards({ supplier }: { supplier: SupplierDetail }) {
 }
 
 /**
- * What we owe (Paper step 17). Where Paper has "Open statement" and "Orders" (Purchasing screens not built yet),
- * the owner chose Record invoice and Record payment so the money jobs of the old Supplier AP keep working.
+ * What we owe (Paper step 17): the figure and how much of it is late, from the Purchasing mock. "Open statement" and "Orders" go to
+ * those tabs; recording an invoice or a payment now happens on the purchase file, not here.
  */
-export function OwedCard({
-  owed,
-  ap,
-  canRecordInvoice,
-  canRecordPayment,
-  onRecordInvoice,
-  onRecordPayment,
-}: {
-  owed: string | null;
-  ap: SupplierApDetail | null;
-  canRecordInvoice: boolean;
-  canRecordPayment: boolean;
-  onRecordInvoice: () => void;
-  onRecordPayment: () => void;
-}) {
+export function OwedCard({ owing, onOpenStatement, onOpenOrders }: { owing: SupplierOwing | null; onOpenStatement: () => void; onOpenOrders: () => void }) {
   return (
     <section aria-label="What we owe" className="flex items-center justify-between gap-6 border border-wds-border bg-white px-5 py-4">
       <div className="flex min-w-0 items-center gap-6">
         <div className="flex shrink-0 flex-col gap-1">
           <span className={monoLabel}>WHAT WE OWE</span>
-          <span className="font-wds-sans text-[20px] font-medium leading-6 text-wds-text-ink">{owed !== null ? `KES ${formatAmount(owed)}` : <span className="text-wds-text-faint">—</span>}</span>
+          <span className="font-wds-sans text-[20px] font-medium leading-6 text-wds-text-ink">{owing ? `KES ${formatAmount(owing.owing)}` : <span className="text-wds-text-faint">—</span>}</span>
         </div>
-        <p className="max-w-[400px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{ap ? lateSentence(ap.row.buckets) : ''}</p>
+        <p className="max-w-[400px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+          {owing ? lateSentence(owing.late) : ''}
+          {owing && Number.parseFloat(owing.creditHeld) > 0 ? ` KES ${formatAmount(owing.creditHeld)} is held with them as credit.` : ''}
+        </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        {canRecordInvoice ? (
-          <Button variant="secondary" className="px-3.5" onClick={onRecordInvoice}>
-            Record invoice
-          </Button>
-        ) : null}
-        {canRecordPayment ? (
-          <Button variant="secondary" className="px-3.5" onClick={onRecordPayment}>
-            Record payment
-          </Button>
-        ) : null}
+        <Button variant="secondary" className="px-3.5" onClick={onOpenStatement}>
+          Open statement
+        </Button>
+        <Button variant="secondary" className="px-3.5" onClick={onOpenOrders}>
+          Orders
+        </Button>
       </div>
     </section>
   );

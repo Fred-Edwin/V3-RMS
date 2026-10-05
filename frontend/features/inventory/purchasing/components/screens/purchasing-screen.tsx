@@ -12,6 +12,8 @@ import type { Summary } from '../../types';
 import { DemoBanner } from '../demo-banner';
 import { NeedsRestockingTab } from '../needs-restocking-tab';
 import { OrdersTab } from '../orders-tab';
+import { AwaitingInvoiceTab, ToPayTab } from '../orders-money-tabs';
+import { AttendantPurchasingScreen } from './attendant-purchasing-screen';
 
 type TabKey = 'needs' | 'approval' | 'receive' | 'invoice' | 'pay' | 'closed';
 
@@ -47,6 +49,9 @@ export function PurchasingScreen() {
     };
   }, [service, data, ready]);
 
+  // The Store Attendant works on a phone: Restock, To receive and My orders (Paper chapter 9), not the desktop stage tabs.
+  if (ready && !can('orders.read') && can('orders.request')) return <AttendantPurchasingScreen />;
+
   return (
     <>
       <Topbar
@@ -54,11 +59,18 @@ export function PurchasingScreen() {
         hideSearch
         className="shrink-0"
         actions={
-          can('orders.request') ? (
-            <Button asChild>
-              <Link href="/app/inventory/purchasing/new">New order</Link>
-            </Button>
-          ) : null
+          <>
+            {can('payables.record_payment') && tab !== 'pay' ? (
+              <Button variant="secondary" asChild>
+                <Link href="/app/inventory/purchasing?tab=pay">Pay supplier</Link>
+              </Button>
+            ) : null}
+            {can('orders.request') ? (
+              <Button asChild>
+                <Link href="/app/inventory/purchasing/new">New order</Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
       <DemoBanner />
@@ -88,7 +100,7 @@ export function PurchasingScreen() {
             );
           })}
         </div>
-        {tab === 'needs' ? <NeedsRestockingTab canOrder={can('orders.request')} /> : <OrdersTab key={tab} tab={tab} />}
+        {tab === 'needs' ? <NeedsRestockingTab canOrder={can('orders.request')} /> : tab === 'invoice' ? <AwaitingInvoiceTab /> : tab === 'pay' ? <ToPayTab /> : <OrdersTab key={tab} tab={tab} />}
       </div>
     </>
   );

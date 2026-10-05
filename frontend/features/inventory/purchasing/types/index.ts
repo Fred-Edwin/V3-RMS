@@ -67,14 +67,22 @@ export interface Invoice {
   amount: string;
   status: 'OPEN' | 'PAID' | 'VOIDED';
   disputed: boolean;
+  /** Invoice minus delivered value at the time it was added (positive = the supplier charged more). */
   varianceAmount: string | null;
   varianceReason: string | null;
+  /** Set when a dispute was settled: the figure agreed with the supplier and the note. */
+  settled: { agreedAmount: string; note: string; by: { id: string; name: string }; at: string } | null;
+  /** Set when the invoice was voided. */
+  voided: { reason: VoidReason; by: { id: string; name: string }; at: string } | null;
   advanceApplied: string;
   balance: string;
   photo: FileRef | null;
   enteredBy: Person;
   enteredAt: string;
 }
+
+export type VoidReason = 'WRONG_AMOUNT' | 'WRONG_SUPPLIER_OR_ORDER' | 'DUPLICATE' | 'OTHER';
+export type ReverseReason = 'WRONG_AMOUNT' | 'WRONG_REFERENCE' | 'WRONG_INVOICE' | 'PAYMENT_BOUNCED' | 'OTHER';
 
 export interface Payment {
   id: string;
@@ -87,6 +95,12 @@ export interface Payment {
   chequeNo: string | null;
   status: 'RECORDED' | 'REVERSED';
   reversesId: string | null;
+  /** Why a payment was reversed (on the REVERSAL line). */
+  reason: string | null;
+  invoiceId: string | null;
+  proof: FileRef | null;
+  /** On a REVERSAL line: the Store Manager or System Admin who approved it. */
+  approvedBy: { id: string; name: string } | null;
   recordedBy: Person;
   recordedAt: string;
 }
@@ -127,6 +141,10 @@ export interface OrderCan {
   recordDeposit: boolean;
   addInvoice: boolean;
   recordPayment: boolean;
+  settleDispute: boolean;
+  voidInvoice: boolean;
+  reversePayment: boolean;
+  addDocument: boolean;
 }
 
 export interface OrderMoney {
@@ -171,11 +189,47 @@ export interface Order {
 
 export interface OrderRow extends Omit<Order, 'lines'> {
   itemSummary: string;
+  /** "Kabras Sugar 1kg, Salt Cooking Oil 10ltr +2": the first two item names, as written in the catalog. */
+  itemNames: string;
+  /** "4 items · 1 short · price change on oil" once delivered; null before. */
+  deliverySummary: string | null;
+}
+
+export type AuditArea = 'Purchasing' | 'Payments';
+
+/** One thing that happened on an order. `what` is the sentence for the file's Activity tab; the rest feed the Audit log table. */
+export interface ActivityEntry {
+  at: string;
+  actor: { id: string; name: string; role: string };
+  what: string;
+  /** "Approved order", "Recorded payment": the Action column and filter. */
+  action: string;
+  area: AuditArea;
+  /** The document it concerns (LPO-0044, INV-05188, PAY-0031). */
+  document: string | null;
+  /** The "What changed" column. */
+  detail: string;
+}
+
+export interface FileDocument {
+  kind: 'LPO' | 'DELIVERY_NOTE' | 'GOODS_RECEIPT' | 'INVOICE' | 'ADVANCE_ADVICE' | 'PAYMENT_ADVICE' | 'OTHER';
+  title: string;
+  /** The grey line under the title ("INV-05188 · KES 27,986 · Invoice INV-05188.pdf"). */
+  subtitle: string;
+  /** The stage it belongs to: Ordered, Delivered, Invoiced, Paid. */
+  step: 'Ordered' | 'Delivered' | 'Invoiced' | 'Paid';
+  at: string;
+  addedBy: string;
+  fileRef: FileRef | null;
+  /** The link on the right of the row. */
+  action: 'Print' | 'View' | 'Open';
+  /** Where Print or Open goes: a payment advice needs the payment id. */
+  paymentId: string | null;
 }
 
 export interface PurchaseFile extends Order {
-  documents: Array<{ kind: 'LPO' | 'DELIVERY_NOTE' | 'INVOICE' | 'PAYMENT_ADVICE'; title: string; at: string; fileRef: FileRef | null }>;
-  activity: Array<{ at: string; actor: { id: string; name: string }; what: string }>;
+  documents: FileDocument[];
+  activity: ActivityEntry[];
 }
 
 export interface Summary {
@@ -300,6 +354,134 @@ export interface DepositInput {
   note: string | null;
 }
 
+export interface InvoiceInput {
+  number: string;
+  date: string;
+  amount: string;
+  photoId: string | null;
+  varianceReason: string | null;
+  /** Set after the "duplicate invoice number" warning when the person says it is a different invoice. */
+  differentInvoice?: boolean;
+}
+
+export interface PaymentInput {
+  amount: string;
+  paidOn: string;
+  method: PayMethod;
+  methodRef: string | null;
+  chequeNo: string | null;
+  proofPhotoId: string | null;
+  confirmOverpay?: boolean;
+}
+
+export interface PaymentResult {
+  payment: Payment;
+  /** The order after the payment (CLOSED when it was the last one). */
+  order: Order;
+}
+
+/** The printed payment advice (Paper `21`, `21b`). */
+export interface PaymentAdvice {
+  reference: string;
+  date: string;
+  supplier: { name: string; address: string; contact: string | null; kraPin: string | null };
+  orderReference: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceAmount: string;
+  advanceApplied: string;
+  /** Everything paid against this invoice before this payment, advance included. */
+  paidBefore: string;
+  amountPaid: string;
+  amountInWords: string;
+  balanceAfter: string;
+  method: PayMethod;
+  /** The supplier's account detail for the method ("KCB Bank · ····4471"), when the caller may see it. */
+  methodDetail: string | null;
+  methodRef: string | null;
+  chequeNo: string | null;
+  /** The earlier payments that make up `paidBefore`, for the note under the table. */
+  earlier: Array<{ reference: string; kind: 'ADVANCE' | 'INVOICE'; amount: string; paidOn: string; method: PayMethod; methodRef: string | null }>;
+  /** Who recorded it and when (the "Prepared by" signature). */
+  preparedBy: { name: string; role: string; signedAt: string };
+  generatedAt: string;
+}
+
+/**
+ * One line of a supplier statement, as Paper draws it (the supplier's view of our account): `credit` adds to what we owe
+ * (an invoice, a reversed payment), `debit` reduces it (a payment, an advance, a voided invoice). `balance` is what we owe
+ * after the line; a negative balance is credit held with the supplier.
+ */
+export interface StatementLine {
+  at: string;
+  date: string;
+  kind: 'INVOICE' | 'ADVANCE' | 'PAYMENT' | 'REVERSAL' | 'VOID';
+  reference: string;
+  description: string;
+  debit: string;
+  credit: string;
+  balance: string;
+  /** The line is struck through (a voided invoice, or a payment that was reversed). */
+  superseded: boolean;
+  orderId: string;
+}
+
+export interface SupplierOwing {
+  /** What we owe on open invoices after advances and payments. */
+  owing: string;
+  overdue: string;
+  overdueCount: number;
+  openInvoices: number;
+  disputedAmount: string;
+  /** Advances held that no invoice has used yet, plus any left over from a short delivery. */
+  creditHeld: string;
+  nextDueDate: string | null;
+  /** Open balances by how many days past due they are (for "KES 8,050 is 1 to 30 days late"). */
+  late: { days1To30: string; days31To60: string; days61To90: string; days90Plus: string };
+  /** The invoices with something left to pay, oldest due date first. */
+  invoices: Array<{ id: string; orderId: string; invoiceNumber: string; invoiceDate: string; dueDate: string; outstanding: string }>;
+}
+
+export interface SupplierPurchasing {
+  owing: SupplierOwing;
+  orders: OrderRow[];
+}
+
+export interface SupplierStatement {
+  supplier: { id: string; name: string; code: string; address: string; contactName: string | null; termsDays: number | null };
+  from: string;
+  to: string;
+  /** What we owed at the start of the period. */
+  openingBalance: string;
+  lines: StatementLine[];
+  /** Totals for the period. */
+  totalDebit: string;
+  totalCredit: string;
+  closingBalance: string;
+  /** Open invoices by days past due at `to`. */
+  ageing: { current: string; days1to30: string; days31to60: string; days61to90: string; days90plus: string };
+  generatedAt: string;
+}
+
+export interface AuditRow {
+  id: string;
+  at: string;
+  actor: { id: string; name: string; role: string };
+  action: string;
+  area: AuditArea;
+  document: string | null;
+  detail: string;
+  what: string;
+  orderId: string;
+  orderReference: string | null;
+  supplierName: string;
+}
+
+export interface DocumentInput {
+  title: string;
+  fileId: string;
+}
+
 export interface OrdersQuery {
   stage?: Stage;
   supplierId?: string;
@@ -332,6 +514,11 @@ export type PurchasingErrorCode =
   | 'REASON_REQUIRED'
   | 'INVOICE_HAS_PAYMENTS'
   | 'INVOICE_DISPUTED'
+  | 'INVOICE_NOT_DISPUTED'
+  | 'INVOICE_NOT_FOUND'
+  | 'PAYMENT_NOT_FOUND'
+  | 'PAYMENT_ALREADY_REVERSED'
+  | 'SUPPLIER_NOT_FOUND'
   | 'PAYMENT_EXCEEDS_BALANCE'
   | 'CHEQUE_NUMBER_REQUIRED'
   | 'VALIDATION'
@@ -344,6 +531,9 @@ const STATUS: Partial<Record<PurchasingErrorCode, number>> = {
   INVALID_PIN: 401,
   FORBIDDEN: 403,
   ORDER_NOT_FOUND: 404,
+  INVOICE_NOT_FOUND: 404,
+  PAYMENT_NOT_FOUND: 404,
+  SUPPLIER_NOT_FOUND: 404,
   UPLOAD_FAILED: 503,
 };
 

@@ -1,8 +1,13 @@
 import type {
+  AuditRow,
   CancelReason,
   CatalogResult,
   DepositInput,
+  DocumentInput,
+  FileDocument,
   FileRef,
+  Invoice,
+  InvoiceInput,
   LpoPrint,
   NeedsQuery,
   NeedsRestocking,
@@ -11,10 +16,17 @@ import type {
   OrderRow,
   OrdersQuery,
   Payment,
+  PaymentAdvice,
+  PaymentInput,
+  PaymentResult,
   PurchaseFile,
   ReceiveInput,
+  ReverseReason,
   SendVia,
   Summary,
+  SupplierPurchasing,
+  SupplierStatement,
+  VoidReason,
   WhatsappMessage,
 } from '../types';
 
@@ -44,4 +56,19 @@ export interface PurchasingService {
   recordDeposit: (id: string, input: DepositInput) => Promise<Payment>;
   upload: (file: File) => Promise<FileRef>;
   receiveOrder: (id: string, input: ReceiveInput) => Promise<Order>;
+
+  // Invoice and payment (§31.5). Invoice and payment ids come from the order's `invoice` and `payments`.
+  addInvoice: (orderId: string, input: InvoiceInput) => Promise<Invoice>;
+  settleDispute: (invoiceId: string, input: { agreedAmount: string; note: string }) => Promise<Invoice>;
+  voidInvoice: (invoiceId: string, input: { reason: VoidReason; pin: string }) => Promise<Order>;
+  recordPayment: (invoiceId: string, input: PaymentInput) => Promise<PaymentResult>;
+  reversePayment: (paymentId: string, input: { reason: ReverseReason; note: string | null; approverPin: string }) => Promise<PaymentResult>;
+  getPaymentAdvice: (paymentId: string) => Promise<PaymentAdvice>;
+
+  getSupplierPurchasing: (supplierId: string) => Promise<SupplierPurchasing>;
+  getSupplierStatement: (supplierId: string, range?: { from?: string; to?: string }) => Promise<SupplierStatement>;
+  getAuditLog: () => Promise<AuditRow[]>;
+
+  /** "+ Add a document" on the purchase file: attach an uploaded photo or PDF with a name. */
+  addDocument: (orderId: string, input: DocumentInput) => Promise<FileDocument>;
 }

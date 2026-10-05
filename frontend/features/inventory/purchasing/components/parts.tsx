@@ -54,22 +54,24 @@ const DOT_ORDER: Array<(s: OrderStatus) => boolean> = [
 ];
 
 /** Mini stage tracker (Paper `YB-0`): six 8px dots joined by 2px lines; done = success green, the rest neutral. */
-export function StageDots({ status, label, tone = 'muted' }: { status: OrderStatus; label: string; tone?: 'muted' | 'error' }) {
+export function StageDots({ status, label, tone = 'muted' }: { status: OrderStatus; label?: string; tone?: 'muted' | 'error' }) {
   return (
     <div className="flex w-[112px] shrink-0 flex-col gap-[5px]">
       <div className="flex items-center" aria-hidden>
         {DOT_ORDER.map((done, i) => {
           const on = status !== 'CANCELLED' && done(status);
           const next = on && i < DOT_ORDER.length - 1 && (DOT_ORDER[i + 1] as (s: OrderStatus) => boolean)(status);
+          // The first step not done yet is the current one: an amber ring (Paper `16`, `19`).
+          const current = !on && status !== 'CANCELLED' && status !== 'CLOSED' && DOT_ORDER.slice(0, i).every((d) => d(status));
           return (
             <React.Fragment key={i}>
-              <span className={cn('size-2 shrink-0 rounded-full', on ? 'bg-wds-success-fg' : 'bg-wds-neutral-300')} />
+              <span className={cn('size-2 shrink-0 rounded-full', on ? 'bg-wds-success-fg' : current ? 'border-[1.5px] border-wds-primary bg-white' : 'bg-wds-neutral-300')} />
               {i < DOT_ORDER.length - 1 ? <span className={cn('h-0.5 w-2 shrink-0', next ? 'bg-wds-success-fg' : 'bg-wds-neutral-300')} /> : null}
             </React.Fragment>
           );
         })}
       </div>
-      <span className={cn('font-wds-sans text-[11px] leading-[14px]', tone === 'error' ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{label}</span>
+      {label ? <span className={cn('font-wds-sans text-[11px] leading-[14px]', tone === 'error' ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{label}</span> : null}
     </div>
   );
 }
@@ -83,6 +85,32 @@ export function DotLabel({ tone, children, className }: { tone: 'warning' | 'err
       <span className={cn('size-1.5 shrink-0 rounded-full', dot)} aria-hidden />
       <span className={cn('font-wds-sans text-wds-caption', text)}>{children}</span>
     </span>
+  );
+}
+
+/** The PIN box inside a drawer (Paper `37`, `38`): four dots, the message under it when the PIN is wrong. The demo PIN is hinted. */
+export function InlinePin({ value, onChange, error, id, className }: { value: string; onChange: (v: string) => void; error?: string | null; id: string; className?: string }) {
+  return (
+    <div className={cn('flex flex-col gap-1', className)}>
+      <input
+        id={id}
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={6}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+        aria-invalid={error ? true : undefined}
+        className={cn('h-8 w-[130px] border bg-white px-2.5 font-wds-mono text-wds-body-sm tracking-[0.3em] text-wds-neutral-950 outline-none focus:shadow-wds-ring', error ? 'border-wds-error-fg' : 'border-wds-border-strong')}
+      />
+      {error ? (
+        <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
+          {error}
+        </p>
+      ) : (
+        <p className="font-wds-sans text-[11px] text-wds-text-faint">Demo: the PIN is 1234.</p>
+      )}
+    </div>
   );
 }
 

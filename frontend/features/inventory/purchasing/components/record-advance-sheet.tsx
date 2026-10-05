@@ -15,7 +15,7 @@ import { isoDay, kes2 } from '../lib/format';
 import type { Order, PayMethod } from '../types';
 import { FieldLabel } from './parts';
 
-const FALLBACK_METHODS: Array<{ method: PayMethod; label: string; detail: string; isDefault: boolean }> = [
+export const FALLBACK_METHODS: Array<{ method: PayMethod; label: string; detail: string; isDefault: boolean }> = [
   { method: 'BANK_TRANSFER', label: 'Bank transfer', detail: '', isDefault: true },
   { method: 'MPESA_PAYBILL', label: 'M-Pesa Paybill', detail: '', isDefault: false },
   { method: 'CHEQUE', label: 'Cheque', detail: '', isDefault: false },

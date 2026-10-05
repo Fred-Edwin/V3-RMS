@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 
-import { getSupplierApDetail } from '../../services';
 import {
   getSupplierCatalogSummary,
   getSupplierDetail,
@@ -25,8 +24,8 @@ export function useSupplierPage(supplierId: string | null, can: { paymentDetails
   const mismatches = useLoader(ready, () => listSupplierPackMismatches(ready as string), 'Could not load the pack check.');
   const documents = useLoader(ready, () => listSupplierDocuments(ready as string), 'Could not load the documents.');
   const summary = useLoader(ready, () => getSupplierSummary(ready as string), 'Could not load the purchase numbers.');
-  // Only the roles that may see them: what we owe, and the history of payment-detail changes.
-  const owing = useLoader(can.payables ? ready : null, () => getSupplierApDetail(ready as string), 'Could not load what we owe.');
+  // Only the roles that may see it: the history of payment-detail changes. What we owe, the orders and the statement come from
+  // Purchasing (`purchasing/hooks/use-supplier-purchasing.ts`), not from here.
   const history = useLoader(can.paymentDetails ? ready : null, () => listSupplierPayMethodHistory(ready as string), 'Could not load the change history.');
 
   const { reload: reloadDetail } = detail;
@@ -35,7 +34,6 @@ export function useSupplierPage(supplierId: string | null, can: { paymentDetails
   const { reload: reloadMismatches } = mismatches;
   const { reload: reloadHistory } = history;
   const { reload: reloadDocuments } = documents;
-  const { reload: reloadOwing } = owing;
   /** A price or line changed: the lines, their strip and the pack check. */
   const reloadCatalogAll = useCallback(async () => {
     await Promise.all([reloadCatalog(), reloadCatalogSummary(), reloadMismatches()]);
@@ -45,10 +43,10 @@ export function useSupplierPage(supplierId: string | null, can: { paymentDetails
     await Promise.all([reloadDetail(), reloadHistory()]);
   }, [reloadDetail, reloadHistory]);
 
-  /** An invoice or payment was recorded: what we owe, the strip numbers and the documents list. */
+  /** The supplier's status changed: the supplier itself, and the documents list. */
   const reloadMoney = useCallback(async () => {
-    await Promise.all([reloadDetail(), reloadOwing(), reloadDocuments()]);
-  }, [reloadDetail, reloadOwing, reloadDocuments]);
+    await Promise.all([reloadDetail(), reloadDocuments()]);
+  }, [reloadDetail, reloadDocuments]);
 
-  return { detail, catalog, catalogSummary, mismatches, documents, summary, history, owing, reloadCatalogAll, reloadPayments, reloadMoney };
+  return { detail, catalog, catalogSummary, mismatches, documents, summary, history, reloadCatalogAll, reloadPayments, reloadMoney };
 }

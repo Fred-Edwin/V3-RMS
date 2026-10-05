@@ -22,12 +22,30 @@ export function DemoBar() {
   const hydrate = useDemoViewStore((s) => s.hydrate);
   const setViewAs = useDemoViewStore((s) => s.setViewAs);
   const [scenario, setScenario] = React.useState('default');
+  // On a phone the bar would cover the screen's own buttons, so it starts folded to a small "Demo" tab there.
+  const [open, setOpen] = React.useState(true);
 
   React.useEffect(() => hydrate(), [hydrate]);
+  React.useEffect(() => {
+    if (window.matchMedia('(max-width: 640px)').matches) setOpen(false);
+  }, []);
 
   if (realRole !== 'SYSTEM_ADMIN') return null;
   const current: DemoRole = viewAs ?? 'SYSTEM_ADMIN';
   const phone = current === 'STORE_ATTENDANT';
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Open demo controls"
+        className="fixed bottom-24 right-3 z-40 flex items-center gap-1.5 rounded-wds-md border border-wds-neutral-800 bg-wds-neutral-950 px-3 py-2 font-wds-sans text-wds-caption font-semibold uppercase tracking-wider text-wds-caramel-500 shadow-wds-drawer"
+      >
+        <Eye className="size-3.5" aria-hidden /> Demo
+      </button>
+    );
+  }
 
   return (
     <div
@@ -35,9 +53,9 @@ export function DemoBar() {
       aria-label="Demo controls"
       className="fixed bottom-3 left-1/2 z-40 flex max-w-[calc(100vw-24px)] -translate-x-1/2 flex-wrap items-center gap-x-4 gap-y-2 rounded-wds-md border border-wds-neutral-800 bg-wds-neutral-950 px-4 py-2 font-wds-sans text-wds-caption text-wds-neutral-100 shadow-wds-drawer"
     >
-      <span className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-wds-caramel-500">
+      <button type="button" onClick={() => setOpen(false)} aria-label="Fold demo controls" className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-wds-caramel-500">
         <Eye className="size-3.5" aria-hidden /> Demo
-      </span>
+      </button>
       <label className="flex items-center gap-2">
         <span>View as</span>
         <select className={selectClass} value={current} onChange={(e) => setViewAs(e.target.value as DemoRole)} aria-label="View as role">

@@ -76,8 +76,9 @@ export default function InventoryShellLayout({ children }: { children: React.Rea
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>
       <InventoryShellDrawer activeKey={activeKey} activeSubKey={activeSubKey} />
-      {/* Demo only (System Admin): role switcher and scenarios for the mock Purchasing and Receiving screens. */}
-      {activeKey === 'purchasing' || activeKey === 'receiving' ? <DemoBar /> : null}
+      {/* Demo only (System Admin): role switcher and scenarios for the mock Purchasing and Receiving screens, and for the supplier
+          page and audit log, which show the same demo data (orders, what we owe, statement, purchasing actions). */}
+      {activeKey === 'purchasing' || activeKey === 'receiving' || activeKey === 'suppliers' || activeKey === 'audit-log' ? <DemoBar /> : null}
     </MobileNavDrawerProvider>
   );
 }

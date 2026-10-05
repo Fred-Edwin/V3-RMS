@@ -30,8 +30,8 @@ import { MOVE_LABEL, movesFor, type StatusMove } from '../../lib/supplier-status
 import { SupplierTabs, SupplierTitle, type SupplierTab } from '../supplier-page-header';
 import { InlineNotice } from '../supplier-ui';
 import { UploadView } from '../upload-view';
-import { RecordSupplierInvoiceDrawer } from '../../legacy-payables/components/screens/record-supplier-invoice-drawer';
-import { RecordSupplierPaymentDrawer } from '../../legacy-payables/components/screens/record-supplier-payment-drawer';
+import { SupplierOrdersTab, SupplierStatementTab } from '../supplier-purchasing-tabs';
+import { useSupplierPurchasing } from '../../../purchasing/hooks/use-supplier-purchasing';
 
 
 type DrawerView =
@@ -82,13 +82,10 @@ export function SupplierPageScreen({ id }: { id: string }) {
   const canWritePayMethods = can('suppliers.write_payment_methods');
   const canUpload = can('suppliers.upload_documents');
   const seesOwed = can('payables.read');
-  const canRecordInvoice = can('payables.record_invoice');
-  const canRecordPayment = can('payables.record_payment');
+  const seesOrders = can('orders.read');
 
   const [tab, setTab] = React.useState<SupplierTab>('overview');
   const [drawer, setDrawer] = React.useState<DrawerView | null>(null);
-  const [invoiceOpen, setInvoiceOpen] = React.useState(false);
-  const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [flash, setFlash] = React.useState<string | null>(null);
   const [statusMove, setStatusMove] = React.useState<StatusMove | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
@@ -98,6 +95,8 @@ export function SupplierPageScreen({ id }: { id: string }) {
   const page = useSupplierPage(canRead ? id : null, { paymentDetails: seesPaymentDetails, payables: seesOwed });
   const { categories } = useCategoryOptions(drawer?.kind === 'edit');
   const supplier = page.detail.data;
+  // What we owe, the orders and the statement come from the Purchasing mock (matched to this supplier by name).
+  const purchasing = useSupplierPurchasing(supplier?.name);
   const { reload: reloadDetail } = page.detail;
   const { reload: reloadDocuments } = page.documents;
   const { reloadCatalogAll, reloadPayments } = page;
@@ -140,9 +139,10 @@ export function SupplierPageScreen({ id }: { id: string }) {
   }
 
   const profile = supplier ? profileChecklist(supplier) : { done: PROFILE_TOTAL };
-  const owed = page.owing.data?.row.outstanding ?? null;
+  const owing = purchasing.data?.owing ?? null;
   const neverBought = page.catalog.status === 'ready' && (page.catalog.data?.length ?? 0) === 0;
   const counts = {
+    orders: purchasing.data ? purchasing.data.orders.length : null,
     contacts: supplier ? supplier.contacts.length : null,
     payment: supplier ? supplier.paymentMethods.length : null,
     catalog: page.catalog.data ? page.catalog.data.length : null,
@@ -319,7 +319,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
         ) : (
           <>
             <SupplierTitle supplier={supplier} />
-            <SupplierTabs active={tab} counts={counts} onChange={setTab} hidden={seesPaymentDetails ? [] : ['payment']} />
+            <SupplierTabs active={tab} counts={counts} onChange={setTab} hidden={[...(seesPaymentDetails ? [] : (['payment'] as const)), ...(seesOrders ? [] : (['orders'] as const)), ...(seesOwed ? [] : (['statement'] as const))]} />
             {flash ? <InlineNotice tone="info">{flash}</InlineNotice> : null}
             {problem ? <InlineNotice>{problem}</InlineNotice> : null}
             <div role="tabpanel" id={`supplier-panel-${tab}`} aria-labelledby={`supplier-tab-${tab}`} className="flex flex-col gap-[18px]">
@@ -334,18 +334,24 @@ export function SupplierPageScreen({ id }: { id: string }) {
                       <DetailsCards supplier={supplier} />
                     </>
                   )}
-                  {seesOwed && (!neverBought || Number.parseFloat(owed ?? '0') > 0) ? (
-                    <OwedCard
-                      owed={owed}
-                      ap={page.owing.data}
-                      canRecordInvoice={canRecordInvoice}
-                      canRecordPayment={canRecordPayment}
-                      onRecordInvoice={() => setInvoiceOpen(true)}
-                      onRecordPayment={() => setPaymentOpen(true)}
-                    />
+                  {seesOwed && purchasing.mockId && (!neverBought || Number.parseFloat(owing?.owing ?? '0') > 0) ? (
+                    <OwedCard owing={owing} onOpenStatement={() => setTab('statement')} onOpenOrders={() => setTab('orders')} />
                   ) : null}
                 </>
               ) : null}
+              {tab === 'orders' && seesOrders ? (
+                <SupplierOrdersTab
+                  supplierName={supplier.name}
+                  mockSupplierId={purchasing.mockId}
+                  orders={purchasing.data?.orders ?? null}
+                  status={purchasing.status}
+                  error={purchasing.error}
+                  onRetry={() => void purchasing.reload()}
+                  canOrder={can('orders.request')}
+                  showMoney={seesOwed}
+                />
+              ) : null}
+              {tab === 'statement' && seesOwed ? <SupplierStatementTab mockSupplierId={purchasing.mockId} supplierName={supplier.name} /> : null}
               {tab === 'contacts' ? (
                 <ContactsTab
                   supplierName={supplier.name}
@@ -407,26 +413,10 @@ export function SupplierPageScreen({ id }: { id: string }) {
           <DrawerHost open={drawer !== null} onOpenChange={(open) => !open && closeDrawer()} label={shown ? DRAWER_LABEL[shown.kind] : 'Supplier'}>
             {drawerBody}
           </DrawerHost>
-          <RecordSupplierInvoiceDrawer
-            supplierId={id}
-            supplierName={supplier.name}
-            open={invoiceOpen}
-            onOpenChange={setInvoiceOpen}
-            onRecorded={() => void page.reloadMoney()}
-            variant="desktop"
-          />
-          <RecordSupplierPaymentDrawer
-            supplierId={id}
-            supplierName={supplier.name}
-            open={paymentOpen}
-            onOpenChange={setPaymentOpen}
-            onRecorded={() => void page.reloadMoney()}
-            variant="desktop"
-          />
           <SupplierStatusDialogs
             move={statusMove}
             supplier={supplier}
-            invoices={page.owing.data?.invoices ?? null}
+            invoices={purchasing.mockId ? (purchasing.data?.owing.invoices ?? null) : []}
             onClose={() => setStatusMove(null)}
             onChanged={(status) => {
               setFlash(status === 'ACTIVE' ? `${supplier.name} is active.` : status === 'ON_HOLD' ? `${supplier.name} is on hold.` : `${supplier.name} is archived.`);

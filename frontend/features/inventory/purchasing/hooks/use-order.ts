@@ -16,6 +16,18 @@ export function useOrder(id: string | null) {
   return { ...loader, service, can, role };
 }
 
+/**
+ * The order behind a drawer that opens from a list row or from the file: `orderId = null` is closed. The last order stays
+ * available while the drawer slides shut, but never one for a different id (so a drawer cannot flash the wrong order).
+ */
+export function useSheetOrder(orderId: string | null): PurchaseFile | null {
+  const { data } = useOrder(orderId);
+  const last = React.useRef<PurchaseFile | null>(null);
+  if (data) last.current = data;
+  if (data) return data;
+  return orderId === null || last.current?.id === orderId ? last.current : null;
+}
+
 /** True below the sheet breakpoint, so a drawer becomes a bottom sheet on a phone (Paper steps 05 and 06). */
 export function useIsNarrow(): boolean {
   const [narrow, setNarrow] = React.useState(false);

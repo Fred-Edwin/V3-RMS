@@ -1,8 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { DemoBanner } from '../../../purchasing/components/demo-banner';
+import { PurchasingAuditPanel } from '../../../purchasing/components/purchasing-audit-panel';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { Topbar } from '@/components/app/shell/topbar';
@@ -68,6 +71,10 @@ export function AuditLogScreen() {
   const [actorId, setActorId] = React.useState<string | null>(null);
   const [period, setPeriod] = React.useState<AuditPeriod>('TODAY');
   const [page, setPage] = React.useState(1);
+  // "Purchasing and payments" is the Purchasing mock's own log (Paper `23`). A link with ?q= (the closed purchase file's
+  // "Everything") opens it already searching for that document.
+  const query = useSearchParams().get('q');
+  const [purchasing, setPurchasing] = React.useState(Boolean(query));
 
   const log = useAuditLog({ area, actorId, period, page }, canRead);
   const now = React.useMemo(() => new Date(), [period, log.data]); // eslint-disable-line react-hooks/exhaustive-deps -- "now" follows the data it labels
@@ -82,6 +89,7 @@ export function AuditLogScreen() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar breadcrumb={{ section: 'Central Store', screen: 'Audit log' }} hideSearch className="shrink-0" />
+      {purchasing ? <DemoBanner /> : null}
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-8 py-7">
         <PageHeading title="Audit log">Every change and every fix, with who, when and why. Nothing here can be edited or removed.</PageHeading>
         {!ready ? (
@@ -93,29 +101,38 @@ export function AuditLogScreen() {
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Chip on={area === null} onClick={() => reset(setArea)(null)}>
+              <Chip on={area === null && !purchasing} onClick={() => { setPurchasing(false); reset(setArea)(null); }}>
                 Catalog, Suppliers, Restock levels
               </Chip>
               {AREA_ORDER.map((a) => (
-                <Chip key={a} on={area === a} onClick={() => reset(setArea)(area === a ? null : a)}>
+                <Chip key={a} on={area === a && !purchasing} onClick={() => { setPurchasing(false); reset(setArea)(area === a ? null : a); }}>
                   {AREA_LABEL[a]}
                 </Chip>
               ))}
-              <FilterMenu<string>
-                name="Who"
-                valueLabel={actorName}
-                options={[{ value: null, label: 'Everyone' }, ...(data?.actors ?? []).map((a) => ({ value: a.id, label: a.name }))]}
-                onSelect={(v) => reset(setActorId)(v)}
-              />
-              <FilterMenu<AuditPeriod>
-                name="When"
-                valueLabel={PERIOD_LABEL[period]}
-                options={PERIOD_ORDER.map((p) => ({ value: p === 'TODAY' ? null : p, label: PERIOD_LABEL[p] }))}
-                onSelect={(v) => reset(setPeriod)(v ?? 'TODAY')}
-              />
+              <Chip on={purchasing} onClick={() => setPurchasing(true)}>
+                Purchasing and payments
+              </Chip>
+              {purchasing ? null : (
+                <>
+                  <FilterMenu<string>
+                    name="Who"
+                    valueLabel={actorName}
+                    options={[{ value: null, label: 'Everyone' }, ...(data?.actors ?? []).map((a) => ({ value: a.id, label: a.name }))]}
+                    onSelect={(v) => reset(setActorId)(v)}
+                  />
+                  <FilterMenu<AuditPeriod>
+                    name="When"
+                    valueLabel={PERIOD_LABEL[period]}
+                    options={PERIOD_ORDER.map((p) => ({ value: p === 'TODAY' ? null : p, label: PERIOD_LABEL[p] }))}
+                    onSelect={(v) => reset(setPeriod)(v ?? 'TODAY')}
+                  />
+                </>
+              )}
             </div>
 
-            {log.status === 'error' ? (
+            {purchasing ? <PurchasingAuditPanel initialQuery={query ?? ''} /> : null}
+
+            {purchasing ? null : log.status === 'error' ? (
               <StockErrorCard title="Couldn’t load the audit log" description={log.error ?? 'Could not load the audit log. Try again.'} onRetry={() => void log.reload()} />
             ) : (
               <div className="flex flex-col border border-wds-border bg-wds-surface" aria-busy={log.status === 'loading'}>
@@ -155,7 +172,7 @@ export function AuditLogScreen() {
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-4">
+            <div className={cn('flex items-center justify-between gap-4', purchasing && 'hidden')}>
               <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                 {data && data.entries.length > 0 ? `${data.pagination.total} ${data.pagination.total === 1 ? 'entry' : 'entries'}. ` : ''}
                 {periodSentence(period, now)}

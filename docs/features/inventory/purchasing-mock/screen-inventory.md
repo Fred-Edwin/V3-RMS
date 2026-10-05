@@ -54,6 +54,47 @@ The sidebar keeps the two links Paper draws, **Receiving** (with the to-receive 
 | N-11 Create several orders at once | selection bar | Store Manager: two suppliers made two drafts under Awaiting approval | [x] |
 | Branch Manager | `/purchasing/[id]` | read only, no buttons, "Waiting for the Store Manager to approve" | [x] |
 
+## Session 2 build log (5 Oct 2026): ticks live here
+
+Same key as the Session 1 log. Everything was walked in the lane's browser through the demo bar (System Admin viewing as the role named), by eye against the Paper artboard; no pixel diff. Desktop at 1440 px, phone at 390 px. Roles and scenarios are in [demo-script.md](demo-script.md). `[x]` = walked as the role; `[~]` = built and covered by tests, **not walked in the browser**; `NOT BUILT` = answered not to build.
+
+| Step | Route | Checked as | State |
+|---|---|---|---|
+| 16 Awaiting invoice | `/purchasing?tab=invoice` | Accountant (via the demo bar) | [x] |
+| 17 Add invoice, empty | drawer over the tab and the file | Accountant | [x] |
+| 18 Add invoice, filled; 34 higher than the delivery | same drawer | Accountant: 27,986 against 27,486 shows +500, advance −10,000, balance 17,986, required reason; saved as disputed | [x] |
+| 19 Orders to pay | `/purchasing?tab=pay` | Accountant (Pay buttons on overdue and due-soon, Open on the disputed one); Director (every row only "Open", no top-bar actions) | [x] |
+| 20 Record payment | drawer over the tab and the file | Accountant: bank default, M-Pesa, cheque, cash; full-balance shortcut | [x] |
+| 20b By cheque | same | Accountant: reference swaps to cheque number | [x] |
+| 39 Confirm payment | dialog | Accountant | [x] |
+| 21, 21b Payment advice | `/purchasing-print/payment/[id]` | Accountant: the cheque version (21b) seen; the bank version is the same component | [x] 21b, [~] 21 |
+| 22 Closed purchase file | `/purchasing/[id]` | Accountant: Documents first, six documents, "Add a document", audit log in the rail. Director not opened on a closed file | [x] Accountant, [~] Director |
+| 23 Audit log | `/audit-log` ("Purchasing and payments") | Accountant: filters, columns, pagination text, `?q=` from the closed file | [x] |
+| 24 Every state of a file | the file's state variants | Seen across the scenarios: awaiting invoice, disputed, to pay, part paid, closed, cancelled, voided | [x] |
+| 25 Supplier orders tab | `/suppliers/[id]` | Accountant, Branch Manager (no Payment tab, Orders and Statement present) | [x] |
+| 26 Supplier statement | same, Statement tab | Accountant | [x] |
+| 27 Statement, printed | `/purchasing-print/statement/[supplierId]` | System Admin: layout seen with no history; with figures not opened | [~] |
+| 28 Needs restocking (phone) | `/purchasing` as Attendant | Attendant at 390 px: ticking fills the suggested quantity; sent two items for approval; My orders updated | [x] |
+| 29 My orders (phone) | same, My orders tab | Attendant at 390 px | [x] |
+| 30, 31, 33 Check the goods, delivery note, short or price change (phone) | `/receiving/[id]` | Session 1 screens (walked then). This session changed only their photo states | [~] |
+| 32 Order returned with a note | same, My orders tab, scenario "returned" | Attendant at 390 px: manager's note and "Edit and send again" | [x] |
+| 35 Photo upload problems | invoice drawer, payment proof, add document, receive step 2 | Failed upload with Retry walked in the invoice drawer; "uploading" seen in code and tests, "file too large" and the receive-screen version covered by tests only | [x] failed, [~] the rest |
+| 36 Cancel an order | file, More menu | Session 1 (Store Manager) | [x] |
+| 37 Void an invoice | drawer on the file | Accountant: wrong PIN shows the message, right PIN returns the order to Delivered | [x] |
+| 38 Reverse a payment | drawer on the file | Accountant: drawer opened and checked; the reversal itself covered by tests | [x] drawer, [~] action |
+| 40a Duplicate invoice number | invoice drawer | Accountant: "Open it" and "This is a different invoice" | [x] |
+| 40b Paying more than owed | payment drawer | Accountant: red field, message, disabled "Pay KES 20,000.00" | [x] |
+| 40c Another order is open | New order | Session 1 | [x] |
+| 40d Unsaved changes | invoice and payment drawers | Accountant: "Discard this invoice?" | [x] |
+| N-12 Close short after delivery | none | NOT BUILT: Q-04 answered "not a separate action" (a short delivery already drops the missing quantity) | NOT BUILT |
+| N-13 Settle a disputed invoice | button on the file, drawer | Accountant: agreed 27,486 and a note; the invoice became payable; BUILT, NOT IN PAPER | [x] |
+| N-14 Read-only variants | all new screens | Director on To pay [x]; Branch Manager on the supplier page [x]; Director and Branch Manager on every new file state and the Attendant on desktop widths not opened (the key-action buttons are covered by `next-step.test.ts` for all six roles) | [~] |
+| N-16 Demo-mode supplier page | `/suppliers/[id]` | Overview "What we owe", Orders, Statement from the mock; `legacy-payables/` deleted | [x] |
+| New (not in Paper) | file, closed state | "Payments" card also shown on a closed file to the Accountant, so a payment can still be reversed; "Download all documents" is a demo stub (toast) | BUILT, NOT IN PAPER |
+| New (not in Paper) | `/audit-log` | The "Purchasing and payments" chip beside the three real-area chips (the real log and the mock log are not merged into one list) | BUILT, NOT IN PAPER |
+
+**Not walked in the browser, said plainly:** the Director and Branch Manager sidebars; the Store Manager at any Session 2 screen other than through the System Admin bar; the "file too large" and "uploading" photo states by eye; the actual reversal and the printed statement with figures; the receive screens after this session's photo-state change; the Attendant on a desktop-width window.
+
 ## Chapter 1 to 5: Session 1 (order to delivery)
 
 | Step | Screen (Paper artboard) | Who acts / who reads | Device · route | Data shown | Buttons and what they do | Paper | Tick |
