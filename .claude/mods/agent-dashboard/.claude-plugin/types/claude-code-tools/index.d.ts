@@ -208,7 +208,7 @@ declare module 'claude-code' {
       timeout?: number
       /** Clear, concise description of what this command does in active voice. Never use words like "complex" or "risk" in the description - just describe what it does. Say what the command does in plain words: do not echo the command's text, its flags, or file paths - the user reads this description, often without seeing the command. For simple commands (git, npm, standard CLI tools), keep it brief (5-10 words): - ls → "List files in current directory" - git status → "Show working tree status" - npm install → "Install package dependencies" For commands that are harder to parse at a glance (piped commands, obscure flags, etc.), add enough context to clarify what it does: - find . -name "*.tmp" -exec rm {} \; → "Find and delete all .tmp files recursively" - git reset --hard origin/main → "Discard all local changes and match remote main" - curl -s url | jq '.data[]' → "Fetch JSON from URL and extract data array elements" */
       description?: string
-      /** Set to true to run this command in the background. With it, `timeout` limits how long the command may run in the background before it is stopped (default 1800000 ms, max 7200000 ms). */
+      /** Set to true to run this command in the background. */
       run_in_background?: boolean
       /** Set this to true to dangerously override sandbox mode and run commands without sandboxing. */
       dangerouslyDisableSandbox?: boolean
@@ -1402,6 +1402,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
       } | {
         op: "batch"
         committed: boolean
@@ -1417,6 +1422,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
         fallback?: "sequential"
       }
     } | {
@@ -2204,6 +2214,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
       } | {
         op: "batch"
         committed: boolean
@@ -2219,6 +2234,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
         fallback?: "sequential"
       }
     } | {
@@ -3006,6 +3026,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
       } | {
         op: "batch"
         committed: boolean
@@ -3021,6 +3046,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
         fallback?: "sequential"
       }
     } | {
@@ -3808,6 +3838,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
       } | {
         op: "batch"
         committed: boolean
@@ -3823,6 +3858,11 @@ declare module 'claude-code' {
           documents: number
           max_documents: number
         }
+        embedded?: {
+          strings: number
+          kb: number
+        }
+        warnings?: string[]
         fallback?: "sequential"
       }
     } | {
@@ -5087,7 +5127,6 @@ declare module 'claude-code' {
       needsAuth: string[]
       disabled: string[]
       unconfigured?: string[]
-      replRouted?: boolean
       unknown: string[]
     }
     WebFetch: {
