@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  LayoutDashboard, ShoppingCart, ChefHat, Users,
+  LayoutDashboard, ShoppingCart, Users,
   Calendar, Clock, BarChart2, Bell, UserCircle,
   Inbox, AlertCircle,
 } from 'lucide-react'
@@ -11,7 +11,7 @@ import {
   Spinner, Badge, Divider, Avatar, PriceDisplay, ConnectionIndicator, TimeElapsed,
   Button, IconButton,
   Input, Textarea, Select, Toggle, FormField, DatePicker, TimePicker,
-  BottomNav, SidebarNav, TopBar,
+  BottomNav, TopBar,
   Card, CardHeader, CardBody, CardFooter, StatCard, OrderCard, KDSCard, MenuItemCard, StaffCard,
   Modal, BottomSheet, Popover, ConfirmDialog,
   EmptyState,
@@ -710,29 +710,6 @@ export default function ComponentsPage() {
                     { label: 'Profile', href: '/app/profile', icon: UserCircle },
                   ]}
                   activeHref="/app/orders"
-                />
-              </div>
-            </div>
-
-            {/* SidebarNav preview */}
-            <div>
-              <p className="text-label-sm text-stone-500 mb-3">SidebarNav (desktop)</p>
-              <div className="w-60 border border-stone-200 rounded-md overflow-hidden bg-white h-64">
-                <SidebarNav
-                  sections={[
-                    {
-                      items: [{ label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard }],
-                    },
-                    {
-                      label: 'Manage',
-                      items: [
-                        { label: 'Staff', href: '/app/manage/staff', icon: Users },
-                        { label: 'Menu', href: '/app/manage/menu', icon: ChefHat },
-                        { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
-                      ],
-                    },
-                  ]}
-                  activeHref="/app/manage/staff"
                 />
               </div>
             </div>

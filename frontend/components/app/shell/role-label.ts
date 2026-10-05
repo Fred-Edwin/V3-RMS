@@ -21,6 +21,18 @@ export function roleLabel(role: AppRole | null | undefined): string {
       return 'Director';
     case 'SYSTEM_ADMIN':
       return 'System Admin';
+    case 'HR_MANAGER':
+      return 'HR Manager';
+    case 'WAITER':
+      return 'Waiter';
+    case 'CHEF':
+      return 'Chef';
+    case 'BARISTA':
+      return 'Barista';
+    case 'STEWARD':
+      return 'Steward';
+    case 'HOUSEKEEPING':
+      return 'Housekeeping';
     default:
       return 'Store Manager';
   }

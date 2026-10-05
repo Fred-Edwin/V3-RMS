@@ -103,7 +103,7 @@ These are the places two lanes can collide. Keep edits small, and expect to reba
 | `backend/prisma/schema/*.prisma` | Every module's models | Edit only your module's file. A model that must point at another module's model needs the owner's OK. Migrations are named by timestamp: rebase before generating yours. |
 | `backend/src/routes/index.ts` | Every new route is wired here | One added line per route file. |
 | `backend/src/modules/inventory/_shared/central-store-access.ts` (the permissions table) | One table for all roles | Add rows only. |
-| The sidebar (`frontend/components/app/shell/`) | One nav for all modules | Add your link only. |
+| The navigation table (`frontend/components/app/shell/nav-table.ts`) | One nav for every role; the shell and `app/app/layout.tsx` read it | Change or add only your feature's rows. Rebuilding a screen means moving its row from `oldHref` to `newHref`; never edit the shell, the layout or the sidebar component for it. `nav-table.test.ts` fails if a row shows a link the route gate (`lib/route-access.ts`) would block. |
 | README status tables (`docs/features/*/README.md`, `CLAUDE.md` "Current Work") | Status lines | Update only your own row. |
 | `backend/pnpm-lock.yaml`, `frontend/pnpm-lock.yaml` | Any dependency change | On conflict, take `main`'s file and run `pnpm install` again; never hand-merge. |
 

@@ -16,7 +16,8 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [x] **Hide Dashboard and Reports** (no design yet; the links are not shown).
 - [x] **Add Settings** under PROCUREMENT for the Store Manager (Team and My PIN).
 - [x] **Audit log** icon: the clipboard glyph is already in Paper; the code now matches it.
-- [ ] **Other roles' view:** the same tree for every role, cut to what the role may open, plus a "My dashboard" link at the top for roles that come from elsewhere (Branch Manager, Accountant, Director, System Admin). In those roles' own (older) sidebar, one link "Central Store". Not drawn yet.
+- [x] **Code follows the geometric master (5 Oct 2026).** Checked against `OQP-0` with `get_jsx`: square 5px nodes, square elbow, faint caramel wash plus 2px bar on the active row, chevrons in fixed 16px slots. One known difference: the footer avatar is round in code (owner decision, 15 Sep 2026), square in Paper.
+- [ ] **Other roles' view (changed in code, 5 Oct 2026):** every role now has this one sidebar, with its own groups first (for example Branch Manager: Operations, Manage, Other income, Branch) and the Central Store groups after them. There is no "My dashboard" link and no single "Central Store" link any more; each role's own Dashboard is its first row. Phones show the same links in a menu drawer (desktop roles and Store Attendant). Not drawn in Paper yet; the links per role are the rows in `frontend/components/app/shell/nav-table.ts`.
 
 ## Stale status stamps
 - [x] The cover artboards of **Prep** and **Stock, waste and counting** said "Draft · awaiting owner approval". Both now say "Approved by the owner" (green stamp). The "version 0.1" line beside the stamp was left alone.

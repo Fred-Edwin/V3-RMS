@@ -28,15 +28,11 @@ export { TimePicker } from './TimePicker'
 export { PageLayout } from './PageLayout'
 export { PageHeader } from './PageHeader'
 export { MobileLayout } from './MobileLayout'
-export { SidebarLayout } from './SidebarLayout'
 export { FullscreenLayout } from './FullscreenLayout'
 
 // Wave 5 — Navigation
 export { BottomNav } from './BottomNav'
 export type { NavTab } from './BottomNav'
-export { SidebarNav } from './SidebarNav'
-export type { NavSection, NavItem } from './SidebarNav'
-export { DirectorSidebarNav } from './DirectorSidebarNav'
 export { TopBar } from './TopBar'
 
 // Wave 6 — Cards

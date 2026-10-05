@@ -24,8 +24,8 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Requisitions, Dispatch, Branch day | **Not approved** | Old flow. Needs Paper design first |
 
 **Next, in the owner's order:**
-1. ~~Purchasing mock Session 2~~ built; waiting for your "merge" (the demo script is [features/inventory/purchasing-mock/demo-script.md](features/inventory/purchasing-mock/demo-script.md)).
-2. One shell and one navigation table for every role (brief: [sessions/one-shell-navigation.md](sessions/one-shell-navigation.md)).
+1. ~~Purchasing mock Session 2~~ merged (the demo script is [features/inventory/purchasing-mock/demo-script.md](features/inventory/purchasing-mock/demo-script.md)).
+2. ~~One shell and one navigation table for every role~~ built on branch `feat/one-shell-navigation`, waiting for your "merge" (brief: [sessions/one-shell-navigation.md](sessions/one-shell-navigation.md)). Every desktop role and the Store Attendant now see the new sidebar (a menu drawer on phones, no bottom tabs); the links live in `frontend/components/app/shell/nav-table.ts`. The floor staff stay on the legacy bottom tabs until their screens are rebuilt (owner decision, 5 Oct 2026).
 3. **Client demo** of Purchasing (after 1 and 2). Feedback is applied to the screens, then the real back-end is built in one go.
 4. Prep, then Stock and counts, then Waste rebuilds.
 5. Design, then rebuild, Requisitions, Dispatch and Branch day.
@@ -33,7 +33,7 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 
 Rules that apply to all of it: [features/inventory/README.md](features/inventory/README.md) and [features/inventory/decisions.md](features/inventory/decisions.md). Full step list: [features/inventory/roadmap.md](features/inventory/roadmap.md).
 
-**Known gaps in Inventory code:** the access table has no purchase-order capabilities yet (those routes still use old role lists; fixed in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt; the code sidebar does not yet match the "geometric" Paper master.
+**Known gaps in Inventory code:** the access table has no purchase-order capabilities yet (those routes still use old role lists; fixed in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
 
 ## Workforce (design lane)
 

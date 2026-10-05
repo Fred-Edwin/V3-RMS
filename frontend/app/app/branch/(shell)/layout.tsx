@@ -1,45 +1,28 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname } from 'next/navigation';
 
-import { BranchSidebar, BranchMobileNavDrawer } from '@/features/branch/components/branch-shell';
+import { ShellNavDrawer } from '@/components/app/shell/shell-nav-drawer';
 import {
   MobileNavDrawerProvider,
   useMobileNavDrawer,
 } from '@/features/branch/hooks/use-mobile-nav-drawer';
 
 /**
- * Persistent shell for the Branch Manager workspace — same remount-flash fix
- * as `app/app/inventory/(shell)/layout.tsx` (a Next.js layout stays mounted
- * across navigations within its route group, so the sidebar/drawer don't
- * remount on every nav).
+ * Branch Manager workspace route group. The sidebar is the app shell's (built from the one navigation table), so this layout no
+ * longer draws one. What stays here is the phone nav drawer, opened from the mobile header's hamburger; a Next.js layout stays
+ * mounted across navigations within its group, so the drawer state survives them.
  */
-function activeKeyFromPathname(pathname: string): string {
-  if (pathname.startsWith('/app/branch/requisitions')) return 'requisitions';
-  if (pathname.startsWith('/app/branch/deliveries')) return 'deliveries';
-  if (pathname.startsWith('/app/branch/day')) return 'day';
-  return 'branch';
-}
-
-function BranchShellDrawer({ activeKey }: { activeKey: string }) {
+function BranchShellDrawer() {
   const { isOpen, close } = useMobileNavDrawer();
-  return <BranchMobileNavDrawer activeKey={activeKey} open={isOpen} onOpenChange={(open) => (open ? undefined : close())} />;
+  return <ShellNavDrawer open={isOpen} onOpenChange={(open) => (open ? undefined : close())} />;
 }
 
 export default function BranchShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const activeKey = activeKeyFromPathname(pathname);
-
   return (
     <MobileNavDrawerProvider>
-      <div className="flex h-screen min-h-0 w-full bg-wds-canvas">
-        <div className="hidden lg:flex">
-          <BranchSidebar activeKey={activeKey} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
-      </div>
-      <BranchShellDrawer activeKey={activeKey} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <BranchShellDrawer />
     </MobileNavDrawerProvider>
   );
 }
