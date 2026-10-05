@@ -230,6 +230,17 @@ is, hidden otherwise); access lives in the one table; a flow the client has not 
 built as a mock-data front-end first, back-end after approval. Full rule:
 `docs/features/inventory/decisions.md` ("One screen set, mock first").
 
+Key rule — **One shell, one navigation table (5 Oct 2026):** every sidebar link for every role is
+a row in `frontend/components/app/shell/nav-table.ts`. Rebuilding a feature means moving its rows
+from `oldHref` to `newHref`, nothing else; `app/app/layout.tsx` and the shell hold no role logic and
+the shell never imports `components/ui/`. `middleware.ts` (via `lib/route-access.ts`) stays the
+access authority and `nav-table.test.ts` fails if a row shows a link that gate would block.
+Phones (owner decision, 5 Oct 2026): the desktop roles and the Store Attendant use the same shell at
+every width (a top bar and menu drawer, no bottom tabs); the floor staff (waiter, chef, barista,
+steward, housekeeping) stay on the legacy bottom tabs in `app/app/_legacy-phone/` until their
+screens are rebuilt, then move into the table and that folder is deleted. See
+`docs/sessions/one-shell-navigation.md`.
+
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
 (the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`

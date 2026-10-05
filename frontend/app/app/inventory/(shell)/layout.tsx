@@ -3,8 +3,7 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { InventorySidebar } from '@/features/inventory/_shared/components/inventory-shell';
-import { InventoryMobileNavDrawer } from '@/features/inventory/_shared/components/inventory-shell';
+import { ShellNavDrawer } from '@/components/app/shell/shell-nav-drawer';
 import { DemoBar } from '@/features/inventory/purchasing/components/demo-bar';
 import {
   MobileNavDrawerProvider,
@@ -12,73 +11,33 @@ import {
 } from '@/features/inventory/_shared/hooks/use-mobile-nav-drawer';
 
 /**
- * Persistent shell for Catalog + Suppliers — the two Inventory screens that
- * share one sidebar-driven nav. Restock Levels (`/app/inventory/restock-levels`)
- * is a separate, mobile-only full-screen task route by design (a Department
- * Head lands on it directly, back chevron not sidebar nav) and intentionally
- * sits outside this route group.
+ * Central Store route group. The sidebar is the app shell's (`components/app/shell/app-shell.tsx`, built from the one navigation
+ * table), so this layout no longer draws one; a Next.js layout stays mounted across navigations within its group, so the phone
+ * drawer state below survives Catalog ⇄ Suppliers just as the sidebar does. What stays here: the phone nav drawer (opened from
+ * `MobileHubHeader`'s hamburger) and the demo bar.
  *
- * Fixes the remount-on-navigate bug: before this layout existed, every
- * screen mounted its own copy of the sidebar (desktop) and nav drawer
- * (mobile), so clicking a sidebar link unmounted and remounted the entire
- * shell along with the content, producing a blank-page-then-spinner flash.
- * A Next.js layout stays mounted across navigations within its route group —
- * only `children` (the page) swaps — so the sidebar/drawer now persist.
+ * Restock Levels (`/app/inventory/restock-levels`) is a separate, mobile-first full-screen task route by design (a Department
+ * Head lands on it directly, back chevron not sidebar nav) and intentionally sits outside this route group.
  */
-function activeKeyFromPathname(pathname: string): string {
-  if (pathname.startsWith('/app/inventory/suppliers')) return 'suppliers';
-  if (pathname.startsWith('/app/inventory/purchasing')) return 'purchasing';
-  if (pathname.startsWith('/app/inventory/receiving')) return 'receiving';
-  if (pathname.startsWith('/app/inventory/prep')) return 'prep';
-  // Discrepancies live under Dispatch (resolved from the dispatch queue).
-  if (pathname.startsWith('/app/inventory/dispatch') || pathname.startsWith('/app/inventory/discrepancies')) return 'dispatch';
-  // Restock levels is a sub-link under Stock & counts.
-  if (pathname.startsWith('/app/inventory/stock')) return 'stock-counts';
-  if (pathname.startsWith('/app/inventory/settings')) return 'settings';
-  if (pathname.startsWith('/app/inventory/audit-log')) return 'audit-log';
-  return 'catalog';
-}
-
-/** Stock & counts sub-link for the rail (`1BI5-0`); undefined outside that area. */
-function activeSubKeyFromPathname(pathname: string): string | undefined {
-  if (!pathname.startsWith('/app/inventory/stock')) return undefined;
-  if (pathname.startsWith('/app/inventory/stock/restock-levels')) return 'restock-levels';
-  if (pathname.startsWith('/app/inventory/stock/items')) return 'items';
-  if (pathname.startsWith('/app/inventory/stock/ledger')) return 'ledger';
-  if (pathname.startsWith('/app/inventory/stock/daily-count') || pathname.startsWith('/app/inventory/stock/counts')) return 'daily-count';
-  if (pathname.startsWith('/app/inventory/stock/spot-count')) return 'spot-count';
-  return 'overview';
-}
-
-function InventoryShellDrawer({ activeKey, activeSubKey }: { activeKey: string; activeSubKey?: string }) {
+function InventoryShellDrawer() {
   const { isOpen, close } = useMobileNavDrawer();
-  return (
-    <InventoryMobileNavDrawer
-      activeKey={activeKey}
-      activeSubKey={activeSubKey}
-      open={isOpen}
-      onOpenChange={(open) => (open ? undefined : close())}
-    />
-  );
+  return <ShellNavDrawer open={isOpen} onOpenChange={(open) => (open ? undefined : close())} />;
 }
+
+/** Purchasing, Receiving, Suppliers and the audit log all show the same mock demo data, so they share the demo bar. */
+const DEMO_BAR_PREFIXES = ['/app/inventory/purchasing', '/app/inventory/receiving', '/app/inventory/suppliers', '/app/inventory/audit-log'];
 
 export default function InventoryShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const activeKey = activeKeyFromPathname(pathname);
-  const activeSubKey = activeSubKeyFromPathname(pathname);
+  const showDemoBar = DEMO_BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   return (
     <MobileNavDrawerProvider>
-      <div className="flex h-screen min-h-0 w-full bg-wds-canvas">
-        <div className="hidden lg:flex">
-          <InventorySidebar activeKey={activeKey} activeSubKey={activeSubKey} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
-      </div>
-      <InventoryShellDrawer activeKey={activeKey} activeSubKey={activeSubKey} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <InventoryShellDrawer />
       {/* Demo only (System Admin): role switcher and scenarios for the mock Purchasing and Receiving screens, and for the supplier
           page and audit log, which show the same demo data (orders, what we owe, statement, purchasing actions). */}
-      {activeKey === 'purchasing' || activeKey === 'receiving' || activeKey === 'suppliers' || activeKey === 'audit-log' ? <DemoBar /> : null}
+      {showDemoBar ? <DemoBar /> : null}
     </MobileNavDrawerProvider>
   );
 }

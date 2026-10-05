@@ -1,27 +1,26 @@
-# Code session brief: one shell and one navigation table for every role
+# Code session: one shell and one navigation table for every role
 
-Written 5 Oct 2026 during the Purchasing mock build. Not started. Run as its own code lane, after the Purchasing mock (Session 1) is merged.
+**Status: built 5 Oct 2026 on branch `feat/one-shell-navigation`; waiting for the owner's "merge".**
 
 ## Why
-Today there are two shells. The old roles (Branch Manager, Accountant, Director, System Admin, waiters and the rest) use the legacy layout (`frontend/app/app/layout.tsx`) with its own sidebar, and `/app/inventory/*` bypasses it and brings the new geometric sidebar (`components/app/shell/sidebar-nav.tsx`, Paper `OQP-0`). A person crosses between them only by one "Central Store" link in (`lib/central-store-nav.ts`) and "My dashboard" out. The owner wants every role to see the new shell now, with links to old pages for features not yet rebuilt and links to the new pages for rebuilt ones, so progress shows as each feature is redone.
+There were three shells: the legacy layout with a per-role sidebar, the Central Store's own sidebar, and the Branch workspace's own sidebar. A person crossed between them by one "Central Store" link. The owner wants every role to see the new shell now, with links to old pages for features not yet rebuilt and links to the new pages for rebuilt ones, so progress shows as each feature is redone.
 
-## What to build
-1. **One navigation table**, like the access table, in `frontend/components/app/shell/nav-table.ts` next to `sidebar-nav.tsx` (it is shell configuration, and `components/app/shell/` is the new structure's home for the cross-feature shell; not `lib/`, not `components/ui/`). Rows of `{ key, label, group, icon, oldHref | newHref, roles/capabilities }`. Rebuilding a feature means changing that row's href from the old page to the new one. Nothing else.
-2. **One shell** around every `/app/*` route for desktop roles: new sidebar + top bar. Old pages render inside the content area. Keep the legacy phone layouts and the kitchen/barista display routes (`isDisplayRoute`) as they are.
-3. Groups per role come from the table (Paper `OQP-0` shows the pattern: group label, items with counts, user footer). Counts (badges) come from the existing hooks, not new endpoints.
+## What was built
+- **The navigation table**, `frontend/components/app/shell/nav-table.ts`. Rows of `{ key, label, group, icon, oldHref | newHref, roles, capability?, flag?, departmentHead? }`, plus the Central Store tree with its sub-links. `navFor(context)` turns it into the sidebar for one person; `activeFor` says which row a path lights and whether the page draws its own top bar.
+- **One shell**, `components/app/shell/app-shell.tsx`: the geometric sidebar plus, for old pages, a thin breadcrumb top bar (rebuilt screens draw their own). `app/app/layout.tsx` only decides which frame a page gets.
+- **Route gate** moved from `middleware.ts` into `lib/route-access.ts` (same rules) so it can be tested. `nav-table.test.ts` checks every role (with and without the department-head marker and with different capabilities) and fails if the table shows a link the gate would bounce.
+- **Removed:** the legacy per-role sidebars (`DirectorSidebarNav`, `SidebarLayout`, old `SidebarNav`), the Inventory and Branch private sidebars (`inventory-shell.tsx`, `branch-shell.tsx`, `nav-groups.ts`). Their rules and tests moved into the table.
 
-## Structure rules (settled with the owner, 5 Oct 2026)
-- The shell is **new-structure code** and carries both old and new screens. Over time the old pages shrink and `features/` grows; only the table's rows change. The shell itself is never touched again when a feature is rebuilt.
-- `app/app/layout.tsx` holds **no role-specific sidebar logic**. All of it lives in the table. The layout renders the shell and nothing else.
-- The new shell **must not import from `components/ui/`** (the frozen legacy design system). Old pages keep using it inside their own files. Once the layout stops building the old sidebar, the old sidebar components (`SidebarNav`, `DirectorSidebarNav`, `SidebarLayout`) have no users: delete them if nothing else imports them.
-- Badge counts come through each feature's `index.ts` public API, never by importing a feature's internals. The table holds links, labels and roles, not feature code.
-- Fixes for old pages that look wrong inside the new frame go in those old page files, not in the shell.
+## Decisions (owner, 5 Oct 2026)
+1. **Rebuilding a feature changes only that feature's rows** (`oldHref` to `newHref`). The shell, the layout and the sidebar component are not edited for it. Fixes for an old page that looks wrong in the new frame go in that page's own file.
+2. **The table never widens access.** `middleware.ts` stays the authority.
+3. **Phones: desktop roles migrate, floor staff wait.** The Branch Manager, Director, Accountant, System Admin, HR Manager, Store Manager and Store Attendant use the shell at every width: below `lg` the sidebar becomes a top bar with a menu button that opens the same links as a drawer, and the bottom tabs are gone for them. The floor staff (waiter, chef, barista, steward, housekeeping) keep the legacy bottom tabs, because they work from phones all shift and need one-tap Orders and New Order. They move into the table, and `app/app/_legacy-phone/`, `BottomNav` and `MobileLayout` are deleted, when their screens are rebuilt.
+4. Kitchen and barista display routes and print documents stay bare.
 
-## Watch for
-- Old pages draw their own headers, padding and sometimes their own sidebars; each needs a visual check inside the new frame and a small fix. Do the System Admin first (their legacy sidebar is the least used), then Accountant, Director, Branch Manager.
-- `middleware.ts` gates routes by role; the table must not widen access. Keep the gate as the authority.
-- The Central Store screens already use the geometric sidebar; do not redraw them.
-- Do not redraw the roughly 80 old sidebars embedded in Paper (see memory: geometric sidebar standard).
+## How to rebuild a feature into the shell
+Change that feature's row(s) in `nav-table.ts`: set `newHref`, drop `oldHref`. A row with a `newHref` is treated as drawing its own top bar (`framed`); set `framed: true` on an `oldHref` row only if the old page already draws one. Run `pnpm test` (the gate test runs against the new href).
 
-## Done when
-Every desktop role signs in and sees the new shell with every link they had before; clicking an old link opens the old page inside the new frame; the Central Store links open the rebuilt screens; changing one row of the table swaps a link from old to new.
+## Open items
+- The Director's branch links are fetched in `use-shell-nav.ts` (a Director-only list), not in the table.
+- The Branch workspace's placeholder links (Branch, Waste) were dropped; add rows when those screens exist.
+- The footer avatar is round (owner decision of 15 Sep 2026); Paper's master draws it square.

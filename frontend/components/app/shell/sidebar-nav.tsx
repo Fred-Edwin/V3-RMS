@@ -311,7 +311,7 @@ export function SidebarNav({ groups, activeKey, activeSubKey, user, orgLabel = '
         <span className="ml-auto font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">{orgLabel}</span>
       </div>
 
-      <div className="flex flex-col overflow-y-auto overflow-x-hidden px-wds-2.5 pb-wds-3.5 pt-wds-3.5">
+      <div className="flex flex-col overflow-y-auto overflow-x-hidden px-wds-2.5 pb-wds-3.5 pt-wds-3.5 [scrollbar-color:#4A3A2C_transparent] [scrollbar-width:thin]">
         {groups.map((group, i) => {
           const groupKey = groupStateKey(group.key);
           const groupOpen = isExpanded(groupKey, true);

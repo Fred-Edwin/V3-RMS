@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 /**
  * Hub sidebar nav icons — inline SVGs matching Paper's exact paths (Session-0
@@ -129,6 +130,17 @@ export const SignOutIcon: NavIcon = (props) => (
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
+
+/**
+ * Lucide glyphs for the links to pages that are not rebuilt yet (`nav-table.ts`). Paper's master draws every sidebar icon as a
+ * lucide path at 15px with a 1.75 stroke, so this gives a lucide icon exactly that, and a rebuilt feature can swap in its own
+ * inline icon above without the sidebar changing.
+ */
+export function fromLucide(Icon: LucideIcon): NavIcon {
+  const Wrapped: NavIcon = (props) => <Icon size={15} strokeWidth={1.75} {...(props as Omit<typeof props, 'ref'>)} />;
+  Wrapped.displayName = `NavIcon(${Icon.displayName ?? 'icon'})`;
+  return Wrapped;
+}
 
 /**
  * Hamburger glyph for the mobile hub header's menu button — Paper's `TM8-0`

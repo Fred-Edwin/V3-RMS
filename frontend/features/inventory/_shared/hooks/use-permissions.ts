@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useEffect } from 'react';
 import { create } from 'zustand';
 
@@ -78,8 +80,9 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
 /**
  * What the signed-in person may do in the Central Store, from the server's table. `ready` is false until the first answer (or a
  * cached one) arrives, so screens can wait instead of flashing a "not available" card. `can` is stable between renders.
+ * `enabled: false` skips the request, for the shell on roles that have no Central Store links (the server would answer 403).
  */
-export function usePermissions() {
+export function usePermissions(enabled = true) {
   const realUserId = useAuthStore((s) => s.user?.id ?? null);
   const { role: previewRole, previewing } = useEffectiveRole();
   const userId = realUserId && previewing && previewRole ? `${realUserId}#${previewRole}` : realUserId;
@@ -90,8 +93,8 @@ export function usePermissions() {
   const load = usePermissionsStore((s) => s.load);
 
   useEffect(() => {
-    if (userId && accessToken) void load(userId, previewing ? previewRole : undefined);
-  }, [userId, accessToken, load, previewing, previewRole]);
+    if (enabled && userId && accessToken) void load(userId, previewing ? previewRole : undefined);
+  }, [enabled, userId, accessToken, load, previewing, previewRole]);
 
   const mine = storeUserId === userId;
   const can = useCallback((capability: Capability): boolean => mine && capabilities.includes(capability), [mine, capabilities]);
