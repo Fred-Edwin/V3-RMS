@@ -103,7 +103,7 @@ export function PhotoSlot({
     };
   }, []);
 
-  const upload = async (file: File): Promise<void> => {
+  const upload = async (file: File, shownName?: string): Promise<void> => {
     lastFile.current = file;
     setProblem(null);
     setBusy({ name: file.name, percent: 8 });
@@ -111,7 +111,7 @@ export function PhotoSlot({
     timer.current = setInterval(() => setBusy((b) => (b ? { ...b, percent: Math.min(92, b.percent + 14) } : b)), 70);
     try {
       const ref = await service.upload(file);
-      if (live.current) onChange(ref);
+      if (live.current) onChange(shownName ? { ...ref, fileName: shownName } : ref);
     } catch (e) {
       if (!live.current) return;
       if (e instanceof PurchasingError && e.code === 'UPLOAD_TOO_LARGE') setProblem({ kind: 'tooLarge', size: file.size });
@@ -131,7 +131,7 @@ export function PhotoSlot({
   const retry = (): void => {
     // A file named "fail…" is a demo of a dropped connection: the retry goes through once the name no longer says so.
     const f = lastFile.current;
-    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }));
+    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }), f.name);
   };
 
   const inputs = (

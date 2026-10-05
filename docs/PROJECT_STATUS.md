@@ -1,6 +1,6 @@
 # Wendo RMS: where we are
 
-**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 5 Oct 2026. Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
+**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 5 Oct 2026 (Purchasing mock Session 2). Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
 
 ## The shape of the work
 
@@ -8,7 +8,7 @@ The product is being rebuilt one feature at a time into 10 modules plus Inventor
 
 | Lane | What it is doing now | Status |
 |---|---|---|
-| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Session 1 merged. Session 2 is next |
+| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Sessions 1 and 2 built (Session 2 on branch `feat/purchasing-mock-2`, waiting for your "merge"). Mock is complete; next is the shell session, then the client demo |
 | **Workforce (design)** | Drawing screens in Paper, group by group (branch `docs/workforce-design`, worktree lane-3) | Groups A and B approved. Group C in progress |
 | **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce code depends on it |
 
@@ -19,12 +19,12 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Sub-module | Design | Code |
 |---|---|---|
 | Catalog, Restock levels, Suppliers, Audit log | Approved | **Rebuilt** (on the one access table) |
-| Purchasing and Receiving | Approved | **Mock-data front-end**: order to delivery done (Session 1). Invoice, payment, statement and exceptions are Session 2. Real back-end waits for client approval |
+| Purchasing and Receiving | Approved | **Mock-data front-end complete** (5 Oct 2026): order to delivery, invoice, payment, closed file, statement, audit log, the Attendant's phone views and every exception, all on demo data kept in the browser. The old supplier "record invoice/payment" drawers are gone. Real back-end waits for client approval; its brief is `purchasing-mock/backend-rules.md` |
 | Prep, Stock, Waste, Counting | Approved | Old flow, rebuild pending |
 | Requisitions, Dispatch, Branch day | **Not approved** | Old flow. Needs Paper design first |
 
 **Next, in the owner's order:**
-1. Purchasing mock Session 2 (brief: [sessions/purchasing-mock-session-2.md](sessions/purchasing-mock-session-2.md)).
+1. ~~Purchasing mock Session 2~~ built; waiting for your "merge" (the demo script is [features/inventory/purchasing-mock/demo-script.md](features/inventory/purchasing-mock/demo-script.md)).
 2. One shell and one navigation table for every role (brief: [sessions/one-shell-navigation.md](sessions/one-shell-navigation.md)).
 3. **Client demo** of Purchasing (after 1 and 2). Feedback is applied to the screens, then the real back-end is built in one go.
 4. Prep, then Stock and counts, then Waste rebuilds.
@@ -56,7 +56,8 @@ Not started: Menu and Pricing, Communications, Finance and Receivables, Reportin
 
 ## Waiting on the owner
 
-- Client demo of Purchasing (after Session 2 and the shell session), then feedback.
+- Say "merge" for Purchasing mock Session 2, then the shell session, then the client demo and feedback.
+- Small choices for the client at the demo (list in the demo script): whether a payment bigger than the invoice is allowed, whether the Attendant may see prices, whether the Receiving sidebar link stays next to Purchasing, whether the Branch Manager and Director should be able to settle disputes.
 - Two open Inventory decisions: what a miscount correction does to the ledger, and whether the attendant sees on-hand figures when fulfilling a dispatch ([decisions.md](features/inventory/decisions.md)).
 - Workforce Group C review, as the designer.
 - Client approval of Central Store role names (not yet given).

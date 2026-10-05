@@ -114,13 +114,14 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
     );
   }
 
-  const upload = async (file: File): Promise<void> => {
+  const upload = async (file: File, shownName?: string): Promise<void> => {
     lastFile.current = file;
     setPhotoState({ busy: true, name: file.name, percent: 8, problem: null });
     if (progress.current) clearInterval(progress.current);
     progress.current = setInterval(() => setPhotoState((s) => (s.busy ? { ...s, percent: Math.min(92, s.percent + 14) } : s)), 70);
     try {
-      setPhoto(await service.upload(file));
+      const ref = await service.upload(file);
+      setPhoto(shownName ? { ...ref, fileName: shownName } : ref);
       setPhotoState({ busy: false, name: '', percent: 0, problem: null });
     } catch (e) {
       const problem: UploadProblem = e instanceof PurchasingError && e.code === 'UPLOAD_TOO_LARGE' ? { kind: 'tooLarge', size: file.size } : e instanceof PurchasingError && e.code === 'UPLOAD_BAD_TYPE' ? { kind: 'badType' } : { kind: 'failed' };
@@ -132,7 +133,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   // A file named "fail…" is the demo's dropped connection: the retry goes through once the name no longer says so.
   const retryUpload = (): void => {
     const f = lastFile.current;
-    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }));
+    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }), f.name);
   };
   const pick = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const f = e.target.files?.[0];
