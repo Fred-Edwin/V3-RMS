@@ -116,6 +116,8 @@ export const emptyState = (scenario = 'fresh'): State => ({ version: STATE_VERSI
 // ---------------------------------------------------------------- helpers
 
 const money = (n: number): string => (Math.round(n * 100) / 100).toFixed(2);
+/** For sentences people read: 10000 -> "10,000.00". (`money` is the wire format, with no thousands separator.) */
+const kf = (n: number | string): string => (typeof n === 'string' ? Number.parseFloat(n) : n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyStr = (n: number): string => String(Math.round(n * 1000) / 1000);
 const num = (s: string): number => Number.parseFloat(s);
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
@@ -704,7 +706,7 @@ export function updateOrder(s: State, ctx: Ctx, id: string, input: Partial<Order
   if (input.expectedDate !== undefined) o.expectedDate = input.expectedDate;
   if (input.supplierNote !== undefined) o.supplierNote = input.supplierNote;
   if (input.attendantNote !== undefined) o.attendantNote = input.attendantNote;
-  log(o, ctx, 'edited the order', now, { action: 'Edited order', document: o.reference, detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'} · KES ${money(orderedTotalOf(o))}` });
+  log(o, ctx, 'edited the order', now, { action: 'Edited order', document: o.reference, detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'} · KES ${kf(orderedTotalOf(o))}` });
   return viewOrder(o, ctx, now);
 }
 
@@ -724,7 +726,7 @@ export function submitOrder(s: State, ctx: Ctx, id: string, now: Date): Order {
   o.submittedAt = now.toISOString();
   o.returnedNote = null;
   o.returnedBy = null;
-  log(o, ctx, 'sent the order for approval', now, { action: 'Raised order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${money(orderedTotalOf(o))} · sent for approval` });
+  log(o, ctx, 'sent the order for approval', now, { action: 'Raised order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${kf(orderedTotalOf(o))} · sent for approval` });
   return viewOrder(o, ctx, now);
 }
 
@@ -737,7 +739,7 @@ export function approveOrder(s: State, ctx: Ctx, id: string, pin: string, now: D
   o.submittedAt ??= now.toISOString();
   o.status = 'APPROVED';
   o.approvedBy = { ...ctx.actor, signedAt: now.toISOString() };
-  log(o, ctx, 'approved the order with a PIN', now, { action: 'Approved order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${money(orderedTotalOf(o))} · signed with PIN` });
+  log(o, ctx, 'approved the order with a PIN', now, { action: 'Approved order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${kf(orderedTotalOf(o))} · signed with PIN` });
   return viewOrder(o, ctx, now);
 }
 
@@ -784,7 +786,7 @@ export function cancelOrder(s: State, ctx: Ctx, id: string, input: { reason: Can
   log(o, ctx, 'cancelled the order', now, {
     action: 'Cancelled order',
     document: o.reference,
-    detail: `${({ ORDERED_BY_MISTAKE: 'Ordered by mistake', SUPPLIER_CANNOT_SUPPLY: 'Supplier cannot supply', NO_LONGER_NEEDED: 'No longer needed', OTHER: 'Other' } as const)[input.reason]} · KES ${money(orderedTotalOf(o))}${input.note ? ` · ${input.note}` : ''}`,
+    detail: `${({ ORDERED_BY_MISTAKE: 'Ordered by mistake', SUPPLIER_CANNOT_SUPPLY: 'Supplier cannot supply', NO_LONGER_NEEDED: 'No longer needed', OTHER: 'Other' } as const)[input.reason]} · KES ${kf(orderedTotalOf(o))}${input.note ? ` · ${input.note}` : ''}`,
   });
   return viewOrder(o, ctx, now);
 }
@@ -820,11 +822,11 @@ export function recordDeposit(s: State, ctx: Ctx, id: string, input: DepositInpu
   };
   o.payments.push(p);
   refreshInvoice(o);
-  log(o, ctx, `recorded an advance of KES ${money(amount)} (${p.reference})`, now, {
+  log(o, ctx, `recorded an advance of KES ${kf(amount)} (${p.reference})`, now, {
     action: 'Recorded advance payment',
     area: 'Payments',
     document: p.reference,
-    detail: `KES ${money(amount)} · ${METHOD_WORD[p.method]}${p.methodRef ? ` ${p.methodRef}` : ''} · for ${o.reference}`,
+    detail: `KES ${kf(amount)} · ${METHOD_WORD[p.method]}${p.methodRef ? ` ${p.methodRef}` : ''} · for ${o.reference}`,
   });
   return p;
 }
@@ -873,7 +875,8 @@ export function receiveOrder(s: State, ctx: Ctx, id: string, input: ReceiveInput
     photo,
     receivedBy: ctx.actor,
     receivedAt: now.toISOString(),
-    deliveredTotal: money(deliveredTotalOf(o) ?? 0),
+    // Sum the received lines directly: `deliveredTotalOf` reads `o.delivery`, which is only being created here.
+    deliveredTotal: money(o.lines.reduce((t, l) => t + (l.receivedQty ?? 0) * (l.confirmedPrice ?? l.unitPrice), 0)),
     notSuppliedTotal: money(notSupplied),
   };
   o.status = 'DELIVERED';
@@ -881,7 +884,7 @@ export function receiveOrder(s: State, ctx: Ctx, id: string, input: ReceiveInput
   log(o, ctx, `received the delivery (${o.delivery.reference}), delivery note ${o.delivery.deliveryNoteNo}`, now, {
     action: 'Received goods',
     document: o.reference,
-    detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'}${shortLines ? `, ${shortLines} short` : ''} · delivered value KES ${o.delivery.deliveredTotal} · ${o.delivery.reference}`,
+    detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'}${shortLines ? `, ${shortLines} short` : ''} · delivered value KES ${kf(o.delivery.deliveredTotal)} · ${o.delivery.reference}`,
   });
   return viewOrder(o, ctx, now);
 }
@@ -956,11 +959,11 @@ export function addInvoice(s: State, ctx: Ctx, orderId: string, input: InvoiceIn
   };
   o.invoice = inv;
   refreshInvoice(o);
-  log(o, ctx, differs ? `added invoice ${number}, disputed for KES ${money(Math.abs(variance))}` : `added invoice ${number} for KES ${money(amount)}`, now, {
+  log(o, ctx, differs ? `added invoice ${number}, disputed for KES ${kf(Math.abs(variance))}` : `added invoice ${number} for KES ${kf(amount)}`, now, {
     action: 'Added invoice',
     area: 'Payments',
     document: number,
-    detail: `KES ${money(amount)}${differs ? ` · KES ${money(Math.abs(variance))} ${variance > 0 ? 'above' : 'below'} delivery: ${inv.varianceReason}` : ' · matches delivery'} · for ${o.reference}`,
+    detail: `KES ${kf(amount)}${differs ? ` · KES ${kf(Math.abs(variance))} ${variance > 0 ? 'above' : 'below'} delivery: ${inv.varianceReason}` : ' · matches delivery'} · for ${o.reference}`,
   });
   return inv;
 }
@@ -978,11 +981,11 @@ export function settleDispute(s: State, ctx: Ctx, invoiceId: string, input: { ag
   inv.amount = money(agreed);
   inv.disputed = false;
   refreshInvoice(o);
-  log(o, ctx, `settled the dispute on invoice ${inv.number} at KES ${money(agreed)}: ${input.note.trim()}`, now, {
+  log(o, ctx, `settled the dispute on invoice ${inv.number} at KES ${kf(agreed)}: ${input.note.trim()}`, now, {
     action: 'Settled invoice dispute',
     area: 'Payments',
     document: inv.number,
-    detail: `Agreed KES ${money(agreed)} · ${input.note.trim()}`,
+    detail: `Agreed KES ${kf(agreed)} · ${input.note.trim()}`,
   });
   return inv;
 }
@@ -1000,7 +1003,7 @@ export function voidInvoice(s: State, ctx: Ctx, invoiceId: string, input: { reas
   o.voidedInvoices.push(inv);
   o.invoice = null;
   o.status = 'DELIVERED';
-  log(o, ctx, `voided invoice ${inv.number}`, now, { action: 'Voided invoice', area: 'Payments', document: inv.number, detail: `KES ${inv.amount} · ${VOID_WORD[input.reason]} · ${o.reference} back to awaiting invoice` });
+  log(o, ctx, `voided invoice ${inv.number}`, now, { action: 'Voided invoice', area: 'Payments', document: inv.number, detail: `KES ${kf(inv.amount)} · ${VOID_WORD[input.reason]} · ${o.reference} back to awaiting invoice` });
   return viewOrder(o, ctx, now);
 }
 
@@ -1040,11 +1043,11 @@ export function recordPayment(s: State, ctx: Ctx, invoiceId: string, input: Paym
   };
   o.payments.push(p);
   refreshInvoice(o);
-  log(o, ctx, `paid KES ${money(amount)} on invoice ${inv.number} (${p.reference})${inv.status === 'PAID' ? ', paid in full' : ''}`, now, {
+  log(o, ctx, `paid KES ${kf(amount)} on invoice ${inv.number} (${p.reference})${inv.status === 'PAID' ? ', paid in full' : ''}`, now, {
     action: 'Recorded payment',
     area: 'Payments',
     document: p.reference,
-    detail: `KES ${money(amount)} · ${METHOD_WORD[p.method]}${p.chequeNo ? ` ${p.chequeNo}` : p.methodRef ? ` ${p.methodRef}` : ''} · applied to ${inv.number} · ${inv.status === 'PAID' ? 'balance nil' : `balance KES ${inv.balance}`}`,
+    detail: `KES ${kf(amount)} · ${METHOD_WORD[p.method]}${p.chequeNo ? ` ${p.chequeNo}` : p.methodRef ? ` ${p.methodRef}` : ''} · applied to ${inv.number} · ${inv.status === 'PAID' ? 'balance nil' : `balance KES ${kf(inv.balance)}`}`,
   });
   return { payment: p, order: viewOrder(o, ctx, now) };
 }
@@ -1079,11 +1082,11 @@ export function reversePayment(s: State, ctx: Ctx, paymentId: string, input: { r
   p.status = 'REVERSED';
   o.payments.push(reversal);
   refreshInvoice(o);
-  log(o, ctx, `reversed payment ${p.reference} (KES ${money(num(p.amount))}), approved by ${approver.name}`, now, {
+  log(o, ctx, `reversed payment ${p.reference} (KES ${kf(p.amount)}), approved by ${approver.name}`, now, {
     action: 'Reversed payment',
     area: 'Payments',
     document: p.reference,
-    detail: `KES ${money(num(p.amount))} · ${REVERSE_WORD[input.reason]} · approved by ${approver.name}`,
+    detail: `KES ${kf(p.amount)} · ${REVERSE_WORD[input.reason]} · approved by ${approver.name}`,
   });
   return { payment: reversal, order: viewOrder(o, ctx, now) };
 }

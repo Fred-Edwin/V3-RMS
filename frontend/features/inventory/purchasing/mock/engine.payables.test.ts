@@ -455,6 +455,15 @@ describe('the purchase file: documents and the added-document action (Paper 22)'
     expect(docs.find((d) => d.kind === 'PAYMENT_ADVICE')?.paymentId).not.toBeNull();
   });
 
+  it('records the receipt with its own delivered and not-supplied totals (regression: it used to store 0)', () => {
+    const { s, id } = delivered();
+    const d = getOrder(s, acc, id, now).delivery;
+    expect(d?.deliveredTotal).toBe('27486.00');
+    expect(d?.notSuppliedTotal).toBe('2890.00');
+    expect(getOrder(s, acc, id, now).documents.find((x) => x.kind === 'GOODS_RECEIPT')?.subtitle).toMatch(/GRN-0001 · signed with PIN · KES 27,486$/);
+    expect(getOrder(s, acc, id, now).activity.find((a) => a.action === 'Received goods')?.detail).toMatch(/delivered value KES 27,486\.00 · GRN-0001$/);
+  });
+
   it('hides invoice and payment documents, and every figure, from a caller who may not read money', () => {
     const { s, id } = invoiced();
     const docs = getOrder(s, att, id, now).documents;

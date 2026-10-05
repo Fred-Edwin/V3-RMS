@@ -73,13 +73,13 @@ export function PaymentAdvicePrintScreen({ paymentId }: { paymentId: string }) {
         </section>
 
         <section className="flex items-start justify-between gap-8 pb-4">
-          <div className="flex gap-12">
-            <div className="flex flex-col gap-1">
+          <div className="flex gap-6">
+            <div className="flex w-[250px] flex-col gap-1">
               <span className="font-wds-mono text-[10px] leading-3 tracking-[0.1em] text-[#55626F]">METHOD</span>
               <span className="text-[15px] leading-[18px]">{METHOD_LABEL[d.method]}</span>
-              {d.methodDetail ? <span className="text-[12px] leading-4 text-[#55626F]">{d.methodDetail}</span> : null}
+              {d.methodDetail ? <span className="text-[11px] leading-4 text-[#55626F]">{d.methodDetail}</span> : null}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex shrink-0 flex-col gap-1 whitespace-nowrap">
               <span className="font-wds-mono text-[10px] leading-3 tracking-[0.1em] text-[#55626F]">{isCheque ? 'CHEQUE NUMBER' : 'REFERENCE'}</span>
               <span className="font-wds-mono text-[15px] leading-[18px]">{(isCheque ? d.chequeNo : d.methodRef) || '—'}</span>
             </div>
