@@ -57,7 +57,8 @@ export function createMockPurchasingService(store: MockStore, ctx: Ctx, options:
     getPaymentAdvice: (paymentId) => read((s) => engine.paymentAdvice(s, ctx, paymentId, now())),
 
     getSupplierPurchasing: (supplierId) => read((s) => engine.supplierPurchasing(s, ctx, supplierId, now())),
-    getSupplierStatement: (supplierId) => read((s) => engine.supplierStatement(s, ctx, supplierId, now())),
+    getSupplierStatement: (supplierId, range) => read((s) => engine.supplierStatement(s, ctx, supplierId, now(), range)),
     getAuditLog: () => read((s) => engine.auditLog(s, ctx)),
+    addDocument: (orderId, input) => write((s) => engine.addDocument(s, ctx, orderId, input, now())),
   };
 }

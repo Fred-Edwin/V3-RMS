@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PurchasingError } from '../types';
 import { ctxFor } from './demo-actors';
 import {
+  addDocument,
   addInvoice,
   addUpload,
   approveOrder,
@@ -381,42 +382,97 @@ describe('the supplier page and statement (Paper 25 to 27)', () => {
     expect(supplierStatement(s, bm, 'sup-samrat', now).lines.length).toBeGreaterThan(0);
   });
 
-  it('builds a statement with a running balance, ageing and totals', () => {
+  it('reads as the supplier does: an invoice is a Credit, a payment or advance a Debit, with a running balance and period totals (Paper 26)', () => {
     const { s, inv } = invoiced();
     recordPayment(s, acc, inv.id, payInput({ amount: '7486' }), now);
     const st = supplierStatement(s, acc, 'sup-samrat', now);
-    expect(st.lines.map((l) => [l.kind, l.balance])).toEqual([
-      ['ADVANCE', '-10000.00'],
-      ['INVOICE', '17486.00'],
-      ['PAYMENT', '10000.00'],
+    expect(st.lines.map((l) => [l.kind, l.debit, l.credit, l.balance])).toEqual([
+      ['ADVANCE', '10000.00', '', '-10000.00'],
+      ['INVOICE', '', '27486.00', '17486.00'],
+      ['PAYMENT', '7486.00', '', '10000.00'],
     ]);
-    expect(st.closingBalance).toBe('10000.00');
-    expect(st).toMatchObject({ totalInvoiced: '27486.00', totalPaid: '17486.00' });
-    expect(st.ageing).toEqual({ current: '10000.00', days1to30: '0.00', days31plus: '0.00' });
-    const aged = supplierStatement(s, acc, 'sup-samrat', new Date('2026-11-25T12:00:00Z'));
-    expect(aged.ageing.days31plus).toBe('10000.00');
+    expect(st).toMatchObject({ openingBalance: '0.00', totalDebit: '17486.00', totalCredit: '27486.00', closingBalance: '10000.00', from: '2026-09-01', to: '2026-10-05' });
   });
 
-  it('shows a reversed payment struck through with a reversal line, and the balance nets to zero for that payment', () => {
+  it('carries what was owed before the period as the opening balance, and honours a chosen period', () => {
+    const { s } = invoiced();
+    const st = supplierStatement(s, acc, 'sup-samrat', now, { from: '2026-10-02', to: '2026-10-05' });
+    expect(st.openingBalance).toBe('17486.00');
+    expect(st.lines).toHaveLength(0);
+    expect(st.closingBalance).toBe('17486.00');
+    expect(supplierStatement(s, acc, 'sup-samrat', now, { from: '2026-09-01', to: '2026-09-30' }).closingBalance).toBe('-10000.00');
+  });
+
+  it('ages open invoices by days past due into five buckets', () => {
+    const { s } = invoiced();
+    expect(supplierStatement(s, acc, 'sup-samrat', now).ageing).toEqual({ current: '17486.00', days1to30: '0.00', days31to60: '0.00', days61to90: '0.00', days90plus: '0.00' });
+    const at = (iso: string) => supplierStatement(s, acc, 'sup-samrat', new Date(iso), { to: iso.slice(0, 10) }).ageing;
+    expect(at('2026-10-30T12:00:00Z').days1to30).toBe('17486.00');
+    expect(at('2026-11-25T12:00:00Z').days31to60).toBe('17486.00');
+    expect(at('2026-12-20T12:00:00Z').days61to90).toBe('17486.00');
+    expect(at('2027-02-01T12:00:00Z').days90plus).toBe('17486.00');
+  });
+
+  it('shows a reversed payment struck through with a reversal line, and nothing is erased', () => {
     const { s, inv } = invoiced();
     const p = recordPayment(s, acc, inv.id, payInput(), now).payment;
     reversePayment(s, acc, p.id, { reason: 'WRONG_AMOUNT', note: null, approverPin: '1234' }, now);
     const st = supplierStatement(s, acc, 'sup-samrat', now);
     expect(st.lines.find((l) => l.kind === 'PAYMENT')?.superseded).toBe(true);
-    expect(st.lines.find((l) => l.kind === 'REVERSAL')?.debit).toBe('17486.00');
+    expect(st.lines.find((l) => l.kind === 'REVERSAL')?.credit).toBe('17486.00');
     expect(st.closingBalance).toBe('17486.00');
-    expect(st.totalPaid).toBe('10000.00');
   });
 
   it('a settled dispute appears on the statement at the agreed figure', () => {
     const { s, inv } = invoiced(10000, { amount: '27986', varianceReason: 'Charged delivery.' });
     settleDispute(s, acc, inv.id, { agreedAmount: '27486', note: 'Agreed.' }, now);
-    expect(supplierStatement(s, acc, 'sup-samrat', now).lines.find((l) => l.kind === 'INVOICE')?.debit).toBe('27486.00');
+    const line = supplierStatement(s, acc, 'sup-samrat', now).lines.find((l) => l.kind === 'INVOICE');
+    expect(line?.credit).toBe('27486.00');
+    expect(line?.description).toMatch(/settled/);
+  });
+});
+
+describe('the purchase file: documents and the added-document action (Paper 22)', () => {
+  it('lists every document with its step, who added it and its link, in Paper order', () => {
+    const { s, id, inv } = invoiced();
+    recordPayment(s, acc, inv.id, payInput(), now);
+    const docs = getOrder(s, acc, id, now).documents;
+    expect(docs.map((d) => [d.kind, d.step, d.action])).toEqual([
+      ['LPO', 'Ordered', 'Print'],
+      ['DELIVERY_NOTE', 'Delivered', 'View'],
+      ['GOODS_RECEIPT', 'Delivered', 'Open'],
+      ['INVOICE', 'Invoiced', 'View'],
+      ['ADVANCE_ADVICE', 'Paid', 'Print'],
+      ['PAYMENT_ADVICE', 'Paid', 'Print'],
+    ]);
+    expect(docs.find((d) => d.kind === 'LPO')?.subtitle).toMatch(/^LPO-0001 · 4 items · KES 30,136$/);
+    expect(docs.find((d) => d.kind === 'PAYMENT_ADVICE')?.paymentId).not.toBeNull();
+  });
+
+  it('hides invoice and payment documents, and every figure, from a caller who may not read money', () => {
+    const { s, id } = invoiced();
+    const docs = getOrder(s, att, id, now).documents;
+    expect(docs.every((d) => !/KES/.test(d.subtitle))).toBe(true);
+    expect(docs.some((d) => d.kind === 'INVOICE' || d.kind === 'PAYMENT_ADVICE')).toBe(false);
+  });
+
+  it('lets someone who handles the paperwork add a document, which is logged', () => {
+    const { s, id } = invoiced();
+    const file = addUpload(s, { fileName: 'Samrat receipt 11 Oct.jpg', size: 800_000, mime: 'image/jpeg', thumbnail: null });
+    expect(getOrder(s, acc, id, now).can.addDocument).toBe(true);
+    expect(getOrder(s, dir, id, now).can.addDocument).toBe(false);
+    expect(codeOf(() => addDocument(s, dir, id, { title: "Supplier's receipt", fileId: file.id }, now))).toBe('FORBIDDEN');
+    expect(codeOf(() => addDocument(s, acc, id, { title: ' ', fileId: file.id }, now))).toBe('VALIDATION');
+    expect(codeOf(() => addDocument(s, acc, id, { title: 'x', fileId: 'nope' }, now))).toBe('VALIDATION');
+    const doc = addDocument(s, acc, id, { title: "Supplier's receipt", fileId: file.id }, now);
+    expect(doc).toMatchObject({ kind: 'OTHER', step: 'Invoiced', subtitle: 'Samrat receipt 11 Oct.jpg', addedBy: 'Margaret' });
+    expect(getOrder(s, acc, id, now).documents.at(-1)?.title).toBe("Supplier's receipt");
+    expect(getOrder(s, acc, id, now).activity[0]?.action).toBe('Added document');
   });
 });
 
 describe('the audit log (Paper 23)', () => {
-  it('lists every Purchasing action, newest first, for roles that may read the audit log', () => {
+  it('lists every Purchasing and payment action, newest first, for roles that may read the audit log', () => {
     const { s, inv } = invoiced();
     recordPayment(s, acc, inv.id, payInput({ amount: '100' }), now);
     for (const who of [acc, sm, dir, bm, sa]) {
@@ -426,6 +482,18 @@ describe('the audit log (Paper 23)', () => {
       expect(rows[0]?.supplierName).toBe('Samrat Supermarket Ltd');
     }
     expect(codeOf(() => auditLog(s, att))).toBe('FORBIDDEN');
+  });
+
+  it('gives each row the columns Paper shows: who and role, action, area, document and what changed', () => {
+    const { s, inv } = invoiced();
+    const p = recordPayment(s, acc, inv.id, payInput({ amount: '100', method: 'CHEQUE', chequeNo: '000412' }), now).payment;
+    const rows = auditLog(s, acc);
+    expect(rows[0]).toMatchObject({ actor: { name: 'Margaret', role: 'Accountant' }, action: 'Recorded payment', area: 'Payments', document: p.reference });
+    expect(rows[0]?.detail).toMatch(/KES 100\.00 · Cheque 000412 · applied to INV-05188/);
+    const actions = new Set(rows.map((r) => r.action));
+    for (const a of ['Saved draft order', 'Approved order', 'Sent order on WhatsApp', 'Recorded advance payment', 'Received goods', 'Added invoice']) expect(actions.has(a)).toBe(true);
+    expect(rows.find((r) => r.action === 'Received goods')?.area).toBe('Purchasing');
+    expect(rows.find((r) => r.action === 'Added invoice')?.document).toBe('INV-05188');
   });
 });
 

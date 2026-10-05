@@ -2,8 +2,12 @@ import type { Capability } from '../../_shared/lib/capabilities';
 import { amountInWords } from '../lib/amount-in-words';
 import {
   PurchasingError,
+  type ActivityEntry,
+  type AuditArea,
   type AuditRow,
   type CancelReason,
+  type DocumentInput,
+  type FileDocument,
   type CatalogResult,
   type DepositInput,
   type Delivery,
@@ -91,8 +95,10 @@ interface StoredOrder {
   invoice: Invoice | null;
   voidedInvoices: Invoice[];
   payments: Payment[];
+  /** Documents added by hand to the file (Paper "+ Add a document"). */
+  extraDocs: FileDocument[];
   cancelled: Order['cancelled'];
-  activity: PurchaseFile['activity'];
+  activity: ActivityEntry[];
 }
 
 export interface State {
@@ -115,6 +121,10 @@ const num = (s: string): number => Number.parseFloat(s);
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 const dayDiff = (iso: string, now: Date): number => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${isoDay(now)}T00:00:00Z`)) / 86_400_000);
 const pad = (n: number, w = 4): string => String(n).padStart(w, '0');
+
+const METHOD_WORD: Record<string, string> = { BANK_TRANSFER: 'Bank transfer', MPESA_PAYBILL: 'M-Pesa Paybill', MPESA_TILL: 'M-Pesa Till', MPESA_SEND_MONEY: 'M-Pesa', CHEQUE: 'Cheque', CASH: 'Cash' };
+const VOID_WORD: Record<VoidReason, string> = { WRONG_AMOUNT: 'Wrong amount entered', WRONG_SUPPLIER_OR_ORDER: 'Wrong supplier or order', DUPLICATE: 'Duplicate', OTHER: 'Other' };
+const REVERSE_WORD: Record<ReverseReason, string> = { WRONG_AMOUNT: 'Wrong amount', WRONG_INVOICE: 'Wrong invoice', PAYMENT_BOUNCED: 'Payment bounced', OTHER: 'Other' };
 
 const supplierOf = (id: string): FixtureSupplier => {
   const s = SUPPLIERS.find((x) => x.id === id);
@@ -187,8 +197,24 @@ function refreshInvoice(o: StoredOrder): void {
 
 const addDaysIso = (iso: string, days: number): string => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
-const log = (o: StoredOrder, ctx: Ctx, what: string, now: Date): void => {
-  o.activity.unshift({ at: now.toISOString(), actor: { id: ctx.actor.id, name: ctx.actor.name }, what });
+interface Audit {
+  action: string;
+  area?: AuditArea;
+  document: string | null;
+  detail: string;
+}
+
+/** Record what happened on an order: the sentence for the Activity tab and the structured row for the Audit log. */
+const log = (o: StoredOrder, ctx: Ctx, what: string, now: Date, audit: Audit): void => {
+  o.activity.unshift({
+    at: now.toISOString(),
+    actor: { id: ctx.actor.id, name: ctx.actor.name, role: ctx.actor.role },
+    what,
+    action: audit.action,
+    area: audit.area ?? 'Purchasing',
+    document: audit.document,
+    detail: audit.detail,
+  });
 };
 
 // ---------------------------------------------------------------- views
@@ -234,6 +260,7 @@ const canOf = (o: StoredOrder, ctx: Ctx): OrderCan => {
     // An invoice can be voided only while nothing is paid against it; otherwise the payment is reversed first.
     voidInvoice: ctx.can('payables.record_invoice') && o.status === 'INVOICED' && !!o.invoice && invoicePaidOf(o) === 0,
     reversePayment: ctx.can('payables.record_payment') && (o.status === 'INVOICED' || o.status === 'CLOSED') && invoicePaidOf(o) > 0,
+    addDocument: o.status !== 'DRAFT' && (ctx.can('payables.record_invoice') || ctx.can('payables.record_payment') || ctx.can('orders.approve')),
   };
 };
 
@@ -456,14 +483,81 @@ export function getOrder(s: State, ctx: Ctx, id: string, now: Date): PurchaseFil
   needAny(ctx, 'orders.read', 'orders.request', 'orders.receive');
   const o = find(s, id);
   if (!visible(o, ctx)) throw forbidden();
-  const documents: PurchaseFile['documents'] = [];
-  if (o.approvedBy) documents.push({ kind: 'LPO', title: `${o.reference} (LPO)`, at: o.approvedBy.signedAt, fileRef: null });
-  if (o.delivery) documents.push({ kind: 'DELIVERY_NOTE', title: `Delivery note ${o.delivery.deliveryNoteNo}`, at: o.delivery.receivedAt, fileRef: o.delivery.photo });
-  if (o.invoice && ctx.can('payables.read')) documents.push({ kind: 'INVOICE', title: `Invoice ${o.invoice.number}`, at: o.invoice.enteredAt, fileRef: o.invoice.photo });
-  if (ctx.can('payables.read')) {
-    for (const p of o.payments.filter((x) => x.kind === 'INVOICE')) documents.push({ kind: 'PAYMENT_ADVICE', title: `Payment advice ${p.reference}`, at: p.recordedAt, fileRef: p.proof });
+  const money$ = ctx.can('payables.read');
+  const documents: FileDocument[] = [];
+  const itemCount = `${o.lines.length} item${o.lines.length === 1 ? '' : 's'}`;
+  if (o.approvedBy) {
+    documents.push({
+      kind: 'LPO',
+      title: 'Local purchase order',
+      subtitle: `${o.reference} · ${itemCount}${money$ ? ` · KES ${kes0(orderedTotalOf(o))}` : ''}`,
+      step: 'Ordered',
+      at: o.approvedBy.signedAt,
+      addedBy: o.approvedBy.name,
+      fileRef: null,
+      action: 'Print',
+      paymentId: null,
+    });
   }
+  if (o.delivery) {
+    documents.push({ kind: 'DELIVERY_NOTE', title: 'Delivery note photo', subtitle: `${o.delivery.deliveryNoteNo}${o.delivery.photo ? ` · ${o.delivery.photo.fileName}` : ''}`, step: 'Delivered', at: o.delivery.receivedAt, addedBy: o.delivery.receivedBy.name, fileRef: o.delivery.photo, action: 'View', paymentId: null });
+    documents.push({
+      kind: 'GOODS_RECEIPT',
+      title: 'Goods receipt',
+      subtitle: `${o.delivery.reference} · signed with PIN${money$ ? ` · KES ${kes0(num(o.delivery.deliveredTotal))}` : ''}`,
+      step: 'Delivered',
+      at: o.delivery.receivedAt,
+      addedBy: o.delivery.receivedBy.name,
+      fileRef: null,
+      action: 'Open',
+      paymentId: null,
+    });
+  }
+  if (money$) {
+    if (o.invoice) {
+      documents.push({
+        kind: 'INVOICE',
+        title: "Supplier's invoice",
+        subtitle: `${o.invoice.number} · KES ${kes0(num(o.invoice.amount))}${o.invoice.photo ? ` · ${o.invoice.photo.fileName}` : ''}`,
+        step: 'Invoiced',
+        at: o.invoice.enteredAt,
+        addedBy: o.invoice.enteredBy.name,
+        fileRef: o.invoice.photo,
+        action: 'View',
+        paymentId: null,
+      });
+    }
+    for (const p of o.payments.filter((x) => x.kind !== 'REVERSAL')) {
+      documents.push({
+        kind: p.kind === 'ADVANCE' ? 'ADVANCE_ADVICE' : 'PAYMENT_ADVICE',
+        title: p.kind === 'ADVANCE' ? 'Advance payment advice' : 'Payment advice',
+        subtitle: `${p.reference} · KES ${kes0(num(p.amount))} · ${p.chequeNo ? `Cheque ${p.chequeNo}` : `${METHOD_WORD[p.method]}${p.methodRef ? ` ${p.methodRef}` : ''}`}${p.status === 'REVERSED' ? ' · reversed' : ''}`,
+        step: 'Paid',
+        at: p.recordedAt,
+        addedBy: p.recordedBy.name,
+        fileRef: null,
+        action: 'Print',
+        paymentId: p.id,
+      });
+    }
+  }
+  documents.push(...o.extraDocs);
   return { ...viewOrder(o, ctx, now), documents, activity: o.activity };
+}
+
+const kes0 = (n: number): string => Math.round(n).toLocaleString('en-US');
+
+/** Paper "+ Add a document": attach a photo or PDF (the supplier's receipt, a signed letter) to the purchase file. */
+export function addDocument(s: State, ctx: Ctx, orderId: string, input: DocumentInput, now: Date): FileDocument {
+  const o = find(s, orderId);
+  if (!canOf(o, ctx).addDocument) throw forbidden();
+  if (!input.title.trim()) throw new PurchasingError('VALIDATION', 'Give the document a name.');
+  const file = s.files[input.fileId];
+  if (!file) throw new PurchasingError('VALIDATION', 'Add the photo or PDF first.');
+  const doc: FileDocument = { kind: 'OTHER', title: input.title.trim(), subtitle: file.fileName, step: o.status === 'CLOSED' ? 'Paid' : o.invoice ? 'Invoiced' : o.delivery ? 'Delivered' : 'Ordered', at: now.toISOString(), addedBy: ctx.actor.name, fileRef: file, action: 'View', paymentId: null };
+  o.extraDocs.push(doc);
+  log(o, ctx, `added the document "${doc.title}"`, now, { action: 'Added document', document: o.reference, detail: `${doc.title} · ${file.fileName}` });
+  return doc;
 }
 
 export function lpoPrint(s: State, ctx: Ctx, id: string, now: Date): LpoPrint {
@@ -578,10 +672,11 @@ export function createOrder(s: State, ctx: Ctx, input: OrderInput, now: Date): O
     invoice: null,
     voidedInvoices: [],
     payments: [],
+    extraDocs: [],
     cancelled: null,
     activity: [],
   };
-  log(o, ctx, 'saved a draft', now);
+  log(o, ctx, 'saved a draft', now, { action: 'Saved draft order', document: null, detail: `${sup.name} · ${o.lines.length} item${o.lines.length === 1 ? '' : 's'}` });
   s.orders.push(o);
   return viewOrder(o, ctx, now);
 }
@@ -596,7 +691,7 @@ export function updateOrder(s: State, ctx: Ctx, id: string, input: Partial<Order
   if (input.expectedDate !== undefined) o.expectedDate = input.expectedDate;
   if (input.supplierNote !== undefined) o.supplierNote = input.supplierNote;
   if (input.attendantNote !== undefined) o.attendantNote = input.attendantNote;
-  log(o, ctx, 'edited the order', now);
+  log(o, ctx, 'edited the order', now, { action: 'Edited order', document: o.reference, detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'} · KES ${money(orderedTotalOf(o))}` });
   return viewOrder(o, ctx, now);
 }
 
@@ -616,7 +711,7 @@ export function submitOrder(s: State, ctx: Ctx, id: string, now: Date): Order {
   o.submittedAt = now.toISOString();
   o.returnedNote = null;
   o.returnedBy = null;
-  log(o, ctx, 'sent the order for approval', now);
+  log(o, ctx, 'sent the order for approval', now, { action: 'Raised order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${money(orderedTotalOf(o))} · sent for approval` });
   return viewOrder(o, ctx, now);
 }
 
@@ -629,7 +724,7 @@ export function approveOrder(s: State, ctx: Ctx, id: string, pin: string, now: D
   o.submittedAt ??= now.toISOString();
   o.status = 'APPROVED';
   o.approvedBy = { ...ctx.actor, signedAt: now.toISOString() };
-  log(o, ctx, 'approved the order with a PIN', now);
+  log(o, ctx, 'approved the order with a PIN', now, { action: 'Approved order', document: o.reference, detail: `To ${supplierOf(o.supplierId).name} · KES ${money(orderedTotalOf(o))} · signed with PIN` });
   return viewOrder(o, ctx, now);
 }
 
@@ -641,7 +736,7 @@ export function returnOrder(s: State, ctx: Ctx, id: string, note: string, now: D
   o.status = 'RETURNED';
   o.returnedNote = note.trim();
   o.returnedBy = { id: ctx.actor.id, name: ctx.actor.name };
-  log(o, ctx, `returned the order: ${note.trim()}`, now);
+  log(o, ctx, `returned the order: ${note.trim()}`, now, { action: 'Returned order', document: o.reference, detail: note.trim() });
   return viewOrder(o, ctx, now);
 }
 
@@ -653,7 +748,12 @@ export function sendOrder(s: State, ctx: Ctx, id: string, via: SendVia, now: Dat
     o.status = 'SENT';
     o.sentAt = now.toISOString();
     o.sentVia = via;
-    log(o, ctx, via === 'MANUAL' ? 'marked the order as sent' : `sent the order (${via.toLowerCase()})`, now);
+    const sup = supplierOf(o.supplierId);
+    log(o, ctx, via === 'MANUAL' ? 'marked the order as sent' : `sent the order (${via.toLowerCase()})`, now, {
+      action: via === 'WHATSAPP' ? 'Sent order on WhatsApp' : via === 'MANUAL' ? 'Marked order as sent' : via === 'PRINT' ? 'Printed order' : 'Copied order link',
+      document: o.reference,
+      detail: via === 'WHATSAPP' ? `To ${sup.contactName ?? sup.name}${sup.whatsapp ? `, ${sup.whatsapp}` : ''}` : via === 'MANUAL' ? `Phoned in to ${sup.name}` : `For ${sup.name}`,
+    });
   }
   return viewOrder(o, ctx, now);
 }
@@ -668,7 +768,11 @@ export function cancelOrder(s: State, ctx: Ctx, id: string, input: { reason: Can
   checkPin(input.pin);
   o.status = 'CANCELLED';
   o.cancelled = { reason: input.reason, note: input.note, by: { id: ctx.actor.id, name: ctx.actor.name }, at: now.toISOString() };
-  log(o, ctx, 'cancelled the order', now);
+  log(o, ctx, 'cancelled the order', now, {
+    action: 'Cancelled order',
+    document: o.reference,
+    detail: `${({ ORDERED_BY_MISTAKE: 'Ordered by mistake', SUPPLIER_CANNOT_SUPPLY: 'Supplier cannot supply', NO_LONGER_NEEDED: 'No longer needed', OTHER: 'Other' } as const)[input.reason]} · KES ${money(orderedTotalOf(o))}${input.note ? ` · ${input.note}` : ''}`,
+  });
   return viewOrder(o, ctx, now);
 }
 
@@ -703,7 +807,12 @@ export function recordDeposit(s: State, ctx: Ctx, id: string, input: DepositInpu
   };
   o.payments.push(p);
   refreshInvoice(o);
-  log(o, ctx, `recorded an advance of KES ${money(amount)} (${p.reference})`, now);
+  log(o, ctx, `recorded an advance of KES ${money(amount)} (${p.reference})`, now, {
+    action: 'Recorded advance payment',
+    area: 'Payments',
+    document: p.reference,
+    detail: `KES ${money(amount)} · ${METHOD_WORD[p.method]}${p.methodRef ? ` ${p.methodRef}` : ''} · for ${o.reference}`,
+  });
   return p;
 }
 
@@ -755,7 +864,12 @@ export function receiveOrder(s: State, ctx: Ctx, id: string, input: ReceiveInput
     notSuppliedTotal: money(notSupplied),
   };
   o.status = 'DELIVERED';
-  log(o, ctx, `received the delivery (${o.delivery.reference}), delivery note ${o.delivery.deliveryNoteNo}`, now);
+  const shortLines = o.lines.filter((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED').length;
+  log(o, ctx, `received the delivery (${o.delivery.reference}), delivery note ${o.delivery.deliveryNoteNo}`, now, {
+    action: 'Received goods',
+    document: o.reference,
+    detail: `${o.lines.length} item${o.lines.length === 1 ? '' : 's'}${shortLines ? `, ${shortLines} short` : ''} · delivered value KES ${o.delivery.deliveredTotal} · ${o.delivery.reference}`,
+  });
   return viewOrder(o, ctx, now);
 }
 
@@ -829,7 +943,12 @@ export function addInvoice(s: State, ctx: Ctx, orderId: string, input: InvoiceIn
   };
   o.invoice = inv;
   refreshInvoice(o);
-  log(o, ctx, differs ? `added invoice ${number}, disputed for KES ${money(Math.abs(variance))}` : `added invoice ${number} for KES ${money(amount)}`, now);
+  log(o, ctx, differs ? `added invoice ${number}, disputed for KES ${money(Math.abs(variance))}` : `added invoice ${number} for KES ${money(amount)}`, now, {
+    action: 'Added invoice',
+    area: 'Payments',
+    document: number,
+    detail: `KES ${money(amount)}${differs ? ` · KES ${money(Math.abs(variance))} ${variance > 0 ? 'above' : 'below'} delivery: ${inv.varianceReason}` : ' · matches delivery'} · for ${o.reference}`,
+  });
   return inv;
 }
 
@@ -846,7 +965,12 @@ export function settleDispute(s: State, ctx: Ctx, invoiceId: string, input: { ag
   inv.amount = money(agreed);
   inv.disputed = false;
   refreshInvoice(o);
-  log(o, ctx, `settled the dispute on invoice ${inv.number} at KES ${money(agreed)}: ${input.note.trim()}`, now);
+  log(o, ctx, `settled the dispute on invoice ${inv.number} at KES ${money(agreed)}: ${input.note.trim()}`, now, {
+    action: 'Settled invoice dispute',
+    area: 'Payments',
+    document: inv.number,
+    detail: `Agreed KES ${money(agreed)} · ${input.note.trim()}`,
+  });
   return inv;
 }
 
@@ -863,7 +987,7 @@ export function voidInvoice(s: State, ctx: Ctx, invoiceId: string, input: { reas
   o.voidedInvoices.push(inv);
   o.invoice = null;
   o.status = 'DELIVERED';
-  log(o, ctx, `voided invoice ${inv.number}`, now);
+  log(o, ctx, `voided invoice ${inv.number}`, now, { action: 'Voided invoice', area: 'Payments', document: inv.number, detail: `KES ${inv.amount} · ${VOID_WORD[input.reason]} · ${o.reference} back to awaiting invoice` });
   return viewOrder(o, ctx, now);
 }
 
@@ -903,7 +1027,12 @@ export function recordPayment(s: State, ctx: Ctx, invoiceId: string, input: Paym
   };
   o.payments.push(p);
   refreshInvoice(o);
-  log(o, ctx, `paid KES ${money(amount)} on invoice ${inv.number} (${p.reference})${inv.status === 'PAID' ? ', paid in full' : ''}`, now);
+  log(o, ctx, `paid KES ${money(amount)} on invoice ${inv.number} (${p.reference})${inv.status === 'PAID' ? ', paid in full' : ''}`, now, {
+    action: 'Recorded payment',
+    area: 'Payments',
+    document: p.reference,
+    detail: `KES ${money(amount)} · ${METHOD_WORD[p.method]}${p.chequeNo ? ` ${p.chequeNo}` : p.methodRef ? ` ${p.methodRef}` : ''} · applied to ${inv.number} · ${inv.status === 'PAID' ? 'balance nil' : `balance KES ${inv.balance}`}`,
+  });
   return { payment: p, order: viewOrder(o, ctx, now) };
 }
 
@@ -937,7 +1066,12 @@ export function reversePayment(s: State, ctx: Ctx, paymentId: string, input: { r
   p.status = 'REVERSED';
   o.payments.push(reversal);
   refreshInvoice(o);
-  log(o, ctx, `reversed payment ${p.reference} (KES ${money(num(p.amount))}), approved by ${approver.name}`, now);
+  log(o, ctx, `reversed payment ${p.reference} (KES ${money(num(p.amount))}), approved by ${approver.name}`, now, {
+    action: 'Reversed payment',
+    area: 'Payments',
+    document: p.reference,
+    detail: `KES ${money(num(p.amount))} · ${REVERSE_WORD[input.reason]} · approved by ${approver.name}`,
+  });
   return { payment: reversal, order: viewOrder(o, ctx, now) };
 }
 
@@ -1007,49 +1141,83 @@ export function supplierPurchasing(s: State, ctx: Ctx, supplierId: string, now: 
   return { owing: owingFor(s, supplierId, ctx, now), orders: listOrders(s, ctx, { supplierId }, now).orders };
 }
 
-export function supplierStatement(s: State, ctx: Ctx, supplierId: string, now: Date): SupplierStatement {
+/**
+ * The supplier's statement of account (Paper 26, 27). Read it as the supplier does: an invoice is a Credit (it adds to what we
+ * owe), a payment, advance or voided invoice is a Debit (it reduces it). A voided invoice and a reversed payment stay on the
+ * statement, struck through, with a line that cancels them: nothing is erased. `from` defaults to the first of last month.
+ */
+export function supplierStatement(s: State, ctx: Ctx, supplierId: string, now: Date, range: { from?: string; to?: string } = {}): SupplierStatement {
   needAny(ctx, 'payables.read');
   const sup = knownSupplier(supplierId);
+  const today = isoDay(now);
+  const to = range.to ?? today;
+  const from = range.from ?? `${new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 10)}`;
   const raw: Array<Omit<StatementLine, 'balance'>> = [];
   for (const o of s.orders.filter((x) => x.supplierId === supplierId)) {
     const ref = o.reference ?? '';
     for (const inv of [...o.voidedInvoices, ...(o.invoice ? [o.invoice] : [])]) {
       const voided = inv.status === 'VOIDED';
-      raw.push({ at: inv.enteredAt, date: inv.date, kind: 'INVOICE', reference: inv.number, description: `Invoice for ${ref}${inv.disputed ? ' (disputed)' : ''}`, debit: inv.settled ? inv.settled.agreedAmount : inv.amount, credit: '', superseded: voided, orderId: o.id });
-      if (voided && inv.voided) raw.push({ at: inv.voided.at, date: inv.voided.at.slice(0, 10), kind: 'VOID', reference: inv.number, description: `Invoice ${inv.number} voided`, debit: '', credit: inv.settled ? inv.settled.agreedAmount : inv.amount, superseded: false, orderId: o.id });
+      const amount = inv.settled ? inv.settled.agreedAmount : inv.amount;
+      raw.push({ at: inv.enteredAt, date: inv.date, kind: 'INVOICE', reference: inv.number, description: `Invoice for ${ref}${inv.disputed ? ' (disputed)' : inv.settled ? ' (dispute settled)' : ''}`, debit: '', credit: amount, superseded: voided, orderId: o.id });
+      if (voided && inv.voided) raw.push({ at: inv.voided.at, date: inv.voided.at.slice(0, 10), kind: 'VOID', reference: inv.number, description: `Invoice ${inv.number} voided`, debit: amount, credit: '', superseded: false, orderId: o.id });
     }
     for (const p of o.payments) {
-      if (p.kind === 'REVERSAL') raw.push({ at: p.recordedAt, date: p.paidOn, kind: 'REVERSAL', reference: p.reference, description: `Payment reversed${p.reason ? ` (${p.reason})` : ''}`, debit: money(-num(p.amount)), credit: '', superseded: false, orderId: o.id });
-      else raw.push({ at: p.recordedAt, date: p.paidOn, kind: p.kind === 'ADVANCE' ? 'ADVANCE' : 'PAYMENT', reference: p.reference, description: `${p.kind === 'ADVANCE' ? 'Advance' : 'Payment'} for ${ref}`, debit: '', credit: p.amount, superseded: p.status === 'REVERSED', orderId: o.id });
+      if (p.kind === 'REVERSAL') raw.push({ at: p.recordedAt, date: p.paidOn, kind: 'REVERSAL', reference: p.reference, description: `Payment reversed${p.reason ? ` (${p.reason})` : ''}`, debit: '', credit: money(-num(p.amount)), superseded: false, orderId: o.id });
+      else raw.push({ at: p.recordedAt, date: p.paidOn, kind: p.kind === 'ADVANCE' ? 'ADVANCE' : 'PAYMENT', reference: p.reference, description: `${p.kind === 'ADVANCE' ? 'Advance' : 'Payment'} for ${ref}`, debit: p.amount, credit: '', superseded: p.status === 'REVERSED', orderId: o.id });
     }
   }
   // A statement reads in document-date order; entry time breaks ties.
   raw.sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at));
-  let balance = 0;
-  const lines: StatementLine[] = raw.map((l) => {
-    balance += num(l.debit || '0') - num(l.credit || '0');
+  const net = (l: Pick<StatementLine, 'debit' | 'credit'>): number => num(l.credit || '0') - num(l.debit || '0');
+  const opening = raw.filter((l) => l.date < from).reduce((t, l) => t + net(l), 0);
+  let balance = opening;
+  const inPeriod = raw.filter((l) => l.date >= from && l.date <= to);
+  const lines: StatementLine[] = inPeriod.map((l) => {
+    balance += net(l);
     return { ...l, balance: money(balance) };
   });
+  // Ageing: open invoices by how many days past their due date they are on the closing day.
+  const asOf = new Date(`${to}T00:00:00Z`);
   const open = s.orders.filter((o) => o.supplierId === supplierId && o.invoice && o.invoice.status === 'OPEN');
-  const bucket = (test: (days: number) => boolean): string => money(open.filter((o) => test(dayDiff((o.invoice as Invoice).dueDate, now))).reduce((t, o) => t + num((o.invoice as Invoice).balance), 0));
-  const first = lines[0]?.date ?? now.toISOString().slice(0, 10);
+  const bucket = (test: (past: number) => boolean): string => money(open.filter((o) => test(-dayDiff((o.invoice as Invoice).dueDate, asOf))).reduce((t, o) => t + num((o.invoice as Invoice).balance), 0));
   return {
     supplier: { id: sup.id, name: sup.name, code: sup.code, address: sup.address, contactName: sup.contactName, termsDays: sup.termsDays },
-    from: first,
-    to: isoDay(now),
+    from,
+    to,
+    openingBalance: money(opening),
     lines,
+    totalDebit: money(inPeriod.reduce((t, l) => t + num(l.debit || '0'), 0)),
+    totalCredit: money(inPeriod.reduce((t, l) => t + num(l.credit || '0'), 0)),
     closingBalance: money(balance),
-    totalInvoiced: money(raw.filter((l) => l.kind === 'INVOICE' && !l.superseded).reduce((t, l) => t + num(l.debit), 0)),
-    totalPaid: money(raw.filter((l) => (l.kind === 'PAYMENT' || l.kind === 'ADVANCE') && !l.superseded).reduce((t, l) => t + num(l.credit), 0)),
-    ageing: { current: bucket((d) => d >= 0), days1to30: bucket((d) => d < 0 && d >= -30), days31plus: bucket((d) => d < -30) },
+    ageing: {
+      current: bucket((p) => p <= 0),
+      days1to30: bucket((p) => p >= 1 && p <= 30),
+      days31to60: bucket((p) => p >= 31 && p <= 60),
+      days61to90: bucket((p) => p >= 61 && p <= 90),
+      days90plus: bucket((p) => p > 90),
+    },
     generatedAt: now.toISOString(),
   };
 }
 
-/** Every Purchasing action, newest first, for the company-wide audit log. */
+/** Every Purchasing and payment action, newest first, for the company-wide audit log. Filtering is done by the screen. */
 export function auditLog(s: State, ctx: Ctx): AuditRow[] {
   needAny(ctx, 'audit.read');
   return s.orders
-    .flatMap((o) => o.activity.map((a, i) => ({ id: `${o.id}-${i}`, at: a.at, actor: a.actor, what: a.what, orderId: o.id, orderReference: o.reference, supplierName: supplierOf(o.supplierId).name })))
+    .flatMap((o) =>
+      o.activity.map((a, i) => ({
+        id: `${o.id}-${i}`,
+        at: a.at,
+        actor: a.actor,
+        action: a.action,
+        area: a.area,
+        document: a.document,
+        detail: a.detail,
+        what: a.what,
+        orderId: o.id,
+        orderReference: o.reference,
+        supplierName: supplierOf(o.supplierId).name,
+      }))
+    )
     .sort((a, b) => b.at.localeCompare(a.at));
 }

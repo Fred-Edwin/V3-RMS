@@ -144,6 +144,7 @@ export interface OrderCan {
   settleDispute: boolean;
   voidInvoice: boolean;
   reversePayment: boolean;
+  addDocument: boolean;
 }
 
 export interface OrderMoney {
@@ -190,9 +191,41 @@ export interface OrderRow extends Omit<Order, 'lines'> {
   itemSummary: string;
 }
 
+export type AuditArea = 'Purchasing' | 'Payments';
+
+/** One thing that happened on an order. `what` is the sentence for the file's Activity tab; the rest feed the Audit log table. */
+export interface ActivityEntry {
+  at: string;
+  actor: { id: string; name: string; role: string };
+  what: string;
+  /** "Approved order", "Recorded payment": the Action column and filter. */
+  action: string;
+  area: AuditArea;
+  /** The document it concerns (LPO-0044, INV-05188, PAY-0031). */
+  document: string | null;
+  /** The "What changed" column. */
+  detail: string;
+}
+
+export interface FileDocument {
+  kind: 'LPO' | 'DELIVERY_NOTE' | 'GOODS_RECEIPT' | 'INVOICE' | 'ADVANCE_ADVICE' | 'PAYMENT_ADVICE' | 'OTHER';
+  title: string;
+  /** The grey line under the title ("INV-05188 · KES 27,986 · Invoice INV-05188.pdf"). */
+  subtitle: string;
+  /** The stage it belongs to: Ordered, Delivered, Invoiced, Paid. */
+  step: 'Ordered' | 'Delivered' | 'Invoiced' | 'Paid';
+  at: string;
+  addedBy: string;
+  fileRef: FileRef | null;
+  /** The link on the right of the row. */
+  action: 'Print' | 'View' | 'Open';
+  /** Where Print or Open goes: a payment advice needs the payment id. */
+  paymentId: string | null;
+}
+
 export interface PurchaseFile extends Order {
-  documents: Array<{ kind: 'LPO' | 'DELIVERY_NOTE' | 'INVOICE' | 'PAYMENT_ADVICE'; title: string; at: string; fileRef: FileRef | null }>;
-  activity: Array<{ at: string; actor: { id: string; name: string }; what: string }>;
+  documents: FileDocument[];
+  activity: ActivityEntry[];
 }
 
 export interface Summary {
@@ -363,7 +396,11 @@ export interface PaymentAdvice {
   generatedAt: string;
 }
 
-/** One line of a supplier statement. `debit` raises what we owe, `credit` lowers it; the running balance is what we owe after the line. */
+/**
+ * One line of a supplier statement, as Paper draws it (the supplier's view of our account): `credit` adds to what we owe
+ * (an invoice, a reversed payment), `debit` reduces it (a payment, an advance, a voided invoice). `balance` is what we owe
+ * after the line; a negative balance is credit held with the supplier.
+ */
 export interface StatementLine {
   at: string;
   date: string;
@@ -397,25 +434,37 @@ export interface SupplierPurchasing {
 
 export interface SupplierStatement {
   supplier: { id: string; name: string; code: string; address: string; contactName: string | null; termsDays: number | null };
-  /** Statement period, whole history in the mock. */
   from: string;
   to: string;
+  /** What we owed at the start of the period. */
+  openingBalance: string;
   lines: StatementLine[];
+  /** Totals for the period. */
+  totalDebit: string;
+  totalCredit: string;
   closingBalance: string;
-  totalInvoiced: string;
-  totalPaid: string;
-  ageing: { current: string; days1to30: string; days31plus: string };
+  /** Open invoices by days past due at `to`. */
+  ageing: { current: string; days1to30: string; days31to60: string; days61to90: string; days90plus: string };
   generatedAt: string;
 }
 
 export interface AuditRow {
   id: string;
   at: string;
-  actor: { id: string; name: string };
+  actor: { id: string; name: string; role: string };
+  action: string;
+  area: AuditArea;
+  document: string | null;
+  detail: string;
   what: string;
   orderId: string;
   orderReference: string | null;
   supplierName: string;
+}
+
+export interface DocumentInput {
+  title: string;
+  fileId: string;
 }
 
 export interface OrdersQuery {

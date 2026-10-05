@@ -3,6 +3,8 @@ import type {
   CancelReason,
   CatalogResult,
   DepositInput,
+  DocumentInput,
+  FileDocument,
   FileRef,
   Invoice,
   InvoiceInput,
@@ -64,6 +66,9 @@ export interface PurchasingService {
   getPaymentAdvice: (paymentId: string) => Promise<PaymentAdvice>;
 
   getSupplierPurchasing: (supplierId: string) => Promise<SupplierPurchasing>;
-  getSupplierStatement: (supplierId: string) => Promise<SupplierStatement>;
+  getSupplierStatement: (supplierId: string, range?: { from?: string; to?: string }) => Promise<SupplierStatement>;
   getAuditLog: () => Promise<AuditRow[]>;
+
+  /** "+ Add a document" on the purchase file: attach an uploaded photo or PDF with a name. */
+  addDocument: (orderId: string, input: DocumentInput) => Promise<FileDocument>;
 }
