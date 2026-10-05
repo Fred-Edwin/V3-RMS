@@ -1,0 +1,6 @@
+{
+  "name": "agent-dashboard",
+  "version": "0.1.0",
+  "description": "A band above the prompt: task checklist, what the agent is editing and why, and a live context meter.",
+  "types": "./types/index.d.ts"
+}
