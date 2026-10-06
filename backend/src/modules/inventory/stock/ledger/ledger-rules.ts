@@ -9,8 +9,7 @@ import { Prisma, type InventoryTransactionType } from '@prisma/client';
 
 /** The columns of `inventory_transactions` that say which document a row came from. */
 export const LEDGER_LINKS = [
-  'goodsReceiptLineId', // the old receiving flow; leaves with it when the redone Purchasing replaces it
-  'purchaseDeliveryLineId', // the redone Purchasing: one received delivery line
+  'purchaseDeliveryLineId', // Purchasing: one received delivery line
   'prepRecordId',
   'wasteLogId',
   'stockCountLineId',
@@ -38,7 +37,7 @@ export type LedgerRule = {
  * The door refuses them until the flow that owns them is rebuilt and adds a rule here.
  */
 export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>> = {
-  RECEIVE: { direction: 'IN', links: ['goodsReceiptLineId', 'purchaseDeliveryLineId'], numbered: false },
+  RECEIVE: { direction: 'IN', links: ['purchaseDeliveryLineId'], numbered: false },
   PREP_CONSUME: { direction: 'OUT', links: ['prepRecordId'], numbered: false },
   PREP_PRODUCE: { direction: 'IN', links: ['prepRecordId'], numbered: false },
   WASTE: { direction: 'OUT', links: ['wasteLogId'], numbered: false },

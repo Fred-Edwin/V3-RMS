@@ -269,7 +269,7 @@ export const dispatchRepository = {
 
   /**
    * Guarded status transition, same "no partial-signed state" pattern as
-   * `goodsReceiptRepository.markSigned` and Session A's own dispatch create:
+   * the old receiving sign-off and Session A's own dispatch create:
    * `updateMany` with the current status (IN_TRANSIT) in the `where`, a
    * `count === 0` means someone else confirmed it first — the caller rolls
    * back, no partial ledger writes.

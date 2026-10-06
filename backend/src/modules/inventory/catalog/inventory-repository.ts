@@ -599,7 +599,7 @@ export const itemChangeReviewRepository = {
     receiptLines: number;
     openOrders: number;
   }> => {
-    const receiptWhere = { inventoryItemId, goodsReceipt: { siteId, status: { not: 'CANCELLED' as const } } };
+    const receiptWhere = { inventoryItemId, delivery: { siteId } };
     const [perLocation, stockEntries, receiptLines, receiptGroups, openOrderGroups] = await Promise.all([
       prisma.inventoryTransaction.groupBy({
         by: ['locationId'],
@@ -607,11 +607,12 @@ export const itemChangeReviewRepository = {
         _sum: { quantity: true },
       }),
       prisma.inventoryTransaction.count({ where: { siteId, inventoryItemId } }),
-      prisma.goodsReceiptLine.count({ where: receiptWhere }),
-      prisma.goodsReceiptLine.groupBy({ by: ['goodsReceiptId'], where: receiptWhere }),
-      prisma.expectedDeliveryLine.groupBy({
-        by: ['expectedDeliveryId'],
-        where: { inventoryItemId, expectedDelivery: { siteId, status: 'AWAITING' } },
+      prisma.purchaseDeliveryLine.count({ where: receiptWhere }),
+      prisma.purchaseDeliveryLine.groupBy({ by: ['deliveryId'], where: receiptWhere }),
+      // An order still to arrive: approved or sent, with this item on a line.
+      prisma.purchaseOrderLine.groupBy({
+        by: ['orderId'],
+        where: { inventoryItemId, order: { siteId, status: { in: ['APPROVED', 'SENT'] } } },
       }),
     ]);
     const zero = new Prisma.Decimal(0);
