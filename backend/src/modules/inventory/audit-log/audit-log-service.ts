@@ -2,7 +2,7 @@ import type { Request } from 'express';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { requireHubReader } from '../_shared/central-store-access';
 import { describeItemChange, describeRestockChange, describeSupplierAudit, describeSupplierCreated, auditReason } from './audit-log-describe';
-import { auditLogRepository, type Scope } from './audit-log-repository';
+import { auditLogRepository, type PurchasingArea, type Scope } from './audit-log-repository';
 import type { AuditArea, AuditEntry, AuditLogPage } from './audit-log.types';
 import { AUDIT_AREAS } from './audit-log.types';
 import type { AuditLogQuery } from './audit-log-validators';
@@ -32,8 +32,8 @@ const requireScope = async (actor: Actor): Promise<Scope> => {
 };
 
 /**
- * The Audit log (API_CONTRACT.md §30.12): item history, supplier audit rows, supplier creations and restock level
- * changes, newest first, in one list. Read-only; each source is read up to the end of the requested page and the
+ * The Audit log (API_CONTRACT.md §30.12): item history, supplier audit rows, supplier creations, restock level
+ * changes and the purchase file's Purchasing and Payments rows, newest first, in one list. Read-only; each source is read up to the end of the requested page and the
  * merged list is cut to it, so a page is exact whatever the mix.
  */
 export const auditLogService = {
@@ -44,16 +44,20 @@ export const auditLogService = {
     const take = query.page * query.perPage;
     const wants = (area: AuditArea) => areas.includes(area);
 
-    const [itemRows, auditRows, createdRows, restockRows, counts, actorIds] = await Promise.all([
+    const purchasingAreas = areas.filter((a): a is PurchasingArea => a === 'PURCHASING' || a === 'PAYMENTS');
+
+    const [itemRows, auditRows, createdRows, restockRows, purchasingRows, counts, actorIds] = await Promise.all([
       wants('CATALOG') ? auditLogRepository.itemChanges(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.supplierAudits(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.suppliersCreated(scope, filter, take) : [],
       wants('RESTOCK_LEVELS') ? auditLogRepository.restockChanges(scope, filter, take) : [],
+      purchasingAreas.length > 0 ? auditLogRepository.purchasingEntries(scope, filter, purchasingAreas, take) : [],
       Promise.all([
         wants('CATALOG') ? auditLogRepository.countItemChanges(scope, filter) : 0,
         wants('SUPPLIERS') ? auditLogRepository.countSupplierAudits(scope, filter) : 0,
         wants('SUPPLIERS') ? auditLogRepository.countSuppliersCreated(scope, filter) : 0,
         wants('RESTOCK_LEVELS') ? auditLogRepository.countRestockChanges(scope, filter) : 0,
+        purchasingAreas.length > 0 ? auditLogRepository.countPurchasingEntries(scope, filter, purchasingAreas) : 0,
       ]),
       auditLogRepository.actorIds(scope, { from: query.from, to: query.to }),
     ]);
@@ -106,6 +110,22 @@ export const auditLogService = {
           reason: r.reason,
         };
       }),
+      ...purchasingRows.map((r): AuditEntry => ({
+        id: `purchasing:${r.id}`,
+        at: r.at.toISOString(),
+        actor: { id: r.actor.id, name: r.actor.name, role: r.actor.role },
+        area: r.area,
+        what: r.what,
+        reason: null,
+        purchasing: {
+          action: r.action,
+          document: r.document,
+          detail: r.detail,
+          orderId: r.order.id,
+          orderReference: r.order.reference,
+          supplierName: r.supplier.name,
+        },
+      })),
     ];
 
     entries.sort((a, b) => (a.at === b.at ? (a.id < b.id ? 1 : -1) : a.at < b.at ? 1 : -1));

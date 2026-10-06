@@ -1,16 +1,29 @@
-export type AuditArea = 'CATALOG' | 'SUPPLIERS' | 'RESTOCK_LEVELS';
+export type AuditArea = 'CATALOG' | 'SUPPLIERS' | 'RESTOCK_LEVELS' | 'PURCHASING' | 'PAYMENTS';
 
-export const AUDIT_AREAS: readonly AuditArea[] = ['CATALOG', 'SUPPLIERS', 'RESTOCK_LEVELS'];
+export const AUDIT_AREAS: readonly AuditArea[] = ['CATALOG', 'SUPPLIERS', 'RESTOCK_LEVELS', 'PURCHASING', 'PAYMENTS'];
+
+/** The extra columns a Purchasing or Payments row carries (the purchase file it belongs to). */
+export interface PurchasingAuditFields {
+  action: string;
+  document: string | null;
+  detail: string;
+  orderId: string;
+  orderReference: string | null;
+  supplierName: string;
+}
 
 /** One line of the Audit log: who, when, which area, what happened in plain words, and why (when a reason was given). */
 export interface AuditEntry {
-  /** Prefixed with the source ("item:", "supplier:", "restock:") so ids from different tables never collide. */
+  /** Prefixed with the source ("item:", "supplier:", "restock:", "purchasing:") so ids from different tables never collide. */
   id: string;
   at: string;
-  actor: { id: string; name: string };
+  /** `role` is filled on Purchasing and Payments rows only. */
+  actor: { id: string; name: string; role?: string };
   area: AuditArea;
   what: string;
   reason: string | null;
+  /** Present on Purchasing and Payments rows only. */
+  purchasing?: PurchasingAuditFields;
 }
 
 export interface AuditLogPage {
