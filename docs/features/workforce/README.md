@@ -1,6 +1,8 @@
 # Workforce
 
-The people who work for Wendo, what they are scheduled for, what they worked, and what they are paid. Being redone from scratch in the design lane (`docs/sessions/design-lane-workforce.md`). Nothing is built yet.
+The people who work for Wendo, what they are scheduled for, what they worked, and what they are paid. Being redone from scratch in the design lane (`docs/sessions/design-lane-workforce.md`). Nothing is built yet except the foundation.
+
+**Build status:** slice 0 (foundation: access table, time engine, audit writer, rules store; backend only, no screens) **built 6 Oct 2026**, awaiting the owner's approval, on branch `feat/workforce-foundation`. Contract: [slice-0-contract.md](slice-0-contract.md) (as built, frozen). Code: `backend/src/modules/workforce/`. Slices 1 to 7 not started.
 
 ## Where things live
 

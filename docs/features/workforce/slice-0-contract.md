@@ -1,6 +1,6 @@
 # Workforce slice 0 (foundation): contract
 
-**Status:** APPROVED by the owner on 6 Oct 2026, with every recommendation in section 11 taken as the default. Not frozen. The backend session (Session 2) builds from this and fills the amendment log (section 12); when slice 0 ships it is rewritten "as built" and frozen.
+**Status:** **AS BUILT and FROZEN 6 Oct 2026** (backend session, awaiting the owner's approval of the build). Approved by the owner on 6 Oct 2026 with every recommendation in section 11 taken as the default. The code in `backend/src/modules/workforce/` is the source of truth where it differs in detail; every difference is in the amendment log (section 12). Slices 1 to 7 build on this.
 **Branch:** `feat/workforce-foundation` (lane 1, from `main`). **Code in this session:** none.
 **Sources:** `proposal.md` (v2) and `README.md` of this folder; the code on `main`. No Paper file was opened (slice 0 has no screens). Where the documents were silent or disagreed, section 11 says what I chose and why.
 
@@ -2756,5 +2756,12 @@ The backend session fills this in. Every change from this contract is recorded h
 
 | Date | Section | Change | Reason |
 |---|---|---|---|
-| | | | |
+| 6 Oct 2026 | 7.2 | The door also exports `workforcePermissionsRouter` and `workforceRulesRouter`. | `routes/index.ts` is legacy code; importing the routers from `index.ts` avoids new deep-import warnings (`check:imports` shows none for Workforce). |
+| 6 Oct 2026 | 3.5 | `setTracksTimeResolver` accepts `null` to restore the role default. | Tests need to reset the resolver. |
+| 6 Oct 2026 | 7.1 | `events.ts` also exports `deliverEvent` (used by `runAudited` after commit) and `getWorkforceNotifier`. A failing listener is logged and never undoes the committed change. | `runAudited` emits prebuilt events; the notifier needs a reader. |
+| 6 Oct 2026 | 5.2 | Repository functions are `ensureHead` (createMany skipDuplicates), `lockChainHead`, `insertEntry`, `advanceHead` and `listEntries(companyId, afterSeq, limit)`. Canonical hash fields: action, actorId, actorName, actorRole, after, before, category, channel, companyId, deviceLabel, occurredAt, placeLabel, prevHash, reason, seq, siteId, subjectId, subjectType, subjectUserId. | The contract named only `lockChainHead` and `insertEntry`; the known-answer hash in `audit-hash.test.ts` was checked with `sha256sum`. |
+| 6 Oct 2026 | 5.5 | `audit-read.ts` also exports `OWN_RECORD_EXCLUDED_CATEGORIES` (`LOG_ACCESS`). When a person's categories carry mixed scopes, the narrowest applies to all. | Makes "my record never includes LOG_ACCESS" testable; nothing is widened. |
+| 6 Oct 2026 | 6.4 | `deductibleLateness` returns one entry per input day, in date order (0 where nothing is chargeable). `LockedRuleGroup` lives in `rules.types.ts`. | Clearer for callers; a type location only. |
+| 6 Oct 2026 | 6.2, 6.4 | Company resolution for rule writes and reads: the actor's own site's company, else the single active company (a System Admin has no site). A write by someone holding the confirm capability for the scope they changed (e.g. the Accountant on statutory) records the confirmation in the same step. The "told" list is: Director when the editor holds only unit scope or edits statutory; otherwise all branch managers (or the site's) plus the Director when the editor is not the Director; plus the confirmer audience for any unconfirmed scope; the editor is never told. | The contract left these details open; they follow the 6.2 table. |
+| 6 Oct 2026 | 9 | `audit-db.test.ts` runs when `DATABASE_URL` names a `_lane` database. `time-static.test.ts` also forbids `Date.now(`. `workforce-layering.test.ts` additionally checks that the writer uses only `prisma.$transaction`. | Tightens the stated checks; same intent. |
 

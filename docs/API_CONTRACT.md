@@ -5097,3 +5097,19 @@ Standard error envelope with a stable `code`:
 
 `LPO-nnnn` (order), `PAY-nnnn` (payment and advance), `GRN-nnnn` (receipt) are gap-free per site from the reference counter table, taken in the same transaction as the document. The supplier's invoice number and delivery note number are typed in and never generated.
 
+## 32. Workforce — foundation (slice 0, built 6 Oct 2026)
+
+Source of truth: `docs/features/workforce/slice-0-contract.md`. Standard envelope (§1). Access is by capability from `modules/workforce/_shared/workforce-access.ts`, never `requireRole`. Slice 0 has no write endpoint; rule edits are service functions until slice 4.
+
+### 32.1 `GET /workforce/permissions/me`
+
+`authenticate` only. Optional `?asRole=ROLE` (System Admin only, demo preview; ignored for anyone else and for unknown roles). `200`: `{ success: true, data: { role, siteId, isDepartmentHead, departmentTag, tracksTime, capabilities: [{ capability, scope }] } }`, where `scope` is `own | dept | unit | all`. `401` when not signed in.
+
+### 32.2 `GET /workforce/rules/effective?siteId=<uuid>&date=YYYY-MM-DD`
+
+`authenticate`, `requireCapability('rules.read')`. `date` defaults to today (Nairobi). `200`: `{ groups: [...] }`, ten groups, each `{ group, values, isDefault, companyVersion, siteVersion, effectiveFrom, requiredConfirmations, missingConfirmations }`, or `{ group: 'STATUTORY', locked: true }` without `payrun.read`. `400` bad uuid or date; `401`; `403` no `rules.read`, or a branch holder asking another site; `404` unknown site.
+
+### 32.3 `GET /workforce/rules/:group/versions?siteId=<uuid>`
+
+Same guard. Newest first; no `siteId` means company-default versions. Each item: `{ id, group, siteId, version, effectiveFrom, createdAt, createdBy, reason, values, changedFields, requiredConfirmations, confirmations }`. `STATUTORY` comes back `{ group, locked: true }` without `payrun.read`. `404` unknown group.
+
