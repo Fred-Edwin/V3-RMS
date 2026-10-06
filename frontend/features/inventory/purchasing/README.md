@@ -34,7 +34,24 @@ Design: Paper "Inventory · Purchasing" (`p-3-0`). Rules: `docs/features/invento
 - The receive and payment screens keep their client-side checks as well as the server's.
 
 ## Awaiting approval (owner, screen by screen)
-Purchasing six tabs; New order; the purchase file (every state); Receive (the new typed-price field is not in Paper: it sits under each quantity stepper); the Attendant's Restock / To receive / My orders (now shows item prices and order totals); invoice, payment, reverse, void and settle drawers; the three prints; supplier Orders and Statement tabs; audit log view. Narrow windows (under about 950px) squeeze the item name column on the purchase file's delivered state; a desktop width is fine.
+Purchasing six tabs; New order; the purchase file (every state); Receive (the new typed-price field is not in Paper: it sits under each quantity stepper); the Attendant's Restock / To receive / My orders (now shows item prices and order totals); invoice, payment, reverse, void and settle drawers; the three prints; supplier Orders and Statement tabs; audit log view.
+
+## Paper parity pass (6 Oct 2026, local seeded data, real browser at the artboard width)
+Compared by eye plus Paper `get_computed_styles` against live `getComputedStyle`, per artboard. No pixel diff. Paper file `01M3TP8J54R83RHC9FJ7RAHGKG`, page `p-3-0`.
+
+| Screen (Paper artboard) | Live route / order that reaches it | Verdict |
+|---|---|---|
+| 01 Needs restocking, by supplier (`C-0`) | `purchasing?tab=needs` | Corrected: title block 32px from the top bar; "Create order" outlined until something in that group is ticked; the Group / List toggle is 12px with primary text when selected. Not built: Receiving count badge in the sidebar |
+| 03 New order (`JJ-0`) | `purchasing/new?supplier=` | Corrected: Discard is a plain muted action; the item count is a dark round badge; the summary drops under the catalog below 1280px. **Needs owner decision:** Paper pre-ticks low items and has a catalog dropdown and category filter (live ticks nothing, search plus All / Low / Selected only); the date field is the browser's native one (US order in an en-US browser) where Paper draws a custom picker |
+| 15 File, awaiting invoice (`2HU-0`) | `purchasing/<LPO-0011>` | Corrected: Next step card is the espresso tint with tan border; money strip 17px figures, 14px padding, label no longer wraps; the items table scrolls inside its own box (min 640px) instead of squeezing the name; the right rail drops under the file below 1280px; page title 32px from the top bar |
+| 12 and 13 Receive (`294-0`, `2CB-0`) | `receiving/<LPO-0007>` at 390px, Attendant | Corrected: the fake phone status bar (9:41, signal, battery) is gone from the shared phone header (UI rule 7a; this also removes it from the catalog and restock phone screens); a short line gets Paper's red box and a price change its tan border; step 2 header reads "Delivery note"; the photo slot is Paper's icon-beside-text row. **Needs owner decision:** the typed-price field under each stepper (not in Paper); Paper shows a plain number box where live has minus / plus buttons |
+| 17 Add invoice drawer (`2VE-0`) | file of LPO-0011, Add invoice | Matches except: native date field (as above); disabled Save is tan where Paper's is grey |
+| 28 Ask for restock, Attendant (`53A-0`) | `purchasing` as Attendant at 390px | Matches in structure. **Needs owner decision:** Paper's own subtitle says "what we have paid", which the Attendant rule (no payment wording) forbids; the supplier chooser is the browser's native select, Paper draws a small caret |
+| Item prices and totals for the Attendant | Restock, Receive | Built, not in Paper. **Needs owner decision** (`Ordered 2 kg at KES 1,200`, `KES 6,380 per bag`) |
+
+**Not compared in this pass (still open):** steps 02, 04 to 11, 16, 18 to 27, 29 to 40, the three prints, supplier Orders and Statement tabs, the audit log view, and the live-data stress cases (30+ lines beyond the 31-line order, millions, no contact, throttled and lost connection). The Accountant pass is a separate owner decision. Also open: the breadcrumb on a file reads "Awaiting invoice / LPO-0011" as one crumb where Paper has three, the file's "Order total" row is not in Paper, and "Download all documents" stays removed.
+
+**Interactivity found and fixed:** closing a sheet with Escape dropped focus on the page body (no trigger to return to); `components/ui2/sheet.tsx` now returns focus to what opened it. Checked and fine: the Receive screen's icon buttons and inputs are named; the Next button stays off until each price change is confirmed and says why; no console errors on the screens above.
 
 ## Coupling
 Reads `_shared` (shell, states kit, permissions, phone parts) and `components/ui2`. The supplier page (`suppliers/components/supplier-purchasing-tabs.tsx`, `supplier-page-screen.tsx`) and the audit log screen import from here.

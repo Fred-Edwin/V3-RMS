@@ -46,7 +46,7 @@ export interface OrderLine {
   lineTotal: string;
   /** The last order's price for this supplier line, for the "▲ 4% on the last order" flag. */
   previousPrice: string | null;
-  /** The supplier's price on delivery when it differs from the order's (mock stand-in for the delivery note). */
+  /** The supplier's price on delivery when it differs from the order's, as typed from the delivery note. */
   deliveryPrice: string | null;
   /** What the Store Attendant sees instead of figures (Q-02). */
   priceChanged: boolean;

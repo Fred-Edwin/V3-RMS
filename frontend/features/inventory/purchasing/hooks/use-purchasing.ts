@@ -5,7 +5,7 @@ import { usePermissions } from '../../_shared/hooks/use-permissions';
 import { createPurchasingApiService } from '../services/purchasing-api-service';
 import type { PurchasingService } from '../services/purchasing-service';
 
-/** Goes up after every write (done or refused), so every open list and file reloads, the way the screens did on the mock's changes. */
+/** Goes up after every write (done or refused), so every open list and file reloads. */
 const useDataVersion = create<{ version: number }>(() => ({ version: 0 }));
 const bump = (): void => useDataVersion.setState((s) => ({ version: s.version + 1 }));
 
