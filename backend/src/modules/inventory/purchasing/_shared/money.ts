@@ -29,6 +29,13 @@ export const deliveredTotal = (lines: readonly PricedLine[]): Prisma.Decimal =>
 export const notSuppliedTotal = (lines: readonly PricedLine[]): Prisma.Decimal =>
   lines.reduce((t, l) => t.plus(D(l.orderedQty).minus(l.receivedQty ?? 0).mul(l.unitPrice)), ZERO);
 
+/** Usage units in a received quantity: buy units times the pack (a line with no pack is already in usage units). */
+export const usageQty = (buyQty: Prisma.Decimal.Value, pack: Prisma.Decimal.Value | null): Prisma.Decimal => D(buyQty).mul(pack ?? 1);
+
+/** The price per buy unit as a cost per usage unit (the ledger's `unitCost` and the item's `currentCost`), to the column's 4dp. */
+export const costPerUsageUnit = (pricePerBuyUnit: Prisma.Decimal.Value, pack: Prisma.Decimal.Value | null): Prisma.Decimal =>
+  D(pricePerBuyUnit).div(pack ?? 1).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+
 export type LineResult = 'AS_ORDERED' | 'PRICE_CHANGED' | 'SHORT' | 'NOT_SUPPLIED';
 
 export const lineResultOf = (orderedQty: Prisma.Decimal.Value, receivedQty: Prisma.Decimal.Value, priceChanged: boolean): LineResult => {
