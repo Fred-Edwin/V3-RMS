@@ -1,6 +1,6 @@
 # Wendo RMS: where we are
 
-**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 5 Oct 2026 (Purchasing mock Session 2). Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
+**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 6 Oct 2026 (stale merge notes fixed). Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
 
 ## The shape of the work
 
@@ -8,7 +8,7 @@ The product is being rebuilt one feature at a time into 10 modules plus Inventor
 
 | Lane | What it is doing now | Status |
 |---|---|---|
-| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Sessions 1 and 2 built (Session 2 on branch `feat/purchasing-mock-2`, waiting for your "merge"). Mock is complete; next is the shell session, then the client demo |
+| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Mock Sessions 1 and 2 merged and deployed (#81), and the one shell is merged and deployed (#83). Mock is complete; next is the client demo |
 | **Workforce (design)** | Drawing screens in Paper, group by group (branch `docs/workforce-design`, worktree lane-3) | Groups A and B approved. Group C in progress |
 | **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce code depends on it |
 
@@ -25,7 +25,7 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 
 **Next, in the owner's order:**
 1. ~~Purchasing mock Session 2~~ merged (the demo script is [features/inventory/purchasing-mock/demo-script.md](features/inventory/purchasing-mock/demo-script.md)).
-2. ~~One shell and one navigation table for every role~~ built on branch `feat/one-shell-navigation`, waiting for your "merge" (brief: [sessions/one-shell-navigation.md](sessions/one-shell-navigation.md)). Every desktop role and the Store Attendant now see the new sidebar (a menu drawer on phones, no bottom tabs); the links live in `frontend/components/app/shell/nav-table.ts`. The floor staff stay on the legacy bottom tabs until their screens are rebuilt (owner decision, 5 Oct 2026).
+2. ~~One shell and one navigation table for every role~~ merged and deployed (#83, 5 Oct 2026) (brief: [sessions/one-shell-navigation.md](sessions/one-shell-navigation.md)). Every desktop role and the Store Attendant now see the new sidebar (a menu drawer on phones, no bottom tabs); the links live in `frontend/components/app/shell/nav-table.ts`. The floor staff stay on the legacy bottom tabs until their screens are rebuilt (owner decision, 5 Oct 2026).
 3. **Client demo** of Purchasing (after 1 and 2). Feedback is applied to the screens, then the real back-end is built in one go.
 4. Prep, then Stock and counts, then Waste rebuilds.
 5. Design, then rebuild, Requisitions, Dispatch and Branch day.
@@ -56,7 +56,7 @@ Not started: Menu and Pricing, Communications, Finance and Receivables, Reportin
 
 ## Waiting on the owner
 
-- Say "merge" for Purchasing mock Session 2, then the shell session, then the client demo and feedback.
+- Run the client demo (Catalog, Restock levels, Suppliers, Audit log, and the Purchasing mock), then collect feedback.
 - Small choices for the client at the demo (list in the demo script): whether a payment bigger than the invoice is allowed, whether the Attendant may see prices, whether the Receiving sidebar link stays next to Purchasing, whether the Branch Manager and Director should be able to settle disputes.
 - Two open Inventory decisions: what a miscount correction does to the ledger, and whether the attendant sees on-hand figures when fulfilling a dispatch ([decisions.md](features/inventory/decisions.md)).
 - Workforce Group C review, as the designer.

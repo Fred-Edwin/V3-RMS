@@ -1,5 +1,7 @@
 # Inventory — Production Demo Run Sheet
 
+> **STALE (6 Oct 2026).** Written 30 Sep, before the Purchasing rebuild. Steps that mention Receiving, goods receipts or Supplier AP describe flows that no longer exist. For Purchasing use `purchasing-mock/demo-script.md`. A replacement covering Catalog, Restock, Suppliers, Audit log and the Purchasing mock is being written.
+
 For the client demo in production, with the client's real catalog seeded. Rehearsed
 locally on 2026-09-30 (see `milestone-6-plan.md` §8, "Integration pass"). The day is
 walked live through the UI so every ledger row is real — do not seed transactions.
