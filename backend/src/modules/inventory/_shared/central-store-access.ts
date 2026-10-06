@@ -11,7 +11,8 @@ import { ForbiddenError, UnauthorizedError, ValidationError } from '../../../uti
  *   - the desktop roles (Store Manager, Accountant, Director, Branch Manager, System Admin) can READ every Central Store screen;
  *   - WRITE belongs to whoever does that job;
  *   - supplier payment details are hidden from the Branch Manager;
- *   - the Store Attendant and department heads keep a narrow, phone-first access, blind to money.
+ *   - the Store Attendant sees item costs and prices but not stock figures or financial data (6 Oct 2026); department
+ *     heads keep a narrow access and hold nothing from this table.
  *
  * Changing a rule after client feedback means editing `ROLE_CAPABILITIES` below, nothing else. The front end reads the
  * same table from `GET /inventory/permissions/me`, so there is no second copy to drift.
@@ -21,8 +22,9 @@ import { ForbiddenError, UnauthorizedError, ValidationError } from '../../../uti
  */
 export const CAPABILITIES = [
   // Catalog
-  'catalog.read', // items, categories, item history (an attendant gets the stripped, price-free view)
-  'catalog.see_costs', // costs and prices on items
+  'catalog.read', // items and categories (a caller without `restock.read` gets the item with no stock figures: _shared/blind-rule.ts)
+  'catalog.see_costs', // costs and prices on items (the Store Attendant holds it: owner decision 6 Oct 2026)
+  'catalog.read_history', // an item's change history, which carries restock settings, so it follows stock figures, not costs
   'catalog.write', // create, edit, retire, restore items; manage categories
   'catalog.add_missing', // the attendant's short "add a missing item" form
   // Restock levels
@@ -58,6 +60,7 @@ export type Capability = (typeof CAPABILITIES)[number];
 const READ_EVERYTHING: readonly Capability[] = [
   'catalog.read',
   'catalog.see_costs',
+  'catalog.read_history',
   'restock.read',
   'suppliers.read_basic',
   'suppliers.read',
@@ -82,8 +85,19 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
   DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details'],
   // The Branch Manager reads everything except supplier payment details.
   MANAGER: READ_EVERYTHING,
-  // Narrow and phone-first; sees no money. Raises order requests and receives deliveries.
-  STORE_ATTENDANT: ['catalog.read', 'catalog.add_missing', 'suppliers.read_basic', 'suppliers.quick_add', 'orders.request', 'orders.receive'],
+  // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
+  // payments, supplier balances and payment details, reports): see `_shared/blind-rule.ts`. Raises order requests and
+  // receives deliveries.
+  STORE_ATTENDANT: [
+    'catalog.read',
+    'catalog.see_costs',
+    'catalog.add_missing',
+    'suppliers.read_basic',
+    'suppliers.quick_add',
+    'orders.read',
+    'orders.request',
+    'orders.receive',
+  ],
 };
 
 type Actor = NonNullable<Request['user']>;

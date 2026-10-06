@@ -79,8 +79,8 @@ export function ItemCatalogScreen() {
   // What this person may do comes from the Central Store permissions table (server), not from their role name.
   const { can, ready } = usePermissions();
   const canRead = can('catalog.read');
-  /** Opens the item panel: the roles that may see costs (read-only unless they can also write). */
-  const canOpenItem = can('catalog.see_costs');
+  /** Opens the item panel: the roles that may read item history (read-only unless they can also write). */
+  const canOpenItem = can('catalog.read_history');
   const canWrite = can('catalog.write');
   const seesRestock = can('restock.read');
 

@@ -22,6 +22,7 @@ Central Store counting: the Attendant counts, the Manager verifies. (The branch 
 8. Mistake handling table: see Paper chapter 7 ("When things go wrong").
 
 ## Built today vs approved
+When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Counting stays blind to expected stock for the Attendant (a count-integrity rule); item costs are no longer hidden from them.
 Old design: category tabs, partial sign allowed, blank-vs-zero boxes, no pause/resume screen, Accept/Query on every line, approve straight to PIN, no correct-a-verified-count path, settings in the hub top bar.
 
 ## Endpoints

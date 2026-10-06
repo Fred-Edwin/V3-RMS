@@ -51,7 +51,7 @@ Access is set by one table (see "Access" in [decisions.md](decisions.md)), not b
 | Role | Where | In this feature |
 |---|---|---|
 | Store Manager | Central Store (hub org) | Owns purchasing, catalog, suppliers; approves counts and orders; fulfils dispatches; resolves discrepancies. Reads and writes everything rebuilt so far |
-| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches, adds a missing item. Never sees expected stock, stock figures, costs, or supplier money |
+| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches, adds a missing item, on phone and desktop. Sees item costs and prices. Never sees expected stock or stock figures, or financial data (what we owe, invoices, payments, supplier balances and payment details, reports) |
 | Department Head | One branch department | Requisitions for own department, confirms own deliveries, own waste, own restock levels. The item list carries no costs |
 | Branch Manager | Branch | Approves requisitions, counts and closes the branch day. **Reads** the Central Store (catalog, restock levels, suppliers and what we owe, audit log) but not supplier payment details; writes nothing there |
 | Accountant | Company | Reads the Central Store; records supplier **invoices**, payments, payment methods and documents. Cannot move stock or edit the catalog |
@@ -62,7 +62,7 @@ Delivery drivers are not users; they carry a printed delivery note.
 
 ## Standing rules (apply to every sub-module)
 
-- **Attendants never see stock figures, expected stock or costs**, enforced server-side.
+- **Attendants see item costs and prices (owner decision, 6 Oct 2026, replacing "attendants never see costs"). They never see stock figures (on-hand, expected stock, restock levels) or financial data (what we owe, invoices, payments, supplier balances, reports)**, enforced server-side. The rule lives in ONE helper, `backend/src/modules/inventory/_shared/blind-rule.ts` (`blindnessOf`, `withoutStockFigures`, `withoutFinancials`); every rebuilt sub-module calls it instead of writing its own check. Counting stays blind to expected stock for the Attendant (a count-integrity rule).
 - **Nothing is deleted.** Retire/restore; cancel/void/reverse with a reason as a new linked entry.
 - **Stock or money moves only after a confirm summary.** PIN signing is used where a document is signed (receipt, order approval, count approval, dispatch, branch confirmation, day close) and where money moves; not for catalog, restock or payment-method changes.
 - **Stock on hand is derived from the append-only `InventoryTransaction` ledger**, never a stored counter. Corrections are new linked entries.

@@ -25,6 +25,7 @@ The one access table (`_shared/central-store-access.ts`) has no capability for p
 - Tables use the no-fill header style; Receiving history for attendants omits money.
 
 ## Built today
+When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of serializer-level stripping: the Attendant sees item costs and prices but no financial data (what we owe, invoices, payments, supplier balances) and no stock figures. (The order capabilities named above already exist in the access table.)
 **Front-end cleared 4 Oct 2026:** the old Purchasing and Receiving screens and routes were deleted ahead of the rebuild (nothing was in use). The sidebar links to them stay and 404 until the new screens land. The next step is a mock-data front-end for demo; the back-end follows after client approval. **Kept on purpose:** `suppliers/legacy-payables/` (front-end) holds the record-invoice/payment drawers and "what we owe" types the supplier page still uses, and delete it when the Accountant screens replace them. This back-end below is unchanged and unused by any screen except the supplier page; it is replaced wholesale in the back-end session. The reference counter moved to `_shared/reference-counter.ts`.
 
 Old state: receiving and the purchasing hub/history existed at `/inventory/purchasing/*` and `/inventory/receiving/*`; supplier AP lives in the same service. The 1,528-line `receiving-service` mixes receiving, orders and AP. Two sidebar links (Receiving, Purchasing) remain from the old milestone split; the approved design is one flow.

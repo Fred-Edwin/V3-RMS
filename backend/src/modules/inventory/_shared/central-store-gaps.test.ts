@@ -189,12 +189,14 @@ describe('catalog list: filters, sort and counts (§30.1)', () => {
     expect(() => InventoryItemListRowSchema.parse(data[0])).not.toThrow();
   });
 
-  it('the attendant sees the supplier count and the type counts, but still no money', async () => {
+  it('the attendant sees the supplier count, the type counts and the item cost, but no stock figures', async () => {
     vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.countSuppliersByItem).mockResolvedValue(new Map([[itemId, 3]]));
     const { data, meta } = await inventoryService.listItems(attendant, listQuery);
     expect(data[0]).toMatchObject({ supplierCount: 3 });
-    expect(data[0]).not.toHaveProperty('currentCost');
+    expect(data[0]).toHaveProperty('currentCost');
+    expect(data[0]).not.toHaveProperty('centralStoreRestockLevel');
+    expect(data[0]).not.toHaveProperty('daysOfCover');
     expect(meta.lowOrOut).toBeNull();
     expect(meta.typeCounts).toBeDefined();
   });
@@ -236,11 +238,13 @@ describe('item page: Central Store on hand and who set a price (§30.1)', () => 
     expect((result as { suppliers: Array<{ lastPriceSetBy: unknown }> }).suppliers[0]!.lastPriceSetBy).toBeNull();
   });
 
-  it('the attendant gets neither on hand nor any price field', async () => {
+  it('the attendant gets the item and supplier prices, but no on hand, restock level or days of cover', async () => {
     const result = (await inventoryService.getItemById(attendant, itemId)) as unknown as Record<string, unknown> & { suppliers: Array<Record<string, unknown>> };
     expect(result).not.toHaveProperty('centralStoreOnHand');
-    expect(result.suppliers[0]).not.toHaveProperty('lastPrice');
-    expect(result.suppliers[0]).not.toHaveProperty('lastPriceSetBy');
+    expect(result).not.toHaveProperty('centralStoreRestockLevel');
+    expect(result).not.toHaveProperty('daysOfCover');
+    expect(result).toHaveProperty('currentCost');
+    expect(result.suppliers[0]).toHaveProperty('lastPrice');
     expect(restockLevelRepository.sumOnHandByItemForLocation).not.toHaveBeenCalled();
   });
 });

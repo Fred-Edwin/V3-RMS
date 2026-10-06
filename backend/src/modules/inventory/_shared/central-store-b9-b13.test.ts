@@ -404,7 +404,8 @@ describe('B11 restock strip', () => {
 // B12 — attendant item creation
 // ---------------------------------------------------------------------------
 
-const MONEY_KEYS = ['currentCost', 'centralStoreRestockLevel', 'preferredSupplier', 'preferredSupplierId'];
+/** What an attendant never sees: stock figures (the cost and the preferred supplier are visible to them since 6 Oct 2026). */
+const STOCK_KEYS = ['centralStoreRestockLevel', 'daysOfCover', 'centralStoreOnHand'];
 
 describe('B12 attendant item creation', () => {
   const base = { name: 'Tin of tomatoes', buyUnit: 'tin', usageUnit: 'g', conversionFactor: '400', packSize: null, departmentTags: [] as never[] };
@@ -413,7 +414,7 @@ describe('B12 attendant item creation', () => {
     expect(allowedRoles('post', '/inventory/items')).toEqual(['STORE_ATTENDANT', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
   });
 
-  it.each(['RAW_INGREDIENT', 'STOCKED'] as const)('lets the attendant create a %s item and returns a money-blind response', async (type) => {
+  it.each(['RAW_INGREDIENT', 'STOCKED'] as const)('lets the attendant create a %s item and returns a stock-blind response', async (type) => {
     vi.mocked(inventoryItemRepository.create).mockResolvedValue(buildItem({ type, name: base.name, departmentTags: [] }) as never);
 
     const result = await inventoryService.createItem(attendant, { ...base, type });
@@ -422,7 +423,7 @@ describe('B12 attendant item creation', () => {
     expect(() => AttendantItemMutationResponseSchema.parse(result)).not.toThrow();
     expect(() => AttendantInventoryItemSchema.parse(result.item)).not.toThrow();
     const json = JSON.stringify(result);
-    for (const key of MONEY_KEYS) expect(json, `leaked ${key}`).not.toContain(`"${key}"`);
+    for (const key of STOCK_KEYS) expect(json, `leaked ${key}`).not.toContain(`"${key}"`);
     expect(restockLevelRepository.bulkUpsert).not.toHaveBeenCalled();
   });
 
@@ -460,7 +461,7 @@ describe('B12 attendant item creation', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('attendant reads (list and by id) carry no money keys; the supplier lines carry no prices', async () => {
+  it('attendant reads (list and by id) carry no on-hand or restock levels, and do carry item costs and supplier prices', async () => {
     vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
     vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map([[itemId, new Prisma.Decimal('9')]]));
@@ -476,9 +477,11 @@ describe('B12 attendant item creation', () => {
     const one = await inventoryService.getItemById(attendant, itemId);
 
     for (const json of [JSON.stringify(list.data), JSON.stringify(one)]) {
-      for (const key of [...MONEY_KEYS, 'lastPrice', 'lastPriceAt', 'isPreferred']) expect(json, `leaked ${key}`).not.toContain(`"${key}"`);
+      for (const key of STOCK_KEYS) expect(json, `leaked ${key}`).not.toContain(`"${key}"`);
+      expect(json).toContain('"currentCost"');
     }
     expect(one.suppliers[0]).toMatchObject({ supplierItemCode: '190035', supplierName: 'Summer Limited' });
+    expect(one.suppliers[0]).toHaveProperty('lastPrice');
     expect(restockLevelRepository.findByItemIdsForLocation).not.toHaveBeenCalled();
   });
 });
@@ -566,7 +569,7 @@ describe('route role matrix', () => {
   });
 
   it('item history and restock history are for every desktop role; put back is for who can change levels (a department head passes through allowDepartmentHead)', () => {
-    // Item history names prices, so the attendant is out of it.
+    // Item history carries restock settings (days of cover), so the attendant is out of it.
     expect(allowedRoles('get', '/inventory/items/:id/history')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
     expect(allowedRoles('get', '/inventory/restock-levels/history')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
     expect(allowedRoles('post', '/inventory/restock-levels/changes/:id/put-back')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN']);

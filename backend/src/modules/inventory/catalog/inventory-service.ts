@@ -31,8 +31,10 @@ import { prisma } from '../../../config/database';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../utils/errors';
 import { mapPrismaError } from '../../../utils/prisma-errors';
 import type {
+  AttendantInventoryItem,
   AttendantItemMutationResponse,
   CentralStoreLocation,
+  InventoryItem,
   RestockBranchOption,
   CreateCategoryInput,
   CreateItemInput,
@@ -55,6 +57,7 @@ import type {
 } from './inventory.types';
 
 import { actorCan, requireHubActor, requireHubReader } from '../_shared/central-store-access';
+import { blindnessOf, withoutStockFigures } from '../_shared/blind-rule';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -176,27 +179,21 @@ const toItemFields = (item: InventoryItemWithRelations): ItemFields => ({
   departmentTags: item.departmentTags,
 });
 
-/** A Store Attendant (not a department head) is blind to money: prices, levels, preferred supplier (§29.4). */
-const isAttendant = (actor: Actor): boolean => actor.role === 'STORE_ATTENDANT' && !actor.isDepartmentHead;
-
-/** Whoever cannot see costs gets the price-free item: the attendant, and a department head browsing the catalog (§29.4). */
-const isBlindToMoney = (actor: Actor): boolean => !actorCan(actor, 'catalog.see_costs');
-
-const serializeAttendantItem = (item: InventoryItemWithRelations) => ({
-  id: item.id,
-  name: item.name,
-  type: item.type,
-  categoryId: item.categoryId,
-  buyUnit: item.buyUnit,
-  usageUnit: item.usageUnit,
-  conversionFactor: toDecimalString(item.conversionFactor),
-  packSize: toDecimalString(item.packSize),
-  departmentTags: item.departmentTags,
-  category: item.category,
-  retiredAt: item.deletedAt?.toISOString() ?? null,
-  createdAt: item.createdAt.toISOString(),
-  updatedAt: item.updatedAt.toISOString(),
-});
+/**
+ * The item as this caller may see it, by the one blind rule (`_shared/blind-rule.ts`): stock figures (restock level,
+ * days of cover) only for a caller who may read restock levels; costs and the preferred supplier only for a caller who
+ * may see costs. The Store Attendant sees costs but no stock figures; a department head sees neither.
+ */
+const serializeItemFor = (
+  actor: Actor,
+  item: InventoryItemWithRelations,
+  centralStoreRestockLevel: Prisma.Decimal | null = null,
+): InventoryItem | AttendantInventoryItem => {
+  const shaped = withoutStockFigures(actor, serializeItem(item, centralStoreRestockLevel));
+  if (!blindnessOf(actor).itemCosts) return shaped;
+  const { currentCost: _cost, preferredSupplier: _supplier, preferredSupplierId: _supplierId, ...rest } = shaped;
+  return rest;
+};
 
 /** Item types a Store Attendant may create (§29.4); a prepped item needs a recipe and a manager. */
 const ATTENDANT_CREATABLE_TYPES: readonly string[] = ['STOCKED', 'RAW_INGREDIENT'];
@@ -386,7 +383,7 @@ export const inventoryService = {
 
   listItems: async (actor: Actor, query: ListItemsQuery): Promise<ItemCatalogListResponse> => {
     const siteId = await requireHubOrgForCatalogRead(actor);
-    const attendant = isBlindToMoney(actor);
+    const blind = blindnessOf(actor);
     // "Needs setup" is a column-to-column comparison, so the ids come from one raw query (§29.3).
     const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(siteId);
     const isManager = actorCan(actor, 'restock.read');
@@ -427,7 +424,7 @@ export const inventoryService = {
     ]);
     const meta = { ...catalogMeta, needsSetup: needsSetupIds.length, lowOrOut, addedThisWeek, typeCounts, addedByAttendant };
 
-    const restockLevelsByItemId = attendant
+    const restockLevelsByItemId = blind.stockFigures
       ? new Map<string, Prisma.Decimal>()
       : await getCentralStoreRestockLevelsByItemId(
           siteId,
@@ -445,9 +442,7 @@ export const inventoryService = {
           ? buildMatchedOn(item.name, search, matches.filter((m) => m.inventoryItemId === item.id))
           : null;
         const supplierCount = supplierCounts.get(item.id) ?? 0;
-        return attendant
-          ? { ...serializeAttendantItem(item), supplierCount, matchedOn }
-          : { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), supplierCount, matchedOn };
+        return { ...serializeItemFor(actor, item, restockLevelsByItemId.get(item.id) ?? null), supplierCount, matchedOn };
       }),
       pagination: {
         total,
@@ -464,13 +459,16 @@ export const inventoryService = {
     const item = await inventoryItemRepository.findById(id, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
     const suppliers = (await supplierItemRepository.listForItem(item.id, siteId)).map(serializeItemSupplierLine);
-    if (isBlindToMoney(actor)) {
-      // No prices and no preferred flags: who sells it and under what name, nothing about money.
+    const blind = blindnessOf(actor);
+    if (blind.stockFigures) {
+      // No restock level, days of cover or on hand. Supplier prices stay unless the caller also cannot see costs.
       return {
-        ...serializeAttendantItem(item),
-        suppliers: suppliers.map(
-          ({ lastPrice: _lastPrice, lastPriceAt: _lastPriceAt, lastPriceSetBy: _setBy, isPreferred: _p, preferredNeedsConfirm: _c, ...rest }) => rest,
-        ),
+        ...serializeItemFor(actor, item),
+        suppliers: blind.itemCosts
+          ? suppliers.map(
+              ({ lastPrice: _lastPrice, lastPriceAt: _lastPriceAt, lastPriceSetBy: _setBy, isPreferred: _p, preferredNeedsConfirm: _c, ...rest }) => rest,
+            )
+          : suppliers,
       };
     }
     const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(siteId, [item.id]);
@@ -593,7 +591,7 @@ export const inventoryService = {
     const warnings = duplicate
       ? [{ code: 'DUPLICATE_ITEM_NAME' as const, message: `Another item is already named "${input.name}".` }]
       : [];
-    if (attendant) return { item: serializeAttendantItem(item), warnings };
+    if (attendant) return { item: serializeItemFor(actor, item) as AttendantInventoryItem, warnings };
 
     const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(siteId, [item.id]);
     return { item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), warnings };

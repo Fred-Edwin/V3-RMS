@@ -200,16 +200,14 @@ export const InventoryItemSchema = z.object({
 });
 
 /**
- * What a Store Attendant sees of an item (§29.4): never a price, a restock level or a preferred
- * supplier. Money and ordering decisions stay with the Store Manager.
+ * What a caller blind to stock figures sees of an item (owner decision, 6 Oct 2026): never a restock level or days
+ * of cover. The Store Attendant still sees the cost and the preferred supplier; a department head holds no
+ * `catalog.see_costs`, so those three are absent for them, hence optional here (`_shared/blind-rule.ts`).
  */
 export const AttendantInventoryItemSchema = InventoryItemSchema.omit({
-  currentCost: true,
   centralStoreRestockLevel: true,
   daysOfCover: true,
-  preferredSupplier: true,
-  preferredSupplierId: true,
-});
+}).partial({ currentCost: true, preferredSupplier: true, preferredSupplierId: true });
 
 /** List rows add why a search matched when it was a supplier's code or name, not ours (§28.5). */
 export const InventoryItemListRowSchema = InventoryItemSchema.extend({

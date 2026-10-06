@@ -8,7 +8,7 @@ Items and categories: what the Central Store counts and issues, under our own na
 - **Store Manager**: add, edit, retire, restore items and categories; review a change to pack/unit/type (summary + reason).
 - **Store Attendant**: find an item; add a missing item directly (Stocked or Raw ingredient only, no prices). It lands under **Needs setup**.
 - **Department Head**: reads items for their department.
-- Attendants never see costs or stock figures.
+- Attendants see item costs and prices but never stock figures (restock level, days of cover, on hand). The catalog service uses the shared blind rule (`_shared/blind-rule.ts`). Item history needs `catalog.read_history`.
 
 ## Approved behaviour
 - One drawer to add an item: name, type (Stocked / Raw ingredient / Prepped, each with a one-line explainer), how it is bought ("1 bag = 50 kg, used in kg"), category, used-by departments (incl. Housekeeping), restock level. Prepped hides buying fields; Raw ingredient hides Used by. A similar-name warning shows before saving.

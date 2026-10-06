@@ -37,13 +37,13 @@ Goal: the approved Central Store parts (Purchasing and Receiving, Prep, Stock, C
 
 **Decisions from the demo:**
 - **No prices on the LPO document sent to the supplier.** Only that document: the printed or shared LPO drops the price, total and amount-in-words columns, so a supplier cannot hold us to a quoted price if prices fall. Every internal screen (needs restocking estimates, new order, approval, order list, purchase file, receiving) keeps its prices and totals. The back-end LPO output (step 3) follows the same rule.
-- **Store Attendant gets desktop screens** as well as the phone ones (every other role keeps its primary desktop version; phone versions for the desktop roles come later). No separate Paper design pass: the screens are the same set, built from the approved phone design where the Attendant's layout differs (receiving, blind count, my orders, waste), and the owner approves the built screen. The Attendant stays blind to money and stock figures, enforced by the server.
+- **Store Attendant gets desktop screens** as well as the phone ones (every other role keeps its primary desktop version; phone versions for the desktop roles come later). No separate Paper design pass: the screens are the same set, built from the approved phone design where the Attendant's layout differs (receiving, blind count, my orders, waste), and the owner approves the built screen. The Attendant sees item costs and prices (decision of 6 Oct 2026) but stays blind to stock figures and financial data, enforced by the server.
 - **Production checks.** Before any migration, the agent gives the owner the SSH command to read the production database and waits for the go-ahead. Read-only queries only.
 
 | # | Step | Status |
 |---|---|---|
 | 1 | Front-end change: remove prices from the LPO document sent to the supplier (mock) | **Done 6 Oct 2026, not yet committed.** Only the printed LPO changed (no price, total or amount in words; the acknowledgement no longer mentions prices). All internal screens are unchanged |
-| 2 | Access table: order and advance capabilities, Attendant desktop read capabilities, one shared "blind" rule for responses | Next |
+| 2 | Access table: order and advance capabilities, Attendant desktop read capabilities, one shared "blind" rule for responses | **Done 6 Oct 2026** (order and advance capabilities already existed). Attendant now holds `catalog.see_costs` and `orders.read`; one helper `_shared/blind-rule.ts` hides only stock figures and financial data; the catalog uses it; item history moved to its own `catalog.read_history`. Other sub-modules adopt the helper when rebuilt |
 | 3 | Purchasing and Receiving back-end (schema, migration, services, routes, tests; receiving through the ledger door; old code deleted) | Not started |
 | 4 | Purchasing front-end live: mock swapped for the real API, demo bar removed, Attendant desktop screens | Not started |
 | 5 | Prep rebuild (back-end, front-end, Attendant desktop, ledger writes onto the door) | Not started |
@@ -54,7 +54,7 @@ Goal: the approved Central Store parts (Purchasing and Receiving, Prep, Stock, C
 
 Rules that apply to all of it: [features/inventory/README.md](features/inventory/README.md) and [features/inventory/decisions.md](features/inventory/decisions.md). Full step list: [features/inventory/roadmap.md](features/inventory/roadmap.md).
 
-**Known gaps in Inventory code:** the access table has no purchase-order capabilities yet (those routes still use old role lists; fixed in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
+**Known gaps in Inventory code:** the access table already has the order capabilities, but the old purchasing routes still use old role lists (moved in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
 
 ## Workforce (design lane)
 

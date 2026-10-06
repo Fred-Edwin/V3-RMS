@@ -21,6 +21,7 @@ Prep turns raw ingredients into the portions branches order. Recorded **after th
 - Run numbers PREP-nnnn (open question Q5). Typical yield = last 10 runs or 30 days.
 
 ## Built today vs approved
+When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Since 6 Oct 2026 the Attendant may see item costs; stock and expected stock stay hidden.
 Old design: immutable runs, no numbers, costs on the attendant list, no Needs a look, no Correct/Cancel, no Prep-again tiles. 5 endpoints, `PrepRun`/`PrepRunInputLine` models.
 
 ## Endpoints
