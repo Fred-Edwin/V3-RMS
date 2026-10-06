@@ -79,6 +79,13 @@ model Site {
   goodsReceipts                GoodsReceipt[]
   supplierInvoices             SupplierInvoice[]
   supplierPayments             SupplierPayment[]
+  purchaseOrders               PurchaseOrder[]
+  purchaseDeliveries           PurchaseDelivery[]
+  purchaseInvoices             PurchaseInvoice[]
+  purchasePayments             PurchasePayment[]
+  purchaseDocuments            PurchaseDocument[]
+  purchaseFiles                PurchaseFile[]
+  purchasingAudit              PurchasingAuditEntry[]
   prepRuns                     PrepRun[]
   requisitions                 Requisition[]
   dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
@@ -203,6 +210,20 @@ model User {
   supplierItemPricesSet               SupplierItem[]                @relation("SupplierItemPriceSetBy")
   supplierInvoiceAdjustmentsRecorded  SupplierInvoiceAdjustment[]   @relation("SupplierInvoiceAdjustmentRecordedBy")
   supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  purchaseOrdersRaised                PurchaseOrder[]               @relation("PurchaseOrderRaisedBy")
+  purchaseOrdersApproved              PurchaseOrder[]               @relation("PurchaseOrderApprovedBy")
+  purchaseOrdersReturned              PurchaseOrder[]               @relation("PurchaseOrderReturnedBy")
+  purchaseOrdersSent                  PurchaseOrder[]               @relation("PurchaseOrderSentBy")
+  purchaseOrdersCancelled             PurchaseOrder[]               @relation("PurchaseOrderCancelledBy")
+  purchaseDeliveriesReceived          PurchaseDelivery[]            @relation("PurchaseDeliveryReceivedBy")
+  purchaseInvoicesEntered             PurchaseInvoice[]             @relation("PurchaseInvoiceEnteredBy")
+  purchaseInvoicesSettled             PurchaseInvoice[]             @relation("PurchaseInvoiceSettledBy")
+  purchaseInvoicesVoided              PurchaseInvoice[]             @relation("PurchaseInvoiceVoidedBy")
+  purchasePaymentsRecorded            PurchasePayment[]             @relation("PurchasePaymentRecordedBy")
+  purchasePaymentsApproved            PurchasePayment[]             @relation("PurchasePaymentApprovedBy")
+  purchaseDocumentsAdded              PurchaseDocument[]            @relation("PurchaseDocumentAddedBy")
+  purchaseFilesUploaded               PurchaseFile[]                @relation("PurchaseFileUploadedBy")
+  purchasingAuditEntries              PurchasingAuditEntry[]        @relation("PurchasingAuditActor")
   prepRunsCreated                     PrepRun[]                     @relation("PrepRunCreatedBy")
   requisitionsOpened                  Requisition[]                 @relation("RequisitionOpenedBy")
   requisitionsApproved                Requisition[]                 @relation("RequisitionApprovedBy")

@@ -34,6 +34,7 @@ model Location {
   restockLevels        RestockLevel[]
   restockLevelChanges  RestockLevelChange[]
   goodsReceipts        GoodsReceipt[]
+  purchaseDeliveries   PurchaseDelivery[]
   prepRuns             PrepRun[]
   wasteLogs            WasteLog[]
   stockCounts          StockCount[]
@@ -117,7 +118,9 @@ model InventoryItem {
   transactions           InventoryTransaction[]
   expectedDeliveryLines  ExpectedDeliveryLine[]
   goodsReceiptLines      GoodsReceiptLine[]
-  prepRunsAsOutput       PrepRun[]               @relation("PrepRunOutput")
+  purchaseOrderLines     PurchaseOrderLine[]
+  purchaseDeliveryLines  PurchaseDeliveryLine[]
+  prepRunsAsOutput      PrepRun[]               @relation("PrepRunOutput")
   prepRunInputLines      PrepRunInputLine[]      @relation("PrepRunInputItem")
   requisitionLines       RequisitionLine[]
   dispatchLines          DispatchLine[]

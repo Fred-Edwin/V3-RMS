@@ -40,7 +40,8 @@ model InventoryTransaction {
   unitCost              Decimal                  @map("unit_cost") @db.Decimal(12, 4)
   reason                String?
   goodsReceiptLineId    String?                  @map("goods_receipt_line_id")
-  prepRecordId          String?                  @map("prep_record_id")
+  purchaseDeliveryLineId String?                 @map("purchase_delivery_line_id") // the redone Purchasing: a received delivery line
+  prepRecordId         String?                  @map("prep_record_id")
   wasteLogId            String?                  @map("waste_log_id")
   stockCountLineId      String?                  @map("stock_count_line_id")
   branchDayLineId       String?                  @map("branch_day_line_id")
@@ -57,7 +58,8 @@ model InventoryTransaction {
   inventoryItem    InventoryItem          @relation(fields: [inventoryItemId], references: [id])
   user             User                   @relation("InventoryTransactionUser", fields: [userId], references: [id])
   goodsReceiptLine GoodsReceiptLine?      @relation(fields: [goodsReceiptLineId], references: [id])
-  prepRun          PrepRun?               @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
+  purchaseDeliveryLine PurchaseDeliveryLine? @relation(fields: [purchaseDeliveryLineId], references: [id])
+  prepRun         PrepRun?               @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
   dispatchLine     DispatchLine?          @relation(fields: [dispatchLineId], references: [id])
   wasteLog         WasteLog?              @relation(fields: [wasteLogId], references: [id])
   stockCountLine   StockCountLine?        @relation(fields: [stockCountLineId], references: [id])
@@ -71,6 +73,7 @@ model InventoryTransaction {
   @@index([inventoryItemId])
   @@index([type])
   @@index([goodsReceiptLineId])
+  @@index([purchaseDeliveryLineId])
   @@index([prepRecordId])
   @@index([dispatchLineId])
   @@index([wasteLogId])

@@ -7,6 +7,15 @@ Written 6 Oct 2026. Status: **awaiting owner approval, nothing built.** Sources:
 2. **Attendant scope:** `orders.read` means **every order, read-only**, with the blind rule applied. Writes stay by capability (`orders.request` on own drafts, `orders.receive`).
 3. **Supplier page:** the supplier owing card, pay history, summary and statement are **repointed to the new tables in this step**, then the old tables are dropped after the production check.
 4. LPO output: no prices, no total, no amount in words (step 1). Payment advice keeps amount in words (it is a payment document, not the LPO).
+5. **Delivery price (answered 6 Oct 2026, Option A):** the receiver **types the supplier's price on a line when it differs** from the order. Each receive line is `{lineId, receivedQty, deliveredPrice: string | null, priceConfirmed}`. A `deliveredPrice` that differs from the order's price needs `priceConfirmed: true` (`PRICE_CHANGE_UNCONFIRMED` otherwise); the confirmed price becomes `confirmedPrice` and values the delivery. Prices are visible to the Attendant, so this works on the phone. The mock's `deliveryPrice` stand-in goes; step 4 gives the receive screen a price field per line.
+6. Reversal lines carry the original payment's reference plus `-R` (as the mock does) and do not use a gap-free `PAY` number.
+
+## Production check (6 Oct 2026, read-only, server `wendo`)
+- Old purchasing tables are **empty in production**: `goods_receipts`, `goods_receipt_lines`, `expected_deliveries`, `supplier_invoices`, `supplier_payments`, `supplier_payment_allocations`, `supplier_invoice_adjustments` all 0 rows. **Nothing to convert**; the old tables can be dropped outright.
+- `inventory_transactions` has 10 `RECEIVE` and 7 `DISPATCH_IN` rows, **none with a `goods_receipt_line_id`**, so repointing that column's foreign key to the new delivery lines affects no data. (The ledger is append-only: the migration changes the constraint, never a row.)
+- Reference counters on production: `DAY`, `SUPPLIER` only. `LPO`, `PAY`, `GRN` start from 1.
+- Latest migration applied: `20261004120000_ledger_append_only_trigger`.
+- **Go-live note, not a build item:** PINs are set for 1 of 2 Accountants and **nobody else** (Store Manager, Store Attendant, System Admin and the 6 Directors have none). Approving, receiving, voiding and reversing all need a PIN, so these accounts need PINs set before the flow can be used.
 
 ## Layout (the refactor structure)
 One sub-module, `backend/src/modules/inventory/purchasing/` (receiving, orders and supplier AP stay merged as the playbook says). Inside it, **folders named for what the user does**, each with the layer-suffixed files and its own `README.md` (spec, status, endpoints, coupling), tests beside the code:
