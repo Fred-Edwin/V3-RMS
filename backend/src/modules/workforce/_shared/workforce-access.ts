@@ -6,7 +6,7 @@ import type { AuditCategoryCode } from './audit/audit.types';
 
 /**
  * The Workforce access table: role by capability by scope. Routes, services and the front end all read it (the front
- * end through GET /workforce/permissions/me). Never add a requireRole(...) list to a Workforce route.
+ * end through GET /workforce/permissions/me). Never guard a Workforce route with a list of roles; use requireCapability.
  */
 export const SCOPES = ['own', 'dept', 'unit', 'all'] as const;
 export type Scope = (typeof SCOPES)[number];
