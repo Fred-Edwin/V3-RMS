@@ -30,7 +30,7 @@ export const blindnessOf = (actor: Pick<Actor, 'role'>): Blindness => ({
 export const STOCK_FIGURE_KEYS = ['centralStoreRestockLevel', 'daysOfCover', 'centralStoreOnHand', 'onHand', 'level'] as const;
 
 /** Keys that carry financial data wherever they appear in a Central Store response. */
-export const FINANCIAL_KEYS = ['amountOwed', 'balance', 'outstanding', 'invoices', 'payments', 'supplierBalance'] as const;
+export const FINANCIAL_KEYS = ['amountOwed', 'balance', 'outstanding', 'invoices', 'invoice', 'payments', 'money', 'supplierBalance'] as const;
 
 const omit = <T extends object>(value: T, keys: readonly string[]): T => {
   const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };

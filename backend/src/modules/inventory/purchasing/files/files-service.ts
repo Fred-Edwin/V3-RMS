@@ -6,6 +6,7 @@ import { requireHubActor, requireHubReader } from '../../_shared/central-store-a
 import { detectFileType, MAX_SUPPLIER_DOCUMENT_BYTES, sanitizeFileName, SIGNED_URL_TTL_SECONDS } from '../../suppliers/supplier-files';
 import { getDocumentStorage } from '../../suppliers/supplier-storage';
 import { ForbiddenError } from '../../../../utils/errors';
+import { toFileRef } from '../_shared/file-ref';
 import { purchasingError } from '../_shared/purchasing-errors';
 import type { FileDownload, FileRef, UploadedFile } from './files.types';
 import { purchaseFileRepository } from './files-repository';
@@ -14,12 +15,7 @@ type Actor = NonNullable<Request['user']>;
 
 const EXTENSION = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' } as const;
 
-export const toFileRef = (file: Pick<PurchaseFile, 'id' | 'fileName' | 'sizeBytes'>): FileRef => ({
-  id: file.id,
-  fileName: file.fileName,
-  size: file.sizeBytes,
-  thumbnail: null,
-});
+export { toFileRef };
 
 export const purchaseFileService = {
   /**
