@@ -164,7 +164,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
         const newPrice = changedTo(l);
         const priceRow = newPrice !== null && r > 0;
         return (
-          <div key={l.id} className="flex flex-col gap-2.5 border border-wds-border bg-wds-surface p-3.5">
+          <div key={l.id} className={cn('flex flex-col gap-2.5 border bg-wds-surface p-3.5', diff > 0 ? 'border-wds-error-border' : priceRow ? 'border-wds-warning-border' : 'border-wds-border')}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-neutral-950">{l.itemName}</span>
@@ -189,7 +189,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
               >
                 <Minus className="size-4" />
               </button>
-              <label className="flex h-10 grow items-center justify-center gap-1.5 border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+              <label className={cn('flex h-10 grow items-center justify-center gap-1.5 border bg-wds-surface px-2 focus-within:shadow-wds-ring', diff > 0 ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
                 <input
                   inputMode="decimal"
                   value={got[l.id] ?? l.orderedQty}
@@ -298,13 +298,15 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
             type="button"
             onClick={() => setSheetOpen(true)}
             disabled={photoState.busy}
-            className="flex min-h-[120px] flex-col items-center justify-center gap-2 border border-dashed border-wds-border-strong bg-wds-surface-sunken px-4 py-5 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-60"
+            className="flex items-center gap-4 border border-dashed border-wds-espresso-400 bg-wds-espresso-50 px-4 py-5 text-left outline-none transition-colors hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring disabled:opacity-60"
           >
-            <span className="flex size-11 items-center justify-center bg-wds-neutral-100">
-              <Camera className="size-5 text-wds-text-secondary" aria-hidden />
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-wds-espresso-400 bg-wds-surface">
+              <Camera className="size-5 text-wds-primary" aria-hidden />
             </span>
-            <span className="font-wds-sans text-[14px] font-medium text-wds-neutral-950">{photoState.busy ? 'Adding the photo…' : 'Add a photo of the note'}</span>
-            <span className="font-wds-sans text-[12px] text-wds-text-secondary">Lay it flat and keep the whole page in view</span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-wds-sans text-[14px] font-medium text-wds-neutral-950">{photoState.busy ? 'Adding the photo…' : 'Add a photo of the note'}</span>
+              <span className="font-wds-sans text-[12px] text-wds-text-secondary">Lay it flat and keep the whole page in view</span>
+            </span>
           </button>
         )}
         {photoState.busy ? <UploadingRow fileName={photoState.name} percent={photoState.percent} /> : null}
@@ -336,7 +338,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-neutral-100">
       <div className="mx-auto flex w-full max-w-[430px] grow flex-col bg-wds-canvas shadow-wds-md">
-        <PhoneHeader title="Receive delivery" subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={back} />
+        <PhoneHeader title={step === 1 ? 'Receive delivery' : 'Delivery note'} subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={back} />
         <div className="border-b border-wds-border bg-wds-surface px-4 py-3">
           <CompactTracker tracker={order.tracker} />
         </div>
