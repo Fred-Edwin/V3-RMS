@@ -1,6 +1,6 @@
 # Workforce slice 0 (foundation): contract
 
-**Status:** DRAFT for owner approval, 6 Oct 2026. Not frozen. The backend session (Session 2) builds from this and fills the amendment log (section 12); when slice 0 ships it is rewritten "as built" and frozen.
+**Status:** APPROVED by the owner on 6 Oct 2026, with every recommendation in section 11 taken as the default. Not frozen. The backend session (Session 2) builds from this and fills the amendment log (section 12); when slice 0 ships it is rewritten "as built" and frozen.
 **Branch:** `feat/workforce-foundation` (lane 1, from `main`). **Code in this session:** none.
 **Sources:** `proposal.md` (v2) and `README.md` of this folder; the code on `main`. No Paper file was opened (slice 0 has no screens). Where the documents were silent or disagreed, section 11 says what I chose and why.
 
@@ -1000,6 +1000,7 @@ const UNIT_MANAGER: Grants = {
   'org.write_heads': 'unit',
   'audit.read.time': 'unit',
   'audit.read.leave': 'unit',
+  'audit.read.rules_operating': 'unit', // they are told when their branch's rules change (question 7a, decided)
 };
 
 export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
@@ -1325,7 +1326,7 @@ Scope codes: `own`, `dept`, `unit` (own site), `all`, `–` none. "Head" is what
 | `audit.read.pay_setup` | – | – | – | – | all | all | – |
 | `audit.read.pay_run_prepare` | – | – | – | – | all | all | – |
 | `audit.read.pay_run_decide` | – | – | all | – | – | all | – |
-| `audit.read.rules_operating` | – | – | – | – | – | all | all |
+| `audit.read.rules_operating` | – | – | – | unit | – | all | all |
 | `audit.read.rules_pay` | – | – | all | – | – | all | all |
 | `audit.read.payslip_access` | – | – | – | – | – | all | – |
 | `audit.read.sensitive_view` | – | – | – | – | – | all | – |
@@ -2680,7 +2681,7 @@ Named by file. "x3" means the file runs in all three server zones (`TZ=UTC`, `TZ
 
 **`_shared/audit/audit-db.test.ts`** (integration; runs only when `DATABASE_URL` points at a lane database, skipped otherwise, and run for the proof): UPDATE, DELETE and TRUNCATE on `workforce_audit_entries` are refused; the chain head can only move to `last_seq + 1`; two concurrent writers produce a gap-free chain.
 
-**`_shared/audit/audit-read.test.ts`**: staff and heads read only their own record; Branch Manager reads TIME and LEAVE for their unit; HR; Accountant; Director reads everything including LOG_ACCESS and PAYSLIP_ACCESS; System Admin reads SECURITY and rule changes and not payslip opens; no one except the Director can read LOG_ACCESS or PAYSLIP_ACCESS; "my record" never includes LOG_ACCESS.
+**`_shared/audit/audit-read.test.ts`**: staff and heads read only their own record; Branch Manager reads TIME, LEAVE and RULES_OPERATING for their unit; HR; Accountant; Director reads everything including LOG_ACCESS and PAYSLIP_ACCESS; System Admin reads SECURITY and rule changes and not payslip opens; no one except the Director can read LOG_ACCESS or PAYSLIP_ACCESS; "my record" never includes LOG_ACCESS.
 
 **`_shared/events.test.ts`**: handlers receive typed payloads; `on` returns an unsubscribe; events for a rolled-back change are never delivered.
 
@@ -2730,7 +2731,7 @@ Named by file. "x3" means the file runs in all three server zones (`TZ=UTC`, `TZ
 
 ## 11. Open questions for the owner
 
-Each has my recommendation; the contract is drafted as the recommendation.
+Each has my recommendation; the contract is drafted as the recommendation. **Owner decision, 6 Oct 2026: for every question the recommendation is the default; the owner will correct any that need it.** Session 2 builds as drafted and applies a later correction through the amendment log.
 
 1. **How is lateness charged?** The documents say "deduct from the first minute after grace". I drafted: the **minutes after grace** are chargeable (6 minutes late with a 5-minute grace charges 1 minute), and "make up the time the same day" uses minutes worked after the shift end (those minutes are then not overtime). The alternative charges the whole lateness once it passes grace. *Recommend: minutes after grace.* It is the gentler reading and matches the wording.
 2. **Where do timesheet periods come from?** The approved sample (21 Sep to 18 Oct, four weeks) needs a setting, but none of the ten groups names one. I added `timesheetPeriod` (fixed weeks from an anchor date, or calendar month) to **Week and breaks**, defaulting to your sample. *Recommend: keep it there, and tell me if periods are meant to follow the calendar month instead.*
@@ -2738,7 +2739,7 @@ Each has my recommendation; the contract is drafted as the recommendation.
 4. **Foreign keys on the four slice-0 tables.** To avoid editing Access files, they hold plain id columns (no database-enforced link to users or sites). Later slices need one-line back-relation fields on `Site`, `User` and `Company` in `access.prisma` (no column changes). *Recommend: accept plain ids for audit and rules, and get the Access lane's agreement for slice 1.*
 5. **Capabilities I added beyond proposal section 9** because the designs need them: employee write (basic, sensitive, lifecycle: HR and, for basics, the Branch Manager of the unit and the System Admin), `payrun.read`, `org.read/write/write_heads`, and splitting the "policy" row into one edit right per rule group plus three confirm rights. *Recommend: approve as drafted (the generated matrix in 3.3 shows exactly who holds what).*
 6. **System Admin and rules.** Section 9 says "all" for lateness and overtime policy; section 8 says the Admin reads "rule changes". I gave the Admin edit rights on lateness, overtime and attendance only, not probation, conduct, casual rates, leave, holidays, week, statutory. *Recommend: as drafted.*
-7. **Audit visibility choices where section 8 is silent.** (a) The Branch Manager reads only TIME and LEAVE rows for their branch; but they are told when the Director changes their branch's rules. *Recommend: also let them read RULES_OPERATING rows for their own branch.* (b) HR reads PAY_SETUP and DISCIPLINE rows (HR owns both). (c) SENSITIVE_VIEW ("someone viewed pay, ID or bank details") and LOG_ACCESS are Director-only. *Recommend all three.* (I drafted (b) and (c) in; (a) is not in yet.)
+7. **Audit visibility choices where section 8 is silent.** (a) The Branch Manager reads TIME, LEAVE and, because they are told when the Director changes their branch's rules, RULES_OPERATING rows for their own branch. (b) HR reads PAY_SETUP and DISCIPLINE rows (HR owns both). (c) SENSITIVE_VIEW ("someone viewed pay, ID or bank details") and LOG_ACCESS are Director-only. *Recommend all three.* All three are drafted in.
 8. **Who edits Probation, Conduct, Casual work and Week and breaks?** The README says the Director edits Conduct, Probation and the week start; proposal section 11 said HR for week and breaks; Casual work has no stated editor. *Recommend: the Director edits all four (the README is later than the proposal); HR reads.*
 9. **Tamper-evidence design.** A hash chain per company with a short row lock, writer last, one entry per bulk action, plus an off-server daily anchor in slice 7. *Recommend: yes.* It costs a few milliseconds per audited change and is the only way to notice a rewritten table.
 10. **How far can a branch differ from the company?** Only lateness (grace, policy, after-N, make-up, excuse window), overtime (tail, weekly cap, branch budget, approval window) and leave minimum cover. The deduction cap and the overtime multiplier stay company-wide. *Recommend: as drafted.*
