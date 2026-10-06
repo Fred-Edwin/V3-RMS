@@ -200,13 +200,14 @@ export function NewOrderScreen() {
         hideSearch
         className="shrink-0"
         actions={
-          <Button variant="secondary" asChild>
+          <Button variant="ghost" className="text-wds-text-secondary" asChild>
             <Link href="/app/inventory/purchasing">Discard</Link>
           </Button>
         }
       />
-      <div className="flex min-h-0 flex-1 gap-8 overflow-y-auto px-8 py-7">
-        <div className="flex min-w-0 grow basis-0 flex-col gap-4" style={{ maxWidth: 796 }}>
+      {/* Under 1280px the order summary drops below the catalog; Paper draws 1440 only. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-8 pb-7 pt-8 xl:flex-row">
+        <div className="flex min-w-0 flex-col gap-4 xl:grow xl:basis-0" style={{ maxWidth: 796 }}>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2.5">
               <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">{editId ? 'Edit order' : 'New order'}</h1>
@@ -322,10 +323,10 @@ export function NewOrderScreen() {
           )}
         </div>
 
-        <aside className="flex w-80 shrink-0 flex-col self-start rounded-wds-md border border-wds-border bg-wds-surface" aria-label="Order summary">
+        <aside className="flex w-full max-w-[796px] shrink-0 flex-col self-start xl:w-80 rounded-wds-md border border-wds-border bg-wds-surface" aria-label="Order summary">
           <div className="flex h-11 items-center justify-between border-b border-wds-border px-4">
             <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Order summary</span>
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-[2px] bg-wds-neutral-100 px-1.5 font-wds-mono text-[11px] text-wds-neutral-950">{selectedIds.length}</span>
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-wds-espresso-700 px-1.5 font-wds-mono text-[11px] text-white">{selectedIds.length}</span>
           </div>
           <div className="flex flex-col gap-4 p-4">
             {actionFailure ? <FormErrorBanner title="We couldn't do that" description={actionFailure.message} /> : null}

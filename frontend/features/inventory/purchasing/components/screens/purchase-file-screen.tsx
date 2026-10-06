@@ -196,8 +196,9 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           </>
         }
       />
-      <div className="flex min-h-0 flex-1 gap-8 overflow-y-auto px-8 py-7">
-        <div className="flex min-w-0 grow basis-0 flex-col gap-6" style={{ maxWidth: 816 }}>
+      {/* Under 1280px the right rail drops below the file; Paper draws 1440 only. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-8 pb-7 pt-8 xl:flex-row">
+        <div className="flex min-w-0 flex-col gap-6 xl:grow xl:basis-0" style={{ maxWidth: 816 }}>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
               <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">{order.supplier.name}</h1>
@@ -241,9 +242,9 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           {showMoney ? (
             <dl className="grid grid-cols-5 divide-x divide-wds-border rounded-wds-md border border-wds-border bg-wds-surface">
               {moneyCells.map(([k, v], i) => (
-                <div key={k} className={cn('flex flex-col gap-1 px-4 py-3', i === 4 && 'bg-wds-surface-sunken')}>
-                  <dt className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{k}</dt>
-                  <dd className={cn('font-wds-mono text-wds-section', k === 'Paid' && v !== '' ? 'text-wds-info-fg' : 'text-wds-neutral-950')}>{v === '' ? '—' : closed && i === 4 && Number.parseFloat(v) === 0 ? '0' : kes(v)}</dd>
+                <div key={k} className={cn('flex flex-col gap-1.5 px-3.5 py-3', i === 4 && 'bg-wds-neutral-50')}>
+                  <dt className="whitespace-nowrap font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{k}</dt>
+                  <dd className={cn('font-wds-mono text-[17px] leading-[22px]', k === 'Paid' && v !== '' ? 'text-wds-info-fg' : 'text-wds-neutral-950')}>{v === '' ? '—' : closed && i === 4 && Number.parseFloat(v) === 0 ? '0' : kes(v)}</dd>
                 </div>
               ))}
             </dl>
@@ -291,7 +292,8 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
             </div>
 
             {activeTab === 'items' ? (
-              <div className="flex flex-col">
+              // Narrow windows: the fixed money columns would squeeze the name to nothing, so the table scrolls inside its own box.
+              <div className="flex flex-col overflow-x-auto [&>*]:min-w-[640px]">
                 <div className="flex h-[30px] items-center gap-4 border-b border-wds-neutral-950">
                   <span className={cn(thClass, 'grow')}>Item</span>
                   {delivered ? (
@@ -414,7 +416,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           </div>
         </div>
 
-        <aside className="flex w-[332px] shrink-0 flex-col gap-4 self-start">
+        <aside className="flex w-full max-w-[816px] shrink-0 flex-col gap-4 self-start xl:w-[332px]">
           {closed ? (
             <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Audit log">
               <div className="flex items-center justify-between">
@@ -700,9 +702,9 @@ export function NextStep({
       break;
   }
   return (
-    <section className="flex items-center gap-6 rounded-wds-md border border-wds-border bg-wds-surface-sunken px-5 py-4" aria-label="Next step">
-      <div className="flex min-w-0 grow flex-col gap-1">
-        <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">Next step</span>
+    <section className="flex items-center gap-4 rounded-wds-md border border-wds-espresso-200 bg-wds-espresso-50 px-4 py-3.5" aria-label="Next step">
+      <div className="flex min-w-0 grow flex-col gap-[3px]">
+        <span className="font-wds-mono text-[10px] font-semibold uppercase leading-3 tracking-[0.06em] text-wds-primary">Next step</span>
         <span className="font-wds-sans text-wds-section font-semibold text-wds-neutral-950">{title}</span>
         <span className="font-wds-sans text-wds-caption text-wds-text-secondary">{body}</span>
       </div>
