@@ -31,9 +31,9 @@ export function SegmentedToggle<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              'flex h-[30px] items-center px-3 font-wds-sans text-wds-body-sm outline-none transition-colors focus-visible:shadow-wds-ring',
+              'flex h-[30px] items-center px-3 font-wds-sans text-wds-caption outline-none transition-colors focus-visible:shadow-wds-ring',
               i > 0 && 'border-l border-wds-border-strong',
-              on ? 'bg-wds-espresso-50 font-medium text-wds-neutral-950' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50'
+              on ? 'bg-wds-espresso-50 font-medium text-wds-primary' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50'
             )}
           >
             {o.label}

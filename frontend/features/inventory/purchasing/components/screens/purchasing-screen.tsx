@@ -73,7 +73,7 @@ export function PurchasingScreen() {
           </>
         }
       />
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 pb-7 pt-8">
         <div className="flex flex-col gap-1.5">
           <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">Purchasing</h1>
           <p className="font-wds-sans text-wds-body-sm text-wds-text-secondary">From what we need to what we&apos;ve paid, one order at a time.</p>

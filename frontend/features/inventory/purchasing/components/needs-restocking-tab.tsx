@@ -335,7 +335,12 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                         {showPrices ? ` · est. KES ${kes(groupTotal)}` : ''}
                       </span>
                       {canOrder && sid ? (
-                        <Button size="sm" disabled={!ready.length || busy} onClick={() => goNew(sid, ready)}>
+                        <Button
+                          size="sm"
+                          variant={ready.some((r) => selected.has(r.line.inventoryItemId)) ? 'primary' : 'secondary'}
+                          disabled={!ready.length || busy}
+                          onClick={() => goNew(sid, ready)}
+                        >
                           Create order · {ready.length}
                         </Button>
                       ) : null}
