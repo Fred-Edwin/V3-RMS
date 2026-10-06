@@ -200,6 +200,13 @@ describe('reads and the blind rule', () => {
     expect(view.payments).toEqual([]);
   });
 
+  it('shows the invoice due label to the Accountant but never to the Attendant', async () => {
+    expect((await ordersService.getOne(accountant, 'o1', NOW)).dueLabel).not.toBeNull();
+    const view = await ordersService.getOne(attendant, 'o1', NOW);
+    expect(view.dueLabel).toBeNull();
+    expect(view.dueInDays).toBeNull();
+  });
+
   it('prints the LPO with no prices, totals or amount in words', async () => {
     const lpo = await ordersService.getLpoPrint(attendant, 'o1', NOW);
     expect(lpo.lines[0]).toEqual({ n: 1, supplierItemName: 'SUGAR', supplierItemCode: null, ourItemName: 'Sugar', qty: '10', unit: 'kg' });

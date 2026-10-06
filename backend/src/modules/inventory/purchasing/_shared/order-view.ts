@@ -196,7 +196,7 @@ export const viewOrder = (actor: Actor, o: OrderRecord, now: Date): OrderView =>
   const live = liveInvoiceOf(o);
   const facts = paymentFacts(o);
   const priced = o.lines.map((l) => ({ orderedQty: l.orderedQty, unitPrice: l.unitPrice, receivedQty: l.receivedQty, confirmedPrice: l.confirmedPrice }));
-  const dueIn = dueInDaysOf({ status: o.status, expectedDate: o.expectedDate ? day(o.expectedDate) : null, invoiceDueDate: live ? day(live.dueDate) : null }, day(now));
+  const dueIn = dueInDaysOf({ status: o.status, expectedDate: o.expectedDate ? day(o.expectedDate) : null, invoiceDueDate: live && !blind.financials ? day(live.dueDate) : null }, day(now));
   const shortLines = o.lines.some((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED');
   const lastInvoicePayment = [...o.payments].reverse().find((p) => p.kind === 'INVOICE' && p.status === 'RECORDED');
   const view: OrderView = {
