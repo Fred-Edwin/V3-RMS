@@ -65,8 +65,12 @@ describe('matchOrderLine', () => {
   it('takes the one line with the same unit and no pack when the order took its pack from the item', () => {
     expect(matchOrderLine([bag25, bagNoPack], { buyUnit: 'bag', packSize: D(10) })?.id).toBe('c');
   });
-  it('takes the only line, and never guesses between several', () => {
-    expect(matchOrderLine([bag25], { buyUnit: 'sack', packSize: D(10) })?.id).toBe('a');
+  it('takes a line that states no unit and no pack', () => {
+    expect(matchOrderLine([{ id: 'd', buyUnit: null, packSize: null }], { buyUnit: 'kg', packSize: D(1) })?.id).toBe('d');
+  });
+  it('never matches a different named pack, and never guesses between several', () => {
+    expect(matchOrderLine([bag25], { buyUnit: 'sack', packSize: D(10) })).toBeNull();
     expect(matchOrderLine([bag25, bag50], { buyUnit: 'sack', packSize: D(10) })).toBeNull();
+    expect(matchOrderLine([bagNoPack, { id: 'e', buyUnit: 'bag', packSize: null }], { buyUnit: 'bag', packSize: D(10) })).toBeNull();
   });
 });

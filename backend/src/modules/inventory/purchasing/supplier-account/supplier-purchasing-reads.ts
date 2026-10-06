@@ -153,7 +153,16 @@ export const supplierPurchasingReads = {
       loadDeliveries(siteId, supplierId, since),
       prisma.purchaseDelivery.findFirst({ where: { siteId, order: { supplierId } }, orderBy: { receivedAt: 'desc' }, select: { receivedAt: true } }),
     ]);
-    return { recentSpend: recent.reduce((t, d) => t.plus(d.deliveredTotal), new Prisma.Decimal(0)), priceAlerts: recent.reduce((n, d) => n + d.lines.filter((l) => priceAlertOf(l) !== null).length, 0), lastReceiptAt: latest?.receivedAt ?? null };
+    return {
+      recent: recent.map((d) => ({
+        receiptTotal: d.deliveredTotal,
+        lines: d.lines.map((l) => {
+          const alert = priceAlertOf(l);
+          return { priceAlertPct: alert ? new Prisma.Decimal(alert.pct) : null };
+        }),
+      })),
+      lastReceiptAt: latest?.receivedAt ?? null,
+    };
   },
 };
 

@@ -19,10 +19,8 @@ import {
 } from './supplier-test-fixtures';
 
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
-vi.mock('../purchasing/receiving-repository', () => ({
-  referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
-}));
+vi.mock('../purchasing/supplier-account/supplier-purchasing-reads', async () => (await import('./supplier-test-fixtures')).purchasingReadsMocks());
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
 vi.mock('../../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));

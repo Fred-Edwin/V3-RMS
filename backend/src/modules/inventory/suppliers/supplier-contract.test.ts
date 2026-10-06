@@ -44,14 +44,7 @@ vi.mock('../catalog/item-history-repository', () => ({
 }));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../purchasing/receiving-repository', () => ({
-  goodsReceiptRepository: {
-    findPackNotOnFileLines: vi.fn(),
-    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
-    findPriceAlertLines: vi.fn().mockResolvedValue([]),
-    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
-  },
-}));
+vi.mock('../purchasing/supplier-account/supplier-purchasing-reads', async () => (await import('./supplier-test-fixtures')).purchasingReadsMocks());
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
 vi.mock('../../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
@@ -180,8 +173,7 @@ describe('suppliers contract — response shapes', () => {
     expect(JSON.stringify(entries)).not.toContain('objectKey');
     SupplierDownloadSchema.parse(await supplierService.getDocumentDownload(storeManager, supplierId, docId));
 
-    vi.mocked(repos.supplierHistoryRepository.summaryReceipts).mockResolvedValue([]);
-    vi.mocked(repos.supplierHistoryRepository.summaryInvoices).mockResolvedValue([]);
+    vi.mocked(repos.supplierHistoryRepository.summary).mockResolvedValue({ totalSpend: '0', lastPurchaseAt: null, receiptsCount: 0, averageDaysToPay: null, priceAlerts: 0, shortDeliveries: 0 });
     SupplierSummarySchema.parse(await supplierService.getSummary(storeManager, supplierId));
   });
 });
