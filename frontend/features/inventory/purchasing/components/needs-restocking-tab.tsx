@@ -37,11 +37,14 @@ interface Row {
 
 const COLS = 'gap-3 px-4';
 
+/** On hand as a share of the restock level, lowest first; a caller blind to stock figures has none, so order ties stay as they came. */
+const coverOf = (l: NeedsLine): number => (l.onHand !== undefined && l.level !== undefined ? Number.parseFloat(l.onHand) / Number.parseFloat(l.level) : 0);
+
 export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
   const router = useRouter();
   const { service, data: tick, can, ready } = usePurchasing();
   const addToast = useWdsToastStore((s) => s.addToast);
-  const showMoney = can('payables.read');
+  const showPrices = can('catalog.see_costs');
   const [view, setView] = React.useState<'supplier' | 'item'>('supplier');
   const [search, setSearch] = React.useState('');
   const [supplierFilter, setSupplierFilter] = React.useState<string>('');
@@ -107,7 +110,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
             ? a.line.itemName.localeCompare(b.line.itemName)
             : sort === 'value'
               ? (b.total ?? 0) - (a.total ?? 0)
-              : Number(b.line.status === 'OUT') - Number(a.line.status === 'OUT') || Number.parseFloat(a.line.onHand) / Number.parseFloat(a.line.level) - Number.parseFloat(b.line.onHand) / Number.parseFloat(b.line.level)
+              : Number(b.line.status === 'OUT') - Number(a.line.status === 'OUT') || coverOf(a.line) - coverOf(b.line)
         )
       : visibleRows;
 
@@ -165,8 +168,8 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
       <span className={cn(thClass, 'w-[130px] shrink-0 text-right')}>On hand / level</span>
       <span className={cn(thClass, 'w-[200px] shrink-0')}>Buy from</span>
       <span className={cn(thClass, 'w-[120px] shrink-0')}>Order qty</span>
-      {showMoney ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Last price</span> : null}
-      {showMoney ? <span className={cn(thClass, 'w-[110px] shrink-0 text-right')}>Est. total</span> : null}
+      {showPrices ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Last price</span> : null}
+      {showPrices ? <span className={cn(thClass, 'w-[110px] shrink-0 text-right')}>Est. total</span> : null}
     </div>
   );
 
@@ -195,7 +198,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
           <DotLabel tone={line.status === 'OUT' ? 'error' : 'warning'}>{line.status === 'OUT' ? 'Out' : 'Low'}</DotLabel>
         </span>
         <span className="w-[130px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">
-          {fmtQty(line.onHand)} / {fmtQty(line.level)} {line.usageUnit}
+          {line.onHand !== undefined && line.level !== undefined ? `${fmtQty(line.onHand)} / ${fmtQty(line.level)} ${line.usageUnit}` : '—'}
         </span>
         <div className="flex w-[200px] shrink-0 flex-col gap-[3px]">
           {canOrder ? (
@@ -204,7 +207,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                 className="flex h-7 items-center justify-between gap-2 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 font-wds-sans text-wds-caption text-wds-neutral-950 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring"
                 aria-label={`Buy ${line.itemName} from`}
               >
-                <span className="truncate">{r.supplierId ? `${(supplierMeta(r.supplierId)?.name ?? '').split(' ')[0]}${showMoney && r.price !== null ? ` · KES ${kes(r.price)}` : ''}` : 'Choose supplier'}</span>
+                <span className="truncate">{r.supplierId ? `${(supplierMeta(r.supplierId)?.name ?? '').split(' ')[0]}${showPrices && r.price !== null ? ` · KES ${kes(r.price)}` : ''}` : 'Choose supplier'}</span>
                 <ChevronDown className="size-3 shrink-0 text-wds-text-muted" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-[280px] p-0">
@@ -217,13 +220,13 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                     <span className="flex flex-col gap-0.5">
                       <span className="font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">
                         {c.name.split(' ')[0]}
-                        {showMoney && c.price ? ` · KES ${kes(c.price)}` : ''}
+                        {showPrices && c.price ? ` · KES ${kes(c.price)}` : ''}
                       </span>
                       <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{c.last ? `Last bought ${dayMonth(c.last)}` : 'Never bought from them'}</span>
                     </span>
                     {c.preferred ? (
                       <span className="rounded-[2px] border border-wds-espresso-200 bg-white px-[7px] py-0.5 font-wds-sans text-[10px] text-wds-espresso-700">Preferred</span>
-                    ) : showMoney && c.cheaperBy ? (
+                    ) : showPrices && c.cheaperBy ? (
                       <span className="font-wds-sans text-[11px] font-medium text-wds-success-fg">KES {kes(c.cheaperBy)} cheaper</span>
                     ) : null}
                   </DropdownMenuItem>
@@ -233,7 +236,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
           ) : (
             <span className="font-wds-sans text-wds-caption text-wds-neutral-950">{supplierMeta(r.supplierId)?.name ?? '—'}</span>
           )}
-          {showMoney && cheapest ? (
+          {showPrices && cheapest ? (
             <span className="font-wds-sans text-[11px] leading-[14px] text-wds-success-fg">
               {cheapest.name.split(' ')[0]} is KES {kes(cheapest.by)} cheaper
             </span>
@@ -253,8 +256,8 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
             <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>
           </label>
         </div>
-        {showMoney ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{r.price === null ? '—' : kes(r.price)}</span> : null}
-        {showMoney ? <span className="w-[110px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{r.total === null ? '—' : kes(r.total)}</span> : null}
+        {showPrices ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{r.price === null ? '—' : kes(r.price)}</span> : null}
+        {showPrices ? <span className="w-[110px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{r.total === null ? '—' : kes(r.total)}</span> : null}
       </div>
     );
   };
@@ -329,7 +332,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                       <span className="font-wds-sans text-wds-caption text-wds-text-secondary">{meta?.termsLabel}</span>
                       <span className="ml-auto font-wds-sans text-wds-caption text-wds-text-secondary">
                         {rs.length} item{rs.length === 1 ? '' : 's'}
-                        {showMoney ? ` · est. KES ${kes(groupTotal)}` : ''}
+                        {showPrices ? ` · est. KES ${kes(groupTotal)}` : ''}
                       </span>
                       {canOrder && sid ? (
                         <Button size="sm" disabled={!ready.length || busy} onClick={() => goNew(sid, ready)}>
@@ -350,7 +353,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         <div className="fixed bottom-16 left-[calc(236px+32px)] right-8 z-30 flex h-[52px] items-center gap-4 rounded bg-[#241609] px-5 shadow-[0_8px_24px_#17151240]" role="region" aria-label="Selected items">
           <span className="font-wds-sans text-wds-body-sm text-[#F5F3EF]">
             {selectedRows.length} item{selectedRows.length === 1 ? '' : 's'} selected · {selectedSuppliers.size} supplier{selectedSuppliers.size === 1 ? '' : 's'}
-            {showMoney ? ` · est. KES ${kes(selectedTotal)}` : ''}
+            {showPrices ? ` · est. KES ${kes(selectedTotal)}` : ''}
           </span>
           <button type="button" onClick={() => setSelected(new Set())} className="ml-auto font-wds-sans text-wds-body-sm text-[#B5AEA5] outline-none hover:text-[#F5F3EF] focus-visible:shadow-wds-ring">
             Clear

@@ -278,7 +278,7 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
         <span className="font-wds-sans text-wds-body-sm font-medium text-wds-warning-fg">{approvesOwn ? 'Needs a Store Manager’s PIN' : 'Needs the Store Manager’s approval'}</span>
         <div className="flex items-start gap-3">
           <label htmlFor="rev-pin" className="pt-2 font-wds-sans text-wds-caption text-wds-warning-fg">
-            {role === 'SYSTEM_ADMIN' ? 'Your own PIN' : approvesOwn ? 'Your PIN' : 'Joseph Mwangi’s PIN'}
+            {role === 'SYSTEM_ADMIN' ? 'Your own PIN' : approvesOwn ? 'Your PIN' : 'The Store Manager’s PIN'}
           </label>
           <InlinePin id="rev-pin" value={pin} onChange={setPin} error={wrongPin ? run.failure?.message : null} />
         </div>

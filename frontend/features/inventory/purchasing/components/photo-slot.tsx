@@ -6,14 +6,14 @@ import { Upload } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { usePurchasing } from '../hooks/use-purchasing';
-import { PurchasingError, type FileRef } from '../types';
+import { isPurchasingError, type FileRef } from '../types';
 
 export const sizeLabel = (bytes: number): string => (bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`);
 
 /** What can go wrong with an upload, with the words Paper `35` uses. */
 export type UploadProblem = { kind: 'failed' } | { kind: 'tooLarge'; size: number } | { kind: 'badType' };
 
-/** A grey square standing in for the picture (the demo keeps the name and size, never the file). */
+/** A grey square standing in for the picture (the file's name and size are shown; the picture opens from its link). */
 function Thumb({ white }: { white?: boolean }) {
   return <span className={cn('size-12 shrink-0 rounded-[2px] border border-wds-border', white ? 'bg-white' : 'bg-wds-neutral-100')} aria-hidden />;
 }
@@ -71,7 +71,7 @@ export function UploadProblemRow({ problem, onRetry, onChooseAnother }: { proble
 /**
  * One photo or PDF (the invoice, a proof of payment, a document for the file). Idle: the dashed drop area with Choose file and
  * Take photo (`compact` is the one-line version). Uploading, failed and too large are Paper `35`; filled shows the file with
- * Replace. The mock keeps the name, size and thumbnail only; a file whose name contains "fail" fails once to show the retry.
+ * Replace. The file goes to `POST /inventory/purchasing/uploads`; a dropped connection shows the retry row.
  */
 export function PhotoSlot({
   value,
@@ -103,7 +103,7 @@ export function PhotoSlot({
     };
   }, []);
 
-  const upload = async (file: File, shownName?: string): Promise<void> => {
+  const upload = async (file: File): Promise<void> => {
     lastFile.current = file;
     setProblem(null);
     setBusy({ name: file.name, percent: 8 });
@@ -111,11 +111,11 @@ export function PhotoSlot({
     timer.current = setInterval(() => setBusy((b) => (b ? { ...b, percent: Math.min(92, b.percent + 14) } : b)), 70);
     try {
       const ref = await service.upload(file);
-      if (live.current) onChange(shownName ? { ...ref, fileName: shownName } : ref);
+      if (live.current) onChange(ref);
     } catch (e) {
       if (!live.current) return;
-      if (e instanceof PurchasingError && e.code === 'UPLOAD_TOO_LARGE') setProblem({ kind: 'tooLarge', size: file.size });
-      else if (e instanceof PurchasingError && e.code === 'UPLOAD_BAD_TYPE') setProblem({ kind: 'badType' });
+      if (isPurchasingError(e, 'UPLOAD_TOO_LARGE')) setProblem({ kind: 'tooLarge', size: file.size });
+      else if (isPurchasingError(e, 'UPLOAD_BAD_TYPE')) setProblem({ kind: 'badType' });
       else setProblem({ kind: 'failed' });
     } finally {
       if (timer.current) clearInterval(timer.current);
@@ -129,9 +129,8 @@ export function PhotoSlot({
     if (f) void upload(f);
   };
   const retry = (): void => {
-    // A file named "fail…" is a demo of a dropped connection: the retry goes through once the name no longer says so.
     const f = lastFile.current;
-    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }), f.name);
+    if (f) void upload(f);
   };
 
   const inputs = (

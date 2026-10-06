@@ -7,7 +7,6 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui2/input-otp';
-import { DEMO_PIN } from '../mock/fixtures';
 
 export interface PinDialogProps {
   open: boolean;
@@ -24,9 +23,8 @@ export interface PinDialogProps {
 const PIN_LENGTH = 4;
 
 /**
- * PIN dialog for the mock. Same look as the shared Sign Sheet (Paper `D61-0`), but it checks the PIN against the mock engine,
- * never the real PIN service: mock screens never call the real API. The demo PIN is shown as a hint so a wrong-PIN state can be
- * demoed on purpose.
+ * PIN dialog for Purchasing signatures. Same look as the shared Sign Sheet (Paper `D61-0`). It only collects the 4 digits: the
+ * server checks them with the action (`401 INVALID_PIN`, "That PIN is not right."), and `onSubmit` throws that message back here.
  */
 export function PinDialog({ open, onOpenChange, title, subtitle, summary, confirmLabel, onSubmit }: PinDialogProps) {
   const [pin, setPin] = React.useState('');
@@ -106,9 +104,7 @@ export function PinDialog({ open, onOpenChange, title, subtitle, summary, confir
               <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
                 {error}
               </p>
-            ) : (
-              <p className="font-wds-sans text-[11px] leading-[15px] text-wds-text-faint">Demo: the PIN is {DEMO_PIN}.</p>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-wds-2 px-wds-5 pb-wds-5 pt-wds-1">
             <Button variant="secondary" className="grow" onClick={() => onOpenChange(false)} disabled={submitting}>

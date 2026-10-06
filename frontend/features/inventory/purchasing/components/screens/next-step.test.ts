@@ -2,79 +2,137 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { ctxFor } from '../../mock/demo-actors';
-import { getOrder, type State } from '../../mock/engine';
-import { SCENARIOS } from '../../mock/scenarios';
+import type { OrderCan, OrderStatus, PurchaseFile } from '../../types';
 import { NextStep } from './purchase-file-screen';
 
 /**
- * Component test: the "Next step" card on the purchase file, rendered for every role in each state. The key action of each flow
- * (approve, send, receive, add invoice, settle, pay, void) must show for the roles that hold the capability and be absent for the
- * rest, which see the same words with no button. The buttons come from `order.can`, which the permissions table drives.
+ * Component test: the "Next step" card on the purchase file. Every button comes from the order's own `can`, which the server fills in
+ * from the access table for the signed-in person; the card never looks at a role. So the test gives an order in each state a `can`
+ * with one flag raised and checks that exactly that button shows, and that someone with no flags still reads the words of the step.
  */
-const now = new Date('2026-10-05T12:00:00Z');
-type Role = Parameters<typeof ctxFor>[0];
-const ROLES: Role[] = ['STORE_MANAGER', 'SYSTEM_ADMIN', 'STORE_ATTENDANT', 'ACCOUNTANT', 'DIRECTOR', 'MANAGER'];
+const NONE: OrderCan = {
+  edit: false,
+  submit: false,
+  approve: false,
+  return: false,
+  send: false,
+  cancel: false,
+  receive: false,
+  recordDeposit: false,
+  addInvoice: false,
+  recordPayment: false,
+  settleDispute: false,
+  voidInvoice: false,
+  reversePayment: false,
+  addDocument: false,
+};
 
-const state = (key: string): State => (SCENARIOS.find((s) => s.key === key) as (typeof SCENARIOS)[number]).build(now);
+function orderIn(status: OrderStatus, can: Partial<OrderCan>, patch: Partial<PurchaseFile> = {}): PurchaseFile {
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    reference: 'LPO-0044',
+    status,
+    stage: 'NEEDS',
+    supplier: { id: 's1', name: 'Samrat Wholesalers', code: 'SUP-0001', contactName: null, whatsapp: null, termsDays: 30, payMethods: [] },
+    raisedBy: { id: 'u1', name: 'Store Attendant', role: 'Store Attendant' },
+    raisedAt: '2026-10-05T08:00:00.000Z',
+    submittedAt: '2026-10-05T08:05:00.000Z',
+    approvedBy: null,
+    returnedNote: null,
+    returnedBy: null,
+    sentAt: null,
+    sentVia: null,
+    expectedDate: null,
+    supplierNote: null,
+    attendantNote: null,
+    lines: [],
+    orderedTotal: '1000.00',
+    deliveredTotal: null,
+    delivery: null,
+    invoice: null,
+    payments: [],
+    money: null,
+    dueLabel: null,
+    dueInDays: null,
+    cancelled: null,
+    tracker: [],
+    can: { ...NONE, ...can },
+    documents: [],
+    activity: [],
+    ...patch,
+  };
+}
 
-/** The button and link labels the card shows this role for the first order in a scenario matching `pick`. */
-function labels(scenario: string, role: Role, pick: (o: ReturnType<typeof getOrder>) => boolean): string[] {
-  const s = state(scenario);
-  const ctx = ctxFor(role);
-  const order = s.orders.map((o) => getOrder(s, ctx, o.id, now)).find(pick);
-  if (!order) throw new Error(`no order in ${scenario} matches for ${role}`);
+const invoice = (disputed: boolean): NonNullable<PurchaseFile['invoice']> => ({
+  id: 'i1',
+  number: 'INV-05188',
+  date: '2026-10-04',
+  dueDate: '2026-11-03',
+  amount: '1000.00',
+  status: 'OPEN',
+  disputed,
+  varianceAmount: disputed ? '200.00' : null,
+  varianceReason: null,
+  settled: null,
+  voided: null,
+  advanceApplied: '0.00',
+  balance: '1000.00',
+  photo: null,
+  enteredBy: { id: 'u2', name: 'Margaret', role: 'Accountant' },
+  enteredAt: '2026-10-04T09:00:00.000Z',
+});
+
+/** The button and link labels the card shows for this order. */
+function labels(order: PurchaseFile, canReceive = false): string[] {
   const noop = (): void => undefined;
   const html = renderToStaticMarkup(
-    createElement(NextStep, { order, canReceive: ctx.can('orders.receive'), onApprove: noop, onWhatsapp: noop, onPrint: noop, onCopy: noop, onAdvance: noop, onInvoice: noop, onPay: noop, onSettle: noop, onVoid: noop, busy: false })
+    createElement(NextStep, { order, canReceive, onApprove: noop, onWhatsapp: noop, onPrint: noop, onCopy: noop, onAdvance: noop, onInvoice: noop, onPay: noop, onSettle: noop, onVoid: noop, busy: false })
   );
   return Array.from(html.matchAll(/<(?:button|a)[^>]*>([\s\S]*?)<\/(?:button|a)>/g)).map((m) => (m[1] as string).replace(/<[^>]+>/g, '').trim());
 }
 
-const who = (scenario: string, pick: Parameters<typeof labels>[2], label: string): Role[] => ROLES.filter((r) => labels(scenario, r, pick).includes(label));
-
-describe('the purchase file: the key action shows only for roles that may do it', () => {
-  it('Review and approve: Store Manager and System Admin only', () => {
-    expect(who('awaiting-approval', (o) => o.status === 'AWAITING_APPROVAL', 'Review and approve')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN']);
+describe('the purchase file: each button shows only when the order says this person may do it', () => {
+  it('Review and approve follows can.approve', () => {
+    expect(labels(orderIn('AWAITING_APPROVAL', { approve: true }))).toEqual(['Review and approve']);
+    expect(labels(orderIn('AWAITING_APPROVAL', {}))).toEqual([]);
   });
 
-  it('Send on WhatsApp: whoever may raise or approve (Store Manager, System Admin, Attendant), not the readers or the Accountant', () => {
-    expect(who('ready-to-send', (o) => o.status === 'APPROVED', 'Send on WhatsApp')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'STORE_ATTENDANT']);
+  it('Send on WhatsApp, Print and Copy link follow can.send', () => {
+    expect(labels(orderIn('APPROVED', { send: true }))).toEqual(['Send on WhatsApp', 'Print', 'Copy link']);
+    expect(labels(orderIn('APPROVED', {}))).toEqual([]);
   });
 
-  it('Receive delivery: Store Manager, System Admin and Attendant', () => {
-    expect(who('sent-with-deposit', (o) => o.status === 'SENT', 'Receive delivery')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'STORE_ATTENDANT']);
+  it('Receive delivery follows can.receive, and Record advance follows can.recordDeposit', () => {
+    expect(labels(orderIn('SENT', { receive: true }))).toEqual(['Receive delivery']);
+    expect(labels(orderIn('SENT', { recordDeposit: true }))).toEqual(['Record advance']);
+    expect(labels(orderIn('SENT', { receive: true, recordDeposit: true }))).toEqual(['Receive delivery', 'Record advance']);
+    expect(labels(orderIn('SENT', {}))).toEqual([]);
   });
 
-  it('Record advance: Accountant, Store Manager and System Admin', () => {
-    expect(who('sent-with-deposit', (o) => o.status === 'SENT', 'Record advance')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
+  it('Add invoice follows can.addInvoice', () => {
+    expect(labels(orderIn('DELIVERED', { addInvoice: true }))).toEqual(['Add invoice']);
+    expect(labels(orderIn('DELIVERED', {}))).toEqual([]);
   });
 
-  it('Add invoice: Accountant, Store Manager and System Admin, never the Director, Branch Manager or Attendant', () => {
-    expect(who('delivered-awaiting-invoice', (o) => o.status === 'DELIVERED', 'Add invoice')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
+  it('Record payment and Void invoice follow can.recordPayment and can.voidInvoice', () => {
+    expect(labels(orderIn('INVOICED', { recordPayment: true, voidInvoice: true }, { invoice: invoice(false), dueInDays: 20 }))).toEqual(['Record payment', 'Void invoice']);
+    expect(labels(orderIn('INVOICED', {}, { invoice: invoice(false), dueInDays: 20 }))).toEqual([]);
   });
 
-  it('Record payment and Void invoice on an invoice to pay: the same three roles', () => {
-    expect(who('invoice-to-pay', (o) => o.status === 'INVOICED', 'Record payment')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
-    expect(who('invoice-to-pay', (o) => o.status === 'INVOICED', 'Void invoice')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
+  it('Settle dispute replaces Record payment on a disputed invoice', () => {
+    expect(labels(orderIn('INVOICED', { settleDispute: true, voidInvoice: true }, { invoice: invoice(true) }))).toEqual(['Settle dispute', 'Void invoice']);
+    expect(labels(orderIn('INVOICED', { recordPayment: true }, { invoice: invoice(true) }))).toEqual([]);
   });
 
-  it('Settle dispute replaces Record payment on a disputed invoice, for the same three roles', () => {
-    expect(who('invoice-disputed', (o) => o.status === 'INVOICED', 'Settle dispute')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
-    expect(who('invoice-disputed', (o) => o.status === 'INVOICED', 'Record payment')).toEqual([]);
+  it('a closed or cancelled file has no next step', () => {
+    expect(labels(orderIn('CLOSED', {}))).toEqual([]);
+    expect(labels(orderIn('CANCELLED', {}))).toEqual([]);
   });
 
-  it('a payment cannot be started on a part-paid or paid invoice by a reader, and a closed file has no next step', () => {
-    for (const r of ['DIRECTOR', 'MANAGER', 'STORE_ATTENDANT'] as Role[]) {
-      expect(labels('part-paid', r, (o) => o.status === 'INVOICED').filter((l) => /Record payment|Void invoice|Settle/.test(l))).toEqual([]);
-    }
-    for (const r of ROLES) expect(labels('paid-in-full', r, (o) => o.status === 'CLOSED')).toEqual([]);
-  });
-
-  it('every reader still sees the words of the next step', () => {
-    const s = state('invoice-to-pay');
-    const order = getOrder(s, ctxFor('DIRECTOR'), s.orders[0]?.id ?? '', now);
-    const html = renderToStaticMarkup(createElement(NextStep, { order, canReceive: false, onApprove: () => undefined, onWhatsapp: () => undefined, onPrint: () => undefined, onCopy: () => undefined, onAdvance: () => undefined, onInvoice: () => undefined, onPay: () => undefined, onSettle: () => undefined, onVoid: () => undefined, busy: false }));
+  it('a reader with no flags still sees the words of the next step', () => {
+    const html = renderToStaticMarkup(
+      createElement(NextStep, { order: orderIn('INVOICED', {}, { invoice: invoice(false), dueInDays: 20 }), canReceive: false, onApprove: () => undefined, onWhatsapp: () => undefined, onPrint: () => undefined, onCopy: () => undefined, onAdvance: () => undefined, onInvoice: () => undefined, onPay: () => undefined, onSettle: () => undefined, onVoid: () => undefined, busy: false })
+    );
     expect(html).toContain('Waiting to be paid');
     expect(html).toContain('The Accountant records the payment');
   });

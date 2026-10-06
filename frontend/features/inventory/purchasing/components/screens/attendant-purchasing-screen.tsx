@@ -5,20 +5,20 @@ import Link from 'next/link';
 import { Check } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { useAuthStore } from '@/store/authStore';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { PhoneErrorNote, PhoneHeader, PhonePrimaryButton, PhoneSuccessNote } from '../../../_shared/components/phone-parts';
 import { StockEmptyCard, StockErrorCard } from '../../../_shared/components/stock-states';
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';
 import { usePurchasing } from '../../hooks/use-purchasing';
-import { PEOPLE } from '../../mock/fixtures';
+import { kes } from '../../lib/format';
 import type { NeedsLine, NeedsRestocking, OrderRow } from '../../types';
-import { PurchasingError } from '../../types';
-import { DemoBanner } from '../demo-banner';
+import { errorDetails, isPurchasingError } from '../../types';
 
 type Tab = 'restock' | 'receive' | 'orders';
 
-const approver = PEOPLE.STORE_MANAGER.name.split(' ')[0] as string;
+const approver = 'the Store Manager';
 
 interface Pick {
   checked: boolean;
@@ -45,6 +45,8 @@ function statusOf(o: OrderRow): { text: string; tone: keyof typeof pill } {
     case 'APPROVED':
       return { text: 'Approved · ready to send', tone: 'green' };
     case 'SENT': {
+      // The server withholds due labels from the Attendant, so there may be nothing to count days against.
+      if (o.dueLabel === null) return { text: 'Sent', tone: 'grey' };
       const d = o.dueInDays ?? 0;
       return o.dueLabel === 'OVERDUE' ? { text: `Sent · overdue by ${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'}`, tone: 'red' } : o.dueLabel === 'DUE_TODAY' ? { text: 'Sent · due today', tone: 'amber' } : { text: `Sent · due in ${d} day${d === 1 ? '' : 's'}`, tone: 'grey' };
     }
@@ -58,10 +60,13 @@ function statusOf(o: OrderRow): { text: string; tone: keyof typeof pill } {
 /**
  * The Store Attendant's Purchasing, on a phone (Paper `28` Restock, `29` My orders, `32` an order returned with a note; To receive
  * opens the receiving steps). The Attendant asks for stock: tick what is needed, set how much, add a note, and the request goes to the
- * Store Manager, who approves it. The Attendant sees no prices (decision Q-02), so quantities and statuses are shown without KES.
+ * Store Manager, who approves it. The Attendant sees item prices and order totals (owner rule, 6 Oct 2026: item costs are visible)
+ * but no invoices, payments or what we owe, which the server never sends them.
  */
 export function AttendantPurchasingScreen() {
-  const { service, data: tick, ready } = usePurchasing();
+  const { service, data: tick, ready, can } = usePurchasing();
+  const myId = useAuthStore((s) => s.user?.id);
+  const showPrices = can('catalog.see_costs');
   const drawer = useMobileNavDrawer();
   const addToast = useWdsToastStore((s) => s.addToast);
   const [tab, setTab] = React.useState<Tab>('restock');
@@ -101,7 +106,7 @@ export function AttendantPurchasingScreen() {
 
   const mine = orders.data?.orders ?? [];
   const toReceive = mine.filter((o) => o.stage === 'RECEIVE' && o.can.receive);
-  const myOrders = mine.filter((o) => o.raisedBy.id === PEOPLE.STORE_ATTENDANT.id || o.raisedBy.role === 'Store Attendant').filter((o) => o.status !== 'CLOSED' && o.status !== 'CANCELLED');
+  const myOrders = mine.filter((o) => o.raisedBy.id === myId).filter((o) => o.status !== 'CLOSED' && o.status !== 'CANCELLED');
 
   const send = async (): Promise<void> => {
     if (chosen.length === 0) return;
@@ -116,10 +121,10 @@ export function AttendantPurchasingScreen() {
       setPicks({});
       setNote('');
       setSent(`${chosenSuppliers.size === 1 ? 'Your order has' : `${chosenSuppliers.size} orders have`} gone to ${approver} for approval.`);
-      addToast({ variant: 'success', title: 'Sent for approval', description: `${approver} will approve it before it goes to the supplier.` });
+      addToast({ variant: 'success', title: 'Sent for approval', description: 'The Store Manager will approve it before it goes to the supplier.' });
       setTab('orders');
     } catch (e) {
-      setProblem({ message: e instanceof Error ? e.message : 'We could not send the order. Try again.', openOrderId: e instanceof PurchasingError && e.code === 'SUPPLIER_ORDER_OPEN' ? String(e.details.openOrderId ?? '') : undefined });
+      setProblem({ message: e instanceof Error ? e.message : 'We could not send the order. Try again.', openOrderId: isPurchasingError(e, 'SUPPLIER_ORDER_OPEN') && typeof errorDetails(e).openOrderId === 'string' ? (errorDetails(e).openOrderId as string) : undefined });
     } finally {
       setSending(false);
     }
@@ -138,7 +143,6 @@ export function AttendantPurchasingScreen() {
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col bg-wds-surface">
       <PhoneHeader title="Purchasing" subtitle="From what we need to what we have paid" leading="menu" onLeading={drawer.open} />
-      <DemoBanner />
       <div role="tablist" aria-label="Purchasing" className="mx-4 mt-4 flex shrink-0 border border-wds-border-strong">
         {(
           [
@@ -211,6 +215,12 @@ export function AttendantPurchasingScreen() {
                             <span className={cn('size-1.5 rounded-full', l.status === 'OUT' ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} aria-hidden />
                             {l.status === 'OUT' ? 'Out' : 'Low'}
                           </span>
+                          {showPrices && l.lastPrice ? (
+                            <span className="font-wds-mono text-[12px] text-wds-text-secondary">
+                              KES {kes(l.lastPrice)}
+                              {l.buyUnit ? ` per ${l.buyUnit}` : ''}
+                            </span>
+                          ) : null}
                           <select
                             value={p.supplierId ?? ''}
                             onChange={(e) => setPick(l, { supplierId: e.target.value || null, checked: false, qty: '' })}
@@ -290,6 +300,7 @@ export function AttendantPurchasingScreen() {
                     <div className="flex flex-col gap-0.5">
                       <span className="font-wds-sans text-[16px] font-semibold text-wds-neutral-950">{o.supplier.name}</span>
                       <span className="font-wds-sans text-[13px] text-wds-text-secondary">{o.itemSummary}</span>
+                      {showPrices ? <span className="font-wds-mono text-[13px] text-wds-neutral-950">KES {kes(o.orderedTotal)}</span> : null}
                     </div>
                     <PhonePrimaryButton asChild>
                       <Link href={`/app/inventory/receiving/${o.id}`}>Receive delivery</Link>
@@ -329,6 +340,7 @@ export function AttendantPurchasingScreen() {
                       <div className="flex flex-col gap-0.5">
                         <span className="font-wds-sans text-[16px] font-semibold text-wds-neutral-950">{o.supplier.name}</span>
                         <span className="font-wds-sans text-[13px] text-wds-text-secondary">{o.itemSummary}</span>
+                        {showPrices ? <span className="font-wds-mono text-[13px] text-wds-neutral-950">KES {kes(o.orderedTotal)}</span> : null}
                       </div>
                       {o.status === 'RETURNED' ? (
                         <div className="flex flex-col gap-1 border border-wds-border bg-wds-neutral-50 px-3 py-2.5">

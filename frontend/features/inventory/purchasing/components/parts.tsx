@@ -88,7 +88,7 @@ export function DotLabel({ tone, children, className }: { tone: 'warning' | 'err
   );
 }
 
-/** The PIN box inside a drawer (Paper `37`, `38`): four dots, the message under it when the PIN is wrong. The demo PIN is hinted. */
+/** The PIN box inside a drawer (Paper `37`, `38`): four dots, the message under it when the PIN is wrong. */
 export function InlinePin({ value, onChange, error, id, className }: { value: string; onChange: (v: string) => void; error?: string | null; id: string; className?: string }) {
   return (
     <div className={cn('flex flex-col gap-1', className)}>
@@ -97,7 +97,7 @@ export function InlinePin({ value, onChange, error, id, className }: { value: st
         type="password"
         inputMode="numeric"
         autoComplete="off"
-        maxLength={6}
+        maxLength={4}
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
         aria-invalid={error ? true : undefined}
@@ -107,9 +107,7 @@ export function InlinePin({ value, onChange, error, id, className }: { value: st
         <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
           {error}
         </p>
-      ) : (
-        <p className="font-wds-sans text-[11px] text-wds-text-faint">Demo: the PIN is 1234.</p>
-      )}
+      ) : null}
     </div>
   );
 }
