@@ -95,8 +95,8 @@ export function SupplierPageScreen({ id }: { id: string }) {
   const page = useSupplierPage(canRead ? id : null, { paymentDetails: seesPaymentDetails, payables: seesOwed });
   const { categories } = useCategoryOptions(drawer?.kind === 'edit');
   const supplier = page.detail.data;
-  // What we owe, the orders and the statement come from the Purchasing mock (matched to this supplier by name).
-  const purchasing = useSupplierPurchasing(supplier?.name);
+  // What we owe, the orders and the statement come from Purchasing, by the supplier's own id.
+  const purchasing = useSupplierPurchasing(canRead ? id : null);
   const { reload: reloadDetail } = page.detail;
   const { reload: reloadDocuments } = page.documents;
   const { reloadCatalogAll, reloadPayments } = page;
@@ -334,7 +334,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
                       <DetailsCards supplier={supplier} />
                     </>
                   )}
-                  {seesOwed && purchasing.mockId && (!neverBought || Number.parseFloat(owing?.owing ?? '0') > 0) ? (
+                  {seesOwed && purchasing.supplierId && (!neverBought || Number.parseFloat(owing?.owing ?? '0') > 0) ? (
                     <OwedCard owing={owing} onOpenStatement={() => setTab('statement')} onOpenOrders={() => setTab('orders')} />
                   ) : null}
                 </>
@@ -342,7 +342,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
               {tab === 'orders' && seesOrders ? (
                 <SupplierOrdersTab
                   supplierName={supplier.name}
-                  mockSupplierId={purchasing.mockId}
+                  supplierId={purchasing.supplierId}
                   orders={purchasing.data?.orders ?? null}
                   status={purchasing.status}
                   error={purchasing.error}
@@ -351,7 +351,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
                   showMoney={seesOwed}
                 />
               ) : null}
-              {tab === 'statement' && seesOwed ? <SupplierStatementTab mockSupplierId={purchasing.mockId} supplierName={supplier.name} /> : null}
+              {tab === 'statement' && seesOwed ? <SupplierStatementTab supplierId={purchasing.supplierId} supplierName={supplier.name} /> : null}
               {tab === 'contacts' ? (
                 <ContactsTab
                   supplierName={supplier.name}
@@ -416,7 +416,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
           <SupplierStatusDialogs
             move={statusMove}
             supplier={supplier}
-            invoices={purchasing.mockId ? (purchasing.data?.owing.invoices ?? null) : []}
+            invoices={purchasing.supplierId ? (purchasing.data?.owing.invoices ?? null) : []}
             onClose={() => setStatusMove(null)}
             onChanged={(status) => {
               setFlash(status === 'ACTIVE' ? `${supplier.name} is active.` : status === 'ON_HOLD' ? `${supplier.name} is on hold.` : `${supplier.name} is archived.`);

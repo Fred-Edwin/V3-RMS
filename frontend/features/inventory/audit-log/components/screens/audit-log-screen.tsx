@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
-import { DemoBanner } from '../../../purchasing/components/demo-banner';
 import { PurchasingAuditPanel } from '../../../purchasing/components/purchasing-audit-panel';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
@@ -71,7 +71,7 @@ export function AuditLogScreen() {
   const [actorId, setActorId] = React.useState<string | null>(null);
   const [period, setPeriod] = React.useState<AuditPeriod>('TODAY');
   const [page, setPage] = React.useState(1);
-  // "Purchasing and payments" is the Purchasing mock's own log (Paper `23`). A link with ?q= (the closed purchase file's
+  // "Purchasing and payments" is the purchase file's own log (Paper `23`), read from the same `GET /inventory/audit-log`. A link with ?q= (the closed purchase file's
   // "Everything") opens it already searching for that document.
   const query = useSearchParams().get('q');
   const [purchasing, setPurchasing] = React.useState(Boolean(query));
@@ -89,7 +89,6 @@ export function AuditLogScreen() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar breadcrumb={{ section: 'Central Store', screen: 'Audit log' }} hideSearch className="shrink-0" />
-      {purchasing ? <DemoBanner /> : null}
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-8 py-7">
         <PageHeading title="Audit log">Every change and every fix, with who, when and why. Nothing here can be edited or removed.</PageHeading>
         {!ready ? (
@@ -164,7 +163,17 @@ export function AuditLogScreen() {
                       <span className={cn('font-wds-mono text-[12px] leading-4 text-wds-text-secondary', cols.when)}>{whenLabel(entry.at, now)}</span>
                       <span className={cn('font-wds-sans text-[13px] leading-4 text-wds-text-ink', cols.who)}>{entry.actor.name}</span>
                       <span className={cn('font-wds-sans text-[13px] leading-4 text-wds-text-ink', cols.area)}>{AREA_LABEL[entry.area]}</span>
-                      <span className={cn('font-wds-sans text-[13px] leading-[18px] text-wds-text-ink', cols.what)}>{entry.what}</span>
+                      <span className={cn('font-wds-sans text-[13px] leading-[18px] text-wds-text-ink', cols.what)}>
+                        {entry.what}
+                        {entry.purchasing ? (
+                          <>
+                            {' '}
+                            <Link href={`/app/inventory/purchasing/${entry.purchasing.orderId}`} className="font-medium text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+                              {entry.purchasing.orderReference ?? 'Open the order'}
+                            </Link>
+                          </>
+                        ) : null}
+                      </span>
                       <span className={cn('font-wds-sans text-[13px] leading-[18px]', cols.reason, entry.reason ? 'text-wds-text-secondary' : 'text-wds-text-faint')}>{entry.reason ?? '—'}</span>
                     </div>
                   ))
