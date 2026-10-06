@@ -3066,4 +3066,19 @@ Isolation. Staff discounts and House Account payments are fundamentally differen
 
 ---
 
+## 8. Workforce foundation (slice 0, migration `20261006111155_workforce_foundation`)
+
+Four new tables, plain id columns and no relations to `users`, `organizations` or `companies` (so history outlives other rows and no Access file changed). Full design of the whole module: `docs/features/workforce/slice-0-contract.md` section 2. Models in `backend/prisma/schema/workforce.prisma`.
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `workforce_audit_entries` | Append-only audit log, hash-chained per company | `seq` gap-free per company, `prev_hash`/`hash`; triggers refuse UPDATE, DELETE, TRUNCATE (no escape hatch); unique `(company_id, seq)` |
+| `workforce_audit_chain_heads` | One row per company, tip of the chain, locked `FOR UPDATE` by the writer | trigger: `last_seq` may only move to old + 1; never deleted or truncated |
+| `workforce_rule_versions` | One immutable version of one rule group; `organization_id` null = company default | `values` JSON validated by the group's Zod schema; partial unique indexes `(company_id, group, version) WHERE organization_id IS NULL` and `(company_id, organization_id, group, version) WHERE organization_id IS NOT NULL` |
+| `workforce_rule_confirmations` | A second person's confirmation of part of a version | unique `(rule_version_id, scope)` |
+
+Enums: `RuleGroup`, `AuditCategory`, `AuditChannel`. Triggers and partial indexes are hand-written SQL in the migration (Prisma does not model them, so `prisma migrate diff` shows nothing).
+
+---
+
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

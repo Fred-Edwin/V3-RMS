@@ -13,6 +13,7 @@
         "format": "prettier --write .",
         "test": "vitest run",
         "test:watch": "vitest",
+        "test:workforce-tz": "TZ=UTC vitest run src/modules/workforce/_shared/time && TZ=Africa/Nairobi vitest run src/modules/workforce/_shared/time && TZ=America/Los_Angeles vitest run src/modules/workforce/_shared/time",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate dev",
         "prisma:studio": "prisma studio",
