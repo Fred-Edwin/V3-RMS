@@ -13,6 +13,7 @@ export const ORDER_INCLUDE = {
       name: true,
       code: true,
       address: true,
+      kraPin: true,
       defaultPaymentTerms: true,
       paymentDays: true,
       contacts: { where: { isPrimary: true }, select: { name: true, phone: true, whatsapp: true }, take: 1 },

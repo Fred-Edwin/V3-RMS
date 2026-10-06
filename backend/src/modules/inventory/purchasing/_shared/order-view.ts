@@ -312,12 +312,22 @@ const documentsOf = (actor: Actor, o: OrderRecord): FileDocumentView[] => {
       docs.push({ kind: p.kind === 'ADVANCE' ? 'ADVANCE_ADVICE' : 'PAYMENT_ADVICE', title: p.kind === 'ADVANCE' ? 'Advance payment advice' : 'Payment advice', subtitle: `${p.reference} · KES ${kes0(p.amount)} · ${how}${p.status === 'REVERSED' ? ' · reversed' : ''}`, step: 'Paid', at: iso(p.recordedAt), addedBy: p.recordedBy.name, fileRef: null, action: 'Print', paymentId: p.id });
     }
   }
-  const stepOf = (): FileDocumentView['step'] => (o.status === 'CLOSED' ? 'Paid' : liveInvoiceOf(o) ? 'Invoiced' : o.delivery ? 'Delivered' : 'Ordered');
-  for (const d of o.documents) {
-    docs.push({ kind: 'OTHER', title: d.title, subtitle: d.file.fileName, step: stepOf(), at: iso(d.addedAt), addedBy: d.addedBy.name, fileRef: toFileRef(d.file), action: 'View', paymentId: null });
-  }
+  for (const d of o.documents) docs.push(extraDocumentView(o, d));
   return docs;
 };
+
+/** A document added by hand ("+ Add a document"): it sits under the stage the order has reached. */
+export const extraDocumentView = (o: OrderRecord, d: OrderRecord['documents'][number]): FileDocumentView => ({
+  kind: 'OTHER',
+  title: d.title,
+  subtitle: d.file.fileName,
+  step: o.status === 'CLOSED' ? 'Paid' : liveInvoiceOf(o) ? 'Invoiced' : o.delivery ? 'Delivered' : 'Ordered',
+  at: iso(d.addedAt),
+  addedBy: d.addedBy.name,
+  fileRef: toFileRef(d.file),
+  action: 'View',
+  paymentId: null,
+});
 
 const activityOf = (actor: Actor, o: OrderRecord): ActivityEntryView[] =>
   o.audit
