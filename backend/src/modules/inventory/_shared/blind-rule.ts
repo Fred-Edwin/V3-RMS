@@ -27,7 +27,7 @@ export const blindnessOf = (actor: Pick<Actor, 'role'>): Blindness => ({
 });
 
 /** Keys that carry stock figures on an item. Add a key here when a response gains a new one. */
-export const STOCK_FIGURE_KEYS = ['centralStoreRestockLevel', 'daysOfCover', 'centralStoreOnHand'] as const;
+export const STOCK_FIGURE_KEYS = ['centralStoreRestockLevel', 'daysOfCover', 'centralStoreOnHand', 'onHand', 'level'] as const;
 
 /** Keys that carry financial data wherever they appear in a Central Store response. */
 export const FINANCIAL_KEYS = ['amountOwed', 'balance', 'outstanding', 'invoices', 'payments', 'supplierBalance'] as const;
