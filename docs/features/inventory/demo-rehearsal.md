@@ -43,8 +43,10 @@ Run in a real browser against production (`v3-rms.vercel.app`). Check each line:
 
 **Passed:** 1.1 Catalog (214 items, strip, supplier-code search with "MATCHED" caption) · 1.2 item page · 1.3 add, edit with Review change, retire with reason, restore · 1.4 Restock levels (mix of Out 2, Low 4, rest OK) · 1.5 edit a level, Review changes, save, Put back · 1.6 supplier page and Payment tab (account masked behind Show) · 1.7 Meadows contact present · 1.10 Audit log shows every edit above · 1.11 Attendant is sent away from Restock levels and sees no prices in the catalog · 2.1 Purchasing mock loads (banner, six tabs with counts, Demo bar, "A normal day").
 
+**Fixed since (6 Oct 2026):** items 1, 2 and 11 below. Storage is configured (R2 bucket `wendo-rms`), upload returns 201 and download 200, so step 1.9 now passes. The "DEMO ·" markers in the restock history and the Meadows contact are neutral ("Opening setup · 6 Oct 2026", "Sales desk"). Item 3 and the mock supplier details are in PR #85 (merge, then click Load on the Demo bar).
+
 **Failed or needs a decision:**
-1. **Supplier document upload fails in production: "Document storage is not configured."** Step 1.9 cannot be shown until storage is set up (owner action). The Documents tab itself loads, empty.
+1. **Supplier document upload fails in production: "Document storage is not configured."** *(Fixed: storage configured and retested.)* Step 1.9 could not be shown until storage was set up. The Documents tab itself loads.
 2. **Search by supplier company name finds nothing** ("samrat" returns no items). It matches our item name and a supplier's own name or code for the item (works with a code such as 145016). The Catalog README says "supplier names"; reword it, and demo with a code.
 3. **Mixed real and mock numbers on supplier pages.** Samrat's "What we owe" card shows KES 8,050 (mock) while its stat tiles show Spend KES 0 and Receipts 0, and the suppliers list says "KES 0 owed to 0 suppliers".
 4. **The Restock review says low items appear on Purchasing "right away".** The Purchasing mock uses its own sample items (Kabras Sugar, Salt Cooking Oil), so a level changed on Restock does not appear there. Do not promise that link in the demo.

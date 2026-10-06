@@ -7,6 +7,9 @@ begin;
 
 update restock_level_changes set reason = 'Opening setup · 6 Oct 2026' where reason = 'DEMO · restock level';
 
+-- The note typed on the rehearsal edit of the Salt level (20 to 40, later put back).
+update restock_level_changes set reason = 'Opening setup · 6 Oct 2026' where reason = 'DEMO rehearsal';
+
 update supplier_contacts set name = 'Sales desk'
 where name = 'DEMO · Sales contact'
   and supplier_id = (select id from suppliers where name = 'Meadows Food Processors Ltd');

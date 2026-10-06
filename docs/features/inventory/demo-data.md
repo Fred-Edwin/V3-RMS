@@ -14,6 +14,7 @@ The client sees these rows, so the markers are neutral wording rather than the w
 | 17 opening-stock rows, so Restock shows a mix of OK, Low and Out | ledger reason `DEMO · opening stock` (the ledger cannot be edited; it shows only on the old Stock ledger screen) | `inventory_transactions` |
 | 1 supplier contact on Meadows | name `Sales desk` (until renamed: `DEMO · Sales contact`), phone `0700 000 000` | `supplier_contacts` |
 | An item added live in the demo (rehearsal and demo) | name starts `Demo —` | `inventory_items` |
+| A test document on Samrat's Documents tab (uploaded 6 Oct 2026 to prove storage works) | file name `DEMO-test-document.pdf`, note "Storage test, safe to delete" | `supplier_documents`, and the file in the R2 bucket `wendo-rms`. The screen has no delete button ("files are never deleted"); remove the row with the supplier-documents DELETE endpoint (Store Manager) or in the database, and the file from the bucket in Cloudflare |
 | Anything else added live (a Cheque payment method, a supplier document) | title or note says DEMO | removed in the app (supplier page) |
 | The whole Purchasing and Receiving flow | not in the database; it lives in each browser (`localStorage`) | reset with the Demo bar's Load |
 
