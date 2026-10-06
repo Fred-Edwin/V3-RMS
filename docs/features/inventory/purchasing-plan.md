@@ -78,14 +78,15 @@ No new capability is needed. Services call `requireHubReader` / `requireHubActor
 - Gate: `cd backend && pnpm build && pnpm test`, real requests as Store Manager, Accountant and Attendant, and `cd frontend && pnpm build` unchanged.
 
 ## Task list
-- [ ] Production read-only check, then migration (new tables)
-- [ ] `_shared/`
-- [ ] `files/`, `needs-restocking/`, `orders/`
-- [ ] `receiving/` + ledger link
-- [ ] `payables/`
-- [ ] `supplier-account/` + suppliers and audit-log repoint
-- [ ] Delete old code, shrink ledger guard, drop old tables
-- [ ] Docs, verification, commits
+- [x] Production read-only check, then migration (new tables)
+- [x] `_shared/`
+- [x] `files/`, `needs-restocking/`, `orders/`
+- [x] `receiving/` + ledger link
+- [x] `payables/`
+- [x] `supplier-account/` + suppliers and audit-log repoint
+- [x] Delete old code, shrink ledger guard, drop old tables (`drop_old_purchasing`, 6 Oct 2026)
+- [x] Docs (API_CONTRACT §31.9, DATA_MODEL §4.84, status)
+- [ ] Verification with real requests, commits (in progress)
 
 ## Risks to watch
 - The suppliers module is coupled to the old tables (`supplier-service.ts`, `supplier-summary`, `supplier-pay-history`, their tests); step 6 is the riskiest and may touch more files than listed.

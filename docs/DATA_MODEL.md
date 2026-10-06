@@ -1948,7 +1948,7 @@ model InventoryTransaction {
   quantity             Decimal                  @db.Decimal(12, 4)
   unitCost             Decimal                  @map("unit_cost") @db.Decimal(12, 4)
   reason               String?
-  goodsReceiptLineId   String?                  @map("goods_receipt_line_id")
+  purchaseDeliveryLineId String?                @map("purchase_delivery_line_id") -- FK → PurchaseDeliveryLine (§4.84); replaced goodsReceiptLineId on 6 Oct 2026
   prepRecordId         String?                  @map("prep_record_id")          -- FK → PrepRun (Milestone Three)
   wasteLogId           String?                  @map("waste_log_id")            -- FK → WasteLog (Milestone Six S1, §4.69)
   stockCountLineId     String?                  @map("stock_count_line_id")     -- real FK (Milestone Six S2)
@@ -1978,7 +1978,7 @@ model InventoryTransaction {
 - The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` (Six, Session 2); `branchDayLineId` (Six, Session 3); `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
 - **Sign convention:** inbound rows are positive (`RECEIVE`, `PREP_PRODUCE`, `DISPATCH_IN`), outbound rows negative (`PREP_CONSUME`, `DISPATCH_OUT`, `WASTE`); `ADJUSTMENT` carries its own sign. On-hand at a location is a plain `SUM(quantity)`.
 - The Milestone Six ledger view's running balance is a SQL window (`SUM(quantity) OVER (ORDER BY created_at, id)`) over the item's whole ledger at that location; its "counterparty" text is derived from whichever FK is set — there is no free-text counterparty column.
-- `goodsReceiptLineId` (formerly `purchaseOrderLineId`) was the first of these restored — Milestone Two's `GoodsReceipt` signing is the first writer to this ledger since the redo began.
+- `purchaseDeliveryLineId` (earlier `goodsReceiptLineId`, earlier `purchaseOrderLineId`) links a RECEIVE row to the delivery line that brought the stock in. The column `goods_receipt_line_id` was dropped on 6 Oct 2026.
 - `InventoryTransactionType` ships its full enum now (§5) even though `MARKET_RECEIVE` and `SALE` are not yet written by anything.
 
 ---
@@ -2008,6 +2008,13 @@ model ReferenceCounter {
 - Same pattern as the older `OrderCounter` (§4.2), generalized across document types instead of reset per day.
 
 ---
+
+> **§4.54 to §4.62 are history. Dropped on 6 Oct 2026** by migration `20261006140000_drop_old_purchasing`
+> (`ExpectedDelivery`, `ExpectedDeliveryLine`, `GoodsReceipt`, `GoodsReceiptLine`, `SupplierInvoice`,
+> `SupplierInvoiceReceipt`, `SupplierInvoiceAdjustment`, `SupplierPayment`, `SupplierPaymentAllocation`, their enums
+> `ExpectedDeliveryStatus`, `GoodsReceiptStatus`, `SupplierInvoiceStatus`, `DisputeStatus`, `SupplierPaymentMethod`, and
+> `inventory_transactions.goods_receipt_line_id`). Production held no rows in them. The replacement is §4.84
+> (the purchase file). `ReferenceCounter` (§4.53) stays and now numbers `LPO`, `GRN` and `PAY`.
 
 ### 4.54 ExpectedDelivery
 
@@ -2997,6 +3004,19 @@ Uploaded files (images/PDF, ≤ 10 MB, type verified by magic bytes). `organizat
 ### 4.83 SupplierAuditLog
 
 Append-only. `organizationId`, `supplierId` (cascade), `action` (`SupplierAuditAction`: `PAY_METHOD_CREATED | PAY_METHOD_UPDATED | PAY_METHOD_DELETED | PAY_METHOD_DEFAULT_CHANGED | STATUS_CHANGED`), `entityId?`, `before?` / `after?` (JSON; **account numbers and wallet phone numbers are stored already masked** — last four characters only), `actorId`, `createdAt`. Index `(organizationId, supplierId, createdAt)`. No read endpoint yet.
+
+### 4.84 Purchasing: the purchase file (6 Oct 2026)
+
+Schema: `backend/prisma/schema/inventory/purchase-orders.prisma`. One **purchase file** per order, all rows scoped by `siteId` (column `organization_id`, the hub). Nothing is deleted once an order is submitted: cancel, void and reverse add a linked row with a reason. Rules: `docs/features/inventory/purchasing-mock/backend-rules.md`.
+
+- **`PurchaseOrder`** (`purchase_orders`): `reference` (`LPO-nnnn`, null while `DRAFT`), `supplierId`, `status` (`PurchaseOrderStatus`: `DRAFT | AWAITING_APPROVAL | RETURNED | APPROVED | SENT | DELIVERED | INVOICED | CLOSED | CANCELLED`), `termsDays` (the supplier's terms when raised), `expectedDate`, `supplierNote`, `attendantNote`, who raised, submitted, approved (with time), returned (with note), sent (`sentVia`: `WHATSAPP | PRINT | LINK | MANUAL`) and cancelled (`cancelReason`, `cancelNote`). Unique `(siteId, reference)`.
+- **`PurchaseOrderLine`**: `inventoryItemId`, snapshots of the supplier's item name, code, `buyUnit`, `packSize`; `orderedQty` and `unitPrice` per **buy** unit; `previousPrice`; filled at receiving: `receivedQty`, `deliveredPrice` (what the receiver typed), `confirmedPrice`, `result` (`PurchaseLineResult`: `AS_ORDERED | PRICE_CHANGED | SHORT | NOT_SUPPLIED`).
+- **`PurchaseDelivery`** (`purchase_deliveries`): one per order (`orderId` unique), `reference` (`GRN-nnnn`), `locationId` (Central Store), `deliveryNoteNo`, `deliveryNoteFileId`, `receivedById`, `deliveredTotal`, `notSuppliedTotal`.
+- **`PurchaseDeliveryLine`**: `orderLineId`, `inventoryItemId`, `quantityBuyUnit` (counted), `quantityUsageUnit` (buy × pack size: what hits the ledger), `unitPrice` (confirmed, per buy unit). Its `id` is what the RECEIVE row stores as `inventory_transactions.purchase_delivery_line_id`.
+- **`PurchaseInvoice`** (`purchase_invoices`): `number` (the supplier's), `invoiceDate`, `dueDate` (stored), `amount`, `status` (`PurchaseInvoiceStatus`: `OPEN | PAID | VOIDED`), `disputed`, `varianceAmount`, `varianceReason`, settle fields, void fields (`PurchaseVoidReason`), `fileId`. **Partial unique index** `purchase_invoices_one_live_per_order` allows one non-voided invoice per order.
+- **`PurchasePayment`** (`purchase_payments`): `reference` (`PAY-nnnn`; a reversal line is `<original>-R`), `kind` (`PurchasePaymentKind`: `ADVANCE | INVOICE | REVERSAL`), `status` (`RECORDED | REVERSED`), `amount` (negative on a reversal), `paidOn`, `method` (`SupplierPayMethodType`), `methodRef`, `chequeNo`, `proofFileId`, `reversesId` (unique: reversed at most once), `reverseReason`, `approvedById` (the Store Manager or System Admin who approved a reversal).
+- **`PurchaseDocument`** (extra named documents on the file), **`PurchaseFile`** (an uploaded photo or PDF; bytes in object storage, `objectKey` unique), **`PurchasingAuditEntry`** (`purchasing_audit`: `area` `PURCHASING | PAYMENTS`, `action`, `document`, `detail`, `what`, `at`, actor, order, supplier; written in the same transaction as each action; read by the Audit log).
+- `SupplierDocument.goodsReceiptId` and `.supplierInvoiceId` keep their column names (`goods_receipt_id`, `supplier_invoice_id`) and now point at `PurchaseDelivery` and `PurchaseInvoice`.
 
 ### Supplier enums
 
