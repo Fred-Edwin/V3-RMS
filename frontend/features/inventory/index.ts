@@ -92,8 +92,6 @@ export {
 } from './_shared/components/stock-format';
 export { useResource } from './stock/hooks/use-stock';
 
-// The shell's one navigation table (`components/app/shell/nav-table.ts`) shows Central Store links by the server's capabilities,
-// and follows the System Admin's demo-bar preview role for them.
+// The shell's one navigation table (`components/app/shell/nav-table.ts`) shows Central Store links by the server's capabilities.
 export type { Capability } from './_shared/lib/capabilities';
 export { usePermissions } from './_shared/hooks/use-permissions';
-export { useEffectiveRole } from './_shared/hooks/use-demo-view';

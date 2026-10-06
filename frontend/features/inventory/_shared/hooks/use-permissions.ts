@@ -6,7 +6,6 @@ import { create } from 'zustand';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { Capability } from '../lib/capabilities';
-import { useEffectiveRole } from './use-demo-view';
 
 interface PermissionsPayload {
   role: string;
@@ -21,8 +20,7 @@ interface PermissionsState {
   userId: string | null;
   capabilities: Capability[];
   status: Status;
-  /** `userId` is the scope key: the user's id, plus `#ROLE` while a System Admin previews that role (demo only). */
-  load: (userId: string, asRole?: string) => Promise<void>;
+  load: (userId: string) => Promise<void>;
   clear: () => void;
 }
 
@@ -55,14 +53,14 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
   capabilities: [],
   status: 'idle',
   clear: () => set({ userId: null, capabilities: [], status: 'idle' }),
-  load: async (userId, asRole) => {
+  load: async (userId) => {
     if (get().userId === userId && (get().status === 'ready' || get().status === 'loading')) return inFlight ?? undefined;
     const cached = readCache(userId);
     set({ userId, capabilities: cached ?? [], status: cached ? 'ready' : 'loading' });
     inFlight = (async () => {
       try {
         const token = useAuthStore.getState().accessToken ?? undefined;
-        const data = await apiClient.get<PermissionsPayload>(`/inventory/permissions/me${asRole ? `?asRole=${encodeURIComponent(asRole)}` : ''}`, token);
+        const data = await apiClient.get<PermissionsPayload>('/inventory/permissions/me', token);
         if (get().userId !== userId) return;
         writeCache(userId, data.capabilities);
         set({ capabilities: data.capabilities, status: 'ready' });
@@ -83,9 +81,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
  * `enabled: false` skips the request, for the shell on roles that have no Central Store links (the server would answer 403).
  */
 export function usePermissions(enabled = true) {
-  const realUserId = useAuthStore((s) => s.user?.id ?? null);
-  const { role: previewRole, previewing } = useEffectiveRole();
-  const userId = realUserId && previewing && previewRole ? `${realUserId}#${previewRole}` : realUserId;
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const capabilities = usePermissionsStore((s) => s.capabilities);
   const status = usePermissionsStore((s) => s.status);
@@ -93,8 +89,8 @@ export function usePermissions(enabled = true) {
   const load = usePermissionsStore((s) => s.load);
 
   useEffect(() => {
-    if (enabled && userId && accessToken) void load(userId, previewing ? previewRole : undefined);
-  }, [enabled, userId, accessToken, load, previewing, previewRole]);
+    if (enabled && userId && accessToken) void load(userId);
+  }, [enabled, userId, accessToken, load]);
 
   const mine = storeUserId === userId;
   const can = useCallback((capability: Capability): boolean => mine && capabilities.includes(capability), [mine, capabilities]);
