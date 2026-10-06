@@ -336,3 +336,128 @@ enum HrDocumentType {
   WARNING_LETTER
   OTHER
 }
+
+// ============================================================================
+// Workforce slice 0 (foundation): audit log and rules store.
+// Spec: docs/features/workforce/slice-0-contract.md. These tables hold plain id columns with no relations on purpose
+// (so Access files need no back-relations, and audit history outlives any other row).
+// The migration adds, by hand: append-only triggers on workforce_audit_entries, a chain-head trigger, and two partial
+// unique indexes on workforce_rule_versions. Prisma does not model those.
+// ============================================================================
+
+enum RuleGroup {
+  LATENESS
+  OVERTIME
+  ATTENDANCE
+  LEAVE
+  PROBATION
+  CASUAL_WORK
+  CONDUCT
+  STATUTORY
+  HOLIDAYS
+  WEEK_AND_BREAKS
+}
+
+enum AuditCategory {
+  PEOPLE
+  TIME
+  LEAVE
+  PAY_SETUP
+  PAY_RUN_PREPARE
+  PAY_RUN_DECIDE
+  RULES_OPERATING
+  RULES_PAY
+  PAYSLIP_ACCESS
+  SENSITIVE_VIEW
+  DISCIPLINE
+  SECURITY
+  DOCUMENTS
+  LOG_ACCESS
+}
+
+enum AuditChannel {
+  APP
+  SYSTEM
+  ASSISTANT
+}
+
+/// Append-only. UPDATE and DELETE are refused by a database trigger. No relations on purpose.
+model AuditEntry {
+  id            String        @id @default(uuid())
+  companyId     String        @map("company_id")
+  siteId        String?       @map("organization_id")
+  seq           BigInt
+  occurredAt    DateTime      @default(now()) @map("occurred_at")
+  actorId       String?       @map("actor_id")
+  actorRole     String        @map("actor_role")
+  actorName     String        @map("actor_name")
+  channel       AuditChannel  @default(APP)
+  action        String
+  category      AuditCategory
+  subjectType   String        @map("subject_type")
+  subjectId     String        @map("subject_id")
+  subjectUserId String?       @map("subject_user_id")
+  before        Json?
+  after         Json?
+  reason        String?
+  deviceLabel   String?       @map("device_label")
+  placeLabel    String?       @map("place_label")
+  prevHash      String        @map("prev_hash")
+  hash          String
+
+  @@unique([companyId, seq])
+  @@index([companyId, occurredAt])
+  @@index([companyId, category, occurredAt])
+  @@index([siteId, occurredAt])
+  @@index([subjectUserId, occurredAt])
+  @@index([subjectType, subjectId])
+  @@map("workforce_audit_entries")
+}
+
+/// One row per company: the tip of the chain. Locked FOR UPDATE by the writer to hand out seq numbers.
+model AuditChainHead {
+  companyId String   @id @map("company_id")
+  lastSeq   BigInt   @default(0) @map("last_seq")
+  lastHash  String   @map("last_hash")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workforce_audit_chain_heads")
+}
+
+/// One immutable version of one rule group. siteId null = company default (full group); set = a site override.
+model RuleVersion {
+  id                  String    @id @default(uuid())
+  companyId           String    @map("company_id")
+  siteId              String?   @map("organization_id")
+  group               RuleGroup
+  version             Int
+  effectiveFrom       DateTime  @map("effective_from") @db.Date
+  values              Json
+  valuesSchemaVersion Int       @default(1) @map("values_schema_version")
+  reason              String
+  createdById         String    @map("created_by_id")
+  createdByRole       String    @map("created_by_role")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  confirmations RuleConfirmation[]
+
+  @@index([companyId, group, effectiveFrom])
+  @@index([siteId, group, effectiveFrom])
+  @@map("workforce_rule_versions")
+}
+
+/// Someone confirmed a part of a version (Accountant: pay rates, statutory; Director: holiday list).
+model RuleConfirmation {
+  id            String   @id @default(uuid())
+  ruleVersionId String   @map("rule_version_id")
+  scope         String
+  confirmedById String   @map("confirmed_by_id")
+  confirmerRole String   @map("confirmer_role")
+  confirmedAt   DateTime @default(now()) @map("confirmed_at")
+  note          String?
+
+  ruleVersion RuleVersion @relation(fields: [ruleVersionId], references: [id])
+
+  @@unique([ruleVersionId, scope])
+  @@map("workforce_rule_confirmations")
+}
