@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { usePurchasing } from '../../hooks/use-purchasing';
-import { fullDate, kes2, qty as fmtQty, whenLabel } from '../../lib/format';
+import { fullDate, qty as fmtQty, whenLabel } from '../../lib/format';
 import type { LpoPrint } from '../../types';
 
 /**
@@ -74,8 +74,6 @@ export function LpoPrintScreen({ orderId }: { orderId: string }) {
             <span className="grow font-wds-mono text-[10px] tracking-[0.08em]">ITEM</span>
             <span className="w-14 text-right font-wds-mono text-[10px] tracking-[0.08em]">QTY</span>
             <span className="w-20 pl-3 font-wds-mono text-[10px] tracking-[0.08em]">UNIT</span>
-            <span className="w-[100px] text-right font-wds-mono text-[10px] tracking-[0.08em]">PRICE (KES)</span>
-            <span className="w-[110px] text-right font-wds-mono text-[10px] tracking-[0.08em]">TOTAL (KES)</span>
           </div>
           {d.lines.map((l) => (
             <div key={l.n} className="flex min-h-12 items-center border-b border-[#E3E8EE] px-2.5 py-1.5">
@@ -89,21 +87,8 @@ export function LpoPrintScreen({ orderId }: { orderId: string }) {
               </div>
               <span className="w-14 text-right font-wds-mono text-[13px]">{fmtQty(l.qty)}</span>
               <span className="w-20 pl-3 text-[13px]">{l.unit}</span>
-              <span className="w-[100px] text-right font-wds-mono text-[13px]">{kes2(l.price)}</span>
-              <span className="w-[110px] text-right font-wds-mono text-[13px]">{kes2(l.total)}</span>
             </div>
           ))}
-        </section>
-
-        <section className="flex items-start justify-between gap-6 pb-4">
-          <div className="flex w-[330px] flex-col gap-1">
-            <span className="font-wds-mono text-[10px] tracking-[0.1em] text-[#55626F]">AMOUNT IN WORDS</span>
-            <span className="text-[12px] leading-[17px]">{d.amountInWords}</span>
-          </div>
-          <div className="flex w-[270px] items-center justify-between border-t-2 border-[#0B2A4A] pt-2">
-            <span className="font-wds-mono text-[10px] tracking-[0.1em] text-[#55626F]">TOTAL</span>
-            <span className="font-wds-mono text-[20px] font-semibold leading-6">KES {kes2(d.total)}</span>
-          </div>
         </section>
 
         {d.note ? (
@@ -138,7 +123,7 @@ export function LpoPrintScreen({ orderId }: { orderId: string }) {
 
         <section className="flex flex-col gap-2 border-t border-[#D5DCE4] py-4">
           <span className="font-wds-mono text-[10px] tracking-[0.1em] text-[#55626F]">SUPPLIER ACKNOWLEDGEMENT</span>
-          <p className="text-[11px] leading-[14px]">We accept this order at the prices above and will deliver on the date shown, quoting {d.reference} on our delivery note.</p>
+          <p className="text-[11px] leading-[14px]">We accept this order and will deliver on the date shown, quoting {d.reference} on our delivery note.</p>
           <div className="mt-3 flex gap-8">
             <div className="flex grow flex-col gap-1">
               <div className="h-[14px] border-b border-[#111111]" />

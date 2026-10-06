@@ -307,9 +307,7 @@ export interface LpoPrint {
   termsLabel: string;
   deliverTo: string;
   raisedByName: string;
-  lines: Array<{ n: number; supplierItemName: string; supplierItemCode: string | null; ourItemName: string; qty: string; unit: string; price: string; total: string }>;
-  total: string;
-  amountInWords: string;
+  lines: Array<{ n: number; supplierItemName: string; supplierItemCode: string | null; ourItemName: string; qty: string; unit: string }>;
   note: string | null;
   raisedBy: { name: string; role: string; signedAt: string } | null;
   authorisedBy: { name: string; role: string; signedAt: string } | null;

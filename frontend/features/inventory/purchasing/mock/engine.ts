@@ -580,7 +580,6 @@ export function lpoPrint(s: State, ctx: Ctx, id: string, now: Date): LpoPrint {
   needAny(ctx, 'orders.read', 'orders.request');
   const o = find(s, id);
   const sup = supplierOf(o.supplierId);
-  const total = orderedTotalOf(o);
   return {
     reference: o.reference ?? 'DRAFT',
     date: (o.submittedAt ?? o.raisedAt).slice(0, 10),
@@ -599,12 +598,8 @@ export function lpoPrint(s: State, ctx: Ctx, id: string, now: Date): LpoPrint {
         ourItemName: item.name,
         qty: qtyStr(l.qty),
         unit: fl?.buyUnit ?? item.usageUnit,
-        price: money(l.unitPrice),
-        total: money(l.qty * l.unitPrice),
       };
     }),
-    total: money(total),
-    amountInWords: amountInWords(total),
     note: o.supplierNote,
     raisedBy: { name: o.raisedBy.name, role: o.raisedBy.role, signedAt: o.submittedAt ?? o.raisedAt },
     authorisedBy: o.approvedBy ? { name: o.approvedBy.name, role: o.approvedBy.role, signedAt: o.approvedBy.signedAt } : null,

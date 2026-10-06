@@ -356,13 +356,12 @@ describe('summary, catalog and the printed LPO', () => {
     expect(all.items.length).toBeGreaterThan(low.items.length);
   });
 
-  it('prints the supplier name and code first, our item second, with the total in words', () => {
+  it('prints the supplier name and code first, our item second, with no prices or total, so a supplier cannot hold us to a quoted price', () => {
     const s = emptyState();
     const o = approved(s);
     const p = lpoPrint(s, sm, o.id, now);
     expect(p.lines[0]).toMatchObject({ supplierItemName: 'KABRAS SUGAR 1KG', supplierItemCode: '190041', ourItemName: 'Kabras Sugar 1kg' });
-    expect(p.total).toBe('19556.00');
-    expect(p.amountInWords).toBe('Nineteen thousand, five hundred and fifty-six shillings only');
+    expect(JSON.stringify(p)).not.toMatch(/"price"|"total"|amountInWords/);
     expect(p.authorisedBy?.name).toBe('Joseph Mwangi');
   });
 });
