@@ -6,11 +6,11 @@ import { NotFoundError } from '../../../../utils/errors';
 import { requireHubActor } from '../../_shared/central-store-access';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { postStockMovement } from '../../stock/ledger/ledger-door';
-import { hasPackKey, matchSupplierLine } from '../../suppliers/supplier-line-key';
 import { supplierItemRepository } from '../../suppliers/supplier-repository';
 import { costPerUsageUnit, deliveredTotal, lineResultOf, notSuppliedTotal, usageQty } from '../_shared/money';
 import { canMove } from '../_shared/order-state';
 import type { OrderRecord } from '../_shared/order-record';
+import { matchOrderLine } from '../_shared/supplier-line-match';
 import { viewOrder } from '../_shared/order-view';
 import { purchasingPin } from '../_shared/pin';
 import { kes, purchasingAudit } from '../_shared/purchasing-audit';
@@ -147,8 +147,7 @@ export const receivingService = {
 /** The supplier's matching pack line takes the confirmed price (a signed receipt wins outright); an item they never sold us gets a line. */
 const recordCatalogPrice = async (tx: Prisma.TransactionClient, siteId: string, order: OrderRecord, line: OrderRecord['lines'][number], price: Prisma.Decimal, at: Date): Promise<void> => {
   const current = await supplierItemRepository.listBySupplierItems(order.supplierId, [line.inventoryItemId], siteId, tx);
-  const key = { buyUnit: line.buyUnit, packSize: line.packSize };
-  const match = matchSupplierLine(current, key) ?? (hasPackKey(key) ? null : (current[0] ?? null));
+  const match = matchOrderLine(current, { buyUnit: line.buyUnit, packSize: line.packSize });
   if (match) {
     await supplierItemRepository.setLinePrice(match.id, siteId, price, at, tx);
   } else if (current.length === 0) {
