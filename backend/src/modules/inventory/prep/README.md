@@ -22,6 +22,8 @@ Prep turns raw ingredients into the portions branches order. Recorded **after th
 
 ## Built today vs approved
 When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Since 6 Oct 2026 the Attendant may see item costs; stock and expected stock stay hidden.
+**Foundation built (Slice 0 Part 2, 7 Oct 2026, branch `feat/prep-rebuild`):** the frozen contract (`_shared/prep-contract.ts`, mirrored in `frontend/features/inventory/prep/_shared/types/`, API_CONTRACT §33); migration `20261007120000_prep_rebuild` (run status, numbering, reasons, idempotency key, recipe tables, one-main-ingredient index, `typical_yield_at_run_time` dropped); the seven `prep.*` capabilities in `central-store-access.ts`; the ledger door reverses prep rows; the old service posts through the door. The 5 old endpoints below still run (they now write `expected_yield`/`expected_source`) until Slice 2 deletes them. Nothing new is served yet: recipes arrive in Slice 1.
+
 Old design: immutable runs, no numbers, costs on the attendant list, no Needs a look, no Correct/Cancel, no Prep-again tiles. 5 endpoints, `PrepRun`/`PrepRunInputLine` models.
 
 ## Endpoints
