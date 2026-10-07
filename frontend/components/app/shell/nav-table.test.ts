@@ -12,7 +12,7 @@ const holds =
   (c: Capability): boolean =>
     caps.includes(c);
 
-const READ_ALL = holds('catalog.read', 'catalog.see_costs', 'restock.read', 'suppliers.read', 'payables.read', 'orders.read', 'audit.read');
+const READ_ALL = holds('catalog.read', 'catalog.see_costs', 'restock.read', 'suppliers.read', 'payables.read', 'orders.read', 'prep.read', 'prep.read_flags', 'audit.read');
 const EVERYTHING = (): boolean => true;
 const BRANCHES = [
   { id: 'b-town', name: 'Nyeri Town' },
@@ -145,9 +145,16 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   it('gives the other desktop roles the same tree, cut to what they may open today', () => {
     for (const role of ['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
       const groups = hub(navFor(ctxFor(role)));
-      expect(keys(groups), role).toEqual(['receiving', 'purchasing', 'stock-counts', 'suppliers', 'catalog', 'audit-log']);
+      expect(keys(groups), role).toEqual(['receiving', 'purchasing', 'prep', 'stock-counts', 'suppliers', 'catalog', 'audit-log']);
       // The old-flow stock screens are not theirs until Stock & counts is rebuilt: only Restock levels branches off.
       expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key), role).toEqual(['restock-levels']);
+    }
+  });
+
+  it('gives every desktop role the three Prep sub-links, read-only roles included (prep.read opens them)', () => {
+    for (const role of ['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const prep = item(hub(navFor(ctxFor(role, { can: holds('prep.read', 'prep.see_costs', 'prep.read_flags') }))), 'prep');
+      expect(prep?.subItems?.map((s) => s.key), role).toEqual(['runs', 'usual-recipes', 'history']);
     }
   });
 
@@ -162,7 +169,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   });
 
   it('keeps the Store Attendant to the catalog and the blind count', () => {
-    const groups = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('catalog.read', 'suppliers.read_basic', 'orders.request', 'orders.receive') })));
+    const groups = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('catalog.read', 'suppliers.read_basic', 'orders.request', 'orders.receive', 'prep.read', 'prep.record') })));
     expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'dispatch', 'stock-counts', 'catalog']);
     const stock = item(groups, 'stock-counts');
     expect(stock?.subItems?.map((s) => s.key)).toEqual(['overview', 'daily-count-blind']);
@@ -188,7 +195,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   });
 
   it('puts the Needs a look badge on Prep and Runs only for someone holding prep.read_flags', () => {
-    const withFlags = item(hub(navFor(ctxFor('STORE_MANAGER', { can: holds('prep.read_flags') }))), 'prep');
+    const withFlags = item(hub(navFor(ctxFor('STORE_MANAGER', { can: holds('prep.read', 'prep.read_flags') }))), 'prep');
     expect(withFlags?.badge).toBe('prep-needs-look');
     expect(withFlags?.subItems?.find((s) => s.key === 'runs')?.badge).toBe('prep-needs-look');
     expect(withFlags?.subItems?.find((s) => s.key === 'history')?.badge).toBeUndefined();
@@ -207,7 +214,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   });
 
   it('shows the Central Store rows by the previewed role while a System Admin previews, and the rest by their real role', () => {
-    const groups = navFor(ctxFor('SYSTEM_ADMIN', { hubRole: 'STORE_ATTENDANT', can: holds('catalog.read') }));
+    const groups = navFor(ctxFor('SYSTEM_ADMIN', { hubRole: 'STORE_ATTENDANT', can: holds('catalog.read', 'prep.read') }));
     expect(keys(hub(groups))).toEqual(['prep', 'dispatch', 'stock-counts', 'catalog']);
     expect(groupKeys(groups)).toContain('adm-admin');
   });
