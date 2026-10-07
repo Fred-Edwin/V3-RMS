@@ -25,10 +25,10 @@ type Client = typeof prisma | Prisma.TransactionClient;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const D = (value: Prisma.Decimal.Value): Prisma.Decimal => new Prisma.Decimal(value);
 
-const toInputs = (lines: CheckRequest['inputs']): RunInput[] => lines.map((l) => ({ itemId: l.itemId, quantity: D(l.quantity) }));
+export const toInputs = (lines: CheckRequest['inputs']): RunInput[] => lines.map((l) => ({ itemId: l.itemId, quantity: D(l.quantity) }));
 
 /** Loads the output and the ingredients (live, in this site): 404 when missing, 409 when retired. */
-const loadItems = async (siteId: string, outputItemId: string, inputs: readonly RunInput[]): Promise<{ output: PrepItemRow; byId: Map<string, PrepItemRow> }> => {
+export const loadItems = async (siteId: string, outputItemId: string, inputs: readonly RunInput[]): Promise<{ output: PrepItemRow; byId: Map<string, PrepItemRow> }> => {
   const rows = await prepRunRepository.findItems(siteId, [outputItemId, ...inputs.map((i) => i.itemId)]);
   const byId = new Map(rows.map((r) => [r.id, r]));
   const output = byId.get(outputItemId);
@@ -53,7 +53,7 @@ type Assessment = {
 };
 
 /** Everything the live check and the recording both judge a run by, read from one place. */
-const assess = async (args: {
+export const assess = async (args: {
   siteId: string;
   locationId: string;
   output: PrepItemRow;
@@ -99,7 +99,7 @@ const assess = async (args: {
   };
 };
 
-const yieldLabel = (j: YieldJudgement | null): string | null =>
+export const yieldLabel = (j: YieldJudgement | null): string | null =>
   !j || j.label === 'NO_BASIS' ? null : j.label === 'ON_TARGET' ? 'normal' : j.label === 'LOW' ? 'low yield' : 'high yield';
 
 /** What the Prep-again tiles and the "Something else" picker show for each output: the usual figure and last time's amounts. */

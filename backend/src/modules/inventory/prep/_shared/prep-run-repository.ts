@@ -1,4 +1,4 @@
-import { Prisma, type PrepExpectedSource, type PrepRunStatus, type PrepYieldReason } from '@prisma/client';
+import { Prisma, type InventoryTransactionType, type PrepCancelReason, type PrepCorrectReason, type PrepExpectedSource, type PrepRunStatus, type PrepYieldReason } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 
 type TxClient = Prisma.TransactionClient;
@@ -12,7 +12,20 @@ export const prepRunInclude = {
   createdBy: { select: userSelect },
   closedBy: { select: userSelect },
   reviewedBy: { select: userSelect },
-  replacesRun: { select: { id: true, reference: true, createdAt: true } },
+  // The replaced run's figures too: a correction's side-by-side comparison is built from them.
+  replacesRun: {
+    select: {
+      id: true,
+      reference: true,
+      createdAt: true,
+      actualYield: true,
+      outputUnitCost: true,
+      inputLines: {
+        orderBy: { lineOrder: 'asc' },
+        select: { inputItemId: true, quantity: true, unitCostAtRunTime: true, inputItem: { select: { name: true, usageUnit: true } } },
+      },
+    },
+  },
   replacedByRun: { select: { id: true, reference: true, createdAt: true } },
   recipeVersion: { select: { version: true } },
   inputLines: {
@@ -51,6 +64,9 @@ export type CreatePrepRunData = {
   reasonNote: string | null;
   locationId: string;
   createdById: string;
+  /** Set only on the new run of a correction. */
+  replacesRunId?: string;
+  correctionReason?: PrepCorrectReason;
   lines: {
     inputItemId: string;
     quantity: Prisma.Decimal;
@@ -220,6 +236,8 @@ export const prepRunRepository = {
         reasonNote: data.reasonNote,
         locationId: data.locationId,
         createdById: data.createdById,
+        ...(data.replacesRunId ? { replacesRunId: data.replacesRunId } : {}),
+        ...(data.correctionReason ? { correctionReason: data.correctionReason } : {}),
         inputLines: {
           createMany: {
             data: data.lines.map((line, index) => ({
@@ -235,6 +253,62 @@ export const prepRunRepository = {
       },
       include: prepRunInclude,
     }),
+
+  /** Takes the row lock on one run (a second fixer waits here), then reads it. Null when it is not in this site. */
+  lockForFix: async (tx: TxClient, siteId: string, id: string): Promise<PrepRunRow | null> => {
+    const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM prep_runs WHERE id = ${id} AND organization_id = ${siteId} FOR UPDATE`;
+    if (locked.length === 0) return null;
+    return tx.prepRun.findFirst({ where: { id, siteId }, include: prepRunInclude });
+  },
+
+  /** The run's original ledger rows that nothing has reversed yet (a reversal is never reversed again). */
+  findReversibleRows: (
+    siteId: string,
+    runId: string,
+    client: Client = prisma,
+  ): Promise<{ id: string; type: InventoryTransactionType; locationId: string; inventoryItemId: string; quantity: Prisma.Decimal; unitCost: Prisma.Decimal }[]> =>
+    client.inventoryTransaction.findMany({
+      where: { siteId, prepRecordId: runId, reversesTransactionId: null, reversedBy: null },
+      select: { id: true, type: true, locationId: true, inventoryItemId: true, quantity: true, unitCost: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }),
+
+  /** The id of the newest RECORDED run of an output: only that run's fix may move the output's cost. */
+  latestRecordedRunId: async (siteId: string, outputItemId: string, client: Client = prisma): Promise<string | null> => {
+    const row = await client.prepRun.findFirst({
+      where: { siteId, outputItemId, status: 'RECORDED' },
+      select: { id: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return row?.id ?? null;
+  },
+
+  /**
+   * Marks a RECORDED run CORRECTED or CANCELLED, once. The run leaves Needs a look (it is superseded; the manager reviews the
+   * replacement). False when it was no longer RECORDED.
+   */
+  closeRun: async (
+    tx: TxClient,
+    siteId: string,
+    id: string,
+    data: { status: 'CORRECTED' | 'CANCELLED'; closedById: string; closedAt: Date; cancelReason?: PrepCancelReason; reasonNote?: string | null },
+  ): Promise<boolean> => {
+    const result = await tx.prepRun.updateMany({
+      where: { id, siteId, status: 'RECORDED' },
+      data: {
+        status: data.status,
+        closedAt: data.closedAt,
+        closedById: data.closedById,
+        needsLook: false,
+        ...(data.cancelReason ? { cancelReason: data.cancelReason, reasonNote: data.reasonNote ?? null } : {}),
+      },
+    });
+    return result.count === 1;
+  },
+
+  /** Creates the new run of a correction (same as `create`; the data carries `replacesRunId` and `correctionReason`). */
+  createReplacement: (tx: TxClient, data: CreatePrepRunData & { replacesRunId: string; correctionReason: PrepCorrectReason }): Promise<PrepRunRow> =>
+    prepRunRepository.create(tx, data),
 
   /** The output item's cost becomes this run's cost per unit (latest-price costing, as Receiving does). */
   setItemCurrentCost: async (tx: TxClient, siteId: string, itemId: string, cost: Prisma.Decimal): Promise<void> => {

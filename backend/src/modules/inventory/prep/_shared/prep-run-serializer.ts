@@ -5,7 +5,7 @@ import { blindnessOf } from '../../_shared/blind-rule';
 import { expectedYieldFor, formatAmount, vsUsualFor } from './expected-yield';
 import { FIX_WINDOW_HOURS } from './prep-constants';
 import { exceedsStock, exceedsText } from './prep-flags';
-import type { Person, RunDetail, RunSummary } from './prep-contract';
+import type { ChangeRow, Person, RunDetail, RunSummary } from './prep-contract';
 import type { PrepRunRow } from './prep-run-repository';
 
 type Actor = Pick<NonNullable<Request['user']>, 'id' | 'role'>;
@@ -79,6 +79,44 @@ export const serializeRunSummary = (run: PrepRunRow, actor: Actor): RunSummary =
 
 const ref = (r: { id: string; reference: string | null; createdAt: Date } | null) => (r ? { id: r.id, reference: r.reference ?? '', at: r.createdAt.toISOString() } : null);
 
+/** The side-by-side of a correction: what the new run changed against the run it replaced (docs/API_CONTRACT.md §33.4). */
+const correctionOf = (run: PrepRunRow, withCosts: boolean): RunDetail['correction'] => {
+  const prev = run.replacesRun;
+  if (!prev || !run.correctionReason) return null;
+
+  const changed: ChangeRow[] = [];
+  if (!prev.actualYield.eq(run.actualYield)) {
+    changed.push({ itemName: run.outputItem.name, was: decimalOut(prev.actualYield), now: decimalOut(run.actualYield), unit: run.outputItem.usageUnit });
+  }
+  const was = new Map(prev.inputLines.map((line) => [line.inputItemId, line]));
+  const now = new Map(run.inputLines.map((line) => [line.inputItemId, line]));
+  // The new run's order first, then what it dropped.
+  for (const line of run.inputLines) {
+    const before = was.get(line.inputItemId);
+    if (before && before.quantity.eq(line.quantity)) continue;
+    changed.push({
+      itemName: line.inputItem.name,
+      was: before ? decimalOut(before.quantity) : null,
+      now: decimalOut(line.quantity),
+      unit: line.inputItem.usageUnit,
+      ...(withCosts ? { costNow: decimalOut(line.lineCost) } : {}),
+    });
+  }
+  for (const line of prev.inputLines) {
+    if (now.has(line.inputItemId)) continue;
+    changed.push({ itemName: line.inputItem.name, was: decimalOut(line.quantity), now: null, unit: line.inputItem.usageUnit });
+  }
+
+  return {
+    reason: run.correctionReason,
+    note: run.reasonNote,
+    by: personOf(run.createdBy),
+    at: run.createdAt.toISOString(),
+    changed,
+    ...(withCosts ? { unitCostBefore: decimalOut(prev.outputUnitCost), unitCostAfter: decimalOut(run.outputUnitCost) } : {}),
+  };
+};
+
 export const serializeRunDetail = (run: PrepRunRow, actor: Actor, now: Date = new Date()): RunDetail => {
   const see = visibilityOf(actor);
   const unit = run.outputItem.usageUnit;
@@ -102,10 +140,15 @@ export const serializeRunDetail = (run: PrepRunRow, actor: Actor, now: Date = ne
   const ownWindow = canRecord && !fixAny && mine && open;
   const canFix = open && (fixAny || (canRecord && mine && withinWindow));
 
-  const timeline: RunDetail['timeline'] = [{ at: run.createdAt.toISOString(), text: `Recorded as ${run.reference ?? ''} · ${run.createdBy.name}` }];
+  const recorded = `Recorded as ${run.reference ?? ''}${run.replacesRun ? `, correcting ${run.replacesRun.reference ?? ''}` : ''} · ${run.createdBy.name}`;
+  const timeline: RunDetail['timeline'] = [{ at: run.createdAt.toISOString(), text: recorded }];
   if (see.flags && run.reviewedAt && run.reviewedBy) timeline.push({ at: run.reviewedAt.toISOString(), text: `Reviewed · ${run.reviewedBy.name}` });
   if (run.closedAt && run.closedBy) {
-    timeline.push({ at: run.closedAt.toISOString(), text: `${run.status === 'CANCELLED' ? 'Cancelled' : 'Corrected'} · ${run.closedBy.name}` });
+    const text =
+      run.status === 'CANCELLED'
+        ? `Cancelled · ${run.closedBy.name}`
+        : `Corrected${run.replacedByRun ? ` as ${run.replacedByRun.reference ?? ''}` : ''} · ${run.closedBy.name}`;
+    timeline.push({ at: run.closedAt.toISOString(), text });
   }
 
   return {
@@ -123,7 +166,8 @@ export const serializeRunDetail = (run: PrepRunRow, actor: Actor, now: Date = ne
     expected: expectedYieldFor(run.expectedYield, unit, run.expectedSource),
     recipeVersion: run.recipeVersion?.version ?? null,
     yieldReason: run.yieldReason,
-    yieldReasonNote: run.reasonNote,
+    // `reasonNote` is one column: on a correction or a cancel it is that reason's note, never the yield reason's.
+    yieldReasonNote: run.correctionReason || run.cancelReason ? null : run.reasonNote,
     ...(see.flags
       ? {
           flags: {
@@ -136,8 +180,7 @@ export const serializeRunDetail = (run: PrepRunRow, actor: Actor, now: Date = ne
       : {}),
     replaces: ref(run.replacesRun),
     replacedBy: ref(run.replacedByRun),
-    // Slice 3 (Fix a slip) fills the correction's side-by-side changes; nothing can be corrected before then.
-    correction: null,
+    correction: correctionOf(run, see.costs),
     cancellation:
       run.status === 'CANCELLED' && run.cancelReason && run.closedBy && run.closedAt
         ? { reason: run.cancelReason, note: run.reasonNote, by: personOf(run.closedBy), at: run.closedAt.toISOString() }
