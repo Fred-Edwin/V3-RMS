@@ -65,7 +65,10 @@ export function SignOwnDialog({
     }
   };
 
-  const counted = count.progress.counted;
+  // The count on screen was loaded before the typing; the preview is read at sign time, so it wins once it arrives.
+  const total = p ? p.itemCount : count.progress.total;
+  const skipped = p ? p.skipped : count.progress.skipped;
+  const counted = p ? p.itemCount - p.skipped : count.progress.counted;
   return (
     <SignSheetDialog
       layout="wide"
@@ -73,7 +76,7 @@ export function SignOwnDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Sign your count ${count.reference}`}
-      subtitle={`${count.sections.map((s) => s.name).join(', ')} · ${counted} of ${count.progress.total} counted${count.progress.skipped > 0 ? ` · ${count.progress.skipped} skipped` : ''}`}
+      subtitle={`${count.sections.map((s) => s.name).join(', ')} · ${counted} of ${total} counted${skipped > 0 ? ` · ${skipped} skipped` : ''}`}
       helperText=""
       confirmLabel="Sign and apply"
       onSubmit={(pin) => void submit(pin)}
