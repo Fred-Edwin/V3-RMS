@@ -80,6 +80,24 @@ export const auditLogRepository = {
   countPurchasingEntries: (scope: Scope, f: Filter, areas: PurchasingArea[]) =>
     prisma.purchasingAuditEntry.count({ where: { siteId: scope.hubId, area: { in: areas }, ...whenAt(f), ...by(f, 'actorId') } }),
 
+  /** Prep: every usual-recipe version is an entry (version 1 "Recipe set", later ones "Recipe changed"). The version rows are the log. */
+  recipeVersions: (scope: Scope, f: Filter, take: number) =>
+    prisma.prepRecipeVersion.findMany({
+      where: { siteId: scope.hubId, ...when(f), ...by(f, 'createdById') },
+      select: {
+        id: true,
+        version: true,
+        reason: true,
+        reasonNote: true,
+        createdAt: true,
+        createdBy: who,
+        recipe: { select: { outputItem: { select: { name: true } } } },
+      },
+      orderBy: order,
+      take,
+    }),
+  countRecipeVersions: (scope: Scope, f: Filter) => prisma.prepRecipeVersion.count({ where: { siteId: scope.hubId, ...when(f), ...by(f, 'createdById') } }),
+
   /** Names for the ids found in supplier audit snapshots, and for suppliers' creators. */
   itemNames: async (scope: Scope, ids: string[]): Promise<Map<string, string>> => {
     if (ids.length === 0) return new Map();
@@ -94,13 +112,14 @@ export const auditLogRepository = {
 
   /** Everyone who changed something in the period (the "Who" list), ignoring the Who filter. */
   actorIds: async (scope: Scope, f: Pick<Filter, 'from' | 'to'>): Promise<string[]> => {
-    const [items, audits, restock, suppliers, purchasing] = await Promise.all([
+    const [items, audits, restock, suppliers, purchasing, recipes] = await Promise.all([
       prisma.inventoryItemChange.findMany({ where: { siteId: scope.hubId, ...when(f) }, select: { changedById: true }, distinct: ['changedById'] }),
       prisma.supplierAuditLog.findMany({ where: { siteId: scope.hubId, ...when(f) }, select: { actorId: true }, distinct: ['actorId'] }),
       prisma.restockLevelChange.findMany({ where: { siteId: { in: scope.restockOrgIds }, ...when(f) }, select: { changedById: true }, distinct: ['changedById'] }),
       prisma.supplier.findMany({ where: { siteId: scope.hubId, createdById: { not: null }, ...when(f) }, select: { createdById: true }, distinct: ['createdById'] }),
       prisma.purchasingAuditEntry.findMany({ where: { siteId: scope.hubId, ...whenAt(f) }, select: { actorId: true }, distinct: ['actorId'] }),
+      prisma.prepRecipeVersion.findMany({ where: { siteId: scope.hubId, ...when(f) }, select: { createdById: true }, distinct: ['createdById'] }),
     ]);
-    return [...new Set([...purchasing.map((r) => r.actorId), ...items.map((r) => r.changedById), ...audits.map((r) => r.actorId), ...restock.map((r) => r.changedById), ...suppliers.map((r) => r.createdById).filter((id): id is string => id !== null)])];
+    return [...new Set([...recipes.map((r) => r.createdById), ...purchasing.map((r) => r.actorId), ...items.map((r) => r.changedById), ...audits.map((r) => r.actorId), ...restock.map((r) => r.changedById), ...suppliers.map((r) => r.createdById).filter((id): id is string => id !== null)])];
   },
 };
