@@ -5130,9 +5130,9 @@ Source of truth: `docs/features/workforce/slice-0-contract.md`. Standard envelop
 
 Same guard. Newest first; no `siteId` means company-default versions. Each item: `{ id, group, siteId, version, effectiveFrom, createdAt, createdBy, reason, values, changedFields, requiredConfirmations, confirmations }`. `STATUTORY` comes back `{ group, locked: true }` without `payrun.read`. `404` unknown group.
 
-## 33. Inventory — Prep rebuild (FROZEN 7 Oct 2026)
+## 33. Inventory — Prep rebuild (BUILT, contract frozen 7 Oct 2026)
 
-> **STATUS: FROZEN.** Source of truth in code: `backend/src/modules/inventory/prep/_shared/prep-contract.ts` (Zod), mirrored by hand in `frontend/features/inventory/prep/_shared/types/prep-contract.ts`; both are checked against `prep-contract.fixtures.json` by `prep-contract.test.ts`. Plan and reasons: `docs/features/inventory/prep-plan.md` §3. Replaces §23. Nothing here is built yet beyond the schema, capabilities and ledger door (Slice 0); each slice builds its endpoints against this text. A change needs the owner and a same-commit change to the schema file, the mirror, the fixtures and this section.
+> **STATUS: BUILT on branch `feat/prep-rebuild` (all 17 endpoints; live once merged and deployed). Shapes unchanged since the freeze.** Differences from the first text of this section, as built: a repeat means the same output and amounts within the last 2 hours (owner decision), not "same Nairobi day"; a zero amount is `422 QUANTITY_NOT_POSITIVE`, not a schema 400; the Prep-again tiles count recorded runs only (corrected originals and cancelled runs do not count). Source of truth in code: `backend/src/modules/inventory/prep/_shared/prep-contract.ts` (Zod), mirrored by hand in `frontend/features/inventory/prep/_shared/types/prep-contract.ts`; both are checked against `prep-contract.fixtures.json` by `prep-contract.test.ts`. Plan and reasons: `docs/features/inventory/prep-plan.md` §3. Replaces §23. A change needs the owner and a same-commit change to the schema file, the mirror, the fixtures and this section.
 
 ### 33.1 Conventions
 

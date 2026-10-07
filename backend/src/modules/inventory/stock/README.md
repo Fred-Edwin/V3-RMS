@@ -67,13 +67,12 @@ postStockMovement(tx, {
 
 | File | Direct writes left | Moves with |
 |---|---|---|
-| `purchasing/receiving-service.ts` | 1 | Purchasing + Receiving rebuild |
 | `counting/count-service.ts` | 1 | Stock & counts rebuild |
 | `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
 | `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
 
-Already on the door: **Waste** (`waste/waste-service.ts`) and **Prep** (`prep/record/record-service.ts`, Prep rebuild Slice 2).
+Already on the door: **Waste** (`waste/waste-service.ts`), **Purchasing receiving** (the delivery lines) and **Prep** (`prep/record/` posts runs, `prep/fix/` posts the reversing rows).
 
 **Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 

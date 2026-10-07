@@ -93,7 +93,7 @@ export const expectedYieldFor = (amount: Prisma.Decimal.Value | null, unit: stri
 /** The "vs usual" chip: "on target", "−16 portions · low yield", "+0.3 kg · high yield". */
 export const vsUsualFor = (made: Prisma.Decimal.Value, expected: Prisma.Decimal.Value | null, unit: string): VsUsual => {
   const j = judgeYield(made, expected);
-  if (j.label === 'NO_BASIS' || j.delta === null) return { label: 'NO_BASIS', deltaAmount: null, text: 'nothing to compare with yet' };
+  if (j.label === 'NO_BASIS' || j.delta === null) return { label: 'NO_BASIS', deltaAmount: null, text: 'no usual yet' };
   const deltaAmount = signed(j.delta, unit);
   if (j.label === 'ON_TARGET') return { label: 'ON_TARGET', deltaAmount, text: 'on target' };
   return { label: j.label, deltaAmount, text: `${deltaAmount} ${unit} · ${j.label === 'LOW' ? 'low' : 'high'} yield` };

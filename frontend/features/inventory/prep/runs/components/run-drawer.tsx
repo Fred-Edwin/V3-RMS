@@ -126,7 +126,8 @@ function DrawerContents({ runId, onClose, onOpenRun, onChanged, onCorrect, onCan
 
       {loaded ? (
         <div className="flex flex-col gap-3 border-t border-wds-border px-6 pb-5 pt-4">
-          {unitCost ? (
+          {/* A corrected run already shows the unit cost before and after in its side-by-side. */}
+          {unitCost && !loaded.correction ? (
             <div className="flex items-baseline justify-between">
               <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-copy-muted">Output unit cost</span>
               <span className="font-wds-mono text-[16px] leading-5 text-wds-text-ink">{unitCost}</span>
