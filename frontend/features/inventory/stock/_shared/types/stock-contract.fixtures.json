@@ -1,0 +1,164 @@
+{
+  "stockOverview": {
+    "kpis": [
+      { "key": "tracked", "label": "ITEMS TRACKED", "value": "142", "caption": "4 sections", "tone": "NEUTRAL" },
+      { "key": "low", "label": "LOW OR OUT", "value": "9", "caption": "below restock level", "tone": "WARN", "filter": "low" },
+      { "key": "negative", "label": "NEGATIVE STOCK", "value": "2", "caption": "need a count", "tone": "ALERT", "filter": "negative" },
+      { "key": "countsToday", "label": "COUNTS TODAY", "value": "3", "caption": "2 signed · 1 in progress", "tone": "NEUTRAL" }
+    ],
+    "todaysCounts": [
+      {
+        "id": "c0000000-0000-4000-8000-000000000005",
+        "reference": "CNT-2026-1015",
+        "what": "Others",
+        "byText": "Isabel Njoki · started 11:02",
+        "status": "IN_PROGRESS",
+        "statusText": "In progress"
+      },
+      {
+        "id": "c0000000-0000-4000-8000-000000000003",
+        "reference": "CNT-2026-1014",
+        "what": "Samrat, Summer",
+        "byText": "Linnet Wanjiru · 07:02 to 07:41",
+        "status": "TO_REVIEW",
+        "statusText": "To review"
+      }
+    ],
+    "longestWithoutCount": [
+      {
+        "kind": "SECTION",
+        "refId": "5e000000-0000-4000-8000-000000000004",
+        "name": "Packaging",
+        "detail": "Section · 36 items",
+        "lastCountedAt": "2026-10-01T05:00:00.000Z",
+        "lastCountedText": "12 days ago"
+      },
+      {
+        "kind": "ITEM",
+        "refId": "10000000-0000-4000-8000-000000000020",
+        "name": "Cornflour 2 kg",
+        "detail": "Item · Others",
+        "lastCountedAt": "2026-10-04T05:00:00.000Z",
+        "lastCountedText": "9 days ago"
+      }
+    ],
+    "can": { "startCount": true }
+  },
+  "stockItemsList": {
+    "kpis": [
+      { "key": "tracked", "label": "ITEMS TRACKED", "value": "142", "caption": "4 sections", "tone": "NEUTRAL" },
+      { "key": "low", "label": "LOW OR OUT", "value": "9", "caption": "below restock level", "tone": "WARN", "filter": "low" },
+      { "key": "negative", "label": "NEGATIVE STOCK", "value": "2", "caption": "need a count", "tone": "ALERT", "filter": "negative" },
+      { "key": "value", "label": "ON-HAND VALUE", "value": "KES 482K", "caption": "after today's count", "tone": "NEUTRAL" }
+    ],
+    "rows": [
+      {
+        "itemId": "10000000-0000-4000-8000-000000000003",
+        "name": "Brown sugar",
+        "sectionName": "Samrat",
+        "unit": "kg",
+        "onHand": "100",
+        "restockLevel": "100",
+        "valueKes": "17800.00",
+        "lastCountedAt": "2026-10-13T05:00:00.000Z",
+        "lastCountedText": "Tue 13 Oct",
+        "status": "OK"
+      },
+      {
+        "itemId": "10000000-0000-4000-8000-000000000050",
+        "name": "Tomatoes",
+        "sectionName": "Others",
+        "unit": "kg",
+        "onHand": "-4",
+        "restockLevel": "30",
+        "valueKes": "-360.00",
+        "lastCountedAt": "2026-10-13T05:00:00.000Z",
+        "lastCountedText": "Tue 13 Oct",
+        "status": "NEGATIVE"
+      }
+    ],
+    "chips": { "all": 142, "low": 9, "negative": 2 },
+    "page": { "page": 1, "pageSize": 50, "total": 142 }
+  },
+  "ledgerList": {
+    "from": "2026-09-14",
+    "to": "2026-10-13",
+    "periodText": "Last 30 days, as of 13 Oct, 16:30",
+    "kpis": [
+      { "key": "opening", "label": "OPENING · 14 SEP", "value": "KES 510,200", "caption": "142 items", "tone": "NEUTRAL" },
+      { "key": "in", "label": "IN", "value": "+KES 214,600", "caption": "received and made in Prep", "tone": "NEUTRAL" },
+      { "key": "out", "label": "OUT", "value": "−KES 239,000", "caption": "dispatch, Prep use, waste", "tone": "NEUTRAL" },
+      { "key": "closing", "label": "CLOSING · ADJUSTED −3,400", "value": "KES 482,400", "caption": "510,200 + 214,600 − 239,000 − 3,400", "tone": "WARN" }
+    ],
+    "rows": [
+      {
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "name": "Sugar, white",
+        "unit": "kg",
+        "note": null,
+        "opening": "160",
+        "in": "50",
+        "sentOut": "-20",
+        "prepUse": "-12",
+        "waste": "0",
+        "adjusted": "-14",
+        "closing": "164",
+        "closingValueKes": "30012.00"
+      }
+    ],
+    "chips": { "all": 142, "adjustments": 14, "waste": 19, "negative": 2 },
+    "page": { "page": 1, "pageSize": 50, "total": 142 }
+  },
+  "stockCard": {
+    "item": {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Sugar, white",
+      "unit": "kg",
+      "sectionName": "Samrat",
+      "locationName": "Central Store"
+    },
+    "onHand": "164",
+    "status": "LOW",
+    "statusText": "Low · restock level 180 kg",
+    "valueKes": "30012.00",
+    "unitCostText": "at KES 183 per kg",
+    "lastCounted": { "at": "2026-10-13T06:05:00.000Z", "reference": "CNT-2026-1013", "text": "Today · CNT-2026-1013 · 09:05" },
+    "from": "2026-09-14",
+    "to": "2026-10-13",
+    "periodText": "Last 30 days · as of 13 Oct, 16:30",
+    "strip": { "opening": "160", "in": "50", "sentOut": "-20", "prepUse": "-12", "waste": "0", "adjusted": "-14", "closing": "164" },
+    "days": [
+      {
+        "day": "2026-10-13",
+        "dayText": "Tue 13 Oct 2026",
+        "referenceText": "ADJ-3402",
+        "references": ["ADJ-3402"],
+        "collapsed": false,
+        "opening": "180",
+        "in": "0",
+        "sentOut": "0",
+        "prepUse": "0",
+        "waste": "0",
+        "adjusted": "-16",
+        "closing": "164",
+        "closingValueKes": "30012.00"
+      },
+      {
+        "day": "2026-09-14",
+        "dayText": "14 Sep – 5 Oct",
+        "referenceText": "13 movements, Prep use",
+        "references": [],
+        "collapsed": true,
+        "opening": "160",
+        "in": "0",
+        "sentOut": "0",
+        "prepUse": "-12",
+        "waste": "0",
+        "adjusted": "0",
+        "closing": "148",
+        "closingValueKes": "27084.00"
+      }
+    ],
+    "footerText": "5 days and 1 earlier period · 18 movements · open a day for its entries · each row adds up: opening + in − out + adjusted = closing"
+  }
+}
