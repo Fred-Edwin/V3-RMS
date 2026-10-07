@@ -46,6 +46,7 @@ postStockMovement(tx, {
 **Rules** (`ledger-rules.ts` is the one table; `ledger-door.ts` enforces it):
 - **Same transaction as the caller.** `tx` is the caller's client; the door never opens one, so the row rolls back with the caller's work.
 - **Append-only.** The door only creates. A correction is a new `ADJUSTMENT` row with `reversesTransactionId`; it must negate the original exactly, match its site, location and item, and a row can be reversed once (checked, and backed by the unique index).
+- **A prep row is reversed by a row of its own type with the opposite sign** (7 Oct 2026; no new enum value). The caller passes the same positive quantity with `reversesTransactionId`; the door stores a reversed `PREP_CONSUME` positive and a reversed `PREP_PRODUCE` negative. The original must be a prep row of the same type at the same site, location and item, the stored quantity must be the exact opposite, one reversal per row, and a reversal is never reversed again. A correction or cancel of a Prep run posts these for every row of the run. Not yet built (Prep Slice 3, when the first reversal can happen): Stock's ledger label shows "· reversed" on both rows, and `currentCostSetAt` ignores reversal rows.
 - **Sign comes from the type.** The caller passes a positive quantity; `ADJUSTMENT` keeps the caller's sign.
 - **`siteId` is derived from the location**, not passed in. Central Store rows must be on the hub site, branch department rows on a non-hub site (D-15).
 - **Exactly one source link**, allowed for the type, pointing at a document of that site (a dispatch line may belong to the hub or the receiving branch).
@@ -67,13 +68,12 @@ postStockMovement(tx, {
 | File | Direct writes left | Moves with |
 |---|---|---|
 | `purchasing/receiving-service.ts` | 1 | Purchasing + Receiving rebuild |
-| `prep/prep-service.ts` | 2 | Prep rebuild |
 | `counting/count-service.ts` | 1 | Stock & counts rebuild |
 | `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
 | `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
 
-Already on the door: **Waste** (`waste/waste-service.ts`).
+Already on the door: **Waste** (`waste/waste-service.ts`) and **Prep** (`prep/prep-service.ts`, moved 7 Oct 2026; the Prep rebuild replaces that file).
 
 **Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 

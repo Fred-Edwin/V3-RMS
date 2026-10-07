@@ -32,17 +32,15 @@ vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn() },
 }));
 
-const txInventoryTransactionCreate = vi.fn();
+// The ledger door applies the sign; the service hands it positive quantities.
+const postStockMovementMock = vi.hoisted(() => vi.fn());
+vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: postStockMovementMock }));
+
 const txInventoryItemUpdate = vi.fn();
 
 vi.mock('../../../config/database', () => ({
   prisma: {
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
-      fn({
-        inventoryTransaction: { create: txInventoryTransactionCreate },
-        inventoryItem: { update: txInventoryItemUpdate },
-      }),
-    ),
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({ inventoryItem: { update: txInventoryItemUpdate } })),
   },
 }));
 
@@ -180,36 +178,35 @@ describe('prepService.createPrepRun — the atomic transaction', () => {
     vi.mocked(prepRunRepository.findById).mockResolvedValue(buildPrepRun() as never);
   });
 
-  it('writes exactly one negative-signed PREP_CONSUME row per input line', async () => {
+  it('posts exactly one PREP_CONSUME through the ledger door per input line, linked to the run', async () => {
     await prepService.createPrepRun(storeManager, {
       outputItemId,
       inputLines: [{ inventoryItemId: inputItemId, quantity: '6' }],
       actualYield: '22',
     });
 
-    const consumeCalls = txInventoryTransactionCreate.mock.calls.filter(
-      ([arg]) => arg.data.type === 'PREP_CONSUME',
-    );
+    const consumeCalls = postStockMovementMock.mock.calls.filter(([, arg]) => arg.type === 'PREP_CONSUME');
     expect(consumeCalls).toHaveLength(1);
-    const consumeQty = consumeCalls[0]![0].data.quantity as Prisma.Decimal;
-    expect(consumeQty.isNegative()).toBe(true);
-    expect(consumeQty.abs().toString()).toBe('6');
+    const consume = consumeCalls[0]![1];
+    expect(consume.inventoryItemId).toBe(inputItemId);
+    expect(consume.locationId).toBe(centralStoreId);
+    expect(consume.links).toEqual({ prepRecordId: prepRunId });
+    // Positive: the door applies the negative sign for PREP_CONSUME.
+    expect((consume.quantity as Prisma.Decimal).toString()).toBe('6');
   });
 
-  it('writes exactly one positive-signed PREP_PRODUCE row for the output', async () => {
+  it('posts exactly one PREP_PRODUCE through the ledger door for the output', async () => {
     await prepService.createPrepRun(storeManager, {
       outputItemId,
       inputLines: [{ inventoryItemId: inputItemId, quantity: '6' }],
       actualYield: '22',
     });
 
-    const produceCalls = txInventoryTransactionCreate.mock.calls.filter(
-      ([arg]) => arg.data.type === 'PREP_PRODUCE',
-    );
+    const produceCalls = postStockMovementMock.mock.calls.filter(([, arg]) => arg.type === 'PREP_PRODUCE');
     expect(produceCalls).toHaveLength(1);
-    const produceQty = produceCalls[0]![0].data.quantity as Prisma.Decimal;
-    expect(produceQty.isNegative()).toBe(false);
-    expect(produceQty.toString()).toBe('22');
+    const produce = produceCalls[0]![1];
+    expect(produce.inventoryItemId).toBe(outputItemId);
+    expect((produce.quantity as Prisma.Decimal).toString()).toBe('22');
   });
 
   it('updates only the output item currentCost, never an input item', async () => {
@@ -236,7 +233,7 @@ describe('prepService.createPrepRun — the atomic transaction', () => {
       }),
     ).rejects.toThrow();
 
-    expect(txInventoryTransactionCreate).not.toHaveBeenCalled();
+    expect(postStockMovementMock).not.toHaveBeenCalled();
     expect(txInventoryItemUpdate).not.toHaveBeenCalled();
   });
 

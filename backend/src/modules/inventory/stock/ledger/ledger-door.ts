@@ -2,7 +2,7 @@ import { Prisma, type InventoryTransaction, type InventoryTransactionType } from
 import { ConflictError, ValidationError } from '../../../../utils/errors';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { ledgerRepository } from './ledger-repository';
-import { LEDGER_LINKS, LEDGER_RULES, signedQuantity, type LedgerLink } from './ledger-rules';
+import { LEDGER_LINKS, LEDGER_RULES, reversedPrepQuantity, signedQuantity, type LedgerLink } from './ledger-rules';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -20,7 +20,12 @@ export type PostStockMovementInput = {
   userId: string;
   /** Exactly one source link, and it must be one the movement type allows (ledger-rules.ts). */
   links: Partial<Record<LedgerLink, string>>;
-  /** Set to correct an earlier ADJUSTMENT: this row then undoes it. A row can be reversed once. */
+  /**
+   * Set to undo an earlier row: this row then undoes it. A row can be reversed once. Two kinds:
+   *  - ADJUSTMENT: send the exact opposite signed quantity.
+   *  - PREP_CONSUME / PREP_PRODUCE: keep the original's type and send the same positive quantity; the door flips the sign
+   *    (a reversed consume is a positive row, a reversed produce a negative one).
+   */
   reversesTransactionId?: string;
 };
 
@@ -67,11 +72,22 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
   if (!linkOwners) throw new ValidationError('The document this movement points at does not exist');
   if (!linkOwners.includes(location.siteId)) throw new ValidationError('The document this movement points at belongs to another site');
 
+  // The quantity that will be stored. Normally the type's own sign; a reversal of a prep row flips it.
+  let storedQuantity = signedQuantity(rule.direction, input.quantity);
+
   if (input.reversesTransactionId !== undefined) {
-    if (input.type !== 'ADJUSTMENT') throw new ValidationError('Only an adjustment can reverse an earlier entry');
+    if (!rule.reversal) throw new ValidationError('Only an adjustment or a prep row can reverse an earlier entry');
     const original = await ledgerRepository.findForReversal(tx, input.reversesTransactionId);
     if (!original) throw new ValidationError('The entry being reversed does not exist');
-    if (original.type !== 'ADJUSTMENT') throw new ValidationError('Only an adjustment can be reversed');
+    if (rule.reversal === 'ADJUSTMENT' && original.type !== 'ADJUSTMENT') {
+      throw new ValidationError('Only an adjustment can be reversed');
+    }
+    if (rule.reversal === 'PREP') {
+      // A prep row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
+      if (original.type !== input.type) throw new ValidationError('A prep row can only be reversed by a row of the same type');
+      if (original.reversesTransactionId !== null) throw new ValidationError('A reversal cannot be reversed');
+      storedQuantity = reversedPrepQuantity(rule.direction, input.quantity);
+    }
     if (
       original.siteId !== location.siteId ||
       original.locationId !== input.locationId ||
@@ -79,7 +95,8 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     ) {
       throw new ValidationError('A reversal must match the original entry (same site, location and item)');
     }
-    if (!input.quantity.equals(original.quantity.negated())) {
+    const expected = rule.reversal === 'ADJUSTMENT' ? input.quantity : storedQuantity;
+    if (!expected.equals(original.quantity.negated())) {
       throw new ValidationError('A reversal must undo the original quantity exactly');
     }
     if (original.alreadyReversed) throw new ConflictError('This entry has already been reversed');
@@ -93,7 +110,7 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
       locationId: input.locationId,
       inventoryItemId: input.inventoryItemId,
       type: input.type,
-      quantity: signedQuantity(rule.direction, input.quantity),
+      quantity: storedQuantity,
       unitCost: input.unitCost,
       reason: input.reason ?? null,
       reference,

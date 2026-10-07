@@ -41,11 +41,11 @@ vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn() },
 }));
 
+vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
+
 vi.mock('../../../config/database', () => ({
   prisma: {
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
-      fn({ inventoryTransaction: { create: vi.fn() }, inventoryItem: { update: vi.fn() } }),
-    ),
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({ inventoryItem: { update: vi.fn() } })),
   },
 }));
 

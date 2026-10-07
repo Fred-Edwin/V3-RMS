@@ -202,6 +202,7 @@ describe('postStockMovement — reversals', () => {
     inventoryItemId: 'item-1',
     type: 'ADJUSTMENT' as const,
     quantity: D(5),
+    reversesTransactionId: null,
     alreadyReversed: false,
   };
   const reversal = (overrides: Partial<PostStockMovementInput> = {}) =>
@@ -234,7 +235,7 @@ describe('postStockMovement — reversals', () => {
   });
 
   it('rejects a reversal that is not an adjustment, or whose target is missing, mismatched or not an adjustment', async () => {
-    await expect(postStockMovement(tx, base({ reversesTransactionId: 'orig-1' }))).rejects.toThrow(/Only an adjustment can reverse/);
+    await expect(postStockMovement(tx, base({ reversesTransactionId: 'orig-1' }))).rejects.toThrow(/Only an adjustment or a prep row can reverse/);
 
     vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(null);
     await expect(postStockMovement(tx, reversal())).rejects.toThrow(/does not exist/);
@@ -251,5 +252,58 @@ describe('postStockMovement — reversals', () => {
   it('rejects a reversal for the wrong quantity', async () => {
     await expect(postStockMovement(tx, reversal({ quantity: D(-4) }))).rejects.toThrow(/undo the original quantity/);
     expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('postStockMovement — reversing a prep row', () => {
+  const consume = {
+    id: 'orig-c',
+    siteId: hubSite,
+    locationId: storeLocation.id,
+    inventoryItemId: 'item-1',
+    type: 'PREP_CONSUME' as const,
+    quantity: D(-10),
+    reversesTransactionId: null,
+    alreadyReversed: false,
+  };
+  const produce = { ...consume, id: 'orig-p', type: 'PREP_PRODUCE' as const, quantity: D(38) };
+  const reverse = (type: 'PREP_CONSUME' | 'PREP_PRODUCE', quantity: number, orig: string) =>
+    base({ type, quantity: D(quantity), links: { prepRecordId: 'run-1' }, reversesTransactionId: orig });
+
+  it('a reversed consume is stored positive, a reversed produce negative, both linked and of the original type', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(consume);
+    await postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'));
+    expect(created().quantity.toString()).toBe('10');
+    expect(created().type).toBe('PREP_CONSUME');
+    expect(created().reversesTransactionId).toBe('orig-c');
+    expect(created().reference).toBeNull();
+
+    vi.mocked(ledgerRepository.create).mockClear();
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(produce);
+    await postStockMovement(tx, reverse('PREP_PRODUCE', 38, 'orig-p'));
+    expect(created().quantity.toString()).toBe('-38');
+    expect(created().type).toBe('PREP_PRODUCE');
+  });
+
+  it('refuses a wrong quantity, another item, another type, a second reversal and a reversal of a reversal', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(consume);
+    await expect(postStockMovement(tx, reverse('PREP_CONSUME', 9, 'orig-c'))).rejects.toThrow(/undo the original quantity/);
+    await expect(postStockMovement(tx, reverse('PREP_PRODUCE', 10, 'orig-c'))).rejects.toThrow(/same type/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...consume, inventoryItemId: 'other' });
+    await expect(postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'))).rejects.toThrow(/must match the original/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...consume, alreadyReversed: true });
+    await expect(postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'))).rejects.toBeInstanceOf(ConflictError);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...consume, quantity: D(10), reversesTransactionId: 'x' });
+    await expect(postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'))).rejects.toThrow(/cannot be reversed/);
+
+    expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a prep reversal at another location', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...consume, locationId: 'elsewhere' });
+    await expect(postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'))).rejects.toThrow(/must match the original/);
   });
 });

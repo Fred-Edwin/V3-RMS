@@ -10,6 +10,7 @@ import { inventoryItemRepository } from '../catalog/inventory-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
 import { prisma } from '../../../config/database';
+import { postStockMovement } from '../stock/ledger/ledger-door';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../utils/errors';
 import { mapPrismaError } from '../../../utils/prisma-errors';
 import type {
@@ -303,39 +304,30 @@ export const prepService = {
       .$transaction(async (tx) => {
         const prepRun = await prepRunRepository.create(siteId, createInput, tx);
 
-        // N PREP_CONSUME rows — quantity NEGATIVE-signed. First negative-signed
-        // ledger writer in this codebase (on-hand is a plain _sum(quantity) —
-        // inventory-repository.ts's sumOnHandByItemForLocation); WASTE/
-        // ADJUSTMENT will need to match this sign precedent later.
+        // N PREP_CONSUME rows and 1 PREP_PRODUCE row, all through the ledger door, which applies the
+        // sign (consume negative, produce positive) and derives the site from the location.
         for (const line of inputLineData) {
-          await tx.inventoryTransaction.create({
-            data: {
-              siteId,
-              locationId: centralStore.id,
-              inventoryItemId: line.inputItemId,
-              type: 'PREP_CONSUME',
-              quantity: line.quantity.negated(),
-              unitCost: line.unitCostAtRunTime,
-              prepRecordId: prepRun.id,
-              userId: actor.id,
-            },
+          await postStockMovement(tx, {
+            type: 'PREP_CONSUME',
+            locationId: centralStore.id,
+            inventoryItemId: line.inputItemId,
+            quantity: line.quantity,
+            unitCost: line.unitCostAtRunTime,
+            userId: actor.id,
+            links: { prepRecordId: prepRun.id },
           });
           // No InventoryItem.currentCost write for input items — consuming
           // stock never changes what it costs (explicit non-write, plan §1.2).
         }
 
-        // 1 PREP_PRODUCE row for the output — positive-signed.
-        await tx.inventoryTransaction.create({
-          data: {
-            siteId,
-            locationId: centralStore.id,
-            inventoryItemId: input.outputItemId,
-            type: 'PREP_PRODUCE',
-            quantity: actualYield,
-            unitCost: outputUnitCost,
-            prepRecordId: prepRun.id,
-            userId: actor.id,
-          },
+        await postStockMovement(tx, {
+          type: 'PREP_PRODUCE',
+          locationId: centralStore.id,
+          inventoryItemId: input.outputItemId,
+          quantity: actualYield,
+          unitCost: outputUnitCost,
+          userId: actor.id,
+          links: { prepRecordId: prepRun.id },
         });
 
         // Latest-price costing on the output only, no averaging (Milestone

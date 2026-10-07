@@ -83,7 +83,7 @@ export const ledgerRepository = {
   findForReversal: async (
     tx: TxClient,
     id: string,
-  ): Promise<(Pick<InventoryTransaction, 'id' | 'siteId' | 'locationId' | 'inventoryItemId' | 'type' | 'quantity'> & { alreadyReversed: boolean }) | null> => {
+  ): Promise<(Pick<InventoryTransaction, 'id' | 'siteId' | 'locationId' | 'inventoryItemId' | 'type' | 'quantity' | 'reversesTransactionId'> & { alreadyReversed: boolean }) | null> => {
     const row = await tx.inventoryTransaction.findUnique({
       where: { id },
       select: {
@@ -93,6 +93,7 @@ export const ledgerRepository = {
         inventoryItemId: true,
         type: true,
         quantity: true,
+        reversesTransactionId: true,
         reversedBy: { select: { id: true } },
       },
     });

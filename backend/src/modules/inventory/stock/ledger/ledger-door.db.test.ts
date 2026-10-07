@@ -10,7 +10,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
-import { ValidationError } from '../../../../utils/errors';
+import { ConflictError, ValidationError } from '../../../../utils/errors';
 import { stockRepository } from '../stock-repository';
 import { postStockMovement } from './ledger-door';
 import { allowLedgerEditsInThisTransaction } from '../../../../scripts/ledger-dev-bypass';
@@ -146,6 +146,55 @@ describe.skipIf(!enabled)('postStockMovement against the real database', () => {
           links: { wasteLogId: log.id },
         }),
       ).rejects.toThrow(/another site/);
+    });
+  });
+
+  it('reverses a prep run: consume and produce rows net to zero per item, and a second reversal is refused', async () => {
+    const f = await fixtures();
+    const [input, output] = await prisma.inventoryItem.findMany({ where: { deletedAt: null }, take: 2, orderBy: { id: 'asc' } });
+    if (!input || !output) return; // needs two live items
+    await inRolledBackTx(async (tx) => {
+      const run = await tx.prepRun.create({
+        data: {
+          siteId: f.location.siteId,
+          outputItemId: output.id,
+          actualYield: new Prisma.Decimal(38),
+          outputUnitCost: new Prisma.Decimal(10),
+          totalInputCost: new Prisma.Decimal(380),
+          locationId: f.location.id,
+          createdById: f.user.id,
+        },
+      });
+      const post = (type: 'PREP_CONSUME' | 'PREP_PRODUCE', itemId: string, quantity: number, reverses?: string) =>
+        postStockMovement(tx, {
+          type,
+          locationId: f.location.id,
+          inventoryItemId: itemId,
+          quantity: new Prisma.Decimal(quantity),
+          unitCost: new Prisma.Decimal(10),
+          userId: f.user.id,
+          links: { prepRecordId: run.id },
+          ...(reverses ? { reversesTransactionId: reverses } : {}),
+        });
+      const onHand = (itemId: string) => stockRepository.onHandForItem(f.location.siteId, f.location.id, itemId, tx);
+
+      const inBefore = await onHand(input.id);
+      const outBefore = await onHand(output.id);
+      const consume = await post('PREP_CONSUME', input.id, 10);
+      const produce = await post('PREP_PRODUCE', output.id, 38);
+      expect((await onHand(input.id)).toString()).toBe(inBefore.minus(10).toString());
+      expect((await onHand(output.id)).toString()).toBe(outBefore.plus(38).toString());
+
+      const undoConsume = await post('PREP_CONSUME', input.id, 10, consume.id);
+      const undoProduce = await post('PREP_PRODUCE', output.id, 38, produce.id);
+      expect(undoConsume.quantity.toString()).toBe('10');
+      expect(undoProduce.quantity.toString()).toBe('-38');
+      expect(undoConsume.reversesTransactionId).toBe(consume.id);
+      expect((await onHand(input.id)).toString()).toBe(inBefore.toString());
+      expect((await onHand(output.id)).toString()).toBe(outBefore.toString());
+
+      await expect(post('PREP_CONSUME', input.id, 10, consume.id)).rejects.toBeInstanceOf(ConflictError);
+      await expect(post('PREP_CONSUME', input.id, 10, undoConsume.id)).rejects.toThrow(/cannot be reversed/);
     });
   });
 
