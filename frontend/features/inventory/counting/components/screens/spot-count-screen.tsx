@@ -21,7 +21,7 @@ import type { StockRow } from '../../../stock/types/stock';
 import { CountReasonControl } from '../count-reason';
 import { LogWasteDrawer } from '../../../waste/components/log-waste-drawer';
 import { PinSheet } from '../pin-sheet';
-import { StockMobileHeader } from '../../../stock/components/stock-mobile-header';
+import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
 import { StockTopbar } from '../../../stock/components/stock-topbar';
 import { FormErrorBanner, ListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard } from '../../../_shared/components/stock-states';
 import { formatCountDateShort, formatKes, formatNumber, formatQty, formatSignedKes, formatVariance, shortName } from '../../../_shared/components/stock-format';

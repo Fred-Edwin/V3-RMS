@@ -2,13 +2,14 @@
 
 import { Suspense } from 'react';
 
-import { StockCountsScreen } from '@/features/inventory';
+import { PickSectionScreen } from '@/features/inventory';
 
-// useSearchParams() (the selected count lives in the URL) needs a Suspense boundary.
+// The page state (filters, page, search) lives in the URL, so useSearchParams() needs a Suspense boundary. Which screen this is
+// (the Counts list or Pick a section) is decided inside the feature from what the caller may do, not here.
 export default function StockCountsPage() {
   return (
     <Suspense fallback={null}>
-      <StockCountsScreen />
+      <PickSectionScreen />
     </Suspense>
   );
 }

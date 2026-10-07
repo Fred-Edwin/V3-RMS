@@ -53,6 +53,11 @@ export { DailyCountScreen } from './counting/components/screens/daily-count-scre
 export { StockCountsScreen } from './counting/components/screens/stock-counts-screen';
 export { SpotCountScreen } from './counting/components/screens/spot-count-screen';
 
+// Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
+export { PickSectionScreen, CountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
+// Dev only (fixture mode): chooses the role the fixture handlers answer as. A 404 when the fixture flag is off.
+export { FixtureRoleSwitch } from './_shared/components/fixture-role-switch';
+
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './settings/components/screens/settings-screen';
 
@@ -66,7 +71,7 @@ export { CountReasonControl } from './counting/components/count-reason';
 export type { CountReasonControlProps, ReasonOption } from './counting/components/count-reason';
 export { Reveal, StatCell, StatusDot } from './counting/components/count-verify-parts';
 export { HighlightOnChange } from './stock/components/highlight-on-change';
-export { StockMobileHeader } from './stock/components/stock-mobile-header';
+export { StockMobileHeader } from './_shared/components/stock-mobile-header';
 export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/components/log-waste-drawer';
 export {
   FormErrorBanner,

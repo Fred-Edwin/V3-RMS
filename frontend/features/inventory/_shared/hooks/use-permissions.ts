@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { Capability } from '../lib/capabilities';
+import { USE_FIXTURES } from '../services/scw-call';
 
 interface PermissionsPayload {
   role: string;
@@ -60,7 +61,10 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
     inFlight = (async () => {
       try {
         const token = useAuthStore.getState().accessToken ?? undefined;
-        const data = await apiClient.get<PermissionsPayload>('/inventory/permissions/me', token);
+        // Fixture mode (Stock, Counting, Waste build): answer as the role the dev story page selected, so every variant is reachable.
+        const data = USE_FIXTURES
+          ? { role: 'FIXTURE', isDepartmentHead: false, capabilities: (await import('../fixtures/fixture-role')).fixtureCapabilities() }
+          : await apiClient.get<PermissionsPayload>('/inventory/permissions/me', token);
         if (get().userId !== userId) return;
         writeCache(userId, data.capabilities);
         set({ capabilities: data.capabilities, status: 'ready' });

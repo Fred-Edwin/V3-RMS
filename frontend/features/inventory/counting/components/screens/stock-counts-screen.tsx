@@ -21,7 +21,7 @@ import type { StockSummary } from '../../../stock/types/stock';
 import { PinSheet } from '../pin-sheet';
 import { StockTopbar } from '../../../stock/components/stock-topbar';
 import { LogWasteDrawer } from '../../../waste/components/log-waste-drawer';
-import { StockMobileHeader } from '../../../stock/components/stock-mobile-header';
+import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
 import { HubKpiStrip } from '../../../stock/components/hub-kpi-strip';
 import {
   CountRailRow,
