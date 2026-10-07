@@ -44,6 +44,23 @@ export function recipeReason(version: number, reason: string | null, reasonNote:
   return RECIPE_REASON_WORDS[reason] ?? null;
 }
 
+const CORRECT_REASON_WORDS: Record<string, string> = { TYPO: 'Typo', WRONG_ITEM: 'Wrong item', WRONG_QUANTITY: 'Wrong quantity', OTHER: 'Other' };
+const CANCEL_REASON_WORDS: Record<string, string> = { ENTERED_TWICE: 'Entered twice', NEVER_MADE: 'Never made', WRONG_ITEM: 'Wrong item', OTHER: 'Other' };
+
+export type RunEntryWords = { reference: string | null; outputName: string; made: string; unit: string };
+
+/** Prep run entries: "Recorded PREP-0130 · Marinated chicken 38 portions" (also Corrected, Cancelled, Reviewed). */
+export function describeRunEntry(verb: 'Recorded' | 'Corrected' | 'Cancelled' | 'Reviewed', run: RunEntryWords): string {
+  return `${verb} ${run.reference ?? 'a run'} · ${run.outputName} ${run.made} ${run.unit}`;
+}
+
+/** The reason a correction or cancellation carries: the chip's words, or the typed note when the reason is Other and one was given. */
+export function runEntryReason(reason: string | null, note: string | null, kind: 'CORRECTED' | 'CANCELLED'): string | null {
+  if (reason === null) return null;
+  if (reason === 'OTHER' && note) return note;
+  return (kind === 'CORRECTED' ? CORRECT_REASON_WORDS : CANCEL_REASON_WORDS)[reason] ?? null;
+}
+
 const STATUS_WORDS: Record<string, string> = { ACTIVE: 'made active', ON_HOLD: 'put on hold', ARCHIVED: 'archived' };
 
 /** The reason a supplier audit row carries in its `after` snapshot, when it has one. */

@@ -14,6 +14,10 @@ export const runsController = {
     res.status(200).json({ success: true, data: await runsService.list(actor, runsQuerySchema.parse(req.query)) });
   },
 
+  summary: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await runsService.summary(requireActor(req)) });
+  },
+
   get: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = runIdParamSchema.parse(req.params);

@@ -7,8 +7,9 @@ const router = Router();
 
 router.use(authenticate);
 
-// Slice 4 registers `/runs/summary` and `/runs/export` before this param route.
+// `/runs/summary` sits before the param route; `/runs/export` lives in the review router, which routes/index.ts mounts before this one.
 router.get('/inventory/prep/runs', requireCapability('prep.read'), runsController.list);
+router.get('/inventory/prep/runs/summary', requireCapability('prep.read_flags'), runsController.summary);
 router.get('/inventory/prep/runs/:id', requireCapability('prep.read'), runsController.get);
 
 export default router;
