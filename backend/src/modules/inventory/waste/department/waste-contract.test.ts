@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { wasteService } from './waste-service';
 import { wasteRepository } from './waste-repository';
-import { stockRepository } from '../../stock/stock-repository';
+import { stockRepository } from '../../stock/_shared/stock-repository';
 import { inventoryItemRepository } from '../../catalog/inventory-repository';
 import { branchRepository } from '../../../../repositories/branch-repository';
 import { locationRepository } from '../../../../repositories/location-repository';
@@ -31,7 +31,7 @@ vi.mock('./waste-repository', () => ({
   },
 }));
 
-vi.mock('../../stock/stock-repository', () => ({
+vi.mock('../../stock/_shared/stock-repository', () => ({
   stockRepository: { onHandForItem: vi.fn(), totalsForLocation: vi.fn() },
 }));
 

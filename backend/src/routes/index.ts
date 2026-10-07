@@ -38,7 +38,6 @@ import prepRunsRoutes from '../modules/inventory/prep/runs/runs-routes';
 import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
 import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
-import stockRoutes from '../modules/inventory/stock/stock-routes';
 import wasteRoutes from '../modules/inventory/waste/department/waste-routes';
 import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
 import countingRoutes from '../modules/inventory/counting/counting-routes';
@@ -90,7 +89,6 @@ apiRouter.use(prepReviewRoutes); // before prepRunsRoutes: `/runs/export` must w
 apiRouter.use(prepRunsRoutes);
 apiRouter.use(prepFixRoutes);
 apiRouter.use('/inventory/prep', prepRecipesRoutes);
-apiRouter.use(stockRoutes);
 apiRouter.use(wasteRoutes);
 apiRouter.use(thresholdsRoutes);
 // The Stock, Counting and Waste rebuild (feat/stock-count-waste): new paths under /inventory/stock, none shared with the old

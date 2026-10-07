@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { wasteRepository, type WasteItemOptionRow, type WasteLogWithRelations } from './waste-repository';
-import { stockRepository } from '../../stock/stock-repository';
+import { stockRepository } from '../../stock/_shared/stock-repository';
 import { postStockMovement } from '../../stock/ledger/ledger-door';
 import { resolveWasteScope, type StockScope } from '../../_shared/stock-scope';
 import { inventoryItemRepository } from '../../catalog/inventory-repository';

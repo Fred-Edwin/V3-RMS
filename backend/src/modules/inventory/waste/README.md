@@ -1,36 +1,41 @@
 # waste
 
-**Design:** approved (Paper: *Stock and Counting*, chapter 5 "Waste during the day") · **Code:** built to the old flow, **pending redo**.
+**Design:** approved (Paper: *Inventory · Counting redesign (Oct 7)*, steps 16 to 23) · **Code:** rebuilt to the frozen contract (Stock, Counting and Waste rebuild, Back end B).
 
-Full approved wording: [../counting/DESIGN-NOTES.md](../counting/DESIGN-NOTES.md).
+Waste at the Central Store, plus the Department Head's branch waste (unchanged).
+
+## Sub-modules
+| Folder | What | Endpoints | README |
+|---|---|---|---|
+| `log/` | the item picker, log one or several items as a batch | W1, W2 | [log](log/README.md) |
+| `entries/` | the list with its KPI strip | W3 | [entries](entries/README.md) |
+| `reverse/` | reverse an entry | W4 | [reverse](reverse/README.md) |
+| `department/` | the Department Head's branch waste, **moved unchanged** | 3 old endpoints | below |
+| `_shared/` | the frozen contract, `waste-view` (builds every response), `waste-rules` (who may reverse, who sees only their own), `waste-row` | none | this file |
 
 ## Who can do what
-- **Store Attendant**: log waste for several items, review, confirm; reverse **their own** entry the same day with a reason. Sees no costs or stock.
-- **Store Manager**: log waste with values; reverse any entry.
-- **Department Head / Branch**: log waste for their department (branch waste, Flow 13).
-
-## Approved behaviour
-- Pick items, quantity, reason chips (Expired, Spoiled, Damaged in store, Prep error); review sheet; stock changes only after confirm.
-- A wrong entry is **reversed** with a reason; original and reversal both stay.
-- Damage found after receiving is logged as waste (the only damage path).
-
-## Built today vs approved
-When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Since 6 Oct 2026 the Attendant may see item costs, so the "removes costs from the attendant view" line below no longer applies; stock figures stay hidden.
-Old design: single item, no undo, unit cost shown to attendants. Redo adds multi-item logging with confirm summary, reversal, and removes costs from the attendant view.
+- **Store Manager, System Admin**: log, read every entry, reverse any entry.
+- **Store Attendant**: logs, reads **only their own entries** (a capability test: they hold `waste.read` but not `stock.read`), reverses their own entry on the **same Nairobi day**. Sees item cost, never a stock figure: no on-hand, no "went negative", no waste KPIs.
+- **Accountant, Director, Branch Manager**: read every entry; no writes.
+- **Waste is never signed with a PIN** (owner, 8 Oct 2026). Negative stock from waste is allowed and flagged (to those who may see stock), never blocked.
 
 ## Endpoints
-3 endpoints (generated from the route files; re-run if routes change).
+All under `/api/v1/inventory/stock/waste`, mounted by `waste-hub-routes.ts`.
 
-| Method | Path | Roles |
+| # | Method and path | Capability |
 |---|---|---|
-| GET | `/inventory/waste/items` | STORE_MANAGER, STORE_ATTENDANT |
-| GET | `/inventory/waste` | STORE_MANAGER, STORE_ATTENDANT |
-| POST | `/inventory/waste` | STORE_MANAGER, STORE_ATTENDANT |
+| W1 | `GET /items` | `waste.log` |
+| W2 | `POST /` | `waste.log` |
+| W3 | `GET /` | `waste.read` (Attendant: own only) |
+| W4 | `POST /:id/reverse` | `waste.reverse_any`, or `waste.reverse_own` + the same-day rule |
 
-## Code map
-`waste-controller.ts`, `waste-repository.ts`, `waste-routes.ts`, `waste-service.ts`, `waste-validators.ts`, `waste.types.ts`. 2 test files beside the code.
+## Rules that hold across the folders
+- One `WasteBatch` per `idempotencyKey`; one `WasteLog` and one WASTE ledger row per entry, all written through `postStockMovement` in one transaction.
+- A reversed entry keeps its original row and ledger row; a linked reversing row returns the stock, and the entry reads `REVERSED` and counts for nothing in the KPIs.
+- `waste/_shared/waste-view.ts` decides every response; there is no `isAttendant` check anywhere.
+
+## `department/` (the Department Head's branch waste)
+The three old endpoints (`GET /inventory/waste/items`, `GET` and `POST /inventory/waste`), their service, repository, validators, types and tests, moved here unchanged (only relative import paths changed, and `stockRepository` now comes from `stock/_shared/stock-repository`). Still mounted from `routes/index.ts`. The old files' Central Store role allowance (`STORE_MANAGER`, `STORE_ATTENDANT` through `resolveWasteScope`) is part of "unchanged"; the rebuilt Central Store waste is the `/inventory/stock/waste` routes. Delete this folder when branch waste is redone.
 
 ## Coupling
-Uses `stock/stock-repository`, `stock/ledger/ledger-door`, `_shared/stock-scope`, `catalog/inventory-repository`.
-
-The WASTE ledger row is posted through the stock ledger door (`postStockMovement`), the first writer moved onto it (4 Oct 2026). The service passes the entered quantity as a positive number; the door stores it negative. The row's fields are unchanged from the old direct write.
+`stock/ledger/ledger-door`, `stock/_shared/{stock-repository,nairobi-time,person}`, `_shared/{central-store-access,blind-rule,wire}`, `repositories/location-repository`. Reads no other sub-module.
