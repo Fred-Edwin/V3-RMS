@@ -3,7 +3,6 @@ import * as React from 'react';
 import { cn } from '@/lib/cn';
 import { Skeleton } from '@/components/ui2/skeleton';
 import type { RecipeRow } from '../../_shared/types/prep-contract';
-import { HOVER_UNDERLINE, PRESS } from '../lib/press';
 import { formatAmount } from '../lib/recipe-scaling';
 
 const headCell = 'font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-ink';
@@ -48,7 +47,15 @@ export function RecipesTable({ rows, canWrite, onOpen }: RecipesTableProps) {
       {rows.map((row) => {
         const has = row.recipe !== null;
         return (
-          <div key={row.itemId} role="row" className={cn('flex items-center border-b border-wds-border px-[18px] last:border-b-0', has ? 'h-[52px]' : 'h-14 bg-wds-warning-bg')}>
+          <div
+            key={row.itemId}
+            role="row"
+            className={cn(
+              'group relative flex items-center border-b border-wds-border px-[18px] transition-colors duration-150 ease-out last:border-b-0',
+              has ? 'h-[52px]' : 'h-14 bg-wds-warning-bg',
+              canWrite && '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-wds-espresso-50'
+            )}
+          >
             <span role="cell" className="w-[200px] shrink-0 truncate pr-3 font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink">{row.itemName}</span>
             <span role="cell" className={cn('w-[330px] shrink-0 pr-4 font-wds-sans text-[13px] leading-4', has ? 'text-wds-text-secondary' : 'text-wds-warning-fg')}>
               {row.recipe ? row.recipe.ingredientsText : noRecipeText(row)}
@@ -62,7 +69,10 @@ export function RecipesTable({ rows, canWrite, onOpen }: RecipesTableProps) {
                   type="button"
                   onClick={() => onOpen(row)}
                   aria-label={`${has ? 'Edit' : 'Set'} the recipe for ${row.itemName}`}
-                  className={cn('rounded-wds-sm font-wds-sans text-[13px] font-medium leading-4 text-wds-espresso-700', HOVER_UNDERLINE, PRESS)}
+                  className={cn(
+                    "cursor-pointer rounded-wds-sm font-wds-sans text-[13px] font-medium leading-4 text-wds-espresso-700 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]",
+                    'group-hover:underline'
+                  )}
                 >
                   {has ? 'Edit' : 'Set'}
                 </button>
