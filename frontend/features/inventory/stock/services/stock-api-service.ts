@@ -6,7 +6,7 @@
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { AttendantStockSummary, Ledger, LedgerQuery, ListStockQuery, StockList, StockSummary } from '../types/stock';
-import type { CreateWasteInput, CreateWasteResult, WasteItemOptionList, WasteList } from '../../waste/types/waste';
+import type { CreateWasteInput, CreateWasteResult, WasteItemOptionList, WasteList } from '../../waste/department/types/waste';
 
 function token(): string | undefined {
   return useAuthStore.getState().accessToken ?? undefined;

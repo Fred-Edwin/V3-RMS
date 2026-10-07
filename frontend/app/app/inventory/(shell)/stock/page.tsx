@@ -1,5 +1,5 @@
-import { StockHubScreen } from '@/features/inventory';
+import { StockOverviewScreen } from '@/features/inventory';
 
-export default function StockHubPage() {
-  return <StockHubScreen />;
+export default function StockOverviewPage() {
+  return <StockOverviewScreen />;
 }

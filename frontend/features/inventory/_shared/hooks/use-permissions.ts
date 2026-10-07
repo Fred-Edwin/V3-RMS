@@ -6,7 +6,6 @@ import { create } from 'zustand';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { Capability } from '../lib/capabilities';
-
 interface PermissionsPayload {
   role: string;
   isDepartmentHead: boolean;

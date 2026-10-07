@@ -9,7 +9,7 @@ import { HintTooltip } from '@/components/app/shell/hint-tooltip';
 import { useDailyCount, normalizeCount } from '../../hooks/use-daily-count';
 import type { AttendantCountLine, AttendantCountView } from '../../types/count';
 import { PinSheet } from '../pin-sheet';
-import { StockMobileHeader } from '../../../stock/components/stock-mobile-header';
+import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
 import { FormErrorBanner, MobileListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard } from '../../../_shared/components/stock-states';
 import { formatClock, formatCountDateLong, formatDayMonthClock, formatWeekdayDate } from '../../../_shared/components/stock-format';
 import { Skeleton } from '@/components/ui2/skeleton';
