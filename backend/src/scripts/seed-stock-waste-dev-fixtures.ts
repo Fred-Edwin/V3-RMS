@@ -1,33 +1,23 @@
 /**
  * seed-stock-waste-dev-fixtures.ts
  *
- * Local dev-only fixtures for Milestone Six Session 1 (stock position &
- * waste), so the live screens can be compared against the approved Paper
- * artboards in the same state (session-1-plan.md "Seed data for the gate"):
+ * Local dev-only fixtures for the Stock and Waste rebuild (Overview, All items, Stock ledger, Stock card, Waste), so the live
+ * screens can be walked in a state close to the approved Paper artboards. Additive: it never clears restock levels or touches
+ * other seeds' rows.
  *
- *   1. Names: store.manager → "Joseph Mwangi", store.attendant → "Sarah
- *      Achieng"; the Nyeri Town Kitchen head (from seed-dispatch-dev-fixtures)
- *      stays the department head.
- *   2. The seven hub items with the Paper values (Milk 128 L / restock 80 /
- *      cost 65 …, Tomatoes −4 kg), plus Croissants / Cream / Bread for the
- *      waste card and a Kitchen "Grilled chicken portion"; filler items until
- *      the hub catalog has 142 live items ("Page 1 of 18" at 8 per page).
- *   3. Waste over the last 7 days totalling KES 2,140 (Milk, Tomatoes,
- *      Croissants, Cream, Bread), each a real WasteLog + negative WASTE row.
- *   4. Coffee beans ledger: opening 12 → receive +25 (a real delivered order
- *      and GRN from Samrat Suppliers Ltd) → dispatch −6 to Nyeri Town · Barista (a real
- *      Dispatch) → waste −2 → adjustment −17 → 12 kg. Dated 8–12 days ago so
- *      they don't change the 7-day waste total; view with "30 days".
- *   5. Nyeri Town Kitchen, Grilled chicken portion: dispatch in +14,
- *      adjustment −5 → 9 pcs at KES 145.
- *   6. So the hub's attention table shows the Paper rows: Central Store
- *      restock levels on items outside that set are cleared, and any of
- *      those items sitting negative at the Central Store is topped back up
- *      to zero with a RECEIVE.
+ *   1. Hub items with the Paper values (Milk 128 L / restock 80, Tomatoes -4 kg, Coffee beans 12 kg / restock 25 ...) and their
+ *      Central Store restock levels.
+ *   2. A ledger across the last 30 days: an opening balance per item 29 days ago, receipts (Coffee beans through a real order
+ *      and GRN), a dispatch (a real Dispatch), Prep produce and consume, count adjustments numbered ADJ-nnnn, and waste.
+ *   3. Waste in batches (WasteBatch + WasteLog + a negative WASTE ledger row each): two entries by the Attendant today (so the
+ *      banner and the same-day reverse can be tried), older ones by the Attendant and the Manager, one entry the Attendant
+ *      reversed the same day it was logged, and one the Manager reversed days later. A reversal is a positive WASTE ledger row
+ *      pointing at the original with `reverses_transaction_id`.
+ *   4. One negative item (Tomatoes).
  *
- * Idempotent: items/levels are upserted every run; the ledger history (3–5)
- * is written once, guarded by the fixture requisition note. Run after
- * seed-dev.ts, seed-inventory-catalog.ts and seed-dispatch-dev-fixtures.ts.
+ * Idempotent: items and levels are upserted every run; the history is written once, guarded by the waste batch key
+ * `dev-fixture-stock-waste-today`. Run after seed-dev.ts, seed-inventory-catalog.ts and seed-dispatch-dev-fixtures.ts.
+ * Seed scripts write the ledger directly (the guard test does not check src/scripts); the app never does.
  *
  * ONLY runs when NODE_ENV is not "production".
  *
@@ -36,9 +26,10 @@
  */
 
 import 'dotenv/config';
-import { Prisma, type DepartmentTag, type InventoryItemType, type WasteReason } from '@prisma/client';
+import { Prisma, type InventoryItemType, type InventoryTransactionType, type WasteReason, type WasteReversalReason } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
+import { referenceCounterRepository } from '../modules/inventory/_shared/reference-counter';
 import { createSeedSupplier } from './seed-supplier-helper';
 
 if (env.NODE_ENV === 'production') {
@@ -46,371 +37,269 @@ if (env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
-const FIXTURE_NOTE = 'M6 S1 dev fixture';
-const TARGET_LIVE_ITEMS = 142;
+const FIXTURE_NOTE = 'Stock and waste dev fixture';
+const TODAY_KEY = 'dev-fixture-stock-waste-today';
 
-type ItemSpec = {
-  name: string;
-  type: InventoryItemType;
-  unit: string;
-  category: string;
-  cost: string;
-  restock?: string;
-  tags: DepartmentTag[];
-};
+type ItemSpec = { name: string; type: InventoryItemType; unit: string; category: string; cost: string; restock?: string; target: string };
 
-const HUB_ITEMS: (ItemSpec & { target: string })[] = [
-  { name: 'Milk', type: 'STOCKED', unit: 'L', category: 'Dairy', cost: '65', restock: '80', target: '128', tags: ['BARISTA', 'KITCHEN'] },
-  { name: 'Cooking oil', type: 'STOCKED', unit: 'L', category: 'Dry goods', cost: '320', restock: '40', target: '46', tags: ['KITCHEN'] },
-  { name: 'Coffee beans', type: 'STOCKED', unit: 'kg', category: 'Dry goods', cost: '1180', restock: '25', target: '12', tags: ['BARISTA'] },
-  { name: 'Chicken stock', type: 'PREPPED', unit: 'L', category: 'Prepped', cost: '240', restock: '15', target: '18', tags: ['KITCHEN'] },
-  { name: 'Rice', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Dry goods', cost: '145', restock: '120', target: '210', tags: [] },
-  { name: 'Tomatoes', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Produce', cost: '90', restock: '30', target: '-4', tags: [] },
-  { name: 'Flour', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Dry goods', cost: '78', restock: '50', target: '64', tags: [] },
-  // Waste-card items — no restock level, so they stay out of the attention table.
-  { name: 'Croissants', type: 'STOCKED', unit: 'pcs', category: 'Bakery', cost: '90', target: '20', tags: ['PASTRY'] },
-  { name: 'Cream', type: 'STOCKED', unit: 'L', category: 'Dairy', cost: '180', target: '6', tags: ['BARISTA'] },
-  { name: 'Bread', type: 'STOCKED', unit: 'pcs', category: 'Bakery', cost: '78.3333', target: '30', tags: ['KITCHEN'] },
+const HUB_ITEMS: ItemSpec[] = [
+  { name: 'Milk', type: 'STOCKED', unit: 'L', category: 'Dairy', cost: '65', restock: '80', target: '128' },
+  { name: 'Cooking oil', type: 'STOCKED', unit: 'L', category: 'Dry goods', cost: '320', restock: '40', target: '46' },
+  { name: 'Coffee beans', type: 'STOCKED', unit: 'kg', category: 'Dry goods', cost: '1180', restock: '25', target: '12' },
+  { name: 'Chicken stock', type: 'PREPPED', unit: 'L', category: 'Prepped', cost: '240', restock: '15', target: '18' },
+  { name: 'Rice', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Dry goods', cost: '145', restock: '120', target: '210' },
+  { name: 'Tomatoes', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Produce', cost: '90', restock: '30', target: '-4' },
+  { name: 'Flour', type: 'RAW_INGREDIENT', unit: 'kg', category: 'Dry goods', cost: '78', restock: '50', target: '64' },
+  { name: 'Croissants', type: 'STOCKED', unit: 'pcs', category: 'Bakery', cost: '90', target: '20' },
+  { name: 'Cream', type: 'STOCKED', unit: 'L', category: 'Dairy', cost: '180', target: '6' },
+  { name: 'Bread', type: 'STOCKED', unit: 'pcs', category: 'Bakery', cost: '78.3333', target: '30' },
 ];
 
-const CHICKEN: ItemSpec = { name: 'Grilled chicken portion', type: 'PREPPED', unit: 'pcs', category: 'Prepped', cost: '145', tags: ['KITCHEN'] };
-
-/** Waste over the last 7 days — KES 390 + 270 + 360 + 180 + 940 = 2,140. */
-const WASTE: { item: string; qty: string; reason: WasteReason; daysAgo: number; note?: string }[] = [
-  { item: 'Milk', qty: '6', reason: 'SPOILAGE', daysAgo: 1, note: 'Left out of the cold room overnight' },
-  { item: 'Tomatoes', qty: '3', reason: 'SPOILAGE', daysAgo: 2 },
-  { item: 'Croissants', qty: '4', reason: 'EXPIRY', daysAgo: 3 },
-  { item: 'Cream', qty: '1', reason: 'DAMAGE_IN_STORE', daysAgo: 4 },
-  { item: 'Bread', qty: '12', reason: 'PREP_ERROR', daysAgo: 5 },
-];
-
-const FILLER_BASES = [
-  'Sugar', 'Salt', 'Black pepper', 'Paprika', 'Cinnamon', 'Oats', 'Honey', 'Strawberry jam', 'Peanut butter', 'Ketchup',
-  'Mayonnaise', 'Mustard', 'Vinegar', 'Baking powder', 'Dry yeast', 'Cocoa powder', 'Vanilla essence', 'Penne pasta',
-  'Spaghetti', 'Lentils', 'Kidney beans', 'Maize flour', 'Tea leaves', 'Drinking chocolate', 'Icing sugar',
-];
-const FILLER_PACKS = ['250 g', '500 g', '1 kg', '2 kg'];
-
+/** A moment `n` days ago at `hour` Nairobi time (UTC+3). */
 const daysAgo = (n: number, hour = 9): Date => {
   const d = new Date(Date.now() - n * 24 * 60 * 60 * 1000);
-  d.setUTCHours(hour - 3, 0, 0, 0); // hour in Africa/Nairobi (UTC+3)
+  d.setUTCHours(hour - 3, 0, 0, 0);
   return d;
 };
+
+type Move = { item: string; type: InventoryTransactionType; qty: string; at: Date; reason?: string };
 
 const run = async (): Promise<void> => {
   const hub = await prisma.site.findFirst({ where: { isHub: true } });
   const centralStore = await prisma.location.findFirst({ where: { type: 'CENTRAL_STORE' } });
-  const storeManager = await prisma.user.findUnique({ where: { email: 'store.manager@wendo.test' } });
+  const manager = await prisma.user.findUnique({ where: { email: 'store.manager@wendo.test' } });
   const attendant = await prisma.user.findUnique({ where: { email: 'store.attendant@wendo.test' } });
   const town = await prisma.site.findFirst({ where: { name: 'Nyeri Town' } });
-  if (!hub || !centralStore || !storeManager || !attendant || !town) {
-    console.log('SKIP  hub / Central Store / store users / Nyeri Town missing — run seed-dev.ts first');
+  if (!hub || !centralStore || !manager || !attendant || !town) {
+    console.log('SKIP  hub / Central Store / store users / Nyeri Town missing: run seed-dev.ts first');
     return;
   }
-  const kitchenHead = await prisma.user.findFirst({
-    where: { siteId: town.id, isDepartmentHead: true, departmentTag: 'KITCHEN' },
-  });
-  const townKitchen = await prisma.location.findFirst({
-    where: { siteId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN' },
-  });
-  const townBarista = await prisma.location.findFirst({
-    where: { siteId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'BARISTA' },
-  });
-  if (!kitchenHead || !townKitchen || !townBarista) {
-    console.log('SKIP  Nyeri Town Kitchen head / department locations missing — run seed-dispatch-dev-fixtures.ts + provision-branch-departments.ts first');
+  const kitchenHead = await prisma.user.findFirst({ where: { siteId: town.id, isDepartmentHead: true, departmentTag: 'KITCHEN' } });
+  const townBarista = await prisma.location.findFirst({ where: { siteId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'BARISTA' } });
+  if (!kitchenHead || !townBarista) {
+    console.log('SKIP  Nyeri Town department head / Barista location missing: run seed-dispatch-dev-fixtures.ts first');
     return;
   }
 
-  // --- 1. Names -----------------------------------------------------------------
-  await prisma.user.update({ where: { id: storeManager.id }, data: { name: 'Joseph Mwangi' } });
-  await prisma.user.update({ where: { id: attendant.id }, data: { name: 'Sarah Achieng' } });
-  console.log('OK    store users renamed (Joseph Mwangi, Sarah Achieng)');
-
-  // --- 2. Categories + items ------------------------------------------------------
+  // --- 1. Items and levels (every run) ----------------------------------------------
   const categoryIds = new Map<string, string>();
   for (const name of ['Dairy', 'Dry goods', 'Produce', 'Bakery', 'Prepped']) {
     const existing = await prisma.category.findFirst({ where: { siteId: hub.id, name, deletedAt: null } });
-    const category = existing ?? (await prisma.category.create({ data: { siteId: hub.id, name } }));
-    categoryIds.set(name, category.id);
+    categoryIds.set(name, (existing ?? (await prisma.category.create({ data: { siteId: hub.id, name } }))).id);
   }
-
-  const upsertItem = async (spec: ItemSpec) => {
+  const itemIds = new Map<string, string>();
+  for (const spec of HUB_ITEMS) {
     const data = {
       type: spec.type,
       usageUnit: spec.unit,
       buyUnit: spec.unit,
       categoryId: categoryIds.get(spec.category) ?? null,
       currentCost: new Prisma.Decimal(spec.cost),
-      departmentTags: spec.tags,
+      // A raw ingredient never carries a department tag (database check); other types keep the tags they have.
+      ...(spec.type === 'RAW_INGREDIENT' ? { departmentTags: [] } : {}),
     };
     const existing = await prisma.inventoryItem.findFirst({ where: { siteId: hub.id, name: spec.name, deletedAt: null } });
-    return existing
-      ? prisma.inventoryItem.update({ where: { id: existing.id }, data })
-      : prisma.inventoryItem.create({ data: { siteId: hub.id, name: spec.name, ...data } });
-  };
-
-  const itemIds = new Map<string, string>();
-  for (const spec of [...HUB_ITEMS, CHICKEN]) {
-    const item = await upsertItem(spec);
+    const item = existing
+      ? await prisma.inventoryItem.update({ where: { id: existing.id }, data })
+      : await prisma.inventoryItem.create({ data: { siteId: hub.id, name: spec.name, departmentTags: [], ...data } });
     itemIds.set(spec.name, item.id);
-  }
-  for (const spec of HUB_ITEMS) {
-    if (!spec.restock) continue;
-    await prisma.restockLevel.upsert({
-      where: { locationId_inventoryItemId: { locationId: centralStore.id, inventoryItemId: itemIds.get(spec.name)! } },
-      update: { level: new Prisma.Decimal(spec.restock), setById: storeManager.id },
-      create: {
-        siteId: hub.id,
-        locationId: centralStore.id,
-        inventoryItemId: itemIds.get(spec.name)!,
-        level: new Prisma.Decimal(spec.restock),
-        setById: storeManager.id,
-      },
-    });
-  }
-
-  let live = await prisma.inventoryItem.count({ where: { siteId: hub.id, deletedAt: null } });
-  fill: for (const pack of FILLER_PACKS) {
-    for (const base of FILLER_BASES) {
-      if (live >= TARGET_LIVE_ITEMS) break fill;
-      const name = `${base} ${pack}`;
-      const exists = await prisma.inventoryItem.findFirst({ where: { siteId: hub.id, name } });
-      if (exists) continue;
-      await prisma.inventoryItem.create({
-        data: {
-          siteId: hub.id,
-          name,
-          type: 'RAW_INGREDIENT',
-          usageUnit: 'pcs',
-          buyUnit: 'pcs',
-          categoryId: categoryIds.get('Dry goods') ?? null,
-          currentCost: new Prisma.Decimal(40 + ((name.length * 37) % 460)),
-          departmentTags: [],
-        },
+    if (spec.restock) {
+      await prisma.restockLevel.upsert({
+        where: { locationId_inventoryItemId: { locationId: centralStore.id, inventoryItemId: item.id } },
+        update: { level: new Prisma.Decimal(spec.restock), setById: manager.id },
+        create: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: item.id, level: new Prisma.Decimal(spec.restock), setById: manager.id },
       });
-      live += 1;
     }
   }
-  console.log(`OK    catalog: ${live} live hub items`);
+  console.log(`OK    ${HUB_ITEMS.length} hub items and their restock levels`);
 
-  // --- 6. Attention table = the Paper set --------------------------------------------
-  const paperIds = HUB_ITEMS.map((s) => itemIds.get(s.name)!);
-  const cleared = await prisma.restockLevel.deleteMany({
-    where: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: paperIds } },
-  });
-  console.log(`OK    cleared ${cleared.count} Central Store restock levels outside the Paper set`);
-
-  const negatives = await prisma.inventoryTransaction.groupBy({
-    by: ['inventoryItemId'],
-    where: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: [...itemIds.values()] } },
-    _sum: { quantity: true },
-  });
-  for (const row of negatives) {
-    const sum = row._sum.quantity ?? new Prisma.Decimal(0);
-    if (sum.greaterThanOrEqualTo(0)) continue;
-    await prisma.inventoryTransaction.create({
-      data: {
-        siteId: hub.id,
-        locationId: centralStore.id,
-        inventoryItemId: row.inventoryItemId,
-        type: 'RECEIVE',
-        quantity: sum.negated(),
-        unitCost: new Prisma.Decimal(0),
-        reason: `${FIXTURE_NOTE} — top-up to zero`,
-        userId: storeManager.id,
-      },
-    });
-  }
-
-  // --- 3–5. Ledger history (once) -----------------------------------------------------
-  const already = await prisma.requisition.findFirst({ where: { siteId: town.id, note: FIXTURE_NOTE } });
-  if (already) {
-    console.log('SKIP  ledger history already written (fixture requisition exists)');
+  const done = await prisma.wasteBatch.findFirst({ where: { siteId: hub.id, idempotencyKey: TODAY_KEY } });
+  if (done) {
+    console.log('SKIP  ledger and waste history already written (fixture waste batch exists)');
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    const tx_ = (data: Prisma.InventoryTransactionUncheckedCreateInput) => tx.inventoryTransaction.create({ data });
-    const onHand = async (locationOrgId: string, locationId: string, itemId: string) =>
-      (
-        await tx.inventoryTransaction.aggregate({
-          where: { siteId: locationOrgId, locationId, inventoryItemId: itemId },
-          _sum: { quantity: true },
-        })
-      )._sum.quantity ?? new Prisma.Decimal(0);
+  // --- 2 to 4. The history, once --------------------------------------------------------
+  await prisma.$transaction(
+    async (tx) => {
+      const id = (name: string): string => itemIds.get(name)!;
+      const cost = (name: string): Prisma.Decimal => new Prisma.Decimal(HUB_ITEMS.find((s) => s.name === name)!.cost);
+      const post = (data: Prisma.InventoryTransactionUncheckedCreateInput) => tx.inventoryTransaction.create({ data });
+      const onHand = async (itemId: string): Promise<Prisma.Decimal> =>
+        (await tx.inventoryTransaction.aggregate({ where: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: itemId }, _sum: { quantity: true } }))._sum.quantity ??
+        new Prisma.Decimal(0);
 
-    // Waste (3)
-    const plannedWaste = new Map<string, Prisma.Decimal>();
-    for (const w of WASTE) plannedWaste.set(w.item, (plannedWaste.get(w.item) ?? new Prisma.Decimal(0)).plus(w.qty));
+      // Movements that are not waste: receipts, Prep, count adjustments. Each lands in the ledger as written below.
+      const moves: Move[] = [
+        { item: 'Milk', type: 'RECEIVE', qty: '60', at: daysAgo(14), reason: `${FIXTURE_NOTE}: delivery` },
+        { item: 'Milk', type: 'ADJUSTMENT', qty: '-4', at: daysAgo(5), reason: 'Count correction' },
+        { item: 'Rice', type: 'RECEIVE', qty: '100', at: daysAgo(18), reason: `${FIXTURE_NOTE}: delivery` },
+        { item: 'Rice', type: 'PREP_CONSUME', qty: '-15', at: daysAgo(7), reason: 'Prep: Chicken stock' },
+        { item: 'Flour', type: 'RECEIVE', qty: '40', at: daysAgo(10), reason: `${FIXTURE_NOTE}: delivery` },
+        { item: 'Flour', type: 'ADJUSTMENT', qty: '2', at: daysAgo(3), reason: 'Count correction' },
+        { item: 'Chicken stock', type: 'PREP_PRODUCE', qty: '12', at: daysAgo(7), reason: 'Prep: Chicken stock' },
+        { item: 'Tomatoes', type: 'RECEIVE', qty: '20', at: daysAgo(12), reason: `${FIXTURE_NOTE}: delivery` },
+        { item: 'Tomatoes', type: 'ADJUSTMENT', qty: '-12', at: daysAgo(6), reason: 'Count correction' },
+        { item: 'Cooking oil', type: 'ADJUSTMENT', qty: '-3', at: daysAgo(4), reason: 'Count correction' },
+      ];
 
-    // Coffee beans' own history (4) moves −25+6+2+17 = 0 net after the opening balance.
-    const coffeeId = itemIds.get('Coffee beans')!;
+      // Waste, in batches: [batch key, who, when, entries[], reversal?].
+      type WasteEntrySpec = { item: string; qty: string; reason: WasteReason; note?: string; reverse?: { by: 'attendant' | 'manager'; at: Date; reason: WasteReversalReason; note?: string } };
+      const batches: { key: string; by: 'attendant' | 'manager'; at: Date; entries: WasteEntrySpec[] }[] = [
+        {
+          key: TODAY_KEY,
+          by: 'attendant',
+          at: daysAgo(0, 8),
+          entries: [
+            { item: 'Milk', qty: '6', reason: 'SPOILAGE', note: 'Left out of the cold room overnight' },
+            { item: 'Croissants', qty: '4', reason: 'EXPIRY', note: 'Left out of the cold room overnight' },
+          ],
+        },
+        { key: 'dev-fixture-stock-waste-manager', by: 'manager', at: daysAgo(1, 15), entries: [{ item: 'Cream', qty: '1', reason: 'DAMAGE_IN_STORE' }] },
+        {
+          key: 'dev-fixture-stock-waste-reversed-same-day',
+          by: 'attendant',
+          at: daysAgo(3, 10),
+          entries: [{ item: 'Bread', qty: '12', reason: 'PREP_ERROR', reverse: { by: 'attendant', at: daysAgo(3, 10), reason: 'WRONG_QUANTITY' } }],
+        },
+        {
+          key: 'dev-fixture-stock-waste-reversed-later',
+          by: 'attendant',
+          at: daysAgo(6, 11),
+          entries: [{ item: 'Tomatoes', qty: '3', reason: 'SPOILAGE', reverse: { by: 'manager', at: daysAgo(4, 9), reason: 'OTHER', note: 'Logged against the wrong delivery' } }],
+        },
+        { key: 'dev-fixture-stock-waste-older', by: 'manager', at: daysAgo(9, 14), entries: [{ item: 'Coffee beans', qty: '2', reason: 'SPOILAGE' }] },
+      ];
 
-    // Opening balances so each item lands on its Paper figure.
-    for (const spec of HUB_ITEMS) {
-      const id = itemIds.get(spec.name)!;
-      const current = await onHand(hub.id, centralStore.id, id);
-      const planned = (plannedWaste.get(spec.name) ?? new Prisma.Decimal(0)).negated(); // coffee's history nets to 0
-      const opening = new Prisma.Decimal(spec.target).minus(current).minus(planned);
-      if (opening.isZero()) continue;
-      if (opening.greaterThan(0)) {
-        await tx_({
-          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
-          quantity: opening, unitCost: new Prisma.Decimal(spec.cost), reason: `${FIXTURE_NOTE} — opening balance`,
-          userId: storeManager.id, createdAt: daysAgo(20),
-        });
-      } else {
-        // Tomatoes: receive, then a count correction below zero.
-        await tx_({
-          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
-          quantity: new Prisma.Decimal(10), unitCost: new Prisma.Decimal(spec.cost), reason: `${FIXTURE_NOTE} — opening balance`,
-          userId: storeManager.id, createdAt: daysAgo(20),
-        });
-        await tx_({
-          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'ADJUSTMENT',
-          quantity: opening.minus(10), unitCost: new Prisma.Decimal(spec.cost), reason: 'Count correction',
-          userId: storeManager.id, createdAt: daysAgo(6),
+      // Opening balance 29 days ago so each item lands on its Paper figure after everything planned.
+      const planned = new Map<string, Prisma.Decimal>();
+      const add = (name: string, delta: Prisma.Decimal.Value) => planned.set(name, (planned.get(name) ?? new Prisma.Decimal(0)).plus(delta));
+      for (const m of moves) add(m.item, m.qty);
+      for (const b of batches) {
+        for (const e of b.entries) if (!e.reverse) add(e.item, new Prisma.Decimal(e.qty).negated());
+      }
+      add('Coffee beans', 25 - 6); // the real GRN (+25) and the dispatch (-6) below
+      for (const spec of HUB_ITEMS) {
+        const opening = new Prisma.Decimal(spec.target).minus(await onHand(id(spec.name))).minus(planned.get(spec.name) ?? 0);
+        if (opening.isZero()) continue;
+        const type = opening.greaterThan(0) ? 'RECEIVE' : 'ADJUSTMENT';
+        const reference = type === 'ADJUSTMENT' ? await referenceCounterRepository.nextReference(tx, hub.id, 'ADJ') : null;
+        await post({
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id(spec.name), type, quantity: opening, unitCost: cost(spec.name),
+          reason: `${FIXTURE_NOTE}: opening balance`, reference, userId: manager.id, createdAt: daysAgo(29),
         });
       }
-    }
 
-    for (const w of WASTE) {
-      const spec = HUB_ITEMS.find((s) => s.name === w.item)!;
-      const at = daysAgo(w.daysAgo, 8);
-      const log = await tx.wasteLog.create({
+      for (const m of moves) {
+        await post({
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id(m.item), type: m.type, quantity: new Prisma.Decimal(m.qty), unitCost: cost(m.item),
+          reason: m.reason ?? null, reference: m.type === 'ADJUSTMENT' ? await referenceCounterRepository.nextReference(tx, hub.id, 'ADJ') : null,
+          userId: manager.id, createdAt: m.at,
+        });
+      }
+
+      // Coffee beans: a real order and GRN, then a real dispatch to Nyeri Town Barista.
+      const coffeeId = id('Coffee beans');
+      const supplier =
+        (await tx.supplier.findFirst({ where: { siteId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
+        (await createSeedSupplier(tx, { siteId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
+      const receivedAt = daysAgo(12);
+      const order = await tx.purchaseOrder.create({
         data: {
-          siteId: hub.id, locationId: centralStore.id, inventoryItemId: itemIds.get(w.item)!,
-          quantity: new Prisma.Decimal(w.qty), reason: w.reason, note: w.note ?? null,
-          unitCost: new Prisma.Decimal(spec.cost), loggedById: attendant.id, createdAt: at,
-        },
-      });
-      await tx_({
-        siteId: hub.id, locationId: centralStore.id, inventoryItemId: log.inventoryItemId, type: 'WASTE',
-        quantity: log.quantity.negated(), unitCost: log.unitCost, reason: w.reason, wasteLogId: log.id,
-        userId: attendant.id, createdAt: at,
-      });
-    }
-
-    // (4) Coffee beans — a real GRN so the counterparty is the supplier.
-    const supplier =
-      (await tx.supplier.findFirst({ where: { siteId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
-      (await createSeedSupplier(tx, { siteId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
-    const nextNumber = async (prefix: string): Promise<string> => {
-      const counter = await tx.referenceCounter.upsert({
-        where: { siteId_prefix: { siteId: hub.id, prefix } },
-        update: { lastNumber: { increment: 1 } },
-        create: { siteId: hub.id, prefix, lastNumber: 1 },
-      });
-      return `${prefix}-${String(counter.lastNumber).padStart(4, '0')}`;
-    };
-    const receivedAt = daysAgo(12);
-    const order = await tx.purchaseOrder.create({
-      data: {
-        siteId: hub.id, reference: await nextNumber('LPO'), supplierId: supplier.id, status: 'DELIVERED',
-        raisedById: storeManager.id, approvedById: storeManager.id, approvedAt: receivedAt, sentAt: receivedAt,
-        sentVia: 'MANUAL', sentById: storeManager.id, createdAt: receivedAt,
-        lines: {
-          create: {
-            inventoryItemId: coffeeId, lineOrder: 0, buyUnit: 'kg', packSize: new Prisma.Decimal(1),
-            orderedQty: new Prisma.Decimal(25), unitPrice: new Prisma.Decimal(1180), receivedQty: new Prisma.Decimal(25),
-            confirmedPrice: new Prisma.Decimal(1180), result: 'AS_ORDERED',
-          },
-        },
-      },
-      include: { lines: true },
-    });
-    const delivery = await tx.purchaseDelivery.create({
-      data: {
-        siteId: hub.id, orderId: order.id, reference: await nextNumber('GRN'), locationId: centralStore.id,
-        deliveryNoteNo: 'DN-DEV-0001', receivedById: storeManager.id, receivedAt,
-        deliveredTotal: new Prisma.Decimal(29500), notSuppliedTotal: new Prisma.Decimal(0),
-        lines: {
-          create: {
-            orderLineId: order.lines[0]!.id, inventoryItemId: coffeeId, quantityBuyUnit: new Prisma.Decimal(25),
-            quantityUsageUnit: new Prisma.Decimal(25), unitPrice: new Prisma.Decimal(1180), lineOrder: 0,
-          },
-        },
-      },
-      include: { lines: true },
-    });
-    await tx_({
-      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'RECEIVE',
-      quantity: new Prisma.Decimal(25), unitCost: new Prisma.Decimal(1180), purchaseDeliveryLineId: delivery.lines[0]!.id,
-      userId: storeManager.id, createdAt: receivedAt,
-    });
-
-    const requisition = await tx.requisition.create({
-      data: {
-        siteId: town.id, type: 'AD_HOC', note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id,
-        openedAt: daysAgo(12, 7), approvedAt: daysAgo(12, 8),
-      },
-    });
-    const dispatchWithLine = async (
-      departmentTag: DepartmentTag, label: string, itemId: string, qty: string, cost: string, at: Date,
-      destination: string,
-    ) => {
-      const dispatch = await tx.dispatch.create({
-        data: {
-          siteId: hub.id, toSiteId: town.id, requisitionId: requisition.id, departmentTag,
-          sequenceLabel: label, status: 'CONFIRMED', dispatchedById: storeManager.id, dispatchedAt: at,
-          confirmedById: kitchenHead.id, confirmedAt: at,
+          siteId: hub.id, reference: await referenceCounterRepository.nextReference(tx, hub.id, 'LPO'), supplierId: supplier.id, status: 'DELIVERED',
+          raisedById: manager.id, approvedById: manager.id, approvedAt: receivedAt, sentAt: receivedAt, sentVia: 'MANUAL', sentById: manager.id, createdAt: receivedAt,
           lines: {
             create: {
-              inventoryItemId: itemId, requestedQty: new Prisma.Decimal(qty), dispatchedQty: new Prisma.Decimal(qty),
-              confirmedQty: new Prisma.Decimal(qty), costAtDispatch: new Prisma.Decimal(cost),
+              inventoryItemId: coffeeId, lineOrder: 0, buyUnit: 'kg', packSize: new Prisma.Decimal(1), orderedQty: new Prisma.Decimal(25),
+              unitPrice: new Prisma.Decimal(1180), receivedQty: new Prisma.Decimal(25), confirmedPrice: new Prisma.Decimal(1180), result: 'AS_ORDERED',
             },
           },
         },
         include: { lines: true },
       });
-      const lineId = dispatch.lines[0]!.id;
-      await tx_({
-        siteId: hub.id, locationId: centralStore.id, inventoryItemId: itemId, type: 'DISPATCH_OUT',
-        quantity: new Prisma.Decimal(qty).negated(), unitCost: new Prisma.Decimal(cost), dispatchLineId: lineId,
-        userId: storeManager.id, createdAt: at,
+      const delivery = await tx.purchaseDelivery.create({
+        data: {
+          siteId: hub.id, orderId: order.id, reference: await referenceCounterRepository.nextReference(tx, hub.id, 'GRN'), locationId: centralStore.id,
+          deliveryNoteNo: 'DN-DEV-0001', receivedById: manager.id, receivedAt, deliveredTotal: new Prisma.Decimal(29500), notSuppliedTotal: new Prisma.Decimal(0),
+          lines: {
+            create: {
+              orderLineId: order.lines[0]!.id, inventoryItemId: coffeeId, quantityBuyUnit: new Prisma.Decimal(25), quantityUsageUnit: new Prisma.Decimal(25),
+              unitPrice: new Prisma.Decimal(1180), lineOrder: 0,
+            },
+          },
+        },
+        include: { lines: true },
       });
-      await tx_({
-        siteId: town.id, locationId: destination, inventoryItemId: itemId, type: 'DISPATCH_IN',
-        quantity: new Prisma.Decimal(qty), unitCost: new Prisma.Decimal(cost), dispatchLineId: lineId,
-        userId: kitchenHead.id, createdAt: at,
+      await post({
+        siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'RECEIVE', quantity: new Prisma.Decimal(25), unitCost: new Prisma.Decimal(1180),
+        purchaseDeliveryLineId: delivery.lines[0]!.id, userId: manager.id, createdAt: receivedAt,
       });
-    };
 
-    await dispatchWithLine('BARISTA', 'Dispatch 1 · Nyeri Town · fixture', coffeeId, '6', '1180', daysAgo(11), townBarista.id);
+      const requisition = await tx.requisition.create({
+        data: { siteId: town.id, type: 'AD_HOC', note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id, openedAt: daysAgo(11, 7), approvedAt: daysAgo(11, 8) },
+      });
+      const dispatchAt = daysAgo(11);
+      const dispatch = await tx.dispatch.create({
+        data: {
+          siteId: hub.id, toSiteId: town.id, requisitionId: requisition.id, departmentTag: 'BARISTA', sequenceLabel: 'Dispatch 1 · Nyeri Town · fixture',
+          status: 'CONFIRMED', dispatchedById: manager.id, dispatchedAt: dispatchAt, confirmedById: kitchenHead.id, confirmedAt: dispatchAt,
+          lines: {
+            create: {
+              inventoryItemId: coffeeId, requestedQty: new Prisma.Decimal(6), dispatchedQty: new Prisma.Decimal(6), confirmedQty: new Prisma.Decimal(6),
+              costAtDispatch: new Prisma.Decimal(1180),
+            },
+          },
+        },
+        include: { lines: true },
+      });
+      await post({
+        siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'DISPATCH_OUT', quantity: new Prisma.Decimal(-6), unitCost: new Prisma.Decimal(1180),
+        dispatchLineId: dispatch.lines[0]!.id, userId: manager.id, createdAt: dispatchAt,
+      });
+      await post({
+        siteId: town.id, locationId: townBarista.id, inventoryItemId: coffeeId, type: 'DISPATCH_IN', quantity: new Prisma.Decimal(6), unitCost: new Prisma.Decimal(1180),
+        dispatchLineId: dispatch.lines[0]!.id, userId: kitchenHead.id, createdAt: dispatchAt,
+      });
 
-    const coffeeWaste = await tx.wasteLog.create({
-      data: {
-        siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, quantity: new Prisma.Decimal(2),
-        reason: 'SPOILAGE', unitCost: new Prisma.Decimal(1180), loggedById: attendant.id, createdAt: daysAgo(10),
-      },
-    });
-    await tx_({
-      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'WASTE',
-      quantity: new Prisma.Decimal(-2), unitCost: new Prisma.Decimal(1180), reason: 'SPOILAGE', wasteLogId: coffeeWaste.id,
-      userId: attendant.id, createdAt: daysAgo(10),
-    });
-    await tx_({
-      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'ADJUSTMENT',
-      quantity: new Prisma.Decimal(-17), unitCost: new Prisma.Decimal(1180), reason: 'Daily count · verified by J. Mwangi',
-      userId: storeManager.id, createdAt: daysAgo(8),
-    });
-
-    // (5) Nyeri Town Kitchen — Grilled chicken portion: in +14, count −5 → 9 pcs.
-    const chickenId = itemIds.get(CHICKEN.name)!;
-    await tx_({
-      siteId: hub.id, locationId: centralStore.id, inventoryItemId: chickenId, type: 'RECEIVE',
-      quantity: new Prisma.Decimal(14), unitCost: new Prisma.Decimal(145), reason: `${FIXTURE_NOTE} — opening balance`,
-      userId: storeManager.id, createdAt: daysAgo(3),
-    });
-    await dispatchWithLine('KITCHEN', 'Dispatch 2 · Nyeri Town · fixture', chickenId, '14', '145', daysAgo(2), townKitchen.id);
-    await tx_({
-      siteId: town.id, locationId: townKitchen.id, inventoryItemId: chickenId, type: 'ADJUSTMENT',
-      quantity: new Prisma.Decimal(-5), unitCost: new Prisma.Decimal(145), reason: 'End-of-day count',
-      userId: kitchenHead.id, createdAt: daysAgo(1, 22),
-    });
-  }, { timeout: 60_000 });
-
-  console.log('OK    ledger history written (waste ×5 = KES 2,140; coffee beans; Nyeri Town Kitchen chicken)');
+      // Waste: the batch, each log, its negative ledger row, and a reversing row where the entry was reversed.
+      let entries = 0;
+      for (const b of batches) {
+        const who = b.by === 'attendant' ? attendant : manager;
+        const batch = await tx.wasteBatch.create({ data: { siteId: hub.id, userId: who.id, idempotencyKey: b.key, createdAt: b.at } });
+        for (const e of b.entries) {
+          const unitCost = cost(e.item);
+          const log = await tx.wasteLog.create({
+            data: {
+              siteId: hub.id, locationId: centralStore.id, inventoryItemId: id(e.item), quantity: new Prisma.Decimal(e.qty), reason: e.reason, note: e.note ?? null,
+              unitCost, loggedById: who.id, batchId: batch.id, createdAt: b.at,
+              ...(e.reverse
+                ? {
+                    reversedAt: e.reverse.at,
+                    reversedById: (e.reverse.by === 'attendant' ? attendant : manager).id,
+                    reversalReason: e.reverse.reason,
+                    reversalNote: e.reverse.note ?? null,
+                  }
+                : {}),
+            },
+          });
+          const original = await post({
+            siteId: hub.id, locationId: centralStore.id, inventoryItemId: log.inventoryItemId, type: 'WASTE', quantity: log.quantity.negated(), unitCost,
+            reason: e.reason, wasteLogId: log.id, userId: who.id, createdAt: b.at,
+          });
+          if (e.reverse) {
+            await post({
+              siteId: hub.id, locationId: centralStore.id, inventoryItemId: log.inventoryItemId, type: 'WASTE', quantity: log.quantity, unitCost,
+              reason: `Reversed: ${e.reverse.reason}`, wasteLogId: log.id, reversesTransactionId: original.id,
+              userId: (e.reverse.by === 'attendant' ? attendant : manager).id, createdAt: e.reverse.at,
+            });
+          }
+          entries += 1;
+        }
+      }
+      console.log(`OK    ledger history written: ${moves.length + 4} movements, ${entries} waste entries in ${batches.length} batches`);
+    },
+    { timeout: 60_000 },
+  );
 };
 
 run()
