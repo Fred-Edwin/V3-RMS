@@ -254,7 +254,7 @@ export function PrepHistoryScreen() {
               </div>
             ) : (
               <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="sticky top-0 z-10 flex h-[30px] w-full shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+                <div className="sticky top-0 z-10 flex h-[34px] w-full shrink-0 items-center border-b border-wds-text-ink bg-wds-surface px-wds-4">
                   <span className="basis-[11%] shrink-0 whitespace-nowrap font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">When</span>
                   <span className="basis-[16%] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Output</span>
                   <span className="grow basis-[24%] font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Inputs</span>

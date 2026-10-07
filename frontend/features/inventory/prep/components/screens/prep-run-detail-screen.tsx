@@ -46,7 +46,7 @@ function YieldVsAverageDot({ run }: { run: PrepRunDetail }) {
 function PrepRunInputLineList({ lines, costsHidden }: { lines: PrepRunDetail['inputLines']; costsHidden: boolean }) {
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-wds-sm border border-wds-border">
-      <div className="flex h-7 shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-3">
+      <div className="flex h-[34px] shrink-0 items-center border-b border-wds-text-ink px-wds-3">
         <span className="grow font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Input consumed</span>
         <span className="w-[110px] shrink-0 text-right font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Qty</span>
         {costsHidden ? null : <span className="w-[90px] shrink-0 text-right font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Cost</span>}

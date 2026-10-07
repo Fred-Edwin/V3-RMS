@@ -26,7 +26,7 @@ export function ConfirmSheet({ open, onOpenChange, form, onConfirm }: { open: bo
     <Sheet open={open} onOpenChange={(next) => (form.saving ? undefined : onOpenChange(next))}>
       <SheetContent side="bottom" className="max-h-[92dvh] gap-0">
         <SheetHeader className="border-b-0 px-wds-4 pb-wds-3">
-          <SheetTitle className="text-[20px] leading-6">Confirm this run</SheetTitle>
+          <SheetTitle className="text-[20px] font-semibold leading-6">Confirm this run</SheetTitle>
           <SheetDescription>Check the figures. This writes one entry to the record.</SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-wds-4 overflow-y-auto px-wds-4 pb-wds-4">

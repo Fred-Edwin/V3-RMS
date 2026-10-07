@@ -37,7 +37,7 @@ export function OutputPicker({ open, onOpenChange, outputs, loading, error, onRe
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[85dvh] gap-0 sm:mx-auto sm:max-w-[520px]">
         <SheetHeader className="border-b-0 px-wds-4 pb-wds-3">
-          <SheetTitle className="text-[20px] leading-6">What did you make?</SheetTitle>
+          <SheetTitle className="text-[20px] font-semibold leading-6">What did you make?</SheetTitle>
           <SheetDescription>Choose the item you produced. Inputs come next.</SheetDescription>
         </SheetHeader>
         <div className="px-wds-4 pb-wds-3">

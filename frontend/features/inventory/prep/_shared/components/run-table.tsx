@@ -30,7 +30,7 @@ export function RunTable({ runs, variant, onOpen, className }: RunTableProps) {
   return (
     <Table className={className}>
       <TableHeader>
-        <TableRow className="h-[30px] hover:bg-transparent">
+        <TableRow className="h-[34px] hover:bg-transparent">
           <TableHead className={head}>When</TableHead>
           <TableHead className={head}>Output</TableHead>
           {manager ? <TableHead className={head}>Inputs</TableHead> : null}

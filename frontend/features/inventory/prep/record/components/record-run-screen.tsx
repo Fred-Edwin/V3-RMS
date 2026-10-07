@@ -205,14 +205,14 @@ export function RecordRunScreen() {
       {/* Phone: the one action sits at the bottom, outside the scrolling form. */}
       {output && outputs.status === 'ready' ? (
         <div className="flex shrink-0 flex-col gap-wds-2 border-t border-wds-border bg-wds-canvas p-wds-4 md:hidden">
-          <Button className="h-12 w-full text-[15px]" disabled={!form.canReview} onClick={requestConfirm}>
+          <Button className="h-[46px] w-full text-[15px]" disabled={!form.canReview} onClick={requestConfirm}>
             Review and confirm
           </Button>
           <p className="text-center font-wds-sans text-wds-caption text-wds-text-copy-muted">Nothing is saved until you confirm.</p>
         </div>
       ) : null}
 
-      <OutputPicker open={pickerOpen} onOpenChange={setPickerOpen} outputs={outputs.data} loading={outputs.status === 'loading'} error={outputs.error} onRetry={outputs.reload} onPick={pick} />
+      <OutputPicker open={pickerOpen} onOpenChange={(open) => (open || itemId ? setPickerOpen(open) : goHome())} outputs={outputs.data} loading={outputs.status === 'loading'} error={outputs.error} onRetry={outputs.reload} onPick={pick} />
       <IngredientPicker
         open={ingredientOpen}
         onOpenChange={setIngredientOpen}
@@ -229,8 +229,8 @@ export function RecordRunScreen() {
         title="Looks like a repeat"
         description={
           form.check?.repeat.of
-            ? `${form.check.repeat.of.reference} was recorded today at ${formatDayAndClock(form.check.repeat.of.at).replace(/^today /, '')} with the same amounts${output ? ` of ${output.name}` : ''}. Record it again?`
-            : 'This matches a run recorded today. Record it again?'
+            ? `You already recorded ${output ? output.name.toLowerCase() : 'this item'} with the same items today at ${formatDayAndClock(form.check.repeat.of.at).replace(/^today /, '')}.`
+            : 'You already recorded this item with the same items today.'
         }
         confirmLabel="Record again"
         cancelLabel="Go back"

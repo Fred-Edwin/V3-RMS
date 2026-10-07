@@ -22,6 +22,7 @@ One `prisma.$transaction`: read each input's on-hand from the ledger, judge the 
 - **needsLook:** the yield is off (over 15%) or an input exceeded stock. `yieldVarianceLabel` and `notifiedStoreManager` are still written for the old columns.
 - **Idempotency:** same `(site, user, key)` returns the run (200). A race past the check is decided by the unique index (`P2002`, read, return).
 - A typo or repeat warning never blocks and is not stored.
+- **Repeat rule (narrowed 7 Oct 2026, owner):** same output, same ingredients with the same amounts, recorded in the last `REPEAT_WINDOW_HOURS` (2). `docs/API_CONTRACT.md` §33.5 and the plan still say "same Nairobi day"; they need the matching edit by whoever owns them.
 - 422 codes: `INPUT_IS_OUTPUT`, `DUPLICATE_INPUT_LINE`, `QUANTITY_NOT_POSITIVE`. `record-validators.ts` lets a zero amount past Zod so the service answers the contract's 422 rather than 400.
 
 ## Code map

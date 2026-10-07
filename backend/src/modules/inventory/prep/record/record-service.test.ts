@@ -144,6 +144,12 @@ describe('check', () => {
     expect(r.usualRecipeText).toContain('Usual recipe');
   });
 
+  it('looks for a repeat only in the last 2 hours', async () => {
+    await recordService.check(attendant, body);
+    const [, , from, to] = vi.mocked(prepRunRepository.recordedRunsBetween).mock.calls[0]!;
+    expect((to.getTime() - from.getTime()) / 3_600_000).toBeCloseTo(2, 2);
+  });
+
   it('writes nothing', async () => {
     await recordService.check(manager, body);
     expect(prepRunRepository.create).not.toHaveBeenCalled();

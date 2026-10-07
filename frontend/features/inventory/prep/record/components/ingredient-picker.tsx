@@ -60,7 +60,7 @@ export function IngredientPicker({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[85dvh] gap-0 sm:mx-auto sm:max-w-[520px]">
         <SheetHeader className="border-b-0 px-wds-4 pb-wds-3">
-          <SheetTitle className="text-[20px] leading-6">What else did you use?</SheetTitle>
+          <SheetTitle className="text-[20px] font-semibold leading-6">What else did you use?</SheetTitle>
           <SheetDescription>Pick an item from the catalog.</SheetDescription>
         </SheetHeader>
         <div className="px-wds-4 pb-wds-3">

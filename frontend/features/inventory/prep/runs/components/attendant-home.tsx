@@ -175,7 +175,8 @@ export function AttendantHome() {
             <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Prep</h1>
             <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{desktop ? 'Batched at the Central Store. Tap Prep to record a run, filled in as last time.' : 'Batched at the Central Store'}</p>
           </div>
-          <div className="grid gap-wds-5 lg:grid-cols-[minmax(0,492px)_minmax(0,1fr)] lg:gap-8">
+          {/* minmax(0,1fr) so long text truncates inside its column instead of widening the page on a phone. */}
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-wds-5 lg:grid-cols-[minmax(0,492px)_minmax(0,1fr)] lg:gap-8">
             <section aria-label="Prep again" className="flex flex-col gap-wds-3">
               <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-copy-muted">Prep again</span>
               {tiles}

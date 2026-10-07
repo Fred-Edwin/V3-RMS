@@ -8,13 +8,12 @@ import { blindnessOf } from '../../_shared/blind-rule';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { postStockMovement } from '../../stock/ledger/ledger-door';
 import { expectedYieldFor, judgeYield, pastRunsExpected, vsUsualFor, type YieldJudgement } from '../_shared/expected-yield';
-import { PAST_RUNS_MAX, PAST_RUNS_WINDOW_DAYS } from '../_shared/prep-constants';
+import { PAST_RUNS_MAX, PAST_RUNS_WINDOW_DAYS, REPEAT_WINDOW_HOURS } from '../_shared/prep-constants';
 import type { CheckResult } from '../_shared/prep-contract';
 import { exceedsStock, hasStockFlag } from '../_shared/prep-flags';
 import { prepRecipeReader, type PrepRecipeRead } from '../_shared/prep-recipe-reader';
 import { prepRunRepository, type PrepItemRow } from '../_shared/prep-run-repository';
 import { decimalOut, serializeRunDetail } from '../_shared/prep-run-serializer';
-import { nairobiDayRange } from '../_shared/prep-time';
 import { assertValidInputs, expectedBasisFor, findRepeat, typoNote, usualRecipeText, type ExpectedBasis, type RunInput } from './record-logic';
 import { recordRepository } from './record-repository';
 import type { AssessedLine, RecordOutcome } from './record.types';
@@ -65,11 +64,11 @@ const assess = async (args: {
   client: Client;
 }): Promise<Assessment> => {
   const { siteId, output, inputs, made, now, client } = args;
-  const day = nairobiDayRange(now);
+  const repeatSince = new Date(now.getTime() - REPEAT_WINDOW_HOURS * 60 * 60 * 1000);
   const [recipe, pastRuns, sameDay, onHand] = await Promise.all([
     prepRecipeReader.readCurrent(siteId, output.id, client),
     prepRunRepository.recentRecordedYields(siteId, output.id, PAST_RUNS_MAX, client),
-    prepRunRepository.recordedRunsBetween(siteId, output.id, day.start, day.end, client),
+    prepRunRepository.recordedRunsBetween(siteId, output.id, repeatSince, new Date(now.getTime() + 1), client),
     recordRepository.onHandByItem(siteId, args.locationId, inputs.map((i) => i.itemId), client),
   ]);
 

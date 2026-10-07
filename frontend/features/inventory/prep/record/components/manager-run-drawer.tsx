@@ -117,8 +117,8 @@ function DrawerBody({ onClose, onRecorded }: { onClose: () => void; onRecorded: 
         title="Looks like a repeat"
         description={
           form.check?.repeat.of
-            ? `${form.check.repeat.of.reference} was recorded ${formatDayAndClock(form.check.repeat.of.at)} with the same amounts. Record it again?`
-            : 'This matches a run recorded today. Record it again?'
+            ? `You already recorded ${form.output ? form.output.name.toLowerCase() : 'this item'} with the same items today at ${formatDayAndClock(form.check.repeat.of.at).replace(/^today /, '')}.`
+            : 'You already recorded this item with the same items today.'
         }
         confirmLabel="Record again"
         cancelLabel="Go back"

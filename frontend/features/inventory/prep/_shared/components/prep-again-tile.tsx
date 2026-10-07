@@ -11,7 +11,8 @@ export type PrepAgainTileData = PrepAgainResponse['tiles'][number];
  * stacks it under the text (tablet's three across).
  */
 export function PrepAgainTile({ tile, onPrep, layout = 'row', className }: { tile: PrepAgainTileData; onPrep: (itemId: string) => void; layout?: 'row' | 'card'; className?: string }) {
-  const detail = [tile.ingredientsText, tile.expectedText].filter((part): part is string => Boolean(part)).join(' · ');
+  // Paper's tile reads "Chicken, paste · about 38 portions"; where the figure comes from belongs on the form, not the tile.
+  const detail = [tile.ingredientsText, tile.expectedText?.replace(/, from past runs$/, '')].filter((part): part is string => Boolean(part)).join(' · ');
   const button = (
     <button
       type="button"

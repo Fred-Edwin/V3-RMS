@@ -9,5 +9,10 @@ export const TYPO_FACTOR = 3;
 /** Past-runs fallback: the last N RECORDED runs of the output, or those within the window, whichever gives fewer. */
 export const PAST_RUNS_MAX = 10;
 export const PAST_RUNS_WINDOW_DAYS = 30;
+/**
+ * "Looks like a repeat": the same output with the same ingredient amounts recorded within this many hours (owner decision,
+ * 7 Oct 2026, narrowing §33.5's "same Nairobi day"; the contract text still says same day and needs the matching edit).
+ */
+export const REPEAT_WINDOW_HOURS = 2;
 /** An Attendant may correct or cancel their own run for this long. */
 export const FIX_WINDOW_HOURS = 24;

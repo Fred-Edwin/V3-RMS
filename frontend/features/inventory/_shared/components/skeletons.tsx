@@ -196,7 +196,7 @@ export function PrepRunsListSkeletonDesktop({ className }: { className?: string 
       <div className="flex h-10 shrink-0 items-center border-b border-wds-border px-wds-4">
         <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Recent runs</span>
       </div>
-      <div className="flex h-[30px] shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+      <div className="flex h-[34px] shrink-0 items-center border-b border-wds-text-ink px-wds-4">
         <span className="w-[100px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">When</span>
         <span className="w-[150px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Output</span>
         <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Inputs</span>
@@ -243,8 +243,8 @@ export function PrepRunsListSkeletonMobile({ className }: { className?: string }
 /** Prep History — same column shape as the runs list skeleton, plus the filter row's real controls staying in place (only the KPI/table region becomes skeleton). */
 export function PrepHistorySkeletonDesktop({ className }: { className?: string }) {
   return (
-    <div className={cn('flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface', className)}>
-      <div className="flex h-[30px] shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+    <div className={cn('flex flex-col overflow-hidden border border-wds-border bg-wds-surface', className)}>
+      <div className="flex h-[34px] shrink-0 items-center border-b border-wds-text-ink px-wds-4">
         <span className="w-[100px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">When</span>
         <span className="w-[150px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Output</span>
         <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Inputs</span>
