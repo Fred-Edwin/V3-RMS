@@ -38,7 +38,8 @@ export { SuppliersListScreen } from './suppliers/components/screens/suppliers-li
 export { SupplierPageScreen } from './suppliers/components/screens/supplier-page-screen';
 
 // Milestone Three — Prep.
-export { PrepRunsListScreen } from './prep/components/screens/prep-runs-list-screen';
+export { PrepHomeScreen } from './prep/runs/components/prep-home-screen';
+export { RecordRunScreen } from './prep/record/components/record-run-screen';
 export { PrepHistoryScreen } from './prep/components/screens/prep-history-screen';
 
 // Milestone Six, Session 1 — Stock position & waste.

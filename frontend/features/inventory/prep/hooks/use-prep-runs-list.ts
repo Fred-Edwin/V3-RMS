@@ -17,8 +17,8 @@ export interface PrepRunsListFilters {
 const EMPTY_FILTERS: PrepRunsListFilters = { search: '' };
 
 /**
- * Prep runs list / Prep History data-loading hook — real cursor pagination
- * (`GET /inventory/prep/runs`), same shape as `use-receiving-history-list.ts`.
+ * Prep History data-loading hook (old screen, deleted in Slice 4) — page-number paging through the
+ * adapter in `../services/prep-api-service.ts`, same shape as `use-receiving-history-list.ts`.
  * `setFilters` replaces the whole filter object in one call, same rationale
  * as that hook: the filter bar changes several fields together.
  */
@@ -62,18 +62,18 @@ export function usePrepRunsList() {
   }, [filters, load]);
 
   const loadMore = useCallback(async () => {
-    const lastId = rows[rows.length - 1]?.id;
-    if (!lastId || loadingMore || !hasMore) return;
+    if (rows.length === 0 || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
+      // `rows.length / PAGE_SIZE` pages are loaded when no yield-flag filter drops rows (the adapter filters after the fetch).
       const next = await listPrepRuns({
         limit: PAGE_SIZE,
+        page: Math.floor(rows.length / PAGE_SIZE) + 1,
         search: filters.search || undefined,
         outputItemId: filters.outputItemId,
         yieldFlag: filters.yieldFlag,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
-        cursor: lastId,
       });
       setRows((prev) => [...prev, ...next]);
       setHasMore(next.length === PAGE_SIZE);

@@ -73,7 +73,7 @@ postStockMovement(tx, {
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
 | `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
 
-Already on the door: **Waste** (`waste/waste-service.ts`) and **Prep** (`prep/prep-service.ts`, moved 7 Oct 2026; the Prep rebuild replaces that file).
+Already on the door: **Waste** (`waste/waste-service.ts`) and **Prep** (`prep/record/record-service.ts`, Prep rebuild Slice 2).
 
 **Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 
