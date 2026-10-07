@@ -28,6 +28,38 @@ export const addDays = (day: string, days: number): string => nairobiDay(new Dat
 /** The instant the Nairobi day of `date` started. */
 export const startOfNairobiDay = (date: Date): Date => dayStartInstant(nairobiDay(date));
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+const partsOf = (day: string): { y: number; m: number; d: number; weekday: number } => {
+  const [y, m, d] = day.split('-').map(Number);
+  const date = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1));
+  return { y: date.getUTCFullYear(), m: date.getUTCMonth(), d: date.getUTCDate(), weekday: date.getUTCDay() };
+};
+
+/** "13 Oct" */
+export const shortDayText = (day: string): string => {
+  const p = partsOf(day);
+  return `${p.d} ${MONTHS[p.m]}`;
+};
+
+/** "Tue 13 Oct" */
+export const weekdayDayText = (day: string): string => `${WEEKDAYS[partsOf(day).weekday]} ${shortDayText(day)}`;
+
+/** "Tue 13 Oct 2026" */
+export const fullDayText = (day: string): string => `${weekdayDayText(day)} ${partsOf(day).y}`;
+
+/** Whole days from `earlier` to `later`, both `YYYY-MM-DD` Nairobi days. */
+export const daysBetweenDays = (earlier: string, later: string): number => Math.round((dayStartInstant(later).getTime() - dayStartInstant(earlier).getTime()) / DAY_MS);
+
+/** "Today", "Yesterday", "12 days ago": whole Nairobi days, so 23:50 yesterday is "Yesterday". */
+export const daysAgoText = (at: Date, now: Date): string => {
+  const days = daysBetweenDays(nairobiDay(at), nairobiDay(now));
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+};
+
 /** "14:20" */
 export const clockText = (date: Date): string => {
   const w = wall(date);
