@@ -129,7 +129,7 @@ export function StockOverviewScreen() {
                       <span className="flex flex-col">
                         <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{r.name}</span>
                         <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-                          {r.kind === 'SECTION' ? 'Section' : 'Item'} · {r.detail}
+                          {/^(section|item)\b/i.test(r.detail) ? r.detail : `${r.kind === 'SECTION' ? 'Section' : 'Item'} · ${r.detail}`}
                         </span>
                       </span>
                       <span className="font-wds-mono text-[13px] leading-4 text-wds-warning-fg">{r.lastCountedText.toLowerCase() === 'never counted' ? 'Never counted' : r.lastCountedText}</span>

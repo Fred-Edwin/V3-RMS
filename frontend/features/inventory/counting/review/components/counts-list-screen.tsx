@@ -72,7 +72,7 @@ export function CountsListScreen() {
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-mobile-title tracking-tight text-wds-text-ink">Counts</h1>
-          <p className="font-wds-sans text-[13px] leading-[19px] text-wds-text-secondary">Every count, from the first number to the signed record. Start one any time.</p>
+          <p className="font-wds-sans text-[13px] leading-[19px] text-wds-text-secondary">Every count, from the first number to the signed record.{can('counts.record') ? ' Start one any time.' : ''}</p>
         </div>
         {summary.data ? (
           <ScwKpiStrip cells={summary.data.kpis} activeFilter={status} onFilter={(f) => setStatus(status === f ? '' : f)} />
