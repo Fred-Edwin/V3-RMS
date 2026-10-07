@@ -35,7 +35,7 @@ import type {
 } from '../types/counting-contract';
 
 const BASE = '/inventory/stock';
-const callApi = makeCallApi(BASE, async () => (await import('../fixtures/counting.fixtures')).countingFixtureHandler);
+const callApi = makeCallApi(BASE);
 
 export const countingApi = {
   /** C1 */

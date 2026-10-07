@@ -55,8 +55,6 @@ export { SpotCountScreen } from './counting/components/screens/spot-count-screen
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
 export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
-// Dev only (fixture mode): chooses the role the fixture handlers answer as. A 404 when the fixture flag is off.
-export { FixtureRoleSwitch } from './_shared/components/fixture-role-switch';
 
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './settings/components/screens/settings-screen';

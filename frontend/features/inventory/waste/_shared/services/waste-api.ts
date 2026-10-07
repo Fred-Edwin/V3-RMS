@@ -7,7 +7,7 @@ import { makeCallApi, queryString } from '../../../_shared/services/scw-call';
 import type { LogWasteInput, LogWasteResult, ReverseWasteInput, WasteEntry, WasteItems, WasteList, WasteListQuery } from '../types/waste-contract';
 
 const BASE = '/inventory/stock/waste';
-const callApi = makeCallApi(BASE, async () => (await import('../fixtures/waste.fixtures')).wasteFixtureHandler);
+const callApi = makeCallApi(BASE);
 
 export const wasteApi = {
   /** W1 */
