@@ -157,7 +157,7 @@ function DesktopWaste() {
           cell: (e) => e.status === 'REVERSED' && e.reversal ? (
             <span className="inline-block border border-wds-border-strong bg-wds-neutral-100 px-2.5 py-1 font-wds-sans text-[12px] text-wds-text-secondary">Reversed {clockLabel(e.reversal.at)} · {e.reversal.reasonText.toLowerCase().replace('logged the ', '')}</span>
           ) : e.can.reverse ? (
-            <button type="button" onClick={(ev) => { ev.stopPropagation(); setReversing(e); }} className="font-wds-sans text-[13px] text-wds-text-secondary underline-offset-4 outline-none hover:text-wds-text-ink hover:underline focus-visible:shadow-wds-ring">Reverse<span className="sr-only"> {e.itemName}</span></button>
+            <button type="button" onClick={(ev) => { ev.stopPropagation(); setReversing(e); }} className="h-[30px] border border-wds-border-strong bg-wds-surface px-3.5 font-wds-sans text-[13px] font-medium text-wds-text-ink outline-none transition-[background-color,transform] hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98]">Reverse<span className="sr-only"> {e.itemName}</span></button>
           ) : null,
         },
       ];
@@ -189,6 +189,7 @@ function DesktopWaste() {
           enabled={ready}
           refreshToken={refresh}
           searchPlaceholder="Search an item"
+          onRowActivate={(e) => e.can.reverse && setReversing(e)}
           rowClassName={(e) => (e.status === 'REVERSED' ? 'bg-wds-neutral-50' : undefined)}
           fetchRows={async (q, { signal }) => {
             const res = await wasteApi.list({ period: (q.filters.period as '7d' | 'reversed' | undefined) ?? 'today', search: q.search || undefined, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);

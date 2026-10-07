@@ -121,6 +121,13 @@ export function DecisionPanel({
           Ask for a recount
         </button>
         <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">One tap decides the line. You can change it until you sign.</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-auto h-8 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink outline-none transition-[background-color,transform] hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98]"
+        >
+          Not now<span className="sr-only">, close without deciding</span>
+        </button>
       </div>
     </div>
   );

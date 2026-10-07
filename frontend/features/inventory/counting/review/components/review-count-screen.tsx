@@ -209,7 +209,13 @@ export function ReviewCountScreen({ countId }: { countId: string }) {
         <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{d.text}</span>
       ) : null;
     }
-    if (openId === line.id) return <span className="font-wds-sans text-[12px] leading-4 text-wds-warning-fg">Deciding</span>;
+    if (openId === line.id) {
+      return (
+        <button type="button" onClick={() => setOpenId(null)} className="font-wds-sans text-[12px] leading-4 text-wds-warning-fg underline-offset-4 outline-none hover:underline focus-visible:shadow-wds-ring">
+          Deciding · close<span className="sr-only"> without deciding {line.itemName}</span>
+        </button>
+      );
+    }
     if (d && d.kind !== 'PENDING') {
       return (
         <span className="flex items-center justify-end gap-3">
