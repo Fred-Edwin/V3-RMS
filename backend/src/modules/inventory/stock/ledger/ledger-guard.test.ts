@@ -20,7 +20,6 @@ const ALLOWED_DIRECT_WRITES: Record<string, number> = {
   'modules/inventory/counting/count-service.ts': 1,
   'modules/inventory/dispatch/discrepancy-service.ts': 3,
   'modules/inventory/dispatch/dispatch-service.ts': 2,
-  'modules/inventory/prep/prep-service.ts': 2,
 };
 
 const PRISMA_WRITE = /inventoryTransaction\s*\.\s*(create|createMany|update|updateMany|delete|deleteMany|upsert)\b/g;
@@ -61,8 +60,9 @@ describe('stock ledger guard', () => {
     expect(stale, 'These files write the ledger less than the allow-list says: lower or remove their entry.').toEqual([]);
   });
 
-  it('the moved writer (Waste) no longer writes the ledger directly', () => {
+  it('the moved writers (Waste, Prep) no longer write the ledger directly', () => {
     expect(found.has('modules/inventory/waste/waste-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/prep/prep-service.ts')).toBe(false);
   });
 
   it('the database append-only bypass (wendo.allow_ledger_edit) is used only by seed scripts', () => {

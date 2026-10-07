@@ -17,6 +17,10 @@ vi.mock('./audit-log-repository', () => ({
     countRestockChanges: vi.fn(),
     purchasingEntries: vi.fn(),
     countPurchasingEntries: vi.fn(),
+    recipeVersions: vi.fn(),
+    countRecipeVersions: vi.fn(),
+    runEntries: vi.fn(),
+    countRunEntries: vi.fn(),
     itemNames: vi.fn(),
     userNames: vi.fn(),
     actorIds: vi.fn(),
@@ -55,6 +59,10 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.countRestockChanges).mockResolvedValue(1);
   vi.mocked(auditLogRepository.purchasingEntries).mockResolvedValue([]);
   vi.mocked(auditLogRepository.countPurchasingEntries).mockResolvedValue(0);
+  vi.mocked(auditLogRepository.recipeVersions).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.countRecipeVersions).mockResolvedValue(0);
+  vi.mocked(auditLogRepository.runEntries).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.countRunEntries).mockResolvedValue(0);
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
@@ -117,6 +125,50 @@ describe('auditLogService.list', () => {
     await auditLogService.list(sm, query({ area: 'PAYMENTS' }));
     expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith(expect.anything(), expect.anything(), ['PAYMENTS'], 50);
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+  });
+
+  it('derives Recipe set and Recipe changed entries (area PREP) from the recipe version rows', async () => {
+    vi.mocked(auditLogRepository.recipeVersions).mockResolvedValue([
+      { id: 'v2', version: 2, reason: 'PORTION_SIZE_CHANGED', reasonNote: null, createdAt: at('13:00'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+      { id: 'v3', version: 3, reason: 'OTHER', reasonNote: 'Client asked for less salt', createdAt: at('13:30'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+      { id: 'v1', version: 1, reason: null, reasonNote: null, createdAt: at('12:30'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+    ] as never);
+    vi.mocked(auditLogRepository.countRecipeVersions).mockResolvedValue(3);
+    const page = await auditLogService.list(sm, query({ area: 'PREP' }));
+    expect(page.entries.map((e) => e.id)).toEqual(['recipe:v3', 'recipe:v2', 'recipe:v1']);
+    expect(page.entries[0]).toMatchObject({ area: 'PREP', what: 'Recipe changed for Fried chicken', reason: 'Client asked for less salt' });
+    expect(page.entries[1]).toMatchObject({ what: 'Recipe changed for Fried chicken', reason: 'Portion size changed' });
+    expect(page.entries[2]).toMatchObject({ what: 'Recipe set for Fried chicken', reason: null, actor: { name: 'Isabel' } });
+    expect(page.pagination.total).toBe(3);
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+    expect(auditLogRepository.recipeVersions).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId] }, expect.anything(), 50);
+  });
+
+  it('derives Recorded, Corrected, Cancelled and Reviewed entries (area PREP) from the run columns', async () => {
+    const run = (over: Record<string, unknown>) => ({
+      id: 'r1', reference: 'PREP-0130', actualYield: { toString: () => '38' }, createdAt: at('08:00'), closedAt: null, reviewedAt: null,
+      correctionReason: null, cancelReason: null, reasonNote: null, outputItem: { name: 'Marinated chicken', usageUnit: 'portions' },
+      createdBy: { id: 'u3', name: 'Frederick' }, closedBy: null, reviewedBy: null, ...over,
+    });
+    vi.mocked(auditLogRepository.runEntries).mockImplementation(((_scope: unknown, _filter: unknown, kind: string) => {
+      if (kind === 'RECORDED') return Promise.resolve([run({})]);
+      if (kind === 'CORRECTED') return Promise.resolve([run({ id: 'r2', reference: 'PREP-0131', createdAt: at('09:00'), correctionReason: 'TYPO' })]);
+      if (kind === 'CANCELLED') return Promise.resolve([run({ id: 'r3', reference: 'PREP-0129', closedAt: at('10:00'), closedBy: { id: 'u1', name: 'Isabel' }, cancelReason: 'OTHER', reasonNote: 'Wrong day' })]);
+      return Promise.resolve([run({ id: 'r4', reviewedAt: at('11:00'), reviewedBy: { id: 'u1', name: 'Isabel' } })]);
+    }) as never);
+    vi.mocked(auditLogRepository.countRunEntries).mockResolvedValue(1);
+    const page = await auditLogService.list(sm, query({ area: 'PREP' }));
+    expect(page.entries.map((e) => e.id)).toEqual(['run:reviewed:r4', 'run:cancelled:r3', 'run:corrected:r2', 'run:recorded:r1']);
+    expect(page.entries[3]).toMatchObject({ area: 'PREP', what: 'Recorded PREP-0130 · Marinated chicken 38 portions', actor: { name: 'Frederick' }, reason: null });
+    expect(page.entries[2]).toMatchObject({ what: 'Corrected PREP-0131 · Marinated chicken 38 portions', reason: 'Typo', actor: { name: 'Frederick' } });
+    expect(page.entries[1]).toMatchObject({ what: 'Cancelled PREP-0129 · Marinated chicken 38 portions', reason: 'Wrong day', actor: { name: 'Isabel' } });
+    expect(page.entries[0]).toMatchObject({ what: 'Reviewed PREP-0130 · Marinated chicken 38 portions', actor: { name: 'Isabel' } });
+    expect(page.pagination.total).toBe(4);
+  });
+
+  it('leaves the run entries out when another area is asked for', async () => {
+    await auditLogService.list(sm, query({ area: 'CATALOG' }));
+    expect(auditLogRepository.runEntries).not.toHaveBeenCalled();
   });
 
   it('refuses anyone outside the hub', async () => {

@@ -389,8 +389,6 @@ export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow>
   meta: ItemCatalogMeta;
 }
 
-// ─── Milestone Three — Prep ────────────────────────────────────────────────
-export * from '../prep/types/prep';
 export * from '../stock/types/stock';
 export * from '../waste/types/waste';
 export * from '../counting/types/count';

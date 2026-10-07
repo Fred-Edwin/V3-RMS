@@ -22,10 +22,21 @@
 >   `ParLevel`) named in earlier copies of this note — those models no longer
 >   exist; do not reference them. `Location` (unchanged by the redo) is not yet
 >   documented here.
-> - **Inventory Milestone Three (Prep), shipped and live in production
->   (2026-09-21):** `PrepRun(+InputLine)` are net-new models, not yet
->   documented in this file — see `docs/API_CONTRACT.md` §23 and
->   `backend/prisma/schema.prisma` in the meantime.
+> - **Inventory Prep (rebuilt 7 Oct 2026, migration `20261007120000_prep_rebuild`):**
+>   the schema is in `backend/prisma/schema/inventory/prep.prisma` and
+>   `prep-recipes.prisma`; this file does not repeat it. `PrepRun` (`prep_runs`)
+>   gained `reference` (`PREP-nnnn`, unique per site), `status`
+>   (`RECORDED`/`CORRECTED`/`CANCELLED`), `replacesRunId` (self link, a run is
+>   replaced once), `closedAt/closedById`, the correct/cancel/yield reasons,
+>   `expectedYield` + `expectedSource` (replacing the dropped
+>   `typical_yield_at_run_time`), `recipeVersionId`, `stockFlag`, `needsLook`,
+>   `reviewedAt/By` and `idempotencyKey` (unique per site and user).
+>   `PrepRunInputLine.onHandAtRunTime` is new. New tables: `PrepRecipe` (one per
+>   site and output item), `PrepRecipeVersion` (immutable; the table is the
+>   change log) and `PrepRecipeLine` (a partial unique index allows exactly one
+>   main ingredient per version). Run numbers come from `ReferenceCounter`
+>   prefix `PREP`. Reversing a run writes linked ledger rows
+>   (`reversesTransactionId`), never edits. See `docs/API_CONTRACT.md` §33.
 > - **Inventory Milestone Four (Requisition & Branch Approval), Session A
 >   underway (2026-09-21):** `Category.parentCategoryId` and
 >   `Requisition`/`RequisitionSection`/`RequisitionLine` are documented in

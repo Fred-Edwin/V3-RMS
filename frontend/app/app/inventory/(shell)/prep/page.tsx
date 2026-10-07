@@ -1,5 +1,5 @@
-import { PrepRunsListScreen } from '@/features/inventory';
+import { PrepHomeScreen } from '@/features/inventory';
 
 export default function PrepPage() {
-  return <PrepRunsListScreen />;
+  return <PrepHomeScreen />;
 }

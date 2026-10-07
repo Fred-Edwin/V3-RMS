@@ -1,0 +1,31 @@
+{
+  "scale": [
+    { "targetYield": "38", "recipeMainAmount": "10", "mainUsed": "5", "expected": "19" },
+    { "targetYield": "38", "recipeMainAmount": "10", "mainUsed": "10", "expected": "38" },
+    { "targetYield": "38", "recipeMainAmount": "10", "mainUsed": "20", "expected": "76" },
+    { "targetYield": "38", "recipeMainAmount": "10", "mainUsed": "0", "expected": null },
+    { "targetYield": "38", "recipeMainAmount": "0", "mainUsed": "5", "expected": null },
+    { "targetYield": "3", "recipeMainAmount": "7", "mainUsed": "1", "expected": "0.43" }
+  ],
+  "judge": [
+    { "made": "72", "expected": "76", "label": "ON_TARGET", "tier": "ON_TARGET" },
+    { "made": "60", "expected": "76", "label": "LOW", "tier": "WARN" },
+    { "made": "90", "expected": "76", "label": "HIGH", "tier": "WARN" },
+    { "made": "85", "expected": "100", "label": "ON_TARGET", "tier": "ON_TARGET" },
+    { "made": "115", "expected": "100", "label": "ON_TARGET", "tier": "ON_TARGET" },
+    { "made": "84", "expected": "100", "label": "LOW", "tier": "WARN" },
+    { "made": "65", "expected": "100", "label": "LOW", "tier": "WARN" },
+    { "made": "64", "expected": "100", "label": "LOW", "tier": "NOTIFY" },
+    { "made": "136", "expected": "100", "label": "HIGH", "tier": "NOTIFY" },
+    { "made": "10", "expected": null, "label": "NO_BASIS", "tier": null },
+    { "made": "10", "expected": "0", "label": "NO_BASIS", "tier": null }
+  ],
+  "typo": [
+    { "made": "380", "expected": "38", "suspect": true },
+    { "made": "12", "expected": "38", "suspect": true },
+    { "made": "114", "expected": "38", "suspect": false },
+    { "made": "13", "expected": "38", "suspect": false },
+    { "made": "38", "expected": "38", "suspect": false },
+    { "made": "5", "expected": null, "suspect": false }
+  ]
+}

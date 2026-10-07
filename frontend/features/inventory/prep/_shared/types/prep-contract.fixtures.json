@@ -1,0 +1,184 @@
+{
+  "runSummaryAttendant": {
+    "id": "run-1",
+    "reference": "PREP-0131",
+    "at": "2026-10-07T06:40:00.000Z",
+    "outputItemId": "item-chicken",
+    "outputName": "Marinated chicken",
+    "inputsPreview": { "firstLabel": "10 kg chicken, cut", "moreCount": 1 },
+    "made": "38",
+    "unit": "portions",
+    "vsUsual": { "label": "ON_TARGET", "deltaAmount": "0", "text": "on target" },
+    "status": "RECORDED",
+    "isCorrection": false,
+    "by": { "id": "u-1", "name": "Sarah Achieng", "initials": "SA", "roleLabel": "Store Attendant" },
+    "mine": true
+  },
+  "runDetailManager": {
+    "id": "run-2",
+    "reference": "PREP-0132",
+    "at": "2026-10-07T07:10:00.000Z",
+    "outputItemId": "item-chicken",
+    "outputName": "Marinated chicken",
+    "inputsPreview": { "firstLabel": "20 kg chicken, cut", "moreCount": 1 },
+    "made": "60",
+    "unit": "portions",
+    "vsUsual": { "label": "LOW", "deltaAmount": "-16", "text": "−16 portions · low yield" },
+    "status": "RECORDED",
+    "isCorrection": true,
+    "by": { "id": "u-1", "name": "Sarah Achieng", "initials": "SA", "roleLabel": "Store Attendant" },
+    "mine": false,
+    "outputUnitCost": "121.0000",
+    "needsLook": true,
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "inputs": [
+      {
+        "itemId": "item-raw-chicken",
+        "itemName": "Chicken, cut",
+        "quantity": "20",
+        "unit": "kg",
+        "unitCost": "320.0000",
+        "lineCost": "6400.00",
+        "onHand": "41",
+        "exceedsStock": false
+      }
+    ],
+    "totalInputCost": "7260.00",
+    "expected": { "amount": "76", "unit": "portions", "source": "RECIPE", "text": "about 76 portions" },
+    "recipeVersion": 2,
+    "yieldReason": "SPILLAGE",
+    "yieldReasonNote": null,
+    "flags": { "yield": "LOW", "notify": false, "stockExceeded": false, "exceedsText": null },
+    "replaces": { "id": "run-1", "reference": "PREP-0131", "at": "2026-10-07T06:40:00.000Z" },
+    "replacedBy": null,
+    "correction": {
+      "reason": "Wrong quantity",
+      "note": null,
+      "by": { "id": "u-1", "name": "Sarah Achieng", "initials": "SA", "roleLabel": "Store Attendant" },
+      "at": "2026-10-07T07:10:00.000Z",
+      "changed": [{ "itemName": "Chicken, cut", "was": "10", "now": "20", "unit": "kg", "costNow": "6400.00" }],
+      "unitCostBefore": "190.0000",
+      "unitCostAfter": "121.0000"
+    },
+    "cancellation": null,
+    "timeline": [{ "at": "2026-10-07T07:10:00.000Z", "text": "Recorded as PREP-0132 · Sarah Achieng" }],
+    "can": { "correct": true, "cancel": true, "review": true, "lockedReason": null },
+    "windowEndsAt": null
+  },
+  "recipesList": {
+    "items": [
+      {
+        "itemId": "item-chicken",
+        "itemName": "Marinated chicken",
+        "unit": "portions",
+        "recipe": {
+          "ingredientsText": "10 kg chicken, cut · 1 kg garlic-ginger paste",
+          "targetYield": "38",
+          "mainItemName": "Chicken, cut",
+          "version": 2,
+          "lastChangedAt": "2026-10-01T08:00:00.000Z",
+          "lastChangedBy": { "id": "u-9", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Store Manager" }
+        },
+        "pastRunsAverageText": null
+      },
+      {
+        "itemId": "item-sauce",
+        "itemName": "House sauce",
+        "unit": "kg",
+        "recipe": null,
+        "pastRunsAverageText": "about 3 kg"
+      }
+    ],
+    "total": 2,
+    "totalItems": 25,
+    "withoutRecipe": 24
+  },
+  "recipeDetail": {
+    "itemId": "item-sauce",
+    "itemName": "House sauce",
+    "unit": "kg",
+    "current": null,
+    "suggestFromLastRun": {
+      "lines": [{ "itemId": "item-tomato", "itemName": "Tomatoes", "unit": "kg", "amount": "6" }],
+      "made": "3",
+      "basedOn": "your last run, PREP-0100"
+    },
+    "costPerUnitNow": "121.0000",
+    "history": []
+  },
+  "recipeInput": {
+    "targetYield": "38",
+    "lines": [
+      { "itemId": "11111111-1111-4111-8111-111111111111", "amount": "10", "isMain": true },
+      { "itemId": "22222222-2222-4222-8222-222222222222", "amount": "1", "isMain": false }
+    ],
+    "reason": "BETTER_RECIPE"
+  },
+  "recordInput": {
+    "idempotencyKey": "33333333-3333-4333-8333-333333333333",
+    "outputItemId": "44444444-4444-4444-8444-444444444444",
+    "inputs": [{ "itemId": "11111111-1111-4111-8111-111111111111", "quantity": "10" }],
+    "made": "38",
+    "yieldReason": "SPILLAGE",
+    "reasonNote": "Dropped a tray"
+  },
+  "checkInput": {
+    "outputItemId": "44444444-4444-4444-8444-444444444444",
+    "inputs": [{ "itemId": "11111111-1111-4111-8111-111111111111", "quantity": "20" }]
+  },
+  "checkResult": {
+    "expected": { "amount": "76", "unit": "portions", "source": "RECIPE", "text": "about 76 portions" },
+    "vsUsual": { "label": "LOW", "deltaAmount": "-16", "text": "−16 portions · low yield" },
+    "tier": "WARN",
+    "typoSuspect": { "suspect": false, "text": null },
+    "repeat": { "duplicate": false, "of": null },
+    "usualRecipeText": "Usual recipe: 10 kg chicken and 1 kg paste give 38 portions. For 20 kg chicken that is about 76.",
+    "mainIngredientMissing": false,
+    "cost": { "totalInput": "7260.00", "perUnit": "121.0000" },
+    "stock": [{ "itemId": "item-raw-chicken", "onHand": "41", "exceeds": false }]
+  },
+  "correctInput": {
+    "idempotencyKey": "55555555-5555-4555-8555-555555555555",
+    "inputs": [{ "itemId": "11111111-1111-4111-8111-111111111111", "quantity": "20" }],
+    "made": "76",
+    "reason": "WRONG_QUANTITY"
+  },
+  "cancelInput": { "reason": "ENTERED_TWICE" },
+  "cancelPreview": {
+    "items": [
+      {
+        "itemId": "item-chicken",
+        "itemName": "Marinated chicken",
+        "onHandNow": "10",
+        "onHandAfter": "-28",
+        "unit": "portions",
+        "belowZero": true
+      }
+    ]
+  },
+  "runsSummary": { "runsThisWeek": 14, "runsToday": 3, "needsLookCount": 2, "prepValue7d": "48210.00" },
+  "outputs": {
+    "items": [
+      {
+        "itemId": "item-chicken",
+        "name": "Marinated chicken",
+        "unit": "portions",
+        "hasRecipe": true,
+        "expectedText": "about 38 portions",
+        "lastRun": { "inputs": [{ "itemId": "item-raw-chicken", "quantity": "10" }], "made": "38" }
+      }
+    ]
+  },
+  "prepAgain": {
+    "tiles": [
+      {
+        "itemId": "item-chicken",
+        "name": "Marinated chicken",
+        "ingredientsText": "10 kg chicken, cut · 1 kg garlic-ginger paste",
+        "expectedText": "about 38 portions",
+        "lastRun": null
+      }
+    ]
+  }
+}

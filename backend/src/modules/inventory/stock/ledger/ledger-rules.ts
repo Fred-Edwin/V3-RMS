@@ -30,6 +30,12 @@ export type LedgerRule = {
   links: readonly LedgerLink[];
   /** Only ADJUSTMENT rows are numbered ADJ-#### (ReferenceCounter). */
   numbered: boolean;
+  /**
+   * How a row of this type is reversed, if it can be. `ADJUSTMENT`: the caller sends the exact opposite signed quantity.
+   * `PREP`: a reversal keeps the original's type with the opposite sign, so the caller sends the same positive magnitude and
+   * the door flips the direction (PREP_CONSUME reverses to a positive row, PREP_PRODUCE to a negative one).
+   */
+  reversal?: 'ADJUSTMENT' | 'PREP';
 };
 
 /**
@@ -38,8 +44,8 @@ export type LedgerRule = {
  */
 export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>> = {
   RECEIVE: { direction: 'IN', links: ['purchaseDeliveryLineId'], numbered: false },
-  PREP_CONSUME: { direction: 'OUT', links: ['prepRecordId'], numbered: false },
-  PREP_PRODUCE: { direction: 'IN', links: ['prepRecordId'], numbered: false },
+  PREP_CONSUME: { direction: 'OUT', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
+  PREP_PRODUCE: { direction: 'IN', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
   WASTE: { direction: 'OUT', links: ['wasteLogId'], numbered: false },
   DISPATCH_OUT: { direction: 'OUT', links: ['dispatchLineId'], numbered: false },
   DISPATCH_IN: { direction: 'IN', links: ['dispatchLineId'], numbered: false },
@@ -49,6 +55,7 @@ export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>>
     direction: 'SIGNED',
     links: ['stockCountLineId', 'branchDayLineId', 'openingLineId', 'dispatchLineId'],
     numbered: true,
+    reversal: 'ADJUSTMENT',
   },
 };
 
@@ -58,3 +65,7 @@ export const signedQuantity = (direction: LedgerDirection, quantity: Prisma.Deci
   if (direction === 'OUT') return quantity.negated();
   return quantity;
 };
+
+/** The stored quantity for a REVERSAL of a prep row: the same magnitude with the opposite sign to a normal row of that type. */
+export const reversedPrepQuantity = (direction: LedgerDirection, quantity: Prisma.Decimal): Prisma.Decimal =>
+  direction === 'IN' ? quantity.negated() : quantity;

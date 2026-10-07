@@ -119,6 +119,8 @@ model InventoryItem {
   purchaseDeliveryLines  PurchaseDeliveryLine[]
   prepRunsAsOutput       PrepRun[]               @relation("PrepRunOutput")
   prepRunInputLines      PrepRunInputLine[]      @relation("PrepRunInputItem")
+  prepRecipe             PrepRecipe[]            @relation("PrepRecipeOutput")
+  prepRecipeLines        PrepRecipeLine[]        @relation("PrepRecipeInput")
   requisitionLines       RequisitionLine[]
   dispatchLines          DispatchLine[]
   wasteLogs              WasteLog[]

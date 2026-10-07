@@ -61,7 +61,10 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox';
+export type NavBadge = 'inbox' | 'prep-needs-look';
+
+/** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
+export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags' };
 
 interface Visibility {
   /** Roles that see the row. Never wider than what the route gate lets in. */
@@ -84,6 +87,8 @@ export interface NavSubRow extends Visibility {
   framed?: boolean;
   /** Extra path prefixes that light this sub-link. */
   match?: readonly string[];
+  /** Which count the shell puts on the sub-link (Runs carries the Needs a look count). */
+  badge?: NavBadge;
 }
 
 export interface NavRow extends Visibility {
@@ -272,7 +277,22 @@ export const NAV_ROWS: readonly NavRow[] = [
   // Purchasing and Receiving are one flow on the mock: every desktop role reads it, the phone roles reach it through the order capabilities.
   { key: 'receiving', label: 'Receiving', group: 'central-store', icon: ReceivingIcon, newHref: '/app/inventory/receiving', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.receive'], hub: true },
   { key: 'purchasing', label: 'Purchasing', group: 'central-store', icon: PurchasingIcon, newHref: '/app/inventory/purchasing', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.request'], hub: true },
-  { key: 'prep', label: 'Prep', group: 'central-store', icon: PrepIcon, oldHref: '/app/inventory/prep', framed: true, roles: OLD_FLOW, hub: true },
+  {
+    key: 'prep',
+    label: 'Prep',
+    group: 'central-store',
+    icon: PrepIcon,
+    roles: OLD_FLOW,
+    hub: true,
+    // Shown on the parent only while it is shut, and on Runs while it is open (the sidebar decides); the count is GET /needs-a-look/count, and a zero draws nothing.
+    badge: 'prep-needs-look',
+    // The three sub-links of the Prep rebuild, all rebuilt now; the Attendant sees all three.
+    subItems: [
+      { key: 'runs', label: 'Runs', newHref: '/app/inventory/prep', roles: OLD_FLOW, badge: 'prep-needs-look' },
+      { key: 'usual-recipes', label: 'Usual recipes', newHref: '/app/inventory/prep/recipes', roles: OLD_FLOW },
+      { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: OLD_FLOW },
+    ],
+  },
   // Discrepancies are resolved from the dispatch queue, so they light Dispatch.
   { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, oldHref: '/app/inventory/dispatch', framed: true, match: ['/app/inventory/discrepancies'], roles: OLD_FLOW, hub: true },
   {
@@ -330,6 +350,7 @@ export interface NavLinkSub {
   href: string;
   framed: boolean;
   match: readonly string[];
+  badge?: NavBadge;
 }
 
 export interface NavLink {
@@ -355,6 +376,13 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
   (!rule.departmentHead || ctx.isDepartmentHead);
+
+/** The badge a person may see: dropped when the badge needs a capability they do not hold. */
+const badgeFor = (badge: NavBadge | undefined, ctx: NavContext): NavBadge | undefined => {
+  if (!badge) return undefined;
+  const needs = BADGE_CAPABILITY[badge];
+  return needs && !ctx.can(needs) ? undefined : badge;
+};
 
 const hrefOf = (row: { oldHref?: string; newHref?: string }): string => row.newHref ?? row.oldHref ?? '#';
 
@@ -384,13 +412,13 @@ export function navFor(ctx: NavContext, rows: readonly NavRow[] = NAV_ROWS): Nav
     if (row.subItems) {
       const subItems = row.subItems
         .filter((sub) => visible(sub, actor, ctx))
-        .map((sub): NavLinkSub => ({ key: sub.key, label: sub.label, href: hrefOf(sub), framed: sub.framed ?? Boolean(sub.newHref), match: sub.match ?? [] }));
+        .map((sub): NavLinkSub => ({ key: sub.key, label: sub.label, href: hrefOf(sub), framed: sub.framed ?? Boolean(sub.newHref), match: sub.match ?? [], badge: badgeFor(sub.badge, ctx) }));
       const first = subItems[0];
-      if (first) add(row.group, { key: row.key, label: row.label, href: first.href, icon: row.icon, framed, match, subItems });
+      if (first) add(row.group, { key: row.key, label: row.label, href: first.href, icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx), subItems });
       continue;
     }
 
-    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: row.badge });
+    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx) });
   }
 
   return Array.from(groups.entries()).map(([key, items]) => ({ key, label: NAV_GROUP_LABELS[key] ?? key.toUpperCase(), items }));

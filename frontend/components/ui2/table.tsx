@@ -3,7 +3,9 @@ import * as React from "react"
 import { cn } from "@/lib/cn"
 
 /**
- * WDS Table — matches the Catalog table (Paper SFT-0). Paper's own artboard is
+ * WDS Table — header per the current approved style (UI_BUILD_RULES §4; Paper Prep `1UE1-0`/`1UE2-0`): no header fill, 34px,
+ * 10px Geist Mono uppercase at 0.06em, one 1px ink rule under it, on a white table with a 1px border and square corners.
+ * Originally matched the Catalog table (Paper SFT-0), whose blue-grey header fill is retired. Paper's own artboard is
  * built from flex-row divs, not a semantic <table>; the primitive intentionally
  * uses real <table>/<thead>/<tr>/<th>/<td> markup instead (screen-reader/assistive
  * tech benefit for genuinely tabular data) while matching Paper's exact row
@@ -14,7 +16,7 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto rounded-wds-md border border-wds-border">
+  <div className="relative w-full overflow-auto border border-wds-border bg-wds-surface">
     <table
       ref={ref}
       className={cn("w-full caption-bottom font-wds-sans text-wds-body-sm", className)}
@@ -30,7 +32,7 @@ const TableHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn("bg-wds-table-header-bg [&_tr]:border-b [&_tr]:border-wds-text-ink", className)}
+    className={cn("[&_tr]:border-b [&_tr]:border-wds-text-ink", className)}
     {...props}
   />
 ))
@@ -85,7 +87,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-[30px] px-wds-4 text-left align-middle font-wds-mono text-wds-table-label uppercase text-wds-text-ink [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+      "h-[34px] px-wds-4 text-left align-middle font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-ink [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
       className
     )}
     {...props}

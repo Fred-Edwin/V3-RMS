@@ -27,6 +27,13 @@ export const CAPABILITIES = [
   'orders.approve',
   'orders.cancel',
   'orders.receive',
+  'prep.read',
+  'prep.see_costs',
+  'prep.read_flags',
+  'prep.record',
+  'prep.fix_any',
+  'prep.review',
+  'prep.recipes_write',
   'audit.read',
   'central_store.read_any_org',
 ] as const;

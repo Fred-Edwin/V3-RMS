@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { usePermissions } from '@/features/inventory';
+import { useNeedsLookCount, usePermissions } from '@/features/inventory';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -83,6 +83,8 @@ export function useShellNav(): ShellNav {
   const { can } = usePermissions(hasHubRows(role));
   const branches = useBranches(role === 'DIRECTOR');
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
+  // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
+  const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
 
   const tableGroups = React.useMemo(
     () =>
@@ -98,7 +100,9 @@ export function useShellNav(): ShellNav {
 
   // The unread count is the only thing added to the table's rows here.
   const groups = React.useMemo((): SidebarNavGroup[] => {
-    const counts: Record<NavBadge, number> = { inbox: unreadInbox };
+    // A zero count draws nothing, so a role without prep.read_flags (count 0) simply has no badge.
+    const counts: Record<NavBadge, number> = { inbox: unreadInbox, 'prep-needs-look': needsLook };
+    const countOf = (badge: NavBadge | undefined): number | undefined => (badge && counts[badge] > 0 ? counts[badge] : undefined);
     return tableGroups.map((group) => ({
       key: group.key,
       label: group.label,
@@ -107,11 +111,11 @@ export function useShellNav(): ShellNav {
         label: link.label,
         href: link.href,
         icon: link.icon,
-        count: link.badge && counts[link.badge] > 0 ? counts[link.badge] : undefined,
-        subItems: link.subItems?.map(({ key, label, href }) => ({ key, label, href })),
+        count: countOf(link.badge),
+        subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
-  }, [tableGroups, unreadInbox]);
+  }, [tableGroups, unreadInbox, needsLook]);
 
   const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
 

@@ -18,7 +18,8 @@ first feature of the redo and the template for the others
 | **Where the code is ahead of Paper (update Paper first, before new design work)** | [paper-updates-needed.md](paper-updates-needed.md) |
 | Designed-not-built Director/Accountant reports | [reports-spec.md](reports-spec.md) |
 | Client demo script (rehearsed 2026-09-30; a few steps are stale, see its notes) | [demo-run-sheet.md](demo-run-sheet.md) |
-| Full approved wording for not-yet-rebuilt areas | `prep/DESIGN-NOTES.md`, `counting/DESIGN-NOTES.md` (delete when the redo merges) |
+| Full approved wording for not-yet-rebuilt areas | `counting/DESIGN-NOTES.md` (delete when the redo merges). Prep's was deleted when Prep was rebuilt |
+| Why Prep is built the way it is (data model, rules, slices) | [prep-plan.md](prep-plan.md) |
 
 If sources disagree: **Paper approved page > sub-module README > decisions.md > code**.
 When code and README disagree, the README's "Built today" section says so; fix
@@ -35,7 +36,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [suppliers](../../../backend/src/modules/inventory/suppliers/README.md) | Suppliers, contacts, payment methods, catalog lines, documents | same | approved | rebuilt |
 | [audit-log](../../../backend/src/modules/inventory/audit-log/README.md) | Audit log across catalog, suppliers and restock levels | same | approved | built |
 | [purchasing](../../../backend/src/modules/inventory/purchasing/README.md) | Need → order → approval → receive → invoice → pay; supplier statement | Purchasing | approved | **live on the real back-end since 6 Oct 2026** (front-end Step 4 built, awaiting the owner's screen-by-screen approval against Paper; the mock and demo bar are gone; back-end Step 3: orders, receiving, payables, supplier account, files). See [the front-end README](../../../frontend/features/inventory/purchasing/README.md) |
-| [prep](../../../backend/src/modules/inventory/prep/README.md) | Prep runs, yield, review | Prep | approved | **old flow, pending redo** |
+| [prep](../../../backend/src/modules/inventory/prep/README.md) | Usual recipes, record a run, runs, fix a slip, review | Prep | approved | **rebuilt** (branch `feat/prep-rebuild`, 7 Oct 2026; live once merged and deployed) |
 | [stock](../../../backend/src/modules/inventory/stock/README.md) | Stock position, ledger, stock card | Stock and Counting | approved | **old flow, pending redo** |
 | [waste](../../../backend/src/modules/inventory/waste/README.md) | Waste logging and reversal | Stock and Counting | approved | **old flow, pending redo** |
 | [counting](../../../backend/src/modules/inventory/counting/README.md) | Central Store daily count, verify, spot count, thresholds | Stock and Counting | approved | **old flow, pending redo** |
