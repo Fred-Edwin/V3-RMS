@@ -25,6 +25,25 @@ export function describeItemChange(kind: InventoryItemChangeKind, itemName: stri
   }
 }
 
+const RECIPE_REASON_WORDS: Record<string, string> = {
+  BETTER_RECIPE: 'Better recipe',
+  PORTION_SIZE_CHANGED: 'Portion size changed',
+  NEW_SUPPLIER: 'New supplier',
+  OTHER: 'Other',
+};
+
+/** Prep: "Recipe set for Fried chicken" (version 1) or "Recipe changed for Fried chicken" (version 2 and later). */
+export function describeRecipeVersion(version: number, itemName: string): string {
+  return version <= 1 ? `Recipe set for ${itemName}` : `Recipe changed for ${itemName}`;
+}
+
+/** The reason a recipe change carries: the chip's words, or the typed note when the reason is Other and one was given. */
+export function recipeReason(version: number, reason: string | null, reasonNote: string | null): string | null {
+  if (version <= 1 || reason === null) return null;
+  if (reason === 'OTHER' && reasonNote) return reasonNote;
+  return RECIPE_REASON_WORDS[reason] ?? null;
+}
+
 const STATUS_WORDS: Record<string, string> = { ACTIVE: 'made active', ON_HOLD: 'put on hold', ARCHIVED: 'archived' };
 
 /** The reason a supplier audit row carries in its `after` snapshot, when it has one. */
