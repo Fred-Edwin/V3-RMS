@@ -14,6 +14,11 @@ import type { DiscrepancyDetail, DiscrepancyRow, ListDiscrepanciesQuery, Resolve
 
 type Actor = NonNullable<Request['user']>;
 
+export interface DiscrepancyPage {
+  rows: DiscrepancyRow[];
+  pagination: { total: number; page: number; perPage: number; totalPages: number };
+}
+
 const toDecimalString = (value: Prisma.Decimal | null): string | null => (value === null ? null : value.toString());
 
 const requireHubActor = async (actor: Actor): Promise<string> => {
@@ -70,6 +75,28 @@ export const discrepancyService = {
     }
     const rows = await discrepancyRepository.findAllForBranch(requireBranchOrg(actor), query.limit);
     return rows.map(serializeRow);
+  },
+
+  /**
+   * The shared table's list: the same role-gated scope as `listDiscrepancies`, narrowed by status and search and paged.
+   * With no `page` it is the original "newest `limit`" (page 1 of that size), so a caller that only sends `limit` is unchanged.
+   */
+  listDiscrepancyPage: async (actor: Actor, query: ListDiscrepanciesQuery): Promise<DiscrepancyPage> => {
+    const paged = query.page !== undefined;
+    const perPage = paged ? (query.perPage ?? 50) : query.limit;
+    const page = query.page ?? 1;
+    const filter = { status: query.status, search: query.search, skip: (page - 1) * perPage, take: perPage };
+
+    const hub = await branchRepository.findHub();
+    const result =
+      hub && actor.siteId === hub.id
+        ? await discrepancyRepository.pageForHub(await branchRepository.findActiveBranchIds(), filter)
+        : await discrepancyRepository.pageForBranch(requireBranchOrg(actor), filter);
+
+    return {
+      rows: result.rows.map(serializeRow),
+      pagination: { total: result.total, page, perPage, totalPages: Math.max(1, Math.ceil(result.total / perPage)) },
+    };
   },
 
   getDiscrepancy: async (actor: Actor, id: string): Promise<DiscrepancyDetail> => {

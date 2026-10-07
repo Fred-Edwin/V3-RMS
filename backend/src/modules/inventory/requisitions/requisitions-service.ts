@@ -280,6 +280,14 @@ const serializeManagerListRow = (row: RequisitionForManagerList): RequisitionMan
   };
 };
 
+/** Most requisitions `listHistoryPage` reads for one branch and date range before filtering by the derived status. */
+const HISTORY_PAGE_SCAN_CAP = 2000;
+
+export interface RequisitionHistoryPage {
+  rows: RequisitionHistoryRow[];
+  pagination: { total: number; page: number; perPage: number; totalPages: number };
+}
+
 const deriveDisplayStatus = (row: RequisitionHistoryRowData): 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED' => {
   if (row.status === 'APPROVED') return 'APPROVED';
   if (row.sections.some((s) => s.status === 'RETURNED')) return 'RETURNED';
@@ -590,6 +598,31 @@ export const requisitionService = {
     // status is derived, not stored — filter after serializing so a single
     // derivation function is the only place displayStatus is computed.
     return query.status ? serialized.filter((r) => r.displayStatus === query.status) : serialized;
+  },
+
+  /**
+   * History as pages (the shared table). The display status is derived, not stored, so a correct status filter and total need
+   * every row in range: this loads the branch's requisitions in the date range (capped, newest first), filters by the derived
+   * status, then slices. A branch raises a handful a day, so the cap is far above real use.
+   */
+  listHistoryPage: async (actor: Actor, query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryPage> => {
+    requireManager(actor);
+    const siteId = requireBranchOrg(actor);
+    const page = query.page ?? 1;
+    const perPage = query.perPage ?? 50;
+
+    const rows = await requisitionRepository.findHistoryRows(siteId, {
+      from: query.from ? new Date(query.from) : undefined,
+      to: query.to ? new Date(query.to) : undefined,
+      limit: HISTORY_PAGE_SCAN_CAP,
+    });
+    const serialized = rows.map(serializeHistoryRow);
+    const matching = query.status ? serialized.filter((r) => r.displayStatus === query.status) : serialized;
+    const start = (page - 1) * perPage;
+    return {
+      rows: matching.slice(start, start + perPage),
+      pagination: { total: matching.length, page, perPage, totalPages: Math.max(1, Math.ceil(matching.length / perPage)) },
+    };
   },
 
   /**

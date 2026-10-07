@@ -4,9 +4,10 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
-import { ChevronRight } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { TablePager } from '@/components/ui2/data-table/table-pager';
+import { DEFAULT_PER_PAGE, normalizePerPage } from '@/components/ui2/data-table/table-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui2/button';
@@ -52,7 +53,6 @@ import {
 
 export type LedgerScope = 'store' | 'department';
 
-const PAGE_SIZE = 20;
 const ledgerBase = (scope: LedgerScope) => (scope === 'store' ? '/app/inventory/stock/ledger' : '/app/branch/ledger');
 
 /* ============================================================ range + URL */
@@ -84,6 +84,8 @@ interface LedgerUrlState {
   to?: string;
   type?: InventoryTransactionTypeValue;
   page: number;
+  /** Rows per page: 25, 50 or 100 (§4a). */
+  perPage: number;
   highlight?: string;
 }
 
@@ -101,6 +103,7 @@ function readLedgerState(params: URLSearchParams): LedgerUrlState {
     to: to && DATE_RE.test(to) ? to : undefined,
     type: type && MOVEMENT_TYPES.includes(type) ? type : undefined,
     page: Number.isFinite(page) && page > 0 ? page : 1,
+    perPage: normalizePerPage(Number.parseInt(params.get('perPage') ?? '', 10)),
     highlight: params.get('highlight') ?? undefined,
   };
 }
@@ -114,6 +117,7 @@ function writeLedgerState(s: LedgerUrlState): string {
   }
   if (s.type) p.set('type', s.type);
   if (s.page > 1) p.set('page', String(s.page));
+  if (s.perPage !== DEFAULT_PER_PAGE) p.set('perPage', String(s.perPage));
   if (s.highlight) p.set('highlight', s.highlight);
   const qs = p.toString();
   return qs ? `?${qs}` : '';
@@ -134,7 +138,7 @@ function localDayBound(date: string, end: boolean): string {
 }
 
 function toLedgerQuery(s: LedgerUrlState): LedgerQuery {
-  const q: LedgerQuery = { page: s.page, pageSize: PAGE_SIZE, type: s.type };
+  const q: LedgerQuery = { page: s.page, pageSize: s.perPage, type: s.type };
   if (s.range === '7' || s.range === '30' || s.range === '90') q.from = startOfDayAgo(Number(s.range));
   if (s.range === 'custom') {
     if (s.from) q.from = localDayBound(s.from, false);
@@ -263,22 +267,6 @@ function emptyBody(itemName: string, lastMovementAt: string | null): string {
   return lastMovementAt
     ? `${itemName} hasn’t been received, dispatched, wasted or adjusted since ${formatDayMonthYear(lastMovementAt)}. Try a longer range.`
     : `${itemName} has no movements at this location yet.`;
-}
-
-function PagerButton({ onClick, disabled, children, mobile = false }: { onClick: () => void; disabled: boolean; children: React.ReactNode; mobile?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex items-center gap-1 border px-2.5 font-wds-sans text-wds-text-ink outline-none transition-[background-color,color,transform] duration-150 ease-out focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 motion-safe:enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:text-wds-text-faint',
-        mobile ? 'touch-manipulation rounded-wds-md border-wds-border-strong bg-wds-surface py-1.5 text-[12px]/4' : 'rounded-wds-sm border-wds-border py-[5px] text-[13px]/4',
-      )}
-    >
-      {children}
-    </button>
-  );
 }
 
 /** Branch-style light header — `1BPY-0` / `1FDY-0` ("Branch mobile header"): 58px, back chevron, title 17/19 + faint 12/14 subtitle. */
@@ -421,7 +409,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
   if (!hydrated) return null;
 
   const empty = status === 'ready' && rows.length === 0;
-  const pageCount = Math.max(1, ledger?.pageCount ?? 1);
   const widen = () => update({ range: state.range === '30' ? 'all' : '30' });
   const emptyAction = state.range === '30' ? 'Show all time' : 'Show 30 days';
   const itemName = summary?.itemName ?? '';
@@ -521,24 +508,17 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
               </div>
             )}
 
-            <div className="mt-1 flex flex-col items-center gap-2.5 border-t border-wds-border px-4 py-3.5">
-              <span className="font-wds-sans text-[12px]/4 text-wds-text-copy-muted" aria-live="polite">
-                {status === 'loading' ? 'Loading movements…' : ledger ? `Showing ${rows.length} of ${formatNumber(ledger.total)} movements` : ''}
-              </span>
-              {ledger && pageCount > 1 ? (
-                <div className="flex items-center gap-2">
-                  <PagerButton mobile disabled={state.page <= 1} onClick={() => update({ page: state.page - 1 })}>
-                    <ChevronRight className="size-3 rotate-180" aria-hidden /> Previous
-                  </PagerButton>
-                  <span className="font-wds-mono text-[12px]/4 text-wds-text-copy-muted">
-                    {ledger.page} / {pageCount}
-                  </span>
-                  <PagerButton mobile disabled={state.page >= pageCount} onClick={() => update({ page: state.page + 1 })}>
-                    Next <ChevronRight className="size-3" aria-hidden />
-                  </PagerButton>
-                </div>
-              ) : null}
-            </div>
+            {ledger && ledger.total > 0 ? (
+              <TablePager
+                className="mt-1 border-t border-wds-border"
+                page={state.page}
+                perPage={state.perPage}
+                shown={rows.length}
+                total={ledger.total}
+                onPageChange={(page) => update({ page })}
+                onPerPageChange={(perPage) => update({ perPage })}
+              />
+            ) : null}
           </div>
         </main>
       </div>
@@ -549,8 +529,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
   const kpiCell = 'flex grow basis-0 flex-col gap-1.5 bg-wds-gradient-surface-raise p-4';
   const kpiLabel = 'font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted';
   const kpiValue = 'font-wds-mono text-[28px]/[34px] font-medium';
-  const firstRow = rows[0];
-  const lastRow = rows[rows.length - 1];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -697,28 +675,17 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
           )}
         </section>
 
-        <div className="mx-8 mt-4 flex items-center justify-between border-t border-wds-border pt-3">
-          <span className="font-wds-sans text-[13px]/4 text-wds-text-copy-muted" aria-live="polite">
-            {status === 'loading'
-              ? 'Loading movements…'
-              : ledger && firstRow && lastRow
-                ? `Showing ${rows.length} of ${formatNumber(ledger.total)} movements · ${formatDayMonth(firstRow.at)} – ${formatDayMonthYear(lastRow.at)}`
-                : ledger
-                  ? 'Showing 0 movements'
-                  : ''}
-          </span>
-          <div className={cn('flex items-center gap-2', !ledger && 'invisible')}>
-            <PagerButton disabled={state.page <= 1} onClick={() => update({ page: state.page - 1 })}>
-              <span aria-hidden>←</span> Previous
-            </PagerButton>
-            <span className="font-wds-mono text-[13px]/4 text-wds-text-copy-muted">
-              Page {ledger?.page ?? state.page} of {pageCount}
-            </span>
-            <PagerButton disabled={state.page >= pageCount} onClick={() => update({ page: state.page + 1 })}>
-              Next <span aria-hidden>→</span>
-            </PagerButton>
-          </div>
-        </div>
+        {ledger && ledger.total > 0 ? (
+          <TablePager
+            className="mx-8 mt-4 border-t border-wds-border"
+            page={state.page}
+            perPage={state.perPage}
+            shown={rows.length}
+            total={ledger.total}
+            onPageChange={(page) => update({ page })}
+            onPerPageChange={(perPage) => update({ perPage })}
+          />
+        ) : null}
       </main>
 
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={() => void reload()} />

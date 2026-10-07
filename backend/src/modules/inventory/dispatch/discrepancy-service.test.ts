@@ -15,6 +15,8 @@ vi.mock('./discrepancy-repository', () => ({
   discrepancyRepository: {
     findAllForHub: vi.fn(),
     findAllForBranch: vi.fn(),
+    pageForHub: vi.fn(),
+    pageForBranch: vi.fn(),
     findByIdForHub: vi.fn(),
     findByIdForBranch: vi.fn(),
     markResolved: vi.fn(),
@@ -147,6 +149,29 @@ describe('discrepancyService.listDiscrepancies — role-gated shape', () => {
     vi.mocked(discrepancyRepository.findAllForBranch).mockResolvedValue([]);
     await discrepancyService.listDiscrepancies(branchManager, { limit: 50 });
     expect(discrepancyRepository.findAllForBranch).toHaveBeenCalledWith(branchOrgId, 50);
+  });
+});
+
+describe('discrepancyService.listDiscrepancyPage — the shared table list', () => {
+  it('hub actor: all branches, paged by perPage, with the total of what matches', async () => {
+    vi.mocked(discrepancyRepository.pageForHub).mockResolvedValue({ rows: [], total: 137 });
+    const out = await discrepancyService.listDiscrepancyPage(storeManager, { limit: 50, page: 3, perPage: 25, status: 'OPEN', search: 'oat' });
+    expect(discrepancyRepository.pageForHub).toHaveBeenCalledWith([branchOrgId], { status: 'OPEN', search: 'oat', skip: 50, take: 25 });
+    expect(out.pagination).toEqual({ total: 137, page: 3, perPage: 25, totalPages: 6 });
+  });
+
+  it('branch actor: only their own branch (scoped by siteId), never the hub list', async () => {
+    vi.mocked(discrepancyRepository.pageForBranch).mockResolvedValue({ rows: [], total: 0 });
+    const out = await discrepancyService.listDiscrepancyPage(branchManager, { limit: 50, page: 1 });
+    expect(discrepancyRepository.pageForBranch).toHaveBeenCalledWith(branchOrgId, { status: undefined, search: undefined, skip: 0, take: 50 });
+    expect(discrepancyRepository.pageForHub).not.toHaveBeenCalled();
+    expect(out.pagination).toEqual({ total: 0, page: 1, perPage: 50, totalPages: 1 });
+  });
+
+  it('with no page it is still "the newest limit", so a caller that only sends limit is unchanged', async () => {
+    vi.mocked(discrepancyRepository.pageForHub).mockResolvedValue({ rows: [], total: 7 });
+    await discrepancyService.listDiscrepancyPage(storeManager, { limit: 20 });
+    expect(discrepancyRepository.pageForHub).toHaveBeenCalledWith([branchOrgId], { status: undefined, search: undefined, skip: 0, take: 20 });
   });
 });
 

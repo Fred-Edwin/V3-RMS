@@ -1,7 +1,6 @@
+import { DEFAULT_PER_PAGE, normalizePerPage } from '@/components/ui2/data-table/table-query';
 import { MONTHS } from '../../_shared/lib/prep-format';
 import type { PrepRunStatus, RunsQuery } from '../../_shared/types/prep-contract';
-
-export const HISTORY_PER_PAGE = 25;
 
 export interface HistoryFilters {
   search: string;
@@ -14,6 +13,8 @@ export interface HistoryFilters {
   /** Only the caller's own runs. The Attendant starts with this on; the desktop roles start with it off. */
   mine: boolean;
   page: number;
+  /** Rows per page: 25, 50 or 100 (UI_BUILD_RULES §4a). */
+  perPage: number;
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,6 +36,7 @@ export function parseHistoryFilters(params: URLSearchParams, defaultMine: boolea
     to: to && DATE.test(to) ? to : undefined,
     mine: mineParam === null ? defaultMine : mineParam === '1',
     page: Number.isInteger(page) && page > 1 ? page : 1,
+    perPage: normalizePerPage(Number(params.get('perPage'))),
   };
 }
 
@@ -56,6 +58,7 @@ export function writeHistoryFilters(base: URLSearchParams, filters: HistoryFilte
   set('to', filters.to);
   set('mine', filters.mine === defaultMine ? undefined : filters.mine ? '1' : '0');
   set('page', filters.page > 1 ? String(filters.page) : undefined);
+  set('perPage', filters.perPage !== DEFAULT_PER_PAGE ? String(filters.perPage) : undefined);
   return next;
 }
 

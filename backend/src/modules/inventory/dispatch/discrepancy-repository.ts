@@ -1,4 +1,4 @@
-import { Prisma, type Discrepancy, type DiscrepancyOutcome } from '@prisma/client';
+import { Prisma, type Discrepancy, type DiscrepancyOutcome, type DiscrepancyStatus } from '@prisma/client';
 import { prisma } from '../../../config/database';
 
 type TxClient = Prisma.TransactionClient;
@@ -31,7 +31,50 @@ export type DiscrepancyWithDetail = Discrepancy & {
   resolvedBy: { id: string; name: string } | null;
 };
 
+export interface DiscrepancyListFilter {
+  status?: DiscrepancyStatus;
+  search?: string;
+  /** Rows to skip and take; omit both for "the newest `take`" with no skipping. */
+  skip: number;
+  take: number;
+}
+
+/** Narrowing shared by both scopes: status, and a case-insensitive match on the DSC number, the item or the dispatch label. */
+const narrowing = (f: DiscrepancyListFilter): Prisma.DiscrepancyWhereInput => ({
+  ...(f.status ? { status: f.status } : {}),
+  ...(f.search
+    ? {
+        OR: [
+          { referenceNumber: { contains: f.search, mode: 'insensitive' } },
+          { dispatchLine: { item: { name: { contains: f.search, mode: 'insensitive' } } } },
+          { dispatchLine: { dispatch: { sequenceLabel: { contains: f.search, mode: 'insensitive' } } } },
+        ],
+      }
+    : {}),
+});
+
 export const discrepancyRepository = {
+  /** Store Manager scope, narrowed and paged, with the total of what matches (before paging). */
+  pageForHub: async (branchOrgIds: string[], f: DiscrepancyListFilter): Promise<{ rows: DiscrepancyWithDetail[]; total: number }> => {
+    if (branchOrgIds.length === 0) return { rows: [], total: 0 };
+    const where: Prisma.DiscrepancyWhereInput = { dispatchLine: { dispatch: { toSiteId: { in: branchOrgIds } } }, ...narrowing(f) };
+    const [rows, total] = await Promise.all([
+      prisma.discrepancy.findMany({ where, include: discrepancyDetailInclude, orderBy: { createdAt: 'desc' }, skip: f.skip, take: f.take }),
+      prisma.discrepancy.count({ where }),
+    ]);
+    return { rows, total };
+  },
+
+  /** Branch Manager scope (this branch's `toSiteId` only), narrowed and paged. */
+  pageForBranch: async (toSiteId: string, f: DiscrepancyListFilter): Promise<{ rows: DiscrepancyWithDetail[]; total: number }> => {
+    const where: Prisma.DiscrepancyWhereInput = { dispatchLine: { dispatch: { toSiteId } }, ...narrowing(f) };
+    const [rows, total] = await Promise.all([
+      prisma.discrepancy.findMany({ where, include: discrepancyDetailInclude, orderBy: { createdAt: 'desc' }, skip: f.skip, take: f.take }),
+      prisma.discrepancy.count({ where }),
+    ]);
+    return { rows, total };
+  },
+
   /** One row per mismatched line on a confirm (session-b-plan.md decision #2). Must run inside the confirm's own transaction. */
   createForLine: async (
     input: { dispatchLineId: string; referenceNumber: string; gapQty: Prisma.Decimal.Value },

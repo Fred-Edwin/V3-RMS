@@ -15,6 +15,7 @@ import type {
   ListRequisitionsQuery,
   OpenRequisitionInput,
   RequisitionApprovalDetail,
+  RequisitionHistoryPage,
   RequisitionHistoryRow,
   RequisitionListRow,
   RequisitionManagerListRow,
@@ -141,8 +142,9 @@ export async function nudgeSectionHead(requisitionId: string, departmentTag: Dep
   await apiClient.post(`/requisitions/${requisitionId}/sections/${departmentTag}/nudge`, {}, token());
 }
 
-export async function listRequisitionHistory(
-  query: ListRequisitionHistoryQuery = {},
-): Promise<RequisitionHistoryRow[]> {
-  return apiClient.get<RequisitionHistoryRow[]>(`/requisitions/history${toQueryString(query)}`, token());
+/** One page of History with the total that matches the status (the shared table's list). */
+export async function listRequisitionHistoryPage(query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryPage> {
+  const envelope = await apiClient.getWithEnvelope<RequisitionHistoryRow[]>(`/requisitions/history${toQueryString(query)}`, token());
+  const rows = envelope.data ?? [];
+  return { rows, total: envelope.pagination?.total ?? rows.length };
 }

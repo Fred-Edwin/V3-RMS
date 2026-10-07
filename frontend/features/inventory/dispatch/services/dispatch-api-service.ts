@@ -13,6 +13,7 @@ import type {
   DeliveryRow,
   DepartmentTag,
   DiscrepancyDetail,
+  DiscrepancyPage,
   DiscrepancyRow,
   DispatchQueueRow,
   FulfilDepartmentInput,
@@ -82,6 +83,13 @@ export async function confirmDeliveryOnBehalf(dispatchId: string, input: Confirm
 
 export async function listDiscrepancies(query: ListDiscrepanciesQuery = {}): Promise<DiscrepancyRow[]> {
   return apiClient.get<DiscrepancyRow[]>(`/discrepancies${toQueryString(query)}`, token());
+}
+
+/** One page of the discrepancy list with the total that matches the status and search (the shared table's list). */
+export async function listDiscrepancyPage(query: ListDiscrepanciesQuery): Promise<DiscrepancyPage> {
+  const envelope = await apiClient.getWithEnvelope<DiscrepancyRow[]>(`/discrepancies${toQueryString(query)}`, token());
+  const rows = envelope.data ?? [];
+  return { rows, total: envelope.pagination?.total ?? rows.length };
 }
 
 export async function getDiscrepancy(id: string): Promise<DiscrepancyDetail> {

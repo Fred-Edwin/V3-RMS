@@ -23,8 +23,14 @@ export interface ItemCatalogFilters {
   sort?: 'name' | 'newest';
 }
 
+/** Which page, and how many rows, the caller (the URL) is showing. */
+export interface ItemCatalogPaging {
+  page: number;
+  perPage: number;
+}
+
 const DEFAULT_FILTERS: ItemCatalogFilters = { includeRetired: false, needsSetup: false, lowOrOut: false };
-const PER_PAGE = 20;
+const DEFAULT_PAGING: ItemCatalogPaging = { page: 1, perPage: 50 };
 
 export interface ItemCatalogPagination {
   total: number;
@@ -37,27 +43,23 @@ export interface ItemCatalogPagination {
  * Data-loading hook for the Item Catalog screen. Loads items + categories
  * together (the Category filter and the strip both need them). `filters` is
  * read by primitive field, so a caller re-render with the same values never
- * refetches. `page` is owned here so any filter change resets it to 1.
+ * refetches. `paging` comes from the caller (the URL holds the page and rows per page,
+ * and a filter change returns to page 1 there).
  *
- * Only the latest request may write state: typing in search fires a request
- * per keystroke, and a slow earlier response must not overwrite a later one.
+ * Only the latest request may write state: a slow earlier response must not
+ * overwrite a later one.
  */
-export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
+export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS, paging: ItemCatalogPaging = DEFAULT_PAGING) {
   const [items, setItems] = useState<InventoryItemListRow[]>([]);
   const [meta, setMeta] = useState<ItemCatalogMeta | null>(null);
   const [pagination, setPagination] = useState<ItemCatalogPagination | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
   const latestRequest = useRef(0);
 
   const { search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort } = filters;
-
-  // Any real filter change invalidates the current page.
-  useEffect(() => {
-    setPage(1);
-  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort]);
+  const { page, perPage } = paging;
 
   const load = useCallback(async () => {
     const requestId = ++latestRequest.current;
@@ -75,7 +77,7 @@ export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
           lowOrOut: lowOrOut || undefined,
           sort,
           page,
-          perPage: PER_PAGE,
+          perPage,
         }),
         listCategories({ includeRetired: true }),
       ]);
@@ -90,11 +92,11 @@ export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
       setError(formatApiErrorMessage(err, 'Could not load the item catalog.'));
       setStatus('error');
     }
-  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort, page]);
+  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort, page, perPage]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  return { items, meta, pagination, categories, status, error, page, setPage, reload: load };
+  return { items, meta, pagination, categories, status, error, reload: load };
 }

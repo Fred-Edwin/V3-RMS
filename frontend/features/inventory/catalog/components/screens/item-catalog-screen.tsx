@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { TablePager } from '@/components/ui2/data-table/table-pager';
+import { useTableUrlState } from '@/components/ui2/data-table/use-table-url-state';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { Topbar } from '@/components/app/shell/topbar';
@@ -27,20 +29,12 @@ import type { CreatedItem } from '../item-form-view';
 import { DEPARTMENT_LABEL } from '../../../_shared/components/stock-format';
 import { MobileListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard, TableRowSkeleton } from '../../../_shared/components/stock-states';
 
-const SEARCH_DEBOUNCE_MS = 250;
 const ADDED_BAR_MS = 12_000;
 
 const DEPARTMENT_OPTIONS: FilterOption[] = DEPARTMENT_ORDER.map((tag) => ({ value: tag, label: DEPARTMENT_LABEL[tag] }));
 
-/** A value that follows `value` after it has been still for `delay` ms. */
-function useDebounced<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
+/** The URL parameters this screen owns, next to `search`, `page` and `perPage`. */
+const CATALOG_FILTER_KEYS = ['type', 'department', 'category', 'retired', 'needsSetup', 'lowOrOut'] as const;
 
 function MobileItemRow({ row, onClick }: { row: InventoryItemListRow; onClick?: () => void }) {
   const retired = row.retiredAt !== null;
@@ -84,29 +78,31 @@ export function ItemCatalogScreen() {
   const canWrite = can('catalog.write');
   const seesRestock = can('restock.read');
 
-  const [searchInput, setSearchInput] = React.useState('');
-  const search = useDebounced(searchInput.trim(), SEARCH_DEBOUNCE_MS);
-  const [type, setType] = React.useState<InventoryItemType | null>(null);
-  const [departmentTag, setDepartmentTag] = React.useState<DepartmentTag | null>(null);
-  const [categoryId, setCategoryId] = React.useState<string | null>(null);
-  const [showRetired, setShowRetired] = React.useState(false);
-  const [needsSetup, setNeedsSetup] = React.useState(false);
-  const [lowOrOut, setLowOrOut] = React.useState(false);
+  // Search, filters, page and rows per page live in the URL (§4a), so refresh, Back and a pasted link keep the view.
+  const { query, patch, setPage, clear, searchText: searchInput, setSearchText: setSearchInput } = useTableUrlState({ filterKeys: CATALOG_FILTER_KEYS });
+  const search = query.search;
+  const type = (query.filters.type as InventoryItemType | undefined) ?? null;
+  const departmentTag = (query.filters.department as DepartmentTag | undefined) ?? null;
+  const categoryId = query.filters.category ?? null;
+  const showRetired = query.filters.retired === '1';
+  const needsSetup = query.filters.needsSetup === '1';
+  const lowOrOut = query.filters.lowOrOut === '1';
   // Newest first, set only right after an item is added so its row is on top; any filter the user changes ends it.
   const [sort, setSort] = React.useState<'newest' | undefined>(undefined);
-  const withNaturalOrder =
-    <T,>(set: (value: T) => void) =>
-    (value: T) => {
-      set(value);
-      setSort(undefined);
-    };
-  const changeSearch = withNaturalOrder(setSearchInput);
-  const changeType = withNaturalOrder(setType);
-  const changeDepartment = withNaturalOrder(setDepartmentTag);
-  const changeCategory = withNaturalOrder(setCategoryId);
-  const changeShowRetired = withNaturalOrder(setShowRetired);
-  const changeNeedsSetup = withNaturalOrder(setNeedsSetup);
-  const changeLowOrOut = withNaturalOrder(setLowOrOut);
+  const setFilter = (key: string, value: string | null) => {
+    patch({ filters: { [key]: value ?? '' } });
+    setSort(undefined);
+  };
+  const changeSearch = (value: string) => {
+    setSearchInput(value);
+    setSort(undefined);
+  };
+  const changeType = (value: InventoryItemType | null) => setFilter('type', value);
+  const changeDepartment = (value: DepartmentTag | null) => setFilter('department', value);
+  const changeCategory = (value: string | null) => setFilter('category', value);
+  const changeShowRetired = (value: boolean) => setFilter('retired', value ? '1' : null);
+  const changeNeedsSetup = (value: boolean) => setFilter('needsSetup', value ? '1' : null);
+  const changeLowOrOut = (value: boolean) => setFilter('lowOrOut', value ? '1' : null);
 
   const [request, setRequest] = React.useState<DrawerRequest | null>(null);
   const requestCount = React.useRef(0);
@@ -140,13 +136,15 @@ export function ItemCatalogScreen() {
     }),
     [search, type, departmentTag, categoryId, showRetired, needsSetup, lowOrOut, sort]
   );
-  const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
+  const paging = React.useMemo(() => ({ page: query.page, perPage: query.perPage }), [query.page, query.perPage]);
+  const { items, meta, pagination, categories, status, error, reload } = useItemCatalog(filters, paging);
+  const page = query.page;
 
   // On a phone the list scrolls inside <main>: a new filter or page starts from its top.
   const listRef = React.useRef<HTMLElement>(null);
   React.useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
-  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, lowOrOut, sort, page]);
+  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, lowOrOut, sort, page, query.perPage]);
 
   // The "Item added" bar goes by itself; the row's tag stays until the list is reloaded for another reason.
   React.useEffect(() => {
@@ -157,13 +155,7 @@ export function ItemCatalogScreen() {
 
   const anyFilter = Boolean(search) || type !== null || departmentTag !== null || categoryId !== null || showRetired || needsSetup || lowOrOut;
   const clearFilters = () => {
-    setSearchInput('');
-    setType(null);
-    setDepartmentTag(null);
-    setCategoryId(null);
-    setShowRetired(false);
-    setNeedsSetup(false);
-    setLowOrOut(false);
+    clear();
     setSort(undefined);
   };
 
@@ -241,9 +233,7 @@ export function ItemCatalogScreen() {
   );
 
   const showAll = () => {
-    setType(null);
-    setNeedsSetup(false);
-    setLowOrOut(false);
+    patch({ filters: { type: '', needsSetup: '', lowOrOut: '' } });
     setSort(undefined);
   };
 
@@ -268,17 +258,24 @@ export function ItemCatalogScreen() {
     return <CatalogTable rows={items} showRestockLevel={seesRestock} onRowClick={openItem} highlightId={added && added.itemType !== 'PREPPED' ? added.itemId : null} />;
   })();
 
+  // The count and pages are the shared pager's; this is the note that explains what the list shows.
   const footerNote = (() => {
     if (status !== 'ready' && status !== 'loading') return null;
     if (items.length === 0) return null;
-    // Search counts against the whole catalog (Paper 1b); a filter counts against what matches it.
-    const outOf = search || !anyFilter ? total : (pagination?.total ?? total);
-    const count = outOf !== null ? `Showing ${items.length} of ${outOf}` : `Showing ${items.length}`;
-    if (search) {
-      return `${count} for “${search}”. Search also matches the name or code a supplier uses for an item. Our name stays the same.`;
-    }
-    return seesRestock ? `${count}. Restock level is for the Central Store. Departments set their own on their phones.` : `${count}.`;
+    if (search) return 'Search also matches the name or code a supplier uses for an item. Our name stays the same.';
+    return seesRestock ? 'Restock level is for the Central Store. Departments set their own on their phones.' : null;
   })();
+  const pager =
+    pagination && pagination.total > 0 ? (
+      <TablePager
+        page={query.page}
+        perPage={query.perPage}
+        shown={items.length}
+        total={pagination.total}
+        onPageChange={setPage}
+        onPerPageChange={(perPage) => patch({ perPage })}
+      />
+    ) : null;
 
   const drawers = canOpenItem ? (
     <>
@@ -348,19 +345,7 @@ export function ItemCatalogScreen() {
                   <MobileItemRow key={row.id} row={row} onClick={openItem ? () => openItem(row) : undefined} />
                 ))}
               </div>
-              {pagination && pagination.totalPages > 1 ? (
-                <div className="flex items-center justify-between gap-3">
-                  <Button variant="secondary" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
-                    Previous
-                  </Button>
-                  <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-                    Page {pagination.page} of {pagination.totalPages}
-                  </span>
-                  <Button variant="secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
-                    Next
-                  </Button>
-                </div>
-              ) : null}
+              {pager ? <div className="border border-wds-border">{pager}</div> : null}
             </>
           )}
         </main>
@@ -416,25 +401,11 @@ export function ItemCatalogScreen() {
           onShowRetiredChange={changeShowRetired}
           onManageCategories={canWrite ? () => openDrawer({ kind: 'categories' }) : undefined}
         />
-        <div className="shrink-0 overflow-x-auto">{dataBody}</div>
-        {footerNote || (pagination && pagination.totalPages > 1) ? (
-          <div className="flex shrink-0 items-center justify-between gap-4">
-            <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footerNote}</p>
-            {pagination && pagination.totalPages > 1 ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                <Button variant="secondary" size="sm" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
-                  Previous
-                </Button>
-                <Button variant="secondary" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
-                  Next
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="shrink-0">
+          <div className="overflow-x-auto">{dataBody}</div>
+          {pager && items.length > 0 ? <div className="border border-t-0 border-wds-border">{pager}</div> : null}
+        </div>
+        {footerNote ? <p className="shrink-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footerNote}</p> : null}
       </div>
       {drawers}
     </div>

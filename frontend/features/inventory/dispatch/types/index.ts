@@ -156,6 +156,16 @@ export type DiscrepancyOutcome = 'FOUND_REDELIVERED' | 'TRANSIT_LOSS_WRITEOFF' |
 
 export interface ListDiscrepanciesQuery {
   limit?: number;
+  status?: DiscrepancyStatus;
+  search?: string;
+  /** With `page`, the list is paged by `perPage` (25, 50 or 100) and `limit` is ignored. */
+  page?: number;
+  perPage?: number;
+}
+
+export interface DiscrepancyPage {
+  rows: DiscrepancyRow[];
+  total: number;
 }
 
 export interface DiscrepancyRow {

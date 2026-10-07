@@ -11,18 +11,18 @@ export interface SuppliersListFilters {
   categoryId?: string;
   profileNotFinished?: boolean;
   page: number;
+  /** Rows per page: 25, 50 or 100 (UI_BUILD_RULES §4a). */
+  perPage: number;
 }
-
-const PER_PAGE = 25;
 
 /** The suppliers list and the four numbers above it. Both reload together after a create. */
 export function useSuppliersList(filters: SuppliersListFilters, enabled: boolean) {
-  const { search, status, type, categoryId, profileNotFinished, page } = filters;
-  const key = enabled ? JSON.stringify([search, status, type, categoryId, profileNotFinished, page]) : null;
+  const { search, status, type, categoryId, profileNotFinished, page, perPage } = filters;
+  const key = enabled ? JSON.stringify([search, status, type, categoryId, profileNotFinished, page, perPage]) : null;
 
   const list = useLoader(
     key,
-    () => listSupplierRows({ search: search || undefined, status, type, categoryId, profileNotFinished: profileNotFinished || undefined, page, perPage: PER_PAGE }),
+    () => listSupplierRows({ search: search || undefined, status, type, categoryId, profileNotFinished: profileNotFinished || undefined, page, perPage }),
     'Could not load suppliers.'
   );
   const strip = useLoader<SupplierListSummary>(enabled ? 'strip' : null, getSupplierListSummary, 'Could not load the supplier numbers.');

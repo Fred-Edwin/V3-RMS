@@ -823,6 +823,31 @@ describe('requisitionService.approveRequisition', () => {
   });
 });
 
+describe('requisitionService.listHistoryPage', () => {
+  const approved = () => buildRequisitionWithSections([{ status: 'SUBMITTED', returnedNote: null, lines: [] }], { status: 'APPROVED' });
+  const returned = () => buildRequisitionWithSections([{ status: 'RETURNED', returnedNote: 'x', lines: [] }], { status: 'PENDING_APPROVAL' });
+
+  it('filters by the derived status first, then pages, and reports the true total', async () => {
+    // 4 approved and 3 returned: page 2 of the Returned filter with 2 per page is the third returned one, and the total is 3.
+    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([approved(), returned(), approved(), returned(), approved(), returned(), approved()] as never);
+
+    const out = await requisitionService.listHistoryPage(manager, { limit: 25, status: 'RETURNED', page: 2, perPage: 2 });
+
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]!.displayStatus).toBe('RETURNED');
+    expect(out.pagination).toEqual({ total: 3, page: 2, perPage: 2, totalPages: 2 });
+  });
+
+  it("reads only the manager's own branch, and does not send the cursor path's limit", async () => {
+    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([]);
+
+    const out = await requisitionService.listHistoryPage(manager, { limit: 25, page: 1 });
+
+    expect(requisitionRepository.findHistoryRows).toHaveBeenCalledWith(branchOrgId, expect.objectContaining({ limit: 2000 }));
+    expect(out.pagination).toEqual({ total: 0, page: 1, perPage: 50, totalPages: 1 });
+  });
+});
+
 describe('requisitionService.listHistory', () => {
   it('threads cursor as { cursor: { id }, skip: 1 } and filters on openedAt not approvedAt', async () => {
     vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([]);

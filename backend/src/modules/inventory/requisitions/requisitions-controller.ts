@@ -84,6 +84,11 @@ export const requisitionsController = {
   listHistory: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const query = ListRequisitionHistoryQuerySchema.parse(req.query);
+    if (query.page !== undefined) {
+      const { rows, pagination } = await requisitionService.listHistoryPage(actor, query);
+      res.status(200).json({ success: true, data: rows, pagination });
+      return;
+    }
     const data = await requisitionService.listHistory(actor, query);
     res.status(200).json({ success: true, data });
   },
