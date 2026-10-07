@@ -27,7 +27,8 @@ function StateCard({
   return (
     <div
       className={cn(
-        'flex h-[220px] w-80 shrink-0 flex-col gap-2.5 rounded-wds-md border border-wds-border bg-wds-surface p-6',
+        // mx-auto: the card is a fixed width, so it centers itself in whatever area it replaces.
+        'mx-auto flex h-[220px] w-80 shrink-0 flex-col gap-2.5 rounded-wds-md border border-wds-border bg-wds-surface p-6',
         center && 'items-center justify-center',
         className
       )}
