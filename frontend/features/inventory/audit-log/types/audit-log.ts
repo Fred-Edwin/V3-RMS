@@ -1,5 +1,5 @@
 /** `GET /inventory/audit-log` (API_CONTRACT.md §30.12). */
-export type AuditArea = 'CATALOG' | 'SUPPLIERS' | 'RESTOCK_LEVELS' | 'PURCHASING' | 'PAYMENTS';
+export type AuditArea = 'CATALOG' | 'SUPPLIERS' | 'RESTOCK_LEVELS' | 'PURCHASING' | 'PAYMENTS' | 'PREP';
 
 /** The extra columns a Purchasing or Payments row carries: the purchase file it belongs to. */
 export interface PurchasingAuditFields {

@@ -1,8 +1,8 @@
 import type { AuditArea } from '../types/audit-log';
 
-export const AREA_LABEL: Record<AuditArea, string> = { CATALOG: 'Catalog', SUPPLIERS: 'Suppliers', RESTOCK_LEVELS: 'Restock levels', PURCHASING: 'Purchasing', PAYMENTS: 'Payments' };
+export const AREA_LABEL: Record<AuditArea, string> = { CATALOG: 'Catalog', SUPPLIERS: 'Suppliers', RESTOCK_LEVELS: 'Restock levels', PURCHASING: 'Purchasing', PAYMENTS: 'Payments', PREP: 'Prep' };
 /** The area chips. Purchasing and Payments have their own "Purchasing and payments" view (Paper `23`), so they are not chips here. */
-export const AREA_ORDER: readonly AuditArea[] = ['CATALOG', 'SUPPLIERS', 'RESTOCK_LEVELS'];
+export const AREA_ORDER: readonly AuditArea[] = ['CATALOG', 'SUPPLIERS', 'RESTOCK_LEVELS', 'PREP'];
 
 export type AuditPeriod = 'TODAY' | '7D' | '30D' | 'ANY';
 export const PERIOD_LABEL: Record<AuditPeriod, string> = { TODAY: 'Today', '7D': 'Last 7 days', '30D': 'Last 30 days', ANY: 'Any time' };

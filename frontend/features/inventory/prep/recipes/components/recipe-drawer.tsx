@@ -281,7 +281,7 @@ function RecipeEditor({ detail, pastRunsAverageText, onClose, onSaved }: { detai
                   key={o.value}
                   value={o.value}
                   className={cn(
-                    'h-auto border !border-l border-wds-border-strong bg-white px-3 py-2 text-[13px] leading-4 text-wds-text-ink transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-safe:active:scale-[0.97]',
+                    'h-auto border !border-l border-wds-border-strong bg-white px-3 py-2 text-[13px] leading-4 text-wds-text-ink transition-[color,background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-safe:active:scale-[0.97]',
                     'hover:bg-white data-[state=on]:!border-wds-espresso-700 data-[state=on]:bg-wds-espresso-50 data-[state=on]:text-wds-espresso-700 data-[state=on]:hover:bg-wds-espresso-50'
                   )}
                 >
