@@ -1,0 +1,75 @@
+// ============================================================================
+// Prep — usual recipes (docs/features/inventory/prep-plan.md §1.1).
+// One recipe per (site, output item). Every edit writes a new immutable
+// PrepRecipeVersion, so the versions table IS the change log.
+// The "exactly one main ingredient per version" rule is a partial unique index
+// written by hand in the rebuild migration (Prisma cannot express it).
+// ============================================================================
+
+enum PrepRecipeChangeReason {
+  BETTER_RECIPE
+  PORTION_SIZE_CHANGED
+  NEW_SUPPLIER
+  OTHER
+}
+
+/// The header: which output item has a usual recipe and which version is current.
+model PrepRecipe {
+  id             String   @id @default(uuid())
+  siteId         String   @map("organization_id")
+  outputItemId   String   @map("output_item_id")
+  /// The highest version number.
+  currentVersion Int      @default(1) @map("current_version")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  site       Site                @relation(fields: [siteId], references: [id])
+  outputItem InventoryItem       @relation("PrepRecipeOutput", fields: [outputItemId], references: [id])
+  versions   PrepRecipeVersion[]
+
+  @@unique([siteId, outputItemId])
+  @@index([siteId])
+  @@map("prep_recipes")
+}
+
+model PrepRecipeVersion {
+  id          String                  @id @default(uuid())
+  recipeId    String                  @map("recipe_id")
+  siteId      String                  @map("organization_id")
+  version     Int
+  /// Yield of ONE batch, in the output item's usage unit.
+  targetYield Decimal                 @map("target_yield") @db.Decimal(12, 4)
+  /// Null only on version 1 ("Recipe set"); required from version 2 ("Recipe changed").
+  reason      PrepRecipeChangeReason?
+  /// Free text when reason = OTHER.
+  reasonNote  String?                 @map("reason_note")
+  createdById String                  @map("created_by_id")
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  recipe    PrepRecipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  site      Site             @relation(fields: [siteId], references: [id])
+  createdBy User             @relation("PrepRecipeVersionCreatedBy", fields: [createdById], references: [id])
+  lines     PrepRecipeLine[]
+  runs      PrepRun[]
+
+  @@unique([recipeId, version])
+  @@index([siteId])
+  @@map("prep_recipe_versions")
+}
+
+model PrepRecipeLine {
+  id          String  @id @default(uuid())
+  versionId   String  @map("version_id")
+  inputItemId String  @map("input_item_id")
+  /// For one batch, in the input item's usage unit.
+  amount      Decimal @db.Decimal(12, 4)
+  /// Exactly one per version (partial unique index in the migration).
+  isMain      Boolean @default(false) @map("is_main")
+  lineOrder   Int     @map("line_order")
+
+  version   PrepRecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  inputItem InventoryItem     @relation("PrepRecipeInput", fields: [inputItemId], references: [id])
+
+  @@unique([versionId, inputItemId])
+  @@index([inputItemId])
+  @@map("prep_recipe_lines")
+}

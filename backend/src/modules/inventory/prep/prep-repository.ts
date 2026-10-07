@@ -114,8 +114,9 @@ export const prepRunRepository = {
         actualYield: new Prisma.Decimal(input.actualYield),
         outputUnitCost: new Prisma.Decimal(input.outputUnitCost),
         totalInputCost: new Prisma.Decimal(input.totalInputCost),
-        typicalYieldAtRunTime:
-          input.typicalYieldAtRunTime !== null ? new Prisma.Decimal(input.typicalYieldAtRunTime) : null,
+        // The old "typical yield" is now the run's expected yield, sourced from past runs.
+        expectedYield: input.typicalYieldAtRunTime !== null ? new Prisma.Decimal(input.typicalYieldAtRunTime) : null,
+        expectedSource: input.typicalYieldAtRunTime !== null ? 'PAST_RUNS' : 'NONE',
         yieldVarianceLabel: input.yieldVarianceLabel,
         notifiedStoreManager: input.notifiedStoreManager,
         locationId: input.locationId,

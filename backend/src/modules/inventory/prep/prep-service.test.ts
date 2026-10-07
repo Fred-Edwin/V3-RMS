@@ -88,7 +88,7 @@ const buildPrepRun = (overrides: Record<string, unknown> = {}) => ({
   actualYield: new Prisma.Decimal(22),
   outputUnitCost: new Prisma.Decimal(81.8182),
   totalInputCost: new Prisma.Decimal(1800),
-  typicalYieldAtRunTime: null,
+  expectedYield: null,
   yieldVarianceLabel: null,
   notifiedStoreManager: false,
   locationId: centralStoreId,

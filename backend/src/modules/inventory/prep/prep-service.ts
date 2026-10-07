@@ -76,8 +76,7 @@ const formatSignedDelta = (delta: Prisma.Decimal): string => {
 const serializePrepRunSummary = (run: PrepRunWithRelations): PrepRunSummary => {
   const firstLine = run.inputLines[0];
   const remainingCount = Math.max(run.inputLines.length - 1, 0);
-  const delta =
-    run.typicalYieldAtRunTime !== null ? run.actualYield.minus(run.typicalYieldAtRunTime) : null;
+  const delta = run.expectedYield !== null ? run.actualYield.minus(run.expectedYield) : null;
 
   return {
     id: run.id,
@@ -111,7 +110,7 @@ const serializePrepRunDetail = (run: PrepRunWithRelations): PrepRunDetail => ({
     lineCost: toDecimalString(line.lineCost),
   })),
   totalInputCost: toDecimalString(run.totalInputCost),
-  typicalYieldAtRunTime: run.typicalYieldAtRunTime ? toDecimalString(run.typicalYieldAtRunTime) : null,
+  typicalYieldAtRunTime: run.expectedYield ? toDecimalString(run.expectedYield) : null,
 });
 
 /**

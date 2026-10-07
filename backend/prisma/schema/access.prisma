@@ -83,6 +83,8 @@ model Site {
   purchaseFiles                PurchaseFile[]
   purchasingAudit              PurchasingAuditEntry[]
   prepRuns                     PrepRun[]
+  prepRecipes                  PrepRecipe[]
+  prepRecipeVersions           PrepRecipeVersion[]
   requisitions                 Requisition[]
   dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
   dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
@@ -214,6 +216,9 @@ model User {
   purchaseFilesUploaded              PurchaseFile[]                @relation("PurchaseFileUploadedBy")
   purchasingAuditEntries             PurchasingAuditEntry[]        @relation("PurchasingAuditActor")
   prepRunsCreated                    PrepRun[]                     @relation("PrepRunCreatedBy")
+  prepRunsClosed                     PrepRun[]                     @relation("PrepRunClosedBy")
+  prepRunsReviewed                   PrepRun[]                     @relation("PrepRunReviewedBy")
+  prepRecipeVersionsCreated          PrepRecipeVersion[]           @relation("PrepRecipeVersionCreatedBy")
   requisitionsOpened                 Requisition[]                 @relation("RequisitionOpenedBy")
   requisitionsApproved               Requisition[]                 @relation("RequisitionApprovedBy")
   dispatchesDispatched               Dispatch[]                    @relation("DispatchDispatchedBy")
