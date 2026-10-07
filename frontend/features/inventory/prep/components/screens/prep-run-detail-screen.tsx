@@ -43,13 +43,13 @@ function YieldVsAverageDot({ run }: { run: PrepRunDetail }) {
  * 04-components.md's Milestone Three section says a third consumer would
  * justify extracting it, and there isn't one.
  */
-function PrepRunInputLineList({ lines }: { lines: PrepRunDetail['inputLines'] }) {
+function PrepRunInputLineList({ lines, costsHidden }: { lines: PrepRunDetail['inputLines']; costsHidden: boolean }) {
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-wds-sm border border-wds-border">
       <div className="flex h-7 shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-3">
         <span className="grow font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Input consumed</span>
         <span className="w-[110px] shrink-0 text-right font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Qty</span>
-        <span className="w-[90px] shrink-0 text-right font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Cost</span>
+        {costsHidden ? null : <span className="w-[90px] shrink-0 text-right font-wds-mono text-[10px] font-semibold uppercase tracking-wide text-wds-text-ink">Cost</span>}
       </div>
       <div className="flex flex-col">
         {(lines ?? []).map((line, index) => (
@@ -63,9 +63,11 @@ function PrepRunInputLineList({ lines }: { lines: PrepRunDetail['inputLines'] })
             <span className="w-[110px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-ink">
               {line.quantity} {line.unit}
             </span>
-            <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">
-              KES {line.lineCost}
-            </span>
+            {costsHidden ? null : (
+              <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">
+                KES {line.lineCost}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -103,7 +105,7 @@ function PrepRunDetailBody({ run }: { run: PrepRunDetail }) {
           </div>
         </div>
 
-        <PrepRunInputLineList lines={run.inputLines} />
+        <PrepRunInputLineList lines={run.inputLines} costsHidden={run.costsHidden} />
 
         {run.typicalYieldAtRunTime ? (
           <div className="flex items-start gap-wds-2 rounded-wds-md border border-wds-info-border bg-wds-info-bg px-wds-3 py-wds-2.5">
@@ -116,17 +118,19 @@ function PrepRunDetailBody({ run }: { run: PrepRunDetail }) {
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-wds-1.5 border-t border-wds-border pt-wds-3">
-        <div className="flex items-baseline justify-between">
-          <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">Output unit cost</span>
-          <span className="font-wds-mono text-wds-body text-wds-text-ink">
-            KES {run.outputUnitCost} / {run.yieldUnit}
+      {run.costsHidden ? null : (
+        <div className="flex flex-col gap-wds-1.5 border-t border-wds-border pt-wds-3">
+          <div className="flex items-baseline justify-between">
+            <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">Output unit cost</span>
+            <span className="font-wds-mono text-wds-body text-wds-text-ink">
+              KES {run.outputUnitCost} / {run.yieldUnit}
+            </span>
+          </div>
+          <span className="font-wds-sans text-wds-field-label text-wds-text-faint">
+            = Σ input cost KES {Number(run.totalInputCost).toLocaleString()} ÷ {run.actualYield} {run.yieldUnit}. No signature — the ledger records who and when.
           </span>
         </div>
-        <span className="font-wds-sans text-wds-field-label text-wds-text-faint">
-          = Σ input cost KES {Number(run.totalInputCost).toLocaleString()} ÷ {run.actualYield} {run.yieldUnit}. No signature — the ledger records who and when.
-        </span>
-      </div>
+      )}
     </>
   );
 }

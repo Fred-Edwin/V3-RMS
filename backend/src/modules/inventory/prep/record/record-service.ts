@@ -7,7 +7,7 @@ import { actorCan, requireHubActor, requireHubReader } from '../../_shared/centr
 import { blindnessOf } from '../../_shared/blind-rule';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { postStockMovement } from '../../stock/ledger/ledger-door';
-import { expectedYieldFor, formatAmount, judgeYield, pastRunsExpected, vsUsualFor, type YieldJudgement } from '../_shared/expected-yield';
+import { expectedYieldFor, judgeYield, pastRunsExpected, vsUsualFor, type YieldJudgement } from '../_shared/expected-yield';
 import { PAST_RUNS_MAX, PAST_RUNS_WINDOW_DAYS } from '../_shared/prep-constants';
 import type { CheckResult } from '../_shared/prep-contract';
 import { exceedsStock, hasStockFlag } from '../_shared/prep-flags';
@@ -103,9 +103,6 @@ const assess = async (args: {
 const yieldLabel = (j: YieldJudgement | null): string | null =>
   !j || j.label === 'NO_BASIS' ? null : j.label === 'ON_TARGET' ? 'normal' : j.label === 'LOW' ? 'low yield' : 'high yield';
 
-const listText = (lines: { quantity: Prisma.Decimal; name: string; unit: string }[]): string =>
-  lines.map((l) => `${formatAmount(l.quantity, l.unit)} ${l.unit} ${l.name}`).join(' · ');
-
 /** What the Prep-again tiles and the "Something else" picker show for each output: the usual figure and last time's amounts. */
 const describeOutputs = async (siteId: string, ids: string[]) => {
   const [recipes, yields, latest] = await Promise.all([
@@ -128,7 +125,7 @@ const describeOutputs = async (siteId: string, ids: string[]) => {
       hasRecipe: recipe !== undefined,
       expectedText,
       lastRun: last ? { inputs: last.inputLines.map((l) => ({ itemId: l.inputItemId, quantity: decimalOut(l.quantity) })), made: decimalOut(last.actualYield) } : null,
-      ingredientsText: last ? listText(last.inputLines.map((l) => ({ quantity: l.quantity, name: l.inputItem.name, unit: l.inputItem.usageUnit }))) : '',
+      ingredientsText: last ? last.inputLines.map((l) => l.inputItem.name).join(', ') : '',
     };
   };
 };

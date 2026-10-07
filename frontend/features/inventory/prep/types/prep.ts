@@ -1,20 +1,9 @@
-// Inventory — Milestone Three (Prep)
-// Mirrors the FROZEN backend contract by hand (no pnpm workspace in this repo,
-// so there is no shared package to import from).
+// Inventory — Prep: the OLD list and detail shapes, kept only for the old History page and run-detail drawer.
 //
-// Authoritative source: backend/src/modules/inventory/prep-validators.ts
-// (Zod schemas) + prep.types.ts (z.infer types). If this file's shape
-// disagrees with that one, the backend file wins — fix this file, not the
-// other way around. A contract test on the backend enforces the reverse
-// direction (serializer output satisfies the schemas).
+// TEMPORARY (Prep rebuild, Slice 2). The new contract is `../_shared/types/prep-contract.ts`; `../services/prep-api-service.ts`
+// adapts the new endpoints to these shapes. This file is deleted with the old screens (Slices 3 and 4).
 //
-// Wire-format rule: every decimal (quantity, cost, total) crosses the wire
-// as a string, never a JS number.
-//
-// Plan: docs/features/inventory/milestone-3-plan.md §3.
-//
-// Naming: routes live under /inventory/prep/… throughout — never confuse
-// with the unrelated BDS/KDS "prep tickets" domain (API_CONTRACT.md §5).
+// Wire-format rule: every decimal (quantity, cost, total) is a string, never a JS number.
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +16,7 @@ export type YieldFlagFilter = 'normal' | 'low' | 'high';
 // ─── Prep runs ───────────────────────────────────────────────────────────────
 
 export interface PrepRunInputsPreview {
-  /** e.g. "6kg chicken". */
+  /** e.g. "6 kg chicken". */
   firstItemLabel: string;
   remainingCount: number;
 }
@@ -43,7 +32,7 @@ export interface PrepRunSummary {
   yieldUnit: string;
   /** Null only when no typical yield exists yet for this output item. */
   yieldVarianceLabel: YieldVarianceLabel | null;
-  /** Signed quantity delta, e.g. "+0.5" / "-1.2". Null in lockstep with yieldVarianceLabel. */
+  /** Signed quantity delta, e.g. "+0.5" / "−1.2". Null in lockstep with yieldVarianceLabel. */
   yieldVarianceDelta: string | null;
   outputUnitCost: string;
   createdByInitials: string;
@@ -58,18 +47,14 @@ export interface PrepRunInputLine {
 }
 
 export interface PrepRunDetail extends PrepRunSummary {
+  /** True when the caller's role does not see run costs (the cost fields are then "0" and must not be drawn). */
+  costsHidden: boolean;
   createdByName: string;
   createdAt: string;
   inputLines: PrepRunInputLine[];
   totalInputCost: string;
   /** Null in lockstep with yieldVarianceLabel/yieldVarianceDelta. */
   typicalYieldAtRunTime: string | null;
-}
-
-export interface CreatePrepRunInput {
-  outputItemId: string;
-  inputLines: Array<{ inventoryItemId: string; quantity: string }>;
-  actualYield: string;
 }
 
 export interface ListPrepRunsQuery {
@@ -79,7 +64,8 @@ export interface ListPrepRunsQuery {
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
-  cursor?: string;
+  /** 1-based page of `limit` runs. */
+  page?: number;
 }
 
 export interface PrepSummary {
@@ -91,12 +77,4 @@ export interface PrepSummary {
 export interface PrepSummaryQuery {
   dateFrom?: string;
   dateTo?: string;
-}
-
-/** Powers the New Prep Run screen's "Typical: ~6kg chicken -> ~22L" nudge. */
-export interface TypicalYield {
-  outputItemId: string;
-  typicalInputSummary: string | null;
-  typicalYield: string | null;
-  sampleSize: number;
 }

@@ -288,7 +288,7 @@ export const NAV_ROWS: readonly NavRow[] = [
     badge: 'prep-needs-look',
     // The three sub-links of the Prep rebuild. Each keeps its old page (or none yet) until its slice lands; the Attendant sees all three.
     subItems: [
-      { key: 'runs', label: 'Runs', oldHref: '/app/inventory/prep', framed: true, roles: OLD_FLOW, badge: 'prep-needs-look' },
+      { key: 'runs', label: 'Runs', newHref: '/app/inventory/prep', roles: OLD_FLOW, badge: 'prep-needs-look' },
       // No page until Prep slice 1; the link is drawn now so the sidebar matches the approved design.
       { key: 'usual-recipes', label: 'Usual recipes', oldHref: '/app/inventory/prep/recipes', framed: true, roles: OLD_FLOW },
       { key: 'history', label: 'History', oldHref: '/app/inventory/prep/history', framed: true, roles: OLD_FLOW },

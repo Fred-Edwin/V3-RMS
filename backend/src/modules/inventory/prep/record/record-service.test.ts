@@ -268,6 +268,6 @@ describe('outputs and prep-again', () => {
     vi.mocked(prepRunRepository.mostRecentOutputs).mockResolvedValue([]);
     const r = await recordService.prepAgain(attendant);
     expect(prepRunRepository.mostRecentOutputs).toHaveBeenCalledWith(HUB, [OUT], 2);
-    expect(r.tiles).toEqual([{ itemId: OUT, name: 'Marinated chicken', ingredientsText: '10 kg chicken · 1 kg paste', expectedText: 'about 38 portions', lastRun: expect.anything() }]);
+    expect(r.tiles).toEqual([{ itemId: OUT, name: 'Marinated chicken', ingredientsText: 'chicken, paste', expectedText: 'about 38 portions', lastRun: expect.anything() }]);
   });
 });

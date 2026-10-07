@@ -174,14 +174,14 @@ export const prepRunRepository = {
 
   /** Output items ranked by RECORDED runs since a moment (live items only). */
   mostMadeSince: async (siteId: string, since: Date, take: number): Promise<string[]> => {
-    const rows = await prisma.prepRun.groupBy({
-      by: ['outputItemId'],
+    // Counted here rather than with groupBy: a groupBy that filters through the output item joins two tables with an `id` column.
+    const rows = await prisma.prepRun.findMany({
       where: { siteId, status: 'RECORDED', createdAt: { gte: since }, outputItem: { deletedAt: null, type: 'PREPPED' } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take,
+      select: { outputItemId: true },
     });
-    return rows.map((row) => row.outputItemId);
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.outputItemId, (counts.get(row.outputItemId) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, take).map(([id]) => id);
   },
 
   /** Output items by most recent RECORDED run, any time, live only, skipping some (fills the Prep-again tiles). */
