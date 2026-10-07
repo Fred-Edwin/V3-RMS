@@ -4,6 +4,9 @@
  */
 export { CountsHomeScreen } from './counts-home-screen';
 export { CountScreen } from './record/components/count-screen';
+export { BlankSheetPage } from './print/components/blank-sheet-page';
+export { CountRecordPage } from './print/components/count-record-page';
+export { CountSetupScreen } from './setup/components/count-setup-screen';
 export { SignedCountScreen } from './record/components/signed-count-screen';
 export { StartCountScreen } from './record/components/start-count-screen';
 export { ReviewCountScreen } from './review/components/review-count-screen';

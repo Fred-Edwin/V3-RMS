@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
-import { Checkbox } from '@/components/ui2/checkbox';
+import { ScwCheckbox } from '../../../_shared/components/scw-checkbox';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { cn } from '@/lib/cn';
 import { BottomSheet } from '../../../_shared/components/bottom-sheet';
@@ -209,7 +209,7 @@ export function StartCountScreen() {
                             'focus-within:shadow-wds-ring',
                           )}
                         >
-                          <Checkbox checked={on} disabled={unavailable} onCheckedChange={() => toggle(section.id)} aria-label={`Count ${section.name}`} />
+                          <ScwCheckbox checked={on} disabled={unavailable} onCheckedChange={() => toggle(section.id)} aria-label={`Count ${section.name}`} />
                           <span className="flex min-w-0 grow flex-col gap-0.5">
                             <span className="flex items-center gap-2">
                               <span className="truncate font-wds-sans text-[16px] font-semibold leading-5 text-wds-text-ink">{section.name}</span>
@@ -288,7 +288,7 @@ export function StartCountScreen() {
 function ItemChip({ name, detail, onRemove }: { name: string; detail: string; onRemove?: () => void }) {
   return (
     <span className="flex items-center gap-2 border-[1.5px] border-wds-selected-edge bg-wds-espresso-50 px-3 py-2">
-      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" className="text-wds-primary-btn-end">
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" className="text-[var(--wds-primary-btn-end)]">
         <path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <span className="font-wds-sans text-[14px] font-semibold leading-4 text-wds-text-ink">{name}</span>

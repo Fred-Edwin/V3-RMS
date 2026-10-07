@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
-import { Checkbox } from '@/components/ui2/checkbox';
+import { ScwCheckbox } from '../../../_shared/components/scw-checkbox';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { cn } from '@/lib/cn';
 import { FormErrorBanner } from '../../../_shared/components/stock-states';
@@ -318,7 +318,8 @@ export function ReviewCountScreen({ countId }: { countId: string }) {
               <div className="flex h-[34px] shrink-0 items-center border-b border-t border-b-wds-border border-t-wds-text-ink bg-wds-surface px-4 font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">
                 {selectable ? (
                   <span className="w-8 shrink-0">
-                    <Checkbox
+                    <ScwCheckbox
+                      size={14}
                       aria-label="Select every line that needs a decision"
                       checked={allSelected}
                       disabled={pendingOutside.length === 0 || busy}
@@ -347,7 +348,7 @@ export function ReviewCountScreen({ countId }: { countId: string }) {
                       <div className={cn('flex min-h-16 items-center px-4 py-1', isOpen ? 'bg-wds-espresso-50 pl-[13px]' : '', busy && 'opacity-70 transition-opacity')}>
                         {selectable ? (
                           <span className="w-8 shrink-0">
-                            <Checkbox aria-label={`Select ${line.itemName}`} checked={selected.has(line.id)} disabled={!line.can.decide || line.result !== 'EXCEEDS' || busy} onCheckedChange={() => toggle(line.id)} />
+                            <ScwCheckbox size={14} aria-label={`Select ${line.itemName}`} checked={selected.has(line.id)} disabled={!line.can.decide || line.result !== 'EXCEEDS' || busy} onCheckedChange={() => toggle(line.id)} />
                           </span>
                         ) : null}
                         <span className="flex w-[190px] shrink-0 flex-col pr-2">

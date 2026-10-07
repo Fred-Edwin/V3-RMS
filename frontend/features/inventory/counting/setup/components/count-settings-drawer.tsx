@@ -198,7 +198,7 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
                     onClick={() => setFlag((f) => !f)}
                     className={cn(
                       'relative h-5 w-[34px] shrink-0 rounded-[10px] outline-none transition-colors duration-150 focus-visible:shadow-wds-ring disabled:cursor-not-allowed motion-reduce:transition-none',
-                      flag ? 'bg-wds-primary-btn-end' : 'bg-wds-neutral-300',
+                      flag ? 'bg-[var(--wds-primary-btn-end)]' : 'bg-wds-neutral-300',
                       !editRange && 'opacity-60',
                     )}
                   >
