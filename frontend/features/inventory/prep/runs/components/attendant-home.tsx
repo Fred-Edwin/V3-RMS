@@ -20,8 +20,9 @@ import { formatDayAndClock, formatQuantity, formatWhen } from '../../_shared/lib
 import { PREP_STATES_COPY } from '../../_shared/lib/states-copy';
 import { prepApi } from '../../_shared/services/prep-api';
 import type { RunSummary } from '../../_shared/types/prep-contract';
+import { useRunParam } from '../hooks/use-run-param';
 import { PrepHomeLoading } from './prep-home-loading';
-import { PrepRunDetailDrawer } from '../../components/screens/prep-run-detail-screen';
+import { RunDrawer } from './run-drawer';
 
 const NEW_RUN = '/app/inventory/prep/new';
 const HISTORY = '/app/inventory/prep/history';
@@ -74,7 +75,7 @@ export function AttendantHome() {
   const { matches: desktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const again = useLoader('prep-again', () => prepApi.prepAgain().then((r) => r.tiles), PREP_STATES_COPY.home.errorTitle);
   const recent = useLoader('prep-recent', () => prepApi.listRuns({ perPage: desktop ? 8 : 5 }).then((r) => r.items), PREP_STATES_COPY.recentRuns.errorTitle);
-  const [openRunId, setOpenRunId] = React.useState<string | null>(null);
+  const { runId, open: openRun, close: closeRun } = useRunParam();
   const [now] = React.useState(() => Date.now());
 
   if (!hydrated) return <PrepHomeLoading />;
@@ -135,13 +136,13 @@ export function AttendantHome() {
         <EmptyState title={PREP_STATES_COPY.recentRuns.emptyTitle} description={PREP_STATES_COPY.recentRuns.emptyDescription} />
       ) : desktop ? (
         <>
-          <RunTable runs={recent.data ?? []} variant="attendant" onOpen={(r) => setOpenRunId(r.id)} />
+          <RunTable runs={recent.data ?? []} variant="attendant" onOpen={(r) => openRun(r.id)} />
           <p className="font-wds-sans text-wds-caption text-wds-text-copy-muted">Runs marked “yours” can be corrected or cancelled for 24 hours. Other runs open to read only.</p>
         </>
       ) : (
         <ul className="border border-wds-border bg-wds-surface">
           {(recent.data ?? []).map((r) => (
-            <RecentRunRow key={r.id} run={r} now={now} onOpen={(run) => setOpenRunId(run.id)} />
+            <RecentRunRow key={r.id} run={r} now={now} onOpen={(run) => openRun(run.id)} />
           ))}
         </ul>
       )}
@@ -187,7 +188,7 @@ export function AttendantHome() {
           </div>
         </div>
       </div>
-      <PrepRunDetailDrawer runId={openRunId} open={openRunId !== null} onOpenChange={(open) => !open && setOpenRunId(null)} variant={desktop ? 'desktop' : 'mobile'} />
+      <RunDrawer runId={runId} onClose={closeRun} onOpenRun={openRun} />
     </div>
   );
 }

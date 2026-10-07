@@ -35,13 +35,23 @@ export const isPositive = (value: string): boolean => Number(value) > 0;
 
 const TZ = 'Africa/Nairobi';
 
+/** Three-letter months as Paper draws them ("Sep", where a browser's own en-GB would print "Sept"). */
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** "12 Oct" / "09 Oct" for a moment, as a Nairobi date: two-digit day like Paper's WHEN column. */
+export const formatDayMonth = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const [, month, day] = d.toLocaleDateString('en-CA', { timeZone: TZ }).split('-');
+  return `${(day ?? '').padStart(2, '0')} ${MONTHS[Number(month) - 1] ?? ''}`;
+};
+
 /** "12 Oct 07:20" in Nairobi time, matching Paper's WHEN column. */
 export const formatWhen = (iso: string): string => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: TZ });
   const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
-  return `${date} ${time}`;
+  return `${formatDayMonth(iso)} ${time}`;
 };
 
 /** "07:20" in Nairobi time. */
@@ -63,6 +73,18 @@ export const formatDayAndClock = (iso: string, now: Date = new Date()): string =
   if (diffDays === -1) return `yesterday ${clock}`;
   return formatWhen(iso);
 };
+
+/** "KES 828", "KES 52K", "KES 1.2M": the KPI strip's short money. Anything that is not a number reads as "KES 0". */
+export const formatKesCompact = (value: string): string => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 'KES 0';
+  if (n < 1000) return `KES ${Math.round(n)}`;
+  if (n < 1_000_000) return `KES ${Math.round(n / 1000)}K`;
+  return `KES ${(Math.round(n / 100_000) / 10).toString()}M`;
+};
+
+/** "KES 3,900" (whole shillings, thousands separated). */
+export const formatKes = (value: string): string => `KES ${Number(value).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
 
 /** "36 portions", "8 kg". */
 export const withUnit = (quantity: string, unit: string): string => `${formatQuantity(quantity)} ${unit}`;

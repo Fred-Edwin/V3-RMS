@@ -284,14 +284,13 @@ export const NAV_ROWS: readonly NavRow[] = [
     icon: PrepIcon,
     roles: OLD_FLOW,
     hub: true,
-    // Shown on the parent only while it is shut, and on Runs while it is open (the sidebar decides); nothing renders until the count is wired (Prep slice 4).
+    // Shown on the parent only while it is shut, and on Runs while it is open (the sidebar decides); the count is GET /needs-a-look/count, and a zero draws nothing.
     badge: 'prep-needs-look',
-    // The three sub-links of the Prep rebuild. Each keeps its old page (or none yet) until its slice lands; the Attendant sees all three.
+    // The three sub-links of the Prep rebuild, all rebuilt now; the Attendant sees all three.
     subItems: [
       { key: 'runs', label: 'Runs', newHref: '/app/inventory/prep', roles: OLD_FLOW, badge: 'prep-needs-look' },
-      // No page until Prep slice 1; the link is drawn now so the sidebar matches the approved design.
       { key: 'usual-recipes', label: 'Usual recipes', newHref: '/app/inventory/prep/recipes', roles: OLD_FLOW },
-      { key: 'history', label: 'History', oldHref: '/app/inventory/prep/history', framed: true, roles: OLD_FLOW },
+      { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: OLD_FLOW },
     ],
   },
   // Discrepancies are resolved from the dispatch queue, so they light Dispatch.

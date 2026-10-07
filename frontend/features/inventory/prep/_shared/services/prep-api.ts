@@ -1,21 +1,26 @@
 /**
  * The Prep rebuild's one HTTP service (docs/API_CONTRACT.md §33), typed against the frozen contract mirror. Slices 1, 3 and 4 add
- * their endpoints here. The old `services/prep-api-service.ts` is a temporary adapter for the old History and detail pages.
+ * their endpoints here.
  */
 import { apiClient } from '@/lib/apiClient';
+import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
+import { ApiError } from '@/types/api';
 import type {
   CancelInput,
   CancelPreview,
   CheckInput,
   CheckResult,
   CorrectInput,
+  NeedsLookCount,
+  NeedsLookList,
   OutputsResponse,
   PrepAgainResponse,
   RecordInput,
   RunDetail,
   RunsList,
   RunsQuery,
+  RunsSummary,
 } from '../types/prep-contract';
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
@@ -42,6 +47,8 @@ export const prepApi = {
   record: (input: RecordInput): Promise<RunDetail> => apiClient.post<RunDetail>(`${BASE}/runs`, input, token()),
   /** #8 */
   listRuns: (query: RunsQuery = {}): Promise<RunsList> => apiClient.get<RunsList>(`${BASE}/runs${queryString(query)}`, token()),
+  /** #9 The manager's KPI strip. prep.read_flags: never call it for an Attendant. */
+  runsSummary: (): Promise<RunsSummary> => apiClient.get<RunsSummary>(`${BASE}/runs/summary`, token()),
   /** #10 */
   getRun: (id: string): Promise<RunDetail> => apiClient.get<RunDetail>(`${BASE}/runs/${id}`, token()),
   /** #11 Correct a run: returns the NEW run. The same idempotency key returns the same new run. */
@@ -50,4 +57,29 @@ export const prepApi = {
   cancelRun: (id: string, input: CancelInput): Promise<RunDetail> => apiClient.post<RunDetail>(`${BASE}/runs/${id}/cancel`, input, token()),
   /** #13 What cancelling would do to stock (managers; needs `restock.read`). */
   cancelPreview: (id: string): Promise<CancelPreview> => apiClient.get<CancelPreview>(`${BASE}/runs/${id}/cancel-preview`, token()),
+  /** #14 The queue behind the band. prep.read_flags. */
+  needsLook: (query: { page?: number; perPage?: number } = {}): Promise<NeedsLookList> =>
+    apiClient.get<NeedsLookList>(`${BASE}/needs-a-look${queryString(query)}`, token()),
+  /** #15 The sidebar badge. prep.read_flags. */
+  needsLookCount: (): Promise<NeedsLookCount> => apiClient.get<NeedsLookCount>(`${BASE}/needs-a-look/count`, token()),
+  /** #16 Mark reviewed. Safe to repeat: a reviewed run comes back unchanged. prep.review. */
+  reviewRun: (id: string): Promise<RunDetail> => apiClient.post<RunDetail>(`${BASE}/runs/${id}/review`, {}, token()),
+  /** #17 The History table as a CSV file for these filters (no paging). prep.read_flags. */
+  exportRuns: async (query: Omit<RunsQuery, 'page' | 'perPage'> = {}): Promise<{ blob: Blob; fileName: string }> => {
+    const token_ = token();
+    const response = await fetch(`${env.apiUrl}${BASE}/runs/export${queryString(query)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: token_ ? { Authorization: `Bearer ${token_}` } : {},
+    });
+    if (!response.ok) {
+      // An error comes back as the usual JSON envelope, not a file.
+      const payload = (await response.json().catch(() => ({}))) as { error?: { message?: string; code?: string; details?: unknown } };
+      throw new ApiError(payload.error?.message ?? 'Request failed', response.status, payload.error?.code ?? 'UNKNOWN_ERROR', payload.error?.details);
+    }
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const fileName = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'prep-history.csv';
+    return { blob: await response.blob(), fileName };
+  },
 };

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { formatDayAndClock, formatQuantity, parseTypedQuantity, stepForUnit, stepQuantity } from './prep-format';
+import { formatDayAndClock, formatQuantity, formatWhen, parseTypedQuantity, stepForUnit, stepQuantity } from './prep-format';
+
+describe('formatWhen (Paper’s WHEN column)', () => {
+  it('writes a Nairobi date and time with a two-digit day and a three-letter month', () => {
+    expect(formatWhen('2026-10-09T04:05:00.000Z')).toBe('09 Oct 07:05');
+    expect(formatWhen('2026-09-29T07:05:00.000Z')).toBe('29 Sep 10:05'); // never "Sept"
+  });
+  it('uses the Nairobi day, not the UTC one', () => {
+    expect(formatWhen('2026-10-11T21:30:00.000Z')).toBe('12 Oct 00:30');
+  });
+});
 
 describe('stepper arithmetic', () => {
   it('steps 0.5 for kg and litres, 1 for portions and pieces', () => {

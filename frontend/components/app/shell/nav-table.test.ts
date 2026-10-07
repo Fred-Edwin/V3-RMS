@@ -177,6 +177,16 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
     }
   });
 
+  it('points all three Prep sub-links at rebuilt pages (History moved from oldHref to newHref in Prep slice 4)', () => {
+    const prepRow = NAV_ROWS.find((row) => row.key === 'prep');
+    for (const sub of prepRow?.subItems ?? []) {
+      expect(sub.oldHref, sub.key).toBeUndefined();
+      expect(sub.framed, sub.key).toBeUndefined();
+      expect(sub.newHref, sub.key).toMatch(/^\/app\/inventory\/prep/);
+    }
+    expect(prepRow?.subItems?.find((s) => s.key === 'history')?.newHref).toBe('/app/inventory/prep/history');
+  });
+
   it('puts the Needs a look badge on Prep and Runs only for someone holding prep.read_flags', () => {
     const withFlags = item(hub(navFor(ctxFor('STORE_MANAGER', { can: holds('prep.read_flags') }))), 'prep');
     expect(withFlags?.badge).toBe('prep-needs-look');

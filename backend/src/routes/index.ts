@@ -36,6 +36,7 @@ import purchasingRoutes from '../modules/inventory/purchasing/purchasing-routes'
 import prepRecordRoutes from '../modules/inventory/prep/record/record-routes';
 import prepRunsRoutes from '../modules/inventory/prep/runs/runs-routes';
 import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
+import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
 import stockRoutes from '../modules/inventory/stock/stock-routes';
 import wasteRoutes from '../modules/inventory/waste/waste-routes';
@@ -82,6 +83,7 @@ apiRouter.use(auditLogRoutes);
 apiRouter.use(permissionsRoutes);
 apiRouter.use(purchasingRoutes);
 apiRouter.use(prepRecordRoutes);
+apiRouter.use(prepReviewRoutes); // before prepRunsRoutes: `/runs/export` must win over `/runs/:id`
 apiRouter.use(prepRunsRoutes);
 apiRouter.use(prepFixRoutes);
 apiRouter.use('/inventory/prep', prepRecipesRoutes);

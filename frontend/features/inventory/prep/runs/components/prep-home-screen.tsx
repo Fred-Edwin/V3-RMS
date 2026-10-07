@@ -15,6 +15,15 @@ import { PrepHomeLoading } from './prep-home-loading';
  * While the permissions arrive the frame (top bar, title) stays and only the data region loads (`PrepHomeLoading`).
  */
 export function PrepHomeScreen() {
+  // The run drawer reads `?run=` from the URL, which needs a Suspense boundary above it.
+  return (
+    <React.Suspense fallback={<PrepHomeLoading />}>
+      <PrepHome />
+    </React.Suspense>
+  );
+}
+
+function PrepHome() {
   const { can, ready, failed } = usePermissions();
 
   if (!ready && !failed) return <PrepHomeLoading />;
@@ -26,5 +35,5 @@ export function PrepHomeScreen() {
     );
   }
   if (can('prep.record') && !can('prep.read_flags')) return <AttendantHome />;
-  return <ManagerRunsHome canRecord={can('prep.record')} />;
+  return <ManagerRunsHome canRecord={can('prep.record')} canReadFlags={can('prep.read_flags')} />;
 }
