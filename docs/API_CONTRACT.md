@@ -3872,9 +3872,12 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
 
 ## 23. Inventory — Milestone Three (Prep)
 
-> **STATUS: BUILDING — S0 (Step 7, backend + frontend vertical slice)**,
-> started 2026-09-19. Plan: `docs/features/inventory/milestone-3-plan.md`,
-> all four §6 modeling questions owner-resolved 2026-09-19.
+> **STATUS: HISTORY — replaced by §33 (Prep rebuild, frozen 7 Oct 2026).** These five
+> endpoints stay live on branch `feat/prep-rebuild` only until Slice 2 deletes them; do not
+> build anything new against this section.
+>
+> (Original status: BUILDING — S0, started 2026-09-19. Plan:
+> `docs/features/inventory/milestone-3-plan.md`.)
 
 Prep is the **second writer to the stock ledger** after Milestone Two, and
 the **first writer of a negative-signed ledger row** (`PREP_CONSUME`) — see
@@ -5126,4 +5129,64 @@ Source of truth: `docs/features/workforce/slice-0-contract.md`. Standard envelop
 ### 32.3 `GET /workforce/rules/:group/versions?siteId=<uuid>`
 
 Same guard. Newest first; no `siteId` means company-default versions. Each item: `{ id, group, siteId, version, effectiveFrom, createdAt, createdBy, reason, values, changedFields, requiredConfirmations, confirmations }`. `STATUTORY` comes back `{ group, locked: true }` without `payrun.read`. `404` unknown group.
+
+## 33. Inventory — Prep rebuild (FROZEN 7 Oct 2026)
+
+> **STATUS: FROZEN.** Source of truth in code: `backend/src/modules/inventory/prep/_shared/prep-contract.ts` (Zod), mirrored by hand in `frontend/features/inventory/prep/_shared/types/prep-contract.ts`; both are checked against `prep-contract.fixtures.json` by `prep-contract.test.ts`. Plan and reasons: `docs/features/inventory/prep-plan.md` §3. Replaces §23. Nothing here is built yet beyond the schema, capabilities and ledger door (Slice 0); each slice builds its endpoints against this text. A change needs the owner and a same-commit change to the schema file, the mirror, the fixtures and this section.
+
+### 33.1 Conventions
+
+- Base `/inventory/prep`. Standard envelope `{ success, data }` (§1). Every route has `authenticate` and `requireCapability(...)`; never `requireRole`. Reads resolve the site with `requireHubReader`, writes with `requireHubActor` (D-15, Central Store hub site).
+- Decimals are **strings**; ids strings; timestamps ISO 8601 UTC; dates `YYYY-MM-DD` read as **Africa/Nairobi** days. Quantities are in the item's usage unit.
+- Run numbers `PREP-nnnn`, gap-free per site (reference counter prefix `PREP`).
+- Record and correct carry an `idempotencyKey` (UUID the form makes when it opens). The same `(site, user, key)` returns the already-recorded run with `200` (first time `201`).
+- Capabilities (role grid in `central-store-access.ts`): `prep.read`, `prep.see_costs`, `prep.read_flags`, `prep.record`, `prep.fix_any`, `prep.review`, `prep.recipes_write`. A "cap" field below is **absent** (not null) for a caller without that capability.
+- Standard errors: `400` validation, `401`, `403`, `404`, `409`, `422`. Prep error codes (in `error.code`): `RECIPE_UNCHANGED`, `REASON_REQUIRED`, `MAIN_INGREDIENT_REQUIRED`, `INPUT_IS_OUTPUT`, `DUPLICATE_INPUT_LINE`, `QUANTITY_NOT_POSITIVE`, `PREP_RUN_LOCKED` (403), `RUN_NOT_OPEN` (409), `EXPORT_TOO_LARGE` (422).
+
+### 33.2 Blind rule per role
+
+| Field | Needs | Store Attendant | Manager roles (SM, Admin, Accountant, Director, Branch Mgr) |
+|---|---|---|---|
+| unit costs, line costs, `totalInputCost`, `outputUnitCost`, `cost`, `costPerUnitNow`, `prepValue7d`, `costNow`, `unitCostBefore/After` | `prep.see_costs` | absent | present |
+| `needsLook`, `reviewedBy/At`, `flags`, `exceedsStock`, Needs a look, Export | `prep.read_flags` | **absent, never in a payload** | present |
+| stock figures: `onHand`, `stock`, cancel preview | `restock.read` | absent | present where the role holds it |
+| `can.correct/cancel` | `prep.record`; own run within 24 h, or `prep.fix_any` | own run, 24 h | Store Manager and Admin any run; others false |
+| `can.review` | `prep.review` | false | Store Manager and Admin only |
+
+An Attendant opening someone else's run gets it read-only (`can` all false, no flags, no costs). The 24-hour window and "own run" are service rules: a caller without `prep.fix_any` is allowed only when `run.createdById === actor.id` and `now − run.createdAt ≤ 24 h`, else `403 PREP_RUN_LOCKED` ("Ask the Store Manager").
+
+### 33.3 Endpoints
+
+| # | Method, path | Capability | Request | Response | Errors |
+|---|---|---|---|---|---|
+| 1 | `GET /recipes` | `prep.read` | query `search`, `show=all\|has\|none`, `changed=any\|30d\|older`, `page`, `perPage` (25, max 100) | `{ items: RecipeRow[], total, totalItems, withoutRecipe }` | |
+| 2 | `GET /recipes/:itemId` | `prep.read` | | `RecipeDetail` | 404 item not prepped or not found |
+| 3 | `PUT /recipes/:itemId` | `prep.recipes_write` | `RecipeInput` | `RecipeDetail` (new version) | 422 `RECIPE_UNCHANGED`, `REASON_REQUIRED` (not the first version, no reason), `MAIN_INGREDIENT_REQUIRED`; 409 item retired |
+| 4 | `GET /outputs` | `prep.record` | | `{ items: { itemId, name, unit, hasRecipe, expectedText, lastRun }[] }` | every live PREPPED item |
+| 5 | `GET /prep-again` | `prep.record` | | `{ tiles: { itemId, name, ingredientsText, expectedText, lastRun }[] }` (max 3) | most made in 30 days, filled from all time |
+| 6 | `POST /runs/check` | `prep.record` | `CheckInput` | `CheckResult` | no write, no log |
+| 7 | `POST /runs` | `prep.record` | `RecordInput` | `RunDetail` | 201 new, 200 replayed; 404; 409 item retired; 422 `INPUT_IS_OUTPUT`, `DUPLICATE_INPUT_LINE`, `QUANTITY_NOT_POSITIVE` |
+| 8 | `GET /runs` | `prep.read` | query `search`, `outputItemId`, `personId`, `status`, `needsLook` (read only with `prep.read_flags`, else ignored), `mine`, `from`, `to`, `page`, `perPage` | `{ items: RunSummary[], total, page, perPage }` | newest first |
+| 9 | `GET /runs/summary` | `prep.read_flags` | | `{ runsThisWeek, runsToday, needsLookCount, prepValue7d? }` | |
+| 10 | `GET /runs/:id` | `prep.read` | | `RunDetail` | 404 |
+| 11 | `POST /runs/:id/correct` | `prep.record` | `CorrectInput` | `RunDetail` of the **new** run | 403 `PREP_RUN_LOCKED`; 409 `RUN_NOT_OPEN`; 404 |
+| 12 | `POST /runs/:id/cancel` | `prep.record` | `CancelInput` | `RunDetail` | same; a replay returns 409 `RUN_NOT_OPEN` |
+| 13 | `GET /runs/:id/cancel-preview` | `restock.read` | | `{ items: { itemId, itemName, onHandNow, onHandAfter, unit, belowZero }[] }` | |
+| 14 | `GET /needs-a-look` | `prep.read_flags` | `page`, `perPage` | `{ count, items: (RunSummary & { reasons: string[] })[] }` | |
+| 15 | `GET /needs-a-look/count` | `prep.read_flags` | | `{ count }` | sidebar badge |
+| 16 | `POST /runs/:id/review` | `prep.review` | | `RunDetail` | idempotent; 409 `RUN_NOT_OPEN` for a cancelled run |
+| 17 | `GET /runs/export` | `prep.read_flags` | filters of #8, no paging | `text/csv`, UTF-8 with BOM; When, Run, Output, Made, Unit, Vs usual, By, Status, Reviewed by (+ Unit cost with `prep.see_costs`) | file `prep-history-<from>-<to>.csv`; 422 `EXPORT_TOO_LARGE` over 10,000 rows |
+
+Route order: `/runs/check`, `/runs/summary` and `/runs/export` are registered before `/runs/:id`.
+
+### 33.4 Shapes
+
+Request and response shapes are exactly the schemas in `prep-contract.ts` (`RunSummary`, `RunDetail`, `RecipeRow`, `RecipeDetail`, `RecipeInput`, `InputLine`, `CheckInput`, `CheckResult`, `RecordInput`, `CorrectInput`, `CancelInput`, `ExpectedYield`, `VsUsual`, `Person`); the file is the reference, this section does not repeat it. Plan §3 explains each field.
+
+### 33.5 Rules the services apply
+
+- **Judging a run:** expected = recipe scaling (`targetYield × mainUsed ÷ recipeMainAmount`) when the run uses the recipe's main ingredient, else the mean of the last 10 `RECORDED` runs of that output or those of the last 30 days (whichever gives fewer), else none. ≤15% on target; >15% low or high (manager flag); >35% also notifies (in-app flag only). Typo suspect: made over 3× or under ⅓ of expected; warns, never blocks. A repeat (same output, same inputs, same Nairobi day) warns, never blocks; neither is stored.
+- **Recording:** one transaction. One `PREP_CONSUME` per input and one `PREP_PRODUCE` through `postStockMovement`; the output item's `currentCost` becomes total input cost ÷ made; `needsLook` is set when the yield is off or an input exceeded expected stock.
+- **Correct and cancel:** reversing rows (original type, opposite sign, linked by `reversesTransactionId`, once per row); the old run becomes `CORRECTED` (or `CANCELLED`), the new run is `RECORDED` with `replacesRunId`. Output cost changes only when the run fixed is the latest `RECORDED` run of that output; a cancel leaves it unchanged. A cancel may take stock below zero. An Attendant's correction goes to Needs a look.
+- **Audit log:** `GET /inventory/audit-log` gains area `PREP` (Recorded, Corrected, Cancelled, Reviewed, Recipe set, Recipe changed), derived from run and recipe-version columns.
 
