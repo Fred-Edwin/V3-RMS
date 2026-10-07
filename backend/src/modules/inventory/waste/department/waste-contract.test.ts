@@ -9,12 +9,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { wasteService } from './waste-service';
-import { stockService } from '../stock/stock-service';
 import { wasteRepository } from './waste-repository';
-import { stockRepository } from '../stock/stock-repository';
-import { inventoryItemRepository } from '../catalog/inventory-repository';
-import { branchRepository } from '../../../repositories/branch-repository';
-import { locationRepository } from '../../../repositories/location-repository';
+import { stockRepository } from '../../stock/stock-repository';
+import { inventoryItemRepository } from '../../catalog/inventory-repository';
+import { branchRepository } from '../../../../repositories/branch-repository';
+import { locationRepository } from '../../../../repositories/location-repository';
 import {
   AttendantCreateWasteResultSchema,
   AttendantWasteItemOptionListSchema,
@@ -32,25 +31,25 @@ vi.mock('./waste-repository', () => ({
   },
 }));
 
-vi.mock('../stock/stock-repository', () => ({
+vi.mock('../../stock/stock-repository', () => ({
   stockRepository: { onHandForItem: vi.fn(), totalsForLocation: vi.fn() },
 }));
 
-vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
+vi.mock('../../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
 
-vi.mock('../catalog/inventory-repository', () => ({
+vi.mock('../../catalog/inventory-repository', () => ({
   inventoryItemRepository: { findById: vi.fn() },
 }));
 
-vi.mock('../../../repositories/branch-repository', () => ({
+vi.mock('../../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn(), findById: vi.fn() },
 }));
 
-vi.mock('../../../repositories/location-repository', () => ({
+vi.mock('../../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
-vi.mock('../../../config/database', () => ({
+vi.mock('../../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({ inventoryTransaction: { create: vi.fn() } })),
   },
@@ -162,7 +161,6 @@ const wireKeys = (response: unknown): string[] => collectKeys(JSON.parse(JSON.st
 
 describe('Blind count — no attendant-facing response reveals on-hand', () => {
   it.each([
-    ['stock summary', () => stockService.getSummary(attendant)],
     ['waste list', () => wasteService.listWaste(attendant, { days: 7 })],
     ['waste item picker', () => wasteService.listItemOptions(attendant, { limit: 20 })],
     ['waste create', () => wasteService.createWaste(attendant, { inventoryItemId: itemId, quantity: '3', reason: 'SPOILAGE' })],

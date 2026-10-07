@@ -1,5 +1,5 @@
 import { Prisma, type DepartmentTag, type WasteLog, type WasteReason } from '@prisma/client';
-import { prisma } from '../../../config/database';
+import { prisma } from '../../../../config/database';
 
 type TxClient = Prisma.TransactionClient;
 type Client = typeof prisma | TxClient;

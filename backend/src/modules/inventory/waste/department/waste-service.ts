@@ -1,13 +1,13 @@
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { wasteRepository, type WasteItemOptionRow, type WasteLogWithRelations } from './waste-repository';
-import { stockRepository } from '../stock/stock-repository';
-import { postStockMovement } from '../stock/ledger/ledger-door';
-import { resolveWasteScope, type StockScope } from '../_shared/stock-scope';
-import { inventoryItemRepository } from '../catalog/inventory-repository';
-import { prisma } from '../../../config/database';
-import { ConflictError, ForbiddenError, NotFoundError } from '../../../utils/errors';
-import { mapPrismaError } from '../../../utils/prisma-errors';
+import { stockRepository } from '../../stock/stock-repository';
+import { postStockMovement } from '../../stock/ledger/ledger-door';
+import { resolveWasteScope, type StockScope } from '../../_shared/stock-scope';
+import { inventoryItemRepository } from '../../catalog/inventory-repository';
+import { prisma } from '../../../../config/database';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
+import { mapPrismaError } from '../../../../utils/prisma-errors';
 import { AttendantCreateWasteResultSchema, AttendantWasteItemOptionListSchema } from './waste-validators';
 import type {
   AttendantCreateWasteResult,

@@ -39,7 +39,7 @@ import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
 import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
 import stockRoutes from '../modules/inventory/stock/stock-routes';
-import wasteRoutes from '../modules/inventory/waste/waste-routes';
+import wasteRoutes from '../modules/inventory/waste/department/waste-routes';
 import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
 import countingRoutes from '../modules/inventory/counting/counting-routes';
 import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';

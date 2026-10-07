@@ -8,17 +8,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { wasteService, resolveWasteUnitCost } from './waste-service';
 import { wasteRepository } from './waste-repository';
-import { stockRepository } from '../stock/stock-repository';
-import { inventoryItemRepository } from '../catalog/inventory-repository';
-import { branchRepository } from '../../../repositories/branch-repository';
-import { locationRepository } from '../../../repositories/location-repository';
-import { postStockMovement } from '../stock/ledger/ledger-door';
+import { stockRepository } from '../../stock/stock-repository';
+import { inventoryItemRepository } from '../../catalog/inventory-repository';
+import { branchRepository } from '../../../../repositories/branch-repository';
+import { locationRepository } from '../../../../repositories/location-repository';
+import { postStockMovement } from '../../stock/ledger/ledger-door';
 import { CreateWasteSchema } from './waste-validators';
 
 const txInventoryCreate = vi.mocked(postStockMovement);
 
 // The door's own rules (sign, site, links) are tested in stock/ledger/ledger-door.test.ts.
-vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
+vi.mock('../../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
 
 vi.mock('./waste-repository', () => ({
   wasteRepository: {
@@ -29,23 +29,23 @@ vi.mock('./waste-repository', () => ({
   },
 }));
 
-vi.mock('../stock/stock-repository', () => ({
+vi.mock('../../stock/stock-repository', () => ({
   stockRepository: { onHandForItem: vi.fn() },
 }));
 
-vi.mock('../catalog/inventory-repository', () => ({
+vi.mock('../../catalog/inventory-repository', () => ({
   inventoryItemRepository: { findById: vi.fn() },
 }));
 
-vi.mock('../../../repositories/branch-repository', () => ({
+vi.mock('../../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn(), findById: vi.fn() },
 }));
 
-vi.mock('../../../repositories/location-repository', () => ({
+vi.mock('../../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
-vi.mock('../../../config/database', () => ({
+vi.mock('../../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
   },

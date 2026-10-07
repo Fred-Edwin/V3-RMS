@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { UnauthorizedError } from '../../../utils/errors';
+import { UnauthorizedError } from '../../../../utils/errors';
 import { wasteService } from './waste-service';
 import { CreateWasteSchema, ListWasteQuerySchema, WasteItemsQuerySchema } from './waste-validators';
 
