@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn';
 import { StatusDot } from '@/components/ui2/status-dot';
 import { formatKes, formatWhen, withUnit } from '../../_shared/lib/prep-format';
 import type { RunDetail } from '../../_shared/types/prep-contract';
+import { CorrectedCompare } from '../../fix/components/corrected-compare';
 import { drawerStatus, saidWho, stockWarningSentence, yieldGapSentence, yieldReasonWords } from '../lib/run-copy';
 
 const label = 'font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-copy-muted';
@@ -156,31 +157,13 @@ export function RunDrawerBody({ run, onOpenRun }: RunDrawerBodyProps) {
         </Note>
       ) : null}
 
-      {run.correction ? (
-        <div className="flex flex-col gap-2">
-          <Note tone="info">
-            Corrected: {reasonWords(run.correction.reason)}
-            {run.correction.note ? ` (${run.correction.note})` : ''}. By {run.correction.by.name}, {formatWhen(run.correction.at)}.
-          </Note>
-          {run.correction.changed.length > 0 ? (
-            <ul className="m-0 flex list-none flex-col gap-1 border border-wds-border p-3 font-wds-sans text-wds-body-sm text-wds-text-ink">
-              {run.correction.changed.map((row) => (
-                <li key={row.itemName} className="flex justify-between gap-3">
-                  <span className="truncate">{row.itemName}</span>
-                  <span className="shrink-0 text-wds-text-copy-muted">
-                    {row.was === null ? '—' : withUnit(row.was, row.unit)} → {row.now === null ? '—' : withUnit(row.now, row.unit)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
+      {/* A corrected run is shown side by side (Paper step 17): the amber note, WHAT CHANGED, cost before and after, its history. */}
+      {run.correction ? <CorrectedCompare run={run} /> : null}
 
       {showTimeline ? (
-        <section aria-label="History of this run" className="flex flex-col gap-2">
-          <h3 className={label}>History</h3>
-          <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+        <section aria-label={run.correction ? 'Linked runs' : 'History of this run'} className="flex flex-col gap-2">
+          {run.correction ? null : <h3 className={label}>History</h3>}
+          <ol className={cn('m-0 flex list-none flex-col gap-1.5 p-0', run.correction && 'hidden')}>
             {run.timeline.map((entry) => (
               <li key={`${entry.at}-${entry.text}`} className="flex gap-3 font-wds-sans text-wds-body-sm text-wds-text-ink">
                 <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-copy-muted">{formatWhen(entry.at)}</span>

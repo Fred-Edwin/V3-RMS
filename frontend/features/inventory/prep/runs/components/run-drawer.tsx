@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { ErrorState } from '@/components/app/shell/shell-states';
@@ -16,6 +17,8 @@ import { PREP_STATES_COPY } from '../../_shared/lib/states-copy';
 import { prepApi } from '../../_shared/services/prep-api';
 import type { RunDetail } from '../../_shared/types/prep-contract';
 import { refreshNeedsLookCount } from '../../review/hooks/use-needs-look-count';
+import { CancelRunDialog } from '../../fix/components/cancel-run-dialog';
+import { CorrectRunForm } from '../../fix/components/correct-run-form';
 import { drawerSubtitle, unitCostText } from '../lib/run-copy';
 import { RunDrawerBody } from './run-drawer-body';
 
@@ -41,6 +44,27 @@ function DrawerContents({ runId, onClose, onOpenRun, onChanged, onCorrect, onCan
   const busy = React.useRef(false);
   const [reviewing, setReviewing] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
+  // Slice 3's fix flows run inside the drawer unless the screen passes its own handlers.
+  const [fixing, setFixing] = React.useState<'correct' | 'cancel' | null>(null);
+  const [correctDirty, setCorrectDirty] = React.useState(false);
+  const [discardOpen, setDiscardOpen] = React.useState(false);
+
+  const closeFix = (): void => {
+    if (fixing === 'correct' && correctDirty) {
+      setDiscardOpen(true);
+      return;
+    }
+    setFixing(null);
+  };
+  const fixed = (result: RunDetail): void => {
+    setFixing(null);
+    setCorrectDirty(false);
+    onChanged?.();
+    refreshNeedsLookCount();
+    // A correction returns the NEW run; show it. A cancel returns the same run, now closed.
+    if (result.id !== runId) onOpenRun?.(result.id);
+    else setData(result);
+  };
 
   const markReviewed = async (): Promise<void> => {
     if (busy.current) return; // a double click reviews once
@@ -120,13 +144,13 @@ function DrawerContents({ runId, onClose, onOpenRun, onChanged, onCorrect, onCan
             <p className="m-0 font-wds-sans text-wds-caption leading-4 text-wds-text-copy-muted">You can correct or cancel this run until {formatDayAndClock(loaded.windowEndsAt)}.</p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            {loaded.can.correct && onCorrect ? (
-              <Button variant="secondary" size="lg" className="max-sm:h-11" onClick={() => onCorrect(loaded)}>
+            {loaded.can.correct ? (
+              <Button variant="secondary" size="lg" className="max-sm:h-11" onClick={() => (onCorrect ? onCorrect(loaded) : setFixing('correct'))}>
                 Correct
               </Button>
             ) : null}
-            {loaded.can.cancel && onCancel ? (
-              <Button variant="secondary" size="lg" className="border-wds-error-border text-wds-error-fg max-sm:h-11" onClick={() => onCancel(loaded)}>
+            {loaded.can.cancel ? (
+              <Button variant="secondary" size="lg" className="border-wds-error-border text-wds-error-fg max-sm:h-11" onClick={() => (onCancel ? onCancel(loaded) : setFixing('cancel'))}>
                 Cancel run
               </Button>
             ) : null}
@@ -142,6 +166,36 @@ function DrawerContents({ runId, onClose, onOpenRun, onChanged, onCorrect, onCan
             )}
           </div>
         </div>
+      ) : null}
+
+      {loaded ? (
+        <>
+          <CancelRunDialog run={loaded} open={fixing === 'cancel'} onClose={() => setFixing(null)} onDone={fixed} onLocked={() => void reload()} />
+          <Sheet open={fixing === 'correct'} onOpenChange={(open) => (open ? undefined : closeFix())}>
+            <SheetContent side="right" className="w-full max-w-[560px] gap-0 p-0 sm:max-w-[560px]">
+              <SheetHeader className="pb-3 pr-14 pt-[22px]">
+                <SheetTitle className="text-[17px] font-semibold leading-[22px]">Correct {loaded.reference}</SheetTitle>
+                <SheetDescription className="sr-only">Change what was recorded; the original stays on record as corrected.</SheetDescription>
+              </SheetHeader>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6">
+                {fixing === 'correct' ? <CorrectRunForm key={loaded.id} run={loaded} onDone={fixed} onLocked={() => { setFixing(null); void reload(); }} onDirtyChange={setCorrectDirty} /> : null}
+              </div>
+            </SheetContent>
+          </Sheet>
+          <ConfirmDialog
+            open={discardOpen}
+            onOpenChange={setDiscardOpen}
+            title={PREP_STATES_COPY.fix.discardTitle}
+            description={PREP_STATES_COPY.fix.discardBody}
+            confirmLabel="Discard"
+            cancelLabel="Keep editing"
+            onConfirm={() => {
+              setDiscardOpen(false);
+              setCorrectDirty(false);
+              setFixing(null);
+            }}
+          />
+        </>
       ) : null}
     </>
   );

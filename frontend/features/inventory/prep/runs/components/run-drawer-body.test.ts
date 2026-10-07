@@ -100,8 +100,10 @@ describe('reviewed, cancelled, corrected and linked runs', () => {
         { at: '2026-10-12T08:30:00.000Z', text: 'Corrected · Joseph Mwangi' },
       ],
     });
-    expect(out).toContain('Corrected: Typo');
-    expect(out).toContain('60 kg → 6 kg');
+    // The side-by-side from Slice 3 (Paper step 17): the amber note, then Was and Now columns.
+    expect(out).toContain('Corrected by Joseph Mwangi');
+    expect(out).toContain('Reason: typo');
+    expect(out).toMatch(/60 kg<\/td><td[^>]*>6 kg/);
     expect(out).toContain('Replaces PREP-0128');
     expect(out).toContain('Replaced by PREP-0133');
     expect(out).toContain('History of this run');
