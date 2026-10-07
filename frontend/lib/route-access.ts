@@ -138,6 +138,10 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     if (pathname.startsWith('/app/inventory/purchasing') || pathname.startsWith('/app/inventory/receiving')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
+    // Prep (rebuilt): every desktop role reads it, the Attendant records runs on the phone; the API decides who may write.
+    if (pathname.startsWith('/app/inventory/prep')) {
+      return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
+    }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 

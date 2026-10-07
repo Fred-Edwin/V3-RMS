@@ -282,15 +282,16 @@ export const NAV_ROWS: readonly NavRow[] = [
     label: 'Prep',
     group: 'central-store',
     icon: PrepIcon,
-    roles: OLD_FLOW,
+    roles: HUB_ALL,
+    capability: 'prep.read',
     hub: true,
     // Shown on the parent only while it is shut, and on Runs while it is open (the sidebar decides); the count is GET /needs-a-look/count, and a zero draws nothing.
     badge: 'prep-needs-look',
-    // The three sub-links of the Prep rebuild, all rebuilt now; the Attendant sees all three.
+    // The three sub-links of the Prep rebuild, all rebuilt now; every desktop role reads them and the Attendant sees all three.
     subItems: [
-      { key: 'runs', label: 'Runs', newHref: '/app/inventory/prep', roles: OLD_FLOW, badge: 'prep-needs-look' },
-      { key: 'usual-recipes', label: 'Usual recipes', newHref: '/app/inventory/prep/recipes', roles: OLD_FLOW },
-      { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: OLD_FLOW },
+      { key: 'runs', label: 'Runs', newHref: '/app/inventory/prep', roles: HUB_ALL, badge: 'prep-needs-look' },
+      { key: 'usual-recipes', label: 'Usual recipes', newHref: '/app/inventory/prep/recipes', roles: HUB_ALL },
+      { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: HUB_ALL },
     ],
   },
   // Discrepancies are resolved from the dispatch queue, so they light Dispatch.
