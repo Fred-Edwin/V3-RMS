@@ -1,0 +1,246 @@
+// ── Stock, Counting and Waste rebuild: the count tables (contract §2.1, §2.2) ──
+// A count is one person's walk over one or more sections of the Central Store. Many counts a day,
+// one OPEN count per person, an item in at most one OPEN count. The two "at most one open" rules are
+// partial unique indexes in the migration SQL (the Prisma DSL cannot express them):
+//   count_open_per_counter_key  ON counts (organization_id, counter_id) WHERE status = 'OPEN'
+//   count_line_open_item_key    ON count_lines (organization_id, inventory_item_id) WHERE is_open
+// expectedQty / unitCost / result / shortStreak are frozen at the counter's sign and never sent to
+// the Store Attendant (docs/features/inventory/stock-count-waste-contract.md §5.3, §6).
+enum CountStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+}
+
+enum CountLineResult {
+  MATCHES
+  WITHIN_RANGE
+  EXCEEDS
+  NOT_COUNTED
+}
+
+enum CountRecheck {
+  NONE
+  RECOUNTED
+  KEPT
+}
+
+enum CountCause {
+  PREP_NOT_LOGGED
+  SPOILAGE
+  MISCOUNT
+  LOSS
+  OTHER
+}
+
+enum CountMovementKind {
+  DISPATCH
+  PREP_USE
+  DELIVERY
+  WASTE
+}
+
+enum CountDecisionKind {
+  PENDING
+  ACCEPTED
+  WRITE_OFF
+  MOVEMENT_LOGGED
+  RECOUNT_ASKED
+}
+
+enum CountSectionKind {
+  SUPPLIER
+  MANUAL
+}
+
+model Count {
+  id               String      @id @default(uuid())
+  siteId           String      @map("organization_id") // the hub site (D-15)
+  locationId       String      @map("location_id") // the Central Store
+  reference        String // CNT-{year}-{nnnn}, ReferenceCounter 'CNT'
+  status           CountStatus @default(OPEN)
+  counterId        String      @map("counter_id")
+  startedAt        DateTime    @default(now()) @map("started_at")
+  signedAt         DateTime?   @map("signed_at")
+  approvedAt       DateTime?   @map("approved_at")
+  approverId       String?     @map("approver_id")
+  selfSigned       Boolean     @default(false) @map("self_signed") // the counter is the Manager who signed: APPROVED on sign
+  recountOfLineId  String?     @map("recount_of_line_id") // "Count again": links back to the old line
+  expectedAsOf     DateTime?   @map("expected_as_of") // the sign time: the instant expected stock is frozen at
+  // The settings in force at the sign (null until then):
+  rangeKes         Int?        @map("range_kes")
+  rangePercent     Decimal?    @map("range_percent") @db.Decimal(5, 2)
+  directorAlertKes Int?        @map("director_alert_kes")
+  flagRepeat       Boolean?    @map("flag_repeat")
+  idempotencyKey   String?     @map("idempotency_key")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  site          Site                @relation(fields: [siteId], references: [id])
+  location      Location            @relation(fields: [locationId], references: [id])
+  counter       User                @relation("CountCounter", fields: [counterId], references: [id])
+  approver      User?               @relation("CountApprover", fields: [approverId], references: [id])
+  recountOfLine CountLine?          @relation("CountRecountOf", fields: [recountOfLineId], references: [id], onDelete: SetNull)
+  scopeSections CountScopeSection[]
+  lines         CountLine[]         @relation("CountLines")
+
+  @@unique([siteId, reference])
+  @@unique([siteId, counterId, idempotencyKey])
+  @@index([siteId, status, startedAt])
+  @@index([counterId])
+  @@map("counts")
+}
+
+/// What was picked, with the name frozen. None for an item-scoped (recount) count.
+model CountScopeSection {
+  id          String  @id @default(uuid())
+  countId     String  @map("count_id")
+  sectionId   String? @map("section_id")
+  sectionName String  @map("section_name")
+
+  count   Count         @relation(fields: [countId], references: [id], onDelete: Cascade)
+  section CountSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  @@index([countId])
+  @@index([sectionId])
+  @@map("count_scope_sections")
+}
+
+/// A line has no stored difference: difference, percent and value are computed from countedQty, expectedQty
+/// and unitCost (modules/inventory/_shared/variance-calc.ts).
+model CountLine {
+  id              String       @id @default(uuid())
+  siteId          String       @map("organization_id")
+  countId         String       @map("count_id")
+  inventoryItemId String       @map("inventory_item_id")
+  sectionId       String?      @map("section_id")
+  sectionName     String?      @map("section_name")
+  position        Int
+  countedQty      Decimal?     @map("counted_qty") @db.Decimal(12, 4)
+  skipped         Boolean      @default(false)
+  recheck         CountRecheck @default(NONE)
+  firstCountedQty Decimal?     @map("first_counted_qty") @db.Decimal(12, 4)
+  recheckOffered  Boolean      @default(false) @map("recheck_offered")
+  isOpen          Boolean      @default(true) @map("is_open") // denormalised: true while the count is OPEN
+
+  // Frozen at the counter's sign (null until then):
+  expectedQty Decimal?         @map("expected_qty") @db.Decimal(12, 4)
+  unitCost    Decimal?         @map("unit_cost") @db.Decimal(12, 4)
+  result      CountLineResult?
+  shortStreak Int              @default(0) @map("short_streak")
+
+  // The Manager's decision:
+  decision     CountDecisionKind  @default(PENDING)
+  cause        CountCause?
+  causeNote    String?            @map("cause_note")
+  movementKind CountMovementKind? @map("movement_kind")
+  decidedById  String?            @map("decided_by_id")
+  decidedAt    DateTime?          @map("decided_at")
+
+  // The Director:
+  directorFlagged  Boolean   @default(false) @map("director_flagged")
+  directorAlert    Boolean   @default(false) @map("director_alert")
+  directorSeenAt   DateTime? @map("director_seen_at")
+  directorSeenById String?   @map("director_seen_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  count          Count                  @relation("CountLines", fields: [countId], references: [id], onDelete: Cascade)
+  inventoryItem  InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  section        CountSection?          @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  decidedBy      User?                  @relation("CountLineDecidedBy", fields: [decidedById], references: [id])
+  directorSeenBy User?                  @relation("CountLineDirectorSeenBy", fields: [directorSeenById], references: [id])
+  recounts       Count[]                @relation("CountRecountOf")
+  transactions   InventoryTransaction[]
+
+  @@unique([countId, inventoryItemId])
+  @@index([inventoryItemId, createdAt])
+  @@index([siteId, directorFlagged, directorSeenAt])
+  @@map("count_lines")
+}
+
+/// A group of items counted together: one per supplier (SUPPLIER, name and supplier fixed) or by hand (MANUAL).
+model CountSection {
+  id         String           @id @default(uuid())
+  siteId     String           @map("organization_id")
+  name       String
+  kind       CountSectionKind
+  supplierId String?          @map("supplier_id")
+  position   Int
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  site      Site                @relation(fields: [siteId], references: [id])
+  supplier  Supplier?           @relation(fields: [supplierId], references: [id])
+  items     CountSectionItem[]
+  scopes    CountScopeSection[]
+  lines     CountLine[]
+  movesFrom CountItemMove[]     @relation("CountMoveFrom")
+  movesTo   CountItemMove[]     @relation("CountMoveTo")
+
+  @@unique([siteId, name])
+  @@index([siteId, position])
+  @@map("count_sections")
+}
+
+/// An item is in at most ONE section.
+model CountSectionItem {
+  id              String   @id @default(uuid())
+  siteId          String   @map("organization_id")
+  sectionId       String   @map("section_id")
+  inventoryItemId String   @map("inventory_item_id")
+  position        Int
+  addedById       String?  @map("added_by_id")
+  addedAt         DateTime @default(now()) @map("added_at")
+
+  section       CountSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@unique([siteId, inventoryItemId])
+  @@index([sectionId, position])
+  @@map("count_section_items")
+}
+
+/// Logged for every move. The Manager's undo restores `fromSectionId` and stamps `undone*`.
+model CountItemMove {
+  id              String    @id @default(uuid())
+  siteId          String    @map("organization_id")
+  inventoryItemId String    @map("inventory_item_id")
+  fromSectionId   String?   @map("from_section_id")
+  toSectionId     String    @map("to_section_id")
+  movedById       String    @map("moved_by_id")
+  movedAt         DateTime  @default(now()) @map("moved_at")
+  undoneAt        DateTime? @map("undone_at")
+  undoneById      String?   @map("undone_by_id")
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  fromSection   CountSection? @relation("CountMoveFrom", fields: [fromSectionId], references: [id])
+  toSection     CountSection  @relation("CountMoveTo", fields: [toSectionId], references: [id])
+  movedBy       User          @relation("CountItemMoveMovedBy", fields: [movedById], references: [id])
+
+  @@index([siteId, movedAt])
+  @@index([inventoryItemId])
+  @@map("count_item_moves")
+}
+
+/// One person's own section order for one Nairobi day. A stale day is simply ignored.
+model CountDayOrder {
+  id         String   @id @default(uuid())
+  siteId     String   @map("organization_id")
+  userId     String   @map("user_id")
+  day        DateTime @db.Date
+  sectionIds String[] @map("section_ids")
+
+  @@unique([siteId, userId, day])
+  @@map("count_day_orders")
+}
+
+/// "Moved since your last visit" in Count setup.
+model CountSetupVisit {
+  siteId      String   @map("organization_id")
+  userId      String   @map("user_id")
+  lastVisitAt DateTime @map("last_visit_at")
+
+  @@id([siteId, userId])
+  @@map("count_setup_visits")
+}

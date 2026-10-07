@@ -37,6 +37,7 @@ model Location {
   prepRuns             PrepRun[]
   wasteLogs            WasteLog[]
   stockCounts          StockCount[]
+  counts               Count[]
   branchDayDepartments BranchDayDepartment[]
   departmentOpenings   DepartmentOpening[]
 
@@ -125,6 +126,9 @@ model InventoryItem {
   dispatchLines          DispatchLine[]
   wasteLogs              WasteLog[]
   stockCountLines        StockCountLine[]
+  countLines             CountLine[]
+  countSectionItems      CountSectionItem[]
+  countItemMoves         CountItemMove[]
   branchDayLines         BranchDayLine[]
   departmentOpeningLines DepartmentOpeningLine[]
   supplierItems          SupplierItem[]

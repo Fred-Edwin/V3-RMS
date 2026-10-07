@@ -25,6 +25,7 @@ export type PostStockMovementInput = {
    *  - ADJUSTMENT: send the exact opposite signed quantity.
    *  - PREP_CONSUME / PREP_PRODUCE: keep the original's type and send the same positive quantity; the door flips the sign
    *    (a reversed consume is a positive row, a reversed produce a negative one).
+   *  - WASTE: the same rule (a reversed waste row is positive and returns the stock).
    */
   reversesTransactionId?: string;
 };
@@ -76,15 +77,16 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
   let storedQuantity = signedQuantity(rule.direction, input.quantity);
 
   if (input.reversesTransactionId !== undefined) {
-    if (!rule.reversal) throw new ValidationError('Only an adjustment or a prep row can reverse an earlier entry');
+    if (!rule.reversal) throw new ValidationError('Only an adjustment, a prep row or a waste row can reverse an earlier entry');
     const original = await ledgerRepository.findForReversal(tx, input.reversesTransactionId);
     if (!original) throw new ValidationError('The entry being reversed does not exist');
     if (rule.reversal === 'ADJUSTMENT' && original.type !== 'ADJUSTMENT') {
       throw new ValidationError('Only an adjustment can be reversed');
     }
-    if (rule.reversal === 'PREP') {
-      // A prep row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
-      if (original.type !== input.type) throw new ValidationError('A prep row can only be reversed by a row of the same type');
+    if (rule.reversal === 'PREP' || rule.reversal === 'WASTE') {
+      // A prep or waste row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
+      const label = rule.reversal === 'PREP' ? 'prep' : 'waste';
+      if (original.type !== input.type) throw new ValidationError(`A ${label} row can only be reversed by a row of the same type`);
       if (original.reversesTransactionId !== null) throw new ValidationError('A reversal cannot be reversed');
       storedQuantity = reversedPrepQuantity(rule.direction, input.quantity);
     }

@@ -84,6 +84,7 @@ model Supplier {
   createdBy         User?                  @relation("SupplierCreatedBy", fields: [createdById], references: [id])
   updatedBy         User?                  @relation("SupplierUpdatedBy", fields: [updatedById], references: [id])
   preferredForItems InventoryItem[]
+  countSections     CountSection[]
   purchaseOrders    PurchaseOrder[]
   purchaseInvoices  PurchaseInvoice[]
   purchasePayments  PurchasePayment[]
