@@ -447,7 +447,7 @@ export function ReviewCountScreen({ countId }: { countId: string }) {
                   {notCounted.length === 0
                     ? `Everything on ${count.sections.length > 1 ? 'both sections' : 'this section'} was counted.`
                     : notCounted.length === 1
-                      ? `Not counted: ${notCounted[0]?.itemName}. Skipped by ${count.counter.name.split(' ')[0]}, last counted ${notCounted[0]?.lastCountedText.toLowerCase()}. Nothing is written for it.`
+                      ? `Not counted: ${notCounted[0]?.itemName}. Skipped by ${count.counter.name.split(' ')[0]}, ${/^never/i.test(notCounted[0]?.lastCountedText ?? '') ? 'never counted before' : `last counted ${notCounted[0]?.lastCountedText.toLowerCase()}`}. Nothing is written for it.`
                       : `Not counted: ${notCounted.map((l) => l.itemName).join(', ')}. Skipped by ${count.counter.name.split(' ')[0]}. Nothing is written for them.`}
                 </p>
               </div>
