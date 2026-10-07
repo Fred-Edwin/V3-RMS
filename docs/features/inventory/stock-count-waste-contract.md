@@ -29,7 +29,7 @@ Owner decisions that shape it (8 Oct 2026): the Manager's own count applies ever
 | Latest migration | `20261007120000_prep_rebuild` | same |
 | PINs (active users with a PIN set) | System Admin 0 of 1, Directors 0 of 6, Store Manager 0 of 1, Store Attendants 0 of 3, Accountants 1 of 2 | |
 
-Consequences: **nothing to convert.** The old count and waste tables hold no rows in production, so the contract migration can drop them outright; the new tables start empty except the seeded sections (§2.7). `CNT` and `ADJ` counters start at 1. **Go-live blocker, not a build item:** counting and approving need a PIN and **nobody who counts or approves has one**: set PINs for the Store Manager, the System Admin and the three Attendants before the flow can be used (Director needs none: Mark seen has no PIN). Local data to discard: nothing (0 counts, 0 waste).
+Consequences: **nothing to convert.** The old count and waste tables hold no rows in production, so the contract migration can drop them outright; the new tables start empty except the seeded sections (§2.7). `CNT` and `ADJ` counters start at 1. **PINs are not a go-live blocker (corrected 8 Oct 2026):** nobody who counts or approves has a PIN yet, but the shell's sign dialog (`components/app/shell/sign-sheet.tsx`) already shows a "Set your signing PIN" step first (`SetPinForm`, driven by `GET` PIN status in `auth-controller`) and then signs; every count signing and approving dialog uses it, so each person creates their PIN the first time they sign. The release walkthrough tests one first-use signing. Local data to discard: nothing (0 counts, 0 waste).
 
 ## 2. Data model and migration (expand, then contract)
 
@@ -293,7 +293,7 @@ While a count is OPEN, `expectedQty` goes only to the counter, and only if the c
 
 ## 8. PINs
 
-Signing a count (C13) and approving one (C29) are the only PIN-signed actions here. The caller types **their own** PIN; the System Admin signs with their own, so the record names them. A missing PIN and a wrong PIN are the same `INVALID_PIN`. Counting keeps its own tiny `pin-repository` and `count-pin.ts` (the same idiom as Purchasing's `pin.ts`, **not imported**: Purchasing's helper is that sub-module's internal). No PIN anywhere in Waste.
+Signing a count (C13) and approving one (C29) are the only PIN-signed actions here. The caller types **their own** PIN; the System Admin signs with their own, so the record names them. A missing PIN and a wrong PIN are the same `INVALID_PIN` on the server; the front end never reaches that case for a missing PIN, because the shell sign dialog checks the caller's PIN status first and shows "Set your signing PIN" (no endpoint is added here). Counting keeps its own tiny `pin-repository` and `count-pin.ts` (the same idiom as Purchasing's `pin.ts`, **not imported**: Purchasing's helper is that sub-module's internal). No PIN anywhere in Waste.
 
 ## 9. Branch-day coupling (the code `branch-day` imports from counting and stock)
 
@@ -302,15 +302,15 @@ Branch day is not redone here and must keep working. It imports exactly:
 - `counting/thresholds-service.ts`: `getBranchThresholdsInForce`, `getHubThresholdsInForce`;
 - `stock/stock-service.ts`: `departmentLabel`.
 
-Decision: **move each to `_shared/`, leave nothing behind for branch day to break on.**
-| Old | New home | How |
-|---|---|---|
-| `count-calc.ts` (+ test) | `modules/inventory/_shared/variance-calc.ts` (+ test) | **Copy**, then repoint branch-day's imports (`branch-day-calc.ts`, `branch-day-service.ts`: two import lines). The old file stays until it is deleted at release. The new counting code imports the shared one. The judging function of §5.4 is added here beside the old four. |
-| `counting-thresholds.ts`, `thresholds-repository.ts`, the readers `getHubThresholdsInForce` (extended with `rangePercent`, `flagRepeatShortfalls`) and `getBranchThresholdsInForce`, and the **branch** write path (`updateBranch`, `GET`/`PUT /inventory/thresholds` for the Branch Manager) | `modules/inventory/_shared/thresholds/` | Copy and extend; repoint branch-day (one import line); the Branch Manager's two routes move to `_shared/thresholds/branch-thresholds-routes.ts`, mounted in `routes/index.ts` in the counting session's one-line mount. The hub parts (Store Manager's `PUT /inventory/thresholds`, Director's `PUT /inventory/thresholds/director`) are replaced by C25 and C26 and deleted with the old routes. |
-| `departmentLabel` from `stock-service.ts` | `modules/inventory/_shared/department-label.ts` | Copy, repoint branch-day (one import line). |
-| `stock-repository.ts` (`onHandForItem` and the item queries Prep and Waste use) | `stock/_shared/stock-repository.ts` | Copy what Prep's `record-repository` imports; repoint Prep's one import line; the new stock folders add their own queries. |
+**Decision (owner, 8 Oct 2026): branch day is refactored in its own redo, right after this one, so it is left alone.** Nothing is copied or repointed for it, and `branch-day/` is not edited at all. The few old files it imports **stay exactly where they are**, marked `// kept for the branch-day refactor: delete when branch day is redone`; everything else in the old counting and stock code is deleted. The build and the three branch-day tests must still pass (`pnpm build` and `pnpm test` gate every push), so those files are not touched.
+| Kept in place for branch day | Rule |
+|---|---|
+| `counting/count-calc.ts` (+ test) | Kept untouched. The new counting code has its own `modules/inventory/_shared/variance-calc.ts` (+ test): the four old functions rewritten or ported with the same cases, plus the judging function of §5.4. The new code **imports nothing from the kept files**, so they delete cleanly later. |
+| `counting/thresholds-service.ts`, `thresholds-repository.ts`, `thresholds.types.ts`, `counting-thresholds.ts` (+ their tests), and whatever these import | Kept untouched. They serve branch day and the Branch Manager's `GET`/`PUT /inventory/thresholds` (keep those two routes mounted, in a small `counting/thresholds-routes.ts` split out of `count-routes.ts`). The hub's own settings (C23 to C26, new `rangePercent` and the other new columns) are built new under `counting/settings/` with their own reads. Store Manager's old `PUT /inventory/thresholds` and the Director's `PUT /inventory/thresholds/director` are deleted. |
+| `stock/stock-service.ts` | Trimmed to export only `departmentLabel` (branch day's one import), with the same marker comment; everything else in it is deleted. |
+| `stock/stock-repository.ts` | Prep imports `onHandForItem` and other queries from it: the stock session copies what Prep uses into `stock/_shared/stock-repository.ts` and repoints Prep's one import line (Prep is a rebuilt feature, so that is its right home), then deletes the old file. |
 
-**Tests that must stay green before and after:** `branch-day-service.test.ts`, `branch-day-contract.test.ts`, `branch-day-opening.test.ts` (unchanged), plus new tests: the shared `variance-calc.test.ts` ported from `count-calc.test.ts` with the same cases and the new judging cases; a thresholds test that the branch readers return the same numbers as before; an import test (a plain unit test that fails if any file under `branch-day/` still imports from `../counting/` or `../stock/stock-service`).
+**Tests that must stay green before and after:** `branch-day-service.test.ts`, `branch-day-contract.test.ts`, `branch-day-opening.test.ts` (unchanged, no repoint, no import-guard test), plus the new `variance-calc.test.ts` with the old cases and the new judging cases.
 
 ## 10. Folder structure (the target, both sides) and where every old file goes
 
@@ -319,8 +319,8 @@ Decision: **move each to `_shared/`, leave nothing behind for branch day to brea
 ```
 backend/src/modules/inventory/
   _shared/                          LANDED: wire.ts, central-store-access.ts (+11 rows), stock-count-waste-access.test.ts
-                                    ADDED by the counting session: variance-calc.ts(+test), department-label.ts (the stock session adds this one),
-                                    thresholds/ (repository, readers, branch routes), blind-rule.ts (+withoutCountFigures), reference-counter.ts (+nextNumber)
+                                    ADDED by the counting session: variance-calc.ts(+test), blind-rule.ts (+withoutCountFigures), reference-counter.ts (+nextNumber)
+                                    (no shared thresholds or department-label copies: branch day keeps its old files, see §9)
   counting/
     README.md                       rewritten: spec, status, roles, endpoints, coupling
     counting-routes.ts              LANDED aggregator
@@ -344,7 +344,7 @@ backend/src/modules/inventory/
     waste-hub-routes.ts             LANDED aggregator
     _shared/                        LANDED: waste-contract.ts, fixtures, test.  BUILT: waste-view.ts
     log/  entries/  reverse/        {routes,controller,service,repository,validators}.ts, types, tests, README.md    W1 W2 / W3 / W4
-    department/                     the old three endpoints, MOVED UNCHANGED at release
+    department/                     the old three endpoints (Department Head's branch waste), MOVED UNCHANGED by the stock and waste session
 ```
 Every sub-module folder has `README.md` (spec, status, endpoints, coupling). Each file keeps its layer suffix. A `$transaction` lives in a service only; all Prisma in repositories; every query carries `siteId`. Cross-folder imports go through each folder's exports and are listed in its README **Coupling**: `record`, `review`, `print`, `counts` use `counting/_shared`, `stock/ledger/ledger-door`, `stock/_shared/stock-repository`; `stock/overview` and `stock/items` read counting's data only through the functions in `counting/_shared/count-reads.ts` (`todaysCounts`, `longestWithoutCount`, `lastCountedByItem`, `sectionNamesByItem`, `unsectionedCount`; exact signatures in the two back-end briefs), never through counting's repositories; `waste` uses the door and `stock/_shared`.
 
@@ -352,14 +352,14 @@ Every sub-module folder has `README.md` (spec, status, endpoints, coupling). Eac
 
 | Old file | Fate |
 |---|---|
-| `counting/count-service.ts`, `count-repository.ts`, `count-controller.ts`, `count-routes.ts`, `count-validators.ts`, `count.types.ts`, `count-test-fixtures.ts`, `count-service.test.ts`, `count-contract.test.ts` | **Deleted at release.** Useful cases (the section-judging and approval maths) are ported into the new tests by the counting session. |
-| `counting/count-calc.ts`, `count-calc.test.ts` | Copied to `_shared/variance-calc.ts` (§9); the old pair is **deleted at release** |
-| `counting/counting-thresholds.ts`, `thresholds-*.ts` (controller, validators, types, repository, service, tests) | Copied and extended into `_shared/thresholds/` (§9); the hub write paths are replaced; the old files are **deleted at release** |
-| `counting/DESIGN-NOTES.md`, `counting/README.md` | README **rewritten**; DESIGN-NOTES **deleted at release** (its content is in Paper and these docs; it says to delete it when the last redo merges) |
-| `stock/stock-service.ts`, `stock-controller.ts`, `stock-routes.ts`, `stock-validators.ts`, `stock.types.ts`, `stock-contract.test.ts` | **Deleted at release** (`departmentLabel` is copied to `_shared`; `TodaysCount` goes with the old summary) |
-| `stock/stock-repository.ts` | Copied to `stock/_shared/stock-repository.ts`; Prep repointed; the old file **deleted at release** |
+| `counting/count-service.ts`, `count-repository.ts`, `count-controller.ts`, `count-routes.ts` (except the two Branch Manager thresholds routes, split out first), `count-validators.ts`, `count.types.ts`, `count-test-fixtures.ts`, `count-service.test.ts`, `count-contract.test.ts` | **Deleted by the counting session** (owner, 8 Oct 2026: the old routes are unused, so no running beside the new ones). Useful cases (the section-judging and approval maths) are ported into the new tests first. The `ledger-guard.test.ts` allow-list row for `counting/count-service.ts` is removed in the same commit (and the guard's count in the stock README updated). |
+| `counting/count-calc.ts`, `count-calc.test.ts`; `counting-thresholds.ts`, `thresholds-*.ts` (controller, validators, types, repository, service, tests) | **Kept untouched for branch day** (§9), deleted in the branch-day refactor |
+| `counting/DESIGN-NOTES.md`, `counting/README.md` | README **rewritten**; DESIGN-NOTES **deleted** by the counting session (its content is in Paper and these docs) |
+| `stock/stock-service.ts` | **Trimmed to `departmentLabel` only** (§9); the rest deleted by the stock session |
+| `stock/stock-controller.ts`, `stock-routes.ts`, `stock-validators.ts`, `stock.types.ts`, `stock-contract.test.ts` | **Deleted by the stock session** (`TodaysCount` goes with the old summary) |
+| `stock/stock-repository.ts` | Copied to `stock/_shared/stock-repository.ts`; Prep repointed; the old file **deleted by the stock session** |
 | `stock/ledger/*` | **Kept.** Two additive edits in the counting session's foundation commit: the `countLineId` link and the WASTE reversal path, with door tests |
-| `waste/waste-service.ts`, `waste-controller.ts`, `waste-repository.ts`, `waste-routes.ts`, `waste-validators.ts`, `waste.types.ts` + their tests | **Moved unchanged** into `waste/department/` at release (the Department Head's branch waste keeps working) |
+| `waste/waste-service.ts`, `waste-controller.ts`, `waste-repository.ts`, `waste-routes.ts`, `waste-validators.ts`, `waste.types.ts` + their tests | **Central Store parts deleted, the Department Head's branch waste (three endpoints) kept and moved unchanged into `waste/department/` by the stock and waste session**, as its first commit, with its tests green (the front end moves its matching files the same way) |
 | `scripts/seed-counting-dev-fixtures.ts`, `scripts/seed-stock-waste-dev-fixtures.ts` | Rewritten for the new tables by the counting session and the stock and waste session respectively (the old `StockCount` rows go; the new fixtures seed sections, an open count, a submitted count, a signed count, a flagged line, waste entries) |
 
 ### 10.3 Front end
@@ -432,7 +432,7 @@ Landed on `feat/stock-count-waste` (gates: backend `pnpm build` and `pnpm test`;
 ## 13. Stage 4 switch list (the orchestrator, at release; none of it is done in the build sessions)
 
 1. Merge `feat/stock-count-waste-be-counting`, then `…-be-stock-waste`, then `…-fe` into `feat/stock-count-waste`; resolve conflicts; run the combined gates (backend `pnpm build` and `pnpm test`; frontend `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test`, `pnpm build`).
-2. Delete the old files in §10.2 and §10.4; move `waste/*` into `waste/department/`; remove the old route mounts from `routes/index.ts`; remove the `counting/count-service.ts` row from `ledger-guard.test.ts` (and update the guard's count in the stock README); add migration B.
+2. Confirm the build sessions deleted the old back-end files in §10.2 (they now do it as they replace them), delete the old front-end routes and files in §10.4 that remain (`daily-count`, `spot-count`, the old `count-print/[id]`); remove any leftover old route mounts from `routes/index.ts`; check the `ledger-guard.test.ts` allow-list is down by the counting row; add migration B.
 3. **Nav rows** (`frontend/components/app/shell/nav-table.ts`), prepared here as the exact replacement of the `stock-counts` sub-links (not switched):
    ```ts
    subItems: [
@@ -447,7 +447,7 @@ Landed on `feat/stock-count-waste` (gates: backend `pnpm build` and `pnpm test`;
    The rows `daily-count`, `daily-count-blind` and `spot-count` are deleted. Per Q6, each area switches on when finished: Counts and Waste may switch before Overview, All items and the ledger if the owner wants it, but then the old pages at the same URLs must already be replaced by the new thin shells.
 4. **Route gate** (`frontend/lib/route-access.ts`): `/app/inventory/stock` currently falls through to "Store Manager or Store Attendant", which bounces the System Admin, Director, Accountant and Branch Manager. **The front-end session owns this edit** (and its test), because nobody can open the new pages as those roles without it: desktop roles for everything under `/app/inventory/stock`, plus the Attendant for `/stock/counts` and `/stock/waste` and the blank print page; the API still decides who may write. It is safe before release: it shows no link (the nav switch below does) and the old pages it would expose are replaced in the same branch. The orchestrator re-checks it with `nav-table.test.ts` when switching the rows.
 5. Docs close-out: sub-module READMEs, `docs/API_CONTRACT.md` (new §34 from the three contract files), `docs/DATA_MODEL.md`, `decisions.md` ("Access", counting section), `counting-redesign.md`, `PROJECT_STATUS.md`, `CLAUDE.md` current-work pointer; delete the plan, the contract, the needs document, the briefs and `counting/DESIGN-NOTES.md` (working documents, `FEATURE_REDO_PLAYBOOK.md` §11).
-6. Before the deploy: run migrations A and B on a restored production copy; set PINs (§1); push, open the PR, merge, watch the deploy, run `migrate deploy`, check production; **the owner watches a real user count**.
+6. Before the deploy: run migrations A and B on a restored production copy; walk one first-use signing (a user with no PIN is asked to set one, then signs; §1); push, open the PR, merge, watch the deploy, run `migrate deploy`, check production; **the owner watches a real user count**.
 
 ## 14. Test plan (back end; the briefs repeat the parts each session owns)
 
@@ -456,7 +456,7 @@ Landed on `feat/stock-count-waste` (gates: backend `pnpm build` and `pnpm test`;
 - **Route capability matrix** (§3.1): role by endpoint, six roles, plus a non-hub actor refused on every write.
 - **Database (`*.db.test.ts`, opt-in `RUN_DB_TESTS=1`):** sign freezes expected at `signedAt` with a later movement ignored; approve posts N rows and rolls back whole on a failure (door rejects); two people racing for one section leave one open count; the two partial unique indexes; a replayed `idempotencyKey` makes one count and one waste batch; a count line cannot be deleted once a ledger row points at it; migration seed gives the right sections on a seeded copy; waste reversal nets the stock exactly and a second reversal is refused.
 - **Ledger:** door tests for the `countLineId` link and the WASTE reversal path; `ledger-guard.test.ts` unchanged and green; `findLinkOwnerSites` covers `countLineId`.
-- **Branch day:** the three branch-day tests unchanged and green; the import-guard test (§9).
+- **Branch day:** the three branch-day tests unchanged and green (no import-guard test; branch day is untouched, §9).
 - **Contract:** the three contract tests (landed) stay green; every response of every endpoint is parsed with its Zod schema in the route tests.
 - **Stock:** the ledger summary adds up per row (opening + in − out + adjusted = closing) against a seeded ledger; reversed waste nets to zero in the Waste column; chips and counts match the rows; export refuses over 10,000.
 - Gate: `cd backend && pnpm build && pnpm test`, and real requests as Store Manager, Accountant, Director, Branch Manager and Attendant.
