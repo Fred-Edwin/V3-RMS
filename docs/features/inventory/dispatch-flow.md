@@ -8,7 +8,7 @@ An approved requisition becomes **one dispatch per department** (`DSP-nnnn`) in 
 
 ## The thread
 
-`REQ-` (the requisition) → `DSP-` (one per department) → `DSC-` (if the count differs) → `DAY-` (the branch day it must be confirmed before). Each file links to the one before and after. Every stock ledger entry shows its `REQ-`, `DSP-` or `DSC-` number as a link back to the file.
+`REQ-` (the requisition) → `DSP-` (one per department) → `DSC-` (if the count differs) → `DAY-` (the branch day it must be confirmed before). Numbers carry the branch code and count per branch (`REQ-NYR-0112`, `DSP-NYR-0231`; edited 8 Oct 2026 to match the owner's numbering decision in `requisitions-flow.md`). Document numbers are drawn in `#1F5BAE`, underlined when a link. Each file links to the one before and after. Every stock ledger entry shows its `REQ-`, `DSP-` or `DSC-` number as a link back to the file.
 
 ## One list, one link
 
@@ -19,7 +19,7 @@ Dispatch has **no separate sidebar link**. It is the **To pack, On the way, To c
 1. **To pack** shows one card per branch, oldest first, with how long it has waited, expandable by department. One tap on a department opens it.
 2. **Pack one department.** Each line shows the item, unit, **requested quantity** and **what is on hand**. The Attendant sees quantities, including on-hand, but no money. Lines are pre-filled with the requested quantity; the Attendant ticks each line as packed and changes it if less is sent.
 3. **Short a line or substitute.** If on hand is lower than requested, the line flags "Not enough in store". The Attendant sends what there is. To substitute, add a line and set the requested line to zero; the department sees both. A short line is normal, not an error; the shortfall is not carried automatically, because the next requisition re-suggests it.
-4. **Sign and send.** A summary lists lines and quantities, then **Packed by** (pre-filled with the signed-in person), **Signed by**, **Carried by** (chosen from a short carrier list the Store Manager keeps in Settings: a name or vehicle), and the PIN. Stock leaves the Central Store at once (`DISPATCH_OUT` through the ledger door) and the dispatch is **On the way**. The delivery note prints.
+4. **Sign and send.** A summary lists lines and quantities, then **Packed by** (pre-filled with the signed-in person), **Signed by** (the same person: the packer signs; owner, 7 Oct 2026, "packed and signed by the Store Attendant"; the Store Manager appears as signer only when they sign themselves), **Carried by** (chosen from a short carrier list the Store Manager keeps in Settings: a name or vehicle), and the PIN. Stock leaves the Central Store at once (`DISPATCH_OUT` through the ledger door) and the dispatch is **On the way**. The delivery note prints.
 5. Signing is **per department**: each department's dispatch is signed separately, so a slow department never holds up the others.
 
 ## Delivery note
