@@ -19,6 +19,8 @@ export interface PrepStepperProps {
   /** Accessible name, e.g. "Chicken, cut". */
   label: string;
   wide?: boolean;
+  /** `sans` is Paper's Fix a slip stepper (step 14: Geist 600 number, 12px unit); `mono` is the record form's (step 39). */
+  numeral?: 'mono' | 'sans';
   disabled?: boolean;
   className?: string;
 }
@@ -26,7 +28,8 @@ export interface PrepStepperProps {
 const buttonClass =
   'flex size-11 shrink-0 select-none items-center justify-center font-wds-sans text-[18px] leading-[22px] text-black outline-none transition-colors hover:bg-wds-neutral-50 active:bg-wds-neutral-100 focus-visible:bg-wds-neutral-50 disabled:pointer-events-none disabled:opacity-60';
 
-export function PrepStepper({ value, unit, onChange, label, wide = false, disabled = false, className }: PrepStepperProps) {
+export function PrepStepper({ value, unit, onChange, label, wide = false, numeral = 'mono', disabled = false, className }: PrepStepperProps) {
+  const sans = numeral === 'sans';
   const [draft, setDraft] = React.useState<string | null>(null);
   const shown = draft ?? formatQuantity(value);
 
@@ -73,9 +76,9 @@ export function PrepStepper({ value, unit, onChange, label, wide = false, disabl
             }
           }}
           style={{ width: `${Math.max(shown.length, 1) + 0.4}ch` }}
-          className="min-w-0 border-0 bg-transparent p-0 text-center font-wds-mono text-[18px] leading-[22px] text-wds-text-ink outline-none"
+          className={cn('min-w-0 border-0 bg-transparent p-0 text-center text-wds-text-ink outline-none', sans ? 'font-wds-sans text-[18px] font-semibold leading-[22px]' : 'font-wds-mono text-[18px] leading-[22px]')}
         />
-        <span className="font-wds-mono text-[11px] leading-[14px] text-wds-text-copy-muted">{unit}</span>
+        <span className={cn('font-wds-mono text-wds-text-copy-muted', sans ? 'text-[12px] leading-4' : 'text-[11px] leading-[14px]')}>{unit}</span>
       </label>
       <button
         type="button"

@@ -62,7 +62,7 @@ export function FixHeader({ title, subtitle, initials, screen, desktop, onBack, 
         </div>
         <div className="flex flex-col gap-0.5">
           <h1 className="break-words font-wds-sans text-[22px] font-semibold leading-7 text-white">{title}</h1>
-          <p className="font-wds-sans text-wds-body-sm text-wds-sidebar-fg-item">{subtitle}</p>
+          <p className="font-wds-sans text-wds-body-sm leading-[18px] text-wds-sidebar-fg-item">{subtitle}</p>
         </div>
       </header>
       <header className="hidden h-14 shrink-0 items-center gap-wds-3 bg-wds-sidebar-top px-wds-5 sm:flex">

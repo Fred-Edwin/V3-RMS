@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
-import { VsUsualChip } from '../../_shared/components/run-chips';
 import { PREP_STATES_COPY } from '../../_shared/lib/states-copy';
 import { formatClock, formatDayAndClock, formatQuantity } from '../../_shared/lib/prep-format';
 import type { RunDetail } from '../../_shared/types/prep-contract';
@@ -96,8 +95,9 @@ export function FixRunView({ run, mode, onCorrect, onCancel, className }: FixRun
         </div>
         <div className={row}>
           <dt className={rowLabel}>Compared with usual</dt>
-          <dd className={cn(rowValue, 'flex justify-end')}>
-            <VsUsualChip vsUsual={run.vsUsual} className="text-wds-body font-medium" />
+          <dd className={cn(rowValue, run.vsUsual.label === 'ON_TARGET' ? 'text-wds-success-fg' : run.vsUsual.label === 'NO_BASIS' ? 'text-wds-text-copy-muted' : 'text-wds-warning-fg')}>
+            <span aria-hidden>● </span>
+            {run.vsUsual.text.charAt(0).toUpperCase() + run.vsUsual.text.slice(1)}
           </dd>
         </div>
         <div className={row}>

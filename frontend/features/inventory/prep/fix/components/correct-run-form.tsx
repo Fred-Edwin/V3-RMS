@@ -68,7 +68,7 @@ export function CorrectRunFormView(p: CorrectRunFormViewProps) {
                     </button>
                   )}
                 </div>
-                <PrepStepper label={line.name} unit={line.unit} value={line.quantity} onChange={(q) => p.onQuantity(line.itemId, q)} disabled={p.disabled} className={changed ? '[&_label]:border-y [&_label]:border-wds-warning-fg' : undefined} />
+                <PrepStepper numeral="sans" label={line.name} unit={line.unit} value={line.quantity} onChange={(q) => p.onQuantity(line.itemId, q)} disabled={p.disabled} className={cn('[&_label]:min-w-[84px]', changed && '[&_label]:border-y [&_label]:border-wds-warning-fg')} />
               </li>
             );
           })}
@@ -82,7 +82,7 @@ export function CorrectRunFormView(p: CorrectRunFormViewProps) {
         <span className={sectionLabel}>What you made</span>
         <div className="flex items-center justify-between gap-wds-3 border border-wds-border bg-wds-surface py-3 pl-wds-4 pr-wds-3">
           <span className="min-w-0 break-words font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">{p.run.outputName}</span>
-          <PrepStepper label={`${p.run.outputName} made`} unit={p.run.unit} value={p.made} onChange={p.onMade} wide disabled={p.disabled} />
+          <PrepStepper numeral="sans" label={`${p.run.outputName} made`} unit={p.run.unit} value={p.made} onChange={p.onMade} wide disabled={p.disabled} className="[&_button]:h-12 [&_input]:text-[20px] [&_input]:leading-6 [&_label]:h-12 [&_label]:min-w-[116px]" />
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export function CorrectRunFormView(p: CorrectRunFormViewProps) {
       {p.checkFailed ? <p className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{PREP_STATES_COPY.record.checkFailed}</p> : null}
 
       <div className="flex flex-col items-center gap-2 pt-wds-2">
-        <Button className="h-[52px] w-full text-[16px] font-semibold" disabled={p.blocker !== null || p.disabled} onClick={p.onReview}>
+        <Button className="h-[52px] w-full text-[16px] font-semibold leading-5" disabled={p.blocker !== null || p.disabled} onClick={p.onReview}>
           Review the correction
         </Button>
         <p role="status" className="text-center font-wds-sans text-wds-caption leading-4 text-wds-text-copy-muted">
