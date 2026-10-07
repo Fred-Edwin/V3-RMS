@@ -55,6 +55,43 @@ Table style: no header fill; 10px Geist Mono uppercase header, letter-spacing
 0.06em, one 1px ink rule under it; light row dividers. Never `--color-table-header-bg`.
 Long tables get search, filters, and a "Showing x of y" footer.
 
+### 4a. The one table convention (owner decision, 8 Oct 2026)
+
+Applies to every table in every redone feature. Drawn in Paper on the page
+"Inventory · Counting redesign (Oct 7)", steps 27 and 28 (pager), 24B and 24C
+(type-ahead).
+
+**Scope.** Every table in the product uses one shared table component built to this
+convention (in `frontend/components/ui2/`), including tables in approved screens and in
+parts of a feature already in production. Existing tables are moved onto it in code;
+Paper is **not** redrawn for them, so the older approved Paper pages keep their old
+footer and a fidelity check must not "fix" the component back to it. From now on every
+new table is designed this way in Paper from the start.
+
+1. **Search and filters first.** Most people should never reach page 2. A table of
+   more than ~25 rows has, in one bar above the header: a search box, status chips
+   (counts in the chip, e.g. "Low or out 9"), and dropdowns for the columns people
+   narrow by (Category, Type, Department, Section and the like, reusing the Catalog's
+   filter names). Dropdowns sit at the right and read "Name · All".
+2. **Search as you type.** Results update from the first letter, with no Enter key.
+   Matching letters are bold, and the list says what matched ("3 matches for 'oat'").
+   Each row says where the item is now when that matters. Filters still apply to the
+   matches. Clearing the box restores the normal list.
+3. **Pagination, never infinite scroll.** The footer is: "Showing 1–50 of 142" on the
+   left; "Rows per page" selector (25, 50, 100; default 50) and numbered pages
+   (‹ 1 2 3 … 12 ›) on the right. Current page is dark, the arrow that cannot be used
+   is grey. Why: the Manager audits, so she needs the size of the list, a page she can
+   return to, and a footer that stays in view. Infinite scroll is only for feeds with
+   no end that people skim, and nothing in this product is one.
+4. **Page state lives in the URL** (page, rows per page, search, filters) so refresh,
+   back and a pasted link all land on the same view. Changing a filter or the search
+   goes back to page 1.
+5. **Exception: lists you drag to reorder** (such as Count setup) show the whole
+   section on one scrollable list, with no pager, so an item can be dropped anywhere in
+   it.
+6. **Mock rows are shorter than the footer says.** Paper shows about 8 rows under a
+   "Showing 1–50" footer to keep the sketch short. The footer is the real behaviour.
+
 ## 5. Interactive states and failures
 
 - Every interactive element has **hover, focus-visible, active/pressed and

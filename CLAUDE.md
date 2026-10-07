@@ -33,7 +33,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/API_CONTRACT.md`          | Implementing any API endpoint                  |
 | `docs/DESIGN_SYSTEM.md`         | Building any UI component or page              |
 | `docs/CODING_STANDARDS.md`      | Writing any code — always                      |
-| `docs/UI_BUILD_RULES.md`        | Building any screen (states, shells, tables, Paper fidelity checks) |
+| `docs/UI_BUILD_RULES.md`        | Building any screen (states, shells, tables, Paper fidelity checks). §4a is the one table convention: search and filters first, type-ahead, numbered pager with rows per page, no infinite scroll |
 | `docs/features/<feature>/README.md` + the sub-module `README.md` | Working on a redone feature — the living spec and status |
 | `docs/archive/INDEX.md`         | Historical phase context — NOT current guidance |
 
