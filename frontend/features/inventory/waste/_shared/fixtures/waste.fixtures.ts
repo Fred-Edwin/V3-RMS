@@ -5,7 +5,7 @@
  */
 import type { FixtureHandler } from '../../../_shared/services/scw-call';
 import { fixtureCan, getFixtureRole } from '../../../_shared/fixtures/fixture-role';
-import { fail, hhmm, isoAgo, isToday, kes, kesWhole, nowIso, norm, paginate, qty, dayDiff } from '../../../_shared/fixtures/fixture-clock';
+import { fail, hhmm, nairobiDay, isoAgo, isToday, kes, kesWhole, nowIso, norm, paginate, qty, dayDiff } from '../../../_shared/fixtures/fixture-clock';
 import { PEOPLE, items, itemById } from '../../../_shared/fixtures/fixture-world';
 import type { Person } from '../../../_shared/types/wire';
 import { WASTE_REASON_TEXT, WASTE_REVERSAL_TEXT, type LogWasteInput, type ReverseWasteInput, type WasteEntry, type WasteItemOption, type WasteReason, type WasteReversalReason } from '../types/waste-contract';
@@ -61,7 +61,10 @@ function list(q: URLSearchParams) {
   const scope = getFixtureRole() === 'STORE_ATTENDANT' ? 'mine' : (q.get('scope') ?? 'all');
   const s = norm(q.get('search') ?? '');
   const base = visible().filter((r) => (scope === 'mine' ? r.by.id === me().id : true));
-  const inPeriod = (r: Row): boolean => (period === 'reversed' ? Boolean(r.reversal) : period === '7d' ? dayDiff(r.at) <= 6 : isToday(r.at));
+  const from = q.get('from');
+  const to = q.get('to');
+  const day = (r: Row): string => nairobiDay(r.at);
+  const inPeriod = (r: Row): boolean => (from && to ? day(r) >= from && day(r) <= to : period === 'reversed' ? Boolean(r.reversal) : period === '7d' ? dayDiff(r.at) <= 6 : isToday(r.at));
   const filtered = base.filter(inPeriod).filter((r) => !s || norm(itemById(r.itemId)?.name ?? '').includes(s)).sort((a, b) => b.at.localeCompare(a.at));
   const { slice, page } = paginate(filtered, q);
   const val = (r: Row) => (r.reversal ? 0 : r.quantity * (itemById(r.itemId)?.cost ?? 0));
