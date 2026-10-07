@@ -153,7 +153,7 @@ describe('Manager: reviewing a SUBMITTED count', () => {
     expect(view.lines[3]!.expectedQty).toBe('100');
     expect(view.figures).toEqual({
       counted: 3,
-      withinRange: 1,
+      withinRange: 2, // the exact match counts as within range, as the review tab does
       exceeds: 1,
       notCounted: 1,
       toDecide: 1,
@@ -298,7 +298,7 @@ describe('decisionTextOf', () => {
 describe('tallyOf', () => {
   it('counts only judged lines and nets the values', () => {
     const t = tallyOf(submitted(), null);
-    expect(t).toMatchObject({ counted: 3, withinRange: 1, exceeds: 1, notCounted: 1, toDecide: 1, decided: 0 });
+    expect(t).toMatchObject({ counted: 3, withinRange: 2, exceeds: 1, notCounted: 1, toDecide: 1, decided: 0 });
     expect(t.netDifferenceKes.toFixed(2)).toBe('-3028.00');
   });
 });

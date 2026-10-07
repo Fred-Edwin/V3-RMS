@@ -209,7 +209,8 @@ export const tallyOf = (count: CountRecord, live: LiveFigures | null): CountTall
   const judged = count.lines.map((line) => ({ line, j: judgeRecordLine(line, live) }));
   const counted = judged.filter((x) => x.line.countedQty !== null);
   const exceeds = judged.filter((x) => x.j.result === 'EXCEEDS');
-  const within = judged.filter((x) => x.j.result === 'WITHIN_RANGE');
+  // An exact match is within range too (the review tab "Within range" counts it, as Paper draws).
+  const within = judged.filter((x) => x.j.result === 'WITHIN_RANGE' || x.j.result === 'MATCHES');
   return {
     counted: counted.length,
     withinRange: within.length,
