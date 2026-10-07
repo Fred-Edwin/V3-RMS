@@ -179,8 +179,18 @@ export const DeliveryRowSchema = z.object({
 export const discrepancyStatusSchema = z.enum(['OPEN', 'RESOLVED']);
 export const discrepancyOutcomeSchema = z.enum(['FOUND_REDELIVERED', 'TRANSIT_LOSS_WRITEOFF', 'MISCOUNT_CORRECTED']);
 
+/**
+ * `limit` is the original "newest N" cap and still works on its own. `page` / `perPage` / `status` / `search` are the shared
+ * table's (UI_BUILD_RULES §4a): when `page` is given the list pages by `perPage` and `limit` is ignored. The response always
+ * carries a `pagination` block next to `data`, so existing readers of `data` are unchanged.
+ */
 export const ListDiscrepanciesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  status: discrepancyStatusSchema.optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  /** Defaults to 50 when `page` is given. */
+  perPage: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export const DiscrepancyRowSchema = z.object({

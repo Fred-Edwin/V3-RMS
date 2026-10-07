@@ -6,8 +6,9 @@ import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { PurchasingAuditPanel } from '../../../purchasing/components/purchasing-audit-panel';
-import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
+import { TablePager } from '@/components/ui2/data-table/table-pager';
+import { useTableUrlState } from '@/components/ui2/data-table/use-table-url-state';
 import { Topbar } from '@/components/app/shell/topbar';
 import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { usePermissions } from '../../../_shared/hooks/use-permissions';
@@ -17,6 +18,9 @@ import { useAuditLog } from '../../hooks/use-audit-log';
 import { AREA_LABEL, AREA_ORDER, PERIOD_LABEL, PERIOD_ORDER, periodSentence, whenLabel, type AuditPeriod } from '../../lib/audit-log-logic';
 import type { AuditArea } from '../../types/audit-log';
 
+
+/** The URL parameters this screen owns, next to `page` and `perPage`. */
+const AUDIT_FILTER_KEYS = ['area', 'who', 'when'] as const;
 
 const head = 'font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-ink';
 const cols = {
@@ -67,24 +71,25 @@ function RowSkeleton() {
 export function AuditLogScreen() {
   const { can, ready } = usePermissions();
   const canRead = can('audit.read');
-  const [area, setArea] = React.useState<AuditArea | null>(null);
-  const [actorId, setActorId] = React.useState<string | null>(null);
-  const [period, setPeriod] = React.useState<AuditPeriod>('TODAY');
-  const [page, setPage] = React.useState(1);
+  // Area, who, when, page and rows per page live in the URL (§4a), so refresh, Back and a pasted link keep the view.
+  // "Today" is the default period, so it is the address with no `when`.
+  const { query: view, patch, setPage } = useTableUrlState({ filterKeys: AUDIT_FILTER_KEYS });
+  const area = (view.filters.area as AuditArea | undefined) ?? null;
+  const actorId = view.filters.who ?? null;
+  const period: AuditPeriod = PERIOD_ORDER.find((p) => p === view.filters.when) ?? 'TODAY';
   // "Purchasing and payments" is the purchase file's own log (Paper `23`), read from the same `GET /inventory/audit-log`. A link with ?q= (the closed purchase file's
   // "Everything") opens it already searching for that document.
   const query = useSearchParams().get('q');
   const [purchasing, setPurchasing] = React.useState(Boolean(query));
 
-  const log = useAuditLog({ area, actorId, period, page }, canRead);
+  const log = useAuditLog({ area, actorId, period, page: view.page, perPage: view.perPage }, canRead);
   const now = React.useMemo(() => new Date(), [period, log.data]); // eslint-disable-line react-hooks/exhaustive-deps -- "now" follows the data it labels
   const data = log.data;
   const actorName = data?.actors.find((a) => a.id === actorId)?.name ?? 'Everyone';
 
-  const reset = <T,>(set: (v: T) => void) => (value: T) => {
-    set(value);
-    setPage(1);
-  };
+  const setArea = (v: AuditArea | null) => patch({ filters: { area: v ?? '' } });
+  const setActorId = (v: string | null) => patch({ filters: { who: v ?? '' } });
+  const setPeriod = (v: AuditPeriod) => patch({ filters: { when: v === 'TODAY' ? '' : v } });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -100,11 +105,11 @@ export function AuditLogScreen() {
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Chip on={area === null && !purchasing} onClick={() => { setPurchasing(false); reset(setArea)(null); }}>
+              <Chip on={area === null && !purchasing} onClick={() => { setPurchasing(false); setArea(null); }}>
                 Catalog, Suppliers, Restock levels
               </Chip>
               {AREA_ORDER.map((a) => (
-                <Chip key={a} on={area === a && !purchasing} onClick={() => { setPurchasing(false); reset(setArea)(area === a ? null : a); }}>
+                <Chip key={a} on={area === a && !purchasing} onClick={() => { setPurchasing(false); setArea(area === a ? null : a); }}>
                   {AREA_LABEL[a]}
                 </Chip>
               ))}
@@ -117,13 +122,13 @@ export function AuditLogScreen() {
                     name="Who"
                     valueLabel={actorName}
                     options={[{ value: null, label: 'Everyone' }, ...(data?.actors ?? []).map((a) => ({ value: a.id, label: a.name }))]}
-                    onSelect={(v) => reset(setActorId)(v)}
+                    onSelect={(v) => setActorId(v)}
                   />
                   <FilterMenu<AuditPeriod>
                     name="When"
                     valueLabel={PERIOD_LABEL[period]}
                     options={PERIOD_ORDER.map((p) => ({ value: p === 'TODAY' ? null : p, label: PERIOD_LABEL[p] }))}
-                    onSelect={(v) => reset(setPeriod)(v ?? 'TODAY')}
+                    onSelect={(v) => setPeriod(v ?? 'TODAY')}
                   />
                 </>
               )}
@@ -155,7 +160,7 @@ export function AuditLogScreen() {
                     title="Nothing was changed in this period"
                     description="Changes to the catalog, suppliers and restock levels show here as they happen."
                     actionLabel={period === 'ANY' ? undefined : 'Show any time'}
-                    onAction={period === 'ANY' ? undefined : () => reset(setPeriod)('ANY')}
+                    onAction={period === 'ANY' ? undefined : () => setPeriod('ANY')}
                   />
                 ) : (
                   data?.entries.map((entry) => (
@@ -178,28 +183,23 @@ export function AuditLogScreen() {
                     </div>
                   ))
                 )}
+                {data && data.entries.length > 0 ? (
+                  <TablePager
+                    className="border-t border-wds-border"
+                    page={view.page}
+                    perPage={view.perPage}
+                    shown={data.entries.length}
+                    total={data.pagination.total}
+                    onPageChange={setPage}
+                    onPerPageChange={(perPage) => patch({ perPage })}
+                  />
+                ) : null}
               </div>
             )}
 
-            <div className={cn('flex items-center justify-between gap-4', purchasing && 'hidden')}>
-              <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-                {data && data.entries.length > 0 ? `${data.pagination.total} ${data.pagination.total === 1 ? 'entry' : 'entries'}. ` : ''}
-                {periodSentence(period, now)}
-              </p>
-              {data && data.pagination.totalPages > 1 ? (
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Newer
-                  </Button>
-                  <span className="font-wds-mono text-[12px] text-wds-text-secondary">
-                    {page} of {data.pagination.totalPages}
-                  </span>
-                  <Button variant="secondary" size="sm" disabled={page >= data.pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Older
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+            <p className={cn('font-wds-sans text-[12px] leading-4 text-wds-text-secondary', purchasing && 'hidden')}>
+              Newest first. {periodSentence(period, now)}
+            </p>
           </>
         )}
       </div>

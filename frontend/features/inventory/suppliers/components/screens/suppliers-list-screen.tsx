@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { TablePager } from '@/components/ui2/data-table/table-pager';
+import { useTableUrlState } from '@/components/ui2/data-table/use-table-url-state';
 import { Topbar } from '@/components/app/shell/topbar';
 import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { usePermissions } from '../../../_shared/hooks/use-permissions';
@@ -19,19 +21,12 @@ import { SupplierFormView } from '../supplier-form-view';
 import { FilterMenu, PageHeading } from '../supplier-ui';
 import { SuppliersTable } from '../suppliers-table';
 
-const SEARCH_DEBOUNCE_MS = 250;
-
-/** A value that follows `value` after it has been still for `delay` ms. */
-function useDebounced<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
+/** The URL parameters this screen owns, next to `search`, `page` and `perPage`. */
+const SUPPLIER_FILTER_KEYS = ['status', 'type', 'category', 'unfinished'] as const;
 
 type StatusFilter = SupplierStatus | 'ANY';
+const STATUS_TO_URL: Record<StatusFilter, string> = { ACTIVE: '', ON_HOLD: 'on-hold', ARCHIVED: 'archived', ANY: 'any' };
+const STATUS_FROM_URL: Record<string, StatusFilter | undefined> = { 'on-hold': 'ON_HOLD', archived: 'ARCHIVED', any: 'ANY' };
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'ON_HOLD', label: 'On hold' },
@@ -51,13 +46,14 @@ export function SuppliersListScreen() {
   const canRead = can('suppliers.read');
   const canWrite = can('suppliers.write');
 
-  const [searchInput, setSearchInput] = React.useState('');
-  const search = useDebounced(searchInput.trim(), SEARCH_DEBOUNCE_MS);
-  const [status, setStatus] = React.useState<StatusFilter>('ACTIVE');
-  const [type, setType] = React.useState<SupplierType | null>(null);
-  const [categoryId, setCategoryId] = React.useState<string | null>(null);
-  const [unfinished, setUnfinished] = React.useState(false);
-  const [page, setPage] = React.useState(1);
+  // Search, filters, page and rows per page live in the URL (§4a). The Status filter starts on Active, so Active is the
+  // address with no `status`; the other choices are written out.
+  const { query, patch, setPage, clear, searchText: searchInput, setSearchText: changeSearch } = useTableUrlState({ filterKeys: SUPPLIER_FILTER_KEYS });
+  const search = query.search;
+  const status: StatusFilter = STATUS_FROM_URL[query.filters.status ?? ''] ?? 'ACTIVE';
+  const type = (query.filters.type as SupplierType | undefined) ?? null;
+  const categoryId = query.filters.category ?? null;
+  const unfinished = query.filters.unfinished === '1';
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const filters = React.useMemo(
@@ -67,33 +63,21 @@ export function SuppliersListScreen() {
       type: type ?? undefined,
       categoryId: categoryId ?? undefined,
       profileNotFinished: unfinished || undefined,
-      page,
+      page: query.page,
+      perPage: query.perPage,
     }),
-    [search, status, type, categoryId, unfinished, page]
+    [search, status, type, categoryId, unfinished, query.page, query.perPage]
   );
   const { rows, pagination, summary, status: loadStatus, error, reload } = useSuppliersList(filters, canRead);
   const { categories } = useCategoryOptions(canRead);
 
-  // Any change of filter starts again from the first page.
-  const change = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setPage(1);
-  };
-  const changeSearch = change(setSearchInput);
-  const changeStatus = change(setStatus);
-  const changeType = change(setType);
-  const changeCategory = change(setCategoryId);
-  const changeUnfinished = change(setUnfinished);
+  const changeStatus = (v: StatusFilter) => patch({ filters: { status: v === 'ACTIVE' ? '' : STATUS_TO_URL[v] } });
+  const changeType = (v: SupplierType | null) => patch({ filters: { type: v ?? '' } });
+  const changeCategory = (v: string | null) => patch({ filters: { category: v ?? '' } });
+  const changeUnfinished = (v: boolean) => patch({ filters: { unfinished: v ? '1' : '' } });
 
   const anyFilter = Boolean(search) || type !== null || categoryId !== null || unfinished || status !== 'ACTIVE';
-  const clearFilters = () => {
-    setSearchInput('');
-    setStatus('ACTIVE');
-    setType(null);
-    setCategoryId(null);
-    setUnfinished(false);
-    setPage(1);
-  };
+  const clearFilters = clear;
 
   if (!permissionsReady) {
     return (
@@ -125,10 +109,8 @@ export function SuppliersListScreen() {
           label: 'Active',
           value: String(summary.active),
           sub: totalSuppliers !== null ? `of ${totalSuppliers} suppliers` : '',
-          onSelect: () => {
-            changeStatus('ACTIVE');
-            changeUnfinished(false);
-          },
+          // One patch, not two: each URL change starts from the address as it is now.
+          onSelect: () => patch({ filters: { status: '', unfinished: '' } }),
         },
         {
           key: 'on-hold',
@@ -195,12 +177,8 @@ export function SuppliersListScreen() {
     return <SuppliersTable rows={rows} />;
   })();
 
-  const footer = (() => {
-    if (rows.length === 0 || !pagination) return null;
-    const shown = rows.length;
-    if (anyFilter) return `Showing ${shown} of ${pagination.total} suppliers that match.`;
-    return `Showing ${shown} of ${pagination.total} active suppliers. On hold and archived suppliers show when the Status filter includes them.`;
-  })();
+  // The count and pages are the shared pager's; this is the note that explains what the list shows.
+  const footer = rows.length > 0 && !anyFilter ? 'Active suppliers. On hold and archived suppliers show when the Status filter includes them.' : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -261,25 +239,22 @@ export function SuppliersListScreen() {
           <span className="grow" />
           {pagination ? <span className="font-wds-mono text-[11px] leading-[14px] tracking-[0.04em] text-wds-text-secondary">{pagination.total} {pagination.total === 1 ? 'SUPPLIER' : 'SUPPLIERS'}</span> : null}
         </div>
-        <div className="shrink-0 overflow-x-auto">{dataBody}</div>
-        {footer || (pagination && pagination.totalPages > 1) ? (
-          <div className="flex shrink-0 items-center justify-between gap-4">
-            <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footer}</p>
-            {pagination && pagination.totalPages > 1 ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                <Button variant="secondary" size="sm" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
-                  Previous
-                </Button>
-                <Button variant="secondary" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
-                  Next
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="shrink-0">
+          <div className="overflow-x-auto">{dataBody}</div>
+          {pagination && pagination.total > 0 && rows.length > 0 ? (
+            <div className="border border-t-0 border-wds-border">
+              <TablePager
+                page={query.page}
+                perPage={query.perPage}
+                shown={rows.length}
+                total={pagination.total}
+                onPageChange={setPage}
+                onPerPageChange={(perPage) => patch({ perPage })}
+              />
+            </div>
+          ) : null}
+        </div>
+        {footer ? <p className="shrink-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footer}</p> : null}
       </div>
       {canWrite ? (
         <DrawerHost open={drawerOpen} onOpenChange={setDrawerOpen} label="New supplier">

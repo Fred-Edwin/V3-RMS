@@ -256,6 +256,12 @@ export const ListRequisitionHistoryQuerySchema = z.object({
   status: requisitionDisplayStatusSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: uuid.optional(),
+  /**
+   * Paged mode (the shared table, UI_BUILD_RULES §4a): with `page` the list is paged by `perPage` and the response carries a
+   * `pagination` block with the true total after the status filter. `limit` and `cursor` still work on their own.
+   */
+  page: z.coerce.number().int().min(1).optional(),
+  perPage: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export const ListNeedsApprovalQuerySchema = z.object({

@@ -187,6 +187,14 @@ export interface ListRequisitionHistoryQuery {
   status?: RequisitionDisplayStatus;
   limit?: number;
   cursor?: string;
+  /** With `page`, the list is paged by `perPage` (25, 50 or 100) and carries a total. */
+  page?: number;
+  perPage?: number;
+}
+
+export interface RequisitionHistoryPage {
+  rows: RequisitionHistoryRow[];
+  total: number;
 }
 
 export interface ListNeedsApprovalQuery {

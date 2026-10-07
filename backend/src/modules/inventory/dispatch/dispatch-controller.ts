@@ -92,8 +92,8 @@ export const dispatchController = {
   listDiscrepancies: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const query = ListDiscrepanciesQuerySchema.parse(req.query);
-    const data = await discrepancyService.listDiscrepancies(actor, query);
-    res.status(200).json({ success: true, data });
+    const { rows, pagination } = await discrepancyService.listDiscrepancyPage(actor, query);
+    res.status(200).json({ success: true, data: rows, pagination });
   },
 
   getDiscrepancy: async (req: Request, res: Response): Promise<void> => {

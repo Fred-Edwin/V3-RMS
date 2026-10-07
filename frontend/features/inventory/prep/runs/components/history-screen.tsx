@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui2/button';
 import { Input } from '@/components/ui2/input';
 import { SearchInput } from '@/components/ui2/search-input';
+import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { EmptyState, ErrorState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Topbar } from '@/components/app/shell/topbar';
@@ -23,7 +24,7 @@ import type { PrepRunStatus } from '../../_shared/types/prep-contract';
 import { useFilterOptions } from '../../review/hooks/use-filter-options';
 import { useHistoryFilters } from '../hooks/use-history-filters';
 import { useRunParam } from '../hooks/use-run-param';
-import { HISTORY_PER_PAGE, isBackwardsRange, rangeText, toRunsQuery } from '../lib/history-filters';
+import { isBackwardsRange, toRunsQuery } from '../lib/history-filters';
 import { HistoryTable } from './history-table';
 import { PrepHomeLoading } from './prep-home-loading';
 import { RunDrawer } from './run-drawer';
@@ -95,8 +96,8 @@ function HistoryBody({ canReadFlags }: { canReadFlags: boolean }) {
   const backwards = isBackwardsRange(filters);
   const query = toRunsQuery(filters);
   // Keyed on the values, not on `filters`, so opening the drawer (which only changes `?run=`) does not refetch the table.
-  const key = backwards ? null : JSON.stringify([query, filters.page]);
-  const runs = useLoader(key, () => prepApi.listRuns({ ...query, page: filters.page, perPage: HISTORY_PER_PAGE }), PREP_STATES_COPY.history.errorTitle);
+  const key = backwards ? null : JSON.stringify([query, filters.page, filters.perPage]);
+  const runs = useLoader(key, () => prepApi.listRuns({ ...query, page: filters.page, perPage: filters.perPage }), PREP_STATES_COPY.history.errorTitle);
 
   if (!hydrated) return <PrepHomeLoading />;
 
@@ -123,8 +124,6 @@ function HistoryBody({ canReadFlags }: { canReadFlags: boolean }) {
   ) : null;
 
   const list = runs.data;
-  const totalPages = list ? Math.max(1, Math.ceil(list.total / list.perPage)) : 1;
-  const range = rangeText(filters);
 
   const body = backwards ? (
     <EmptyState
@@ -156,20 +155,15 @@ function HistoryBody({ canReadFlags }: { canReadFlags: boolean }) {
     <>
       <HistoryTable runs={list?.items ?? null} onOpen={(run) => openRun(run.id)} />
       {list ? (
-        <div className="flex flex-wrap items-center justify-between gap-wds-3">
-          <p className="m-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted" aria-live="polite">
-            Showing {list.items.length} of {list.total} runs{range ? ` · ${range}` : ''}
-            {totalPages > 1 ? ` · Page ${list.page} of ${totalPages}` : ''}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="secondary" disabled={filters.page <= 1} onClick={() => update({ page: filters.page - 1 })} className="max-sm:h-11">
-              Previous
-            </Button>
-            <Button variant="secondary" disabled={filters.page >= totalPages} onClick={() => update({ page: filters.page + 1 })} className="max-sm:h-11">
-              Next
-            </Button>
-          </div>
-        </div>
+        <TablePager
+          className="border border-wds-border"
+          page={filters.page}
+          perPage={filters.perPage}
+          shown={list.items.length}
+          total={list.total}
+          onPageChange={(page) => update({ page })}
+          onPerPageChange={(perPage) => update({ perPage })}
+        />
       ) : null}
     </>
   );

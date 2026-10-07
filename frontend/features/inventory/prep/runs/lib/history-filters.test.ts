@@ -6,7 +6,13 @@ const params = (qs: string) => new URLSearchParams(qs);
 describe('parseHistoryFilters', () => {
   it('reads every filter from the URL', () => {
     const f = parseHistoryFilters(params('q=chick&output=o1&person=p1&status=CANCELLED&from=2026-10-01&to=2026-10-07&page=3'), false);
-    expect(f).toEqual({ search: 'chick', outputItemId: 'o1', personId: 'p1', status: 'CANCELLED', from: '2026-10-01', to: '2026-10-07', mine: false, page: 3 });
+    expect(f).toEqual({ search: 'chick', outputItemId: 'o1', personId: 'p1', status: 'CANCELLED', from: '2026-10-01', to: '2026-10-07', mine: false, page: 3, perPage: 50 });
+  });
+  it('reads rows per page, and falls back to 50 for anything but 25, 50 or 100', () => {
+    expect(parseHistoryFilters(params('perPage=100'), false).perPage).toBe(100);
+    expect(parseHistoryFilters(params('perPage=25'), false).perPage).toBe(25);
+    expect(parseHistoryFilters(params('perPage=7'), false).perPage).toBe(50);
+    expect(parseHistoryFilters(params('perPage=abc'), false).perPage).toBe(50);
   });
   it('ignores a bad status, a bad date and a bad page instead of sending them', () => {
     const f = parseHistoryFilters(params('status=BOGUS&from=yesterday&to=2026-13&page=-4'), false);
@@ -32,6 +38,10 @@ describe('writeHistoryFilters', () => {
     expect(next.get('status')).toBe('CORRECTED');
     expect(next.get('page')).toBe('2');
   });
+  it('writes rows per page only when it is not the default', () => {
+    expect(writeHistoryFilters(params(''), { ...base, perPage: 100 }, false).get('perPage')).toBe('100');
+    expect(writeHistoryFilters(params('perPage=100'), { ...base, perPage: 50 }, false).has('perPage')).toBe(false);
+  });
   it('removes a filter that was cleared', () => {
     const current = parseHistoryFilters(params('q=x&status=CANCELLED'), false);
     expect(writeHistoryFilters(params('q=x&status=CANCELLED'), { ...current, search: '' }, false).toString()).toBe('status=CANCELLED');
@@ -48,9 +58,10 @@ describe('writeHistoryFilters', () => {
 
 describe('the query and the helpers', () => {
   it('builds the same query for the list and the export, without paging', () => {
-    const q = toRunsQuery({ search: '', outputItemId: 'o', mine: true, page: 4, from: '2026-10-01' });
+    const q = toRunsQuery({ search: '', outputItemId: 'o', mine: true, page: 4, perPage: 25, from: '2026-10-01' });
     expect(q).toEqual({ search: undefined, outputItemId: 'o', personId: undefined, status: undefined, mine: true, from: '2026-10-01', to: undefined });
     expect(q).not.toHaveProperty('page');
+    expect(q).not.toHaveProperty('perPage');
   });
   it('knows when Clear filters has work to do', () => {
     const d = parseHistoryFilters(params(''), true);

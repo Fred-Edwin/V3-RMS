@@ -8,6 +8,7 @@ The product is being rebuilt one feature at a time into 10 modules plus Inventor
 
 | Lane | What it is doing now | Status |
 |---|---|---|
+| **Shared table (code)** | One table component for every table, built to UI_BUILD_RULES §4a | Built and tested; Stock items, Stock ledger, Catalog, Suppliers, Audit log, Prep history, Discrepancies and Requisition history are on it (branch `feat/shared-table-component`, not pushed). Purchasing tabs and Team still to move; list in [features/inventory/table-audit.md](features/inventory/table-audit.md) |
 | **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Mock Sessions 1 and 2 merged and deployed (#81), and the one shell is merged and deployed (#83). Mock is complete and the client approved it at the demo (6 Oct 2026). Now building the approved Central Store parts live, front-end and back-end (see "Go-live sequence" below) |
 | **Workforce (design)** | Drawing screens in Paper, group by group (branch `docs/workforce-design`, worktree lane-3) | Groups A and B approved. Group C in progress |
 | **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce code depends on it |
