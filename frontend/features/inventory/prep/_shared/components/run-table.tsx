@@ -47,7 +47,8 @@ export function RunTable({ runs, variant, onOpen, className }: RunTableProps) {
             onClick={onOpen ? () => onOpen(run) : undefined}
             onKeyDown={onOpen ? (e) => (e.key === 'Enter' || e.key === ' ' ? (e.preventDefault(), onOpen(run)) : undefined) : undefined}
             tabIndex={onOpen ? 0 : undefined}
-            className={cn('h-12', onOpen && 'cursor-pointer outline-none focus-visible:shadow-wds-ring', run.needsLook && 'bg-wds-caramel-100')}
+            // No row tint for "needs a look": that marking arrives with the Needs a look band and review flow (Slice 4); on its own it explains nothing.
+            className={cn('h-12', onOpen && 'cursor-pointer outline-none focus-visible:shadow-wds-ring')}
           >
             <TableCell className="whitespace-nowrap font-wds-mono text-wds-caption text-wds-text-copy-muted">{formatWhen(run.at)}</TableCell>
             <TableCell className="whitespace-nowrap font-medium text-wds-text-ink">

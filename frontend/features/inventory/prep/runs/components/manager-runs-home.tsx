@@ -16,6 +16,7 @@ import { RunTable } from '../../_shared/components/run-table';
 import { PREP_STATES_COPY } from '../../_shared/lib/states-copy';
 import { prepApi } from '../../_shared/services/prep-api';
 import { ManagerRunDrawer } from '../../record/components/manager-run-drawer';
+import { PrepHomeLoading } from './prep-home-loading';
 import { PrepRunDetailDrawer } from '../../components/screens/prep-run-detail-screen';
 
 const PAGE = 25;
@@ -54,7 +55,7 @@ export function ManagerRunsHome({ canRecord }: { canRecord: boolean }) {
 
   const runs = useLoader(`prep-runs:${term}:${perPage}`, () => prepApi.listRuns({ search: term || undefined, perPage }), PREP_STATES_COPY.runs.errorTitle);
 
-  if (!hydrated) return null;
+  if (!hydrated) return <PrepHomeLoading />;
 
   const newRun = canRecord ? (
     <Button onClick={() => setDrawerOpen(true)}>New prep run</Button>

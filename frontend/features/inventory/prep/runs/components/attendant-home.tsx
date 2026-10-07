@@ -20,6 +20,7 @@ import { formatDayAndClock, formatQuantity, formatWhen } from '../../_shared/lib
 import { PREP_STATES_COPY } from '../../_shared/lib/states-copy';
 import { prepApi } from '../../_shared/services/prep-api';
 import type { RunSummary } from '../../_shared/types/prep-contract';
+import { PrepHomeLoading } from './prep-home-loading';
 import { PrepRunDetailDrawer } from '../../components/screens/prep-run-detail-screen';
 
 const NEW_RUN = '/app/inventory/prep/new';
@@ -76,7 +77,7 @@ export function AttendantHome() {
   const [openRunId, setOpenRunId] = React.useState<string | null>(null);
   const [now] = React.useState(() => Date.now());
 
-  if (!hydrated) return null;
+  if (!hydrated) return <PrepHomeLoading />;
   const goPrep = (itemId: string): void => router.push(`${NEW_RUN}?item=${encodeURIComponent(itemId)}`);
 
   const tiles =
