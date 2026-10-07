@@ -18,7 +18,7 @@ Stock is not yet deducted automatically when something is sold (deferred). So op
 2. **During the day.** Deliveries are confirmed ([discrepancies.md](discrepancies.md)), waste is logged ([branch-waste-flow.md](branch-waste-flow.md)), requisitions run.
 3. **Evening, count.** Each head counts their own department **blind** on their phone: items and units, empty boxes, no expected figure shown. They send the count with their PIN.
 4. **Close.** The Branch Manager's **Today** screen shows five department tiles (*Not counted, Counted, Needs a look*) and anything blocking the close. They open a department to see *opening, received, waste, counted, Used today* per item, then **Close the day** with a summary and a PIN.
-5. **After the close.** One usage entry per item is written through the stock ledger door, carrying the `DAY-nnnn` number. The day file keeps everything.
+5. **After the close.** One usage entry per item is written through the stock ledger door, carrying the `DAY-<branch>-nnnn` number (branch-coded, e.g. `DAY-NYR-0044`; edited 8 Oct 2026). The day file keeps everything.
 
 ## Who does what
 

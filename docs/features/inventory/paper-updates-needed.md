@@ -35,6 +35,13 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 ## Fake phone status bar (logged 4 Oct 2026)
 - [ ] Older Paper phone frames show a status bar (9:41, signal, Wi-Fi, battery). It must not be part of the screens; remove it from each frame, and remove any copy of it from the built front end. Rule: `docs/UI_BUILD_RULES.md` §7a.
 
+## Requisitions group (final design pass, logged 7 to 8 Oct 2026)
+- [ ] **Director sidebar** (step 18b): Central Store group open with Requisitions active. Code: the Director has no Requisitions row today. Also **Settings > Manage > Departments** (step 20) is new, and the urgent switch (18), cancel dialog (19) and States kit (21) are new surfaces for the build.
+- [ ] **Sidebar rows differ from `nav-table.ts`.** The design has one "Requisitions" link per role; the table has: Branch Manager three rows (Requisitions, Deliveries, Day), Department Heads an old-flow Requisitions row, Store roles only "Dispatch", Director/Accountant/System Admin no Requisitions row. Build session: one Requisitions row for every role (Central Store group for the hub roles, replacing Dispatch), Deliveries folded into the list tabs. Sidebars are drawn in R2 (desktop screens); phone screens use the menu drawer.
+- [ ] **Floor-staff heads** (chef, barista, steward, housekeeping) are still on the legacy bottom tabs in code; the head phone screens are drawn with the top bar and back arrow. The build moves these heads onto the shell.
+- [ ] **PIN and summary are one sheet** on the head's send (step 5); the code should not add a separate PIN step.
+- [ ] **Branch Manager sidebar** (drawn in R2): Operations, Manage, Other income, Branch (open), Central Store and Procurement (collapsed). The code's Branch group should list Requisitions and Day only (Deliveries folded into the list tabs). The brand row shows the branch name ("NYERI TOWN") where the Central Store master shows "HUB".
+
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
 - Requisitions, Dispatch and Branch day (not approved).

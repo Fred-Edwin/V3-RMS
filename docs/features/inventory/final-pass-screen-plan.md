@@ -29,8 +29,8 @@ Every record has a number (`REQ-`, `DSP-`, `DSC-`, `DAY-`). Every stock ledger e
 **Batch R2: Review and approve** (Branch Manager, desktop; read by all desktop roles)
 7. **Requisitions list, drawn once for the whole pass:** tabs *Collecting, To approve, To pack, On the way, To confirm, Discrepancies, Closed* with counts, search and filters first, numbered pager. Each role opens on its own tab
 8. Requisition file while collecting: department chips, Next step card, items by department, **Nudge**
-9. Return a section: dialog with a required note
-10. Returned to the head (phone): the manager's note, changed lines highlighted
+9. Change a quantity: edit the Approved box in the row, optional reason (replaces "Return a section", owner decision 7 Oct)
+10. The head is told (phone): what the manager changed, no action needed
 11. Approve and sign: the drawer with "What signing does" and the PIN
 12. Approved and sent to the store: the confirmation
 

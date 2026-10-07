@@ -41,7 +41,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [stock](../../../backend/src/modules/inventory/stock/README.md) | Stock position, ledger, stock card | Stock and Counting | approved | **old flow, pending redo** |
 | [waste](../../../backend/src/modules/inventory/waste/README.md) | Waste logging and reversal | Stock and Counting | approved | **old flow, pending redo** |
 | [counting](../../../backend/src/modules/inventory/counting/README.md) | Central Store daily count, verify, spot count, thresholds | Stock and Counting | approved | **old flow, pending redo** |
-| [requisitions](../../../backend/src/modules/inventory/requisitions/README.md) | Branch requisition and approval | Requisition and dispatch | not approved | old flow, pending redo |
+| [requisitions](../../../backend/src/modules/inventory/requisitions/README.md) | Branch requisition and approval | Requisition and dispatch | approved (8 Oct 2026) | old flow, pending redo |
 | [dispatch](../../../backend/src/modules/inventory/dispatch/README.md) | Fulfil, delivery, branch receiving, discrepancies | Requisition and dispatch | not approved | old flow, pending redo |
 | [branch-day](../../../backend/src/modules/inventory/branch-day/README.md) | Branch count, close, reopen, next-morning opening | Counting and closing | not approved | old flow, pending redo |
 | `_shared` | Stock scope helpers and cross-cutting tests | n/a | n/a | n/a |
