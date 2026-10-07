@@ -49,6 +49,14 @@ export const CAPABILITIES = [
   'orders.approve', // approve with a PIN, return with a note, send the approved order
   'orders.cancel', // cancel an order before anything arrives
   'orders.receive', // record a delivery
+  // Prep (docs/features/inventory/prep-plan.md §2). The Store Manager and System Admin hold all seven via the filter above.
+  'prep.read', // Runs, Usual recipes (read-only), History, run detail
+  'prep.see_costs', // run costs: output unit cost, input and line costs, prep value (the Attendant is blind to them)
+  'prep.read_flags', // flags, Needs a look, review status, expected stock on a run, History export (never the Attendant)
+  'prep.record', // record a run; correct or cancel your OWN run within 24 hours (a service rule)
+  'prep.fix_any', // correct or cancel any run, any age
+  'prep.review', // Mark reviewed
+  'prep.recipes_write', // set and edit usual recipes
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -66,6 +74,9 @@ const READ_EVERYTHING: readonly Capability[] = [
   'suppliers.read',
   'payables.read',
   'orders.read',
+  'prep.read',
+  'prep.see_costs',
+  'prep.read_flags',
   'audit.read',
   'central_store.read_any_org',
 ];
@@ -97,6 +108,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'orders.read',
     'orders.request',
     'orders.receive',
+    'prep.read',
+    'prep.record',
   ],
 };
 
