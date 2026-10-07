@@ -34,6 +34,8 @@ export interface ScwKpiStripProps {
    * (`1XIC-0`: 24 px values coloured by the cell's tone, tighter cells).
    */
   variant?: 'summary' | 'compact';
+  /** Cells (by key) drawn with a green top edge and label: "Applied to stock" on a signed count (step 15). */
+  successKeys?: string[];
   className?: string;
 }
 
@@ -43,7 +45,7 @@ const VALUE_TONE: Record<KpiCell['tone'], string> = {
   ALERT: 'text-wds-error-fg',
 };
 
-export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary', className }: ScwKpiStripProps) {
+export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary', successKeys = [], className }: ScwKpiStripProps) {
   const compact = variant === 'compact';
   return (
     <div className={cn('flex flex-wrap border border-wds-border bg-wds-surface', className)} role="group" aria-label="Summary">
@@ -51,7 +53,7 @@ export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary'
         const interactive = Boolean(cell.filter && onFilter);
         const body = (
           <>
-            <span className={cn('font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em]', LABEL[cell.tone])}>{cell.label}</span>
+            <span className={cn('font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em]', successKeys.includes(cell.key) ? 'text-wds-success-fg' : LABEL[cell.tone])}>{cell.label}</span>
             <span
               className={cn(
                 'font-wds-mono',
@@ -67,7 +69,7 @@ export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary'
         const base = cn(
           'flex min-w-[160px] grow basis-0 flex-col border-t-2 px-4 text-left',
           compact ? 'gap-0.5 py-3' : 'gap-[3px] py-3.5',
-          TOP[cell.tone],
+          successKeys.includes(cell.key) ? 'border-t-wds-success-fg' : TOP[cell.tone],
           i < cells.length - 1 && 'border-r border-r-wds-border',
         );
         return interactive ? (

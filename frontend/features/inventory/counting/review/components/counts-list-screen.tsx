@@ -5,43 +5,16 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
-import { DataTable, type TableColumn } from '@/components/ui2/data-table/data-table';
-import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
-import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
+import { DataTable } from '@/components/ui2/data-table/data-table';
 import { ScwKpiStrip, ScwKpiStripSkeleton } from '../../../_shared/components/scw-kpi-strip';
 import { ScwStatePanel } from '../../../_shared/components/scw-states';
 import { ScwTopbar } from '../../../_shared/components/scw-topbar';
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { usePermissions } from '../../../_shared/hooks/use-permissions';
-import { CountStatusChip } from '../../_shared/components/count-chips';
 import { COUNTING_STATES_COPY } from '../../_shared/lib/states-copy';
 import { countingApi } from '../../_shared/services/counting-api';
 import type { CountRow } from '../../_shared/types/counting-contract';
-
-const COUNTS = '/app/inventory/stock/counts';
-
-const FILTERS: TableFilter[] = [
-  {
-    kind: 'chips',
-    key: 'status',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'waiting', label: 'Waiting for you' },
-      { value: 'inProgress', label: 'In progress' },
-      { value: 'approved', label: 'Approved' },
-    ],
-  },
-];
-
-const COPY = {
-  emptyTitle: 'No counts yet',
-  emptyDescription: COUNTING_STATES_COPY.countsList.empty,
-  filteredEmptyTitle: 'No counts match',
-  filteredEmptyDescription: 'No count matches this search or filter. Clear the filters to see every count.',
-  errorTitle: 'Could not load counts',
-  errorDescription: 'Try again. Nothing was changed.',
-  permissionDescription: COUNTING_STATES_COPY.countsList.permission,
-};
+import { COUNTS, COUNTS_COPY, COUNTS_FILTERS, makeCountColumns } from './counts-columns';
 
 /**
  * Counts (Paper steps 8 and 48, `1X6I-0`, `25F8-0`), for every desktop role. A summary strip, status chips (a strip cell with a
@@ -68,58 +41,7 @@ export function CountsListScreen() {
     [params, router],
   );
 
-  const columns = React.useMemo<TableColumn<CountRow>[]>(
-    () => [
-      { id: 'reference', header: 'Reference', width: '140px', cell: (r, { term }) => <span className="font-wds-mono text-[12px] leading-4 text-wds-text-ink"><HighlightMatch text={r.reference} term={term} /></span> },
-      {
-        id: 'sections',
-        header: 'Sections',
-        width: '170px',
-        cell: (r, { term }) => (
-          <span className="text-wds-text-ink">
-            <HighlightMatch text={r.sectionsText} term={term} />
-          </span>
-        ),
-      },
-      { id: 'counter', header: 'Counted by', width: '150px', cell: (r, { term }) => <span className="text-wds-text-ink"><HighlightMatch text={r.counter.name} term={term} /></span> },
-      {
-        id: 'signed',
-        header: 'Signed',
-        width: '170px',
-        cell: (r) => <span className={r.signedAt ? 'font-wds-mono text-[12px] leading-4 text-wds-text-ink' : 'text-wds-text-secondary'}>{r.signedText}</span>,
-      },
-      { id: 'items', header: 'Items', width: '90px', align: 'right', cell: (r) => <span className={r.status === 'OPEN' ? 'font-wds-mono text-wds-text-secondary' : 'font-wds-mono text-wds-text-ink'}>{r.itemsText}</span> },
-      {
-        id: 'differences',
-        header: 'Differences',
-        width: '210px',
-        className: 'pl-6',
-        cell: (r) =>
-          r.recountOf ? (
-            <Link href={`${COUNTS}/${r.recountOf.id}`} onClick={(e) => e.stopPropagation()} className="text-wds-info-fg underline-offset-2 outline-none hover:underline focus-visible:shadow-wds-ring">
-              Recount of {r.recountOf.reference}
-            </Link>
-          ) : (
-            <span className={r.differencesText === 'Not signed yet' ? 'text-wds-text-faint' : 'text-wds-text-secondary'}>{r.differencesText ?? ''}</span>
-          ),
-      },
-      {
-        id: 'status',
-        header: 'Status',
-        cell: (r) => (
-          <span className="flex items-center justify-between gap-3">
-            <CountStatusChip status={r.status} text={r.statusText} />
-            {r.can.review ? (
-              <Button size="sm" className="h-[30px] px-3.5 font-semibold" onClick={(e) => { e.stopPropagation(); router.push(`${COUNTS}/${r.id}`); }}>
-                Review
-              </Button>
-            ) : null}
-          </span>
-        ),
-      },
-    ],
-    [router],
-  );
+  const columns = React.useMemo(() => makeCountColumns((href) => router.push(href)), [router]);
 
   if (ready && !can('counts.read')) {
     return <ScwStatePanel kind="permission" text={COUNTING_STATES_COPY.countsList.permission} className="m-8" />;
@@ -171,8 +93,8 @@ export function CountsListScreen() {
           label="Counts"
           columns={columns}
           getRowId={(r) => r.id}
-          filters={FILTERS}
-          copy={COPY}
+          filters={COUNTS_FILTERS}
+          copy={COUNTS_COPY}
           searchPlaceholder="Search a count, section or person"
           enabled={ready}
           onRowActivate={(r) => router.push(r.status === 'OPEN' && r.mine ? `${COUNTS}/${r.id}/count` : `${COUNTS}/${r.id}`)}

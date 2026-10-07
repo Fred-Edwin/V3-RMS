@@ -21,6 +21,12 @@ export function dayClockLabel(iso: string): string {
   return `${day} ${clockLabel(iso)}`;
 }
 
+/** "Sat 10 Oct" from an ISO time, in Nairobi. */
+export function dayMonthClockLabel(iso: string): string {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat('en-GB', { timeZone: NAIROBI, weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(',', '');
+}
+
 export const itemsLabel = (n: number): string => `${n} ${n === 1 ? 'item' : 'items'}`;
 
 const MINUS = '−';

@@ -52,6 +52,8 @@ export interface SignSheetDialogProps {
   pinLabel?: string;
   /** Counting layouts only: an extra reason the confirm button must stay disabled (a cause still to pick), shown as its tooltip. */
   confirmBlockedReason?: string;
+  /** `wide` layout only: the width in px when Paper draws it other than 560 (step 14 draws 580). */
+  wideWidth?: number;
 }
 
 const PIN_LENGTH = 4;
@@ -72,6 +74,7 @@ export function SignSheetDialog({
   children,
   pinLabel = 'Enter your PIN',
   confirmBlockedReason,
+  wideWidth,
 }: SignSheetDialogProps) {
   const [pin, setPin] = React.useState('');
   // Everyone who signs needs a PIN. If this signer has none yet, the sheet
@@ -120,6 +123,7 @@ export function SignSheetDialog({
         error={error}
         canSubmit={canSubmit && !confirmBlockedReason}
         blockedReason={confirmBlockedReason}
+        wideWidth={wideWidth}
         onSubmit={onSubmit}
         onPinSet={(newPin) => {
           pinStatus.markSet();
@@ -310,6 +314,7 @@ interface CountingSignLayoutProps {
   error?: string;
   canSubmit: boolean;
   blockedReason?: string;
+  wideWidth?: number;
   onSubmit: (pin: string) => void;
   onPinSet: (pin: string) => void;
   children?: React.ReactNode;
@@ -333,6 +338,7 @@ function CountingSignLayout({
   error,
   canSubmit,
   blockedReason,
+  wideWidth,
   onSubmit,
   onPinSet,
   children,
@@ -368,6 +374,7 @@ function CountingSignLayout({
         />
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          style={!sheet && wideWidth ? { width: wideWidth } : undefined}
           className={cn(
             'fixed z-50 flex flex-col bg-wds-surface outline-none motion-reduce:animate-none',
             sheet

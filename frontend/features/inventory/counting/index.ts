@@ -4,6 +4,7 @@
  */
 export { CountsHomeScreen } from './counts-home-screen';
 export { CountScreen } from './record/components/count-screen';
+export { SignedCountScreen } from './record/components/signed-count-screen';
 export { StartCountScreen } from './record/components/start-count-screen';
 export { ReviewCountScreen } from './review/components/review-count-screen';
 export { ReviewSignScreen } from './record/components/review-sign-screen';

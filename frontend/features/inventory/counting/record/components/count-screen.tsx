@@ -10,6 +10,7 @@ import { useLoader } from '../../../_shared/hooks/use-async';
 import { COUNTING_STATES_COPY } from '../../_shared/lib/states-copy';
 import { countingApi } from '../../_shared/services/counting-api';
 import { CountShelfScreen } from './count-shelf-screen';
+import { ManagerCountScreen } from './manager-count-screen';
 
 const COUNTS = '/app/inventory/stock/counts';
 
@@ -70,5 +71,7 @@ export function CountScreen({ countId }: { countId: string }) {
       </PhoneColumn>
     );
   }
+  // Stock figures present means this person counts with expected stock in view (the desktop table); absent means the phone column.
+  if (count.figures || count.lines.some((l) => l.expectedQty !== undefined)) return <ManagerCountScreen initial={count} />;
   return <CountShelfScreen initial={count} focusLineId={focusLine} />;
 }

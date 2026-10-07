@@ -9,6 +9,7 @@ import { usePermissions } from '../_shared/hooks/use-permissions';
 import { COUNTING_STATES_COPY } from './_shared/lib/states-copy';
 import { PickSectionScreen } from './record/components/pick-section-screen';
 import { CountsListScreen } from './review/components/counts-list-screen';
+import { DirectorCountsScreen } from './review/components/director-counts-screen';
 
 /**
  * `/stock/counts`. Which screen this is comes from what the server says the person may do, never from a role name: a caller who
@@ -33,6 +34,7 @@ export function CountsHomeScreen() {
     return <ScwStatePanel kind="permission" text={COUNTING_STATES_COPY.pickSection.permission} className="m-8" />;
   }
   if (!can('counts.read')) return <PickSectionScreen />;
-  void params;
+  // The Director's view: asked for with `?view=flagged` (the alert's link), or the person's only write here is Mark seen.
+  if (can('counts.acknowledge') && (!can('counts.resolve') || params.get('view') === 'flagged')) return <DirectorCountsScreen />;
   return <CountsListScreen />;
 }
