@@ -19,7 +19,7 @@ import type { Category } from '../../../types';
 import type { CountListItem } from '../../types/count';
 import type { StockRow } from '../../../stock/types/stock';
 import { CountReasonControl } from '../count-reason';
-import { LogWasteDrawer } from '../../../waste/components/log-waste-drawer';
+import { LogWasteDrawer } from '../../../waste/department/components/log-waste-drawer';
 import { PinSheet } from '../pin-sheet';
 import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
 import { StockTopbar } from '../../../stock/components/stock-topbar';

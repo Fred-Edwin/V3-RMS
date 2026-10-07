@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useAuthStore } from '@/store/authStore';
-import { LogWasteMobile } from '../log-waste-drawer';
+import { LogWasteMobile } from './log-waste-drawer';
 import { DEPARTMENT_LABEL } from '../../../_shared/components/stock-format';
 
 /**

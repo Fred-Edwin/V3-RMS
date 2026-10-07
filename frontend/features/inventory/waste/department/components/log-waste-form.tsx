@@ -5,11 +5,11 @@ import { ChevronDown, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { formatApiErrorMessage } from '@/types/api';
-import { useDebouncedValue, useWasteItemOptions } from '../../stock/hooks/use-stock';
-import { createWaste } from '../../stock/services/stock-api-service';
+import { useDebouncedValue, useWasteItemOptions } from '../../../stock/hooks/use-stock';
+import { createWaste } from '../../../stock/services/stock-api-service';
 import type { CreateWasteResult, WasteItemOption, WasteReasonValue } from '../types/waste';
-import { FormErrorBanner } from '../../_shared/components/stock-states';
-import { formatKes, formatNumber, formatQty, WASTE_REASON_LABEL } from '../../_shared/components/stock-format';
+import { FormErrorBanner } from '../../../_shared/components/stock-states';
+import { formatKes, formatNumber, formatQty, WASTE_REASON_LABEL } from '../../../_shared/components/stock-format';
 
 /**
  * Log waste — Paper `18VZ-0` (Central Store drawer), `1BX0-0` (Central Store

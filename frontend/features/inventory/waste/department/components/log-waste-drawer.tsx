@@ -10,8 +10,8 @@ import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import type { CreateWasteResult } from '../types/waste';
 import { LogWasteFields, useLogWasteForm } from './log-waste-form';
-import { StockMobileHeader } from '../../_shared/components/stock-mobile-header';
-import { formatKes, formatQty } from '../../_shared/components/stock-format';
+import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
+import { formatKes, formatQty } from '../../../_shared/components/stock-format';
 
 /**
  * Motion for the Milestone Six drawers (§4.2 + emil-design-eng): slide in

@@ -11,7 +11,7 @@ import {
   listWasteItemOptions,
 } from '../services/stock-api-service';
 import type { AttendantStockSummary, Ledger, LedgerQuery, ListStockQuery, StockList, StockSummary } from '../types/stock';
-import type { WasteItemOption, WasteList } from '../../waste/types/waste';
+import type { WasteItemOption, WasteList } from '../../waste/department/types/waste';
 
 export type ResourceStatus = 'loading' | 'error' | 'ready';
 

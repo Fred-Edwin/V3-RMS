@@ -1,6 +1,6 @@
 import type { StatusTone } from '@/components/ui2/status-dot';
 import type { InventoryItemTypeValue, InventoryTransactionTypeValue } from '../../stock/types/stock';
-import type { WasteReasonValue } from '../../waste/types/waste';
+import type { WasteReasonValue } from '../../waste/department/types/waste';
 
 /**
  * Display formatting for the Milestone Six stock screens, matching Paper's
