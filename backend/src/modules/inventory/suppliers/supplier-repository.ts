@@ -15,6 +15,7 @@ import type {
   SupplierType,
 } from '@prisma/client';
 import { prisma } from '../../../config/database';
+import { supplierPurchasingReads } from '../purchasing/supplier-account/supplier-purchasing-reads';
 import { normalizeBuyUnit, normalizePackSize, type LineKey } from './supplier-line-key';
 
 type TxClient = Prisma.TransactionClient;
@@ -186,9 +187,8 @@ export const supplierRepository = {
     return count;
   },
 
-  /** Invoices not yet fully paid (stored status UNPAID / PARTIALLY_PAID). */
-  countOpenInvoices: async (supplierId: string, siteId: string, client: Client = prisma): Promise<number> =>
-    client.supplierInvoice.count({ where: { siteId, supplierId, status: { not: 'PAID' } } }),
+  /** Invoices not yet fully paid, from Purchasing's purchase files. */
+  countOpenInvoices: (supplierId: string, siteId: string): Promise<number> => supplierPurchasingReads.countOpenInvoices(supplierId, siteId),
 
   /** Drops the supplier's preferred marks (both sides of the sync). */
   clearPreferred: async (supplierId: string, siteId: string, tx: TxClient): Promise<void> => {
@@ -627,74 +627,25 @@ export const supplierDocumentRepository = {
     return count;
   },
 
-  receiptBelongs: async (goodsReceiptId: string, supplierId: string, siteId: string): Promise<boolean> =>
-    (await prisma.goodsReceipt.count({ where: { id: goodsReceiptId, supplierId, siteId } })) > 0,
+  /** The document may point at a delivery (the column keeps its old name `goods_receipt_id`) of this supplier. */
+  receiptBelongs: async (deliveryId: string, supplierId: string, siteId: string): Promise<boolean> =>
+    (await prisma.purchaseDelivery.count({ where: { id: deliveryId, siteId, order: { supplierId } } })) > 0,
 
-  invoiceBelongs: async (supplierInvoiceId: string, supplierId: string, siteId: string): Promise<boolean> =>
-    (await prisma.supplierInvoice.count({ where: { id: supplierInvoiceId, supplierId, siteId } })) > 0,
+  /** Or at an invoice (column `supplier_invoice_id`) of this supplier. */
+  invoiceBelongs: async (invoiceId: string, supplierId: string, siteId: string): Promise<boolean> =>
+    (await prisma.purchaseInvoice.count({ where: { id: invoiceId, siteId, supplierId } })) > 0,
 };
 
 // ---------------------------------------------------------------------------
 // Timeline + summary reads
 // ---------------------------------------------------------------------------
 
+/** The supplier timeline and summary read Purchasing's deliveries, invoices and payments (the new purchase files). */
 export const supplierHistoryRepository = {
-  signedReceipts: (supplierId: string, siteId: string, limit?: number) =>
-    prisma.goodsReceipt.findMany({
-      where: { supplierId, siteId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
-      orderBy: { signedAt: 'desc' },
-      ...(limit ? { take: limit } : {}),
-      select: { id: true, reference: true, signedAt: true, receiptTotal: true, signedBy: { select: { id: true, name: true } } },
-    }),
-
-  invoices: (supplierId: string, siteId: string, limit: number) =>
-    prisma.supplierInvoice.findMany({
-      where: { supplierId, siteId },
-      orderBy: { invoiceDate: 'desc' },
-      take: limit,
-      select: {
-        id: true,
-        invoiceNumber: true,
-        invoiceDate: true,
-        amountBilled: true,
-        disputeStatus: true,
-        disputeReason: true,
-        updatedAt: true,
-        recordedBy: { select: { id: true, name: true } },
-      },
-    }),
-
-  payments: (supplierId: string, siteId: string, limit: number) =>
-    prisma.supplierPayment.findMany({
-      where: { supplierId, siteId },
-      orderBy: { paidAt: 'desc' },
-      take: limit,
-      select: { id: true, paidAt: true, amount: true, method: true, reference: true, reversalOfId: true, recordedBy: { select: { id: true, name: true } } },
-    }),
-
-  /** Everything the summary aggregates, in three bounded reads. */
-  summaryReceipts: (supplierId: string, siteId: string) =>
-    prisma.goodsReceipt.findMany({
-      where: { supplierId, siteId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
-      select: {
-        id: true,
-        signedAt: true,
-        receiptTotal: true,
-        lines: { select: { inventoryItemId: true, quantityBuyUnit: true, priceAlertPct: true } },
-        expectedDelivery: { select: { lines: { select: { inventoryItemId: true, quantity: true } } } },
-      },
-    }),
-
-  summaryInvoices: (supplierId: string, siteId: string) =>
-    prisma.supplierInvoice.findMany({
-      where: { supplierId, siteId },
-      select: {
-        invoiceDate: true,
-        amountBilled: true,
-        adjustments: { select: { amount: true } },
-        allocations: { select: { amount: true, supplierPayment: { select: { paidAt: true, reversalOfId: true } } } },
-      },
-    }),
+  signedReceipts: supplierPurchasingReads.signedReceipts,
+  invoices: supplierPurchasingReads.invoices,
+  payments: supplierPurchasingReads.payments,
+  summary: supplierPurchasingReads.summary,
 };
 
 export const supplierItemLookupRepository = {
@@ -719,13 +670,6 @@ const stripSelect = {
   kraPin: true,
   contacts: { select: { name: true, phone: true, isPrimary: true } },
   _count: { select: { payMethods: true } },
-  supplierInvoices: {
-    select: {
-      amountBilled: true,
-      adjustments: { select: { amount: true } },
-      allocations: { select: { amount: true } },
-    },
-  },
 } satisfies Prisma.SupplierSelect;
 
 export const supplierStripRepository = {
@@ -742,15 +686,10 @@ export const supplierStripRepository = {
 
   /** The supplier Catalog tab's four numbers: lines, receipts since `since`, and the latest signed receipt. */
   catalogStrip: async (supplierId: string, siteId: string, since: Date) => {
-    const signed = { supplierId, siteId, signedAt: { not: null }, status: { not: 'CANCELLED' as const } };
-    const [itemGroups, recent, latest] = await Promise.all([
+    const [itemGroups, strip] = await Promise.all([
       prisma.supplierItem.groupBy({ by: ['inventoryItemId'], where: { supplierId, siteId } }),
-      prisma.goodsReceipt.findMany({
-        where: { ...signed, signedAt: { gte: since } },
-        select: { receiptTotal: true, lines: { select: { priceAlertPct: true } } },
-      }),
-      prisma.goodsReceipt.findFirst({ where: signed, orderBy: { signedAt: 'desc' }, select: { signedAt: true } }),
+      supplierPurchasingReads.catalogStrip(supplierId, siteId, since),
     ]);
-    return { itemsTheySell: itemGroups.length, recent, lastReceiptAt: latest?.signedAt ?? null };
+    return { itemsTheySell: itemGroups.length, recent: strip.recent, lastReceiptAt: strip.lastReceiptAt };
   },
 };

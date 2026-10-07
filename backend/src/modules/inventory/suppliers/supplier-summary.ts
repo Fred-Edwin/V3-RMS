@@ -35,25 +35,4 @@ export const profileChecks = (s: ProfileInput): boolean[] => {
 
 export const profileDoneCount = (s: ProfileInput): number => profileChecks(s).filter(Boolean).length;
 
-/** `amountBilled + Σ adjustments − Σ allocations` — the same derivation the AP screens use (plan §1.5). */
-export const invoiceOutstanding = (invoice: {
-  amountBilled: Prisma.Decimal;
-  adjustments: { amount: Prisma.Decimal }[];
-  allocations: { amount: Prisma.Decimal }[];
-}): Prisma.Decimal => {
-  const adjusted = invoice.adjustments.reduce((sum, a) => sum.plus(a.amount), invoice.amountBilled);
-  return invoice.allocations.reduce((sum, a) => sum.minus(a.amount), adjusted);
-};
-
-/** What we owe one supplier: the sum of its invoices that still have a positive balance (the strip's rule, §29.3). */
-export const supplierOwed = (
-  invoices: {
-    amountBilled: Prisma.Decimal;
-    adjustments: { amount: Prisma.Decimal }[];
-    allocations: { amount: Prisma.Decimal }[];
-  }[],
-): Prisma.Decimal =>
-  invoices
-    .map(invoiceOutstanding)
-    .filter((outstanding) => outstanding.greaterThan(0))
-    .reduce((sum, outstanding) => sum.plus(outstanding), new Prisma.Decimal(0));
+// What we owe a supplier is worked out from the purchase files: purchasing/supplier-account/supplier-purchasing-logic.ts.

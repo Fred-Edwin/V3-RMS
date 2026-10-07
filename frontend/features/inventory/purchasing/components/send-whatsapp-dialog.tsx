@@ -12,7 +12,7 @@ import type { Order } from '../types';
 
 /**
  * Send on WhatsApp (Paper `08`): the message and the PDF, then "Download PDF and open WhatsApp". Continuing marks the order Sent.
- * Nothing is actually sent: the mock opens the printable LPO and a WhatsApp link, and records the send.
+ * Nothing is sent from the server: the person's browser opens the printable LPO and a WhatsApp link, and the order is recorded as sent.
  */
 export function SendWhatsappDialog({ order, open, onOpenChange }: { order: Order; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { service } = usePurchasing();

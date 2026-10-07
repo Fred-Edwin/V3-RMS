@@ -4991,7 +4991,7 @@ Every role list in §27–§30 and §22 (suppliers, catalog, restock levels, wha
 
 ## 31. Inventory — Purchasing and Receiving (mock-first)
 
-**Status: proposed (4 Oct 2026), not built on the server.** The front end is built first on a mock that returns exactly these shapes; the back-end is built after the client approves the flow, and replaces the old `/inventory/expected-deliveries`, `/inventory/goods-receipts`, `/inventory/purchasing/*` and `/inventory/ap/*` routes (§22 to §30 describe those, and they are removed then). Rules in plain English: `docs/features/inventory/purchasing-mock/backend-rules.md`. Screens: `…/screen-inventory.md`. Choices still open are Q-01 to Q-13 there; where a shape depends on one it says so.
+**Status: built on the server (6 Oct 2026), not yet used by the front end (Step 4 swaps the mock for it).** The shapes below are the mock's; §31.9 lists where the built API differs. The old `/inventory/expected-deliveries`, `/inventory/goods-receipts`, `/inventory/purchasing/{summary,history}`, `/inventory/receiving/history` and `/inventory/ap/*` routes are **removed** (§22 to §30 describe them as history only). Rules in plain English: `docs/features/inventory/purchasing-mock/backend-rules.md`. Screens: `…/screen-inventory.md`. Choices still open are Q-01 to Q-13 there; where a shape depends on one it says so.
 
 **Conventions.** Base `/inventory/purchasing`. Standard envelope (§1). Decimals cross the wire as **strings** (`"13776.00"`, quantities `"82.000"`); ids are strings; timestamps ISO 8601 UTC; dates `YYYY-MM-DD`. Every route has `authenticate` and a `requireCapability(...)` (never `requireRole`); hub rule D-15 applies as for the rest of the Central Store (reads: `requireHubReader`; writes: `requireHubActor`). `PIN` fields are the actor's own PIN (an approver's, where stated), 4 to 6 digits, never logged or returned. Capabilities: `orders.read` (proposed, Q-13), `orders.request`, `orders.approve`, `orders.cancel`, `orders.receive`, `payables.record_deposit`, `payables.record_invoice`, `payables.record_payment`, `payables.read`. SM = Store Manager, SA = System Admin, ATT = Store Attendant, ACC = Accountant.
 
@@ -5096,6 +5096,20 @@ Standard error envelope with a stable `code`:
 ### 31.8 Numbering
 
 `LPO-nnnn` (order), `PAY-nnnn` (payment and advance), `GRN-nnnn` (receipt) are gap-free per site from the reference counter table, taken in the same transaction as the document. The supplier's invoice number and delivery note number are typed in and never generated.
+
+### 31.9 As built (6 Oct 2026): where it differs from the mock
+
+Code: `backend/src/modules/inventory/purchasing/` (six folders, one `purchasing-routes.ts`). Every route is under `/inventory/purchasing`.
+
+- **Receive** (`POST /orders/:id/receive`): each line is `{lineId, receivedQty, deliveredPrice: string | null, priceConfirmed}`. `deliveredPrice` is what the receiver read on the delivery note when it differs from the order (`null` = as ordered); a differing price must also have `priceConfirmed: true` or the call fails `422 PRICE_CHANGE_UNCONFIRMED`. Only an approver's typed price changes the order's own price: for anyone else the supplier's price is used. The PIN is 4 digits. Each received line posts one RECEIVE row through `postStockMovement` with `purchaseDeliveryLineId`, sets the supplier price and the item's cost. Receiving with nothing received at all is refused (`422 VALIDATION`, "cancel the order instead").
+- **Attendant (Q-02):** the Attendant now sees item prices and order totals (per the owner's rule that item costs are visible). Invoice, payments, `money`, due labels and anything financial are removed by `_shared/order-view.ts`, the one place that applies the blind rule. The mock's Attendant screens (no prices) therefore differ from the live ones.
+- **LPO print** (`GET /orders/:id/lpo`): carries **no prices, no total and no amount in words**; the lines show quantities and supplier names and codes only. Internal screens keep prices.
+- **Responses:** `POST /orders/:id/deposits` returns the `Payment`. `POST /invoices/:id/payments` and `POST /payments/:id/reverse` return `PaymentResult = {payment, order}` so the screen refreshes the file in one call. Reversal needs a Store Manager or System Admin PIN, found by PIN (`approverPin`).
+- **Discard** (`DELETE /orders/:id`) deletes a draft together with its audit rows (a draft was never submitted, so no record is lost).
+- **Access:** `GET /summary` and `GET /orders` need `orders.read`; `GET /suppliers/:id/orders` needs `suppliers.read` (the Attendant has only the stripped supplier picker list); the statement needs `payables.read`; `GET /suppliers/:id/statement?format=csv` returns CSV. The statement reads at most 2,000 orders per supplier.
+- **Audit log:** there is no `/inventory/purchasing/audit-log`. Purchasing and Payments rows come from `GET /inventory/audit-log` (§30.12) with `area=PURCHASING|PAYMENTS`; each such entry carries `actor.role` and `purchasing: {action, document, detail, orderId, orderReference, supplierName}`. Capability `audit.read`.
+- **Uploads:** `POST /uploads` and `GET /uploads/:id/url` (a signed link; invoice and payment files are withheld from a caller blind to money).
+- **Not built (mock only):** the demo bar and the mock's `GET /audit-log` path.
 
 ## 32. Workforce — foundation (slice 0, built 6 Oct 2026)
 

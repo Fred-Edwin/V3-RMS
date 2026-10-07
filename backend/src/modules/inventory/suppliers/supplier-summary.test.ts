@@ -4,16 +4,15 @@ import { Prisma } from '@prisma/client';
 import { supplierService } from './supplier-service';
 import { supplierRepository, supplierStripRepository } from './supplier-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
-import { PROFILE_CHECK_COUNT, invoiceOutstanding, profileDoneCount } from './supplier-summary';
+import { supplierPurchasingReads } from '../purchasing/supplier-account/supplier-purchasing-reads';
+import { PROFILE_CHECK_COUNT, profileDoneCount } from './supplier-summary';
 import { SupplierCatalogSummarySchema, SupplierListSummarySchema } from './supplier-validators';
 import { ForbiddenError, NotFoundError } from '../../../utils/errors';
 import { attendant, buildSupplierRow, hubOrgId, otherOrgId, storeManager, supplierId, waiter } from './supplier-test-fixtures';
 
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
-vi.mock('../purchasing/receiving-repository', () => ({
-  referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
-}));
+vi.mock('../purchasing/supplier-account/supplier-purchasing-reads', async () => (await import('./supplier-test-fixtures')).purchasingReadsMocks());
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
 vi.mock('../../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
@@ -60,19 +59,6 @@ describe('profileDoneCount — the seven checks behind "Profile 4 of 7"', () => 
   });
 });
 
-describe('invoiceOutstanding', () => {
-  it('is billed + adjustments − allocations', () => {
-    expect(
-      invoiceOutstanding({ amountBilled: d('1000'), adjustments: [{ amount: d('-100') }], allocations: [{ amount: d('300') }] }).toString(),
-    ).toBe('600');
-  });
-  it('a reversed payment (negative allocation) puts the money back on the invoice', () => {
-    expect(
-      invoiceOutstanding({ amountBilled: d('1000'), adjustments: [], allocations: [{ amount: d('1000') }, { amount: d('-1000') }] }).toString(),
-    ).toBe('1000');
-  });
-});
-
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId, isHub: true } as never);
@@ -88,24 +74,18 @@ const stripRow = (over: Record<string, unknown>) => ({
   kraPin: 'P1',
   contacts: [{ name: 'Person', phone: '0700', isPrimary: true }],
   _count: { payMethods: 1 },
-  supplierInvoices: [],
   ...over,
 });
 
 describe('supplierService.getListSummary', () => {
   it('counts active, on hold, unfinished profiles and what is owed', async () => {
     vi.mocked(supplierStripRepository.listForStrip).mockResolvedValue([
-      stripRow({ id: 'a', status: 'ACTIVE', supplierInvoices: [{ amountBilled: d('1000'), adjustments: [], allocations: [{ amount: d('400') }] }] }),
+      stripRow({ id: 'a', status: 'ACTIVE' }),
       stripRow({ id: 'b', status: 'ON_HOLD', kraPin: null }),
-      stripRow({
-        id: 'c',
-        status: 'ACTIVE',
-        supplierInvoices: [
-          { amountBilled: d('500'), adjustments: [], allocations: [{ amount: d('500') }] }, // paid
-          { amountBilled: d('250'), adjustments: [], allocations: [] }, // owed
-        ],
-      }),
+      stripRow({ id: 'c', status: 'ACTIVE' }),
     ] as never);
+    // What we owe comes from the purchase files: a owes 600, c owes 250, b nothing.
+    vi.mocked(supplierPurchasingReads.owedBySupplier).mockResolvedValue(new Map([['a', d('600')], ['c', d('250')]]));
 
     const result = await supplierService.getListSummary(storeManager);
 
@@ -114,16 +94,12 @@ describe('supplierService.getListSummary', () => {
     expect(supplierStripRepository.listForStrip).toHaveBeenCalledWith(hubOrgId);
   });
 
-  it('an overpaid invoice does not reduce what is owed on another', async () => {
-    vi.mocked(supplierStripRepository.listForStrip).mockResolvedValue([
-      stripRow({
-        supplierInvoices: [
-          { amountBilled: d('100'), adjustments: [], allocations: [{ amount: d('150') }] },
-          { amountBilled: d('300'), adjustments: [], allocations: [] },
-        ],
-      }),
-    ] as never);
-    expect((await supplierService.getListSummary(storeManager)).owedAmount).toBe('300.00');
+  it('asks the purchase files for the listed suppliers only and counts a supplier that owes nothing as not owed', async () => {
+    vi.mocked(supplierStripRepository.listForStrip).mockResolvedValue([stripRow({ id: 'a' }), stripRow({ id: 'b' })] as never);
+    vi.mocked(supplierPurchasingReads.owedBySupplier).mockResolvedValue(new Map([['a', d('300')]]));
+    const result = await supplierService.getListSummary(storeManager);
+    expect(result).toMatchObject({ owedAmount: '300.00', suppliersOwed: 1 });
+    expect(supplierPurchasingReads.owedBySupplier).toHaveBeenCalledWith(hubOrgId, ['a', 'b']);
   });
 
   it('returns zeros, not nulls, for an empty book', async () => {

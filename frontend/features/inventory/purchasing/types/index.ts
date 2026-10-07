@@ -1,7 +1,7 @@
 /**
- * Purchasing and Receiving types: the shapes in `docs/API_CONTRACT.md` §31. Decimals cross the wire as strings; the screens
- * format them, the engine does the arithmetic. The mock returns exactly these, so wiring the real back-end swaps the data
- * source and not the screens.
+ * Purchasing and Receiving types: the shapes the live API returns (`docs/API_CONTRACT.md` §31 and §31.9; the back-end mirrors
+ * this file in `backend/src/modules/inventory/purchasing/_shared/purchasing.types.ts`). Decimals cross the wire as strings; the
+ * screens format them and the server does the arithmetic.
  */
 import { ApiError } from '@/types/api';
 
@@ -26,6 +26,13 @@ export interface FileRef {
   thumbnail: string | null;
 }
 
+/** `GET /inventory/purchasing/uploads/:id/url`: a short-lived link to the file itself. */
+export interface FileLink {
+  url: string;
+  expiresAt: string;
+  fileName: string;
+}
+
 export interface OrderLine {
   id: string;
   inventoryItemId: string;
@@ -39,7 +46,7 @@ export interface OrderLine {
   lineTotal: string;
   /** The last order's price for this supplier line, for the "▲ 4% on the last order" flag. */
   previousPrice: string | null;
-  /** The supplier's price on delivery when it differs from the order's (mock stand-in for the delivery note). */
+  /** The supplier's price on delivery when it differs from the order's, as typed from the delivery note. */
   deliveryPrice: string | null;
   /** What the Store Attendant sees instead of figures (Q-02). */
   priceChanged: boolean;
@@ -252,8 +259,9 @@ export interface NeedsLine {
   itemName: string;
   subLabel: string;
   status: 'LOW' | 'OUT';
-  onHand: string;
-  level: string;
+  /** Stock figures: left out for a caller without `restock.read` (the Store Attendant). */
+  onHand?: string;
+  level?: string;
   usageUnit: string;
   supplierOptions: SupplierOption[];
   chosenSupplierId: string | null;
@@ -284,8 +292,9 @@ export interface CatalogItem {
   itemName: string;
   category: string;
   status: 'LOW' | 'OUT' | 'OK';
-  onHand: string;
-  level: string;
+  /** Stock figures: left out for a caller without `restock.read` (the Store Attendant). */
+  onHand?: string;
+  level?: string;
   soldAs: string;
   buyUnit: string;
   price: string;
@@ -307,9 +316,7 @@ export interface LpoPrint {
   termsLabel: string;
   deliverTo: string;
   raisedByName: string;
-  lines: Array<{ n: number; supplierItemName: string; supplierItemCode: string | null; ourItemName: string; qty: string; unit: string; price: string; total: string }>;
-  total: string;
-  amountInWords: string;
+  lines: Array<{ n: number; supplierItemName: string; supplierItemCode: string | null; ourItemName: string; qty: string; unit: string }>;
   note: string | null;
   raisedBy: { name: string; role: string; signedAt: string } | null;
   authorisedBy: { name: string; role: string; signedAt: string } | null;
@@ -339,7 +346,11 @@ export interface OrderInput {
 }
 
 export interface ReceiveInput {
-  lines: Array<{ lineId: string; receivedQty: string; priceConfirmed: boolean }>;
+  /**
+   * `deliveredPrice` is the price the receiver read on the supplier's note when it differs from the order's (`null` = as ordered);
+   * a differing price must also carry `priceConfirmed: true` or the server refuses with `PRICE_CHANGE_UNCONFIRMED`.
+   */
+  lines: Array<{ lineId: string; receivedQty: string; deliveredPrice: string | null; priceConfirmed: boolean }>;
   deliveryNoteNo: string;
   deliveryNotePhotoId: string | null;
   pin: string;
@@ -527,25 +538,12 @@ export type PurchasingErrorCode =
   | 'UPLOAD_FAILED'
   | 'FORBIDDEN';
 
-const STATUS: Partial<Record<PurchasingErrorCode, number>> = {
-  INVALID_PIN: 401,
-  FORBIDDEN: 403,
-  ORDER_NOT_FOUND: 404,
-  INVOICE_NOT_FOUND: 404,
-  PAYMENT_NOT_FOUND: 404,
-  SUPPLIER_NOT_FOUND: 404,
-  UPLOAD_FAILED: 503,
-};
+/** True when the server refused with this code (every refusal arrives as an `ApiError` with the code of §31.6). */
+export function isPurchasingError(e: unknown, code: PurchasingErrorCode): e is ApiError {
+  return e instanceof ApiError && e.code === code;
+}
 
-/**
- * What the mock throws. It is an `ApiError` (same status/code/details shape the real server sends), so the shared loaders,
- * actions and error cards show its message exactly as they will show the real back-end's.
- */
-export class PurchasingError extends ApiError {
-  declare readonly code: PurchasingErrorCode;
-  declare readonly details: Record<string, unknown>;
-  constructor(code: PurchasingErrorCode, message: string, details: Record<string, unknown> = {}) {
-    super(message, STATUS[code] ?? (code === 'VALIDATION' || code.endsWith('REQUIRED') || code.startsWith('UPLOAD') ? 422 : 409), code, details);
-    this.name = 'PurchasingError';
-  }
+/** The extra facts a refusal carries (`openOrderId`, `existingOrderId`, `lineIds`), or an empty object. */
+export function errorDetails(e: unknown): Record<string, unknown> {
+  return e instanceof ApiError && typeof e.details === 'object' && e.details !== null && !Array.isArray(e.details) ? (e.details as Record<string, unknown>) : {};
 }

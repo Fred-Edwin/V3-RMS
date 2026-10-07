@@ -39,9 +39,9 @@ export const ledgerRepository = {
    */
   findLinkOwnerSites: async (tx: TxClient, link: LedgerLink, id: string): Promise<string[] | null> => {
     switch (link) {
-      case 'goodsReceiptLineId': {
-        const row = await tx.goodsReceiptLine.findUnique({ where: { id }, select: { goodsReceipt: { select: { siteId: true } } } });
-        return row ? [row.goodsReceipt.siteId] : null;
+      case 'purchaseDeliveryLineId': {
+        const row = await tx.purchaseDeliveryLine.findUnique({ where: { id }, select: { delivery: { select: { siteId: true } } } });
+        return row ? [row.delivery.siteId] : null;
       }
       case 'prepRecordId': {
         const row = await tx.prepRun.findUnique({ where: { id }, select: { siteId: true } });

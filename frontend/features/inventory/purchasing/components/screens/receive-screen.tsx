@@ -13,25 +13,30 @@ import { StockErrorCard } from '../../../_shared/components/stock-states';
 import { useOrder } from '../../hooks/use-order';
 import { kes, qty as fmtQty } from '../../lib/format';
 import type { FileRef, Order, OrderLine } from '../../types';
-import { PurchasingError } from '../../types';
+import { isPurchasingError } from '../../types';
 import { CompactTracker } from '../compact-tracker';
-import { DemoBanner } from '../demo-banner';
 import { PinDialog } from '../pin-dialog';
 import { UploadingRow, UploadProblemRow, type UploadProblem } from '../photo-slot';
+
+const PRICE = /^\d{1,9}(\.\d{1,4})?$/;
+/** A quantity as the API wants it: at most 3 decimals, no float noise from the stepper. */
+const q3 = (n: number): string => String(Number(n.toFixed(3)));
 
 /**
  * Receive a delivery (Paper `12` to `14`, `30`, `31`, `33`): step 1 check the goods against the order, step 2 the supplier's
  * delivery note, a photo of it, and your PIN. Phone-first: on a desktop it is the same two steps in a phone-width column.
- * Short and not-supplied quantities are dropped from the order; a changed price must be confirmed before you can sign.
- * Money is shown only to callers who may see it (the Store Attendant sees quantities and "price changed", never figures).
+ * Short and not-supplied quantities are dropped from the order. Where the price on the supplier's note differs from the order's,
+ * the receiver types it and must confirm it before signing. Item prices and totals follow `catalog.see_costs` (the Store
+ * Attendant has it); invoices and payments never appear here.
  */
 export function ReceiveScreen({ orderId }: { orderId: string }) {
   const router = useRouter();
   const { data: order, status, error, reload, service, can } = useOrder(orderId);
   const addToast = useWdsToastStore((s) => s.addToast);
-  const showMoney = can('payables.read');
+  const showPrices = can('catalog.see_costs');
   const [step, setStep] = React.useState<1 | 2>(1);
   const [got, setGot] = React.useState<Record<string, string>>({});
+  const [typed, setTyped] = React.useState<Record<string, string>>({});
   const [confirmed, setConfirmed] = React.useState<Record<string, boolean>>({});
   const [noteNo, setNoteNo] = React.useState('');
   const [photo, setPhoto] = React.useState<FileRef | null>(null);
@@ -71,10 +76,18 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
 
   const received = (l: OrderLine): number => Number.parseFloat(got[l.id] ?? l.orderedQty);
   const ordered = (l: OrderLine): number => Number.parseFloat(l.orderedQty);
-  const needsConfirm = order.lines.filter((l) => l.priceChanged && received(l) > 0);
+  const typedOf = (l: OrderLine): string => (typed[l.id] ?? '').trim();
+  const priceInvalid = (l: OrderLine): boolean => typedOf(l) !== '' && !PRICE.test(typedOf(l));
+  /** The price on the note when it is a real price that differs from the order's, otherwise null (as ordered). */
+  const changedTo = (l: OrderLine): string | null => {
+    const t = typedOf(l);
+    return t !== '' && PRICE.test(t) && Number.parseFloat(t) !== Number.parseFloat(l.unitPrice) ? t : null;
+  };
+  const needsConfirm = order.lines.filter((l) => changedTo(l) !== null && received(l) > 0);
   const allConfirmed = needsConfirm.every((l) => confirmed[l.id]);
   const short = order.lines.filter((l) => received(l) < ordered(l));
-  const deliveredValue = order.lines.reduce((t, l) => t + received(l) * Number.parseFloat((l.priceChanged ? (l.deliveryPrice ?? l.unitPrice) : l.unitPrice) || '0'), 0);
+  const nothingCame = order.lines.every((l) => !(received(l) > 0));
+  const deliveredValue = order.lines.reduce((t, l) => t + received(l) * Number.parseFloat(changedTo(l) ?? (l.unitPrice || '0')), 0);
   const orderedValue = Number.parseFloat(order.orderedTotal || '0');
 
   if (done) {
@@ -83,7 +96,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
         <PhoneHeader title="Delivery received" subtitle={`${done.reference} · ${done.supplier.name}`} leading="back" onLeading={() => router.push('/app/inventory/purchasing?tab=receive')} />
         <div className="flex flex-col gap-4 p-4">
           <PhoneSuccessNote title="Signed and received">
-            The stock is added to the Central Store (in the demo, nothing is changed). {done.lines.filter((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED').length ? 'What was not supplied is dropped from the order. ' : ''}
+            The stock is added to the Central Store. {done.lines.filter((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED').length ? 'What was not supplied is dropped from the order. ' : ''}
             Receipt {done.delivery?.reference}.
           </PhoneSuccessNote>
           <PhonePrimaryButton asChild>
@@ -114,26 +127,25 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
     );
   }
 
-  const upload = async (file: File, shownName?: string): Promise<void> => {
+  const upload = async (file: File): Promise<void> => {
     lastFile.current = file;
     setPhotoState({ busy: true, name: file.name, percent: 8, problem: null });
     if (progress.current) clearInterval(progress.current);
     progress.current = setInterval(() => setPhotoState((s) => (s.busy ? { ...s, percent: Math.min(92, s.percent + 14) } : s)), 70);
     try {
       const ref = await service.upload(file);
-      setPhoto(shownName ? { ...ref, fileName: shownName } : ref);
+      setPhoto(ref);
       setPhotoState({ busy: false, name: '', percent: 0, problem: null });
     } catch (e) {
-      const problem: UploadProblem = e instanceof PurchasingError && e.code === 'UPLOAD_TOO_LARGE' ? { kind: 'tooLarge', size: file.size } : e instanceof PurchasingError && e.code === 'UPLOAD_BAD_TYPE' ? { kind: 'badType' } : { kind: 'failed' };
+      const problem: UploadProblem = isPurchasingError(e, 'UPLOAD_TOO_LARGE') ? { kind: 'tooLarge', size: file.size } : isPurchasingError(e, 'UPLOAD_BAD_TYPE') ? { kind: 'badType' } : { kind: 'failed' };
       setPhotoState({ busy: false, name: '', percent: 0, problem });
     } finally {
       if (progress.current) clearInterval(progress.current);
     }
   };
-  // A file named "fail…" is the demo's dropped connection: the retry goes through once the name no longer says so.
   const retryUpload = (): void => {
     const f = lastFile.current;
-    if (f) void upload(new File([f], f.name.replace(/fail/gi, 'ok'), { type: f.type }), f.name);
+    if (f) void upload(f);
   };
   const pick = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const f = e.target.files?.[0];
@@ -149,14 +161,16 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
         const r = received(l);
         const o = ordered(l);
         const diff = o - r;
-        const priceRow = l.priceChanged && r > 0;
+        const newPrice = changedTo(l);
+        const priceRow = newPrice !== null && r > 0;
         return (
-          <div key={l.id} className="flex flex-col gap-2.5 border border-wds-border bg-wds-surface p-3.5">
+          <div key={l.id} className={cn('flex flex-col gap-2.5 border bg-wds-surface p-3.5', diff > 0 ? 'border-wds-error-border' : priceRow ? 'border-wds-warning-border' : 'border-wds-border')}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-neutral-950">{l.itemName}</span>
                 <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                   Ordered {fmtQty(l.orderedQty)} {l.buyUnit}
+                  {showPrices ? ` at KES ${kes(l.unitPrice)}` : ''}
                   {l.supplierItemName && l.supplierItemName.toLowerCase() !== l.itemName.toLowerCase() ? ` · supplier: ${l.supplierItemName}` : ''}
                 </span>
               </div>
@@ -170,12 +184,12 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
                 type="button"
                 aria-label={`One less ${l.itemName}`}
                 disabled={r <= 0}
-                onClick={() => setGot((p) => ({ ...p, [l.id]: String(Math.max(0, r - 1)) }))}
+                onClick={() => setGot((p) => ({ ...p, [l.id]: q3(Math.max(0, r - 1)) }))}
                 className="flex size-10 shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface outline-none hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-40"
               >
                 <Minus className="size-4" />
               </button>
-              <label className="flex h-10 grow items-center justify-center gap-1.5 border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+              <label className={cn('flex h-10 grow items-center justify-center gap-1.5 border bg-wds-surface px-2 focus-within:shadow-wds-ring', diff > 0 ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
                 <input
                   inputMode="decimal"
                   value={got[l.id] ?? l.orderedQty}
@@ -189,7 +203,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
                 type="button"
                 aria-label={`One more ${l.itemName}`}
                 disabled={r >= o}
-                onClick={() => setGot((p) => ({ ...p, [l.id]: String(Math.min(o, r + 1)) }))}
+                onClick={() => setGot((p) => ({ ...p, [l.id]: q3(Math.min(o, r + 1)) }))}
                 className="flex size-10 shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface outline-none hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-40"
               >
                 <Plus className="size-4" />
@@ -197,9 +211,32 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
             </div>
             {r > o ? <p className="font-wds-sans text-[12px] text-wds-error-fg">You cannot receive more than was ordered.</p> : null}
             {diff > 0 ? <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">The missing {l.buyUnit === 'kg' || l.buyUnit === 'pcs' ? 'quantity' : l.buyUnit} is dropped from this order.</p> : null}
+            {r > 0 ? (
+              <div className="flex flex-col gap-1">
+                <label htmlFor={`price-${l.id}`} className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+                  Price on the delivery note, if it is different{l.buyUnit ? ` (per ${l.buyUnit})` : ''}
+                </label>
+                <div className={cn('flex h-10 items-center gap-1.5 border bg-white px-2.5 focus-within:shadow-wds-ring', priceInvalid(l) ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
+                  <span className="font-wds-mono text-[12px] text-wds-text-secondary">KES</span>
+                  <input
+                    id={`price-${l.id}`}
+                    inputMode="decimal"
+                    value={typed[l.id] ?? ''}
+                    onChange={(e) => {
+                      setTyped((p) => ({ ...p, [l.id]: e.target.value.replace(/[^0-9.]/g, '') }));
+                      setConfirmed((p) => ({ ...p, [l.id]: false }));
+                    }}
+                    placeholder={showPrices ? kes(l.unitPrice) : 'Same as ordered'}
+                    aria-invalid={priceInvalid(l) ? true : undefined}
+                    className="min-w-0 grow bg-transparent text-right font-wds-mono text-[15px] text-wds-neutral-950 outline-none placeholder:text-wds-text-faint"
+                  />
+                </div>
+                {priceInvalid(l) ? <p className="font-wds-sans text-[12px] text-wds-error-fg">Enter a price, like 120 or 120.50.</p> : null}
+              </div>
+            ) : null}
             {priceRow ? (
               <div className="flex items-center justify-between gap-3 border border-wds-warning-border bg-wds-warning-bg px-3 py-2">
-                <span className="font-wds-sans text-[12px] text-wds-warning-fg">{showMoney ? `Price is ${kes(l.deliveryPrice)}, was ${kes(l.unitPrice)}` : 'The price has changed. Confirm it to continue.'}</span>
+                <span className="font-wds-sans text-[12px] text-wds-warning-fg">{showPrices ? `Price is KES ${kes(newPrice)}, was KES ${kes(l.unitPrice)}` : 'The price has changed. Confirm it to continue.'}</span>
                 <button
                   type="button"
                   role="checkbox"
@@ -217,10 +254,14 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
           </div>
         );
       })}
-      <PhonePrimaryButton disabled={!allConfirmed || order.lines.some((l) => received(l) > ordered(l) || Number.isNaN(received(l)))} onClick={() => setStep(2)}>
+      <PhonePrimaryButton disabled={!allConfirmed || nothingCame || order.lines.some((l) => received(l) > ordered(l) || Number.isNaN(received(l)) || priceInvalid(l))} onClick={() => setStep(2)}>
         Next: delivery note
       </PhonePrimaryButton>
-      {!allConfirmed ? <p className="text-center font-wds-sans text-[12px] text-wds-text-secondary">Confirm each price change to continue.</p> : null}
+      {nothingCame ? (
+        <p className="text-center font-wds-sans text-[12px] text-wds-text-secondary">Nothing is marked as received. If nothing came, cancel the order instead.</p>
+      ) : !allConfirmed ? (
+        <p className="text-center font-wds-sans text-[12px] text-wds-text-secondary">Confirm each price change to continue.</p>
+      ) : null}
     </div>
   );
 
@@ -257,13 +298,15 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
             type="button"
             onClick={() => setSheetOpen(true)}
             disabled={photoState.busy}
-            className="flex min-h-[120px] flex-col items-center justify-center gap-2 border border-dashed border-wds-border-strong bg-wds-surface-sunken px-4 py-5 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-60"
+            className="flex items-center gap-4 border border-dashed border-wds-espresso-400 bg-wds-espresso-50 px-4 py-5 text-left outline-none transition-colors hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring disabled:opacity-60"
           >
-            <span className="flex size-11 items-center justify-center bg-wds-neutral-100">
-              <Camera className="size-5 text-wds-text-secondary" aria-hidden />
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-wds-espresso-400 bg-wds-surface">
+              <Camera className="size-5 text-wds-primary" aria-hidden />
             </span>
-            <span className="font-wds-sans text-[14px] font-medium text-wds-neutral-950">{photoState.busy ? 'Adding the photo…' : 'Add a photo of the note'}</span>
-            <span className="font-wds-sans text-[12px] text-wds-text-secondary">Lay it flat and keep the whole page in view</span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-wds-sans text-[14px] font-medium text-wds-neutral-950">{photoState.busy ? 'Adding the photo…' : 'Add a photo of the note'}</span>
+              <span className="font-wds-sans text-[12px] text-wds-text-secondary">Lay it flat and keep the whole page in view</span>
+            </span>
           </button>
         )}
         {photoState.busy ? <UploadingRow fileName={photoState.name} percent={photoState.percent} /> : null}
@@ -271,7 +314,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
       </div>
       <div className="flex flex-col gap-2 border border-wds-border bg-wds-surface p-3.5">
         <PhoneFieldLabel>Summary</PhoneFieldLabel>
-        {showMoney ? (
+        {showPrices ? (
           <>
             <SummaryRow label="Ordered" value={kes(orderedValue)} />
             <SummaryRow label="Delivered" value={kes(deliveredValue)} />
@@ -294,9 +337,8 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-neutral-100">
-      <DemoBanner />
       <div className="mx-auto flex w-full max-w-[430px] grow flex-col bg-wds-canvas shadow-wds-md">
-        <PhoneHeader title="Receive delivery" subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={back} />
+        <PhoneHeader title={step === 1 ? 'Receive delivery' : 'Delivery note'} subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={back} />
         <div className="border-b border-wds-border bg-wds-surface px-4 py-3">
           <CompactTracker tracker={order.tracker} />
         </div>
@@ -336,7 +378,12 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
         confirmLabel="Sign and receive"
         onSubmit={async (pin) => {
           const result = await service.receiveOrder(order.id, {
-            lines: order.lines.map((l) => ({ lineId: l.id, receivedQty: String(received(l)), priceConfirmed: Boolean(confirmed[l.id]) })),
+            lines: order.lines.map((l) => ({
+              lineId: l.id,
+              receivedQty: q3(received(l)),
+              deliveredPrice: received(l) > 0 ? changedTo(l) : null,
+              priceConfirmed: received(l) > 0 && changedTo(l) !== null && Boolean(confirmed[l.id]),
+            })),
             deliveryNoteNo: noteNo.trim(),
             deliveryNotePhotoId: photo?.id ?? null,
             pin,

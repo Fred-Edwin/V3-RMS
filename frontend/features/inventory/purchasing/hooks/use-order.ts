@@ -4,7 +4,7 @@ import { useLoader } from '../../_shared/hooks/use-async';
 import type { PurchaseFile } from '../types';
 import { usePurchasing } from './use-purchasing';
 
-/** One purchase file, reloaded whenever the mock's data changes (by any role). `id = null` loads nothing. */
+/** One purchase file, reloaded after any Purchasing write made on this screen. `id = null` loads nothing. */
 export function useOrder(id: string | null) {
   const { service, data: tick, can, role, ready } = usePurchasing();
   const loader = useLoader<PurchaseFile>(id && ready ? `order:${id}` : null, () => service.getOrder(id as string), 'We could not load this order.');

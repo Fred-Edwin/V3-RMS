@@ -35,13 +35,6 @@ export interface OrderClosedPayload {
   dailyNumber: number;
 }
 
-export interface GoodsReceiptSignedPayload {
-  goodsReceiptId: string;
-  reference: string;
-  supplierName: string;
-  signedByName: string;
-}
-
 export interface ChequeMethodAddedPayload {
   supplierId: string;
   supplierName: string;
@@ -120,12 +113,6 @@ export const socketService = {
   emitOrderPaid: (waiterId: string, payload: OrderPaidPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:paid', payload);
-  },
-
-  /** Signing a Goods Receipt notifies the hub's Store Manager(s) (plan §3.3). */
-  emitGoodsReceiptSigned: (userId: string, payload: GoodsReceiptSignedPayload): void => {
-    const io = getSocketServer();
-    io.to(userRoomName(userId)).emit('goods-receipt:signed', payload);
   },
 
   /** A cheque payment method was added to a supplier — notifies the hub's Accountant(s). */

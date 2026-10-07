@@ -241,7 +241,7 @@ export const stockRepository = {
       WITH l AS (
         SELECT
           t.id, t.created_at, t.type, t.quantity, t.reference, t.reason,
-          t.goods_receipt_line_id, t.prep_record_id, t.waste_log_id, t.dispatch_line_id, t.stock_count_line_id,
+          t.purchase_delivery_line_id, t.prep_record_id, t.waste_log_id, t.dispatch_line_id, t.stock_count_line_id,
           t.branch_day_line_id, t.opening_line_id, t.reverses_transaction_id,
           SUM(t.quantity) OVER (ORDER BY t.created_at, t.id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running
         FROM inventory_transactions t
@@ -261,9 +261,10 @@ export const stockRepository = {
         (l.branch_day_line_id IS NOT NULL) AS "endOfDay", (l.opening_line_id IS NOT NULL) AS "overnight", (l.reverses_transaction_id IS NOT NULL) AS "isReversal",
         COUNT(*) OVER () AS total
       FROM l
-      LEFT JOIN goods_receipt_lines grl ON grl.id = l.goods_receipt_line_id
-      LEFT JOIN goods_receipts gr ON gr.id = grl.goods_receipt_id
-      LEFT JOIN suppliers s ON s.id = gr.supplier_id
+      LEFT JOIN purchase_delivery_lines pdl ON pdl.id = l.purchase_delivery_line_id
+      LEFT JOIN purchase_deliveries gr ON gr.id = pdl.delivery_id
+      LEFT JOIN purchase_orders pord ON pord.id = gr.order_id
+      LEFT JOIN suppliers s ON s.id = pord.supplier_id
       LEFT JOIN waste_logs wl ON wl.id = l.waste_log_id
       LEFT JOIN prep_runs pr ON pr.id = l.prep_record_id
       LEFT JOIN inventory_items po ON po.id = pr.output_item_id

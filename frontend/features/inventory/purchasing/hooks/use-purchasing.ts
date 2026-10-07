@@ -1,37 +1,60 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 
 import { useAuthStore } from '@/store/authStore';
-import { useEffectiveRole } from '../../_shared/hooks/use-demo-view';
 import { usePermissions } from '../../_shared/hooks/use-permissions';
-import { PEOPLE } from '../mock/fixtures';
-import { createMockPurchasingService } from '../mock/mock-service';
-import { mockStore } from '../mock/store';
+import { createPurchasingApiService } from '../services/purchasing-api-service';
 import type { PurchasingService } from '../services/purchasing-service';
 
+/** Goes up after every write (done or refused), so every open list and file reloads. */
+const useDataVersion = create<{ version: number }>(() => ({ version: 0 }));
+const bump = (): void => useDataVersion.setState((s) => ({ version: s.version + 1 }));
+
+const WRITES = [
+  'createOrder',
+  'updateOrder',
+  'discardOrder',
+  'submitOrder',
+  'approveOrder',
+  'returnOrder',
+  'sendOrder',
+  'cancelOrder',
+  'recordDeposit',
+  'receiveOrder',
+  'addInvoice',
+  'settleDispute',
+  'voidInvoice',
+  'recordPayment',
+  'reversePayment',
+  'addDocument',
+] as const satisfies ReadonlyArray<keyof PurchasingService>;
+
+/** The HTTP service with a version bump after each write. A refused write bumps too: the order may have moved on under the person. */
+function createLiveService(): PurchasingService {
+  const api = createPurchasingApiService();
+  const service: PurchasingService = { ...api };
+  for (const name of WRITES) {
+    const write = api[name] as (...args: unknown[]) => Promise<unknown>;
+    (service as unknown as Record<string, unknown>)[name] = async (...args: unknown[]): Promise<unknown> => {
+      try {
+        return await write(...args);
+      } finally {
+        bump();
+      }
+    };
+  }
+  return service;
+}
+
+const service = createLiveService();
+
 /**
- * The service every Purchasing screen uses. Today it is the in-browser mock acting as the effective role (the System Admin's
- * previewed role, or the real one); the capabilities come from the server's table through `usePermissions()`, so the mock
- * obeys the same rules as the buttons. Swap the body of this hook for an HTTP service when the back-end exists.
- *
- * `data` is a new object whenever the mock's data changes (by any role), so screens can list it as a dependency and reload.
+ * The service every Purchasing screen uses: the live API (docs/API_CONTRACT.md §31). What each button does is decided by the
+ * server's table through `usePermissions()` and by each order's own `can`. `data` is a number that changes after every write, so
+ * screens can list it as a dependency and reload.
  */
-export function usePurchasing(): { service: PurchasingService; data: unknown; ready: boolean; can: ReturnType<typeof usePermissions>['can']; role: string | undefined } {
+export function usePurchasing(): { service: PurchasingService; data: number; ready: boolean; can: ReturnType<typeof usePermissions>['can']; role: string | undefined } {
   const { can, ready } = usePermissions();
-  const { role, previewing } = useEffectiveRole();
-  const userName = useAuthStore((s) => s.user?.name);
-  const store = mockStore();
-  const data = useSyncExternalStore(
-    (cb) => store.subscribe(cb),
-    () => store.get(),
-    () => store.get()
-  );
-
-  const service = useMemo(() => {
-    const person = role && role in PEOPLE ? PEOPLE[role as keyof typeof PEOPLE] : PEOPLE.SYSTEM_ADMIN;
-    // Someone using their own account keeps their own name on what they do; a previewed role acts as the demo person.
-    const actor = previewing || !userName ? { ...person } : { ...person, name: userName };
-    return createMockPurchasingService(store, { actor, can }, { latencyMs: 250 });
-  }, [store, role, previewing, can, userName]);
-
+  const role = useAuthStore((s) => s.user?.role);
+  const data = useDataVersion((s) => s.version);
   return { service, data, ready, can, role };
 }

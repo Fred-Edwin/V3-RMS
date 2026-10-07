@@ -14,8 +14,8 @@
  *      the hub catalog has 142 live items ("Page 1 of 18" at 8 per page).
  *   3. Waste over the last 7 days totalling KES 2,140 (Milk, Tomatoes,
  *      Croissants, Cream, Bread), each a real WasteLog + negative WASTE row.
- *   4. Coffee beans ledger: opening 12 → receive +25 (a real paid GRN from
- *      Samrat Suppliers Ltd) → dispatch −6 to Nyeri Town · Barista (a real
+ *   4. Coffee beans ledger: opening 12 → receive +25 (a real delivered order
+ *      and GRN from Samrat Suppliers Ltd) → dispatch −6 to Nyeri Town · Barista (a real
  *      Dispatch) → waste −2 → adjustment −17 → 12 kg. Dated 8–12 days ago so
  *      they don't change the 7-day waste total; view with "30 days".
  *   5. Nyeri Town Kitchen, Grilled chicken portion: dispatch in +14,
@@ -295,22 +295,39 @@ const run = async (): Promise<void> => {
     const supplier =
       (await tx.supplier.findFirst({ where: { siteId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
       (await createSeedSupplier(tx, { siteId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
-    const grnCounter = await tx.referenceCounter.upsert({
-      where: { siteId_prefix: { siteId: hub.id, prefix: 'GRN' } },
-      update: { lastNumber: { increment: 1 } },
-      create: { siteId: hub.id, prefix: 'GRN', lastNumber: 1 },
-    });
+    const nextNumber = async (prefix: string): Promise<string> => {
+      const counter = await tx.referenceCounter.upsert({
+        where: { siteId_prefix: { siteId: hub.id, prefix } },
+        update: { lastNumber: { increment: 1 } },
+        create: { siteId: hub.id, prefix, lastNumber: 1 },
+      });
+      return `${prefix}-${String(counter.lastNumber).padStart(4, '0')}`;
+    };
     const receivedAt = daysAgo(12);
-    const grn = await tx.goodsReceipt.create({
+    const order = await tx.purchaseOrder.create({
       data: {
-        siteId: hub.id, reference: `GRN-${String(grnCounter.lastNumber).padStart(4, '0')}`,
-        supplierId: supplier.id, paymentTerms: 'PAY_NOW', status: 'RECEIVED_PAID', receiptTotal: new Prisma.Decimal(29500),
-        locationId: centralStore.id, signedById: storeManager.id, signedAt: receivedAt, createdById: storeManager.id,
-        createdAt: receivedAt,
+        siteId: hub.id, reference: await nextNumber('LPO'), supplierId: supplier.id, status: 'DELIVERED',
+        raisedById: storeManager.id, approvedById: storeManager.id, approvedAt: receivedAt, sentAt: receivedAt,
+        sentVia: 'MANUAL', sentById: storeManager.id, createdAt: receivedAt,
         lines: {
           create: {
-            inventoryItemId: coffeeId, quantityBuyUnit: new Prisma.Decimal(25), quantityUsageUnit: new Prisma.Decimal(25),
-            unitPrice: new Prisma.Decimal(1180), lineTotal: new Prisma.Decimal(29500), lineOrder: 0,
+            inventoryItemId: coffeeId, lineOrder: 0, buyUnit: 'kg', packSize: new Prisma.Decimal(1),
+            orderedQty: new Prisma.Decimal(25), unitPrice: new Prisma.Decimal(1180), receivedQty: new Prisma.Decimal(25),
+            confirmedPrice: new Prisma.Decimal(1180), result: 'AS_ORDERED',
+          },
+        },
+      },
+      include: { lines: true },
+    });
+    const delivery = await tx.purchaseDelivery.create({
+      data: {
+        siteId: hub.id, orderId: order.id, reference: await nextNumber('GRN'), locationId: centralStore.id,
+        deliveryNoteNo: 'DN-DEV-0001', receivedById: storeManager.id, receivedAt,
+        deliveredTotal: new Prisma.Decimal(29500), notSuppliedTotal: new Prisma.Decimal(0),
+        lines: {
+          create: {
+            orderLineId: order.lines[0]!.id, inventoryItemId: coffeeId, quantityBuyUnit: new Prisma.Decimal(25),
+            quantityUsageUnit: new Prisma.Decimal(25), unitPrice: new Prisma.Decimal(1180), lineOrder: 0,
           },
         },
       },
@@ -318,7 +335,7 @@ const run = async (): Promise<void> => {
     });
     await tx_({
       siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'RECEIVE',
-      quantity: new Prisma.Decimal(25), unitCost: new Prisma.Decimal(1180), goodsReceiptLineId: grn.lines[0]!.id,
+      quantity: new Prisma.Decimal(25), unitCost: new Prisma.Decimal(1180), purchaseDeliveryLineId: delivery.lines[0]!.id,
       userId: storeManager.id, createdAt: receivedAt,
     });
 

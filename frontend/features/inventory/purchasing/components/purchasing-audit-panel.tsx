@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
@@ -159,7 +160,9 @@ export function PurchasingAuditPanel({ initialQuery = '' }: { initialQuery?: str
                 <span className={cn('size-1.5 shrink-0 rounded-full', dotFor(r))} aria-hidden />
                 {r.action}
               </span>
-              <span className="w-[110px] shrink-0 font-wds-mono text-[12px] text-wds-text-ink">{r.document ?? '—'}</span>
+              <Link href={`/app/inventory/purchasing/${r.orderId}`} className="w-[110px] shrink-0 font-wds-mono text-[12px] text-wds-text-ink underline-offset-2 outline-none hover:underline focus-visible:shadow-wds-ring">
+                {r.document ?? r.orderReference ?? 'Open'}
+              </Link>
               <span className="min-w-0 grow font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{r.detail}</span>
             </div>
           ))}

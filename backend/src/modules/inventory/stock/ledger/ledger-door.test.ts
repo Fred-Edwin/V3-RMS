@@ -34,7 +34,7 @@ const kitchenLocation = { id: 'loc-kitchen', siteId: branchSite, type: 'BRANCH_D
 
 /** One valid example per postable type: the link it needs and where it posts. */
 const LINK_FOR: Record<string, LedgerLink> = {
-  RECEIVE: 'goodsReceiptLineId',
+  RECEIVE: 'purchaseDeliveryLineId',
   PREP_CONSUME: 'prepRecordId',
   PREP_PRODUCE: 'prepRecordId',
   WASTE: 'wasteLogId',
@@ -168,7 +168,7 @@ describe('postStockMovement — rejections', () => {
   });
 
   it('rejects a link the type does not allow', async () => {
-    await rejects(base({ links: { goodsReceiptLineId: 'g' } }), ValidationError, /exactly one of: wasteLogId/);
+    await rejects(base({ links: { purchaseDeliveryLineId: 'g' } }), ValidationError, /exactly one of: wasteLogId/);
   });
 
   it('rejects a location that does not exist', async () => {

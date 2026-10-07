@@ -53,7 +53,7 @@ enum SupplierAuditAction {
 
 model Supplier {
   id                  String               @id @default(uuid())
-  siteId      String               @map("organization_id")
+  siteId              String               @map("organization_id")
   code                String // SUPPLIER-0001, from ReferenceCounter; never reused or edited
   name                String
   tradingName         String?              @map("trading_name")
@@ -79,20 +79,20 @@ model Supplier {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  site       Site        @relation(fields: [siteId], references: [id])
-  category           Category?           @relation(fields: [categoryId], references: [id])
-  createdBy          User?               @relation("SupplierCreatedBy", fields: [createdById], references: [id])
-  updatedBy          User?               @relation("SupplierUpdatedBy", fields: [updatedById], references: [id])
-  preferredForItems  InventoryItem[]
-  expectedDeliveries ExpectedDelivery[]
-  goodsReceipts      GoodsReceipt[]
-  supplierInvoices   SupplierInvoice[]
-  supplierPayments   SupplierPayment[]
-  contacts           SupplierContact[]
-  payMethods         SupplierPayMethod[]
-  items              SupplierItem[]
-  documents          SupplierDocument[]
-  auditLogs          SupplierAuditLog[]
+  site              Site                   @relation(fields: [siteId], references: [id])
+  category          Category?              @relation(fields: [categoryId], references: [id])
+  createdBy         User?                  @relation("SupplierCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User?                  @relation("SupplierUpdatedBy", fields: [updatedById], references: [id])
+  preferredForItems InventoryItem[]
+  purchaseOrders    PurchaseOrder[]
+  purchaseInvoices  PurchaseInvoice[]
+  purchasePayments  PurchasePayment[]
+  purchasingAudit   PurchasingAuditEntry[]
+  contacts          SupplierContact[]
+  payMethods        SupplierPayMethod[]
+  items             SupplierItem[]
+  documents         SupplierDocument[]
+  auditLogs         SupplierAuditLog[]
 
   @@unique([siteId, code])
   @@index([siteId])
@@ -104,17 +104,17 @@ model Supplier {
 // One primary contact per supplier: partial unique index on (supplier_id)
 // WHERE is_primary (raw SQL in the migration; not expressible in the DSL).
 model SupplierContact {
-  id             String              @id @default(uuid())
-  siteId String              @map("organization_id")
-  supplierId     String              @map("supplier_id")
-  name           String
-  role           SupplierContactRole @default(OTHER)
-  phone          String?
-  whatsapp       String?
-  email          String?
-  isPrimary      Boolean             @default(false) @map("is_primary")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  id         String              @id @default(uuid())
+  siteId     String              @map("organization_id")
+  supplierId String              @map("supplier_id")
+  name       String
+  role       SupplierContactRole @default(OTHER)
+  phone      String?
+  whatsapp   String?
+  email      String?
+  isPrimary  Boolean             @default(false) @map("is_primary")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
@@ -125,7 +125,7 @@ model SupplierContact {
 // One default per supplier: partial unique index on (supplier_id) WHERE is_default.
 model SupplierPayMethod {
   id               String                @id @default(uuid())
-  siteId   String                @map("organization_id")
+  siteId           String                @map("organization_id")
   supplierId       String                @map("supplier_id")
   type             SupplierPayMethodType
   bankName         String?               @map("bank_name")
@@ -154,7 +154,7 @@ model SupplierPayMethod {
 // WHERE is_preferred (raw SQL in the migration).
 model SupplierItem {
   id                    String    @id @default(uuid())
-  siteId        String    @map("organization_id")
+  siteId                String    @map("organization_id")
   supplierId            String    @map("supplier_id")
   inventoryItemId       String    @map("inventory_item_id")
   supplierItemName      String?   @map("supplier_item_name")
@@ -186,7 +186,7 @@ model SupplierItem {
 
 model SupplierDocument {
   id                String               @id @default(uuid())
-  siteId    String               @map("organization_id")
+  siteId            String               @map("organization_id")
   supplierId        String               @map("supplier_id")
   objectKey         String               @map("object_key") // org/<orgId>/suppliers/<supplierId>/<uuid>
   fileName          String               @map("file_name")
@@ -200,10 +200,11 @@ model SupplierDocument {
   uploadedById      String               @map("uploaded_by_id")
   createdAt         DateTime             @default(now()) @map("created_at")
 
-  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  goodsReceipt    GoodsReceipt?    @relation(fields: [goodsReceiptId], references: [id])
-  supplierInvoice SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id])
-  uploadedBy      User             @relation("SupplierDocumentUploadedBy", fields: [uploadedById], references: [id])
+  supplier        Supplier          @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  // The columns keep their old names; they now point at a delivery and an invoice of the purchase file.
+  goodsReceipt    PurchaseDelivery? @relation(fields: [goodsReceiptId], references: [id])
+  supplierInvoice PurchaseInvoice?  @relation(fields: [supplierInvoiceId], references: [id])
+  uploadedBy      User              @relation("SupplierDocumentUploadedBy", fields: [uploadedById], references: [id])
 
   @@index([siteId, supplierId])
   @@map("supplier_documents")
@@ -211,15 +212,15 @@ model SupplierDocument {
 
 /// before/after hold account numbers already masked — never raw.
 model SupplierAuditLog {
-  id             String              @id @default(uuid())
-  siteId String              @map("organization_id")
-  supplierId     String              @map("supplier_id")
-  action         SupplierAuditAction
-  entityId       String?             @map("entity_id")
-  before         Json?
-  after          Json?
-  actorId        String              @map("actor_id")
-  createdAt      DateTime            @default(now()) @map("created_at")
+  id         String              @id @default(uuid())
+  siteId     String              @map("organization_id")
+  supplierId String              @map("supplier_id")
+  action     SupplierAuditAction
+  entityId   String?             @map("entity_id")
+  before     Json?
+  after      Json?
+  actorId    String              @map("actor_id")
+  createdAt  DateTime            @default(now()) @map("created_at")
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   actor    User     @relation("SupplierAuditActor", fields: [actorId], references: [id])

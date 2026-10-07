@@ -521,39 +521,6 @@ export const fcmService = {
   },
 
   /**
-   * Notifies hub Store Manager(s) that a Goods Receipt has been signed
-   * (plan §3.3). Fire-and-forget — never blocks or fails the sign response.
-   */
-  sendGoodsReceiptSignedPush: async (
-    recipientIds: string[],
-    payload: { goodsReceiptId: string; reference: string; supplierName: string; signedByName: string },
-  ): Promise<void> => {
-    try {
-      if (!firebaseMessaging || !env.VAPID_KEY || recipientIds.length === 0) return;
-      const users = await Promise.all(recipientIds.map((id) => authRepository.findFcmToken(id)));
-      const tokens = users.filter((t): t is string => t !== null);
-      if (tokens.length === 0) return;
-      await firebaseMessaging.sendEachForMulticast({
-        tokens,
-        webpush: {
-          headers: { Urgency: 'normal' },
-          notification: {
-            title: `Goods receipt signed — ${payload.reference}`,
-            body: `${payload.supplierName} · signed by ${payload.signedByName}`,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
-            tag: `goods-receipt-${payload.goodsReceiptId}`,
-          },
-          fcmOptions: { link: '/app/inventory/receiving' },
-        },
-        data: { goodsReceiptId: payload.goodsReceiptId, type: 'goods-receipt-signed' },
-      });
-    } catch (error) {
-      logger.warn({ error, payload }, 'Failed to send goods-receipt-signed FCM push');
-    }
-  },
-
-  /**
    * Tells the hub Accountant(s) a cheque payment method was added to a supplier.
    * Fire-and-forget — never blocks or fails the request.
    */

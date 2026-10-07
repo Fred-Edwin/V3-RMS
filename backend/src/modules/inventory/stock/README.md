@@ -18,6 +18,7 @@ Where stock is and where it went: the stock position, the **Stock ledger** (one 
 - Strips: hub (items tracked, low or out, negative, today's count), all-items (tracked, low/out, negative, on-hand value).
 
 ## Built today vs approved
+When rebuilt, strip responses with the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check: the Attendant sees costs but no stock figures.
 Built in Milestone Six (stock hub, all items, ledger, hub KPI strip) to the older design. Gaps to close in the redo: ledger summary view with the opening→closing columns, Stock card, date picker with quick picks, "Had waste"/"Had adjustments" chips, attendant stripped of figures.
 
 ## Endpoints

@@ -34,7 +34,7 @@ describe('GET /inventory/permissions/me', () => {
   it('lets the System Admin preview another role’s row', async () => {
     const data = await caps('SYSTEM_ADMIN', '?asRole=STORE_ATTENDANT');
     expect(data.role).toBe('STORE_ATTENDANT');
-    expect(data.capabilities.sort()).toEqual(['catalog.add_missing', 'catalog.read', 'orders.receive', 'orders.request', 'suppliers.quick_add', 'suppliers.read_basic']);
+    expect(data.capabilities.sort()).toEqual(['catalog.add_missing', 'catalog.read', 'catalog.see_costs', 'orders.read', 'orders.receive', 'orders.request', 'suppliers.quick_add', 'suppliers.read_basic']);
   });
 
   it('ignores asRole for anyone who is not the System Admin, and for unknown roles', async () => {

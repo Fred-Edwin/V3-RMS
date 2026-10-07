@@ -4,7 +4,6 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useAuthStore } from '@/store/authStore';
 
 /**
@@ -35,8 +34,7 @@ export function PhoneHeader({ title, subtitle, leading, onLeading, className }: 
   const orgName = useAuthStore((s) => s.user?.organizationName);
   return (
     <header className={cn('flex shrink-0 flex-col bg-wds-sidebar-top', className)}>
-      <MobileStatusBar className="bg-wds-sidebar-top" />
-      <div className="flex flex-col gap-2.5 px-4 pb-[18px] pt-1">
+      <div className="flex flex-col gap-2.5 px-4 pb-[18px] pt-4">
         <div className="flex items-center gap-3">
           <button
             type="button"

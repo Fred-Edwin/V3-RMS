@@ -176,8 +176,24 @@ export const supplierRepositoryMocks = () => ({
     signedReceipts: vi.fn(),
     invoices: vi.fn(),
     payments: vi.fn(),
-    summaryReceipts: vi.fn(),
-    summaryInvoices: vi.fn(),
+    summary: vi.fn(),
   },
   supplierItemLookupRepository: { findLiveItem: vi.fn() },
+});
+
+/** The Purchasing read layer the supplier service calls (deliveries, invoices and payments on the purchase files). */
+export const purchasingReadsMocks = () => ({
+  supplierPurchasingReads: {
+    owedBySupplier: vi.fn().mockResolvedValue(new Map()),
+    countOpenInvoices: vi.fn().mockResolvedValue(0),
+    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
+    findPriceAlertLines: vi.fn().mockResolvedValue([]),
+    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
+    findDeliveredPacks: vi.fn().mockResolvedValue([]),
+    signedReceipts: vi.fn().mockResolvedValue([]),
+    invoices: vi.fn().mockResolvedValue([]),
+    payments: vi.fn().mockResolvedValue([]),
+    summary: vi.fn(),
+    catalogStrip: vi.fn(),
+  },
 });

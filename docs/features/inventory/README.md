@@ -34,7 +34,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [restock](../../../backend/src/modules/inventory/restock/README.md) | Restock levels, suggestions, change log | same | approved | rebuilt (logic shares catalog files) |
 | [suppliers](../../../backend/src/modules/inventory/suppliers/README.md) | Suppliers, contacts, payment methods, catalog lines, documents | same | approved | rebuilt |
 | [audit-log](../../../backend/src/modules/inventory/audit-log/README.md) | Audit log across catalog, suppliers and restock levels | same | approved | built |
-| [purchasing](../../../backend/src/modules/inventory/purchasing/README.md) | Need → order → approval → receive → invoice → pay; supplier statement | Purchasing | approved | **mock-data front-end complete, awaiting client approval** (need to payment, closed file, supplier orders and statement, audit log, Attendant phone views, every exception); back-end still old, replaced after approval, from `purchasing-mock/backend-rules.md`. See [the front-end README](../../../frontend/features/inventory/purchasing/README.md) |
+| [purchasing](../../../backend/src/modules/inventory/purchasing/README.md) | Need → order → approval → receive → invoice → pay; supplier statement | Purchasing | approved | **live on the real back-end since 6 Oct 2026** (front-end Step 4 built, awaiting the owner's screen-by-screen approval against Paper; the mock and demo bar are gone; back-end Step 3: orders, receiving, payables, supplier account, files). See [the front-end README](../../../frontend/features/inventory/purchasing/README.md) |
 | [prep](../../../backend/src/modules/inventory/prep/README.md) | Prep runs, yield, review | Prep | approved | **old flow, pending redo** |
 | [stock](../../../backend/src/modules/inventory/stock/README.md) | Stock position, ledger, stock card | Stock and Counting | approved | **old flow, pending redo** |
 | [waste](../../../backend/src/modules/inventory/waste/README.md) | Waste logging and reversal | Stock and Counting | approved | **old flow, pending redo** |
@@ -51,7 +51,7 @@ Access is set by one table (see "Access" in [decisions.md](decisions.md)), not b
 | Role | Where | In this feature |
 |---|---|---|
 | Store Manager | Central Store (hub org) | Owns purchasing, catalog, suppliers; approves counts and orders; fulfils dispatches; resolves discrepancies. Reads and writes everything rebuilt so far |
-| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches, adds a missing item. Never sees expected stock, stock figures, costs, or supplier money |
+| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches, adds a missing item, on phone and desktop. Sees item costs and prices. Never sees expected stock or stock figures, or financial data (what we owe, invoices, payments, supplier balances and payment details, reports) |
 | Department Head | One branch department | Requisitions for own department, confirms own deliveries, own waste, own restock levels. The item list carries no costs |
 | Branch Manager | Branch | Approves requisitions, counts and closes the branch day. **Reads** the Central Store (catalog, restock levels, suppliers and what we owe, audit log) but not supplier payment details; writes nothing there |
 | Accountant | Company | Reads the Central Store; records supplier **invoices**, payments, payment methods and documents. Cannot move stock or edit the catalog |
@@ -62,7 +62,7 @@ Delivery drivers are not users; they carry a printed delivery note.
 
 ## Standing rules (apply to every sub-module)
 
-- **Attendants never see stock figures, expected stock or costs**, enforced server-side.
+- **Attendants see item costs and prices (owner decision, 6 Oct 2026, replacing "attendants never see costs"). They never see stock figures (on-hand, expected stock, restock levels) or financial data (what we owe, invoices, payments, supplier balances, reports)**, enforced server-side. The rule lives in ONE helper, `backend/src/modules/inventory/_shared/blind-rule.ts` (`blindnessOf`, `withoutStockFigures`, `withoutFinancials`); every rebuilt sub-module calls it instead of writing its own check. Counting stays blind to expected stock for the Attendant (a count-integrity rule).
 - **Nothing is deleted.** Retire/restore; cancel/void/reverse with a reason as a new linked entry.
 - **Stock or money moves only after a confirm summary.** PIN signing is used where a document is signed (receipt, order approval, count approval, dispatch, branch confirmation, day close) and where money moves; not for catalog, restock or payment-method changes.
 - **Stock on hand is derived from the append-only `InventoryTransaction` ledger**, never a stored counter. Corrections are new linked entries.

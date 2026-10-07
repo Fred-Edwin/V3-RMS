@@ -13,9 +13,12 @@ export interface Scope {
   restockOrgIds: string[];
 }
 
+export type PurchasingArea = 'PURCHASING' | 'PAYMENTS';
+
 type Filter = Pick<AuditLogQuery, 'from' | 'to' | 'actorId'>;
 
 const when = (f: Filter) => (f.from || f.to ? { createdAt: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {});
+const whenAt = (f: Filter) => (f.from || f.to ? { at: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {});
 const by = (f: Filter, field: string) => (f.actorId ? { [field]: f.actorId } : {});
 const order = [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
 const who = { select: { id: true, name: true } };
@@ -62,6 +65,21 @@ export const auditLogRepository = {
     }),
   countRestockChanges: (scope: Scope, f: Filter) => prisma.restockLevelChange.count({ where: { siteId: { in: scope.restockOrgIds }, ...when(f), ...by(f, 'changedById') } }),
 
+  /** Purchasing and Payments rows (the purchase file's own audit). `areas` is the subset the caller asked for. */
+  purchasingEntries: (scope: Scope, f: Filter, areas: PurchasingArea[], take: number) =>
+    prisma.purchasingAuditEntry.findMany({
+      where: { siteId: scope.hubId, area: { in: areas }, ...whenAt(f), ...by(f, 'actorId') },
+      include: {
+        actor: { select: { id: true, name: true, role: true } },
+        order: { select: { id: true, reference: true } },
+        supplier: { select: { name: true } },
+      },
+      orderBy: [{ at: 'desc' as const }, { id: 'desc' as const }],
+      take,
+    }),
+  countPurchasingEntries: (scope: Scope, f: Filter, areas: PurchasingArea[]) =>
+    prisma.purchasingAuditEntry.count({ where: { siteId: scope.hubId, area: { in: areas }, ...whenAt(f), ...by(f, 'actorId') } }),
+
   /** Names for the ids found in supplier audit snapshots, and for suppliers' creators. */
   itemNames: async (scope: Scope, ids: string[]): Promise<Map<string, string>> => {
     if (ids.length === 0) return new Map();
@@ -76,12 +94,13 @@ export const auditLogRepository = {
 
   /** Everyone who changed something in the period (the "Who" list), ignoring the Who filter. */
   actorIds: async (scope: Scope, f: Pick<Filter, 'from' | 'to'>): Promise<string[]> => {
-    const [items, audits, restock, suppliers] = await Promise.all([
+    const [items, audits, restock, suppliers, purchasing] = await Promise.all([
       prisma.inventoryItemChange.findMany({ where: { siteId: scope.hubId, ...when(f) }, select: { changedById: true }, distinct: ['changedById'] }),
       prisma.supplierAuditLog.findMany({ where: { siteId: scope.hubId, ...when(f) }, select: { actorId: true }, distinct: ['actorId'] }),
       prisma.restockLevelChange.findMany({ where: { siteId: { in: scope.restockOrgIds }, ...when(f) }, select: { changedById: true }, distinct: ['changedById'] }),
       prisma.supplier.findMany({ where: { siteId: scope.hubId, createdById: { not: null }, ...when(f) }, select: { createdById: true }, distinct: ['createdById'] }),
+      prisma.purchasingAuditEntry.findMany({ where: { siteId: scope.hubId, ...whenAt(f) }, select: { actorId: true }, distinct: ['actorId'] }),
     ]);
-    return [...new Set([...items.map((r) => r.changedById), ...audits.map((r) => r.actorId), ...restock.map((r) => r.changedById), ...suppliers.map((r) => r.createdById).filter((id): id is string => id !== null)])];
+    return [...new Set([...purchasing.map((r) => r.actorId), ...items.map((r) => r.changedById), ...audits.map((r) => r.actorId), ...restock.map((r) => r.changedById), ...suppliers.map((r) => r.createdById).filter((id): id is string => id !== null)])];
   },
 };

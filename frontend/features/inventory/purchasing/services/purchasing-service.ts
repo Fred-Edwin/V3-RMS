@@ -5,6 +5,7 @@ import type {
   DepositInput,
   DocumentInput,
   FileDocument,
+  FileLink,
   FileRef,
   Invoice,
   InvoiceInput,
@@ -31,9 +32,8 @@ import type {
 } from '../types';
 
 /**
- * The ONE interface the Purchasing screens use (docs/API_CONTRACT.md §31). Today `mock/mock-service.ts` implements it in
- * the browser; the back-end session writes an HTTP implementation of the same interface and nothing in a screen changes.
- * Screens import this file (and the hook that supplies it), never the mock folder.
+ * The ONE interface the Purchasing screens use (docs/API_CONTRACT.md §31). `purchasing-api-service.ts` implements it over HTTP.
+ * Screens import this file (and the hook that supplies it), never the API client.
  */
 export interface PurchasingService {
   getSummary: () => Promise<Summary>;
@@ -55,6 +55,8 @@ export interface PurchasingService {
 
   recordDeposit: (id: string, input: DepositInput) => Promise<Payment>;
   upload: (file: File) => Promise<FileRef>;
+  /** A short-lived link to open an uploaded photo or PDF (`GET /uploads/:id/url`); refused for money files when the caller is blind to money. */
+  getFileUrl: (fileId: string) => Promise<FileLink>;
   receiveOrder: (id: string, input: ReceiveInput) => Promise<Order>;
 
   // Invoice and payment (§31.5). Invoice and payment ids come from the order's `invoice` and `payments`.

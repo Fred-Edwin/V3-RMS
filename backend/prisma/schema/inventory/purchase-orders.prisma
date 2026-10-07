@@ -1,0 +1,354 @@
+// ============================================================================
+// Purchasing and Receiving (the redo): one purchase file per order.
+// Rules: docs/features/inventory/purchasing-mock/backend-rules.md. Plan: docs/features/inventory/purchasing-plan.md.
+// Nothing here is ever deleted: cancel, void and reverse add a linked row with a reason.
+// The old ExpectedDelivery / GoodsReceipt / SupplierInvoice / SupplierPayment models were dropped by `drop_old_purchasing`.
+// SupplierDocument.goodsReceiptId and .supplierInvoiceId keep their column names but now point at PurchaseDelivery / PurchaseInvoice.
+// ============================================================================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  RETURNED
+  APPROVED
+  SENT
+  DELIVERED
+  INVOICED
+  CLOSED
+  CANCELLED
+}
+
+enum PurchaseSendVia {
+  WHATSAPP
+  PRINT
+  LINK
+  MANUAL
+}
+
+enum PurchaseCancelReason {
+  ORDERED_BY_MISTAKE
+  SUPPLIER_CANNOT_SUPPLY
+  NO_LONGER_NEEDED
+  OTHER
+}
+
+enum PurchaseLineResult {
+  AS_ORDERED
+  PRICE_CHANGED
+  SHORT
+  NOT_SUPPLIED
+}
+
+enum PurchaseInvoiceStatus {
+  OPEN
+  PAID
+  VOIDED
+}
+
+enum PurchaseVoidReason {
+  WRONG_AMOUNT
+  WRONG_SUPPLIER_OR_ORDER
+  DUPLICATE
+  OTHER
+}
+
+enum PurchasePaymentKind {
+  ADVANCE
+  INVOICE
+  REVERSAL
+}
+
+enum PurchasePaymentStatus {
+  RECORDED
+  REVERSED
+}
+
+enum PurchaseReverseReason {
+  WRONG_AMOUNT
+  WRONG_REFERENCE
+  WRONG_INVOICE
+  PAYMENT_BOUNCED
+  OTHER
+}
+
+enum PurchasingAuditArea {
+  PURCHASING
+  PAYMENTS
+}
+
+/// The purchase file. `reference` (LPO-0044) is given at submit (or at approval of an approver's own draft), so a draft has none.
+/// One order may be open per supplier (DRAFT to SENT): the partial unique index `purchase_orders_one_open_per_supplier` in the migration.
+model PurchaseOrder {
+  id            String                @id @default(uuid())
+  siteId        String                @map("organization_id")
+  reference     String? // LPO-nnnn from ReferenceCounter, null while DRAFT
+  supplierId    String                @map("supplier_id")
+  status        PurchaseOrderStatus   @default(DRAFT)
+  // The supplier's payment terms when the order was raised, so a later change to the supplier never moves a due date.
+  termsDays     Int?                  @map("terms_days")
+  expectedDate  DateTime?             @map("expected_date") @db.Date
+  supplierNote  String?               @map("supplier_note")
+  attendantNote String?               @map("attendant_note")
+  raisedById    String                @map("raised_by_id")
+  submittedAt   DateTime?             @map("submitted_at")
+  approvedById  String?               @map("approved_by_id")
+  approvedAt    DateTime?             @map("approved_at")
+  returnedNote  String?               @map("returned_note")
+  returnedById  String?               @map("returned_by_id")
+  returnedAt    DateTime?             @map("returned_at")
+  sentAt        DateTime?             @map("sent_at")
+  sentVia       PurchaseSendVia?      @map("sent_via")
+  sentById      String?               @map("sent_by_id")
+  cancelReason  PurchaseCancelReason? @map("cancel_reason")
+  cancelNote    String?               @map("cancel_note")
+  cancelledById String?               @map("cancelled_by_id")
+  cancelledAt   DateTime?             @map("cancelled_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+
+  site        Site                   @relation(fields: [siteId], references: [id])
+  supplier    Supplier               @relation(fields: [supplierId], references: [id])
+  raisedBy    User                   @relation("PurchaseOrderRaisedBy", fields: [raisedById], references: [id])
+  approvedBy  User?                  @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  returnedBy  User?                  @relation("PurchaseOrderReturnedBy", fields: [returnedById], references: [id])
+  sentBy      User?                  @relation("PurchaseOrderSentBy", fields: [sentById], references: [id])
+  cancelledBy User?                  @relation("PurchaseOrderCancelledBy", fields: [cancelledById], references: [id])
+  lines       PurchaseOrderLine[]
+  delivery    PurchaseDelivery?
+  invoices    PurchaseInvoice[]
+  payments    PurchasePayment[]
+  documents   PurchaseDocument[]
+  audit       PurchasingAuditEntry[]
+
+  @@unique([siteId, reference])
+  @@index([siteId, status])
+  @@index([siteId, supplierId, status])
+  @@index([raisedById])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id               String              @id @default(uuid())
+  orderId          String              @map("order_id")
+  lineOrder        Int                 @map("line_order")
+  inventoryItemId  String              @map("inventory_item_id")
+  // Snapshots: the printed LPO must read the same tomorrow as it did when it was signed.
+  supplierItemName String?             @map("supplier_item_name")
+  supplierItemCode String?             @map("supplier_item_code")
+  buyUnit          String              @map("buy_unit")
+  packSize         Decimal?            @map("pack_size") @db.Decimal(12, 4) // usage units in one buy unit
+  orderedQty       Decimal             @map("ordered_qty") @db.Decimal(12, 4) // in the BUY unit
+  unitPrice        Decimal             @map("unit_price") @db.Decimal(12, 4) // per buy unit
+  previousPrice    Decimal?            @map("previous_price") @db.Decimal(12, 4) // the last order's price for this supplier line
+  // Filled when the delivery is received.
+  receivedQty      Decimal?            @map("received_qty") @db.Decimal(12, 4)
+  deliveredPrice   Decimal?            @map("delivered_price") @db.Decimal(12, 4) // what the receiver typed when it differed
+  confirmedPrice   Decimal?            @map("confirmed_price") @db.Decimal(12, 4)
+  result           PurchaseLineResult?
+
+  order         PurchaseOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  deliveryLines PurchaseDeliveryLine[]
+
+  @@index([orderId])
+  @@index([inventoryItemId])
+  @@map("purchase_order_lines")
+}
+
+/// One delivery per order (a short delivery drops the missing quantity: Q-03). Receiving it is the stock movement.
+model PurchaseDelivery {
+  id                 String   @id @default(uuid())
+  siteId             String   @map("organization_id")
+  orderId            String   @unique @map("order_id")
+  reference          String // GRN-nnnn from ReferenceCounter
+  locationId         String   @map("location_id") // the Central Store location
+  deliveryNoteNo     String   @map("delivery_note_no")
+  deliveryNoteFileId String?  @map("delivery_note_file_id")
+  receivedById       String   @map("received_by_id")
+  receivedAt         DateTime @default(now()) @map("received_at")
+  deliveredTotal     Decimal  @map("delivered_total") @db.Decimal(12, 2)
+  notSuppliedTotal   Decimal  @map("not_supplied_total") @db.Decimal(12, 2)
+
+  site              Site                   @relation(fields: [siteId], references: [id])
+  order             PurchaseOrder          @relation(fields: [orderId], references: [id])
+  location          Location               @relation(fields: [locationId], references: [id])
+  deliveryNoteFile  PurchaseFile?          @relation("PurchaseDeliveryNoteFile", fields: [deliveryNoteFileId], references: [id])
+  receivedBy        User                   @relation("PurchaseDeliveryReceivedBy", fields: [receivedById], references: [id])
+  lines             PurchaseDeliveryLine[]
+  supplierDocuments SupplierDocument[]
+
+  @@unique([siteId, reference])
+  @@index([siteId])
+  @@map("purchase_deliveries")
+}
+
+/// What arrived on one order line. `id` is what `postStockMovement` links as `purchaseDeliveryLineId`.
+model PurchaseDeliveryLine {
+  id                String  @id @default(uuid())
+  deliveryId        String  @map("delivery_id")
+  orderLineId       String  @map("order_line_id")
+  inventoryItemId   String  @map("inventory_item_id")
+  quantityBuyUnit   Decimal @map("quantity_buy_unit") @db.Decimal(12, 4) // as counted at the dock
+  quantityUsageUnit Decimal @map("quantity_usage_unit") @db.Decimal(12, 4) // buy unit times pack size: what hits the ledger
+  unitPrice         Decimal @map("unit_price") @db.Decimal(12, 4) // the confirmed price per buy unit
+  lineOrder         Int     @map("line_order")
+
+  delivery           PurchaseDelivery       @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  orderLine          PurchaseOrderLine      @relation(fields: [orderLineId], references: [id])
+  inventoryItem      InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  ledgerTransactions InventoryTransaction[]
+
+  @@index([deliveryId])
+  @@index([orderLineId])
+  @@index([inventoryItemId])
+  @@map("purchase_delivery_lines")
+}
+
+/// One live invoice per order (partial unique index `purchase_invoices_one_live_per_order` in the migration); a voided
+/// invoice is kept, so an order can carry several rows but only one that is not VOIDED.
+model PurchaseInvoice {
+  id             String                @id @default(uuid())
+  siteId         String                @map("organization_id")
+  orderId        String                @map("order_id")
+  supplierId     String                @map("supplier_id")
+  number         String // the supplier's own number, typed in
+  invoiceDate    DateTime              @map("invoice_date") @db.Date
+  dueDate        DateTime              @map("due_date") @db.Date // invoice date plus the order's terms, stored
+  amount         Decimal               @db.Decimal(12, 2)
+  status         PurchaseInvoiceStatus @default(OPEN)
+  disputed       Boolean               @default(false)
+  varianceAmount Decimal?              @map("variance_amount") @db.Decimal(12, 2) // invoice minus delivered value at entry
+  varianceReason String?               @map("variance_reason")
+  settledAmount  Decimal?              @map("settled_amount") @db.Decimal(12, 2)
+  settledNote    String?               @map("settled_note")
+  settledById    String?               @map("settled_by_id")
+  settledAt      DateTime?             @map("settled_at")
+  voidReason     PurchaseVoidReason?   @map("void_reason")
+  voidedById     String?               @map("voided_by_id")
+  voidedAt       DateTime?             @map("voided_at")
+  fileId         String?               @map("file_id")
+  enteredById    String                @map("entered_by_id")
+  enteredAt      DateTime              @default(now()) @map("entered_at")
+
+  site              Site               @relation(fields: [siteId], references: [id])
+  order             PurchaseOrder      @relation(fields: [orderId], references: [id])
+  supplier          Supplier           @relation(fields: [supplierId], references: [id])
+  file              PurchaseFile?      @relation("PurchaseInvoiceFile", fields: [fileId], references: [id])
+  enteredBy         User               @relation("PurchaseInvoiceEnteredBy", fields: [enteredById], references: [id])
+  settledBy         User?              @relation("PurchaseInvoiceSettledBy", fields: [settledById], references: [id])
+  voidedBy          User?              @relation("PurchaseInvoiceVoidedBy", fields: [voidedById], references: [id])
+  payments          PurchasePayment[]
+  supplierDocuments SupplierDocument[]
+
+  @@index([siteId, supplierId, dueDate])
+  @@index([orderId])
+  @@index([siteId, supplierId, number])
+  @@map("purchase_invoices")
+}
+
+/// Advances, invoice payments and reversals. Immutable once saved; a mistake is a REVERSAL row (negative amount, linked
+/// by `reversesId`) and the original is marked REVERSED. `reference` is PAY-nnnn; a reversal line is `<original>-R`.
+model PurchasePayment {
+  id            String                 @id @default(uuid())
+  siteId        String                 @map("organization_id")
+  orderId       String                 @map("order_id")
+  invoiceId     String?                @map("invoice_id") // null for an advance paid before any invoice exists
+  supplierId    String                 @map("supplier_id")
+  reference     String
+  kind          PurchasePaymentKind
+  status        PurchasePaymentStatus  @default(RECORDED)
+  amount        Decimal                @db.Decimal(12, 2) // negative on a REVERSAL
+  paidOn        DateTime               @map("paid_on") @db.Date
+  method        SupplierPayMethodType
+  methodRef     String?                @map("method_ref")
+  chequeNo      String?                @map("cheque_no")
+  note          String?
+  proofFileId   String?                @map("proof_file_id")
+  reversesId    String?                @unique @map("reverses_id") // a payment is reversed at most once
+  reverseReason PurchaseReverseReason? @map("reverse_reason")
+  approvedById  String?                @map("approved_by_id") // the Store Manager or System Admin who approved a reversal
+  recordedById  String                 @map("recorded_by_id")
+  recordedAt    DateTime               @default(now()) @map("recorded_at")
+
+  site       Site             @relation(fields: [siteId], references: [id])
+  order      PurchaseOrder    @relation(fields: [orderId], references: [id])
+  invoice    PurchaseInvoice? @relation(fields: [invoiceId], references: [id])
+  supplier   Supplier         @relation(fields: [supplierId], references: [id])
+  proofFile  PurchaseFile?    @relation("PurchasePaymentProof", fields: [proofFileId], references: [id])
+  reverses   PurchasePayment? @relation("PurchasePaymentReversal", fields: [reversesId], references: [id])
+  reversedBy PurchasePayment? @relation("PurchasePaymentReversal")
+  approvedBy User?            @relation("PurchasePaymentApprovedBy", fields: [approvedById], references: [id])
+  recordedBy User             @relation("PurchasePaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@unique([siteId, reference])
+  @@index([siteId, supplierId, paidOn])
+  @@index([orderId])
+  @@index([invoiceId])
+  @@map("purchase_payments")
+}
+
+/// "+ Add a document" on a purchase file: any extra photo or PDF with a name.
+model PurchaseDocument {
+  id        String   @id @default(uuid())
+  siteId    String   @map("organization_id")
+  orderId   String   @map("order_id")
+  title     String
+  fileId    String   @map("file_id")
+  addedById String   @map("added_by_id")
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  site    Site          @relation(fields: [siteId], references: [id])
+  order   PurchaseOrder @relation(fields: [orderId], references: [id])
+  file    PurchaseFile  @relation(fields: [fileId], references: [id])
+  addedBy User          @relation("PurchaseDocumentAddedBy", fields: [addedById], references: [id])
+
+  @@index([orderId])
+  @@map("purchase_documents")
+}
+
+/// An uploaded photo or PDF (delivery note, invoice, proof of payment, extra document). The bytes live in object storage.
+model PurchaseFile {
+  id           String   @id @default(uuid())
+  siteId       String   @map("organization_id")
+  objectKey    String   @unique @map("object_key")
+  fileName     String   @map("file_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  site          Site               @relation(fields: [siteId], references: [id])
+  uploadedBy    User               @relation("PurchaseFileUploadedBy", fields: [uploadedById], references: [id])
+  deliveryNotes PurchaseDelivery[] @relation("PurchaseDeliveryNoteFile")
+  invoices      PurchaseInvoice[]  @relation("PurchaseInvoiceFile")
+  paymentProofs PurchasePayment[]  @relation("PurchasePaymentProof")
+  documents     PurchaseDocument[]
+
+  @@index([siteId])
+  @@map("purchase_files")
+}
+
+/// One row per action, written in the same transaction as the change. Feeds the file's Activity tab and the Audit log.
+model PurchasingAuditEntry {
+  id         String              @id @default(uuid())
+  siteId     String              @map("organization_id")
+  orderId    String              @map("order_id")
+  supplierId String              @map("supplier_id")
+  actorId    String              @map("actor_id")
+  area       PurchasingAuditArea
+  action     String // "Approved order", "Recorded payment"
+  document   String? // LPO-0044, INV-05188, PAY-0031
+  detail     String // the "What changed" column
+  what       String // the sentence for the Activity tab
+  at         DateTime            @default(now())
+
+  site     Site          @relation(fields: [siteId], references: [id])
+  order    PurchaseOrder @relation(fields: [orderId], references: [id])
+  supplier Supplier      @relation(fields: [supplierId], references: [id])
+  actor    User          @relation("PurchasingAuditActor", fields: [actorId], references: [id])
+
+  @@index([siteId, at])
+  @@index([orderId, at])
+  @@index([siteId, area, at])
+  @@map("purchasing_audit")
+}

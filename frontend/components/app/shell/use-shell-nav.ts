@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { useEffectiveRole, usePermissions } from '@/features/inventory';
+import { usePermissions } from '@/features/inventory';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -80,7 +80,6 @@ export function useShellNav(): ShellNav {
   const role = useAuthStore((s) => s.role);
   const user = useAuthStore((s) => s.user);
   const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
-  const { role: effectiveRole } = useEffectiveRole();
   const { can } = usePermissions(hasHubRows(role));
   const branches = useBranches(role === 'DIRECTOR');
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
@@ -89,13 +88,12 @@ export function useShellNav(): ShellNav {
     () =>
       navFor({
         role: role ?? undefined,
-        hubRole: (effectiveRole as AppRole | undefined) ?? undefined,
         isDepartmentHead,
         can,
         creditAccounts: env.creditAccounts,
         branches,
       }),
-    [role, effectiveRole, isDepartmentHead, can, branches]
+    [role, isDepartmentHead, can, branches]
   );
 
   // The unread count is the only thing added to the table's rows here.

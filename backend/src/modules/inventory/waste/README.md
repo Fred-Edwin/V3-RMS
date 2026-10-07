@@ -15,6 +15,7 @@ Full approved wording: [../counting/DESIGN-NOTES.md](../counting/DESIGN-NOTES.md
 - Damage found after receiving is logged as waste (the only damage path).
 
 ## Built today vs approved
+When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Since 6 Oct 2026 the Attendant may see item costs, so the "removes costs from the attendant view" line below no longer applies; stock figures stay hidden.
 Old design: single item, no undo, unit cost shown to attendants. Redo adds multi-item logging with confirm summary, reversal, and removes costs from the attendant view.
 
 ## Endpoints

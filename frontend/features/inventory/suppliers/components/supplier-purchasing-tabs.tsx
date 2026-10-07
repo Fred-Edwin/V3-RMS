@@ -47,11 +47,11 @@ const TONE = { ok: 'text-wds-success-fg', warn: 'text-wds-warning-fg', bad: 'tex
 
 /**
  * The supplier's Orders tab (Paper `25`): every order placed with this supplier and where each one stands, read from the Purchasing
- * mock. A row opens the purchase file. "New order from X" starts an order for this supplier.
+ * the live Purchasing API. A row opens the purchase file. "New order from X" starts an order for this supplier.
  */
 export function SupplierOrdersTab({
   supplierName,
-  mockSupplierId,
+  supplierId,
   orders,
   status,
   error,
@@ -60,7 +60,7 @@ export function SupplierOrdersTab({
   showMoney,
 }: {
   supplierName: string;
-  mockSupplierId: string | null;
+  supplierId: string | null;
   orders: OrderRow[] | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
@@ -118,9 +118,9 @@ export function SupplierOrdersTab({
               <option value="90">Last 90 days</option>
             </select>
           </label>
-          {canOrder && mockSupplierId ? (
+          {canOrder && supplierId ? (
             <Button asChild className="h-8 bg-wds-caramel-600 px-4 hover:bg-wds-caramel-700">
-              <Link href={`/app/inventory/purchasing/new?supplier=${mockSupplierId}`}>New order from {first}</Link>
+              <Link href={`/app/inventory/purchasing/new?supplier=${supplierId}`}>New order from {first}</Link>
             </Button>
           ) : null}
         </div>
@@ -128,11 +128,11 @@ export function SupplierOrdersTab({
 
       {status === 'error' ? (
         <StockErrorCard title="Couldn’t load the orders" description={error ?? 'Try again.'} onRetry={onRetry} />
-      ) : status === 'loading' || (status === 'idle' && mockSupplierId && !orders) ? (
+      ) : status === 'loading' || (status === 'idle' && supplierId && !orders) ? (
         <SkeletonRows count={4} label="Loading orders">
           {(i) => <TableRowSkeleton key={i} />}
         </SkeletonRows>
-      ) : !mockSupplierId || (orders?.length ?? 0) === 0 ? (
+      ) : !supplierId || (orders?.length ?? 0) === 0 ? (
         <StockEmptyCard title="No orders with this supplier yet" description="Orders raised in Purchasing show here, with where each one stands." />
       ) : rows.length === 0 ? (
         <StockEmptyCard title="No orders match" description="Try a different filter." actionLabel="Show all" onAction={() => { setFilter('all'); setPeriod('any'); }} />
@@ -214,13 +214,13 @@ export function statementCsv(s: SupplierStatement): string {
  * it; a reversed payment and a voided invoice stay on it, struck through. Export PDF opens the A4 print (`27`); Export CSV
  * downloads the same lines. The Branch Manager sees amounts, dates and references but never the supplier's payment details.
  */
-export function SupplierStatementTab({ mockSupplierId, supplierName }: { mockSupplierId: string | null; supplierName: string }) {
+export function SupplierStatementTab({ supplierId, supplierName }: { supplierId: string | null; supplierName: string }) {
   const { service, data: tick, ready } = usePurchasing();
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const { data, status, error, reload } = useLoader<SupplierStatement>(
-    mockSupplierId && ready ? `statement:${mockSupplierId}:${from}:${to}` : null,
-    () => service.getSupplierStatement(mockSupplierId as string, { from: from || undefined, to: to || undefined }),
+    supplierId && ready ? `statement:${supplierId}:${from}:${to}` : null,
+    () => service.getSupplierStatement(supplierId as string, { from: from || undefined, to: to || undefined }),
     'We could not load the statement.'
   );
   const reloadRef = React.useRef(reload);
@@ -240,7 +240,7 @@ export function SupplierStatementTab({ mockSupplierId, supplierName }: { mockSup
     URL.revokeObjectURL(url);
   };
 
-  if (!mockSupplierId) return <StockEmptyCard title="No statement yet" description="This supplier has no purchases in the demo, so there is nothing to put on a statement." />;
+  if (!supplierId) return <StockEmptyCard title="No statement yet" description="This supplier has no purchases yet, so there is nothing to put on a statement." />;
   if (status === 'error') return <StockErrorCard title="Couldn’t load the statement" description={error ?? 'Try again.'} onRetry={() => void reload()} />;
   if (!data) {
     return (
@@ -276,7 +276,7 @@ export function SupplierStatementTab({ mockSupplierId, supplierName }: { mockSup
             <Input type="date" value={to || d.to} onChange={(e) => setTo(e.target.value)} className="h-8 w-[140px] font-wds-mono" aria-label="To" />
           </label>
           <Button variant="secondary" asChild>
-            <Link href={`/app/inventory/purchasing-print/statement/${mockSupplierId}?from=${d.from}&to=${d.to}`} target="_blank">
+            <Link href={`/app/inventory/purchasing-print/statement/${supplierId}?from=${d.from}&to=${d.to}`} target="_blank">
               Export PDF
             </Link>
           </Button>

@@ -13,11 +13,11 @@ import { StockErrorCard } from '../../../_shared/components/stock-states';
 import { useAction } from '../../../_shared/hooks/use-async';
 import { useOrder } from '../../hooks/use-order';
 import { dayMonth, fullDate, kes, kes2, METHOD_LABEL, qty as fmtQty, STATUS_LABEL, whenLabel } from '../../lib/format';
+import { openFile } from '../../lib/open-file';
 import type { FileDocument, OrderStatus, PurchaseFile, TrackerItem } from '../../types';
 import { AddDocumentSheet } from '../add-document-sheet';
 import { ApproveOrderSheet } from '../approve-order-sheet';
 import { CancelOrderSheet } from '../cancel-order-sheet';
-import { DemoBanner } from '../demo-banner';
 import { ReversePaymentSheet, SettleDisputeSheet, VoidInvoiceSheet } from '../fix-sheets';
 import { AddInvoiceSheet } from '../invoice-sheet';
 import { thClass } from '../parts';
@@ -76,7 +76,6 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
   const [waOpen, setWaOpen] = React.useState(false);
   const [advanceOpen, setAdvanceOpen] = React.useState(false);
   const [cancelOpen, setCancelOpen] = React.useState(false);
-  const [photoOpen, setPhotoOpen] = React.useState(false);
   const [invoiceFor, setInvoiceFor] = React.useState<string | null>(null);
   const [payFor, setPayFor] = React.useState<string | null>(null);
   const [voidFor, setVoidFor] = React.useState<string | null>(null);
@@ -105,7 +104,6 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
     return (
       <>
         <Topbar breadcrumb={crumb} hideSearch className="shrink-0" />
-        <DemoBanner />
         <div className="flex flex-col gap-4 p-8" aria-busy aria-label="Loading the order">
           <div className="h-8 w-1/3 animate-pulse rounded bg-wds-neutral-100" />
           <div className="h-16 animate-pulse rounded bg-wds-neutral-100" />
@@ -117,7 +115,10 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
 
   const closed = order.status === 'CLOSED';
   const activeTab = tab ?? (closed ? 'documents' : 'items');
+  // Two different rules: item prices and the order total follow `catalog.see_costs` (the Attendant has it); the money strip, invoice
+  // and payments follow `payables.read` and arrive as `order.money`.
   const showMoney = order.money !== null;
+  const showPrices = can('catalog.see_costs');
   const delivered = order.delivery !== null;
   const invoice = order.invoice;
   const advances = order.payments.filter((p) => p.kind === 'ADVANCE' && p.status === 'RECORDED');
@@ -141,11 +142,15 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
     ['Paid', order.money && Number.parseFloat(order.money.paid) > 0 ? order.money.paid : ''],
     [invoice ? 'Outstanding' : 'Still to pay (est.)', invoice || closed ? (order.money?.stillToPay ?? '') : (order.money?.stillToPay ?? '')],
   ];
+  const viewFile = (fileId: string): void => {
+    openFile(service, fileId).catch((e: unknown) => addToast({ variant: 'error', title: 'We could not open the file', description: e instanceof Error ? e.message : 'Try again.' }));
+  };
   const openDoc = (d: FileDocument): void => {
     if (d.kind === 'LPO') window.open(`/app/inventory/purchasing-print/${order.id}`, '_blank', 'noopener');
     else if (d.paymentId) window.open(`/app/inventory/purchasing-print/payment/${d.paymentId}`, '_blank', 'noopener');
     else if (d.kind === 'GOODS_RECEIPT') setTab('items');
-    else addToast({ variant: 'info', title: d.title, description: d.fileRef ? `${d.fileRef.fileName} · ${(d.fileRef.size / 1_000_000).toFixed(1)} MB. The demo keeps the name, not the picture.` : 'The demo keeps the name, not the file.' });
+    else if (d.fileRef) viewFile(d.fileRef.id);
+    else addToast({ variant: 'info', title: d.title, description: 'There is no file attached to this one.' });
   };
 
   return (
@@ -156,11 +161,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
         className="shrink-0"
         actions={
           <>
-            {closed ? (
-              <Button variant="secondary" onClick={() => addToast({ variant: 'info', title: 'Download all documents', description: 'In the live system this downloads every document of the purchase as one file. The demo has no files to download.' })}>
-                Download all documents
-              </Button>
-            ) : order.reference && order.approvedBy ? (
+            {order.reference && order.approvedBy ? (
               <Button variant="secondary" asChild>
                 <Link href={`/app/inventory/purchasing-print/${order.id}`} target="_blank">
                   Print LPO
@@ -195,9 +196,9 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           </>
         }
       />
-      <DemoBanner />
-      <div className="flex min-h-0 flex-1 gap-8 overflow-y-auto px-8 py-7">
-        <div className="flex min-w-0 grow basis-0 flex-col gap-6" style={{ maxWidth: 816 }}>
+      {/* Under 1280px the right rail drops below the file; Paper draws 1440 only. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-8 pb-7 pt-8 xl:flex-row">
+        <div className="flex min-w-0 flex-col gap-6 xl:grow xl:basis-0" style={{ maxWidth: 816 }}>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
               <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">{order.supplier.name}</h1>
@@ -241,9 +242,9 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           {showMoney ? (
             <dl className="grid grid-cols-5 divide-x divide-wds-border rounded-wds-md border border-wds-border bg-wds-surface">
               {moneyCells.map(([k, v], i) => (
-                <div key={k} className={cn('flex flex-col gap-1 px-4 py-3', i === 4 && 'bg-wds-surface-sunken')}>
-                  <dt className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{k}</dt>
-                  <dd className={cn('font-wds-mono text-wds-section', k === 'Paid' && v !== '' ? 'text-wds-info-fg' : 'text-wds-neutral-950')}>{v === '' ? '—' : closed && i === 4 && Number.parseFloat(v) === 0 ? '0' : kes(v)}</dd>
+                <div key={k} className={cn('flex flex-col gap-1.5 px-3.5 py-3', i === 4 && 'bg-wds-neutral-50')}>
+                  <dt className="whitespace-nowrap font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{k}</dt>
+                  <dd className={cn('font-wds-mono text-[17px] leading-[22px]', k === 'Paid' && v !== '' ? 'text-wds-info-fg' : 'text-wds-neutral-950')}>{v === '' ? '—' : closed && i === 4 && Number.parseFloat(v) === 0 ? '0' : kes(v)}</dd>
                 </div>
               ))}
             </dl>
@@ -291,7 +292,8 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
             </div>
 
             {activeTab === 'items' ? (
-              <div className="flex flex-col">
+              // Narrow windows: the fixed money columns would squeeze the name to nothing, so the table scrolls inside its own box.
+              <div className="flex flex-col overflow-x-auto [&>*]:min-w-[640px]">
                 <div className="flex h-[30px] items-center gap-4 border-b border-wds-neutral-950">
                   <span className={cn(thClass, 'grow')}>Item</span>
                   {delivered ? (
@@ -302,8 +304,8 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                   ) : (
                     <span className={cn(thClass, 'w-[120px] shrink-0')}>Qty</span>
                   )}
-                  {showMoney ? <span className={cn(thClass, 'w-[100px] shrink-0 text-right')}>Price</span> : null}
-                  {delivered ? <span className={cn(thClass, 'w-[170px] shrink-0')}>Result</span> : showMoney ? <span className={cn(thClass, 'w-[120px] shrink-0 text-right')}>Total</span> : null}
+                  {showPrices ? <span className={cn(thClass, 'w-[100px] shrink-0 text-right')}>Price</span> : null}
+                  {delivered ? <span className={cn(thClass, 'w-[170px] shrink-0')}>Result</span> : showPrices ? <span className={cn(thClass, 'w-[120px] shrink-0 text-right')}>Total</span> : null}
                 </div>
                 {order.lines.map((l) => (
                   <div key={l.id} className="flex min-h-12 items-center gap-4 border-b border-wds-neutral-100 py-2">
@@ -330,7 +332,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                         {fmtQty(l.orderedQty)} {l.buyUnit}
                       </span>
                     )}
-                    {showMoney ? <span className="w-[100px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{kes(l.confirmedPrice ?? l.unitPrice)}</span> : null}
+                    {showPrices ? <span className="w-[100px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{kes(l.confirmedPrice ?? l.unitPrice)}</span> : null}
                     {delivered ? (
                       <span className="flex w-[170px] shrink-0 items-center gap-1.5">
                         <span className={cn('size-1.5 shrink-0 rounded-full', l.result === 'AS_ORDERED' ? 'bg-wds-success-fg' : l.result === 'PRICE_CHANGED' ? 'bg-wds-warning-fg' : 'bg-wds-error-fg')} aria-hidden />
@@ -338,7 +340,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                           {l.result === 'AS_ORDERED'
                             ? 'As ordered'
                             : l.result === 'PRICE_CHANGED'
-                              ? showMoney
+                              ? showPrices
                                 ? `Price up ${kes(Number.parseFloat(l.confirmedPrice ?? '0') - Number.parseFloat(l.unitPrice))} (was ${kes(l.unitPrice)})`
                                 : 'Price changed'
                               : l.result === 'NOT_SUPPLIED'
@@ -346,12 +348,12 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                                 : `${fmtQty(Number.parseFloat(l.orderedQty) - Number.parseFloat(l.receivedQty ?? '0'))} ${l.buyUnit} not supplied`}
                         </span>
                       </span>
-                    ) : showMoney ? (
+                    ) : showPrices ? (
                       <span className="w-[120px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(l.lineTotal)}</span>
                     ) : null}
                   </div>
                 ))}
-                {showMoney ? (
+                {showPrices ? (
                   <div className="flex h-12 items-center justify-between">
                     <span className="font-wds-mono text-[10px] uppercase tracking-[0.06em] text-wds-text-secondary">Order total</span>
                     <span className="font-wds-mono text-wds-section font-medium text-wds-neutral-950">KES {kes2(order.orderedTotal)}</span>
@@ -414,7 +416,7 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
           </div>
         </div>
 
-        <aside className="flex w-[332px] shrink-0 flex-col gap-4 self-start">
+        <aside className="flex w-full max-w-[816px] shrink-0 flex-col gap-4 self-start xl:w-[332px]">
           {closed ? (
             <section className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface p-4" aria-label="Audit log">
               <div className="flex items-center justify-between">
@@ -448,15 +450,10 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
                 <div className="flex items-center gap-3 rounded-wds-sm border border-wds-border px-3 py-2">
                   <span className="size-8 shrink-0 rounded-[2px] bg-wds-neutral-100" aria-hidden />
                   <span className="grow font-wds-sans text-wds-caption text-wds-neutral-950">Delivery note photo</span>
-                  <button type="button" onClick={() => setPhotoOpen((o) => !o)} className="font-wds-sans text-wds-caption text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
-                    {photoOpen ? 'Hide' : 'View'}
+                  <button type="button" onClick={() => viewFile((order.delivery as NonNullable<typeof order.delivery>).photo?.id ?? '')} className="font-wds-sans text-wds-caption text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+                    View
                   </button>
                 </div>
-              ) : null}
-              {photoOpen && order.delivery.photo ? (
-                <p className="font-wds-mono text-[11px] text-wds-text-secondary">
-                  {order.delivery.photo.fileName} · {(order.delivery.photo.size / 1_000_000).toFixed(1)} MB (the demo does not keep the picture)
-                </p>
               ) : null}
             </section>
           ) : (
@@ -705,9 +702,9 @@ export function NextStep({
       break;
   }
   return (
-    <section className="flex items-center gap-6 rounded-wds-md border border-wds-border bg-wds-surface-sunken px-5 py-4" aria-label="Next step">
-      <div className="flex min-w-0 grow flex-col gap-1">
-        <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">Next step</span>
+    <section className="flex items-center gap-4 rounded-wds-md border border-wds-espresso-200 bg-wds-espresso-50 px-4 py-3.5" aria-label="Next step">
+      <div className="flex min-w-0 grow flex-col gap-[3px]">
+        <span className="font-wds-mono text-[10px] font-semibold uppercase leading-3 tracking-[0.06em] text-wds-primary">Next step</span>
         <span className="font-wds-sans text-wds-section font-semibold text-wds-neutral-950">{title}</span>
         <span className="font-wds-sans text-wds-caption text-wds-text-secondary">{body}</span>
       </div>

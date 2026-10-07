@@ -49,7 +49,7 @@ router.get('/inventory/items/:id/change-review',
 );
 // The attendant adds stocked / raw items from the phone; the service enforces which types and fields (§29.4).
 router.post('/inventory/items', requireCapability('catalog.write', 'catalog.add_missing'), inventoryController.createItem);
-router.get('/inventory/items/:id/history', requireCapability('catalog.see_costs'), inventoryController.getItemHistory);
+router.get('/inventory/items/:id/history', requireCapability('catalog.read_history'), inventoryController.getItemHistory);
 router.patch('/inventory/items/:id', requireCapability('catalog.write'), inventoryController.updateItem);
 router.delete('/inventory/items/:id', requireCapability('catalog.write'), inventoryController.retireItem);
 router.post('/inventory/items/:id/restore', requireCapability('catalog.write'), inventoryController.restoreItem);

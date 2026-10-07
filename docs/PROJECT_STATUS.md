@@ -8,7 +8,7 @@ The product is being rebuilt one feature at a time into 10 modules plus Inventor
 
 | Lane | What it is doing now | Status |
 |---|---|---|
-| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Mock Sessions 1 and 2 merged and deployed (#81), and the one shell is merged and deployed (#83). Mock is complete; next is the client demo |
+| **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Mock Sessions 1 and 2 merged and deployed (#81), and the one shell is merged and deployed (#83). Mock is complete and the client approved it at the demo (6 Oct 2026). Now building the approved Central Store parts live, front-end and back-end (see "Go-live sequence" below) |
 | **Workforce (design)** | Drawing screens in Paper, group by group (branch `docs/workforce-design`, worktree lane-3) | Groups A and B approved. Group C in progress |
 | **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce code depends on it |
 
@@ -31,9 +31,30 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 5. Design, then rebuild, Requisitions, Dispatch and Branch day.
 6. Dashboard and Reports (moved to the Reporting module), then phone versions for the desktop roles.
 
+### Go-live sequence (set 6 Oct 2026, after the client approved the Purchasing demo)
+
+Goal: the approved Central Store parts (Purchasing and Receiving, Prep, Stock, Counting, Waste) built properly, front-end and back-end, and live in production. Requisitions, Dispatch and Branch day are not in this run (no approved design). One PR per step, merged to `main` so each step deploys and is checked in production before the next starts.
+
+**Decisions from the demo:**
+- **No prices on the LPO document sent to the supplier.** Only that document: the printed or shared LPO drops the price, total and amount-in-words columns, so a supplier cannot hold us to a quoted price if prices fall. Every internal screen (needs restocking estimates, new order, approval, order list, purchase file, receiving) keeps its prices and totals. The back-end LPO output (step 3) follows the same rule.
+- **Store Attendant gets desktop screens** as well as the phone ones (every other role keeps its primary desktop version; phone versions for the desktop roles come later). No separate Paper design pass: the screens are the same set, built from the approved phone design where the Attendant's layout differs (receiving, blind count, my orders, waste), and the owner approves the built screen. The Attendant sees item costs and prices (decision of 6 Oct 2026) but stays blind to stock figures and financial data, enforced by the server.
+- **Production checks.** Before any migration, the agent gives the owner the SSH command to read the production database and waits for the go-ahead. Read-only queries only.
+
+| # | Step | Status |
+|---|---|---|
+| 1 | Front-end change: remove prices from the LPO document sent to the supplier (mock) | **Done 6 Oct 2026, not yet committed.** Only the printed LPO changed (no price, total or amount in words; the acknowledgement no longer mentions prices). All internal screens are unchanged |
+| 2 | Access table: order and advance capabilities, Attendant desktop read capabilities, one shared "blind" rule for responses | **Done 6 Oct 2026** (order and advance capabilities already existed). Attendant now holds `catalog.see_costs` and `orders.read`; one helper `_shared/blind-rule.ts` hides only stock figures and financial data; the catalog uses it; item history moved to its own `catalog.read_history`. Other sub-modules adopt the helper when rebuilt |
+| 3 | Purchasing and Receiving back-end (schema, migration, services, routes, tests; receiving through the ledger door; old code deleted) | **Done 6 Oct 2026 on branch `feat/central-store-go-live`, not pushed.** Six folders under `modules/inventory/purchasing/`, mounted at `/inventory/purchasing`; Suppliers and the Audit log read the new tables; old receiving code and old tables dropped (migration `drop_old_purchasing`). Not a blocker: users without a PIN set one the first time they sign (the PIN dialog asks), or under Profile |
+| 4 | Purchasing front-end live: mock swapped for the real API, demo bar removed, Attendant desktop screens | **Done and approved by the owner (7 Oct 2026, Paper parity pass finished).** The PIN dialog now offers "Set your signing PIN" to a signer who has none, so first use needs no trip to Profile. HTTP service behind the same interface; mock, demo bar and demo "view as" deleted; Receive has the typed delivery price; Attendant sees item prices and order totals but no money (screen chosen from capabilities); Suppliers and Audit log read live data. Walked end to end in a real browser: raise, approve, receive, invoice, pay, closed |
+| 5 | Prep rebuild (back-end, front-end, Attendant desktop, ledger writes onto the door) | Not started |
+| 6 | Stock rebuild | Not started |
+| 7 | Counting rebuild | Not started |
+| 8 | Waste rebuild | Not started |
+| 9 | After each step: build and tests on both sides, merge, watch the deploy and migration, smoke-test production, tick the step here | Every step |
+
 Rules that apply to all of it: [features/inventory/README.md](features/inventory/README.md) and [features/inventory/decisions.md](features/inventory/decisions.md). Full step list: [features/inventory/roadmap.md](features/inventory/roadmap.md).
 
-**Known gaps in Inventory code:** the access table has no purchase-order capabilities yet (those routes still use old role lists; fixed in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
+**Known gaps in Inventory code:** the access table already has the order capabilities, but the old purchasing routes still use old role lists (moved in the Purchasing back-end session); Stock, Waste, Counting, Prep, Requisitions, Dispatch and Branch day still use old `requireRole` lists until each is rebuilt. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
 
 ## Workforce (design lane)
 
@@ -56,8 +77,8 @@ Not started: Menu and Pricing, Communications, Finance and Receivables, Reportin
 
 ## Waiting on the owner
 
-- Run the client demo (Catalog, Restock levels, Suppliers, Audit log, and the Purchasing mock), then collect feedback.
-- Small choices for the client at the demo (list in the demo script): whether a payment bigger than the invoice is allowed, whether the Attendant may see prices, whether the Receiving sidebar link stays next to Purchasing, whether the Branch Manager and Director should be able to settle disputes.
+- ~~Run the client demo~~ done 6 Oct 2026. Client feedback: remove prices and estimates from the LPO; the Store Attendant also needs desktop screens.
+- Confirm with the client which of these demo choices they settled (list in the demo script; any not recorded stay open): whether a payment bigger than the invoice is allowed, whether the Attendant may see prices, whether the Receiving sidebar link stays next to Purchasing, whether the Branch Manager and Director should be able to settle disputes.
 - Two open Inventory decisions: what a miscount correction does to the ledger, and whether the attendant sees on-hand figures when fulfilling a dispatch ([decisions.md](features/inventory/decisions.md)).
 - Workforce Group C review, as the designer.
 - Client approval of Central Store role names (not yet given).

@@ -18,8 +18,7 @@ import { useAction, useLoader } from '../../../_shared/hooks/use-async';
 import { useUnsavedChangesGuard } from '../../../_shared/hooks/use-unsaved-changes-guard';
 import { usePurchasing } from '../../hooks/use-purchasing';
 import { isoDay, kes, kes2, qty as fmtQty } from '../../lib/format';
-import { PurchasingError, type CatalogItem, type CatalogResult, type Order } from '../../types';
-import { DemoBanner } from '../demo-banner';
+import { errorDetails, isPurchasingError, type CatalogItem, type CatalogResult, type Order } from '../../types';
 import { PinDialog } from '../pin-dialog';
 import { DotLabel, FieldLabel, SegmentedToggle, thClass } from '../parts';
 
@@ -42,7 +41,7 @@ export function NewOrderScreen() {
   const editId = params.get('edit');
   const { service, can, role, ready } = usePurchasing();
   const addToast = useWdsToastStore((s) => s.addToast);
-  const showMoney = can('payables.read');
+  const showPrices = can('catalog.see_costs');
   const canApprove = can('orders.approve');
 
   const [supplierId, setSupplierId] = React.useState<string>(params.get('supplier') ?? '');
@@ -128,9 +127,13 @@ export function NewOrderScreen() {
   };
 
   const handleOpenOrder = (e: unknown): boolean => {
-    if (e instanceof PurchasingError && e.code === 'SUPPLIER_ORDER_OPEN') {
-      setOpenOrder({ id: String(e.details.openOrderId), reference: (e.details.openReference as string | null) ?? null });
-      return true;
+    // A race on the one-open-order rule is refused without the other order's id: that one falls through to the plain message.
+    if (isPurchasingError(e, 'SUPPLIER_ORDER_OPEN')) {
+      const details = errorDetails(e);
+      if (typeof details.openOrderId === 'string') {
+        setOpenOrder({ id: details.openOrderId, reference: (details.openReference as string | null) ?? null });
+        return true;
+      }
     }
     return false;
   };
@@ -197,14 +200,14 @@ export function NewOrderScreen() {
         hideSearch
         className="shrink-0"
         actions={
-          <Button variant="secondary" asChild>
+          <Button variant="ghost" className="text-wds-text-secondary" asChild>
             <Link href="/app/inventory/purchasing">Discard</Link>
           </Button>
         }
       />
-      <DemoBanner />
-      <div className="flex min-h-0 flex-1 gap-8 overflow-y-auto px-8 py-7">
-        <div className="flex min-w-0 grow basis-0 flex-col gap-4" style={{ maxWidth: 796 }}>
+      {/* Under 1280px the order summary drops below the catalog; Paper draws 1440 only. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-8 pb-7 pt-8 xl:flex-row">
+        <div className="flex min-w-0 flex-col gap-4 xl:grow xl:basis-0" style={{ maxWidth: 796 }}>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2.5">
               <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">{editId ? 'Edit order' : 'New order'}</h1>
@@ -268,7 +271,7 @@ export function NewOrderScreen() {
                     <span className={cn(thClass, 'grow')}>Item</span>
                     <span className={cn(thClass, 'w-[118px] shrink-0')}>Stock</span>
                     <span className={cn(thClass, 'w-24 shrink-0')}>Sold as</span>
-                    {showMoney ? <span className={cn(thClass, 'w-[74px] shrink-0 text-right')}>Price</span> : null}
+                    {showPrices ? <span className={cn(thClass, 'w-[74px] shrink-0 text-right')}>Price</span> : null}
                     <span className={cn(thClass, 'w-[100px] shrink-0')}>Qty</span>
                   </div>
                   {visible.map((i) => {
@@ -285,11 +288,11 @@ export function NewOrderScreen() {
                         <div className="flex w-[118px] shrink-0 flex-col gap-0.5">
                           <DotLabel tone={i.status === 'OUT' ? 'error' : i.status === 'LOW' ? 'warning' : 'success'}>{i.status === 'OUT' ? 'Out' : i.status === 'LOW' ? 'Low' : 'OK'}</DotLabel>
                           <span className="font-wds-mono text-[11px] text-wds-text-secondary">
-                            {fmtQty(i.onHand)} / {fmtQty(i.level)}
+                            {i.onHand !== undefined && i.level !== undefined ? `${fmtQty(i.onHand)} / ${fmtQty(i.level)}` : ''}
                           </span>
                         </div>
                         <span className="w-24 shrink-0 font-wds-sans text-wds-caption text-wds-text-secondary">{i.soldAs}</span>
-                        {showMoney ? <span className="w-[74px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-neutral-950">{kes(i.price)}</span> : null}
+                        {showPrices ? <span className="w-[74px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-neutral-950">{kes(i.price)}</span> : null}
                         <div className="w-[100px] shrink-0">
                           {on ? (
                             <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
@@ -320,10 +323,10 @@ export function NewOrderScreen() {
           )}
         </div>
 
-        <aside className="flex w-80 shrink-0 flex-col self-start rounded-wds-md border border-wds-border bg-wds-surface" aria-label="Order summary">
+        <aside className="flex w-full max-w-[796px] shrink-0 flex-col self-start xl:w-80 rounded-wds-md border border-wds-border bg-wds-surface" aria-label="Order summary">
           <div className="flex h-11 items-center justify-between border-b border-wds-border px-4">
             <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-neutral-950">Order summary</span>
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-[2px] bg-wds-neutral-100 px-1.5 font-wds-mono text-[11px] text-wds-neutral-950">{selectedIds.length}</span>
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-wds-espresso-700 px-1.5 font-wds-mono text-[11px] text-white">{selectedIds.length}</span>
           </div>
           <div className="flex flex-col gap-4 p-4">
             {actionFailure ? <FormErrorBanner title="We couldn't do that" description={actionFailure.message} /> : null}
@@ -372,10 +375,10 @@ export function NewOrderScreen() {
                         <span className="truncate font-wds-sans text-wds-body-sm text-wds-neutral-950">{it.itemName}</span>
                         <span className="font-wds-mono text-[11px] text-wds-text-secondary">
                           {fmtQty(lines[id])} {it.buyUnit}
-                          {showMoney ? ` × ${kes(it.price)}` : ''}
+                          {showPrices ? ` × ${kes(it.price)}` : ''}
                         </span>
                       </div>
-                      {showMoney ? <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(q * Number.parseFloat(it.price || '0'))}</span> : null}
+                      {showPrices ? <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(q * Number.parseFloat(it.price || '0'))}</span> : null}
                       <button
                         type="button"
                         onClick={() => toggle(it)}
@@ -457,7 +460,7 @@ export function NewOrderScreen() {
             ) : null}
           </div>
 
-          {showMoney ? (
+          {showPrices ? (
             <div className="flex h-12 items-center justify-between border-t border-wds-border px-4">
               <span className="font-wds-mono text-[10px] uppercase tracking-[0.06em] text-wds-text-secondary">Order total</span>
               <span className="font-wds-mono text-wds-section font-medium text-wds-neutral-950">KES {kes2(total)}</span>
@@ -493,7 +496,7 @@ export function NewOrderScreen() {
         onOpenChange={setPinOpen}
         title="Approve with your PIN"
         subtitle={role === 'SYSTEM_ADMIN' ? 'You are signed in as System Admin. Approve with your own PIN.' : 'Your signature goes on the printed LPO.'}
-        summary={{ title: `${supplier?.name ?? ''}`, detail: `${selectedIds.length} line${selectedIds.length === 1 ? '' : 's'}${showMoney ? ` · KES ${kes2(total)}` : ''}` }}
+        summary={{ title: `${supplier?.name ?? ''}`, detail: `${selectedIds.length} line${selectedIds.length === 1 ? '' : 's'}${showPrices ? ` · KES ${kes2(total)}` : ''}` }}
         confirmLabel="Approve order"
         onSubmit={approveAndSend}
       />

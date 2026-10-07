@@ -13,7 +13,7 @@ import {
 import * as supplierRepositoryModule from './supplier-repository';
 import { itemChangeRepository } from '../catalog/item-history-repository';
 import * as supplierValidators from './supplier-validators';
-import { goodsReceiptRepository } from '../purchasing/receiving-repository';
+import { supplierPurchasingReads } from '../purchasing/supplier-account/supplier-purchasing-reads';
 import { referenceCounterRepository } from '../_shared/reference-counter';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { authRepository } from '../../../repositories/auth-repository';
@@ -48,14 +48,7 @@ vi.mock('../catalog/item-history-repository', () => ({
 }));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../purchasing/receiving-repository', () => ({
-  goodsReceiptRepository: {
-    findPackNotOnFileLines: vi.fn(),
-    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
-    findPriceAlertLines: vi.fn().mockResolvedValue([]),
-    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
-  },
-}));
+vi.mock('../purchasing/supplier-account/supplier-purchasing-reads', async () => (await import('./supplier-test-fixtures')).purchasingReadsMocks());
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn(), emitPayMethodChanged: vi.fn() } }));
 vi.mock('../../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn(), sendPayMethodChangedPush: vi.fn() } }));
@@ -746,17 +739,15 @@ describe('supplierService — pack mismatches (B4 surface)', () => {
   const flagged = (overrides: Record<string, unknown> = {}) => ({
     id: 'grl1',
     inventoryItemId: itemId,
-    packBuyUnit: 'packet',
-    packSize: new Prisma.Decimal('2'),
     unitPrice: new Prisma.Decimal('130'),
-    packNotOnFile: true,
-    goodsReceipt: { id: 'gr1', reference: 'GRN-0007', signedAt: new Date('2026-10-01T09:00:00.000Z') },
+    orderLine: { buyUnit: 'packet', packSize: new Prisma.Decimal('2') },
+    delivery: { id: 'gr1', reference: 'GRN-0007', receivedAt: new Date('2026-10-01T09:00:00.000Z') },
     inventoryItem: { name: 'Sugar white' },
     ...overrides,
   });
 
-  it('lists flagged receipt lines that still match no catalog line', async () => {
-    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([flagged()] as never);
+  it('lists delivered lines that still match no catalog line', async () => {
+    vi.mocked(supplierPurchasingReads.findDeliveredPacks).mockResolvedValue([flagged()] as never);
     vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
       buildCatalogLine({ buyUnit: 'bag', packSize: new Prisma.Decimal('50') }),
     ] as never);
@@ -768,11 +759,11 @@ describe('supplierService — pack mismatches (B4 surface)', () => {
         inventoryItemId: itemId, itemName: 'Sugar white', packBuyUnit: 'packet', packSize: '2', unitPrice: '130',
       },
     ]);
-    expect(goodsReceiptRepository.findPackNotOnFileLines).toHaveBeenCalledWith(supplierId, hubOrgId);
+    expect(supplierPurchasingReads.findDeliveredPacks).toHaveBeenCalledWith(supplierId, hubOrgId, expect.any(Number));
   });
 
   it('drops a row once the missing pack has been added to the catalog', async () => {
-    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([flagged()] as never);
+    vi.mocked(supplierPurchasingReads.findDeliveredPacks).mockResolvedValue([flagged()] as never);
     vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
       buildCatalogLine({ buyUnit: 'bag', packSize: new Prisma.Decimal('50') }),
       buildCatalogLine({ id: lineId2, buyUnit: 'packet', packSize: new Prisma.Decimal('2') }),
@@ -781,7 +772,7 @@ describe('supplierService — pack mismatches (B4 surface)', () => {
   });
 
   it('is empty without touching the catalog when nothing is flagged', async () => {
-    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([]);
+    vi.mocked(supplierPurchasingReads.findDeliveredPacks).mockResolvedValue([]);
     expect(await supplierService.listPackMismatches(storeManager, supplierId)).toEqual([]);
     expect(supplierItemRepository.listBySupplierItems).not.toHaveBeenCalled();
   });
@@ -880,45 +871,21 @@ describe('supplierService — roles and scope', () => {
 });
 
 describe('supplierService — summary', () => {
-  it('aggregates spend, alerts, short deliveries and average days to pay', async () => {
+  // The sums themselves (spend, alerts, short deliveries, days to pay) are tested with the purchase-file logic in
+  // purchasing/supplier-account/supplier-purchasing-logic.test.ts; here the service only scopes and passes them on.
+  it('returns the purchase-file summary for the supplier, in the hub scope', async () => {
     const { supplierHistoryRepository } = supplierRepositoryModule;
-    vi.mocked(supplierHistoryRepository.summaryReceipts).mockResolvedValue([
-      {
-        id: 'r1', signedAt: new Date('2026-09-01'), receiptTotal: new Prisma.Decimal('1000'),
-        lines: [{ inventoryItemId: itemId, quantityBuyUnit: new Prisma.Decimal('8'), priceAlertPct: new Prisma.Decimal('20') }],
-        expectedDelivery: { lines: [{ inventoryItemId: itemId, quantity: new Prisma.Decimal('10') }] },
-      },
-      {
-        id: 'r2', signedAt: new Date('2026-09-10'), receiptTotal: new Prisma.Decimal('500.5'),
-        lines: [{ inventoryItemId: itemId, quantityBuyUnit: new Prisma.Decimal('10'), priceAlertPct: null }],
-        expectedDelivery: { lines: [{ inventoryItemId: itemId, quantity: new Prisma.Decimal('10') }] },
-      },
-    ] as never);
-    vi.mocked(supplierHistoryRepository.summaryInvoices).mockResolvedValue([
-      {
-        invoiceDate: new Date('2026-09-01'), amountBilled: new Prisma.Decimal('1000'), adjustments: [],
-        allocations: [{ amount: new Prisma.Decimal('1000'), supplierPayment: { paidAt: new Date('2026-09-11'), reversalOfId: null } }],
-      },
-      { invoiceDate: new Date('2026-09-05'), amountBilled: new Prisma.Decimal('300'), adjustments: [], allocations: [] }, // unpaid: excluded
-    ] as never);
-
-    const summary = await supplierService.getSummary(storeManager, supplierId);
-    expect(summary).toEqual({
-      totalSpend: '1500.5',
-      lastPurchaseAt: '2026-09-10T00:00:00.000Z',
-      receiptsCount: 2,
-      averageDaysToPay: 10,
-      priceAlerts: 1,
-      shortDeliveries: 1,
-    });
+    const figures = { totalSpend: '1500.5', lastPurchaseAt: '2026-09-10T00:00:00.000Z', receiptsCount: 2, averageDaysToPay: 10, priceAlerts: 1, shortDeliveries: 1 };
+    vi.mocked(supplierHistoryRepository.summary).mockResolvedValue(figures);
+    await expect(supplierService.getSummary(storeManager, supplierId)).resolves.toEqual(figures);
+    expect(supplierHistoryRepository.summary).toHaveBeenCalledWith(supplierId, hubOrgId);
   });
 
-  it('returns null average days to pay when nothing is fully paid', async () => {
+  it('is open to a director and closed to an attendant', async () => {
     const { supplierHistoryRepository } = supplierRepositoryModule;
-    vi.mocked(supplierHistoryRepository.summaryReceipts).mockResolvedValue([]);
-    vi.mocked(supplierHistoryRepository.summaryInvoices).mockResolvedValue([]);
-    const summary = await supplierService.getSummary(director, supplierId);
-    expect(summary).toMatchObject({ totalSpend: '0', averageDaysToPay: null, receiptsCount: 0, lastPurchaseAt: null });
+    vi.mocked(supplierHistoryRepository.summary).mockResolvedValue({ totalSpend: '0', lastPurchaseAt: null, receiptsCount: 0, averageDaysToPay: null, priceAlerts: 0, shortDeliveries: 0 });
+    await expect(supplierService.getSummary(director, supplierId)).resolves.toMatchObject({ receiptsCount: 0 });
+    await expect(supplierService.getSummary(attendant, supplierId)).rejects.toThrow(ForbiddenError);
   });
 });
 
@@ -1010,14 +977,11 @@ describe('supplierService.listSuppliers — profile and owed on each row', () =>
     kraPin: null,
     contacts: [{ name: 'Rajesh', phone: '0722', isPrimary: true }],
     _count: { payMethods: 0 },
-    supplierInvoices: [
-      { amountBilled: new Prisma.Decimal('1000'), adjustments: [], allocations: [{ amount: new Prisma.Decimal('400') }] },
-      { amountBilled: new Prisma.Decimal('300'), adjustments: [], allocations: [{ amount: new Prisma.Decimal('300') }] },
-    ],
     ...over,
   });
 
-  it('adds profileDone and owedAmount, counting only invoices with a balance', async () => {
+  it('adds profileDone and owedAmount from what the purchase files say we owe', async () => {
+    vi.mocked(supplierPurchasingReads.owedBySupplier).mockResolvedValue(new Map([[buildSupplierRow().id, new Prisma.Decimal('600')]]));
     vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     vi.mocked(supplierStripRepository.listForStripByIds).mockResolvedValue([stripFor(buildSupplierRow().id)] as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
@@ -1037,6 +1001,7 @@ describe('supplierService.listSuppliers — profile and owed on each row', () =>
   });
 
   it('a supplier with no strip row reads 0 of 7 and nothing owed rather than failing the list', async () => {
+    vi.mocked(supplierPurchasingReads.owedBySupplier).mockResolvedValue(new Map());
     vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     expect(data[0]).toMatchObject({ profileDone: 0, owedAmount: '0.00' });
@@ -1125,11 +1090,11 @@ describe('supplierService.listItems — the Catalog tab extras (§30.11)', () =>
         inventoryItem: { id: itemId, name: 'Sugar, white', buyUnit: 'bag', usageUnit: 'kg', conversionFactor: new Prisma.Decimal('50') },
       }),
     ] as never);
-    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([{ id: 'r1', reference: 'GRN-1042', signedAt, itemIds: [itemId] }] as never);
-    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([
+    vi.mocked(supplierPurchasingReads.findReceiptsSignedAt).mockResolvedValue([{ id: 'r1', reference: 'GRN-1042', signedAt, itemIds: [itemId] }] as never);
+    vi.mocked(supplierPurchasingReads.findPriceAlertLines).mockResolvedValue([
       { inventoryItemId: itemId, packBuyUnit: 'bag', packSize: new Prisma.Decimal('50'), priceAlertPct: new Prisma.Decimal('6'), priceAlertPrevPrice: new Prisma.Decimal('8630'), signedAt },
     ] as never);
-    vi.mocked(goodsReceiptRepository.findPreviousSignedAt).mockResolvedValue(new Date('2026-09-28T09:00:00Z'));
+    vi.mocked(supplierPurchasingReads.findPreviousSignedAt).mockResolvedValue(new Date('2026-09-28T09:00:00Z'));
 
     const [row] = await supplierService.listItems(storeManager, supplierId);
     expect(row).toMatchObject({
@@ -1137,13 +1102,13 @@ describe('supplierService.listItems — the Catalog tab extras (§30.11)', () =>
       lastReceipt: { id: 'r1', reference: 'GRN-1042' },
       priceAlert: { pct: '6', previousPrice: '8630', previousAt: '2026-09-28T09:00:00.000Z' },
     });
-    expect(goodsReceiptRepository.findPriceAlertLines).toHaveBeenCalledWith(supplierId, hubOrgId, expect.any(Date));
+    expect(supplierPurchasingReads.findPriceAlertLines).toHaveBeenCalledWith(supplierId, hubOrgId, expect.any(Date));
   });
 
   it('a line with no receipts and no alerts reads null for both', async () => {
     vi.mocked(supplierItemRepository.list).mockResolvedValue([buildCatalogLine()] as never);
-    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([]);
-    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([]);
+    vi.mocked(supplierPurchasingReads.findReceiptsSignedAt).mockResolvedValue([]);
+    vi.mocked(supplierPurchasingReads.findPriceAlertLines).mockResolvedValue([]);
     const [row] = await supplierService.listItems(storeManager, supplierId);
     expect(row).toMatchObject({ lastReceipt: null, priceAlert: null });
   });

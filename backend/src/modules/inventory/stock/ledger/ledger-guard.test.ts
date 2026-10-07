@@ -21,7 +21,6 @@ const ALLOWED_DIRECT_WRITES: Record<string, number> = {
   'modules/inventory/dispatch/discrepancy-service.ts': 3,
   'modules/inventory/dispatch/dispatch-service.ts': 2,
   'modules/inventory/prep/prep-service.ts': 2,
-  'modules/inventory/purchasing/receiving-service.ts': 1,
 };
 
 const PRISMA_WRITE = /inventoryTransaction\s*\.\s*(create|createMany|update|updateMany|delete|deleteMany|upsert)\b/g;

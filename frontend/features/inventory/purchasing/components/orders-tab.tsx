@@ -48,7 +48,9 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
   const [supplierId, setSupplierId] = React.useState('');
   const [raisedBy, setRaisedBy] = React.useState('');
   const [approveId, setApproveId] = React.useState<string | null>(null);
-  const showMoney = can('payables.read');
+  // The order's value follows item costs (the Attendant sees it); the advance on it is financial data.
+  const showValue = can('catalog.see_costs');
+  const showAdvance = can('payables.read');
 
   const { data, status, error, reload } = useLoader(ready ? `orders:${stage}` : null,() => service.listOrders({ stage }), 'We could not load the orders.');
   const reloadRef = React.useRef(reload);
@@ -79,7 +81,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
       (!supplierId || o.supplier.id === supplierId) &&
       (!raisedBy || o.raisedBy.id === raisedBy)
   );
-  const total = rows.reduce((t, o) => t + Number.parseFloat(o.money?.ordered ?? '0'), 0);
+  const total = rows.reduce((t, o) => t + Number.parseFloat(o.orderedTotal || '0'), 0);
   const isReceive = tab === 'receive';
   const dateHeader = tab === 'approval' ? 'Submitted' : isReceive ? 'Sent' : 'Updated';
 
@@ -111,7 +113,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
         </label>
         <span className="ml-auto font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.04em] text-wds-text-secondary">
           {rows.length} order{rows.length === 1 ? '' : 's'}
-          {showMoney ? ` · KES ${kes(total)}` : ''}
+          {showValue ? ` · KES ${kes(total)}` : ''}
         </span>
       </div>
 
@@ -126,7 +128,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
             <span className={cn(thClass, isReceive ? 'w-14' : 'w-24', 'shrink-0')}>{dateHeader}</span>
             <span className={cn(thClass, 'w-[112px] shrink-0')}>Stage</span>
             {isReceive ? <span className={cn(thClass, 'w-[140px] shrink-0')}>Expected</span> : null}
-            {showMoney ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Value</span> : null}
+            {showValue ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Value</span> : null}
             <span className="w-[90px] shrink-0" />
           </div>
           {rows.map((o) => {
@@ -156,10 +158,10 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
                 </span>
                 <StageDots status={o.status} label={STAGE_WORD[o.status]} />
                 {isReceive ? <span className="w-[140px] shrink-0">{due ? <DotLabel tone={due.tone}>{due.text}</DotLabel> : <span className="font-wds-sans text-wds-caption text-wds-text-secondary">Not sent yet</span>}</span> : null}
-                {showMoney ? (
+                {showValue ? (
                   <div className="flex w-[90px] shrink-0 flex-col items-end gap-0.5">
-                    <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(o.money?.ordered)}</span>
-                    {advance > 0 ? <span className="font-wds-sans text-[11px] leading-[14px] text-wds-info-fg">Advance {kes(advance)}</span> : null}
+                    <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(o.orderedTotal)}</span>
+                    {showAdvance && advance > 0 ?<span className="font-wds-sans text-[11px] leading-[14px] text-wds-info-fg">Advance {kes(advance)}</span> : null}
                   </div>
                 ) : null}
                 <div className="flex w-[90px] shrink-0 justify-end" onClick={(e) => e.stopPropagation()}>

@@ -48,6 +48,16 @@ const sheetVariants = cva(
   }
 )
 
+/** Mounts only while the sheet is open; a layout effect runs before the dialog's own focus move, so it sees the opener. */
+function RememberOpener({ target }: { target: React.MutableRefObject<HTMLElement | null> }) {
+  React.useLayoutEffect(() => {
+    const active = document.activeElement
+    // The content can remount while open; by then focus is already inside the sheet, which is not the opener.
+    if (active instanceof HTMLElement && active !== document.body && !active.closest('[role="dialog"]')) target.current = active
+  }, [target])
+  return null
+}
+
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
@@ -55,14 +65,29 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  // Sheets are mostly opened by state, not by a <SheetTrigger>, so Radix has no trigger to hand focus back to.
+  // Remember what had focus when the sheet opened and return it on close, so a keyboard user keeps their place.
+  const opener = React.useRef<HTMLElement | null>(null)
+  return (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      onOpenAutoFocus={onOpenAutoFocus}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event)
+        if (event.defaultPrevented) return
+        const target = opener.current
+        if (target?.isConnected) {
+          event.preventDefault()
+          target.focus()
+        }
+      }}
       {...props}
     >
+      <RememberOpener target={opener} />
       <SheetPrimitive.Close className="absolute right-6 top-5 border-0 bg-transparent p-0 font-wds-sans text-[16px] leading-5 text-wds-text-faint transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:shadow-wds-ring disabled:pointer-events-none">
         <span aria-hidden="true">&times;</span>
         <span className="sr-only">Close</span>
@@ -70,7 +95,8 @@ const SheetContent = React.forwardRef<
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>
-))
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({

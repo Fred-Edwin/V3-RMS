@@ -9,7 +9,6 @@ import { Button } from '@/components/ui2/button';
 import { cn } from '@/lib/cn';
 import { usePurchasing } from '../../hooks/use-purchasing';
 import type { Summary } from '../../types';
-import { DemoBanner } from '../demo-banner';
 import { NeedsRestockingTab } from '../needs-restocking-tab';
 import { OrdersTab } from '../orders-tab';
 import { AwaitingInvoiceTab, ToPayTab } from '../orders-money-tabs';
@@ -28,7 +27,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 
 /**
  * Purchasing: one page, six stage tabs (Paper chapter 1, "01 · Needs restocking"). Each tab's body is its own component;
- * the page owns the header, the tabs with their counts, and the demo banner.
+ * the page owns the header and the tabs with their counts.
  */
 export function PurchasingScreen() {
   const router = useRouter();
@@ -49,8 +48,9 @@ export function PurchasingScreen() {
     };
   }, [service, data, ready]);
 
-  // The Store Attendant works on a phone: Restock, To receive and My orders (Paper chapter 9), not the desktop stage tabs.
-  if (ready && !can('orders.read') && can('orders.request')) return <AttendantPurchasingScreen />;
+  // Whoever raises requests but cannot approve them (the Store Attendant in the access table) gets Restock, To receive and My orders
+  // (Paper chapter 9) instead of the six stage tabs. Decided from capabilities, never from a role name.
+  if (ready && can('orders.request') && !can('orders.approve')) return <AttendantPurchasingScreen />;
 
   return (
     <>
@@ -73,8 +73,7 @@ export function PurchasingScreen() {
           </>
         }
       />
-      <DemoBanner />
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 pb-7 pt-8">
         <div className="flex flex-col gap-1.5">
           <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-neutral-950">Purchasing</h1>
           <p className="font-wds-sans text-wds-body-sm text-wds-text-secondary">From what we need to what we&apos;ve paid, one order at a time.</p>

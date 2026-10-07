@@ -15,6 +15,8 @@ vi.mock('./audit-log-repository', () => ({
     countSuppliersCreated: vi.fn(),
     restockChanges: vi.fn(),
     countRestockChanges: vi.fn(),
+    purchasingEntries: vi.fn(),
+    countPurchasingEntries: vi.fn(),
     itemNames: vi.fn(),
     userNames: vi.fn(),
     actorIds: vi.fn(),
@@ -51,6 +53,8 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.countSupplierAudits).mockResolvedValue(1);
   vi.mocked(auditLogRepository.countSuppliersCreated).mockResolvedValue(1);
   vi.mocked(auditLogRepository.countRestockChanges).mockResolvedValue(1);
+  vi.mocked(auditLogRepository.purchasingEntries).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.countPurchasingEntries).mockResolvedValue(0);
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
@@ -87,6 +91,32 @@ describe('auditLogService.list', () => {
     expect(second.entries.map((e) => e.id)).toEqual(['restock:r1', 'created:c1']);
     expect(auditLogRepository.itemChanges).toHaveBeenCalledWith(expect.anything(), expect.anything(), 4);
     expect(second.pagination.totalPages).toBe(2);
+  });
+
+  it('adds Purchasing and Payments rows with the purchase file they belong to', async () => {
+    vi.mocked(auditLogRepository.purchasingEntries).mockResolvedValue([
+      {
+        id: 'p1', area: 'PAYMENTS', action: 'Recorded payment', document: 'PAY-0031', detail: 'KES 12,000 by M-Pesa', what: 'Paid KES 12,000 on LPO-0044',
+        at: at('12:00'), actor: { id: 'u4', name: 'Grace', role: 'ACCOUNTANT' }, order: { id: 'o1', reference: 'LPO-0044' }, supplier: { name: 'Samrat' },
+      },
+    ] as never);
+    vi.mocked(auditLogRepository.countPurchasingEntries).mockResolvedValue(1);
+    const page = await auditLogService.list(sm, query());
+    expect(page.entries[0]).toMatchObject({
+      id: 'purchasing:p1',
+      area: 'PAYMENTS',
+      what: 'Paid KES 12,000 on LPO-0044',
+      actor: { id: 'u4', name: 'Grace', role: 'ACCOUNTANT' },
+      purchasing: { action: 'Recorded payment', document: 'PAY-0031', detail: 'KES 12,000 by M-Pesa', orderId: 'o1', orderReference: 'LPO-0044', supplierName: 'Samrat' },
+    });
+    expect(page.pagination.total).toBe(5);
+    expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId] }, expect.anything(), ['PURCHASING', 'PAYMENTS'], 50);
+  });
+
+  it('reads only the Payments rows when that area is asked for', async () => {
+    await auditLogService.list(sm, query({ area: 'PAYMENTS' }));
+    expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith(expect.anything(), expect.anything(), ['PAYMENTS'], 50);
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
   });
 
   it('refuses anyone outside the hub', async () => {

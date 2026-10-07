@@ -6,6 +6,7 @@
 export const CAPABILITIES = [
   'catalog.read',
   'catalog.see_costs',
+  'catalog.read_history',
   'catalog.write',
   'catalog.add_missing',
   'restock.read',

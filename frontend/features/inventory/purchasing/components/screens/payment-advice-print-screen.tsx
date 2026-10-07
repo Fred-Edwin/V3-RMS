@@ -34,8 +34,7 @@ export function PaymentAdvicePrintScreen({ paymentId }: { paymentId: string }) {
 
   return (
     <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
-      <div className="no-print mx-auto mb-4 flex w-[794px] max-w-full items-center justify-between px-1 print:hidden">
-        <span className="rounded-[2px] border border-wds-warning-border bg-wds-warning-bg px-2 py-1 font-wds-sans text-[11px] text-wds-warning-fg">Demo data</span>
+      <div className="no-print mx-auto mb-4 flex w-[794px] max-w-full items-center justify-end px-1 print:hidden">
         <button type="button" onClick={() => window.print()} className="h-8 rounded-wds-sm bg-wds-primary px-4 font-wds-sans text-wds-body-sm font-medium text-white outline-none focus-visible:shadow-wds-ring">
           Print
         </button>

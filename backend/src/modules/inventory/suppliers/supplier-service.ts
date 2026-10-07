@@ -22,7 +22,8 @@ import {
 import { mapPrismaError } from '../../../utils/prisma-errors';
 import { socketService } from '../../../sockets/socket-service';
 import { fcmService } from '../../../services/fcm-service';
-import { goodsReceiptRepository } from '../purchasing/receiving-repository';
+import { matchOrderLine } from '../purchasing/_shared/supplier-line-match';
+import { supplierPurchasingReads } from '../purchasing/supplier-account/supplier-purchasing-reads';
 import { referenceCounterRepository } from '../_shared/reference-counter';
 import { describePriceSet, describeSupplierAdded } from '../catalog/item-history';
 import { itemChangeRepository } from '../catalog/item-history-repository';
@@ -54,7 +55,7 @@ import {
 import { findLastReceipt, findPriceAlert } from './supplier-catalog-extras';
 import { describePayMethodChange } from './supplier-pay-history';
 import { getDocumentStorage } from './supplier-storage';
-import { PROFILE_CHECK_COUNT, profileDoneCount, supplierOwed } from './supplier-summary';
+import { PROFILE_CHECK_COUNT, profileDoneCount } from './supplier-summary';
 import {
   MAX_SUPPLIER_DOCUMENT_BYTES,
   SIGNED_URL_TTL_SECONDS,
@@ -223,8 +224,8 @@ const enrichCatalogRows = async (supplierId: string, siteId: string, rows: Suppl
   const since = new Date(Date.now() - 90 * 86_400_000);
   const priceTimes = [...new Map(rows.filter((r) => r.lastPriceAt).map((r) => [r.lastPriceAt!.getTime(), r.lastPriceAt!])).values()];
   const [receipts, alerts] = await Promise.all([
-    goodsReceiptRepository.findReceiptsSignedAt(supplierId, siteId, priceTimes),
-    goodsReceiptRepository.findPriceAlertLines(supplierId, siteId, since),
+    supplierPurchasingReads.findReceiptsSignedAt(supplierId, siteId, priceTimes),
+    supplierPurchasingReads.findPriceAlertLines(supplierId, siteId, since),
   ]);
   return Promise.all(
     rows.map(async (row) => {
@@ -232,7 +233,7 @@ const enrichCatalogRows = async (supplierId: string, siteId: string, rows: Suppl
       const itemLines = rows.filter((r) => r.inventoryItemId === row.inventoryItemId);
       const alert = findPriceAlert(row, itemLines, alerts);
       const previousAt = alert
-        ? await goodsReceiptRepository.findPreviousSignedAt(supplierId, siteId, row.inventoryItemId, alert.alertAt)
+        ? await supplierPurchasingReads.findPreviousSignedAt(supplierId, siteId, row.inventoryItemId, alert.alertAt)
         : null;
       return {
         ...base,
@@ -412,6 +413,9 @@ const createContactRows = async (
   }
 };
 
+/** How many of the newest delivered lines the "pack not on file" check looks at: recent receipts, not the whole history. */
+const PACK_CHECK_LIMIT = 500;
+
 export const supplierService = {
   // ── Suppliers ────────────────────────────────────────────────────────────
 
@@ -450,13 +454,17 @@ export const supplierService = {
       suppliers.map((s) => s.id),
     );
     const stripById = new Map(strip.map((s) => [s.id, s]));
+    const owedById = await supplierPurchasingReads.owedBySupplier(
+      siteId,
+      suppliers.map((s) => s.id),
+    );
     return {
       data: suppliers.map((supplier) => {
         const row = stripById.get(supplier.id);
         return {
           ...serializeSupplierBase(supplier),
           profileDone: row ? profileDoneCount({ ...row, payMethodCount: row._count.payMethods }) : 0,
-          owedAmount: (row ? supplierOwed(row.supplierInvoices) : new Prisma.Decimal(0)).toFixed(2),
+          owedAmount: (owedById.get(supplier.id) ?? new Prisma.Decimal(0)).toFixed(2),
         };
       }),
       pagination,
@@ -1032,25 +1040,25 @@ export const supplierService = {
     requireReadAccess(actor);
     const siteId = await requireHubReader(actor);
     await requireSupplier(supplierId, siteId);
-    const flagged = await goodsReceiptRepository.findPackNotOnFileLines(supplierId, siteId);
-    if (flagged.length === 0) return [];
+    const delivered = await supplierPurchasingReads.findDeliveredPacks(supplierId, siteId, PACK_CHECK_LIMIT);
+    if (delivered.length === 0) return [];
     const lines = await supplierItemRepository.listBySupplierItems(
       supplierId,
-      [...new Set(flagged.map((f) => f.inventoryItemId))],
+      [...new Set(delivered.map((d) => d.inventoryItemId))],
       siteId,
     );
-    return flagged
-      .filter((f) => !matchSupplierLine(lines.filter((l) => l.inventoryItemId === f.inventoryItemId), { buyUnit: f.packBuyUnit, packSize: f.packSize }))
-      .map((f) => ({
-        receiptLineId: f.id,
-        goodsReceiptId: f.goodsReceipt.id,
-        reference: f.goodsReceipt.reference,
-        signedAt: f.goodsReceipt.signedAt ? f.goodsReceipt.signedAt.toISOString() : null,
-        inventoryItemId: f.inventoryItemId,
-        itemName: f.inventoryItem.name,
-        packBuyUnit: f.packBuyUnit,
-        packSize: f.packSize ? f.packSize.toString() : null,
-        unitPrice: f.unitPrice.toString(),
+    return delivered
+      .filter((d) => !matchOrderLine(lines.filter((l) => l.inventoryItemId === d.inventoryItemId), { buyUnit: d.orderLine.buyUnit, packSize: d.orderLine.packSize }))
+      .map((d) => ({
+        receiptLineId: d.id,
+        goodsReceiptId: d.delivery.id,
+        reference: d.delivery.reference,
+        signedAt: d.delivery.receivedAt.toISOString(),
+        inventoryItemId: d.inventoryItemId,
+        itemName: d.inventoryItem.name,
+        packBuyUnit: d.orderLine.buyUnit,
+        packSize: d.orderLine.packSize ? d.orderLine.packSize.toString() : null,
+        unitPrice: d.unitPrice.toString(),
       }));
   },
 
@@ -1168,10 +1176,14 @@ export const supplierService = {
     requireReadAccess(actor);
     const siteId = await requireHubReader(actor);
     const suppliers = await supplierStripRepository.listForStrip(siteId);
+    const owedById = await supplierPurchasingReads.owedBySupplier(
+      siteId,
+      suppliers.map((s) => s.id),
+    );
     let owed = new Prisma.Decimal(0);
     let suppliersOwed = 0;
     for (const supplier of suppliers) {
-      const balance = supplierOwed(supplier.supplierInvoices);
+      const balance = owedById.get(supplier.id) ?? new Prisma.Decimal(0);
       if (balance.greaterThan(0)) suppliersOwed += 1;
       owed = owed.plus(balance);
     }
@@ -1205,49 +1217,7 @@ export const supplierService = {
     requireReadAccess(actor);
     const siteId = await requireHubReader(actor);
     await requireSupplier(supplierId, siteId);
-    const [receipts, invoices] = await Promise.all([
-      supplierHistoryRepository.summaryReceipts(supplierId, siteId),
-      supplierHistoryRepository.summaryInvoices(supplierId, siteId),
-    ]);
-
-    let totalSpend = new Prisma.Decimal(0);
-    let lastPurchaseAt: Date | null = null;
-    let priceAlerts = 0;
-    let shortDeliveries = 0;
-    for (const receipt of receipts) {
-      totalSpend = totalSpend.plus(receipt.receiptTotal);
-      if (receipt.signedAt && (!lastPurchaseAt || receipt.signedAt > lastPurchaseAt)) lastPurchaseAt = receipt.signedAt;
-      priceAlerts += receipt.lines.filter((l) => l.priceAlertPct !== null).length;
-      const expected = receipt.expectedDelivery?.lines ?? [];
-      const isShort = expected.some((e) => {
-        const received = receipt.lines
-          .filter((l) => l.inventoryItemId === e.inventoryItemId)
-          .reduce((sum, l) => sum.plus(l.quantityBuyUnit), new Prisma.Decimal(0));
-        return received.lessThan(e.quantity);
-      });
-      if (isShort) shortDeliveries += 1;
-    }
-
-    const daysToPay: number[] = [];
-    for (const invoice of invoices) {
-      const adjusted = invoice.adjustments.reduce((s, a) => s.plus(a.amount), invoice.amountBilled);
-      const paid = invoice.allocations.reduce((s, a) => s.plus(a.amount), new Prisma.Decimal(0));
-      if (adjusted.minus(paid).greaterThan(0)) continue;
-      const lastPaidAt = invoice.allocations
-        .filter((a) => a.supplierPayment.reversalOfId === null)
-        .reduce<Date | null>((latest, a) => (!latest || a.supplierPayment.paidAt > latest ? a.supplierPayment.paidAt : latest), null);
-      if (!lastPaidAt) continue;
-      daysToPay.push(Math.max(0, (lastPaidAt.getTime() - invoice.invoiceDate.getTime()) / 86_400_000));
-    }
-
-    return {
-      totalSpend: totalSpend.toString(),
-      lastPurchaseAt: lastPurchaseAt ? lastPurchaseAt.toISOString() : null,
-      receiptsCount: receipts.length,
-      averageDaysToPay:
-        daysToPay.length > 0 ? Math.round((daysToPay.reduce((a, b) => a + b, 0) / daysToPay.length) * 10) / 10 : null,
-      priceAlerts,
-      shortDeliveries,
-    };
+    // Spend, last purchase, price alerts, short deliveries and days to pay come from the purchase files.
+    return supplierHistoryRepository.summary(supplierId, siteId);
   },
 };
