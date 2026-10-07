@@ -106,7 +106,7 @@ export const count = (lines: CountLineRecord[], overrides: Partial<CountRecord> 
     rangePercent: null,
     directorAlertKes: null,
     flagRepeat: null,
-    idempotencyKey: null,
+    idempotencyKey: 'idem-key-0001', // the key C9 stored when it started the count
     createdAt: start,
     updatedAt: new Date('2026-10-13T04:19:00Z'),
     counter: person(attendant),

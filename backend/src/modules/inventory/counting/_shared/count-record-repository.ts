@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
+import { startKeyWhere } from './count-idempotency';
 
 type Client = typeof prisma | Prisma.TransactionClient;
 
@@ -31,9 +32,9 @@ export const countRecordRepository = {
   findById: (siteId: string, id: string, client: Client = prisma): Promise<CountRecord | null> =>
     client.count.findFirst({ where: { id, siteId }, include: countInclude }),
 
-  /** A count a retried request already made: the same counter and the same idempotency key. */
-  findByIdempotencyKey: (siteId: string, counterId: string, key: string, client: Client = prisma): Promise<CountRecord | null> =>
-    client.count.findFirst({ where: { siteId, counterId, idempotencyKey: key }, include: countInclude }),
+  /** The count a retried C9 already made: the same counter and the key it was STARTED with (signed or not since). */
+  findByStartKey: (siteId: string, counterId: string, key: string, client: Client = prisma): Promise<CountRecord | null> =>
+    client.count.findFirst({ where: { siteId, counterId, ...startKeyWhere(key) }, include: countInclude }),
 
   /** The person's one OPEN count, if they have one. */
   findOpenOf: (siteId: string, counterId: string, client: Client = prisma): Promise<CountRecord | null> =>
