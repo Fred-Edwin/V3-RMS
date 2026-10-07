@@ -17,6 +17,8 @@ vi.mock('./audit-log-repository', () => ({
     countRestockChanges: vi.fn(),
     purchasingEntries: vi.fn(),
     countPurchasingEntries: vi.fn(),
+    recipeVersions: vi.fn(),
+    countRecipeVersions: vi.fn(),
     itemNames: vi.fn(),
     userNames: vi.fn(),
     actorIds: vi.fn(),
@@ -55,6 +57,8 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.countRestockChanges).mockResolvedValue(1);
   vi.mocked(auditLogRepository.purchasingEntries).mockResolvedValue([]);
   vi.mocked(auditLogRepository.countPurchasingEntries).mockResolvedValue(0);
+  vi.mocked(auditLogRepository.recipeVersions).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.countRecipeVersions).mockResolvedValue(0);
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
@@ -117,6 +121,23 @@ describe('auditLogService.list', () => {
     await auditLogService.list(sm, query({ area: 'PAYMENTS' }));
     expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith(expect.anything(), expect.anything(), ['PAYMENTS'], 50);
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+  });
+
+  it('derives Recipe set and Recipe changed entries (area PREP) from the recipe version rows', async () => {
+    vi.mocked(auditLogRepository.recipeVersions).mockResolvedValue([
+      { id: 'v2', version: 2, reason: 'PORTION_SIZE_CHANGED', reasonNote: null, createdAt: at('13:00'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+      { id: 'v3', version: 3, reason: 'OTHER', reasonNote: 'Client asked for less salt', createdAt: at('13:30'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+      { id: 'v1', version: 1, reason: null, reasonNote: null, createdAt: at('12:30'), createdBy: { id: 'u1', name: 'Isabel' }, recipe: { outputItem: { name: 'Fried chicken' } } },
+    ] as never);
+    vi.mocked(auditLogRepository.countRecipeVersions).mockResolvedValue(3);
+    const page = await auditLogService.list(sm, query({ area: 'PREP' }));
+    expect(page.entries.map((e) => e.id)).toEqual(['recipe:v3', 'recipe:v2', 'recipe:v1']);
+    expect(page.entries[0]).toMatchObject({ area: 'PREP', what: 'Recipe changed for Fried chicken', reason: 'Client asked for less salt' });
+    expect(page.entries[1]).toMatchObject({ what: 'Recipe changed for Fried chicken', reason: 'Portion size changed' });
+    expect(page.entries[2]).toMatchObject({ what: 'Recipe set for Fried chicken', reason: null, actor: { name: 'Isabel' } });
+    expect(page.pagination.total).toBe(3);
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+    expect(auditLogRepository.recipeVersions).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId] }, expect.anything(), 50);
   });
 
   it('refuses anyone outside the hub', async () => {

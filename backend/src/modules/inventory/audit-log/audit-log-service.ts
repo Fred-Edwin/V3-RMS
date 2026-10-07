@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { requireHubReader } from '../_shared/central-store-access';
-import { describeItemChange, describeRestockChange, describeSupplierAudit, describeSupplierCreated, auditReason } from './audit-log-describe';
+import { describeItemChange, describeRecipeVersion, describeRestockChange, describeSupplierAudit, describeSupplierCreated, auditReason, recipeReason } from './audit-log-describe';
 import { auditLogRepository, type PurchasingArea, type Scope } from './audit-log-repository';
 import type { AuditArea, AuditEntry, AuditLogPage } from './audit-log.types';
 import { AUDIT_AREAS } from './audit-log.types';
@@ -46,18 +46,20 @@ export const auditLogService = {
 
     const purchasingAreas = areas.filter((a): a is PurchasingArea => a === 'PURCHASING' || a === 'PAYMENTS');
 
-    const [itemRows, auditRows, createdRows, restockRows, purchasingRows, counts, actorIds] = await Promise.all([
+    const [itemRows, auditRows, createdRows, restockRows, purchasingRows, recipeRows, counts, actorIds] = await Promise.all([
       wants('CATALOG') ? auditLogRepository.itemChanges(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.supplierAudits(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.suppliersCreated(scope, filter, take) : [],
       wants('RESTOCK_LEVELS') ? auditLogRepository.restockChanges(scope, filter, take) : [],
       purchasingAreas.length > 0 ? auditLogRepository.purchasingEntries(scope, filter, purchasingAreas, take) : [],
+      wants('PREP') ? auditLogRepository.recipeVersions(scope, filter, take) : [],
       Promise.all([
         wants('CATALOG') ? auditLogRepository.countItemChanges(scope, filter) : 0,
         wants('SUPPLIERS') ? auditLogRepository.countSupplierAudits(scope, filter) : 0,
         wants('SUPPLIERS') ? auditLogRepository.countSuppliersCreated(scope, filter) : 0,
         wants('RESTOCK_LEVELS') ? auditLogRepository.countRestockChanges(scope, filter) : 0,
         purchasingAreas.length > 0 ? auditLogRepository.countPurchasingEntries(scope, filter, purchasingAreas) : 0,
+        wants('PREP') ? auditLogRepository.countRecipeVersions(scope, filter) : 0,
       ]),
       auditLogRepository.actorIds(scope, { from: query.from, to: query.to }),
     ]);
@@ -110,6 +112,14 @@ export const auditLogService = {
           reason: r.reason,
         };
       }),
+      ...recipeRows.map((r): AuditEntry => ({
+        id: `recipe:${r.id}`,
+        at: r.createdAt.toISOString(),
+        actor: r.createdBy,
+        area: 'PREP',
+        what: describeRecipeVersion(r.version, r.recipe.outputItem.name),
+        reason: recipeReason(r.version, r.reason, r.reasonNote),
+      })),
       ...purchasingRows.map((r): AuditEntry => ({
         id: `purchasing:${r.id}`,
         at: r.at.toISOString(),
