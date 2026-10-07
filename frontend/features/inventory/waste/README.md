@@ -13,4 +13,6 @@ Central Store waste. Contract §4.3 (W1 to W4); `_shared/services/waste-api.ts`.
 | 22 Log waste drawer | `1ZS7-0` | `?drawer=log` | built; not compared |
 | 23 Reverse any entry | `2008-0` | dialog | built; not compared |
 
+Logged request (owner, 8 Oct 2026, not built): a date picker on the Waste page that selects any date or range, reusing the ledger's `DateRangePicker` (`stock/history/components/date-range-picker.tsx`). It was built and reverted (commits `7d136ee`, `6d7538c`) because the frozen W3 contract takes only `period`. To do it: amend W3 with `from` and `to` (`YYYY-MM-DD`, Nairobi days), then add the picker above the table, write `?period=custom&from=&to=`, and refetch on a range change (the table's query key ignores `from`/`to`, so tie its `refreshToken` to them). The KPI strip would keep its fixed periods.
+
 Needs owner decision: N3 (no value on the Attendant's phone screens) applied.
