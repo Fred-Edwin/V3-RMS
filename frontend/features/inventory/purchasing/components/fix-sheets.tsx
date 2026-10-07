@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui2/input';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
 import { useWdsToastStore } from '@/store/wdsToastStore';
+import { usePinStatus } from '@/hooks/usePinStatus';
 import { FormErrorBanner } from '../../_shared/components/stock-states';
 import { useAction } from '../../_shared/hooks/use-async';
 import { useIsNarrow, useSheetOrder } from '../hooks/use-order';
@@ -206,6 +208,9 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
   const amount = Number.parseFloat(payment.amount);
   const invoice = order.invoice;
   const approvesOwn = role === 'STORE_MANAGER' || role === 'SYSTEM_ADMIN';
+  // An approver signs with their own PIN here; if they have none yet, say where to set it (the Accountant types someone else's).
+  const pinStatus = usePinStatus(open && approvesOwn);
+  const needsOwnPin = approvesOwn && pinStatus.hasPin === false;
 
   React.useEffect(() => {
     if (open) {
@@ -283,6 +288,15 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
           <InlinePin id="rev-pin" value={pin} onChange={setPin} error={wrongPin ? run.failure?.message : null} />
         </div>
         {role === 'SYSTEM_ADMIN' ? <span className="font-wds-sans text-[11px] text-wds-warning-fg">You are signed in as System Admin. Approve with your own PIN.</span> : null}
+        {needsOwnPin ? (
+          <span className="font-wds-sans text-wds-caption text-wds-warning-fg">
+            You haven’t set a PIN yet.{' '}
+            <Link href="/app/profile" className="font-medium underline underline-offset-2">
+              Set your signing PIN in Profile
+            </Link>
+            , then come back.
+          </span>
+        ) : null}
       </div>
     </Shell>
   );
