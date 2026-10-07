@@ -326,7 +326,7 @@ export const checkResultSchema = z.object({
   tier: z.enum(['ON_TARGET', 'WARN', 'NOTIFY']).nullable(),
   /** made > 3x or < 1/3 of expected; warns, never blocks. */
   typoSuspect: z.object({ suspect: z.boolean(), text: z.string().nullable() }),
-  /** Same output, same input amounts, same Nairobi day (RECORDED runs). */
+  /** Same output, same input amounts, within the last 2 hours (RECORDED runs). */
   repeat: z.object({ duplicate: z.boolean(), of: runRefSchema.nullable() }),
   usualRecipeText: z.string().nullable(),
   /** Recipe exists but the run does not use its main ingredient. */

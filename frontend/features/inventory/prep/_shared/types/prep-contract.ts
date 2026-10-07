@@ -260,7 +260,7 @@ export interface CheckResult {
   tier: 'ON_TARGET' | 'WARN' | 'NOTIFY' | null;
   /** made > 3x or < 1/3 of expected; warns, never blocks. */
   typoSuspect: { suspect: boolean; text: string | null };
-  /** Same output, same input amounts, same Nairobi day (RECORDED runs). */
+  /** Same output, same input amounts, within the last 2 hours (RECORDED runs). */
   repeat: { duplicate: boolean; of: RunRef | null };
   usualRecipeText: string | null;
   /** Recipe exists but the run does not use its main ingredient. */
