@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { RecipeLine } from '@/features/inventory/prep';
 import type { InventoryItemDetail, ItemHistoryEntry, ItemSupplierLine } from '../../types';
 import { ITEM_TYPE_DOT_CLASS, ITEM_TYPE_LABEL } from '../lib/item-labels';
 import { formatDayMonthShort, formatPackLine, formatUsedBy, itemNeedsSetup, trimDecimal } from '../../_shared/lib/item-format';
@@ -201,6 +202,8 @@ export function ItemDetailView({ readOnly = false, item, history, onEdit, onAddS
           </button>
         </div>
       </div>
+
+      {!bought && !retired ? <RecipeLine itemId={item.id} /> : null}
 
       {bought ? (
         <div className="flex flex-col gap-2">
