@@ -41,6 +41,8 @@ export interface HistoryTableProps {
  */
 export function HistoryTable({ runs, onOpen }: HistoryTableProps) {
   return (
+    // Paper draws History as rules only, without the outer box the shared table adds.
+    <div className="[&>div]:border-0 [&>div]:bg-transparent">
     <Table>
       <TableHeader>
         <TableRow className="h-[34px] hover:bg-transparent">
@@ -93,5 +95,6 @@ export function HistoryTable({ runs, onOpen }: HistoryTableProps) {
             ))}
       </TableBody>
     </Table>
+    </div>
   );
 }

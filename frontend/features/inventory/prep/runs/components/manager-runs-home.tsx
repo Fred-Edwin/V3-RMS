@@ -137,11 +137,11 @@ export function ManagerRunsHome({ canRecord, canReadFlags }: { canRecord: boolea
         <MobileHubHeader title="Prep" subtitle="Runs at the Central Store" userInitials={initialsOf(user?.name)} orgLabel="Hub" onMenuClick={openMobileNav} />
       )}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-wds-5 p-wds-4 lg:px-8 lg:py-7">
+        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[22px] p-wds-4 lg:p-8">
           <div className="flex items-start justify-between gap-wds-4">
-            <div className="flex flex-col gap-1">
-              {desktop ? <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Prep</h1> : null}
-              <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">What has been batched at the Central Store. Anything off shows up here first.</p>
+            <div className="flex flex-col gap-1.5">
+              {desktop ? <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">Prep</h1> : null}
+              <p className="m-0 font-wds-sans text-wds-body-sm leading-[18px] text-wds-text-copy-muted">What has been batched at the Central Store. Anything off shows up here first.</p>
             </div>
             {!desktop ? newRun : null}
           </div>
