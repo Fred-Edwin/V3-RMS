@@ -15,8 +15,7 @@ export const wasteApi = {
   /** W2. A repeated idempotency key returns the same batch with `replayed: true`. */
   log: (input: LogWasteInput) => callApi<LogWasteResult>('POST', '', input),
   /** W3 */
-  /** `from` and `to` (YYYY-MM-DD) are a front-end addition the frozen W3 contract does not have yet (owner asked for a date picker, 8 Oct 2026): a contract amendment is needed before the real API honours them. */
-  list: (query: WasteListQuery & { from?: string; to?: string } = {}, signal?: AbortSignal) => callApi<WasteList>('GET', `${queryString(query)}`, undefined, signal),
+  list: (query: WasteListQuery = {}, signal?: AbortSignal) => callApi<WasteList>('GET', `${queryString(query)}`, undefined, signal),
   /** W4. No PIN. */
   reverse: (id: string, input: ReverseWasteInput) => callApi<WasteEntry>('POST', `/${id}/reverse`, input),
 };

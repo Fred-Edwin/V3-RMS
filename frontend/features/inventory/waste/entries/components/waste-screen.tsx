@@ -18,7 +18,6 @@ import { useLoader } from '../../../_shared/hooks/use-async';
 import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { PHONE_PRIMARY_BUTTON } from '../../../_shared/lib/phone-styles';
 import { clockLabel, signedMoney, todayLabel } from '../../../counting/_shared/lib/count-format';
-import { DateRangePicker } from '../../../stock/history/components/date-range-picker';
 import { LogWasteDrawer } from '../../log/components/log-waste-drawer';
 import { ReverseDesktopDialog, ReversePhoneSheet } from '../../reverse/components/reverse-dialogs';
 import { WASTE_STATES_COPY } from '../../_shared/lib/states-copy';
@@ -135,18 +134,6 @@ function DesktopWaste() {
   const [refresh, setRefresh] = React.useState(0);
   const [reversing, setReversing] = React.useState<WasteEntry | null>(null);
   const drawer = params.get('drawer') === 'log';
-  const today = React.useMemo(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date()), []);
-  const from = params.get('from');
-  const to = params.get('to');
-  const custom = params.get('period') === 'custom' && from && to ? { from, to } : null;
-  const setRange = (r: { from: string; to: string }): void => {
-    const q = new URLSearchParams(params.toString());
-    q.set('period', 'custom');
-    q.set('from', r.from);
-    q.set('to', r.to);
-    q.delete('page');
-    router.replace(`${WASTE}?${q}`, { scroll: false });
-  };
 
   const setDrawer = (open: boolean): void => {
     const q = new URLSearchParams(params.toString());
@@ -192,10 +179,6 @@ function DesktopWaste() {
           <p className="font-wds-sans text-[13px] leading-[19px] text-wds-text-secondary">Everything thrown away at the Central Store. Entries are never deleted; a wrong one is reversed.</p>
         </div>
         {kpis ? <ScwKpiStrip cells={kpis} /> : <ScwKpiStripSkeleton />}
-        <div className="-mb-2 flex items-center justify-end gap-2">
-          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{custom ? 'Showing the dates you picked' : 'Or pick any date or range'}</span>
-          <DateRangePicker value={custom ?? { from: today, to: today }} today={today} onChange={setRange} />
-        </div>
         <DataTable<WasteEntry>
           label="Waste"
           columns={columns}
@@ -204,13 +187,12 @@ function DesktopWaste() {
           copy={COPY}
           counts={counts}
           enabled={ready}
-          refreshToken={refresh * 100000 + Number((from ?? '0').replace(/\D/g, '')) % 1000 + Number((to ?? '0').replace(/\D/g, '')) % 1000}
+          refreshToken={refresh}
           searchPlaceholder="Search an item"
           onRowActivate={(e) => e.can.reverse && setReversing(e)}
           rowClassName={(e) => (e.status === 'REVERSED' ? 'bg-wds-neutral-50' : undefined)}
           fetchRows={async (q, { signal }) => {
-            const custom = q.filters.period === 'custom' && from && to;
-            const res = await wasteApi.list({ ...(custom ? { from, to } : { period: (q.filters.period as '7d' | 'reversed' | undefined) ?? 'today' }), search: q.search || undefined, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);
+            const res = await wasteApi.list({ period: (q.filters.period as '7d' | 'reversed' | undefined) ?? 'today', search: q.search || undefined, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);
             setKpis(res.kpis ?? null);
             setCounts({ period: { '': res.chips.today, '7d': res.chips.last7, reversed: res.chips.reversed } });
             return { rows: res.rows, total: res.page.total };
