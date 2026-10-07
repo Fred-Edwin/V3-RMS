@@ -140,14 +140,19 @@ export const serializeRunDetail = (run: PrepRunRow, actor: Actor, now: Date = ne
   const ownWindow = canRecord && !fixAny && mine && open;
   const canFix = open && (fixAny || (canRecord && mine && withinWindow));
 
-  const recorded = `Recorded as ${run.reference ?? ''}${run.replacesRun ? `, correcting ${run.replacesRun.reference ?? ''}` : ''} · ${run.createdBy.name}`;
-  const timeline: RunDetail['timeline'] = [{ at: run.createdAt.toISOString(), text: recorded }];
+  // A correction carries the whole chain (Paper step 17): the run it replaced, then this one.
+  const timeline: RunDetail['timeline'] = run.replacesRun
+    ? [
+        { at: run.replacesRun.createdAt.toISOString(), text: `Recorded as ${run.replacesRun.reference ?? ''} · ${run.replacesRun.createdBy.name}` },
+        { at: run.createdAt.toISOString(), text: `Corrected to ${run.reference ?? ''} · ${run.createdBy.name}` },
+      ]
+    : [{ at: run.createdAt.toISOString(), text: `Recorded as ${run.reference ?? ''} · ${run.createdBy.name}` }];
   if (see.flags && run.reviewedAt && run.reviewedBy) timeline.push({ at: run.reviewedAt.toISOString(), text: `Reviewed · ${run.reviewedBy.name}` });
   if (run.closedAt && run.closedBy) {
     const text =
       run.status === 'CANCELLED'
         ? `Cancelled · ${run.closedBy.name}`
-        : `Corrected${run.replacedByRun ? ` as ${run.replacedByRun.reference ?? ''}` : ''} · ${run.closedBy.name}`;
+        : `Corrected${run.replacedByRun ? ` to ${run.replacedByRun.reference ?? ''}` : ''} · ${run.closedBy.name}`;
     timeline.push({ at: run.closedAt.toISOString(), text });
   }
 

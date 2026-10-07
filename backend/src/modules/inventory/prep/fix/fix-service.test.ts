@@ -111,7 +111,7 @@ beforeEach(() => {
       id: 'run-2', reference: 'PREP-0002', actualYield: data.actualYield, outputUnitCost: data.outputUnitCost, totalInputCost: data.totalInputCost,
       createdById: data.createdById, needsLook: data.needsLook, replacesRunId: data.replacesRunId, correctionReason: data.correctionReason, reasonNote: data.reasonNote,
       createdBy: user(data.createdById, data.createdById === 'sm' ? 'Grace Wanjiru' : 'Sarah Achieng', data.createdById === 'sm' ? 'STORE_MANAGER' : 'STORE_ATTENDANT'),
-      replacesRun: { id: 'run-1', reference: 'PREP-0001', createdAt: new Date(), actualYield: D(38), outputUnitCost: D(121), inputLines: [
+      replacesRun: { id: 'run-1', reference: 'PREP-0001', createdAt: new Date(Date.now() - 2 * HOUR), actualYield: D(38), outputUnitCost: D(121), createdBy: user('att', 'Sarah Achieng', 'STORE_ATTENDANT'), inputLines: [
         { inputItemId: CHICKEN, quantity: D(10), unitCostAtRunTime: D(430), inputItem: { name: 'chicken', usageUnit: 'kg' } },
         { inputItemId: PASTE, quantity: D(1), unitCostAtRunTime: D(298), inputItem: { name: 'paste', usageUnit: 'kg' } },
       ] },
@@ -260,7 +260,7 @@ describe('the correction payload per role', () => {
     expect(run.correction?.unitCostBefore).toBe('121');
     expect(run.correction?.unitCostAfter).toBeDefined();
     expect(run.replaces).toMatchObject({ reference: 'PREP-0001' });
-    expect(run.timeline[0]?.text).toBe('Recorded as PREP-0002, correcting PREP-0001 · Grace Wanjiru');
+    expect(run.timeline.map((t) => t.text)).toEqual(['Recorded as PREP-0001 · Sarah Achieng', 'Corrected to PREP-0002 · Grace Wanjiru']);
   });
 
   it('gives the Attendant the same changes without any cost or flag', async () => {

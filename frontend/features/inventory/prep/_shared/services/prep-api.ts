@@ -4,7 +4,19 @@
  */
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
-import type { CheckInput, CheckResult, OutputsResponse, PrepAgainResponse, RecordInput, RunDetail, RunsList, RunsQuery } from '../types/prep-contract';
+import type {
+  CancelInput,
+  CancelPreview,
+  CheckInput,
+  CheckResult,
+  CorrectInput,
+  OutputsResponse,
+  PrepAgainResponse,
+  RecordInput,
+  RunDetail,
+  RunsList,
+  RunsQuery,
+} from '../types/prep-contract';
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
 
@@ -32,4 +44,10 @@ export const prepApi = {
   listRuns: (query: RunsQuery = {}): Promise<RunsList> => apiClient.get<RunsList>(`${BASE}/runs${queryString(query)}`, token()),
   /** #10 */
   getRun: (id: string): Promise<RunDetail> => apiClient.get<RunDetail>(`${BASE}/runs/${id}`, token()),
+  /** #11 Correct a run: returns the NEW run. The same idempotency key returns the same new run. */
+  correctRun: (id: string, input: CorrectInput): Promise<RunDetail> => apiClient.post<RunDetail>(`${BASE}/runs/${id}/correct`, input, token()),
+  /** #12 Cancel a run. A repeat is 409 RUN_NOT_OPEN. */
+  cancelRun: (id: string, input: CancelInput): Promise<RunDetail> => apiClient.post<RunDetail>(`${BASE}/runs/${id}/cancel`, input, token()),
+  /** #13 What cancelling would do to stock (managers; needs `restock.read`). */
+  cancelPreview: (id: string): Promise<CancelPreview> => apiClient.get<CancelPreview>(`${BASE}/runs/${id}/cancel-preview`, token()),
 };

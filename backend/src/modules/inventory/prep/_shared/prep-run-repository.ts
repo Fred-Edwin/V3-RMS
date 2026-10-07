@@ -20,6 +20,7 @@ export const prepRunInclude = {
       createdAt: true,
       actualYield: true,
       outputUnitCost: true,
+      createdBy: { select: userSelect },
       inputLines: {
         orderBy: { lineOrder: 'asc' },
         select: { inputItemId: true, quantity: true, unitCostAtRunTime: true, inputItem: { select: { name: true, usageUnit: true } } },

@@ -36,6 +36,24 @@ export const PREP_STATES_COPY = {
     title: 'Ask the Store Manager',
     description: 'This run is more than 24 hours old, so only the Store Manager can change it.',
   },
+  fix: {
+    loadErrorTitle: "Couldn't load this run",
+    notFoundTitle: 'Run not found',
+    notFoundDescription: 'It may have been removed, or the link is wrong.',
+    lockedTitle: 'This run is more than 24 hours old',
+    lockedBody: 'Only the Store Manager can correct or cancel it now.',
+    notYoursBody: 'Only the person who recorded this run, or the Store Manager, can correct or cancel it.',
+    correctedTitle: 'This run was corrected',
+    cancelledTitle: 'This run was cancelled',
+    notOpen: 'This run was already corrected or cancelled, so nothing more can be done to it. Reload to see its latest state.',
+    correctFailed: "Couldn't save the correction. Nothing was changed. Try again.",
+    cancelFailed: "Couldn't cancel the run. Nothing was changed. Try again.",
+    needChange: 'Change an amount, or add or remove something, to correct this run.',
+    needReason: 'Choose why you are correcting it.',
+    needCancelReason: 'Choose why you are cancelling it.',
+    discardTitle: 'Discard your changes?',
+    discardBody: 'The run stays as it was recorded.',
+  },
 } as const;
 
 /** The yield-reason chips on the confirm step (Paper step 7). */
