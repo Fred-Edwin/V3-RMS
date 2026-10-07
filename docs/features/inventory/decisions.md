@@ -19,13 +19,13 @@ Cross-cutting decisions that still apply. Sub-module specific rules live in each
 - Branch day: the **Branch Manager** enters department counts; a closed day is a soft checkpoint, reopenable with a reason; the closing count becomes the next morning's opening (Department Head may recount; a difference is an overnight variance). Branch reason threshold defaults to KES 1,000 and `CONSUMPTION` is a reason, because branch gaps blend consumption and loss. Close needs all 5 departments counted, none blocked by an unconfirmed dispatch, and every above-threshold gap explained.
 - Automatic stock deduction on sale is **deferred**: until it exists a branch count gap is consumption plus loss blended. Say so to the client.
 
-## Requisition and dispatch (original rules, awaiting their walkthrough)
+## Requisition and dispatch (original rules; the walkthrough is being designed, see [requisitions-flow.md](requisitions-flow.md))
 
 - One requisition per branch per cycle, with a section per department; Department Heads see only their own department's slice of the catalog.
 - **Branch Manager approval is a hard gate** with line-level edit rights (change, delete, add); the affected head is told what changed. A slow department never blocks the others. Urgent escalation raises visibility, never bypasses the signature.
 - One requisition in, **one dispatch per department** out; each head confirms and signs only their own lines. Unconfirmed goods remain the store's stock; an unconfirmed dispatch blocks that department's day close.
 - Short dispatch is normal. Substitution: the store may add a line and set the requested one to zero.
-- Transit discrepancy: the department confirms the actual quantity; the Store Manager resolves with a signed outcome (found and re-delivered / transit loss write-off / miscount corrected). Alerts go to Store Manager, Branch Manager and Directors.
+- **Discrepancies (rewritten 7 Oct 2026, full rules in [discrepancies.md](discrepancies.md)):** the branch counts blind (no pre-fill), a mismatch flags and is recounted, the signed gap is held as unaccounted, and the Store Manager records one finding (packed short / lost or damaged on the way / branch counted wrong / can't tell) that moves the stock and records the loss against the right party. No tolerance, no escalation, no "send the rest". Any active member of the receiving department may confirm (Branch Manager as fallback); the dispatch records who packed, signed and carried it. The old "found and re-delivered" outcome and Director adjudication are gone; F1's `correctedQty` rule is superseded with them.
 - Departments never hold raw ingredients; one inbound path per department (a confirmed dispatch). No returns from branch to store.
 - Category-grouped requisition lines: `Category.parentCategoryId`, one level deep (Kitchen: "Prep Kitchen Items" > Chicken/Beef/Pork/Fish, plus "Market Items", "Dry Items"). Market items are a category, not a separate requisition.
 - Prep ticket and order logic elsewhere in the product is unrelated to this feature.
@@ -76,7 +76,7 @@ Applies to every Central Store feature (Purchasing and Receiving, Prep, Stock, D
 | # | Question | Decision |
 |---|---|---|
 | F1 | `MISCOUNT_CORRECTED` writes the gap at the branch although the note says everything arrived | **Settled.** Require a `correctedQty` and write `correctedQty − confirmedQty`. Build it with the Dispatch/branch flow; do not demo this outcome until it is built |
-| F4 | `GET /dispatch/:id/fulfil` returns on-hand to the Store Attendant | **Open — decided when the requisitions flow is built.** Recommended: send only an "insufficient stock" flag, no figures |
+| F4 | `GET /dispatch/:id/fulfil` returns on-hand to the Store Attendant | **Settled (7 Oct 2026): the Attendant sees quantities, including on-hand, while packing a dispatch.** Money stays hidden and the rest of the blind rule stands (no expected stock on counts, no supplier money) |
 | Q1 | Suggested restock level: formula and who sets days of cover per item | **Settled.** The Store Manager sets days of cover per item (built). Default 15 days; 5 days for perishables when an item is marked perishable |
 | Q2 | Can an attendant-added item be ordered before the Store Manager finishes setup? | **Settled: no.** It can be received, not ordered, until setup is finished |
 | Q3 | Supplier document upload | **Settled.** Store Manager, Accountant and System Admin (the permissions table) |
