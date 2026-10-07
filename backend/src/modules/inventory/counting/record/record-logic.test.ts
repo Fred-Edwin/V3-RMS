@@ -2,7 +2,8 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { settingsInForce } from '../_shared/count-settings';
 import { D, itemIdOf, line, lineIdOf } from '../_shared/count-fixtures';
-import { adjustmentReason, applySave, orderedSections, planFreeze, type FreezeMode } from './record-logic';
+import { adjustmentReason } from '../_shared/count-reason';
+import { applySave, orderedSections, planFreeze, type FreezeMode } from './record-logic';
 import type { SectionRow } from './record-repository';
 
 const section = (id: string, position: number): SectionRow => ({ id, name: id.toUpperCase(), kind: 'MANUAL', supplierId: null, supplierName: null, position, itemCount: 1 });

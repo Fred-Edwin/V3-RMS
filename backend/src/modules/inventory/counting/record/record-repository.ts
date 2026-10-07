@@ -146,11 +146,6 @@ export const recordRepository = {
 
   // --- the sign transaction -------------------------------------------------
 
-  /** Locks the count row until the transaction ends, so a double tap or two devices cannot both sign it. */
-  lockCount: async (tx: Prisma.TransactionClient, siteId: string, id: string): Promise<void> => {
-    await tx.$queryRaw(Prisma.sql`SELECT id FROM counts WHERE organization_id = ${siteId} AND id = ${id} FOR UPDATE`);
-  },
-
   /** One query for the last differences of many items (newest first, this count excluded), for the repeat-shortfall streak. */
   recentDifferencesByItem: async (
     tx: Prisma.TransactionClient,

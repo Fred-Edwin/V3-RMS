@@ -3,7 +3,7 @@ import { ValidationError } from '../../../../utils/errors';
 import { isDirectorAlert, judgeLine, shortStreak } from '../../_shared/variance-calc';
 import type { CountLineRecord } from '../_shared/count-record-repository';
 import type { CountSettingsInForce } from '../_shared/count-settings';
-import { CAUSE_TEXT } from '../_shared/counting-contract';
+import { ACCEPTED_REASON, adjustmentReason } from '../_shared/count-reason';
 import type { LineFreeze, SectionRow } from './record-repository';
 
 const ZERO = new Prisma.Decimal(0);
@@ -73,9 +73,6 @@ export type LinePlan = {
 
 export type FreezePlan = { plans: LinePlan[]; missingCauses: string[] };
 
-/** The reason written on a count adjustment: the cause words, with the note after them for "Other". */
-export const adjustmentReason = (cause: CountCause, note: string | null): string => (note ? `${CAUSE_TEXT[cause]}: ${note}` : CAUSE_TEXT[cause]);
-
 /**
  * The moment figures are frozen (contract §5.3): for each line, expected = the ledger on-hand at the sign, cost = the item's cost,
  * the judged result against the settings in force, and the repeat-shortfall streak. A Manager's own sign also decides every
@@ -122,7 +119,7 @@ export const planFreeze = (args: {
         }
       } else if (judged.result === 'WITHIN_RANGE') {
         Object.assign(freeze, { decision: 'ACCEPTED', decidedById: mode.actorId, decidedAt: signedAt });
-        post = { quantity: judged.difference, unitCost, reason: 'Within range · accepted' };
+        post = { quantity: judged.difference, unitCost, reason: ACCEPTED_REASON };
       }
       if (alerting) freeze.directorAlert = true;
       if (flagged || alerting) freeze.directorFlagged = true;

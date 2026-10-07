@@ -50,6 +50,11 @@ export const countRecordRepository = {
       },
     }),
 
+  /** Locks the count row until the transaction ends, so a double tap or two devices cannot both change it (sign, decide, approve). */
+  lockCount: async (tx: Prisma.TransactionClient, siteId: string, id: string): Promise<void> => {
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM counts WHERE organization_id = ${siteId} AND id = ${id} FOR UPDATE`);
+  },
+
   /** The Central Store location of the hub. */
   findCentralStore: (siteId: string, client: Client = prisma): Promise<{ id: string; siteId: string } | null> =>
     client.location.findFirst({ where: { siteId, type: 'CENTRAL_STORE' }, select: { id: true, siteId: true } }),
