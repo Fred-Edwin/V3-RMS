@@ -427,13 +427,15 @@ function statusTextOf(count: CountM): string {
 
 function trackerOf(count: CountM): CountDetail['tracker'] {
   const f = figuresOf(count);
-  const checked = count.status === 'APPROVED' || (count.status === 'SUBMITTED' && f.toDecide === 0);
+  // "Checked" means the Manager has decided every outside-range line (N7); a submitted count with nothing decided yet is at "Submitted".
+  const checked = count.status === 'APPROVED' || (count.status === 'SUBMITTED' && f.decided > 0 && f.toDecide === 0);
   const state = (done: boolean, current: boolean): 'DONE' | 'CURRENT' | 'TODO' => (done ? 'DONE' : current ? 'CURRENT' : 'TODO');
+  const waiting = count.status === 'SUBMITTED' && !checked;
   return {
     steps: [
       { key: 'COUNTED', state: state(count.status !== 'OPEN', count.status === 'OPEN'), at: count.signedAt },
-      { key: 'SUBMITTED', state: state(count.status !== 'OPEN', false), at: count.signedAt },
-      { key: 'CHECKED', state: state(checked, count.status === 'SUBMITTED' && !checked), at: checked ? count.approvedAt : null },
+      { key: 'SUBMITTED', state: state(count.status !== 'OPEN' && !waiting, waiting), at: count.signedAt },
+      { key: 'CHECKED', state: count.status === 'APPROVED' ? 'DONE' : checked ? 'CURRENT' : 'TODO', at: checked ? count.approvedAt : null },
       { key: 'APPROVED', state: state(count.status === 'APPROVED', false), at: count.approvedAt },
     ],
   };

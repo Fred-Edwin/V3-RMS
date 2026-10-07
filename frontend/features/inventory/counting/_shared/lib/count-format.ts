@@ -23,6 +23,48 @@ export function dayClockLabel(iso: string): string {
 
 export const itemsLabel = (n: number): string => `${n} ${n === 1 ? 'item' : 'items'}`;
 
+const MINUS = '−';
+const nf0 = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 });
+const nfq = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 4 });
+
+/** "-2928.00" → "−2,928"; "120" → "+120" with `plus`. Whole shillings, as Paper draws them. */
+export function signedMoney(value: string, plus = false): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  if (n === 0) return '0';
+  return `${n < 0 ? MINUS : plus ? '+' : ''}${nf0.format(Math.abs(n))}`;
+}
+
+/** "-5681.00" → "−KES 5,681". */
+export function signedKes(value: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return `${n < 0 ? MINUS : ''}KES ${nf0.format(Math.abs(n))}`;
+}
+
+const singular = (unit: string, n: number): string => (Math.abs(n) === 1 && unit.endsWith('s') && !unit.endsWith('ss') ? unit.slice(0, -1) : unit);
+
+/** "-16" + "kg" → "−16 kg"; "-1" + "jars" → "−1 jar". */
+export function signedQty(value: string, unit: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return `${n < 0 ? MINUS : n > 0 ? '+' : ''}${nfq.format(Math.abs(n))} ${singular(unit, n)}`;
+}
+
+/** "-8.9" → "−8.9%". */
+export function signedPercent(value: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return `${n < 0 ? MINUS : n > 0 ? '+' : ''}${Math.abs(n).toFixed(1)}%`;
+}
+
+/** "164" → "164", "1000" → "1,000". */
+export function plainQty(value: string | null): string {
+  if (value === null || value === '') return '';
+  const n = Number(value);
+  return Number.isFinite(n) ? nfq.format(n) : value;
+}
+
 /** A number typed on the pad: digits and one point, no leading zeros ("007" → "7", "." → "0."), at most 4 decimals. */
 export function appendDigit(current: string, digit: string): string {
   if (digit === '.') return current.includes('.') ? current : current === '' ? '0.' : `${current}.`;

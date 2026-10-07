@@ -133,11 +133,11 @@ export function CountShelfScreen({ initial, focusLineId }: { initial: CountDetai
         ) : recount ? (
           <>
             <ul>
-              {recountLines.map((line, i) => {
+              {recountLines.slice(recountIndex).map((line) => {
                 const isActive = line.id === shelf.activeId;
                 return (
                   <li key={line.id} ref={isActive ? activeRef : undefined}>
-                    <ShelfRow line={line} active={isActive} draft={shelf.draft} recount upNext={!isActive && i > recountIndex} onSelect={() => undefined} />
+                    <ShelfRow line={line} active={isActive} draft={shelf.draft} recount upNext={!isActive} onSelect={() => undefined} />
                   </li>
                 );
               })}

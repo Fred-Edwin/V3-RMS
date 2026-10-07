@@ -42,7 +42,7 @@ export function ShelfRow({ line, active, draft, recount = false, upNext = false,
 
   const marker = active ? (
     <span className="size-5 shrink-0 rounded-[10px] border-[1.5px] border-wds-selected-edge" aria-hidden />
-  ) : done ? (
+  ) : done && !upNext ? (
     <span className="flex size-5 shrink-0 items-center justify-center rounded-[10px] bg-wds-success-fg text-white" aria-hidden>
       {tick}
     </span>
@@ -115,7 +115,7 @@ export function ShelfRow({ line, active, draft, recount = false, upNext = false,
           <span className="font-wds-mono text-[20px] leading-6 text-wds-text-ink">{line.counted}</span>
         </span>
       ) : (
-        <span className="flex h-11 w-24 shrink-0 items-center justify-end border border-wds-border bg-wds-surface px-3" aria-hidden />
+        <span className="h-11 w-24 shrink-0" aria-hidden />
       )}
     </button>
   );
