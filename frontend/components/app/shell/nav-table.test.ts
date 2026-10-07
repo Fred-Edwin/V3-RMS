@@ -169,6 +169,33 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
     expect(stock?.subItems?.find((s) => s.key === 'daily-count-blind')?.href).toBe('/app/inventory/stock/daily-count');
   });
 
+  it('gives Prep three sub-links, Runs, Usual recipes and History, to the Store Manager and the Attendant alike', () => {
+    for (const role of ['STORE_MANAGER', 'STORE_ATTENDANT'] as AppRole[]) {
+      const prep = item(hub(navFor(ctxFor(role, { can: EVERYTHING }))), 'prep');
+      expect(prep?.subItems?.map((s) => s.key), role).toEqual(['runs', 'usual-recipes', 'history']);
+      expect(prep?.href, role).toBe('/app/inventory/prep');
+    }
+  });
+
+  it('puts the Needs a look badge on Prep and Runs only for someone holding prep.read_flags', () => {
+    const withFlags = item(hub(navFor(ctxFor('STORE_MANAGER', { can: holds('prep.read_flags') }))), 'prep');
+    expect(withFlags?.badge).toBe('prep-needs-look');
+    expect(withFlags?.subItems?.find((s) => s.key === 'runs')?.badge).toBe('prep-needs-look');
+    expect(withFlags?.subItems?.find((s) => s.key === 'history')?.badge).toBeUndefined();
+
+    const without = item(hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('prep.read', 'prep.record') }))), 'prep');
+    expect(without?.badge).toBeUndefined();
+    expect(without?.subItems?.every((s) => s.badge === undefined)).toBe(true);
+  });
+
+  it('lights the right Prep sub-link: Runs on the runs page, History on the history page', () => {
+    const groups = navFor(ctxFor('STORE_MANAGER', { can: EVERYTHING }));
+    expect(activeFor(groups, '/app/inventory/prep')).toMatchObject({ activeKey: 'prep', activeSubKey: 'runs' });
+    expect(activeFor(groups, '/app/inventory/prep/some-run-id')).toMatchObject({ activeKey: 'prep', activeSubKey: 'runs' });
+    expect(activeFor(groups, '/app/inventory/prep/history')).toMatchObject({ activeKey: 'prep', activeSubKey: 'history' });
+    expect(activeFor(groups, '/app/inventory/prep/recipes')).toMatchObject({ activeKey: 'prep', activeSubKey: 'usual-recipes' });
+  });
+
   it('shows the Central Store rows by the previewed role while a System Admin previews, and the rest by their real role', () => {
     const groups = navFor(ctxFor('SYSTEM_ADMIN', { hubRole: 'STORE_ATTENDANT', can: holds('catalog.read') }));
     expect(keys(hub(groups))).toEqual(['prep', 'dispatch', 'stock-counts', 'catalog']);

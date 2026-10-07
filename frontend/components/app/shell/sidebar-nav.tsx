@@ -14,7 +14,9 @@ import type { NavIcon } from './nav-icons';
  * The people", frame `OQP-0` (values read with get_jsx): collapsible groups with a mono label and chevron; under each, a
  * straight caramel rail with a square node and a short tick per item; the active item sits on a faint caramel wash with a
  * 2px caramel bar on the sidebar's left edge and a filled node; counts are small espresso chips. The master draws no
- * sub-links, so an item's sub-links (Stock & counts) are an extension: a thinner nested rail with ticks and no nodes.
+ * sub-links; they come from the approved Prep states (Paper `1UZ1-0`, and `MR1-0` for Stock & counts): a thinner nested rail
+ * with a tick per row, the ACTIVE sub-link carrying a 5px filled caramel square on the rail (no wash behind the row), and an
+ * optional count chip. A parent shows its own count only while it is shut; open, the count sits on the sub-link that owns it.
  *
  * Role-conditional: this is one component; the groups and items passed in are what change per role.
  * The mobile icon rail below is unchanged (Paper `1A5-0`): left-border marker plus a white wash on the active item.
@@ -26,6 +28,8 @@ export interface SidebarNavSubItem {
   href: string;
   /** Drawn but not usable yet — rendered as-is with `aria-disabled` and this hint as a tooltip. */
   disabledHint?: string;
+  /** A count chip at the right end of the row. */
+  count?: number;
 }
 
 export interface SidebarNavItem {
@@ -170,6 +174,14 @@ function RailSvg({ first, last, active }: { first: boolean; last: boolean; activ
 const SUB_ROW = 26;
 
 /** Nested rail for sub-links: a thinner line down the left with a tick into each row (no nodes). The last line stops at its tick. */
+function CountChip({ count }: { count: number }) {
+  return (
+    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[2px] bg-wds-sidebar-badge-bg px-[5px]">
+      <span className="font-wds-mono text-wds-overline font-semibold text-wds-sidebar-badge-fg">{count}</span>
+    </span>
+  );
+}
+
 function SubLinks({
   items,
   activeSubKey,
@@ -190,9 +202,14 @@ function SubLinks({
       </svg>
       {items.map((item) => {
         const active = item.key === activeSubKey;
-        const rowClass = 'relative flex h-[26px] shrink-0 items-center rounded-wds-sm pl-[18px] pr-2 outline-none';
+        const rowClass = 'relative flex h-[26px] shrink-0 items-center rounded-wds-sm pl-[18px] pr-1.5 outline-none';
         const label = (
-          <span className={cn('font-wds-sans text-wds-body-sm leading-4', active ? 'font-medium text-wds-sidebar-fg-active' : 'text-wds-sidebar-fg-item')}>{item.label}</span>
+          <>
+            {/* The active node (Paper: 5px square, #D9A65E, 2px left of the rail, 10px down the 26px row). */}
+            {active ? <span aria-hidden className="absolute -left-[2px] top-[10px] size-[5px] bg-[#D9A65E]" /> : null}
+            <span className={cn('grow truncate font-wds-sans text-wds-body-sm leading-4', active ? 'font-medium text-wds-sidebar-fg-active' : 'text-wds-sidebar-fg-item')}>{item.label}</span>
+            {item.count != null ? <CountChip count={item.count} /> : null}
+          </>
         );
         if (item.disabledHint) {
           return (
@@ -211,7 +228,7 @@ function SubLinks({
             href={item.href}
             aria-current={active ? 'page' : undefined}
             onClick={onNavigate ? (e) => onNavigate(item.href, e) : undefined}
-            className={cn(rowClass, 'transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring', active && 'bg-[#D9A65E17]')}
+            className={cn(rowClass, 'transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring')}
           >
             {label}
           </Link>
@@ -258,11 +275,7 @@ function NavItemRow({
         >
           <Icon className={cn('shrink-0', active ? 'text-wds-caramel-500' : 'text-wds-sidebar-fg-muted')} />
           <span className={cn('grow truncate font-wds-sans text-wds-body-sm', active ? 'font-medium text-wds-sidebar-fg-active' : 'text-wds-sidebar-fg-item')}>{item.label}</span>
-          {item.count != null ? (
-            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[2px] bg-wds-sidebar-badge-bg px-[5px]">
-              <span className="font-wds-mono text-wds-overline font-semibold text-wds-sidebar-badge-fg">{item.count}</span>
-            </span>
-          ) : null}
+          {item.count != null && !(hasSubItems && expanded) ? <CountChip count={item.count} /> : null}
         </Link>
         {hasSubItems ? (
           <button

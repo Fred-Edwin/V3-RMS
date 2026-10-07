@@ -98,7 +98,9 @@ export function useShellNav(): ShellNav {
 
   // The unread count is the only thing added to the table's rows here.
   const groups = React.useMemo((): SidebarNavGroup[] => {
-    const counts: Record<NavBadge, number> = { inbox: unreadInbox };
+    // `prep-needs-look` is 0 until the Needs a look count is wired (Prep slice 4); a zero count draws nothing.
+    const counts: Record<NavBadge, number> = { inbox: unreadInbox, 'prep-needs-look': 0 };
+    const countOf = (badge: NavBadge | undefined): number | undefined => (badge && counts[badge] > 0 ? counts[badge] : undefined);
     return tableGroups.map((group) => ({
       key: group.key,
       label: group.label,
@@ -107,8 +109,8 @@ export function useShellNav(): ShellNav {
         label: link.label,
         href: link.href,
         icon: link.icon,
-        count: link.badge && counts[link.badge] > 0 ? counts[link.badge] : undefined,
-        subItems: link.subItems?.map(({ key, label, href }) => ({ key, label, href })),
+        count: countOf(link.badge),
+        subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
   }, [tableGroups, unreadInbox]);
