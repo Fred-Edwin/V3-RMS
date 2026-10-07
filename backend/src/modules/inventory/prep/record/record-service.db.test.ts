@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 import { allowLedgerEditsInThisTransaction } from '../../../../scripts/ledger-dev-bypass';
-import { stockRepository } from '../../stock/stock-repository';
+import { stockRepository } from '../../stock/_shared/stock-repository';
 import { recordService } from './record-service';
 
 const enabled = process.env['RUN_DB_TESTS'] === '1';

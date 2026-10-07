@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
-import { stockRepository } from '../../stock/stock-repository';
+import { stockRepository } from '../../stock/_shared/stock-repository';
 
 type Client = typeof prisma | Prisma.TransactionClient;
 

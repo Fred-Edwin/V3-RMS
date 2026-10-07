@@ -11,7 +11,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 import { ConflictError, ValidationError } from '../../../../utils/errors';
-import { stockRepository } from '../stock-repository';
+import { stockRepository } from '../_shared/stock-repository';
 import { postStockMovement } from './ledger-door';
 import { allowLedgerEditsInThisTransaction } from '../../../../scripts/ledger-dev-bypass';
 

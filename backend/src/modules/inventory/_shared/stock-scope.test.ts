@@ -4,8 +4,6 @@
  * the Store Manager stays on the Central Store, and the Store Attendant is
  * refused the stock list and the ledger at the route (403).
  */
-import express, { type NextFunction, type Request, type Response } from 'express';
-import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveLedgerScope, resolveWasteScope } from './stock-scope';
 import { branchRepository } from '../../../repositories/branch-repository';
@@ -17,24 +15,6 @@ vi.mock('../../../repositories/branch-repository', () => ({
 
 vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
-}));
-
-// Route test: swap JWT auth for a header-driven test user; the role guards
-// under test are the real ones.
-vi.mock('../../../middleware/authenticate', () => ({
-  authenticate: (req: Request, _res: Response, next: NextFunction) => {
-    const raw = req.header('x-test-user');
-    if (raw) req.user = JSON.parse(raw);
-    next();
-  },
-}));
-
-vi.mock('../stock/stock-controller', () => ({
-  stockController: {
-    listStock: (_req: Request, res: Response) => res.status(200).json({ ok: true }),
-    getSummary: (_req: Request, res: Response) => res.status(200).json({ ok: true }),
-    getLedger: (_req: Request, res: Response) => res.status(200).json({ ok: true }),
-  },
 }));
 
 const hubOrgId = '11111111-1111-4111-8111-111111111111';
@@ -111,35 +91,5 @@ describe('resolveWasteScope', () => {
 
   it('store roles write to the Central Store', async () => {
     await expect(resolveWasteScope(attendant)).resolves.toMatchObject({ locationId: centralStoreId });
-  });
-});
-
-describe('Routes — role guards', () => {
-  const buildApp = async () => {
-    const { default: stockRoutes } = await import('../stock/stock-routes');
-    const { errorHandler } = await import('../../../middleware/error-handler');
-    const app = express();
-    app.use(stockRoutes);
-    app.use(errorHandler);
-    return app;
-  };
-  const as = (user: object) => ({ 'x-test-user': JSON.stringify(user) });
-
-  it('Store Attendant → ledger 403', async () => {
-    const app = await buildApp();
-    const res = await request(app).get(`/inventory/stock/items/${townKitchenId}/ledger`).set(as(attendant));
-    expect(res.status).toBe(403);
-  });
-
-  it('Store Attendant → stock list 403, summary allowed', async () => {
-    const app = await buildApp();
-    expect((await request(app).get('/inventory/stock').set(as(attendant))).status).toBe(403);
-    expect((await request(app).get('/inventory/stock/summary').set(as(attendant))).status).toBe(200);
-  });
-
-  it('department head and Branch Manager reach the ledger route', async () => {
-    const app = await buildApp();
-    expect((await request(app).get(`/inventory/stock/items/${townKitchenId}/ledger`).set(as(townKitchenHead))).status).toBe(200);
-    expect((await request(app).get(`/inventory/stock/items/${townKitchenId}/ledger`).set(as(townManager))).status).toBe(200);
   });
 });

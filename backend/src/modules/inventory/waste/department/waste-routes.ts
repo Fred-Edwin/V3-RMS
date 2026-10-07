@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { authenticate } from '../../../middleware/authenticate';
-import { requireRole } from '../../../middleware/rbac';
-import { allowDepartmentHead } from '../../../middleware/allow-department-head';
+import { authenticate } from '../../../../middleware/authenticate';
+import { requireRole } from '../../../../middleware/rbac';
+import { allowDepartmentHead } from '../../../../middleware/allow-department-head';
 import { wasteController } from './waste-controller';
 
 const router = Router();
