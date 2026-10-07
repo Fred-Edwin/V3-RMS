@@ -1,0 +1,122 @@
+{
+  "wasteItems": {
+    "often": [
+      { "itemId": "10000000-0000-4000-8000-000000000060", "name": "Marinated chicken", "unit": "kg", "unitCost": "420.00" },
+      { "itemId": "10000000-0000-4000-8000-000000000061", "name": "Kachumbari mix", "unit": "kg", "unitCost": "180.00" }
+    ],
+    "items": [
+      { "itemId": "10000000-0000-4000-8000-000000000062", "name": "Milk", "unit": "L", "unitCost": "95.00" }
+    ]
+  },
+  "wasteItemsManager": {
+    "often": [],
+    "items": [
+      { "itemId": "10000000-0000-4000-8000-000000000050", "name": "Tomatoes", "unit": "kg", "unitCost": "90.00", "onHand": "-4" }
+    ]
+  },
+  "logWasteInput": {
+    "entries": [
+      { "inventoryItemId": "10000000-0000-4000-8000-000000000060", "quantity": "3", "reason": "EXPIRY" },
+      { "inventoryItemId": "10000000-0000-4000-8000-000000000061", "quantity": "2", "reason": "SPOILAGE" }
+    ],
+    "note": "Fridge 2 was off overnight",
+    "idempotencyKey": "3c4d5e6f-7a8b-4c9d-8e0f"
+  },
+  "logWasteResultAttendant": {
+    "entries": [
+      {
+        "id": "d0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-13T11:20:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000060",
+        "itemName": "Marinated chicken",
+        "quantity": "3",
+        "unit": "kg",
+        "reason": "EXPIRY",
+        "reasonText": "Expired",
+        "note": "Fridge 2 was off overnight",
+        "loggedBy": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+        "valueKes": "1260.00",
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true }
+      }
+    ],
+    "totalValueKes": "1260.00",
+    "replayed": false
+  },
+  "wasteListManager": {
+    "kpis": [
+      { "key": "today", "label": "TODAY", "value": "1,912", "caption": "KES · 4 entries", "tone": "NEUTRAL" },
+      { "key": "last7", "label": "LAST 7 DAYS", "value": "9,340", "caption": "KES · 21 entries", "tone": "NEUTRAL" },
+      { "key": "most", "label": "MOST WASTED · 7 DAYS", "value": "Marinated chicken", "caption": "KES 3,600 · mostly expired", "tone": "WARN" },
+      { "key": "reversed", "label": "REVERSED · 7 DAYS", "value": "2", "caption": "Both by the Attendant, same day", "tone": "NEUTRAL" }
+    ],
+    "rows": [
+      {
+        "id": "d0000000-0000-4000-8000-000000000002",
+        "at": "2026-10-13T11:20:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000061",
+        "itemName": "Kachumbari mix",
+        "quantity": "2",
+        "unit": "kg",
+        "reason": "SPOILAGE",
+        "reasonText": "Spoiled",
+        "note": null,
+        "loggedBy": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+        "valueKes": "360.00",
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true }
+      },
+      {
+        "id": "d0000000-0000-4000-8000-000000000003",
+        "at": "2026-10-13T06:05:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000062",
+        "itemName": "Milk",
+        "quantity": "6",
+        "unit": "L",
+        "reason": "SPOILAGE",
+        "reasonText": "Spoiled",
+        "note": null,
+        "loggedBy": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+        "valueKes": "0.00",
+        "status": "REVERSED",
+        "reversal": {
+          "at": "2026-10-13T06:12:00.000Z",
+          "by": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+          "reason": "WRONG_ITEM",
+          "reasonText": "Logged the wrong item",
+          "note": null
+        },
+        "can": { "reverse": false }
+      }
+    ],
+    "chips": { "today": 4, "last7": 21, "reversed": 2 },
+    "page": { "page": 1, "pageSize": 50, "total": 4 }
+  },
+  "wasteListAttendant": {
+    "rows": [
+      {
+        "id": "d0000000-0000-4000-8000-000000000002",
+        "at": "2026-10-13T11:20:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000061",
+        "itemName": "Kachumbari mix",
+        "quantity": "2",
+        "unit": "kg",
+        "reason": "SPOILAGE",
+        "reasonText": "Spoiled",
+        "note": null,
+        "loggedBy": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+        "valueKes": "360.00",
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true }
+      }
+    ],
+    "chips": { "today": 3, "last7": 3, "reversed": 1 },
+    "bannerText": "2 items logged at 14:20. You can reverse your own entries today.",
+    "page": { "page": 1, "pageSize": 50, "total": 3 }
+  },
+  "reverseWasteInput": { "reason": "WRONG_ITEM" },
+  "reverseWasteInputOther": { "reason": "OTHER", "note": "Counted twice by mistake" }
+}
