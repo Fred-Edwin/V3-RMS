@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 
-import { StockLedgerScreen } from '@/features/inventory';
+import { DepartmentStockLedgerScreen as StockLedgerScreen } from '@/features/inventory';
 
 // useSearchParams() (range / page / highlight live in the URL) needs a Suspense boundary.
 export default function DepartmentLedgerPage({ params }: { params: { itemId: string } }) {

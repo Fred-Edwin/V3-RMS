@@ -45,9 +45,9 @@ export { PrepHistoryScreen } from './prep/runs/components/history-screen';
 export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 
 // Milestone Six, Session 1 — Stock position & waste.
-export { StockHubScreen } from './stock/components/screens/stock-hub-screen';
-export { StockItemsScreen } from './stock/components/screens/stock-items-screen';
-export { StockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
+// The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
+export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
+export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
 export { DepartmentLogWasteScreen } from './waste/components/screens/department-log-waste-screen';
 export { DailyCountScreen } from './counting/components/screens/daily-count-screen';
 export { StockCountsScreen } from './counting/components/screens/stock-counts-screen';

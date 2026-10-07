@@ -2,13 +2,13 @@
 
 import { Suspense } from 'react';
 
-import { StockLedgerScreen } from '@/features/inventory';
+import { StockCardScreen } from '@/features/inventory';
 
-// useSearchParams() (range / type / page / highlight live in the URL) needs a Suspense boundary.
-export default function StockLedgerPage({ params }: { params: { itemId: string } }) {
+// The period, view and chip live in the URL, so useSearchParams() needs a Suspense boundary.
+export default function StockCardPage({ params }: { params: { itemId: string } }) {
   return (
     <Suspense fallback={null}>
-      <StockLedgerScreen itemId={params.itemId} scope="store" />
+      <StockCardScreen itemId={params.itemId} />
     </Suspense>
   );
 }
