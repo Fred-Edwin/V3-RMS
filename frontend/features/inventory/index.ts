@@ -40,7 +40,9 @@ export { SupplierPageScreen } from './suppliers/components/screens/supplier-page
 // Milestone Three — Prep.
 export { PrepHomeScreen } from './prep/runs/components/prep-home-screen';
 export { RecordRunScreen } from './prep/record/components/record-run-screen';
-export { PrepHistoryScreen } from './prep/components/screens/prep-history-screen';
+export { PrepHistoryScreen } from './prep/runs/components/history-screen';
+// The sidebar's "Needs a look" number (Prep slice 4); the shell reads it, nothing else needs the store.
+export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 
 // Milestone Six, Session 1 — Stock position & waste.
 export { StockHubScreen } from './stock/components/screens/stock-hub-screen';

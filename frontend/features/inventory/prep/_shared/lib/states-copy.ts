@@ -23,6 +23,34 @@ export const PREP_STATES_COPY = {
     filteredEmptyDescription: 'Try a different search or clear the filters.',
     errorTitle: "Couldn't load runs",
   },
+  /** Paper step 23 wording for the manager's oversight screens (Slice 4). */
+  needsLook: {
+    emptyTitle: 'All clear',
+    emptyDescription: 'Nothing needs your review.',
+    errorTitle: "Couldn't check for runs that need a look",
+    reviewFailed: "Couldn't mark this run reviewed. Nothing changed. Try again.",
+    reviewed: 'Marked reviewed',
+    notOpen: 'This run was cancelled or corrected, so there is nothing left to review.',
+  },
+  summary: {
+    errorTitle: "Couldn't load the week's figures",
+  },
+  history: {
+    emptyTitle: 'No runs match these filters',
+    emptyDescription: 'Try a different search or clear the filters.',
+    noRunsTitle: 'No prep runs yet',
+    noRunsDescription: 'Runs recorded at the Central Store show up here, newest first.',
+    errorTitle: "Couldn't load the history",
+    errorDescription: 'Try again.',
+    exportFailed: "Couldn't export the history. Try again.",
+    exportTooLarge: 'That is more than 10,000 runs. Narrow the dates and try again.',
+    exported: 'History exported',
+    offline: "You're offline. Check your connection and try again.",
+  },
+  drawer: {
+    errorTitle: "Couldn't load this run",
+    errorDescription: 'Try again.',
+  },
   record: {
     outputsErrorTitle: "Couldn't load the prepped items",
     outputsEmptyTitle: 'No prepped items yet',

@@ -47,12 +47,15 @@ export function RunTable({ runs, variant, onOpen, className }: RunTableProps) {
             onClick={onOpen ? () => onOpen(run) : undefined}
             onKeyDown={onOpen ? (e) => (e.key === 'Enter' || e.key === ' ' ? (e.preventDefault(), onOpen(run)) : undefined) : undefined}
             tabIndex={onOpen ? 0 : undefined}
-            // No row tint for "needs a look": that marking arrives with the Needs a look band and review flow (Slice 4); on its own it explains nothing.
-            className={cn('h-12', onOpen && 'cursor-pointer outline-none focus-visible:shadow-wds-ring')}
+            // A run that needs a look is tinted for the manager (Paper `7HV-0`). Only the manager variant ever receives `needsLook`
+            // (the server sends it to prep.read_flags holders only), so the Attendant's table never tints. Colour is not the only
+            // signal: the Output cell also says "needs a look" to a screen reader, and the drawer and the band say it in words.
+            className={cn('h-12', manager && run.needsLook && 'bg-wds-warning-bg hover:bg-wds-warning-bg', onOpen && 'cursor-pointer outline-none focus-visible:shadow-wds-ring')}
           >
             <TableCell className="whitespace-nowrap font-wds-mono text-wds-caption text-wds-text-copy-muted">{formatWhen(run.at)}</TableCell>
             <TableCell className="whitespace-nowrap font-medium text-wds-text-ink">
               {run.outputName}
+              {manager && run.needsLook ? <span className="sr-only"> (needs a look)</span> : null}
               {run.mine ? <span className="font-normal text-wds-text-copy-muted"> · yours</span> : null}
               {run.status !== 'RECORDED' ? <RunStatusChip status={run.status} className="ml-wds-2" /> : null}
             </TableCell>
