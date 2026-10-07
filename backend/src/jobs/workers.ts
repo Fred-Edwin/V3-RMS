@@ -9,6 +9,7 @@ import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
 import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
 import type { HouseAuthTimeoutJobData } from './house-account-auth-timeout';
 import { fcmService } from '../services/fcm-service';
+import { COUNT_DIRECTOR_ALERT_JOB, countNotify, type DirectorAlertJob } from '../modules/inventory/counting/_shared/count-notify';
 import { logger } from '../utils/logger';
 
 export const notificationWorker = new Worker(
@@ -33,6 +34,12 @@ export const notificationWorker = new Worker(
         startTime: data.startTime,
         date: data.date,
       });
+      return;
+    }
+
+    // A Director alert held for quiet hours (22:00 to 05:00 Nairobi) goes out at 05:00 (Counting rebuild).
+    if (job.name === COUNT_DIRECTOR_ALERT_JOB) {
+      await countNotify.dispatchDirectorAlertJob(job.data as DirectorAlertJob);
       return;
     }
 

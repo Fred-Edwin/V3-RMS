@@ -61,13 +61,14 @@ postStockMovement(tx, {
 | `WASTE` | − | `wasteLogId` |
 | `DISPATCH_IN` | + | `dispatchLineId` |
 | `DISPATCH_OUT` | − | `dispatchLineId` |
-| `ADJUSTMENT` | as given | one of `stockCountLineId`, `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+| `ADJUSTMENT` | as given | one of `countLineId` (the Counting rebuild), `stockCountLineId` (old; dropped at release), `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+
+A **waste row can be reversed** (Waste W4, no PIN): `reversal: 'WASTE'`, the same rule as Prep: the caller sends the same positive quantity with `reversesTransactionId`; the door stores it positive and the original must be a WASTE row at the same site, location and item with the exact opposite quantity (one reversal per row, a reversal is never reversed).
 
 **Guard:** `ledger/ledger-guard.test.ts` fails on any direct ledger write (`create`, `createMany`, `update`, `updateMany`, `delete`, `deleteMany`, `upsert`, or raw SQL) outside the door. Seed scripts in `src/scripts/` are not checked. The allow-list below only shrinks; lower the count when a rebuild moves the writer (the test also fails on a stale entry).
 
 | File | Direct writes left | Moves with |
 |---|---|---|
-| `counting/count-service.ts` | 1 | Stock & counts rebuild |
 | `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
 | `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |

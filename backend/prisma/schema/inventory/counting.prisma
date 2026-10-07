@@ -33,7 +33,7 @@ enum CountReason {
 
 model StockCount {
   id               String           @id @default(uuid())
-  siteId   String           @map("organization_id") // hub org (D-15)
+  siteId           String           @map("organization_id") // hub org (D-15)
   locationId       String           @map("location_id") // Central Store
   kind             StockCountKind
   countDate        DateTime         @map("count_date") @db.Date // business date, Africa/Nairobi
@@ -50,12 +50,12 @@ model StockCount {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  site Site     @relation(fields: [siteId], references: [id])
-  location     Location         @relation(fields: [locationId], references: [id])
-  counter      User             @relation("StockCountCounter", fields: [counterId], references: [id])
-  verifier     User?            @relation("StockCountVerifier", fields: [verifierId], references: [id])
-  returnedBy   User?            @relation("StockCountReturnedBy", fields: [returnedById], references: [id])
-  lines        StockCountLine[]
+  site       Site             @relation(fields: [siteId], references: [id])
+  location   Location         @relation(fields: [locationId], references: [id])
+  counter    User             @relation("StockCountCounter", fields: [counterId], references: [id])
+  verifier   User?            @relation("StockCountVerifier", fields: [verifierId], references: [id])
+  returnedBy User?            @relation("StockCountReturnedBy", fields: [returnedById], references: [id])
+  lines      StockCountLine[]
 
   @@index([siteId, kind, status])
   @@index([locationId, countDate])
@@ -92,20 +92,23 @@ model StockCountLine {
 /// Manager) + directorAlertKes (Director, company-wide). Branch rows (Session
 /// 3): reasonRequiredKes + overnightAlertKes.
 model CountingThresholds {
-  id                  String    @id @default(uuid())
-  siteId      String    @unique @map("organization_id")
-  reasonRequiredKes   Int       @map("reason_required_kes")
-  overnightAlertKes   Int?      @map("overnight_alert_kes")
-  directorAlertKes    Int?      @map("director_alert_kes")
-  updatedById         String?   @map("updated_by_id")
-  directorUpdatedById String?   @map("director_updated_by_id")
-  directorUpdatedAt   DateTime? @map("director_updated_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  id                   String    @id @default(uuid())
+  siteId               String    @unique @map("organization_id")
+  reasonRequiredKes    Int       @map("reason_required_kes")
+  overnightAlertKes    Int?      @map("overnight_alert_kes")
+  directorAlertKes     Int?      @map("director_alert_kes")
+  // The Central Store rebuild (contract §2.3): the range's "at most" percent and the repeat-shortfall switch.
+  rangePercent         Decimal   @default(5) @map("range_percent") @db.Decimal(5, 2)
+  flagRepeatShortfalls Boolean   @default(true) @map("flag_repeat_shortfalls")
+  updatedById          String?   @map("updated_by_id")
+  directorUpdatedById  String?   @map("director_updated_by_id")
+  directorUpdatedAt    DateTime? @map("director_updated_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  site      Site @relation(fields: [siteId], references: [id])
-  updatedBy         User?        @relation("CountingThresholdsUpdatedBy", fields: [updatedById], references: [id])
-  directorUpdatedBy User?        @relation("CountingThresholdsDirectorUpdatedBy", fields: [directorUpdatedById], references: [id])
+  site              Site  @relation(fields: [siteId], references: [id])
+  updatedBy         User? @relation("CountingThresholdsUpdatedBy", fields: [updatedById], references: [id])
+  directorUpdatedBy User? @relation("CountingThresholdsDirectorUpdatedBy", fields: [directorUpdatedById], references: [id])
 
   @@map("counting_thresholds")
 }

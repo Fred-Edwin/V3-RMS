@@ -11,10 +11,6 @@ import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
 import { AttendantStockSummarySchema, LedgerSchema, StockListSchema, StockSummarySchema } from './stock-validators';
 
-vi.mock('../counting/count-repository', () => ({
-  countRepository: { todaysDaily: vi.fn().mockResolvedValue(null) },
-}));
-
 vi.mock('./stock-repository', () => ({
   stockRepository: {
     listForLocation: vi.fn(),

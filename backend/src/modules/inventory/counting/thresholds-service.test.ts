@@ -1,3 +1,4 @@
+// kept for the branch-day refactor: delete when branch day is redone
 /**
  * Thresholds (plan §1.9, §4.5): defaults with no row, role-chosen write
  * schemas, only DIRECTOR sets the company-wide amount, the SM write never
@@ -8,7 +9,9 @@ import { thresholdsService } from './thresholds-service';
 import { thresholdsRepository } from './thresholds-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { UpdateBranchThresholdsSchema, UpdateDirectorThresholdSchema, UpdateStoreThresholdsSchema } from './thresholds-validators';
-import { hubOrgId, storeManager } from './count-test-fixtures';
+// The two fixtures this file used from the deleted count-test-fixtures.ts.
+const hubOrgId = '11111111-1111-4111-8111-111111111111';
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 
 vi.mock('./thresholds-repository', () => ({
   thresholdsRepository: { findBySite: vi.fn(), upsertStoreReason: vi.fn(), upsertBranch: vi.fn(), upsertDirectorAlert: vi.fn() },

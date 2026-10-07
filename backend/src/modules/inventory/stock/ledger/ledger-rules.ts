@@ -13,6 +13,7 @@ export const LEDGER_LINKS = [
   'prepRecordId',
   'wasteLogId',
   'stockCountLineId',
+  'countLineId', // the Counting rebuild: one line of a signed count
   'branchDayLineId',
   'openingLineId',
   'dispatchLineId',
@@ -34,8 +35,9 @@ export type LedgerRule = {
    * How a row of this type is reversed, if it can be. `ADJUSTMENT`: the caller sends the exact opposite signed quantity.
    * `PREP`: a reversal keeps the original's type with the opposite sign, so the caller sends the same positive magnitude and
    * the door flips the direction (PREP_CONSUME reverses to a positive row, PREP_PRODUCE to a negative one).
+   * `WASTE`: the same rule as PREP (a reversal keeps the original's type with the opposite sign): a reversed waste row is positive.
    */
-  reversal?: 'ADJUSTMENT' | 'PREP';
+  reversal?: 'ADJUSTMENT' | 'PREP' | 'WASTE';
 };
 
 /**
@@ -46,14 +48,14 @@ export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>>
   RECEIVE: { direction: 'IN', links: ['purchaseDeliveryLineId'], numbered: false },
   PREP_CONSUME: { direction: 'OUT', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
   PREP_PRODUCE: { direction: 'IN', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
-  WASTE: { direction: 'OUT', links: ['wasteLogId'], numbered: false },
+  WASTE: { direction: 'OUT', links: ['wasteLogId'], numbered: false, reversal: 'WASTE' },
   DISPATCH_OUT: { direction: 'OUT', links: ['dispatchLineId'], numbered: false },
   DISPATCH_IN: { direction: 'IN', links: ['dispatchLineId'], numbered: false },
   // A count, a branch-day close, a next-morning opening, or a dispatch discrepancy
   // (transit loss / receiving miscount) each write adjustments.
   ADJUSTMENT: {
     direction: 'SIGNED',
-    links: ['stockCountLineId', 'branchDayLineId', 'openingLineId', 'dispatchLineId'],
+    links: ['stockCountLineId', 'countLineId', 'branchDayLineId', 'openingLineId', 'dispatchLineId'],
     numbered: true,
     reversal: 'ADJUSTMENT',
   },
@@ -66,6 +68,6 @@ export const signedQuantity = (direction: LedgerDirection, quantity: Prisma.Deci
   return quantity;
 };
 
-/** The stored quantity for a REVERSAL of a prep row: the same magnitude with the opposite sign to a normal row of that type. */
+/** The stored quantity for a REVERSAL of a prep or waste row: the same magnitude with the opposite sign to a normal row of that type. */
 export const reversedPrepQuantity = (direction: LedgerDirection, quantity: Prisma.Decimal): Prisma.Decimal =>
   direction === 'IN' ? quantity.negated() : quantity;

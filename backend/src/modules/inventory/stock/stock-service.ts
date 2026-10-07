@@ -3,7 +3,6 @@ import { Prisma, type DepartmentTag } from '@prisma/client';
 import { stockRepository, type LedgerRawRow, type StockListRow } from './stock-repository';
 import { resolveCentralStoreScope, resolveLedgerScope } from '../_shared/stock-scope';
 import { inventoryItemRepository } from '../catalog/inventory-repository';
-import { countService } from '../counting/count-service';
 import { shortName } from '../counting/count-calc';
 import { NotFoundError } from '../../../utils/errors';
 import { AttendantStockSummarySchema } from './stock-validators';
@@ -125,7 +124,9 @@ export const stockService = {
    */
   getSummary: async (actor: Actor): Promise<StockSummary | AttendantStockSummary> => {
     const scope = await resolveCentralStoreScope(actor);
-    const todaysCount = await countService.todaysCount(scope);
+    // The old daily count is gone (Counting rebuild, 8 Oct 2026): nothing reads a "today's count" any more. The stock
+    // session deletes this whole summary with the old stock routes; until then it reports "not started".
+    const todaysCount = { status: 'NOT_STARTED' as const, countId: null, submittedAt: null, submittedByName: null, countedLines: null, totalLines: null };
     if (actor.role === 'STORE_ATTENDANT') {
       return AttendantStockSummarySchema.parse({ todaysCount });
     }

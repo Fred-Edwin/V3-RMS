@@ -11,14 +11,20 @@ type TxClient = Prisma.TransactionClient;
 // ---------------------------------------------------------------------------
 
 export const referenceCounterRepository = {
-  /** Must run inside the same `$transaction` as the create it numbers. */
-  nextReference: async (tx: TxClient, siteId: string, prefix: string, pad = 4): Promise<string> => {
+  /** The next gap-free integer for (site, prefix); the caller formats it. Must run inside the same `$transaction` as the create it numbers. */
+  nextNumber: async (tx: TxClient, siteId: string, prefix: string): Promise<number> => {
     const counter = await tx.referenceCounter.upsert({
       where: { siteId_prefix: { siteId, prefix } },
       update: { lastNumber: { increment: 1 } },
       create: { siteId, prefix, lastNumber: 1 },
       select: { lastNumber: true },
     });
-    return `${prefix}-${String(counter.lastNumber).padStart(pad, '0')}`;
+    return counter.lastNumber;
+  },
+
+  /** Must run inside the same `$transaction` as the create it numbers. */
+  nextReference: async (tx: TxClient, siteId: string, prefix: string, pad = 4): Promise<string> => {
+    const number = await referenceCounterRepository.nextNumber(tx, siteId, prefix);
+    return `${prefix}-${String(number).padStart(pad, '0')}`;
   },
 };

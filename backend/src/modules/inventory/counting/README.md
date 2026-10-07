@@ -1,54 +1,38 @@
 # counting
 
-**Design:** approved (Paper: *Stock and Counting*, chapters 1–4, 6–7) · **Code:** built to the old flow (Milestone Six S2), **pending redo**.
+**Design:** approved (Paper: *Inventory · Counting redesign (Oct 7)*) · **Code:** back end built (Counting back end A of the Stock, Counting and Waste rebuild); front end builds against the frozen contract. Spec: `docs/features/inventory/stock-count-waste-contract.md` (frozen shapes: `_shared/counting-contract.ts`).
 
-Full approved wording for counting, stock, waste and the stock ledger, with the running example (Tue 13 Oct 2026) and mistake/fix tables: [DESIGN-NOTES.md](DESIGN-NOTES.md). It also covers [stock](../stock/README.md) and [waste](../waste/README.md). **Delete it when the last of those redos merges.**
+Central Store counting: many counts a day, one **open** count per person, a section (an item) in one open count at a time. The Attendant counts blind and signs with their own PIN (SUBMITTED); the Store Manager reviews and approves with hers (APPROVED); when the Manager counts herself, **Sign applies every non-zero line** and flags the outside-range lines to the Director. Spot count and "accept / query" are gone. (The branch count is [branch-day](../branch-day/README.md), refactored next.)
 
-Central Store counting: the Attendant counts, the Manager verifies. (The branch count is [branch-day](../branch-day/README.md).)
-
-## Who can do what
-- **Store Attendant** (phone): daily count, blind, in shelf order; pause/continue from any phone; review and sign with PIN; recount only queried lines. Never sees expected, opening, differences or costs.
-- **Store Manager** (desktop): verify, accept/query each line, "Accept all within range", reasons, send back, approve and sign; spot count (incl. correcting a verified count); count setup; print count record and a blank sheet.
-- **Director**: alerted when one difference reaches KES 5,000 (sets that amount).
-
-## Approved behaviour
-1. One count a day, any time; sign time fixes expected. Unstarted count shows "Not counted yet" (no push); an unsigned count stays open and is flagged on both hubs.
-2. Sections follow the supplier (Samrat, Summer) plus manual Others and Packaging; Manager sets the order once in **Count setup** (also variants like Herbal tea).
-3. Count everything; one number per item in its own unit (no pack count); "None here" for zero. Autosave ("Saved 07:19"). Signing blocked until every line has a number or "None here"; review lists "None here" items and changed lines; then PIN.
-4. Verify shows counted vs expected with the sheet's maths (Open + in − out − waste, per-branch split). Lines under the reason amount (KES 500) are "within range". Above it a reason is required ("Other" needs a note). Query sends only that line back, blind; the note never states the expected figure.
-5. Approve: summary of adjustments, net value, Director alert; PIN. One adjustment per non-zero difference (ADJ-nnnn, reason, ledger link); matched lines write nothing. Both signatures on the record.
-6. Spot count shows expected to the Manager and writes adjustments after a summary + PIN; to correct a verified count open a spot count pre-filled and linked to the old adjustment.
-7. Settings: reason amount, "not started" reminder time, Director amount (read-only). Thresholds are set by whoever owns them.
-8. Mistake handling table: see Paper chapter 7 ("When things go wrong").
-
-## Built today vs approved
-When rebuilt, use the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check. Counting stays blind to expected stock for the Attendant (a count-integrity rule); item costs are no longer hidden from them.
-Old design: category tabs, partial sign allowed, blank-vs-zero boxes, no pause/resume screen, Accept/Query on every line, approve straight to PIN, no correct-a-verified-count path, settings in the hub top bar.
-
-## Endpoints
-13 endpoints (generated from the route files; re-run if routes change).
-
-| Method | Path | Roles |
+## Sub-modules (each has its own README)
+| Folder | Endpoints | What |
 |---|---|---|
-| GET | `/inventory/counts` | STORE_MANAGER |
-| GET | `/inventory/counts/today` | STORE_ATTENDANT |
-| GET | `/inventory/counts/:id` | STORE_MANAGER, STORE_ATTENDANT |
-| PUT | `/inventory/counts/:id/lines` | STORE_ATTENDANT |
-| POST | `/inventory/counts/:id/submit` | STORE_ATTENDANT |
-| PATCH | `/inventory/counts/:id/lines/:lineId` | STORE_MANAGER |
-| POST | `/inventory/counts/:id/return` | STORE_MANAGER |
-| POST | `/inventory/counts/:id/approve` | STORE_MANAGER |
-| GET | `/inventory/counts/:id/print` | STORE_MANAGER |
-| POST | `/inventory/spot-counts` | STORE_MANAGER |
-| GET | `/inventory/thresholds` | STORE_MANAGER, MANAGER |
-| PUT | `/inventory/thresholds` | STORE_MANAGER, MANAGER |
-| PUT | `/inventory/thresholds/director` | DIRECTOR |
+| [`counts/`](counts/README.md) | C1 to C5 | the Counts table, KPI strips, flagged lines, repeat shortfalls, one count |
+| [`record/`](record/README.md) | C8 to C14 | start, save numbers, section-end check, sign with PIN, order for today |
+| [`review/`](review/README.md) | C27 to C30 | decide lines, approve preview, approve with PIN, Mark seen |
+| [`setup/`](setup/README.md) | C15 to C22 | sections, order, items, moves, undo, add-items search |
+| [`settings/`](settings/README.md) | C23 to C26 | the range, repeat shortfalls, the Director alert amount, what-if preview |
+| [`print/`](print/README.md) | C6, C7 | printed count record, blank sheet |
+| `_shared/` | | the contract (frozen), the one view builder, state machine, story, PIN, numbers, notifications, reads |
 
-## Code map
-`count-calc.ts`, `count-controller.ts`, `count-repository.ts`, `count-routes.ts`, `count-service.ts`, `count-validators.ts`, `count.types.ts`, `counting-thresholds.ts`, `thresholds-controller.ts`, `thresholds-repository.ts`, `thresholds-service.ts`, `thresholds-validators.ts`, `thresholds.types.ts`. 4 test files beside the code.
+All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them: print, record, review, counts, then setup and settings, so `GET /counts/:id` is last). `counting-routes.test.ts` pins the §3.1 role grid for all 30 endpoints and the route order.
 
-## Coupling
-Uses `purchasing/receiving-repository`, `_shared/stock-scope`, `counting/thresholds-*`. Imported by `stock/stock-service` and `branch-day`.
+## The rules in one place
+- **Judging** (`../_shared/variance-calc.ts`): within range = `|value| ≤ rangeKes` **and** `percent ≤ rangePercent` (ties within; expected ≤ 0 means any difference exceeds). `NOT_COUNTED` (skipped), `MATCHES`, `WITHIN_RANGE`, `EXCEEDS`.
+- **The sign freezes** expected stock (the ledger on-hand at the sign time), item cost, the result, the repeat-shortfall streak, and the settings in force. A signed count is never edited; a wrong line is **counted again** (a new count linked to the old line).
+- **The blind rule:** the Attendant never receives `COUNT_STOCK_FIGURE_KEYS` (expected, difference, result, story, decision, ...); `_shared/count-view.ts` is the only place that decides which keys exist, and `withoutCountFigures` strips them again at the end. They do see item cost and last counted as a date.
+- **Ledger:** every adjustment is `postStockMovement` with `countLineId` (never `inventoryTransaction.create`); all the adjustments of a sign or an approval post in one transaction, or none. "Log a missing movement" and "Ask for a recount" write nothing.
+- **The Director:** flagged lines (every outside-range line of a Manager's own count; Mark seen) and an alert push for a line at or above the alert amount. Quiet hours 22:00 to 05:00 Africa/Nairobi hold the push until 05:00 (a delayed queue job). No inbox row.
+- **Idempotency:** start, sign and approve each take a client key, kept in order in `counts.idempotency_key` (`_shared/count-idempotency.ts`).
 
-## Open questions
-See decisions.md (F1 relates to dispatch discrepancies, not counting).
+## Other sub-modules read Counting only through `_shared/count-reads.ts`
+`todaysCounts`, `longestWithoutCount`, `lastCountedByItem`, `sectionNamesByItem`, `unsectionedCount` (Stock Overview and All items), never Counting's repositories.
+
+## Kept for the branch-day refactor (marked in each file; delete when branch day is redone)
+`count-calc.ts` (+ test), `counting-thresholds.ts`, `thresholds-{controller,service,repository,validators}.ts`, `thresholds.types.ts`, `thresholds-service.test.ts`, and `thresholds-routes.ts` (the Branch Manager's `GET`/`PUT /inventory/thresholds`). The new code imports none of them.
+
+## Data
+`counts`, `count_lines`, `count_scope_sections`, `count_sections`, `count_section_items`, `count_item_moves`, `count_day_orders`, `count_setup_visits` (schema `prisma/schema/inventory/counts.prisma`; migration `20261008100000_stock_count_waste_expand` also seeds the first sections: one per supplier with items, "Others", an empty "Packaging"). Two partial unique indexes enforce one open count per person and an item in at most one open count. The old `stock_counts` tables are dropped by the contract migration at release.
+
+## Tests
+Pure (variance, story, time, state, view, planning), service tests with mocked repositories, the route grid, and opt-in database tests (`RUN_DB_TESTS=1`, each cleans up after itself).

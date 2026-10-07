@@ -1,3 +1,4 @@
+// kept for the branch-day refactor: delete when branch day is redone
 /**
  * Inventory — Milestone Six, Session 2 (Counting thresholds)
  * FROZEN API CONTRACT. Source of truth for `API_CONTRACT.md` §26.2

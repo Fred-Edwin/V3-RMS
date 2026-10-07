@@ -43,6 +43,7 @@ model InventoryTransaction {
   prepRecordId           String?                  @map("prep_record_id")
   wasteLogId             String?                  @map("waste_log_id")
   stockCountLineId       String?                  @map("stock_count_line_id")
+  countLineId            String?                  @map("count_line_id") // Counting rebuild: the adjustment a count line posted
   branchDayLineId        String?                  @map("branch_day_line_id")
   openingLineId          String?                  @map("opening_line_id")
   dispatchLineId         String?                  @map("dispatch_line_id")
@@ -61,6 +62,7 @@ model InventoryTransaction {
   dispatchLine         DispatchLine?          @relation(fields: [dispatchLineId], references: [id])
   wasteLog             WasteLog?              @relation(fields: [wasteLogId], references: [id])
   stockCountLine       StockCountLine?        @relation(fields: [stockCountLineId], references: [id])
+  countLine            CountLine?             @relation(fields: [countLineId], references: [id], onDelete: SetNull)
   branchDayLine        BranchDayLine?         @relation(fields: [branchDayLineId], references: [id])
   openingLine          DepartmentOpeningLine? @relation(fields: [openingLineId], references: [id])
   reverses             InventoryTransaction?  @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
@@ -75,6 +77,7 @@ model InventoryTransaction {
   @@index([dispatchLineId])
   @@index([wasteLogId])
   @@index([stockCountLineId])
+  @@index([countLineId])
   @@index([branchDayLineId])
   @@index([openingLineId])
   @@index([locationId, inventoryItemId, createdAt]) // ledger drill: one item at one location, by time
