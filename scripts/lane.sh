@@ -22,7 +22,7 @@ SOURCE_DB="${LANE_SOURCE_DB:-wendo_rms}"
 TEMPLATE_DB="${LANE_TEMPLATE_DB:-wendo_rms_template}"
 REDIS_IMAGE="${LANE_REDIS_IMAGE:-redis:7-alpine}"
 PROFILES_ROOT="${LANE_PROFILES_ROOT:-$HOME/.cache/wendo-lanes}"
-MAX_LANE=3
+MAX_LANE="${LANE_MAX:-3}" # raise with LANE_MAX=6 when lanes 1-3 are taken by other work; ports follow the lane number
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THIS_REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
