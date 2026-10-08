@@ -71,6 +71,18 @@ export const CAPABILITIES = [
   'waste.log', // log waste at the Central Store
   'waste.reverse_own', // reverse an entry the caller logged earlier the same day
   'waste.reverse_any', // reverse any entry
+  // Requisitions and Departments (docs/features/inventory/requisitions-contract.md §3). The client has not approved these
+  // mappings; each is a one-row edit below. Heads and members hold none: their rights come from the department rule in the service.
+  'requisitions.read', // open every requisition list and file (money follows `requisitions.see_value`; the Attendant sees no money)
+  'requisitions.see_value', // value per line, department and total
+  'requisitions.start', // start a requisition for the cycle; edit any section's lines ("Fill it myself")
+  'requisitions.change_quantity', // change an Approved quantity, with a reason after approval
+  'requisitions.approve', // approve and sign a requisition or an addition (own PIN)
+  'requisitions.cancel', // cancel before approval, with a reason and a PIN
+  'requisitions.nudge', // nudge a department; send without a section
+  'requisitions.set_urgent', // set or clear Urgent before approval
+  'departments.read', // Departments settings, read only
+  'departments.write', // add, rename, retire, restore (own branch)
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -94,12 +106,27 @@ const READ_EVERYTHING: readonly Capability[] = [
   'stock.read',
   'counts.read',
   'waste.read',
+  'requisitions.read',
+  'requisitions.see_value',
+  'departments.read',
   'audit.read',
   'central_store.read_any_org',
 ];
 
 /** Capabilities that belong to one named job, so the Store Manager does not inherit them from "everything". */
-const NOT_THE_STORE_MANAGERS: readonly Capability[] = ['central_store.read_any_org', 'counts.acknowledge', 'counts.set_director_alert'];
+const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
+  'central_store.read_any_org',
+  'counts.acknowledge',
+  'counts.set_director_alert',
+  // The branch's requisition and department jobs belong to the Branch Manager (the System Admin does them with their own PIN).
+  'requisitions.start',
+  'requisitions.change_quantity',
+  'requisitions.approve',
+  'requisitions.cancel',
+  'requisitions.nudge',
+  'requisitions.set_urgent',
+  'departments.write',
+];
 
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {
   STORE_MANAGER: CAPABILITIES.filter((c) => !NOT_THE_STORE_MANAGERS.includes(c)),
@@ -113,10 +140,19 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'payables.record_payment',
     'payables.record_deposit',
   ],
-  // The Director's only writes in Counting: "Mark seen" and the alert amount.
-  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert'],
-  // The Branch Manager reads everything except supplier payment details.
-  MANAGER: READ_EVERYTHING,
+  // The Director's only writes in Counting: "Mark seen" and the alert amount; in Requisitions, approving any requisition or addition.
+  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert', 'requisitions.approve'],
+  // The Branch Manager reads everything except supplier payment details, and runs the branch's requisitions and departments.
+  MANAGER: [
+    ...READ_EVERYTHING,
+    'requisitions.start',
+    'requisitions.change_quantity',
+    'requisitions.approve',
+    'requisitions.cancel',
+    'requisitions.nudge',
+    'requisitions.set_urgent',
+    'departments.write',
+  ],
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
   // payments, supplier balances and payment details, reports): see `_shared/blind-rule.ts`. Raises order requests and
   // receives deliveries.
@@ -136,6 +172,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'waste.read',
     'waste.log',
     'waste.reverse_own',
+    // Reads every requisition to pack it; no money and no branch values (the `requisitions.see_value` row is not theirs).
+    'requisitions.read',
   ],
 };
 

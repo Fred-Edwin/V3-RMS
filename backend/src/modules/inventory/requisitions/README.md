@@ -1,5 +1,7 @@
 # requisitions
 
+> **Block 1 status (8 Oct 2026):** the new API contract is frozen in code for the owner to read: `_shared/requisitions-contract.ts` (R1 to R22, Zod), `requisitions-contract.fixtures.json`, `requisitions-contract.test.ts`; the access rows are in `_shared/central-store-access.ts` (`requisitions.*`); `requisitions-rebuild-routes.ts` is a placeholder router mounted at `/inventory/requisitions`. **No service, repository or migration exists yet** (back end A). The text below describes the OLD Milestone Four code, which still runs at `/requisitions` until back end A deletes it in the same PR that lands R1 to R22. Spec: `docs/features/inventory/requisitions-contract.md`.
+
 **Design:** *Requisition and dispatch* page in Paper, **approved by the owner (8 Oct 2026)**; flow in `docs/features/inventory/requisitions-flow.md` · **Code:** built to the old flow (Milestone Four), **pending redo** (Block 1 of `docs/features/inventory/final-pass-build-plan.md`).
 
 A branch asks the Central Store for stock. Where the rules below disagree with Paper or `requisitions-flow.md`, Paper wins: there is no "Return a section", cycles are Morning, Afternoon and Extra, the Director may approve any requisition, and a head's send needs a PIN.

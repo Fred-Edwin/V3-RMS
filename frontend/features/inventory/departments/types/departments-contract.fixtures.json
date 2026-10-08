@@ -1,0 +1,69 @@
+{
+  "listDepartmentsManager": {
+    "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "rows": [
+      {
+        "id": "d0000000-0000-4000-8000-000000000001",
+        "branchId": "b0000000-0000-4000-8000-000000000001",
+        "name": "Kitchen",
+        "key": "KITCHEN",
+        "status": "ACTIVE",
+        "position": 0,
+        "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "itemsTagged": 86,
+        "retiredAt": null,
+        "can": { "rename": true, "retire": true, "restore": false }
+      },
+      {
+        "id": "d0000000-0000-4000-8000-000000000006",
+        "branchId": "b0000000-0000-4000-8000-000000000001",
+        "name": "Garden",
+        "key": null,
+        "status": "RETIRED",
+        "position": 5,
+        "head": null,
+        "itemsTagged": 0,
+        "retiredAt": "2026-10-05T08:00:00.000Z",
+        "can": { "rename": false, "retire": false, "restore": true }
+      }
+    ],
+    "canAdd": true
+  },
+  "listDepartmentsDirector": {
+    "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "branches": [
+      { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+      { "id": "b0000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" }
+    ],
+    "rows": [
+      {
+        "id": "d0000000-0000-4000-8000-000000000003",
+        "branchId": "b0000000-0000-4000-8000-000000000001",
+        "name": "Pastry",
+        "key": "PASTRY",
+        "status": "ACTIVE",
+        "position": 2,
+        "head": null,
+        "itemsTagged": 31,
+        "retiredAt": null,
+        "can": { "rename": false, "retire": false, "restore": false }
+      }
+    ],
+    "canAdd": false
+  },
+  "addDepartmentInput": { "branchId": "b0000000-0000-4000-8000-000000000001", "name": "Garden" },
+  "addDepartmentResult": {
+    "id": "d0000000-0000-4000-8000-000000000006",
+    "branchId": "b0000000-0000-4000-8000-000000000001",
+    "name": "Garden",
+    "key": null,
+    "status": "ACTIVE",
+    "position": 5,
+    "head": null,
+    "itemsTagged": 0,
+    "retiredAt": null,
+    "can": { "rename": true, "retire": true, "restore": false }
+  },
+  "renameDepartmentInput": { "name": "Grounds" },
+  "errorNameTaken": { "success": false, "error": { "code": "DEPARTMENT_NAME_TAKEN", "message": "This branch already has a department called Garden." } }
+}

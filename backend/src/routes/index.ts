@@ -46,6 +46,8 @@ import wasteHubRoutes from '../modules/inventory/waste/waste-hub-routes';
 import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
+import requisitionsRebuildRoutes from '../modules/inventory/requisitions/requisitions-rebuild-routes';
+import departmentsRoutes from '../modules/inventory/departments/departments-routes';
 import { workforcePermissionsRouter, workforceRulesRouter } from '../modules/workforce';
 
 const apiRouter = Router();
@@ -99,6 +101,10 @@ apiRouter.use(wasteHubRoutes);
 apiRouter.use(branchDayRoutes);
 apiRouter.use(requisitionsRoutes);
 apiRouter.use(dispatchRoutes);
+// Final pass, Block 1 (docs/features/inventory/requisitions-contract.md): the rebuilt Requisitions and Departments, new paths
+// under /inventory/requisitions and /inventory/departments. Placeholders until back end A fills them.
+apiRouter.use('/inventory/requisitions', requisitionsRebuildRoutes);
+apiRouter.use('/inventory/departments', departmentsRoutes);
 apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceRulesRouter);
 
