@@ -8,12 +8,13 @@ This file is temporary working state (playbook §11). Extract anything still in 
 
 | Item | What | State | Contract | Owner check in production |
 |---|---|---|---|---|
-| Lane 0 | Status bar removed; Prep history dates; Audit log Area menu and range picker; Counts and Waste lists with date range and pager | built on `feat/lane-0-quick-fixes` (8 Oct); follow-up running: pending counts always show, 390/768/1024 and accessibility checks; then commit, PR, merge to main | amends the Stock/Counting/Waste contract (list filters) | pending |
-| Block 1 | Requisitions + foundations (departments as data, branch code, numbering, notification layer, heads onto the shell) | contract in code, merged (#100, frozen, Amendment 1). Back end A built on `feat/req-be-a` (migration `1ad8ef4`, code `a4bad09`; build passes, 3439 tests pass, 12 database tests pass); not pushed. Front end phone: Stage 1 (Paper gap report) running. Front end desktop, back end B, integration: not started | frozen; Amendment 2 to batch after the front-end gap reports (adds: idempotency column on events, six extra error codes, branch-code edit endpoint, catalog chips decision) | pending |
-| Block 2 | Dispatch and discrepancies | not started | to write after Block 1 | pending |
+| Lane 0 | Status bar removed; Prep history dates; Audit log Area menu and range picker; Counts and Waste lists with date range and pager | merged to main (#102, 8 Oct) | amended the Stock/Counting/Waste contract (list filters; waiting counts always show) | pending |
+| Block 1 | Requisitions + foundations (departments as data, branch code, numbering, notification layer, heads onto the shell) | all pieces merged on the integration branch `feat/final-pass-block-1`: contract with Amendments 1 and 2, back end A (#103), back end B (#107), phone (#108), desktop (#109); the screens still run on mock services. Integration session next (real API, remaining Paper and accessibility checks, release steps), then the owner's review and production check; the branch goes to main once, late evening | frozen, Amendments 1 and 2 (`requisitions-amendment-2.md`) | pending |
+| Block 2 | Dispatch and discrepancies | contract drafted (`dispatch-contract.md`), waiting for the owner's freeze; one open question (a department not ready at the final review) | draft | pending |
 | Block 3 | Branch waste | not started | to write after Block 2 | pending |
 | Block 4 | Branch day | not started | to write after Block 3 | pending |
-| Block 5 | Gap fixes: Attendant Home, My counts, My waste; member waste history | not started | small amendment to the frozen Stock/Counting/Waste contract, owner approves | pending |
+| Block 5 | Gap fixes: Attendant home (52), My counts (53), My waste today and earlier (54). Step 55 (department waste, today and earlier) proposed to move to Block 3 | amendment drafted (`stock-count-waste-amendment-2.md`), waiting for the owner's approval; two small sessions (back end, then front end) | draft amendment | pending |
+| Paper session 4 | Stale stamps; the design for items, head and staff of an added department; catch-up for Block 1's undrawn pieces | prompt written (`docs/sessions/final-pass-paper-session-4-catch-up.md`) | none | n/a |
 
 Sessions per block and their prompts: `docs/sessions/final-pass-*.md`. Common rules every prompt repeats: `docs/sessions/final-pass-session-common.md`.
 
