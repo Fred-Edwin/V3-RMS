@@ -42,6 +42,13 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [ ] **PIN and summary are one sheet** on the head's send (step 5); the code should not add a separate PIN step.
 - [ ] **Branch Manager sidebar** (drawn in R2): Operations, Manage, Other income, Branch (open), Central Store and Procurement (collapsed). The code's Branch group should list Requisitions and Day only (Deliveries folded into the list tabs). The brand row shows the branch name ("NYERI TOWN") where the Central Store master shows "HUB".
 
+## Dispatch group (final design pass, logged 8 Oct 2026)
+- [ ] **Store Manager sidebar** (drawn in Group D, "Parts · sidebar · Store Manager · Requisitions active"): the Central Store group with one **Requisitions** link (count badge) replacing "Dispatch". Code today has "Dispatch" for store roles.
+- [ ] **Carriers** live under Settings in the Procurement group for the Store Manager (new screen, list kept by the Store Manager). The Carriers screen reuses the Requisitions-active sidebar; redraw with Settings active.
+- [ ] **One final signature for the whole requisition** (D5): the code signs per department today; the build signs once and still creates one dispatch and one delivery note per department.
+- [ ] **Requisitions sub-links** (owner, 8 Oct 2026): every desktop role's Requisitions row becomes a parent with sub-links **Queue, Discrepancies, History** (`nav-table.ts` `subItems`, as Prep and Stock do); badges: Queue = items waiting for that role, Discrepancies = open ones. Closed and Discrepancies leave the list tabs. New screens: Discrepancies list (Group R step 7c) and History (7d). The Branch Manager's Requisitions row sits in the Branch group next to Day.
+- [ ] **Delivery notes** are multi-page capable: header and column headings repeat, "Page n of m", signatures and QR on the last page only (print stylesheet rule for the build).
+
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
 - Requisitions, Dispatch and Branch day (not approved).
