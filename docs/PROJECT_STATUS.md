@@ -23,7 +23,7 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Purchasing and Receiving | Approved | **Mock-data front-end complete** (5 Oct 2026): order to delivery, invoice, payment, closed file, statement, audit log, the Attendant's phone views and every exception, all on demo data kept in the browser. The old supplier "record invoice/payment" drawers are gone. Real back-end waits for client approval; its brief is `purchasing-mock/backend-rules.md` |
 | Prep | Approved | **Rebuilt** (PR #89, #90) |
 | Stock, Counting, Waste | Approved (Paper chapters 1 to 10) | **Rebuilt on branch `feat/stock-count-waste`** (8 Oct 2026) |
-| Requisitions | Approved (8 Oct 2026, Paper chapters 1 to 4, 24 screens) | Block 1 back end A built on branch `feat/req-be-a` (migration, departments, requisition rules; not pushed). Back end B, the screens and Block 2 still to do; old screens run until then |
+| Requisitions | Approved (8 Oct 2026, Paper chapters 1 to 4, 24 screens) | Block 1 back end A built on `feat/req-be-a` (migration, departments, requisition rules). Back end B built on `feat/req-be-b` (lists, badges, notifications, urgent escalation job, Audit log source, branch-code fix; not pushed). The screens and Block 2 still to do; old screens run until then |
 | Dispatch | Approved (owner, 8 Oct 2026) | Old flow, rebuild pending (build planning session next: `sessions/final-pass-build-planning-session.md`) |
 | Branch day, Branch waste | Approved (8 Oct 2026, Paper pages "Inventory · Counting and closing" and "Inventory · Branch waste": 28 and 9 screens) | Old flow, rebuild pending. Summary: [features/inventory/final-pass-design-summary.md](features/inventory/final-pass-design-summary.md) |
 

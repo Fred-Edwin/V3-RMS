@@ -30,7 +30,18 @@ export interface Viewer {
   headDepartmentId: string | null;
   /** The caller may act on THIS branch (own branch, or the System Admin). */
   branchOk: boolean;
-  can: { start: boolean; changeQuantity: boolean; approve: boolean; cancel: boolean; nudge: boolean; setUrgent: boolean; read: boolean };
+  can: {
+    start: boolean;
+    changeQuantity: boolean;
+    approve: boolean;
+    cancel: boolean;
+    nudge: boolean;
+    setUrgent: boolean;
+    read: boolean;
+    /** Amendment 2: the Branch Manager alone fills and sends a department's section for its head. */
+    editOnBehalf: boolean;
+    sendOnBehalf: boolean;
+  };
   /** Departments of this requisition whose dispatch is signed (additions are closed for them). */
   lockedDepartmentIds: ReadonlySet<string>;
   /** Parent category names by id, for the second level. */
@@ -89,10 +100,10 @@ export const lineWire = (line: LineRecord, section: SectionRecord, v: Viewer): R
   };
 };
 
-const sectionLines = (section: SectionRecord, additions: Map<string, AdditionRecord['status']>): LineRecord[] =>
+export const sectionLines = (section: SectionRecord, additions: Map<string, AdditionRecord['status']>): LineRecord[] =>
   section.lines.filter((l) => counts(l, additions));
 
-const sectionValue = (section: SectionRecord, additions: Map<string, AdditionRecord['status']>): number =>
+export const sectionValue = (section: SectionRecord, additions: Map<string, AdditionRecord['status']>): number =>
   sectionLines(section, additions).reduce(
     (sum, l) =>
       sum +
@@ -127,8 +138,9 @@ export const sectionDetailWire = (section: SectionRecord, rec: RequisitionRecord
   const open = OPENISH.includes(rec.status);
   const isOwnHead = v.headDepartmentId !== null && v.headDepartmentId === section.departmentId;
   const status = section.status as SectionStatus;
-  const fillMyself = v.can.start && v.branchOk && open && SECTION_EDITABLE.includes(status);
-  const editable = open && SECTION_EDITABLE.includes(status) && (isOwnHead || (v.can.start && v.branchOk));
+  const notSent = status === 'NOT_STARTED' || status === 'DRAFT';
+  const fillMyself = v.can.editOnBehalf && v.branchOk && open && notSent;
+  const editable = open && SECTION_EDITABLE.includes(status) && (isOwnHead || fillMyself);
   const lines = section.lines.filter((l) => !l.additionId || additionStatusMap(rec).get(l.additionId) !== 'CANCELLED');
   const mayNudge = v.can.nudge && v.branchOk && rec.status === 'OPEN' && canSkip(status);
   return {
@@ -137,7 +149,7 @@ export const sectionDetailWire = (section: SectionRecord, rec: RequisitionRecord
     lines: lines.map((l) => lineWire(l, section, v)),
     can: {
       edit: editable,
-      send: editable && (status === 'NOT_STARTED' || status === 'DRAFT') && section.lines.length > 0,
+      send: editable && notSent && section.lines.length > 0 && (isOwnHead || v.can.sendOnBehalf),
       recall: isOwnHead && open && canRecall(status),
       nudge: mayNudge,
       skip: mayNudge,

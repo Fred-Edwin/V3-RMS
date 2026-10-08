@@ -7,7 +7,7 @@ import type { LineRecord, RequisitionRecord } from './requisitions-repository';
 /**
  * R6: the data for the printed requisition (Paper step 17): a cover page plus one page per department. It goes to the Central Store
  * to fulfil, so there is NO MONEY anywhere in it (a test pins that no key mentions value, cost or price). This builds data only; the
- * route that serves it is back end B's.
+ * service serves it as R6 (`GET /:id/print`).
  */
 const q = (v: Prisma.Decimal | null): string => (v ? v.toString() : '0');
 
@@ -23,7 +23,8 @@ const printLine = (line: LineRecord, n: number): Print['pages'][number]['lines']
   };
 };
 
-export const buildPrint = (rec: RequisitionRecord): Print => {
+/** `now` is the caller's clock (the footer's "generated" time), so a test passes a fixed one. */
+export const buildPrint = (rec: RequisitionRecord, now: Date = new Date()): Print => {
   const additionStatus = additionStatusMap(rec);
   // A section prints when it was Sent; a Skipped section (or one that never went) has nothing to fulfil.
   const sent = rec.sections.filter((s) => s.status === 'SUBMITTED');
@@ -35,15 +36,16 @@ export const buildPrint = (rec: RequisitionRecord): Print => {
         addedAt: a.addedAt.toISOString(),
         addedBy: toPerson(a.addedBy),
         approvedBy: a.approvedBy ? toPerson(a.approvedBy) : null,
-        approvedAt: null, // back end B: the addition approver's time (Amendment 2, R6)
+        approvedAt: a.approvedAt ? a.approvedAt.toISOString() : null,
         lines: section.lines.filter((l) => l.additionId === a.id).map((l, i) => printLine(l, i + 1)),
       }));
     return {
       departmentId: section.departmentId ?? '',
       departmentName: section.department?.name ?? '',
-      askedBy: null, // back end B: who asked, role label and name as recorded (Amendment 2, R6)
-      askedAt: null, // back end B: when the section was sent (Amendment 2, R6)
-      deliverTo: null, // back end B: the "Deliver to" line (Amendment 2, R6)
+      askedBy: section.submittedBy ? toPerson(section.submittedBy) : null,
+      askedAt: section.submittedAt ? section.submittedAt.toISOString() : null,
+      // Paper step 17: "Barista, Nyeri Town" (the department, then the branch).
+      deliverTo: `${section.department?.name ?? ''}, ${rec.site.name}`,
       lines: base.map((l, i) => printLine(l, i + 1)),
       additions,
     };
@@ -58,8 +60,8 @@ export const buildPrint = (rec: RequisitionRecord): Print => {
     branch: { id: rec.site.id, name: rec.site.name, code: rec.site.code },
     cycleLabel: cycleLabelOf(rec.type, rec.openedAt),
     urgent: rec.urgent,
-    startedAt: rec.openedAt.toISOString(), // back end B: confirm against Paper step 17 (Amendment 2, R6)
-    generatedAt: new Date().toISOString(), // back end B: take the time from the caller's clock (Amendment 2, R6)
+    startedAt: rec.openedAt.toISOString(),
+    generatedAt: now.toISOString(),
     approvedAt: rec.approvedAt ? rec.approvedAt.toISOString() : null,
     approvedBy: rec.approvedBy ? toPerson(rec.approvedBy) : null,
     cover: {

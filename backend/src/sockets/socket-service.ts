@@ -51,6 +51,12 @@ export interface PayMethodChangedPayload {
   reason: string;
 }
 
+/** `inventory:badges`: carries no counts, only "something changed here"; the screen refetches R2. */
+export interface InventoryBadgesPayload {
+  siteId: string;
+  reason: string;
+}
+
 export interface RequisitionSubmittedPayload {
   requisitionId: string;
   departmentTag: string;
@@ -149,6 +155,11 @@ export const socketService = {
   emitRequisitionNudge: (userId: string, payload: RequisitionNudgePayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('requisition:nudge', payload);
+  },
+
+  /** Inventory badge nudge (the one notification layer, `inventory/_shared/notify.ts`): open screens refetch their badge counts. */
+  emitInventoryBadges: (siteId: string, payload: InventoryBadgesPayload): void => {
+    getSocketServer().to(branchRoomName(siteId)).emit('inventory:badges', payload);
   },
 
   emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

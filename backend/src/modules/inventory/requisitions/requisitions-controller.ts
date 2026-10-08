@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../../utils/errors';
+import { branchCodeInputSchema, branchCodeService, branchParamsSchema } from './requisitions-branch-code';
+import { requisitionsListService } from './requisitions-list-service';
 import { requisitionsService } from './requisitions-service';
 import {
   addAdditionInputSchema,
@@ -8,7 +10,10 @@ import {
   approveInputSchema,
   cancelInputSchema,
   changeQuantityInputSchema,
+  historyMineQuerySchema,
   lineParamsSchema,
+  listRequisitionsQuerySchema,
+  skipSectionsInputSchema,
   readIdempotencyKey,
   requisitionParamsSchema,
   saveLinesInputSchema,
@@ -29,6 +34,43 @@ const created = (res: Response, data: { replayed: boolean }, status = 201): void
 };
 
 export const requisitionsController = {
+  // Lists, badges, home, history, activity, documents, print (back end B)
+  list: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await requisitionsListService.list(requireActor(req), listRequisitionsQuerySchema.parse(req.query)) });
+  },
+
+  badges: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await requisitionsListService.badges(requireActor(req)) });
+  },
+
+  home: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await requisitionsListService.home(requireActor(req)) });
+  },
+
+  historyMine: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await requisitionsListService.history(requireActor(req), historyMineQuerySchema.parse(req.query)) });
+  },
+
+  activity: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsListService.activity(requireActor(req), id) });
+  },
+
+  documents: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsListService.documents(requireActor(req), id) });
+  },
+
+  print: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.getPrintData(requireActor(req), id) });
+  },
+
+  setBranchCode: async (req: Request, res: Response): Promise<void> => {
+    const { branchId } = branchParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await branchCodeService.set(requireActor(req), branchId, branchCodeInputSchema.parse(req.body)) });
+  },
+
   // Reads owned by back end A
   getFile: async (req: Request, res: Response): Promise<void> => {
     const { id } = requisitionParamsSchema.parse(req.params);
@@ -83,8 +125,9 @@ export const requisitionsController = {
   },
 
   skip: async (req: Request, res: Response): Promise<void> => {
-    const { id, departmentId } = sectionParamsSchema.parse(req.params);
-    res.status(200).json({ success: true, data: await requisitionsService.skip(requireActor(req), id, departmentId) });
+    const { id } = requisitionParamsSchema.parse(req.params);
+    const { departmentIds } = skipSectionsInputSchema.parse(req.body);
+    res.status(200).json({ success: true, data: await requisitionsService.skip(requireActor(req), id, departmentIds) });
   },
 
   approve: async (req: Request, res: Response): Promise<void> => {

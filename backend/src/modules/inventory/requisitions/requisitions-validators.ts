@@ -6,10 +6,13 @@ import {
   cancelInputSchema,
   changeQuantityInputSchema,
   IDEMPOTENCY_HEADER,
+  historyMineQuerySchema,
   idempotencyKeySchema,
+  listRequisitionsQuerySchema,
   saveLinesInputSchema,
   sendSectionInputSchema,
   setUrgentInputSchema,
+  skipSectionsInputSchema,
   startRequisitionInputSchema,
 } from './_shared/requisitions-contract';
 
@@ -19,9 +22,12 @@ export {
   approveInputSchema,
   cancelInputSchema,
   changeQuantityInputSchema,
+  historyMineQuerySchema,
+  listRequisitionsQuerySchema,
   saveLinesInputSchema,
   sendSectionInputSchema,
   setUrgentInputSchema,
+  skipSectionsInputSchema,
   startRequisitionInputSchema,
 };
 

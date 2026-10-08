@@ -86,6 +86,7 @@ export const CAPABILITIES = [
   'requisitions.send_on_behalf', // send that section with the caller's own PIN; recorded as sent by the caller for that department (Branch Manager only)
   'departments.read', // Departments settings, read only
   'departments.write', // add, rename, retire, restore (own branch)
+  'branches.set_code', // correct a branch's three-letter code, which numbers its requisitions (System Admin only; no screen in Block 1)
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -131,6 +132,7 @@ const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
   'requisitions.edit_on_behalf',
   'requisitions.send_on_behalf',
   'departments.write',
+  'branches.set_code',
 ];
 
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {

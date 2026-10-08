@@ -35,6 +35,7 @@ import {
   type SectionStatus,
   type RequisitionStatus,
 } from './_shared/requisitions-contract';
+import { ON_BEHALF_REASON } from './_shared/requisitions-sentences';
 import { requisitionError, stateConflict } from './requisitions-errors';
 import { requisitionNotices } from './requisitions-events';
 import { attachAdditionToDispatch } from './requisitions-handoff';
@@ -61,7 +62,7 @@ import { additionWire, cycleLabelOf, fileWire, lineWire, sectionDetailWire, sect
 
 type Actor = NonNullable<Request['user']>;
 
-interface Caller {
+export interface Caller {
   actor: Actor;
   staff: StaffRecord;
   /** The department this person heads at their branch, or null. */
@@ -77,7 +78,7 @@ const pad4 = (n: number): string => String(n).padStart(4, '0');
 
 // --- Who is calling and what they may do ---------------------------------------------------------------------------------
 
-const loadCaller = async (actor: Actor): Promise<Caller> => {
+export const loadCaller = async (actor: Actor): Promise<Caller> => {
   const staff = await repo.findStaff(actor.id);
   if (!staff) throw new UnauthorizedError('Authentication required');
   const headDepartmentId = staff.isDepartmentHead && staff.departmentId && staff.siteId ? staff.departmentId : null;
@@ -92,9 +93,9 @@ const mayApproveAt = (c: Caller, siteId: string): boolean =>
   actorCan(c.actor, 'requisitions.approve') && (c.actor.role === 'DIRECTOR' || c.actor.role === 'SYSTEM_ADMIN' || c.staff.siteId === siteId);
 
 /** A head is restricted to their own department when they hold no read capability of their own. */
-const restrictedHead = (c: Caller): string | null => (actorCan(c.actor, 'requisitions.read') ? null : c.headDepartmentId);
+export const restrictedHead = (c: Caller): string | null => (actorCan(c.actor, 'requisitions.read') ? null : c.headDepartmentId);
 
-const readScope = (c: Caller): Scope => {
+export const readScope = (c: Caller): Scope => {
   if (actorCan(c.actor, 'requisitions.read')) {
     // The Branch Manager reads their own branch; the hub roles read any branch (contract §3).
     if (c.actor.role === 'MANAGER') {
@@ -107,7 +108,7 @@ const readScope = (c: Caller): Scope => {
   throw new ForbiddenError('You do not have permission to view requisitions');
 };
 
-const loadFile = async (c: Caller, id: string): Promise<RequisitionRecord> => {
+export const loadFile = async (c: Caller, id: string): Promise<RequisitionRecord> => {
   const rec = await repo.findFile(id, readScope(c));
   if (!rec) throw new NotFoundError('Requisition not found');
   const dept = restrictedHead(c);
@@ -121,13 +122,22 @@ const findSection = (rec: RequisitionRecord, departmentId: string): SectionRecor
   return section;
 };
 
+/** Amendment 2 ("Fill it myself"): the event reason that marks a section filled or sent by the Branch Manager for the head. */
+export type SectionHand = 'HEAD' | 'ON_BEHALF';
+
 /**
- * Who may edit or send a section: the head of THAT department at this branch, or a holder of `requisitions.start` at this branch
- * ("Fill it myself"). A head of another department is told so; anyone else is refused.
+ * Who may edit or send a section: the head of THAT department at this branch, or the Branch Manager at this branch on behalf of
+ * the head (`requisitions.edit_on_behalf` to edit, `requisitions.send_on_behalf` to send; the System Admin and the Director hold
+ * neither). On behalf only works while the section is Not started or Draft (`SECTION_NOT_OPEN` otherwise). A head of another
+ * department is told so; anyone else is refused. Returns whose hand it is.
  */
-const requireSectionEditor = (c: Caller, rec: RequisitionRecord, departmentId: string): void => {
-  if (c.headDepartmentId === departmentId && c.staff.siteId === rec.siteId) return;
-  if (actorCan(c.actor, 'requisitions.start') && mayActAt(c, rec.siteId)) return;
+const requireSectionEditor = (c: Caller, rec: RequisitionRecord, departmentId: string, capability: 'requisitions.edit_on_behalf' | 'requisitions.send_on_behalf'): SectionHand => {
+  if (c.headDepartmentId === departmentId && c.staff.siteId === rec.siteId) return 'HEAD';
+  if (actorCan(c.actor, capability) && c.staff.siteId === rec.siteId) {
+    const status = findSection(rec, departmentId).status as SectionStatus;
+    if (status !== 'NOT_STARTED' && status !== 'DRAFT') throw stateConflict('SECTION_NOT_OPEN', 'That section has been sent or skipped, so it can no longer be filled in for the head.');
+    return 'ON_BEHALF';
+  }
   if (c.headDepartmentId) throw requisitionError('NOT_YOUR_DEPARTMENT', 'You can only work on your own department.');
   throw new ForbiddenError('You do not have permission to change this section');
 };
@@ -144,7 +154,7 @@ const assertBeforeApproval = (rec: RequisitionRecord): void => {
 
 // --- The view ----------------------------------------------------------------------------------------------------------------
 
-const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): Promise<Viewer> => {
+export const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): Promise<Viewer> => {
   const deptIds = rec.sections.flatMap((s) => (s.departmentId ? [s.departmentId] : []));
   const parentIds = [...new Set(rec.sections.flatMap((s) => s.lines.map((l) => l.item.category?.parentCategoryId)).filter((id): id is string => Boolean(id)))];
   const [heads, parentNames, locked] = await Promise.all([
@@ -169,6 +179,8 @@ const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): Promise<
       nudge: actorCan(c.actor, 'requisitions.nudge'),
       setUrgent: actorCan(c.actor, 'requisitions.set_urgent'),
       read: actorCan(c.actor, 'requisitions.read'),
+      editOnBehalf: actorCan(c.actor, 'requisitions.edit_on_behalf'),
+      sendOnBehalf: actorCan(c.actor, 'requisitions.send_on_behalf'),
     },
     lockedDepartmentIds: new Set(locked.filter((id): id is string => id !== null)),
     parentCategoryNames: parentNames,
@@ -239,7 +251,7 @@ export const requisitionsService = {
     return fileWire(rec, await viewerFor(c, rec, now), allInAt);
   },
 
-  /** R6, the data only: the route that serves it is back end B's. No money anywhere. */
+  /** R6 (`GET /:id/print`): the data for the A4. No money anywhere. */
   getPrintData: async (actor: Actor, id: string): Promise<Print> => {
     const c = await loadCaller(actor);
     if (!actorCan(actor, 'requisitions.read')) throw new ForbiddenError('You do not have permission to print requisitions');
@@ -326,7 +338,7 @@ export const requisitionsService = {
     if (!siteId) throw new ValidationError('Branch context missing for this user');
     const site = await repo.findSite(siteId);
     if (!site || site.type !== 'BRANCH') throw new ValidationError('Requisitions belong to a branch');
-    if (!site.code) throw new ValidationError('This branch has no code yet. Set it in Settings before starting a requisition.', 'BRANCH_CODE_MISSING');
+    if (!site.code) throw requisitionError('BRANCH_CODE_MISSING', 'This branch has no code yet. Ask the System Admin to set it before starting a requisition.');
 
     const replay = async (): Promise<MutationResult | null> => {
       const prior = await repo.findByStartKey(siteId, actor.id, input.idempotencyKey);
@@ -343,7 +355,7 @@ export const requisitionsService = {
         const open = await repo.findOpenForCycle(siteId, input.cycle, tx);
         if (open) throw requisitionError('REQUISITION_ALREADY_OPEN', `The ${input.cycle.toLowerCase()} requisition is already open (${open.reference}).`, { requisitionId: open.id });
         const reference = `REQ-${site.code}-${pad4(await referenceCounterRepository.nextNumber(tx, siteId, 'REQ'))}`;
-        const created = await repo.createRequisition(tx, { siteId, type: input.cycle, reference, openedById: actor.id, urgent: input.urgent === true, idempotencyKey: input.idempotencyKey });
+        const created = await repo.createRequisition(tx, { siteId, type: input.cycle, reference, openedById: actor.id, urgent: input.urgent === true, urgentNote: input.urgent === true ? (input.urgentNote ?? null) : null, idempotencyKey: input.idempotencyKey });
         const departments = await repo.listActiveDepartments(siteId, tx);
         const now = new Date();
         for (const d of departments) {
@@ -372,7 +384,7 @@ export const requisitionsService = {
           }
         }
         await repo.appendEvent(tx, { requisitionId: created.id, type: 'STARTED', toValue: input.cycle, ...event(c) });
-        if (input.urgent) await repo.appendEvent(tx, { requisitionId: created.id, type: 'URGENT_SET', ...event(c) });
+        if (input.urgent) await repo.appendEvent(tx, { requisitionId: created.id, type: 'URGENT_SET', toValue: input.urgentNote ?? null, ...event(c) });
         await syncStatus(tx, siteId, created.id);
         return created.id;
       });
@@ -393,7 +405,7 @@ export const requisitionsService = {
   saveLines: async (actor: Actor, id: string, departmentId: string, input: SaveLinesInput): Promise<SectionDetail> => {
     const c = await loadCaller(actor);
     const rec = await loadFile(c, id);
-    requireSectionEditor(c, rec, departmentId);
+    const hand = requireSectionEditor(c, rec, departmentId, 'requisitions.edit_on_behalf');
     assertBeforeApproval(rec);
     const section = findSection(rec, departmentId);
     const saved = sectionStatusAfterSave(section.status as SectionStatus, input.lines.length);
@@ -434,9 +446,17 @@ export const requisitionsService = {
         ...(section.status === 'SUBMITTED' ? { submittedAt: null, submittedById: null } : {}),
         ...(input.noteForManager !== undefined ? { managerNote: input.noteForManager } : {}),
       });
-      await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'LINE_CHANGED', toValue: `${input.lines.length} lines`, ...event(c) });
+      await repo.appendEvent(tx, {
+        requisitionId: rec.id, sectionId: section.id, type: 'LINE_CHANGED', toValue: `${input.lines.length} ${input.lines.length === 1 ? 'line' : 'lines'}`,
+        ...(hand === 'ON_BEHALF' ? { reason: ON_BEHALF_REASON } : {}), ...event(c),
+      });
       await syncStatus(tx, rec.siteId, rec.id);
     });
+    if (hand === 'ON_BEHALF') {
+      requisitionNotices.publish({
+        type: 'SECTION_EDITED_ON_BEHALF', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, departmentId, departmentName: section.department?.name ?? '',
+      });
+    }
 
     const fresh = await reload(c, rec);
     return sectionDetailWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date()));
@@ -446,13 +466,14 @@ export const requisitionsService = {
   sendSection: async (actor: Actor, id: string, departmentId: string, pin: string, idempotencyKey: string): Promise<SendSectionResult> => {
     const c = await loadCaller(actor);
     const rec = await loadFile(c, id);
-    requireSectionEditor(c, rec, departmentId);
     const done = async (replayed: boolean): Promise<SendSectionResult> => {
       const fresh = await reload(c, rec);
       const viewer = await viewerFor(c, fresh, new Date());
       return { ...mutation(fresh, replayed), section: sectionSummaryWire(findSection(fresh, departmentId), fresh, viewer), readyToApprove: fresh.status === 'PENDING_APPROVAL' };
     };
+    // A repeated key answers with the first result before any state rule (the section is Sent by then).
     if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    const hand = requireSectionEditor(c, rec, departmentId, 'requisitions.send_on_behalf');
     assertBeforeApproval(rec);
     const section = findSection(rec, departmentId);
     const check = checkSend(section.status as SectionStatus, section.lines.filter((l) => !l.additionId).length);
@@ -463,12 +484,12 @@ export const requisitionsService = {
     try {
       const status = await prisma.$transaction(async (tx) => {
         await repo.updateSection(tx, rec.siteId, section.id, { status: 'SUBMITTED', submittedAt: new Date(), submittedById: actor.id });
-        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SENT', idempotencyKey, ...event(c) });
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SENT', idempotencyKey, ...(hand === 'ON_BEHALF' ? { reason: ON_BEHALF_REASON } : {}), ...event(c) });
         return syncStatus(tx, rec.siteId, rec.id);
       });
       requisitionNotices.publish({
         type: 'SECTION_SENT', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id,
-        departmentId, departmentName: section.department?.name ?? '', readyToApprove: status === 'PENDING_APPROVAL',
+        departmentId, departmentName: section.department?.name ?? '', readyToApprove: status === 'PENDING_APPROVAL', onBehalf: hand === 'ON_BEHALF',
       });
       return await done(false);
     } catch (error) {
@@ -505,11 +526,18 @@ export const requisitionsService = {
     assertBeforeApproval(rec);
     if (rec.urgent !== input.urgent) {
       const urgentAt = input.urgent ? new Date() : null;
+      const note = input.urgent ? (input.urgentNote ?? null) : null;
       await prisma.$transaction(async (tx) => {
-        await repo.setUrgent(tx, rec.siteId, rec.id, { urgent: input.urgent, urgentAt });
-        await repo.appendEvent(tx, { requisitionId: rec.id, type: input.urgent ? 'URGENT_SET' : 'URGENT_CLEARED', ...event(c) });
+        await repo.setUrgent(tx, rec.siteId, rec.id, { urgent: input.urgent, urgentAt, urgentNote: note });
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: input.urgent ? 'URGENT_SET' : 'URGENT_CLEARED', toValue: note, ...event(c) });
       });
       if (input.urgent) requisitionNotices.publish({ type: 'URGENT_SET', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id });
+    } else if (input.urgent && input.urgentNote !== undefined && input.urgentNote !== rec.urgentNote) {
+      // Already urgent: only the note changes. The hour keeps running from the first `urgentAt`.
+      await prisma.$transaction(async (tx) => {
+        await repo.setUrgentNote(tx, rec.siteId, rec.id, input.urgentNote ?? null);
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: 'URGENT_SET', toValue: input.urgentNote ?? null, ...event(c) });
+      });
     }
     const fresh = await reload(c, rec);
     return { ...mutation(fresh, false), urgent: fresh.urgent, urgentAt: fresh.urgentAt ? fresh.urgentAt.toISOString() : null };
@@ -563,7 +591,8 @@ export const requisitionsService = {
     requireCapAt(c, 'requisitions.nudge', rec.siteId);
     assertBeforeApproval(rec);
     const section = findSection(rec, departmentId);
-    if (!canSkip(section.status as SectionStatus)) throw stateConflict('SECTION_ALREADY_SENT', 'This department has already sent.');
+    if (section.status === 'SUBMITTED') throw stateConflict('SECTION_ALREADY_SENT', 'This department has already sent.');
+    if (!canSkip(section.status as SectionStatus)) throw stateConflict('SECTION_NOT_OPEN', 'This department was sent without its list.');
     const at = new Date();
     await prisma.$transaction((tx) => repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'NUDGED', ...event(c) }));
     requisitionNotices.publish({
@@ -572,24 +601,36 @@ export const requisitionsService = {
     return { ...mutation(rec, false), nudgedAt: at.toISOString() };
   },
 
-  /** R18: "Send without this section". back end B: Amendment 2 makes this `POST /:id/skip` with `{ departmentIds }`, one transaction, one audit event per section; until then it skips the one department and returns it as a one-item list. */
-  skip: async (actor: Actor, id: string, departmentId: string): Promise<SkipSectionResult> => {
+  /**
+   * R18: "Send without these sections" (Amendment 2: a list). Every listed section is checked FIRST and nothing changes unless all
+   * pass: a Sent section is `SECTION_ALREADY_SENT`, a Skipped one `SECTION_NOT_OPEN`. Then one transaction skips them all, with one
+   * audit event per section, and recomputes Collecting or Ready to approve once.
+   */
+  skip: async (actor: Actor, id: string, departmentIds: string[]): Promise<SkipSectionResult> => {
     const c = await loadCaller(actor);
     const rec = await loadFile(c, id);
     requireCapAt(c, 'requisitions.nudge', rec.siteId);
     assertBeforeApproval(rec);
-    const section = findSection(rec, departmentId);
-    if (!canSkip(section.status as SectionStatus)) throw stateConflict('SECTION_ALREADY_SENT', 'This department has already sent.');
+    const sections = departmentIds.map((departmentId) => findSection(rec, departmentId));
+    for (const section of sections) {
+      const status = section.status as SectionStatus;
+      if (status === 'SUBMITTED') throw stateConflict('SECTION_ALREADY_SENT', `${section.department?.name ?? 'That department'} has already sent.`);
+      if (!canSkip(status)) throw stateConflict('SECTION_NOT_OPEN', `${section.department?.name ?? 'That department'} was already sent without its list.`);
+    }
     await prisma.$transaction(async (tx) => {
-      await repo.removeSectionLines(tx, rec.siteId, section.id);
-      await repo.updateSection(tx, rec.siteId, section.id, { status: 'SKIPPED', skippedAt: new Date(), skippedById: actor.id });
-      await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SKIPPED', ...event(c) });
+      const at = new Date();
+      for (const section of sections) {
+        await repo.removeSectionLines(tx, rec.siteId, section.id);
+        await repo.updateSection(tx, rec.siteId, section.id, { status: 'SKIPPED', skippedAt: at, skippedById: actor.id });
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SKIPPED', ...event(c) });
+      }
       await syncStatus(tx, rec.siteId, rec.id);
     });
     const fresh = await reload(c, rec);
+    const viewer = await viewerFor(c, fresh, new Date());
     return {
       ...mutation(fresh, false),
-      sections: [sectionSummaryWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date()))],
+      sections: departmentIds.map((departmentId) => sectionSummaryWire(findSection(fresh, departmentId), fresh, viewer)),
       readyToApprove: fresh.status === 'PENDING_APPROVAL',
     };
   },
@@ -625,7 +666,9 @@ export const requisitionsService = {
           approvedAt: new Date(),
           approvedAsId: c.actor.role === 'MANAGER' ? null : actor.id,
         });
-        await repo.appendEvent(tx, { requisitionId: rec.id, type: 'APPROVED', toValue: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER', idempotencyKey, ...event(c) });
+        // `fromValue` keeps how many lines the signature covered, so "Approved REQ-NYR-0112 · 40 lines" stays true as the file moves on.
+        const signedLines = rec.sections.filter((s) => s.status === 'SUBMITTED').reduce((sum, s) => sum + s.lines.filter((l) => !l.additionId).length, 0);
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: 'APPROVED', fromValue: String(signedLines), toValue: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER', idempotencyKey, ...event(c) });
       });
       requisitionNotices.publish({
         type: 'APPROVED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, signedAs: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER',
@@ -730,6 +773,7 @@ export const requisitionsService = {
     };
     if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
     if (rec.status === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+    if (rec.status !== 'APPROVED') throw stateConflict('NOT_APPROVED', 'This requisition is not signed yet, so there is nothing to add to.');
     if (addition.status !== 'PENDING') throw stateConflict('ADDITION_NOT_PENDING', 'This addition has already been decided.');
     const section = findSection(rec, addition.departmentId);
     if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
