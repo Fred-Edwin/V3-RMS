@@ -5,6 +5,7 @@ import * as React from 'react';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { groupByCategory } from '../../hooks/use-section-draft';
+import { useRestoreFocus } from '../../hooks/use-restore-focus';
 import { SEND_SHEET_COPY } from '../../_shared/lib/phone-words';
 import { formatQty } from '../../lib/qty';
 
@@ -34,6 +35,7 @@ export interface SendSheetProps {
 /** Paper step 5: the summary, the optional note for the Branch Manager and the PIN, as one sheet. */
 export function SendSheet({ open, onOpenChange, departmentName, reference, cycleLabel, branchName, lines, changes, note, onNote, onSend }: SendSheetProps) {
   const idem = useIdempotencyKey();
+  useRestoreFocus(open);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [showAll, setShowAll] = React.useState(false);
@@ -72,17 +74,17 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
       error={error}
     >
       <section aria-label="Your list" className="flex flex-col border border-wds-border-strong">
-        <div className="flex flex-col gap-1.5 border-b border-wds-text-ink px-4 py-4">
-          <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{SEND_SHEET_COPY.yourList}</p>
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-wds-sans text-[28px] font-semibold leading-8 tracking-[-0.01em] text-wds-text-ink">{SEND_SHEET_COPY.items(lines.length)}</p>
-            {changes > 0 ? (
-              <span className="flex items-center gap-2 border border-wds-warning-border bg-wds-warning-bg px-2.5 py-1 font-wds-sans text-[13px] leading-4 text-wds-warning-fg">
-                <span className="size-1.5 rounded-full bg-wds-warning-fg" aria-hidden="true" />
-                {SEND_SHEET_COPY.changes(changes)}
-              </span>
-            ) : null}
+        <div className="flex items-end justify-between gap-3 border-b border-wds-text-ink px-4 pb-3.5 pt-4">
+          <div className="flex flex-col gap-0.5">
+            <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{SEND_SHEET_COPY.yourList}</p>
+            <p className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{SEND_SHEET_COPY.items(lines.length)}</p>
           </div>
+          {changes > 0 ? (
+            <span className="flex items-center gap-1.5 border border-wds-warning-border bg-wds-warning-bg px-[9px] py-1 font-wds-sans text-[12px] leading-[14px] text-wds-warning-fg">
+              <span className="size-1.5 rounded-full bg-wds-warning-fg" aria-hidden="true" />
+              {SEND_SHEET_COPY.changes(changes)}
+            </span>
+          ) : null}
         </div>
         {showAll ? (
           <ul className="flex max-h-[280px] flex-col overflow-y-auto">
@@ -105,29 +107,29 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
         ) : (
           <ul>
             {groups.map((group) => (
-              <li key={group.heading} className="flex flex-col gap-0.5 border-b border-wds-border px-4 py-2.5">
+              <li key={group.heading} className="flex flex-col gap-[3px] border-b border-wds-border px-4 py-[11px]">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{group.heading}</p>
-                  <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary">{group.lines.length}</p>
+                  <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{group.heading}</p>
+                  <p className="font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{group.lines.length}</p>
                 </div>
-                <p className="line-clamp-1 font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{group.lines.map((l) => l.itemName).join(', ')}</p>
+                <p className="line-clamp-1 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{group.lines.map((l) => l.itemName).join(', ')}</p>
               </li>
             ))}
           </ul>
         )}
-        <div className="flex items-center justify-between gap-3 bg-wds-neutral-50 px-4 py-3">
-          <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{SEND_SHEET_COPY.goesTo}</p>
+        <div className="flex items-center justify-between gap-3 border-t border-wds-border bg-wds-neutral-50 px-4 py-[11px]">
+          <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{SEND_SHEET_COPY.goesTo}</p>
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
             aria-expanded={showAll}
-            className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[14px] font-medium leading-[18px] text-wds-selected-edge outline-none transition-[background-color,opacity] duration-100 hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring active:opacity-70"
+            className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-4 text-wds-selected-edge outline-none transition-[background-color,opacity] duration-100 hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring active:opacity-70"
           >
             {showAll ? SEND_SHEET_COPY.hideEveryLine : SEND_SHEET_COPY.seeEveryLine}
           </button>
         </div>
       </section>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <label htmlFor="req-note" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
           {SEND_SHEET_COPY.noteLabel}
         </label>
@@ -137,7 +139,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
           onChange={(e) => onNote(e.target.value.slice(0, SEND_SHEET_COPY.noteMax))}
           rows={2}
           maxLength={SEND_SHEET_COPY.noteMax}
-          className="w-full resize-none border border-wds-border-strong bg-wds-surface px-3.5 py-3 font-wds-sans text-[15px] leading-5 text-wds-text-ink outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-wds-ring"
+          className="w-full resize-none border border-wds-border-strong bg-wds-surface px-3 py-2.5 font-wds-sans text-[14px] leading-5 text-wds-text-ink outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-wds-ring"
         />
       </div>
     </SignSheetDialog>

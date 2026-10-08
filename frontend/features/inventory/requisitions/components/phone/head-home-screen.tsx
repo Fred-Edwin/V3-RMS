@@ -71,7 +71,9 @@ export function HeadHomeScreen() {
       <HeadPhoneHeader leading="menu" title="Requisitions" subtitle={data ? subtitle : 'Asking the Central Store'} />
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto bg-wds-canvas px-5 py-5">
         {home.status === 'error' ? (
-          <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void home.reload()} />
+          <div role="alert">
+            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void home.reload()} />
+          </div>
         ) : !data ? (
           <>
             <LoadingAnnouncer text={HOME_COPY.loading} />
@@ -90,16 +92,18 @@ export function HeadHomeScreen() {
         ) : (
           <>
             <section className="flex flex-col gap-4 border border-wds-border bg-wds-surface p-5" aria-labelledby="req-headline">
-              <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary" suppressHydrationWarning>
-                {now ? `${longDateText(now)} · ${timeText(now)}` : ' '}
-              </p>
-              <h2 id="req-headline" className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">
-                {openForCycle ? `${CYCLE_TEXT[cycle]} requisition` : homeHeadline(cycle, Boolean(data.openByCycle.AFTERNOON))}
-              </h2>
+              <div className="flex flex-col gap-1">
+                <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary" suppressHydrationWarning>
+                  {now ? `${longDateText(now)} · ${timeText(now)}` : ' '}
+                </p>
+                <h2 id="req-headline" className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">
+                  {openForCycle ? `${CYCLE_TEXT[cycle]} requisition` : homeHeadline(cycle, Boolean(data.openByCycle.AFTERNOON))}
+                </h2>
+              </div>
               <CyclePicker value={cycle} onChange={setPicked} open={data.openByCycle} />
               {openForCycle ? (
                 <>
-                  <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary">
+                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
                     {HOME_COPY.cycleOpenHint}. {statusLine(data, cycle)}
                   </p>
                   <HeadPrimaryButton onClick={() => router.push(reqFile(openForCycle.requisitionId))}>{HOME_COPY.openCycle(CYCLE_TEXT[cycle].toLowerCase())}</HeadPrimaryButton>
@@ -107,7 +111,7 @@ export function HeadHomeScreen() {
               ) : (
                 <>
                   {showUrgent ? <UrgentSwitch on={urgent} onChange={setUrgent} note={urgentNote} onNote={setUrgentNote} /> : null}
-                  <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary">{homeLine(data.department.name, data.suggestedLineCount)}</p>
+                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{homeLine(data.department.name, data.suggestedLineCount)}</p>
                   {failure ? (
                     <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
                       {failure}
@@ -123,19 +127,19 @@ export function HeadHomeScreen() {
             {data.earlierToday.length > 0 ? (
               <section className="flex flex-col gap-3" aria-label={HOME_COPY.earlierToday}>
                 <h2 className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{HOME_COPY.earlierToday}</h2>
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2.5">
                   {data.earlierToday.map((row) => (
                     <li key={row.requisitionId} className="flex flex-col gap-1.5 border border-wds-border bg-wds-surface px-4 py-3.5">
                       <div className="flex items-center justify-between gap-3">
                         <Link
                           href={reqFile(row.requisitionId)}
-                          className="rounded-wds-sm font-wds-mono text-[14px] leading-5 text-[#1F5BAE] underline underline-offset-2 outline-none transition-colors hover:text-[#174A8E] focus-visible:shadow-wds-ring active:opacity-70"
+                          className="rounded-wds-sm font-wds-mono text-[13px] leading-4 text-[#1F5BAE] underline underline-offset-2 outline-none transition-colors hover:text-[#174A8E] focus-visible:shadow-wds-ring active:opacity-70"
                         >
                           {row.reference} · {row.cycleLabel.split(' · ')[0]}
                         </Link>
                         <StatusChip status={row.status} text={row.statusText} />
                       </div>
-                      <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">
+                      <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
                         {data.department.name} asked for {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'}
                         {row.sentAt ? ` · sent at ${timeText(row.sentAt)}` : ''}
                       </p>
@@ -173,9 +177,20 @@ function CyclePicker({ value, onChange, open }: { value: RequisitionCycle; onCha
               type="button"
               role="radio"
               aria-checked={selected}
+              // One tab stop for the group; the arrow keys move the choice and the focus (radio group pattern).
+              tabIndex={selected ? 0 : -1}
               onClick={() => onChange(c)}
+              onKeyDown={(e) => {
+                const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+                if (!step) return;
+                e.preventDefault();
+                const next = REQUISITION_CYCLES[(i + step + REQUISITION_CYCLES.length) % REQUISITION_CYCLES.length];
+                if (!next) return;
+                onChange(next);
+                (e.currentTarget.parentElement?.querySelectorAll('[role=radio]')[REQUISITION_CYCLES.indexOf(next)] as HTMLElement | undefined)?.focus();
+              }}
               className={cn(
-                'relative flex h-11 min-w-0 grow basis-0 items-center justify-center gap-1.5 font-wds-sans text-[16px] leading-5 outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring',
+                'relative flex h-11 min-w-0 grow basis-0 items-center justify-center gap-1.5 font-wds-sans text-[14px] leading-[18px] outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring',
                 i > 0 && 'border-l border-wds-border-strong',
                 'active:bg-wds-caramel-100/70 motion-safe:active:scale-[0.99]',
                 selected ? 'border-b-2 border-b-wds-selected-edge bg-wds-caramel-100 font-medium text-wds-selected-edge' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50 hover:text-wds-text-ink',
@@ -195,12 +210,12 @@ function CyclePicker({ value, onChange, open }: { value: RequisitionCycle; onCha
 function UrgentSwitch({ on, onChange, note, onNote }: { on: boolean; onChange: (v: boolean) => void; note: string; onNote: (v: string) => void }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className={cn('flex items-start gap-4 border p-4 transition-colors', on ? 'border-wds-error-border bg-wds-error-bg' : 'border-wds-border bg-wds-surface')}>
-        <div className="flex min-w-0 grow flex-col gap-1.5">
-          <p id="req-urgent-title" className={cn('font-wds-sans text-[17px] font-semibold leading-[22px]', on ? 'text-wds-error-fg' : 'text-wds-text-ink')}>
+      <div className={cn('flex items-start gap-3.5 border px-4 py-3.5 transition-colors', on ? 'border-wds-error-border bg-wds-error-bg' : 'border-wds-border bg-wds-surface')}>
+        <div className="flex min-w-0 grow basis-0 flex-col gap-1">
+          <p id="req-urgent-title" className={cn('font-wds-sans text-[15px] font-semibold leading-5', on ? 'text-wds-error-fg' : 'text-wds-text-ink')}>
             {URGENT_SWITCH.title}
           </p>
-          <p id="req-urgent-body" className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
+          <p id="req-urgent-body" className="max-w-[230px] font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
             {URGENT_SWITCH.body}
           </p>
         </div>
@@ -212,11 +227,11 @@ function UrgentSwitch({ on, onChange, note, onNote }: { on: boolean; onChange: (
           aria-describedby="req-urgent-body"
           onClick={() => onChange(!on)}
           className={cn(
-            'relative -m-1 h-7 w-12 shrink-0 rounded-full p-1 outline-none transition-[background-color,filter] duration-150 hover:brightness-95 focus-visible:shadow-wds-ring active:brightness-90',
+            'relative flex h-7 w-12 shrink-0 items-center rounded-full px-[3px] outline-none before:absolute before:-inset-y-2 before:inset-x-0 before:content-[""] transition-[background-color,filter] duration-150 hover:brightness-95 focus-visible:shadow-wds-ring active:brightness-90',
             on ? 'bg-wds-error-fg' : 'bg-wds-border-strong',
           )}
         >
-          <span aria-hidden="true" className={cn('block size-5 rounded-full bg-wds-surface transition-transform duration-150 motion-reduce:transition-none', on ? 'translate-x-5' : 'translate-x-0')} />
+          <span aria-hidden="true" className={cn('block size-[22px] rounded-full bg-wds-surface transition-transform duration-150 motion-reduce:transition-none', on ? 'translate-x-5' : 'translate-x-0')} />
         </button>
       </div>
       {on ? (
@@ -236,16 +251,18 @@ function UrgentSwitch({ on, onChange, note, onNote }: { on: boolean; onChange: (
   );
 }
 
-export function StatusChip({ status, text }: { status: string; text: string }) {
+/** The status chip. `plain` is the History list's (Paper G1): text only, no dot. */
+export function StatusChip({ status, text, plain = false }: { status: string; text: string; plain?: boolean }) {
   const good = status === 'APPROVED' || status === 'CLOSED';
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 border px-2.5 py-1 font-wds-sans text-[14px] leading-[18px]',
-        good ? 'border-wds-success-border bg-wds-success-bg text-wds-success-fg' : 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-ink',
+        'inline-flex shrink-0 items-center gap-1.5 border px-2 font-wds-sans text-[12px]',
+        plain ? 'py-0.5 leading-4' : 'py-[3px] leading-[14px]',
+        good ? 'border-wds-success-border bg-wds-success-bg text-wds-success-fg' : 'border-wds-border-strong bg-wds-neutral-100 text-wds-neutral-700',
       )}
     >
-      {good ? <span className="size-1.5 rounded-full bg-wds-success-fg" aria-hidden="true" /> : null}
+      {good && !plain ? <span className="size-1.5 rounded-full bg-wds-success-fg" aria-hidden="true" /> : null}
       {text}
     </span>
   );

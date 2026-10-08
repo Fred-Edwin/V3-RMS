@@ -102,7 +102,9 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
       <PhoneColumn>
         <HeadPhoneHeader leading="back" onBack={back} title="Requisition" subtitle="" />
         <div className="flex flex-1 flex-col bg-wds-canvas px-5 py-8">
-          <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void file.reload()} />
+          <div role="alert">
+            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void file.reload()} />
+          </div>
         </div>
       </PhoneColumn>
     );
@@ -165,7 +167,7 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
         {heading}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
           <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-surface px-5 py-3.5">
-            <p className="max-w-[210px] font-wds-sans text-[14px] leading-5 text-wds-text-ink">{section.lineCount > 0 ? SECTION_COPY.filledIn(section.lineCount) : SECTION_COPY.filledInNone}</p>
+            <p className="w-[230px] shrink-0 font-wds-sans text-[14px] leading-5 text-wds-text-ink">{section.lineCount > 0 ? SECTION_COPY.filledIn(section.lineCount) : SECTION_COPY.filledInNone}</p>
             <RowLink onClick={() => router.push(reqEdit(data.id))}>{SECTION_COPY.changeLines}</RowLink>
           </div>
           <UrgentRow on={data.urgent} busy={busy === 'urgent'} onToggle={() => void toggleUrgent()} disabled={!data.can.setUrgent} />
@@ -176,13 +178,14 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
               <CategoryHeading heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
               <ul>
                 {group.lines.map((line) => (
-                  <li key={line.id} className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-surface px-5 py-3">
-                    <div className="flex min-w-0 flex-col gap-[3px]">
-                      <p className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">{line.itemName}</p>
+                  <li key={line.id} className="flex items-center gap-3 border-b border-wds-border bg-wds-surface px-5 py-3">
+                    <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
+                      <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line.itemName}</p>
                       <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{lineSub(line)}</p>
                     </div>
-                    <p className="shrink-0 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
-                      <span className="font-wds-mono text-[20px] leading-6 text-wds-text-ink">{formatQty(line.requestedQty)}</span> {line.unit}
+                    <p className="flex w-[92px] shrink-0 items-baseline justify-end gap-[5px]">
+                      <span className="w-8 shrink-0 text-right font-wds-mono text-[16px] leading-5 text-wds-text-ink">{formatQty(line.requestedQty)}</span>
+                      <span className="w-12 shrink-0 truncate font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{line.unit}</span>
                     </p>
                   </li>
                 ))}
@@ -272,7 +275,7 @@ function UrgentRow({ on, busy, onToggle, disabled, inline = false }: { on: boole
         aria-labelledby="req-urgent-row"
         disabled={disabled || busy}
         onClick={onToggle}
-        className={cn('relative -my-1 h-7 w-12 shrink-0 rounded-full p-1 outline-none transition-[background-color,filter] duration-150 hover:brightness-95 focus-visible:shadow-wds-ring active:brightness-90 disabled:opacity-60', on ? 'bg-wds-error-fg' : 'bg-wds-border-strong')}
+        className={cn('relative -my-1 h-7 w-12 shrink-0 rounded-full p-1 outline-none before:absolute before:-inset-y-2 before:inset-x-0 before:content-[""] transition-[background-color,filter] duration-150 hover:brightness-95 focus-visible:shadow-wds-ring active:brightness-90 disabled:opacity-60', on ? 'bg-wds-error-fg' : 'bg-wds-border-strong')}
       >
         <span aria-hidden="true" className={cn('block size-5 rounded-full bg-wds-surface transition-transform duration-150 motion-reduce:transition-none', on ? 'translate-x-5' : 'translate-x-0')} />
       </button>
@@ -285,15 +288,16 @@ function ChangedCards({ lines }: { lines: RequisitionLine[] }) {
   return (
     <ul className="flex flex-col gap-2">
       {lines.map((l) => (
-        <li key={l.id} className="flex items-center justify-between gap-3 border border-wds-warning-border bg-wds-caramel-100 px-4 py-3.5 shadow-[inset_3px_0_0_0_var(--wds-caramel-500)]">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">{l.itemName}</p>
-            <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">
+        <li key={l.id} className="flex items-center gap-3 border border-wds-warning-border bg-wds-caramel-100 py-3.5 pl-[19px] pr-4 shadow-[inset_3px_0_0_0_var(--wds-caramel-500)]">
+          <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
+            <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{l.itemName}</p>
+            <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
               You asked for {formatQty(l.requestedQty)} {l.unit}
             </p>
           </div>
-          <p className="shrink-0 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
-            <span className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-text-ink">{formatQty(l.approvedQty ?? l.requestedQty)}</span> {l.unit} approved
+          <p className="flex shrink-0 items-baseline gap-[5px]">
+            <span className="font-wds-mono text-[18px] font-semibold leading-[22px] text-wds-text-ink">{formatQty(l.approvedQty ?? l.requestedQty)}</span>
+            <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{l.unit} approved</span>
           </p>
         </li>
       ))}
@@ -312,8 +316,8 @@ function LinesCard({ section, file, expanded, onToggle }: { section: SectionDeta
     <section className="flex flex-col border border-wds-border bg-wds-surface" aria-label="Your lines">
       <div className="flex items-center justify-between gap-3 px-4 py-3.5">
         <div className="flex flex-col gap-0.5">
-          <p className="font-wds-sans text-[16px] leading-5 text-wds-text-ink">{SECTION_COPY.lines(lines.length)}</p>
-          {second ? <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{second}</p> : null}
+          <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{SECTION_COPY.lines(lines.length)}</p>
+          {second ? <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{second}</p> : null}
         </div>
         <RowLink onClick={onToggle}>{expanded ? 'Hide lines' : SENT_COPY.seeLines}</RowLink>
       </div>

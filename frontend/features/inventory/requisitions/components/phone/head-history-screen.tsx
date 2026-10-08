@@ -59,18 +59,18 @@ export function HeadHistoryScreen() {
 
   return (
     <PhoneColumn>
-      <HeadPhoneHeader leading="back" onBack={() => router.push(REQ_HOME)} title={HISTORY_COPY.title} subtitle={HISTORY_COPY.subtitle(fullDateText(new Date().toISOString()), department ? titleCase(department) : '')} />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas px-4 pb-5 pt-4">
+      <HeadPhoneHeader variant="history" leading="back" onBack={() => router.push(REQ_HOME)} title={HISTORY_COPY.title} subtitle={HISTORY_COPY.subtitle(fullDateText(new Date().toISOString()), department ? titleCase(department) : '')} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas p-4">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangePicker
             label="Date"
             today={today}
             value={range}
             onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })}
-            buttonClassName="h-11 rounded-none px-3.5 font-wds-sans text-[15px]"
+            buttonClassName="h-11 rounded-none px-3 font-wds-sans text-[13px]"
           />
           <Select value={status ?? 'ALL'} onValueChange={(v) => setQuery({ status: v === 'ALL' ? null : v, page: null })}>
-            <SelectTrigger aria-label="Status" className="h-11 w-auto min-w-[136px] gap-2 rounded-none px-3.5 font-wds-sans text-[15px]">
+            <SelectTrigger aria-label="Status" className="h-11 w-auto min-w-[120px] gap-2 rounded-none px-3 font-wds-sans text-[13px]">
               <span>{status ? HISTORY_COPY.statusLabel(REQUISITION_STATUS_TEXT[status]) : HISTORY_COPY.statusAll}</span>
             </SelectTrigger>
             <SelectContent>
@@ -86,7 +86,9 @@ export function HeadHistoryScreen() {
 
         <div className="mt-4 flex min-h-0 flex-1 flex-col">
           {history.status === 'error' ? (
-            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={HISTORY_COPY.error} onRetry={() => void history.reload()} />
+            <div role="alert">
+              <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={HISTORY_COPY.error} onRetry={() => void history.reload()} />
+            </div>
           ) : !data ? (
             <>
               <LoadingAnnouncer text={HISTORY_COPY.loading} />
@@ -114,8 +116,8 @@ export function HeadHistoryScreen() {
           )}
           <div className="grow" />
           {data && total > 0 ? (
-            <nav aria-label="Pagination" className="flex items-center justify-between gap-3 pt-5">
-              <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary" aria-live="polite">
+            <nav aria-label="Pagination" className="flex items-center justify-between gap-3 pb-5 pt-3">
+              <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">
                 {HISTORY_COPY.showing((page - 1) * PAGE_SIZE + 1, Math.min(total, (page - 1) * PAGE_SIZE + data.rows.length), total)}
               </p>
               {pages > 1 ? <PageButtons page={page} pages={pages} onPage={(p) => setQuery({ page: p === 1 ? null : String(p) })} /> : null}
@@ -137,15 +139,15 @@ function HistoryRow({ row }: { row: HistoryMineRow }) {
       : HISTORY_COPY.notSent;
   return (
     <li className="border-b border-wds-border last:border-b-0">
-      <Link href={reqFile(row.requisitionId)} className="flex items-center justify-between gap-3 px-4 py-3.5 outline-none transition-colors duration-100 hover:bg-wds-neutral-50 active:bg-wds-neutral-100 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="font-wds-mono text-[15px] leading-5 text-[#1F5BAE] underline underline-offset-2">{row.reference}</span>
-          <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">
+      <Link href={reqFile(row.requisitionId)} className="flex items-center gap-2.5 px-3.5 py-3 outline-none transition-colors duration-100 hover:bg-wds-neutral-50 active:bg-wds-neutral-100 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]">
+        <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
+          <span className="font-wds-mono text-[13px] leading-4 text-[#1F5BAE] underline underline-offset-2">{row.reference}</span>
+          <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">
             {cycle} · {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'}
           </span>
-          <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{second}</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{second}</span>
         </div>
-        <StatusChip status={row.status} text={row.statusText} />
+        <StatusChip status={row.status} text={row.statusText} plain />
       </Link>
     </li>
   );
@@ -158,7 +160,7 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
     return start + i;
   });
   const box =
-    'flex size-11 shrink-0 items-center justify-center border font-wds-sans text-[15px] leading-5 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed';
+    'flex size-11 shrink-0 items-center justify-center border font-wds-sans text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed';
   return (
     <div className="flex items-center gap-1">
       <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(box, 'border-wds-border-strong bg-wds-surface text-wds-text-ink disabled:text-wds-text-faint')}>

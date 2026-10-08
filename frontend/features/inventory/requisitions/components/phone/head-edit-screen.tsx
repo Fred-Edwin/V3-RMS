@@ -41,7 +41,9 @@ export function HeadEditScreen({ requisitionId }: { requisitionId: string }) {
       <PhoneColumn>
         <HeadPhoneHeader leading="back" onBack={() => router.push(reqFile(requisitionId))} title="Change lines" subtitle="" />
         <div className="flex flex-1 flex-col bg-wds-canvas px-5 py-8">
-          <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void file.reload()} />
+          <div role="alert">
+            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void file.reload()} />
+          </div>
         </div>
       </PhoneColumn>
     );
@@ -76,6 +78,12 @@ function DraftEditor({ requisitionId, departmentId, departmentName, reference, c
   const [sendOpen, setSendOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [flushFailed, setFlushFailed] = React.useState<string | null>(null);
+  const undoRef = React.useRef<HTMLButtonElement>(null);
+  const undoItem = draft.undo?.itemId ?? null;
+  // The removed row's own buttons are gone, so keyboard focus goes to Undo rather than falling to the page.
+  React.useEffect(() => {
+    if (undoItem) undoRef.current?.focus();
+  }, [undoItem]);
 
   const leave = React.useCallback(
     async (to: string): Promise<void> => {
@@ -112,7 +120,9 @@ function DraftEditor({ requisitionId, departmentId, departmentName, reference, c
       <PhoneColumn>
         <HeadPhoneHeader leading="back" onBack={() => router.push(reqFile(requisitionId))} title="Change lines" subtitle={`${reference} · ${departmentName} · ${cycleWord}`} mono />
         <div className="flex flex-1 flex-col bg-wds-canvas px-5 py-8">
-          <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void draft.edit.reload()} />
+          <div role="alert">
+            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void draft.edit.reload()} />
+          </div>
         </div>
       </PhoneColumn>
     );
@@ -160,6 +170,7 @@ function DraftEditor({ requisitionId, departmentId, departmentName, reference, c
           <div role="status" className="absolute inset-x-4 bottom-3 flex h-12 items-center justify-between rounded-[2px] bg-wds-neutral-800 px-4 shadow-lg">
             <p className="font-wds-sans text-[14px] leading-[18px] text-wds-neutral-0">{SECTION_COPY.removed(draft.undo.itemName)}</p>
             <button
+              ref={undoRef}
               type="button"
               onClick={draft.undoRemove}
               className="-mr-2 flex min-h-11 items-center rounded-wds-sm px-2 font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-caramel-300 outline-none transition-colors duration-100 hover:bg-white/10 focus-visible:shadow-wds-ring active:bg-white/20"
@@ -242,9 +253,9 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
       <div className="border-b border-wds-border bg-wds-surface px-5 py-3">
         <label className="flex h-11 items-center gap-2.5 border border-wds-border-strong bg-wds-surface px-3 transition-shadow duration-150 focus-within:border-wds-selected-edge focus-within:shadow-wds-ring">
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-wds-text-secondary">
-            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0 text-wds-text-secondary">
+            <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M11 11L14.5 14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <span className="sr-only">{ADD_ITEM_COPY.placeholder}</span>
           <input
@@ -253,7 +264,7 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
             onChange={(e) => onQuery(e.target.value)}
             placeholder={ADD_ITEM_COPY.placeholder}
             autoComplete="off"
-            className="min-w-0 grow bg-transparent font-wds-sans text-[16px] leading-5 text-wds-text-ink outline-none placeholder:text-wds-text-secondary [&::-webkit-search-cancel-button]:hidden"
+            className="min-w-0 grow bg-transparent font-wds-sans text-[15px] leading-5 text-wds-text-ink outline-none placeholder:text-wds-text-secondary [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button type="button" onClick={() => onQuery('')} aria-label={ADD_ITEM_COPY.clear} className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-wds-sm outline-none focus-visible:shadow-wds-ring">
@@ -273,7 +284,8 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
         <section key={group.heading} aria-label={group.heading}>
           <CategoryHeading heading={group.heading} trailing={ADD_ITEM_COPY.found(group.lines.length)} />
           <ul>
-            {group.lines.map((item) => {
+            {/* Paper step 4 lists the items already on the list last in their group. */}
+            {[...group.lines].sort((a, b) => Number(Boolean(lineFor(a.itemId)?.suggestedQty)) - Number(Boolean(lineFor(b.itemId)?.suggestedQty))).map((item) => {
               const line = lineFor(item.itemId);
               const onList = Boolean(line && line.suggestedQty !== null);
               const addedNow = Boolean(line && line.suggestedQty === null);
@@ -281,12 +293,12 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
                 <li
                   key={item.itemId}
                   className={cn(
-                    'flex items-center gap-2.5 border-b border-wds-border py-2.5 pl-5 pr-4',
-                    addedNow ? 'bg-wds-caramel-100 shadow-[inset_3px_0_0_0_var(--wds-caramel-500)]' : 'bg-wds-surface',
+                    'flex items-center border-b border-wds-border px-5',
+                    addedNow ? 'gap-2.5 bg-wds-caramel-100 py-2.5 shadow-[inset_3px_0_0_0_var(--wds-caramel-500)]' : 'gap-3 bg-wds-surface py-3',
                   )}
                 >
                   <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
-                    <p className={cn('font-wds-sans text-[16px] font-medium leading-5', onList ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{item.itemName}</p>
+                    <p className={cn('font-wds-sans text-[14px] font-medium leading-[18px]', onList ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{item.itemName}</p>
                     <p className={cn('font-wds-sans text-[13px] leading-4', addedNow ? 'text-wds-warning-fg' : 'text-wds-text-secondary')}>
                       {onList && line
                         ? ADD_ITEM_COPY.alreadyOnList(formatQty(line.qty), item.unit)
@@ -296,9 +308,11 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
                     </p>
                   </div>
                   {onList ? (
-                    <svg width="22" height="22" viewBox="0 0 24 24" role="img" aria-label="Already on your list" className="shrink-0 text-wds-success-fg">
-                      <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <span className="flex w-[76px] shrink-0 items-center justify-center">
+                      <svg width="18" height="18" viewBox="0 0 18 18" role="img" aria-label="Already on your list" className="text-wds-success-fg">
+                        <path d="M3 9.5L7 13.5L15 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
                   ) : addedNow && line ? (
                     <Stepper
                       itemName={item.itemName}
@@ -313,7 +327,7 @@ function AddItemList({ draft, addable, query, onQuery }: { draft: Draft; addable
                       type="button"
                       onClick={() => draft.add(item)}
                       aria-label={`Add ${item.itemName}`}
-                      className="flex h-10 min-w-[76px] shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring hover:bg-wds-neutral-50 active:bg-wds-neutral-100 motion-safe:active:scale-[0.98]"
+                      className="flex h-10 w-[76px] shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring hover:bg-wds-neutral-50 active:bg-wds-neutral-100 motion-safe:active:scale-[0.98]"
                     >
                       {ADD_ITEM_COPY.add}
                     </button>

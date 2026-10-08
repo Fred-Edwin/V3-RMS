@@ -77,6 +77,8 @@ interface Visibility {
   flag?: NavFlag;
   /** Shows only for a department head (the marker on the token), whatever their base role. */
   departmentHead?: boolean;
+  /** Hidden for a department head, whose own row replaces it (a chef-head sees the head's History, not the floor History). */
+  hideForDepartmentHead?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -268,7 +270,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [STEWARD, HOUSEKEEPING] },
   { key: 'staff-payslips', label: 'Payslips', group: 'staff-nav', icon: ico.payslips, oldHref: '/app/payslips', roles: SHIFT_STAFF },
   { key: 'staff-performance', label: 'Performance', group: 'staff-nav', icon: ico.analytics, oldHref: '/app/performance', roles: [WAITER, CHEF, BARISTA] },
-  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA] },
+  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA], hideForDepartmentHead: true },
   { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: [STEWARD, HOUSEKEEPING], badge: 'inbox' },
   { key: 'staff-income-record', label: 'Record Income', group: 'staff-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [WAITER] },
   { key: 'staff-income-history', label: 'Income History', group: 'staff-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [WAITER] },
@@ -379,7 +381,8 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
-  (!rule.departmentHead || ctx.isDepartmentHead);
+  (!rule.departmentHead || ctx.isDepartmentHead) &&
+  (!rule.hideForDepartmentHead || !ctx.isDepartmentHead);
 
 /** The badge a person may see: dropped when the badge needs a capability they do not hold. */
 const badgeFor = (badge: NavBadge | undefined, ctx: NavContext): NavBadge | undefined => {

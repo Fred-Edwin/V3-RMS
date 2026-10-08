@@ -16,6 +16,7 @@ import { ADD_ITEM_COPY, ADDITION_COPY, headErrorMessage, SECTION_COPY } from '..
 import type { AddableItem, SectionEdit } from '../../_shared/types/requisitions-contract';
 import { groupByCategory } from '../../hooks/use-section-draft';
 import { useHeadFile } from '../../hooks/use-head-requisitions';
+import { useRestoreFocus } from '../../hooks/use-restore-focus';
 import { cleanTyped, formatQty, isValidQty, stepQty, toNumber } from '../../lib/qty';
 import { reqAddMore, reqFile } from '../../lib/routes';
 import { timeText } from '../../lib/time';
@@ -38,9 +39,10 @@ export function HeadAdditionScreen({ requisitionId }: { requisitionId: string })
   const edit = useLoader<SectionEdit>(departmentId ? `req-add:${requisitionId}:${departmentId}` : null, () => requisitionsApi.sectionEdit(requisitionId, departmentId ?? ''), 'Could not open your list.');
   const idem = useIdempotencyKey();
 
+  const [sendOpen, setSendOpen] = React.useState(false);
+  useRestoreFocus(sendOpen);
   const [added, setAdded] = React.useState<AddedLine[]>([]);
   const [query, setQuery] = React.useState('');
-  const [sendOpen, setSendOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
 
@@ -83,7 +85,9 @@ export function HeadAdditionScreen({ requisitionId }: { requisitionId: string })
       <PhoneColumn>
         <HeadPhoneHeader leading="back" onBack={back} title="Add to this requisition" subtitle="" />
         <div className="flex flex-1 flex-col bg-wds-canvas px-5 py-8">
-          <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => { void file.reload(); void edit.reload(); }} />
+          <div role="alert">
+            <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => { void file.reload(); void edit.reload(); }} />
+          </div>
         </div>
       </PhoneColumn>
     );
@@ -160,23 +164,23 @@ export function HeadAdditionScreen({ requisitionId }: { requisitionId: string })
     <PhoneColumn>
       {header}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
-        <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-neutral-100 px-5 py-3.5">
-          <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">{ADDITION_COPY.approvedBlock(approvedLines.length)}</p>
-          <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{ADDITION_COPY.staysApproved}</p>
+        <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-neutral-50 px-5 py-3">
+          <p className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{ADDITION_COPY.approvedBlock(approvedLines.length)}</p>
+          <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{ADDITION_COPY.staysApproved}</p>
         </div>
-        <div className="flex items-center justify-between gap-3 border-b border-wds-warning-border bg-wds-warning-bg px-5 py-3.5">
-          <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-warning-fg">{ADDITION_COPY.addedBlock}</p>
+        <div className="flex items-center justify-between gap-3 border-b border-wds-warning-border bg-wds-caramel-100 px-5 py-3">
+          <p className="font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-warning-fg">{ADDITION_COPY.addedBlock}</p>
           <div className="flex items-center gap-3">
-            <p className="font-wds-sans text-[14px] leading-[18px] text-wds-warning-fg">{SECTION_COPY.lines(added.length)}</p>
+            <p className="font-wds-sans text-[13px] leading-4 text-wds-warning-fg">{SECTION_COPY.lines(added.length)}</p>
             <RowLink onClick={() => router.push(`${reqAddMore(requisitionId)}?pick=1`)}>{SECTION_COPY.addAnItem}</RowLink>
           </div>
         </div>
         {added.length === 0 ? <p className="px-5 py-6 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Add the items you still need. They wait for the Branch Manager before they go to the store.</p> : null}
         <ul>
           {added.map((a) => (
-            <li key={a.item.itemId} className="flex items-center gap-2.5 border-b border-wds-warning-border bg-wds-warning-bg py-2.5 pl-5 pr-3">
+            <li key={a.item.itemId} className="flex items-center gap-2.5 border-b border-wds-warning-border bg-wds-caramel-100 py-2.5 pl-5 pr-3">
               <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
-                <p className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">{a.item.itemName}</p>
+                <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{a.item.itemName}</p>
                 <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{a.item.inSection ? ADDITION_COPY.moreOf(formatQty(approvedLines.find((l) => l.itemId === a.item.itemId)?.requestedQty ?? '0')) : ADDITION_COPY.newItem(a.item.onHand === undefined ? undefined : formatQty(a.item.onHand), a.item.unit)}</p>
               </div>
               <Stepper itemName={a.item.itemName} value={a.qty} changed onChange={(raw) => setQty(a.item.itemId, raw)} onCommit={() => commitQty(a.item.itemId)} onStep={(d) => step(a.item.itemId, d)} />
@@ -206,15 +210,15 @@ export function HeadAdditionScreen({ requisitionId }: { requisitionId: string })
         error={error}
       >
         <section aria-label={ADDITION_COPY.linesAdded(added.length)} className="flex flex-col border border-wds-border-strong">
-          <div className="flex items-baseline justify-between gap-3 border-b border-wds-text-ink px-4 py-4">
-            <p className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">{ADDITION_COPY.linesAdded(added.length)}</p>
-            <p className="font-wds-sans text-[14px] leading-[18px] text-wds-warning-fg">{ADDITION_COPY.waitingForApproval}</p>
+          <div className="flex items-end justify-between gap-3 border-b border-wds-text-ink px-3.5 py-3">
+            <p className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em] text-wds-text-ink">{ADDITION_COPY.linesAdded(added.length)}</p>
+            <p className="font-wds-sans text-[13px] leading-4 text-wds-warning-fg">{ADDITION_COPY.waitingForApproval}</p>
           </div>
           <ul>
             {added.map((a) => (
-              <li key={a.item.itemId} className="flex items-baseline justify-between gap-3 border-b border-wds-border px-4 py-3 last:border-b-0">
-                <span className="font-wds-sans text-[16px] leading-5 text-wds-text-ink">{a.item.itemName}</span>
-                <span className="font-wds-mono text-[15px] leading-5 text-wds-text-ink">{a.item.inSection ? '+' : ''}{formatQty(a.qty)} {a.item.unit}</span>
+              <li key={a.item.itemId} className="flex justify-between gap-3 border-b border-wds-border px-3.5 py-2.5 last:border-b-0">
+                <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{a.item.itemName}</span>
+                <span className="font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{a.item.inSection ? '+' : ''}{formatQty(a.qty)} {a.item.unit}</span>
               </li>
             ))}
           </ul>

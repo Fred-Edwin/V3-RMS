@@ -32,7 +32,17 @@ const BRANCH = { id: 'b0000000-0000-4000-8000-000000000001', name: 'Nyeri Town',
 const HEAD: Person = { id: 'u-grace', name: 'Grace Wanjiru', initials: 'GW', roleLabel: 'Kitchen Head' };
 const MANAGER: Person = { id: 'u-peter', name: 'Peter Mwangi', initials: 'PM', roleLabel: 'Branch Manager' };
 const PIN = '1234';
-const latency = (): Promise<void> => new Promise((r) => setTimeout(r, 180));
+/** Test hooks (browser console): `fail(code, times)` makes the next calls throw; `slow(ms)` holds every call so a loading state can be seen. */
+let delayMs = 180;
+let injected: { code: string; remaining: number } | null = null;
+const latency = async (): Promise<void> => {
+  await new Promise((r) => setTimeout(r, delayMs));
+  if (injected && injected.remaining > 0) {
+    injected.remaining -= 1;
+    if (injected.code === 'NETWORK') throw new TypeError('Failed to fetch');
+    throw new ApiError('Injected failure', injected.code === 'SERVER' ? 500 : 409, injected.code);
+  }
+};
 
 interface Item {
   id: string;
@@ -137,7 +147,7 @@ const oldOnes = (): MockRequisition[] => {
     past(104, 'AFTERNOON', 'CLOSED', 9, 3),
     past(101, 'MORNING', 'CLOSED', 14, 4),
     past(98, 'AFTERNOON', 'CLOSED', 8, 5),
-    ...Array.from({ length: 17 }, (_, i) => past(90 - i * 3, i % 2 ? 'AFTERNOON' : 'MORNING', 'CLOSED', 6 + (i % 7), 6 + i)),
+    ...Array.from({ length: 29 }, (_, i) => past(90 - i * 3, i % 2 ? 'AFTERNOON' : 'MORNING', 'CLOSED', 6 + (i % 7), 6 + i)),
   ];
 };
 history = oldOnes();
@@ -507,6 +517,9 @@ interface MockControls {
   cancel: () => string;
   approveAddition: () => string;
   reset: () => string;
+  fail: (code: string, times?: number) => string;
+  slow: (ms: number) => string;
+  emptyHistory: () => string;
 }
 
 const controls: MockControls = {
@@ -543,10 +556,33 @@ const controls: MockControls = {
     current = null;
     history = oldOnes();
     seq = 112;
+    delayMs = 180;
+    injected = null;
     return 'Reset.';
+  },
+  fail: (code, times = 1) => {
+    injected = { code, remaining: times };
+    return `The next ${times} call(s) fail with ${code}.`;
+  },
+  slow: (ms) => {
+    delayMs = ms;
+    return `Every call now takes ${ms} ms.`;
+  },
+  emptyHistory: () => {
+    history = [];
+    return 'History is empty.';
   },
 };
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_REQUISITIONS_MOCK === '1') {
+  // A start-up setting for states that must exist before the first call: sessionStorage `reqMockInit` = {"slow":3000,"fail":{"code":"SERVER","times":1},"emptyHistory":true}.
+  try {
+    const init = JSON.parse(window.sessionStorage.getItem('reqMockInit') ?? 'null') as { slow?: number; fail?: { code: string; times?: number }; emptyHistory?: boolean } | null;
+    if (init?.slow) delayMs = init.slow;
+    if (init?.fail) injected = { code: init.fail.code, remaining: init.fail.times ?? 1 };
+    if (init?.emptyHistory) history = [];
+  } catch {
+    /* no start-up setting */
+  }
   (window as unknown as { __requisitionsMock: MockControls }).__requisitionsMock = controls;
 }

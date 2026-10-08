@@ -52,7 +52,8 @@ describe('the draft rules', () => {
 
 describe('the wording', () => {
   it('has a head line for every error code the contract lists, except the desktop-only ones', () => {
-    for (const code of REQUISITION_ERROR_CODES) expect(HEAD_ERROR_COPY[code], code).toBeTruthy();
+    const desktopOnly = new Set<string>(['DEPARTMENT_HAS_OPEN_SECTIONS']);
+    for (const code of REQUISITION_ERROR_CODES) if (!desktopOnly.has(code)) expect(HEAD_ERROR_COPY[code], code).toBeTruthy();
   });
   it('maps a known code, a lost connection and an unknown failure to plain words', () => {
     expect(headErrorMessage(new ApiError('x', 400, 'INVALID_PIN'))).toBe('That PIN is not right. Try again.');
@@ -97,6 +98,12 @@ describe("the head's rows in the navigation table", () => {
   it('gives a head Requisitions, Deliveries, Waste and History on the new pages, and a member none of them', () => {
     expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/branch/deliveries', '/app/branch/waste/new', '/app/requisitions/history']));
     expect(hrefs(false)).not.toContain('/app/requisitions');
+  });
+  it('shows a chef-head one History (the head\'s), and a chef without the marker the floor History', () => {
+    const labels = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.label));
+    expect(labels(true).filter((l) => l === 'History')).toHaveLength(1);
+    expect(hrefs(true)).not.toContain('/app/history');
+    expect(hrefs(false)).toContain('/app/history');
   });
 });
 
