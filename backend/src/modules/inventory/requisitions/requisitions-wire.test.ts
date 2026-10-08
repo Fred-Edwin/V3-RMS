@@ -26,7 +26,7 @@ const viewer = (extra: Partial<Viewer> = {}): Viewer => ({
   seeStock: true,
   headDepartmentId: null,
   branchOk: true,
-  can: { start: true, changeQuantity: true, approve: true, cancel: true, nudge: true, setUrgent: true, read: true },
+  can: { start: true, changeQuantity: true, approve: true, cancel: true, nudge: true, setUrgent: true, read: true, editOnBehalf: true, sendOnBehalf: true },
   lockedDepartmentIds: new Set(),
   parentCategoryNames: new Map(),
   heads: new Map(),
@@ -52,7 +52,7 @@ describe('the file wire parses against the frozen contract', () => {
   });
 
   it('as a head (own section only, no money)', () => {
-    const file = fileWire(signed(), viewer({ seeValue: false, seeStock: false, headDepartmentId: KITCHEN, can: { start: false, changeQuantity: false, approve: false, cancel: false, nudge: false, setUrgent: false, read: false } }), null);
+    const file = fileWire(signed(), viewer({ seeValue: false, seeStock: false, headDepartmentId: KITCHEN, can: { start: false, changeQuantity: false, approve: false, cancel: false, nudge: false, setUrgent: false, read: false, editOnBehalf: false, sendOnBehalf: false } }), null);
     expect(requisitionFileSchema.safeParse(withUuids(file)).error?.issues ?? []).toEqual([]);
     expect(file.sections).toHaveLength(1);
     expect(file.can.addToIt).toBe(true);

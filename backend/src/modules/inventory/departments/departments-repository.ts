@@ -53,6 +53,19 @@ export const departmentsRepository = {
       select: { id: true },
     }),
 
+  /**
+   * Sections of this department that are still open: in a requisition that is Collecting or Ready to approve, and not Skipped
+   * (Not started, Draft or Sent). A signed, cancelled or closed requisition keeps its sections but holds nothing open.
+   */
+  countOpenSections: (siteId: string, departmentId: string): Promise<number> =>
+    prisma.requisitionSection.count({
+      where: {
+        departmentId,
+        status: { in: ['NOT_STARTED', 'DRAFT', 'SUBMITTED'] },
+        requisition: { siteId, status: { in: ['OPEN', 'PENDING_APPROVAL'] } },
+      },
+    }),
+
   create: async (siteId: string, name: string, db: Db = prisma): Promise<DepartmentRecord> => {
     const last = await db.department.aggregate({ where: { siteId }, _max: { position: true } });
     return db.department.create({ data: { siteId, name, position: (last._max.position ?? 0) + 1 }, select: departmentSelect });

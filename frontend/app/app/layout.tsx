@@ -26,6 +26,7 @@ interface AppShellLayoutProps {
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.role);
+  const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
   const isHydrated = useAuthStore((state) => state.isHydrated);
 
   // Attach comms socket listeners for real-time inbox updates
@@ -54,11 +55,11 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     return <>{children}</>;
   }
 
-  if (usesAppShell(role)) {
+  if (usesAppShell(role, isDepartmentHead)) {
     return <AppShell mode="responsive">{children}</AppShell>;
   }
 
-  if (usesDesktopShell(role, isDesktopPreviewEnabled)) {
+  if (usesDesktopShell(role, isDesktopPreviewEnabled, isDepartmentHead)) {
     return (
       <>
         {/* Floor staff in the desktop preview: the shell from lg up, the legacy bottom-tab layout below it. */}

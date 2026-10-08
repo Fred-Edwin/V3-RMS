@@ -9,7 +9,7 @@ type Db = Prisma.TransactionClient | typeof prisma;
  * service passes `{ anyBranch: true }` and the query still limits itself to branch sites, never the Central Store.
  */
 export type Scope = { siteId: string } | { anyBranch: true };
-const scopeWhere = (scope: Scope): Prisma.RequisitionWhereInput => ('siteId' in scope ? { siteId: scope.siteId } : { site: { type: 'BRANCH' } });
+export const scopeWhere = (scope: Scope): Prisma.RequisitionWhereInput => ('siteId' in scope ? { siteId: scope.siteId } : { site: { type: 'BRANCH' } });
 
 const personSelect = { id: true, name: true, role: true } as const;
 const departmentSelect = { id: true, name: true, status: true, key: true } as const;
@@ -24,7 +24,7 @@ const itemSelect = {
 
 const lineInclude = { item: { select: itemSelect } } as const;
 
-const fileInclude = {
+export const fileInclude = {
   site: { select: { id: true, name: true, code: true } },
   openedBy: { select: personSelect },
   approvedBy: { select: personSelect },
@@ -127,6 +127,15 @@ export const requisitionsRepository = {
   findSite: (siteId: string): Promise<{ id: string; name: string; code: string | null; type: 'BRANCH' | 'CENTRAL_STORE' } | null> =>
     prisma.site.findFirst({ where: { id: siteId }, select: { id: true, name: true, code: true, type: true } }),
 
+  /** The branch (by id) that already holds a code, for the uniqueness check. */
+  findSiteByCode: (code: string): Promise<{ id: string } | null> => prisma.site.findFirst({ where: { code }, select: { id: true } }),
+
+  setSiteCode: (siteId: string, code: string): Promise<{ id: string; name: string; code: string | null }> =>
+    prisma.site.update({ where: { id: siteId }, data: { code }, select: { id: true, name: true, code: true } }),
+
+  findDepartment: (siteId: string, departmentId: string): Promise<{ id: string; name: string } | null> =>
+    prisma.department.findFirst({ where: { id: departmentId, siteId }, select: { id: true, name: true } }),
+
   /** The branch's active departments with how many live items are tagged to each. */
   listActiveDepartments: async (siteId: string, db: Db = prisma): Promise<DepartmentWithItems[]> => {
     const rows = await db.department.findMany({
@@ -202,7 +211,7 @@ export const requisitionsRepository = {
 
   createRequisition: (
     tx: Prisma.TransactionClient,
-    data: { siteId: string; type: RequisitionType; reference: string; openedById: string; urgent: boolean; idempotencyKey: string },
+    data: { siteId: string; type: RequisitionType; reference: string; openedById: string; urgent: boolean; urgentNote: string | null; idempotencyKey: string },
   ): Promise<{ id: string }> =>
     tx.requisition.create({
       data: {
@@ -212,6 +221,7 @@ export const requisitionsRepository = {
         openedById: data.openedById,
         urgent: data.urgent,
         urgentAt: data.urgent ? new Date() : null,
+        urgentNote: data.urgentNote,
         idempotencyKey: data.idempotencyKey,
       },
       select: { id: true },
@@ -273,8 +283,13 @@ export const requisitionsRepository = {
   setStatus: async (tx: Prisma.TransactionClient, siteId: string, id: string, status: RequisitionStatus, data: Prisma.RequisitionUncheckedUpdateManyInput = {}): Promise<boolean> =>
     (await tx.requisition.updateMany({ where: { id, siteId }, data: { status, ...data } })).count > 0,
 
-  setUrgent: async (tx: Prisma.TransactionClient, siteId: string, id: string, data: { urgent: boolean; urgentAt: Date | null }): Promise<void> => {
-    await tx.requisition.updateMany({ where: { id, siteId }, data });
+  /** Setting Urgent starts the hour afresh (`urgentEscalatedAt` is cleared); clearing it drops the note. */
+  setUrgent: async (tx: Prisma.TransactionClient, siteId: string, id: string, data: { urgent: boolean; urgentAt: Date | null; urgentNote: string | null }): Promise<void> => {
+    await tx.requisition.updateMany({ where: { id, siteId }, data: { ...data, urgentEscalatedAt: null } });
+  },
+
+  setUrgentNote: async (tx: Prisma.TransactionClient, siteId: string, id: string, urgentNote: string | null): Promise<void> => {
+    await tx.requisition.updateMany({ where: { id, siteId }, data: { urgentNote } });
   },
 
   /**
@@ -343,6 +358,28 @@ export const requisitionsRepository = {
       },
     });
   },
+
+  /**
+   * THE ESCALATION JOB's reads and claim (contract §7). The one place that looks at every branch at once: a system job with no
+   * caller. Urgent, still unsigned (Collecting or Ready to approve), urgent since `cutoff` or earlier, not yet escalated.
+   */
+  findDueForEscalation: (cutoff: Date): Promise<Array<{ id: string; siteId: string; reference: string; urgentNote: string | null; siteName: string }>> =>
+    prisma.requisition
+      .findMany({
+        where: { urgent: true, urgentAt: { lte: cutoff }, urgentEscalatedAt: null, status: { in: ['OPEN', 'PENDING_APPROVAL'] }, site: { type: 'BRANCH' } },
+        select: { id: true, siteId: true, reference: true, urgentNote: true, site: { select: { name: true } } },
+        orderBy: { urgentAt: 'asc' },
+      })
+      .then((rows) => rows.map((r) => ({ id: r.id, siteId: r.siteId, reference: r.reference, urgentNote: r.urgentNote, siteName: r.site.name }))),
+
+  /** Stamps `urgentEscalatedAt` only if it is still unset and the requisition is still urgent and unsigned. True for exactly one caller. */
+  claimEscalation: async (siteId: string, id: string, cutoff: Date, at: Date): Promise<boolean> =>
+    (
+      await prisma.requisition.updateMany({
+        where: { id, siteId, urgent: true, urgentAt: { lte: cutoff }, urgentEscalatedAt: null, status: { in: ['OPEN', 'PENDING_APPROVAL'] } },
+        data: { urgentEscalatedAt: at },
+      })
+    ).count > 0,
 
   /** When did the requisition become "all in"? The latest Sent or Skipped moment of its sections. */
   findAllInAt: async (requisitionId: string, siteId: string): Promise<Date | null> => {

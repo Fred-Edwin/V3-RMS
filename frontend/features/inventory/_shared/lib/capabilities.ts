@@ -57,6 +57,7 @@ export const CAPABILITIES = [
   'requisitions.send_on_behalf',
   'departments.read',
   'departments.write',
+  'branches.set_code',
   'audit.read',
   'central_store.read_any_org',
 ] as const;

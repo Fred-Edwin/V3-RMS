@@ -77,6 +77,8 @@ interface Visibility {
   flag?: NavFlag;
   /** Shows only for a department head (the marker on the token), whatever their base role. */
   departmentHead?: boolean;
+  /** Hidden for a department head, whose own row replaces it (a chef-head sees the head's History, not the floor History). */
+  hideForDepartmentHead?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -290,7 +292,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [STEWARD, HOUSEKEEPING] },
   { key: 'staff-payslips', label: 'Payslips', group: 'staff-nav', icon: ico.payslips, oldHref: '/app/payslips', roles: SHIFT_STAFF },
   { key: 'staff-performance', label: 'Performance', group: 'staff-nav', icon: ico.analytics, oldHref: '/app/performance', roles: [WAITER, CHEF, BARISTA] },
-  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA] },
+  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA], hideForDepartmentHead: true },
   { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: [STEWARD, HOUSEKEEPING], badge: 'inbox' },
   { key: 'staff-income-record', label: 'Record Income', group: 'staff-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [WAITER] },
   { key: 'staff-income-history', label: 'Income History', group: 'staff-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [WAITER] },
@@ -361,7 +363,11 @@ export const NAV_ROWS: readonly NavRow[] = [
 
   // ── A department head, on top of their own role's links ──────────────────────────────────────────────────────────────────
   { key: 'department-shifts', label: 'Department Shifts', group: 'department', icon: ico.shifts, oldHref: '/app/department/shifts', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, oldHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
+  // The head's Requisitions screens are rebuilt (phone column, own header). Deliveries and Waste stay links to the pages that exist today.
+  { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/branch/deliveries', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/branch/waste/new', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },
@@ -413,7 +419,8 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
-  (!rule.departmentHead || ctx.isDepartmentHead);
+  (!rule.departmentHead || ctx.isDepartmentHead) &&
+  (!rule.hideForDepartmentHead || !ctx.isDepartmentHead);
 
 /** The badge a person may see: dropped when the badge needs a capability they do not hold. */
 const badgeFor = (badge: NavBadge | undefined, ctx: NavContext): NavBadge | undefined => {
@@ -519,10 +526,12 @@ export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pa
 const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT];
 const DESKTOP_PREVIEW_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA];
 
-export const usesAppShell = (role: AppRole | null | undefined): boolean => Boolean(role) && SHELL_ROLES.includes(role as AppRole);
+/** A department head uses the shell whatever their base role (Paper "Phone menus by role": no bottom tabs); a member stays on the legacy tabs for now. */
+export const usesAppShell = (role: AppRole | null | undefined, isDepartmentHead = false): boolean =>
+  Boolean(role) && (SHELL_ROLES.includes(role as AppRole) || isDepartmentHead);
 
 /** The sidebar shows for these roles, and for the floor staff only in the desktop preview (a dev flag), next to their bottom tabs. */
-export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean): boolean {
+export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean, isDepartmentHead = false): boolean {
   if (!role) return false;
-  return usesAppShell(role) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
+  return usesAppShell(role, isDepartmentHead) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
 }

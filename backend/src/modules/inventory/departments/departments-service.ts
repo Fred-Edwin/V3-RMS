@@ -115,6 +115,10 @@ export const departmentsService = {
   retire: async (actor: Actor, id: string): Promise<DepartmentRow> => {
     const record = await loadForWrite(actor, id);
     if (record.status === 'RETIRED') throw departmentError('DEPARTMENT_RETIRED', 'This department is already retired.');
+    // Amendment 2: a department with a list still open in a requisition cannot be retired until that requisition is signed or cancelled.
+    if ((await departmentsRepository.countOpenSections(record.siteId, record.id)) > 0) {
+      throw departmentError('DEPARTMENT_HAS_OPEN_SECTIONS', 'This department still has a list in an open requisition. Retire it once that requisition is signed or cancelled.');
+    }
     return oneRow(actor, await departmentsRepository.setStatus(record.id, record.siteId, 'RETIRED'));
   },
 
