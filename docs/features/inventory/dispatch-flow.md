@@ -1,6 +1,6 @@
-# Dispatch: flow and rules (draft defaults, 7 Oct 2026; owner reviews before this group is drawn)
+# Dispatch: flow and rules (approved by the owner, 8 Oct 2026; where this text differs from Paper, Paper wins)
 
-Group D of the final Inventory design pass. Built from the owner's decisions plus recommended defaults where the owner said "use your recommendation". Discrepancy rules are in [discrepancies.md](discrepancies.md) and are not repeated here. Screens: [final-pass-screen-plan.md](final-pass-screen-plan.md). Upstream: [requisitions-flow.md](requisitions-flow.md).
+Group D of the final Inventory design pass. Built from the owner's decisions plus recommended defaults where the owner said "use your recommendation"; the drawn and approved screens are the 23 steps D1 to D21 in Paper. Discrepancy rules are in [discrepancies.md](discrepancies.md) and are not repeated here. Screens: [final-pass-screen-plan.md](final-pass-screen-plan.md). Upstream: [requisitions-flow.md](requisitions-flow.md).
 
 ## In one paragraph
 
@@ -12,7 +12,7 @@ An approved requisition becomes **one dispatch per department** (`DSP-nnnn`) in 
 
 ## One list, one link
 
-Dispatch has **no separate sidebar link**. It is the **To pack, On the way, To confirm and Discrepancies tabs of the one Requisitions list**. The store opens on To pack. The list is drawn once (Group R); Group D draws the files, not a second list.
+Dispatch has **no sidebar link of its own for the desktop roles**. It is the **To pack, On the way, To confirm and Discrepancies tabs of the one Requisitions list**, and Paper's sidebars show them as the sub-links of the one Requisitions row (Queue, Discrepancies, History). The store opens on To pack. The list is drawn once (Group R); Group D draws the files, not a second list. The Store Attendant's phone menu keeps a **Dispatch** row (badge = branches to pack), with the To pack, On the way and Done tabs (gap fix G3).
 
 ## Packing (Store Attendant, phone first; Store Manager shares the same screens)
 

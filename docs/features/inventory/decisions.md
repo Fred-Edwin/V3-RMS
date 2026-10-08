@@ -21,7 +21,7 @@ Cross-cutting decisions that still apply. Sub-module specific rules live in each
 - **Branch day (rewritten 7 Oct 2026, full rules in [branch-day-flow.md](branch-day-flow.md)):** each Department Head counts their own department **blind on their phone**; the Branch Manager reviews all five and closes with a PIN. The result is shown as **Used today** (opening + received − waste − closing), a plain figure, not a "gap"; only an unusual figure asks for a reason. **No reopen**: a mistake is fixed with **Correct a count** (one item, reason, PIN, a linked entry) until the next opening is accepted, or by the next morning's opening recount. The closing count is the next morning's opening (pre-filled; any active department member or the Branch Manager accepts or recounts; a difference is an overnight variance; never blocks). Close needs every department counted and no unconfirmed delivery; an open discrepancy does not block. This replaces the old rules (Branch Manager enters counts, reopen with a reason, KES 1,000 reason threshold, `CONSUMPTION` reason).
 - Automatic stock deduction on sale is **deferred**: until it exists a branch count gap is consumption plus loss blended. Say so to the client.
 
-## Requisition and dispatch (original rules; the walkthrough is being designed, see [requisitions-flow.md](requisitions-flow.md))
+## Requisition and dispatch (original rules; the approved design in Paper (8 Oct 2026) and [requisitions-flow.md](requisitions-flow.md) win where they differ)
 
 - One requisition per branch per cycle, with a section per department; Department Heads see only their own department's slice of the catalog.
 - **Branch Manager approval is a hard gate** with line-level edit rights (change, delete, add); the affected head is told what changed. A slow department never blocks the others. Urgent escalation raises visibility, never bypasses the signature.
@@ -77,7 +77,7 @@ Applies to every Central Store feature (Purchasing and Receiving, Prep, Stock, D
 
 | # | Question | Decision |
 |---|---|---|
-| F1 | `MISCOUNT_CORRECTED` writes the gap at the branch although the note says everything arrived | **Settled.** Require a `correctedQty` and write `correctedQty − confirmedQty`. Build it with the Dispatch/branch flow; do not demo this outcome until it is built |
+| F1 | `MISCOUNT_CORRECTED` writes the gap at the branch although the note says everything arrived | **Superseded 7 Oct 2026 by the four findings in [discrepancies.md](discrepancies.md) ("Branch counted wrong" corrects the department up by the gap).** Was: require a `correctedQty` and write `correctedQty − confirmedQty`. Build it with the Dispatch/branch flow; do not demo this outcome until it is built |
 | F4 | `GET /dispatch/:id/fulfil` returns on-hand to the Store Attendant | **Settled (7 Oct 2026): the Attendant sees quantities, including on-hand, while packing a dispatch.** Money stays hidden and the rest of the blind rule stands (no expected stock on counts, no supplier money) |
 | Q1 | Suggested restock level: formula and who sets days of cover per item | **Settled.** The Store Manager sets days of cover per item (built). Default 15 days; 5 days for perishables when an item is marked perishable |
 | Q2 | Can an attendant-added item be ordered before the Store Manager finishes setup? | **Settled: no.** It can be received, not ordered, until setup is finished |

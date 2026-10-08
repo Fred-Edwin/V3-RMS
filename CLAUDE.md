@@ -190,9 +190,13 @@ and `frontend/features/inventory/` (pure moves; no behaviour change).
   `docs/DATA_MODEL.md` §4.85). Daily count and Spot count are gone; the old count
   tables are dropped by a guarded migration. Branch day still imports a few old
   counting files, kept on purpose and marked for its own refactor.
-- **Design not yet approved, code on the old flow:** requisitions, dispatch, branch-day.
-- Two open owner decisions (miscount-correction ledger effect; attendant on-hand
-  in dispatch fulfil) are in `docs/features/inventory/decisions.md`.
+- **Design approved by the owner (8 Oct 2026), code still on the old flow (the
+  final build):** requisitions, dispatch and discrepancies, branch-day, branch waste,
+  and the role-coverage gap fixes. Plan, blocks and status table:
+  `docs/features/inventory/final-pass-build-plan.md`. Paper wins wherever a document
+  disagrees with it. The two old open decisions are closed (the Attendant sees
+  quantities including on-hand while packing; the miscount-correction outcome is gone
+  with the new discrepancy findings).
 
 Start at `docs/features/inventory/README.md` (map, roles, standing rules, status
 table), then the README of the sub-module you are touching. Do not use
