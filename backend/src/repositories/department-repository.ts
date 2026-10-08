@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import type { DepartmentTag } from '@prisma/client';
 import { departmentScopeFilter } from '../utils/departments';
+import { departmentLinks } from '../modules/inventory/departments/department-links';
 
 const staffSelect = {
   id: true,
@@ -93,16 +94,18 @@ export const departmentRepository = {
       if (currentHead) {
         await tx.user.update({
           where: { id: currentHead.id },
-          data: { isDepartmentHead: false, departmentTag: null },
+          data: { isDepartmentHead: false, departmentTag: null, departmentId: null },
         });
       }
 
       // Marker model: the person keeps their real role; we only set the flag
       // and the tag naming which department they head. "Move a head from
       // Kitchen to Service" is just a new departmentTag on the same row.
+      // Dual-write (Block 1 expand phase): departmentId follows departmentTag.
+      const departmentId = user.siteId ? await departmentLinks.idForKey(user.siteId, departmentTag, tx) : null;
       return tx.user.update({
         where: { id: userId },
-        data: { isDepartmentHead: true, departmentTag },
+        data: { isDepartmentHead: true, departmentTag, departmentId },
         select: staffSelect,
       });
     });
@@ -111,7 +114,7 @@ export const departmentRepository = {
   unassignHead: async (userId: string) => {
     return prisma.user.update({
       where: { id: userId },
-      data: { isDepartmentHead: false, departmentTag: null },
+      data: { isDepartmentHead: false, departmentTag: null, departmentId: null },
       select: staffSelect,
     });
   },

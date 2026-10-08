@@ -1,885 +1,619 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { requisitionService } from './requisitions-service';
-import { requisitionRepository } from './requisitions-repository';
-import { inventoryItemRepository, restockLevelRepository } from '../catalog/inventory-repository';
-import { branchRepository } from '../../../repositories/branch-repository';
-import { locationRepository } from '../../../repositories/location-repository';
-import { authRepository } from '../../../repositories/auth-repository';
-import { socketService } from '../../../sockets/socket-service';
-import { fcmService } from '../../../services/fcm-service';
-import { comparePin } from '../../../utils/password';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
+import { AppError } from '../../../utils/errors';
+import {
+  D, BARISTA, KITCHEN, OTHER_SITE, SITE, kitchenHead, makeAddition, makeLine, makeRequisition, makeSection, manager, readyRequisition,
+} from './requisitions-fixtures';
 
-vi.mock('./requisitions-repository', () => ({
-  requisitionRepository: {
-    create: vi.fn(),
-    findAllBySite: vi.fn(),
-    findById: vi.fn(),
-    markPendingApprovalIfOpen: vi.fn(),
-    findSectionWithLines: vi.fn(),
-    findSectionById: vi.fn(),
-    updateLineQty: vi.fn(),
-    createLine: vi.fn(),
-    updateManagerNote: vi.fn(),
-    setSectionStatus: vi.fn(),
-    findByIdWithAllSections: vi.fn(),
-    findAllBySiteForManager: vi.fn(),
-    updateLineApproval: vi.fn(),
-    softDeleteLine: vi.fn(),
-    createManagerLine: vi.fn(),
-    markApprovedIfPendingApproval: vi.fn(),
-    findHistoryRows: vi.fn(),
-    findBranchManagers: vi.fn().mockResolvedValue([]),
-    findSectionHeads: vi.fn().mockResolvedValue([]),
-  },
+const mocks = vi.hoisted(() => ({
+  transaction: vi.fn(),
+  verifyOwn: vi.fn(),
+  nextNumber: vi.fn(),
+  publish: vi.fn(),
+  repo: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
 
-vi.mock('../catalog/inventory-repository', () => ({
-  inventoryItemRepository: { findLiveByIds: vi.fn() },
-  restockLevelRepository: { findByItemIdsForLocation: vi.fn() },
-}));
-
-vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findBySiteTypeDepartment: vi.fn() },
-}));
-
-vi.mock('../../../repositories/branch-repository', () => ({
-  branchRepository: { findHub: vi.fn() },
-}));
-
-vi.mock('../../../repositories/auth-repository', () => ({
-  authRepository: { findUserByIdWithPassword: vi.fn() },
-}));
-
-vi.mock('../../../sockets/socket-service', () => ({
-  socketService: {
-    emitRequisitionSubmitted: vi.fn(),
-    emitRequisitionDecision: vi.fn(),
-    emitRequisitionSectionReturned: vi.fn(),
-    emitRequisitionNudge: vi.fn(),
-  },
-}));
-
-vi.mock('../../../services/fcm-service', () => ({
-  fcmService: {
-    sendRequisitionSubmittedPush: vi.fn().mockResolvedValue(undefined),
-    sendRequisitionDecisionPush: vi.fn().mockResolvedValue(undefined),
-    sendRequisitionSectionReturnedPush: vi.fn().mockResolvedValue(undefined),
-    sendRequisitionNudgePush: vi.fn().mockResolvedValue(undefined),
-  },
-}));
-
-vi.mock('../../../utils/password', () => ({
-  comparePin: vi.fn(),
-}));
-
-const txStub = {};
-vi.mock('../../../config/database', () => ({
-  prisma: {
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(txStub)),
-    category: { findMany: vi.fn().mockResolvedValue([]) },
-  },
-}));
-
-const branchOrgId = '11111111-1111-4111-8111-111111111111';
-const hubOrgId = '99999999-9999-4999-8999-999999999999';
-const requisitionId = '22222222-2222-4222-8222-222222222222';
-const sectionId = '33333333-3333-4333-8333-333333333333';
-const itemId = '44444444-4444-4444-8444-444444444444';
-const locationId = '55555555-5555-4555-8555-555555555555';
-const lineId = '66666666-6666-4666-8666-666666666666';
-
-const kitchenHead = {
-  id: 'head-1',
-  role: 'CHEF' as const,
-  siteId: branchOrgId,
-  isDepartmentHead: true,
-  departmentTag: 'KITCHEN' as const,
-};
-
-const baristaHead = {
-  id: 'head-2',
-  role: 'BARISTA' as const,
-  siteId: branchOrgId,
-  isDepartmentHead: true,
-  departmentTag: 'BARISTA' as const,
-};
-
-const manager = {
-  id: 'manager-1',
-  role: 'MANAGER' as const,
-  siteId: branchOrgId,
-  isDepartmentHead: false,
-  departmentTag: null,
-};
-
-const otherOrgId = '77777777-7777-4777-8777-777777777777';
-
-const buildSection = (overrides: Record<string, unknown> = {}) => ({
-  id: sectionId,
-  requisitionId,
-  departmentTag: 'KITCHEN' as const,
-  status: 'NOT_STARTED' as const,
-  submittedById: null,
-  submittedAt: null,
-  returnedNote: null,
-  managerNote: null,
-  requisition: { id: requisitionId, status: 'OPEN' as const },
-  lines: [],
-  ...overrides,
+vi.mock('../../../config/database', () => ({ prisma: { $transaction: mocks.transaction } }));
+vi.mock('../counting/_shared/count-pin', () => ({ countPin: { verifyOwn: mocks.verifyOwn } }));
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextNumber: mocks.nextNumber } }));
+vi.mock('./requisitions-events', () => ({ requisitionNotices: { publish: mocks.publish, subscribe: vi.fn() } }));
+vi.mock('./requisitions-repository', () => {
+  const names = [
+    'findStaff', 'listHeads', 'findFile', 'findByStartKey', 'findEventByKey', 'findOpenForCycle', 'findSite', 'listActiveDepartments', 'listTaggedItems',
+    'findTaggedItemIds', 'findDepartmentLocation', 'readStock', 'findCategoryNames', 'hasDispatch', 'lockCycle', 'createRequisition', 'createSection',
+    'createLines', 'updateSection', 'updateLine', 'removeLines', 'removeSectionLines', 'setStatus', 'setUrgent', 'freezeForApproval', 'createAddition',
+    'setAdditionStatus', 'freezeAdditionLines', 'appendEvent', 'findAllInAt', 'readSectionFacts',
+  ];
+  for (const n of names) mocks.repo[n] = vi.fn();
+  return { requisitionsRepository: mocks.repo };
 });
 
-const buildLine = (overrides: Record<string, unknown> = {}) => ({
-  id: lineId,
-  requisitionSectionId: sectionId,
-  inventoryItemId: itemId,
-  parAtRequest: new Prisma.Decimal(20),
-  requestedQty: null,
-  approvedQty: null,
-  addedFromNote: false,
-  editedById: null,
-  editReason: null,
-  deletedAt: null,
-  item: { id: itemId, name: 'Chicken', usageUnit: 'kg', category: null },
-  ...overrides,
+import { requisitionsService } from './requisitions-service';
+import { buildPrint } from './requisitions-print';
+
+type Actor = Parameters<typeof requisitionsService.getFile>[0];
+const actorOf = (id: string, role: Actor['role'], siteId: string | null, extra: Partial<Actor> = {}): Actor => ({ id, role, siteId, ...extra });
+const staffOf = (id: string, role: Actor['role'], siteId: string | null, departmentId: string | null = null, head = false) => ({
+  id, name: `${role} person`, role, siteId, isDepartmentHead: head, departmentId,
 });
+
+const branchManager = actorOf('mgr-1', 'MANAGER', SITE);
+const kitchen = actorOf('head-k', 'CHEF', SITE, { isDepartmentHead: true, departmentTag: 'KITCHEN' });
+const barista = actorOf('head-b', 'BARISTA', SITE, { isDepartmentHead: true, departmentTag: 'BARISTA' });
+const director = actorOf('dir-1', 'DIRECTOR', null);
+const sysAdmin = actorOf('adm-1', 'SYSTEM_ADMIN', null);
+const attendant = actorOf('att-1', 'STORE_ATTENDANT', 'hub');
+const otherManager = actorOf('mgr-2', 'MANAGER', OTHER_SITE);
+
+const STAFF: Record<string, ReturnType<typeof staffOf>> = {
+  'mgr-1': staffOf('mgr-1', 'MANAGER', SITE),
+  'mgr-2': staffOf('mgr-2', 'MANAGER', OTHER_SITE),
+  'head-k': staffOf('head-k', 'CHEF', SITE, KITCHEN, true),
+  'head-b': staffOf('head-b', 'BARISTA', SITE, BARISTA, true),
+  'dir-1': staffOf('dir-1', 'DIRECTOR', null),
+  'adm-1': staffOf('adm-1', 'SYSTEM_ADMIN', null),
+  'att-1': staffOf('att-1', 'STORE_ATTENDANT', 'hub'),
+  member: staffOf('member', 'WAITER', SITE, KITCHEN, false),
+};
+const member = actorOf('member', 'WAITER', SITE);
+
+const KEY = 'idem-key-0001';
+const codeOf = async (p: Promise<unknown>): Promise<string> => {
+  try {
+    await p;
+  } catch (error) {
+    if (error instanceof AppError) return error.code;
+    throw error;
+  }
+  return 'NO_ERROR';
+};
+const moneyKeys = (value: unknown, found = new Set<string>()): Set<string> => {
+  if (Array.isArray(value)) value.forEach((v) => moneyKeys(v, found));
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      if (/value|cost|price|kes/i.test(k)) found.add(k);
+      moneyKeys(v, found);
+    }
+  }
+  return found;
+};
+
+let current = readyRequisition();
+const serve = (rec: typeof current) => {
+  current = rec;
+  mocks.repo['findFile']!.mockImplementation(async () => current);
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId, name: 'Central Store', isHub: true, isActive: true } as never);
-  vi.mocked(requisitionRepository.findBranchManagers).mockResolvedValue([]);
-  vi.mocked(requisitionRepository.findSectionHeads).mockResolvedValue([]);
+  for (const fn of Object.values(mocks.repo)) fn.mockReset();
+  mocks.transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+  mocks.verifyOwn.mockResolvedValue(undefined);
+  mocks.nextNumber.mockResolvedValue(113);
+  mocks.repo['findStaff']!.mockImplementation(async (id: string) => STAFF[id] ?? null);
+  mocks.repo['listHeads']!.mockResolvedValue([]);
+  mocks.repo['findCategoryNames']!.mockResolvedValue(new Map());
+  mocks.repo['hasDispatch']!.mockResolvedValue(false);
+  mocks.repo['findEventByKey']!.mockResolvedValue(false);
+  mocks.repo['findAllInAt']!.mockResolvedValue(new Date('2026-10-08T07:30:00Z'));
+  mocks.repo['findTaggedItemIds']!.mockImplementation(async (_s: string, _d: string, ids: string[]) => new Set(ids.filter((i) => i.startsWith('i'))));
+  mocks.repo['listTaggedItems']!.mockResolvedValue([]);
+  mocks.repo['findDepartmentLocation']!.mockResolvedValue(null);
+  mocks.repo['readSectionFacts']!.mockImplementation(async () => ({
+    status: current.status,
+    sections: current.sections.map((s) => ({ status: s.status, departmentActive: true })),
+  }));
+  mocks.repo['createRequisition']!.mockResolvedValue({ id: 'req-1' });
+  mocks.repo['createSection']!.mockImplementation(async () => ({ id: `sec-${Math.random()}` }));
+  mocks.repo['createAddition']!.mockResolvedValue({ id: 'add-1' });
+  mocks.repo['updateSection']!.mockResolvedValue(true);
+  mocks.repo['setStatus']!.mockResolvedValue(true);
+  serve(readyRequisition());
 });
 
-describe('requisitionService.openRequisition', () => {
-  it('creates exactly 5 sections (via the repository) for the caller\'s branch', async () => {
-    vi.mocked(requisitionRepository.create).mockResolvedValue({
-      id: requisitionId,
-      siteId: branchOrgId,
-      type: 'MORNING',
-      note: null,
-      status: 'OPEN',
-      openedById: kitchenHead.id,
-      openedAt: new Date(),
-      approvedById: null,
-      approvedAt: null,
-    } as never);
-    vi.mocked(requisitionRepository.findAllBySite).mockResolvedValue([
-      {
-        id: requisitionId,
-        siteId: branchOrgId,
-        type: 'MORNING',
-        note: null,
-        status: 'OPEN',
-        openedById: kitchenHead.id,
-        openedAt: new Date(),
-        approvedById: null,
-        approvedAt: null,
-        sections: [
-          { departmentTag: 'KITCHEN', status: 'NOT_STARTED' },
-          { departmentTag: 'PASTRY', status: 'NOT_STARTED' },
-          { departmentTag: 'BARISTA', status: 'NOT_STARTED' },
-          { departmentTag: 'SERVICE', status: 'NOT_STARTED' },
-          { departmentTag: 'HOUSEKEEPING', status: 'NOT_STARTED' },
-        ],
-      },
-    ] as never);
-
-    const row = await requisitionService.openRequisition(kitchenHead, { type: 'MORNING' });
-
-    expect(requisitionRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ siteId: branchOrgId, type: 'MORNING', openedById: kitchenHead.id }),
-    );
-    expect(row.mySectionStatus).toBe('NOT_STARTED');
-  });
-});
-
-describe('requisitionService — cross-department authorization guard', () => {
-  it('getSection throws ForbiddenError when departmentTag !== actor.departmentTag', async () => {
-    await expect(requisitionService.getSection(kitchenHead, requisitionId, 'BARISTA')).rejects.toThrow(ForbiddenError);
-    expect(requisitionRepository.findSectionWithLines).not.toHaveBeenCalled();
+describe('start (R11)', () => {
+  const input = { cycle: 'AFTERNOON' as const, idempotencyKey: KEY };
+  beforeEach(() => {
+    mocks.repo['findSite']!.mockResolvedValue({ id: SITE, name: 'Nyeri Town', code: 'NYR', type: 'BRANCH' });
+    mocks.repo['findByStartKey']!.mockResolvedValue(null);
+    mocks.repo['findOpenForCycle']!.mockResolvedValue(null);
+    mocks.repo['listActiveDepartments']!.mockResolvedValue([
+      { id: KITCHEN, name: 'Kitchen', key: 'KITCHEN', itemCount: 4 },
+      { id: 'dept-garden', name: 'Garden', key: null, itemCount: 0 },
+    ]);
   });
 
-  it('upsertLines throws ForbiddenError when departmentTag !== actor.departmentTag', async () => {
-    await expect(
-      requisitionService.upsertLines(kitchenHead, requisitionId, 'BARISTA', { lines: [] }),
-    ).rejects.toThrow(ForbiddenError);
-    expect(requisitionRepository.findSectionById).not.toHaveBeenCalled();
+  it('numbers the requisition from the branch counter and writes the event', async () => {
+    const result = await requisitionsService.start(branchManager, input);
+    expect(mocks.nextNumber).toHaveBeenCalledWith(expect.anything(), SITE, 'REQ');
+    expect(mocks.repo['createRequisition']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ reference: 'REQ-NYR-0113', siteId: SITE, type: 'AFTERNOON', openedById: 'mgr-1' }));
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'STARTED', actorId: 'mgr-1' }));
+    expect(result.replayed).toBe(false);
   });
 
-  it('submitSection throws ForbiddenError when departmentTag !== actor.departmentTag', async () => {
-    await expect(requisitionService.submitSection(kitchenHead, requisitionId, 'BARISTA')).rejects.toThrow(
-      ForbiddenError,
-    );
-    expect(requisitionRepository.findSectionById).not.toHaveBeenCalled();
+  it('refuses a second open requisition for the cycle (409 REQUISITION_ALREADY_OPEN)', async () => {
+    mocks.repo['findOpenForCycle']!.mockResolvedValue({ id: 'req-9', reference: 'REQ-NYR-0100' });
+    expect(await codeOf(requisitionsService.start(branchManager, input))).toBe('REQUISITION_ALREADY_OPEN');
+    expect(mocks.repo['createRequisition']).not.toHaveBeenCalled();
   });
 
-  it('recallSection throws ForbiddenError when departmentTag !== actor.departmentTag', async () => {
-    await expect(requisitionService.recallSection(kitchenHead, requisitionId, 'BARISTA')).rejects.toThrow(
-      ForbiddenError,
-    );
-    expect(requisitionRepository.findById).not.toHaveBeenCalled();
+  it('serialises on the branch and cycle before it looks for an open one', async () => {
+    await requisitionsService.start(branchManager, input);
+    const lock = mocks.repo['lockCycle']!.mock.invocationCallOrder[0] ?? 0;
+    const look = mocks.repo['findOpenForCycle']!.mock.invocationCallOrder[0] ?? 0;
+    expect(lock).toBeGreaterThan(0);
+    expect(lock).toBeLessThan(look);
   });
 
-  it('a Barista head reaching a Kitchen section is also rejected (symmetry check)', async () => {
-    await expect(requisitionService.getSection(baristaHead, requisitionId, 'KITCHEN')).rejects.toThrow(
-      ForbiddenError,
-    );
-  });
-});
-
-describe('requisitionService.upsertLines', () => {
-  it('zero-not-delete: requestedQty "0" keeps the row (updateLineQty called with 0, no delete)', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(
-      buildSection({ status: 'DRAFT', lines: [buildLine({ requestedQty: new Prisma.Decimal(0) })] }) as never,
-    );
-
-    await requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', {
-      lines: [{ id: lineId, requestedQty: '0' }],
-    });
-
-    expect(requisitionRepository.updateLineQty).toHaveBeenCalledWith(lineId, expect.any(Prisma.Decimal), txStub);
-    const [, qtyArg] = vi.mocked(requisitionRepository.updateLineQty).mock.calls[0]!;
-    expect((qtyArg as Prisma.Decimal).toString()).toBe('0');
+  it('a department with no tagged items starts Skipped by rule; the others Not started', async () => {
+    await requisitionsService.start(branchManager, input);
+    const statuses = mocks.repo['createSection']!.mock.calls.map((c) => (c[1] as { departmentId: string; status: string }).status);
+    expect(statuses).toEqual(['NOT_STARTED', 'SKIPPED']);
+    const garden = mocks.repo['createSection']!.mock.calls.map((c) => c[1] as { departmentId: string; departmentTag: string | null }).find((s) => s.departmentId === 'dept-garden');
+    expect(garden?.departmentTag).toBeNull(); // dual-write: an added department has no legacy key
   });
 
-  it('rejects when section is SUBMITTED', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'SUBMITTED' }) as never);
-
-    await expect(
-      requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', { lines: [{ id: lineId, requestedQty: '5' }] }),
-    ).rejects.toThrow(ConflictError);
+  it('dual-writes departmentTag with departmentId on the original five', async () => {
+    await requisitionsService.start(branchManager, input);
+    const kitchenSection = mocks.repo['createSection']!.mock.calls.map((c) => c[1] as { departmentId: string; departmentTag: string | null }).find((s) => s.departmentId === KITCHEN);
+    expect(kitchenSection?.departmentTag).toBe('KITCHEN');
   });
 
-  it('rejects when section is RETURNED', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'RETURNED' }) as never);
-
-    await expect(
-      requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', { lines: [{ id: lineId, requestedQty: '5' }] }),
-    ).rejects.toThrow(ConflictError);
+  it('a repeated key returns the first result with replayed true and creates nothing', async () => {
+    mocks.repo['findByStartKey']!.mockResolvedValue({ id: 'req-1' });
+    const result = await requisitionsService.start(branchManager, input);
+    expect(result.replayed).toBe(true);
+    expect(mocks.repo['createRequisition']).not.toHaveBeenCalled();
   });
 
-  it('validates a new line\'s inventoryItemId against the hub org, not the branch org (regression: catalog lives on the hub only, D-15)', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
-    vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-
-    await requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', {
-      lines: [{ inventoryItemId: itemId, requestedQty: '3' }],
-    });
-
-    expect(inventoryItemRepository.findLiveByIds).toHaveBeenCalledWith([itemId], hubOrgId);
-    expect(inventoryItemRepository.findLiveByIds).not.toHaveBeenCalledWith([itemId], branchOrgId);
+  it('a department head may start; a member and the Attendant may not', async () => {
+    expect(await codeOf(requisitionsService.start(kitchen, input))).toBe('NO_ERROR');
+    expect(await codeOf(requisitionsService.start(member, input))).toBe('AUTHORIZATION_ERROR');
+    expect(await codeOf(requisitionsService.start(attendant, input))).toBe('AUTHORIZATION_ERROR');
   });
 
-  it('parAtRequest snapshot is null when no RestockLevel row exists', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
-    vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-
-    await requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', {
-      lines: [{ inventoryItemId: itemId, requestedQty: '3' }],
-    });
-
-    expect(requisitionRepository.createLine).toHaveBeenCalledWith(
-      sectionId,
-      expect.objectContaining({ inventoryItemId: itemId, parAtRequest: null }),
-      txStub,
-    );
+  it('pre-fills only the starter head\'s own section', async () => {
+    mocks.repo['listTaggedItems']!.mockResolvedValue([{ id: 'i1', name: 'Milk', usageUnit: 'L', currentCost: D(100), category: null }]);
+    mocks.repo['findDepartmentLocation']!.mockResolvedValue({ id: 'loc-k' });
+    mocks.repo['readStock']!.mockResolvedValue({ level: new Map([['i1', D(36)]]), onHand: new Map([['i1', D(9)]]) });
+    mocks.repo['createSection']!.mockImplementation(async (_tx: unknown, d: { departmentId: string }) => ({ id: `sec-${d.departmentId}` }));
+    await requisitionsService.start(kitchen, input);
+    const [, sectionId, lines] = mocks.repo['createLines']!.mock.calls[0] as [unknown, string, Array<{ requestedQty: Prisma.Decimal; suggestedQty: Prisma.Decimal | null }>];
+    expect(sectionId).toBe(`sec-${KITCHEN}`);
+    expect(lines[0]?.requestedQty.toString()).toBe('27'); // restock level 36 minus on hand 9
+    expect(lines[0]?.suggestedQty?.toString()).toBe('27');
   });
 
-  it('parAtRequest snapshot is the real value when a RestockLevel row exists', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
-    vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(
-      new Map([[itemId, new Prisma.Decimal(20)]]),
-    );
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-
-    await requisitionService.upsertLines(kitchenHead, requisitionId, 'KITCHEN', {
-      lines: [{ inventoryItemId: itemId, requestedQty: '3' }],
-    });
-
-    const [, dataArg] = vi.mocked(requisitionRepository.createLine).mock.calls[0]!;
-    expect((dataArg.parAtRequest as Prisma.Decimal).toString()).toBe('20');
+  it('refuses when the branch has no code yet', async () => {
+    mocks.repo['findSite']!.mockResolvedValue({ id: SITE, name: 'Nyeri Town', code: null, type: 'BRANCH' });
+    expect(await codeOf(requisitionsService.start(branchManager, input))).toBe('BRANCH_CODE_MISSING');
   });
 });
 
-describe('requisitionService.submitSection', () => {
-  it('transitions NOT_STARTED/DRAFT/RETURNED -> SUBMITTED and flips parent status once', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'SUBMITTED' }) as never);
+describe('saveLines (R12): section lines validation, reopen on edit', () => {
+  const lines = (...ids: string[]) => ({ lines: ids.map((itemId) => ({ itemId, requestedQty: '4' })) });
 
-    await requisitionService.submitSection(kitchenHead, requisitionId, 'KITCHEN');
-
-    expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(
-      sectionId,
-      ['NOT_STARTED', 'DRAFT', 'RETURNED'],
-      expect.objectContaining({ status: 'SUBMITTED' }),
-      txStub,
-    );
-    expect(requisitionRepository.markPendingApprovalIfOpen).toHaveBeenCalledWith(requisitionId, txStub);
+  it('refuses an item not tagged to the department (422 ITEM_NOT_IN_DEPARTMENT)', async () => {
+    serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [])]));
+    expect(await codeOf(requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1', 'x-bad')))).toBe('ITEM_NOT_IN_DEPARTMENT');
+    expect(mocks.repo['createLines']).not.toHaveBeenCalled();
   });
 
-  it('resubmit (from RETURNED) clears returnedNote server-side (regression: resubmit was previously rejected as a state-machine bug)', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(
-      buildSection({ status: 'RETURNED', returnedNote: 'Check the walk-in count first' }) as never,
-    );
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'SUBMITTED' }) as never);
-
-    await requisitionService.submitSection(kitchenHead, requisitionId, 'KITCHEN');
-
-    expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(
-      sectionId,
-      ['NOT_STARTED', 'DRAFT', 'RETURNED'],
-      expect.objectContaining({ status: 'SUBMITTED', returnedNote: null }),
-      txStub,
-    );
+  it('a Sent section reopens as a Draft and the requisition leaves Ready to approve', async () => {
+    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1', 'i2']));
+    await requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1', 'i2'));
+    expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'DRAFT', submittedAt: null, submittedById: null }));
+    expect(mocks.repo['readSectionFacts']).toHaveBeenCalled(); // the status is recomputed in the same transaction
   });
 
-  it('throws ConflictError on a simulated zero-count race (already submitted concurrently)', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(0);
-
-    await expect(requisitionService.submitSection(kitchenHead, requisitionId, 'KITCHEN')).rejects.toThrow(
-      ConflictError,
-    );
-  });
-});
-
-describe('requisitionService.recallSection', () => {
-  it('transitions SUBMITTED -> DRAFT', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'SUBMITTED' }) as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
-
-    await requisitionService.recallSection(kitchenHead, requisitionId, 'KITCHEN');
-
-    expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(sectionId, ['SUBMITTED'], { status: 'DRAFT' }, txStub);
+  it('writes a new line without a suggested number, updates a changed quantity, and removes a dropped line', async () => {
+    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1', 'i9']));
+    mocks.repo['listTaggedItems']!.mockResolvedValue([{ id: 'i9', name: 'Cream', usageUnit: 'L', currentCost: D(10), category: null }]);
+    await requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, { lines: [{ itemId: 'i1', requestedQty: '31' }, { itemId: 'i9', requestedQty: '2' }] });
+    expect(mocks.repo['updateLine']).toHaveBeenCalledWith(expect.anything(), SITE, 'l1', { requestedQty: D(31) });
+    expect(mocks.repo['removeLines']).toHaveBeenCalledWith(expect.anything(), SITE, ['l2']);
+    const [, , created] = mocks.repo['createLines']!.mock.calls[0] as [unknown, string, Array<{ inventoryItemId: string; suggestedQty: unknown }>];
+    expect(created).toEqual([expect.objectContaining({ inventoryItemId: 'i9', suggestedQty: null })]);
   });
 
-  it('rejected when requisition is APPROVED', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'APPROVED' } as never);
-
-    await expect(requisitionService.recallSection(kitchenHead, requisitionId, 'KITCHEN')).rejects.toThrow(
-      ConflictError,
-    );
+  it('a head of another department is told it is not theirs (403 NOT_YOUR_DEPARTMENT)', async () => {
+    expect(await codeOf(requisitionsService.saveLines(barista, 'req-1', KITCHEN, lines('i1')))).toBe('NOT_YOUR_DEPARTMENT');
   });
 
-  it('throws NotFoundError when the requisition does not exist', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue(null);
+  it('the Branch Manager may fill a section herself', async () => {
+    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
+    expect(await codeOf(requisitionsService.saveLines(branchManager, 'req-1', KITCHEN, lines('i1')))).toBe('NO_ERROR');
+  });
 
-    await expect(requisitionService.recallSection(kitchenHead, requisitionId, 'KITCHEN')).rejects.toThrow(
-      NotFoundError,
-    );
+  it('refuses once the requisition is signed (409 ALREADY_APPROVED) and once it is cancelled (409 CANCELLED)', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1')))).toBe('ALREADY_APPROVED');
+    serve(makeRequisition('CANCELLED', readyRequisition().sections));
+    expect(await codeOf(requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1')))).toBe('CANCELLED');
+  });
+
+  it('refuses a Skipped section', async () => {
+    serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SKIPPED', [])]));
+    expect(await codeOf(requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1')))).toBe('SECTION_NOT_OPEN');
   });
 });
 
-// ---------------------------------------------------------------------------
-// Session B — Branch Manager approval.
-// ---------------------------------------------------------------------------
+describe('sendSection (R13)', () => {
+  const draft = () => makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 30)]), makeSection('sec-b', BARISTA, 'Barista', 'SUBMITTED', [makeLine('l3', 'i3', 'Beans', 5)])]);
 
-const buildApprovalSection = (overrides: Record<string, unknown> = {}) => ({
-  id: sectionId,
-  requisitionId,
-  departmentTag: 'KITCHEN' as const,
-  status: 'SUBMITTED' as const,
-  submittedById: 'head-1',
-  submittedAt: new Date(),
-  returnedNote: null,
-  managerNote: null,
-  submittedBy: { id: 'head-1', name: 'Kitchen Head' },
-  lines: [],
-  ...overrides,
-});
-
-const buildApprovalLine = (overrides: Record<string, unknown> = {}) => ({
-  id: lineId,
-  requisitionSectionId: sectionId,
-  inventoryItemId: itemId,
-  parAtRequest: new Prisma.Decimal(20),
-  requestedQty: new Prisma.Decimal(14),
-  approvedQty: null,
-  addedFromNote: false,
-  editedById: null,
-  editReason: null,
-  deletedAt: null,
-  item: { id: itemId, name: 'Chicken', usageUnit: 'kg', category: null },
-  ...overrides,
-});
-
-const buildRequisitionWithSections = (sections: unknown[], overrides: Record<string, unknown> = {}) => ({
-  id: requisitionId,
-  siteId: branchOrgId,
-  type: 'MORNING' as const,
-  note: null,
-  status: 'PENDING_APPROVAL' as const,
-  openedById: 'head-1',
-  openedAt: new Date(),
-  approvedById: null,
-  approvedAt: null,
-  approvedBy: null,
-  sections,
-  dispatches: [],
-  ...overrides,
-});
-
-describe('requisitionService — manager authorization guard', () => {
-  it('getRequisitionForApproval throws ForbiddenError for a department head', async () => {
-    await expect(requisitionService.getRequisitionForApproval(kitchenHead, requisitionId)).rejects.toThrow(ForbiddenError);
-    expect(requisitionRepository.findByIdWithAllSections).not.toHaveBeenCalled();
+  it('marks the section Sent, verifies the sender\'s own PIN, and tells the manager once everything is in', async () => {
+    serve(draft());
+    mocks.repo['readSectionFacts']!.mockResolvedValue({ status: 'OPEN', sections: [{ status: 'SUBMITTED', departmentActive: true }, { status: 'SUBMITTED', departmentActive: true }] });
+    await requisitionsService.sendSection(kitchen, 'req-1', KITCHEN, '1234', KEY);
+    expect(mocks.verifyOwn).toHaveBeenCalledWith(kitchen, '1234');
+    expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'SUBMITTED', submittedById: 'head-k' }));
+    expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'PENDING_APPROVAL');
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'SENT', idempotencyKey: KEY }));
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'SECTION_SENT', departmentId: KITCHEN, readyToApprove: true }));
   });
 
-  it('getRequisitionForApproval throws NotFoundError (not a 403 leak) for another org\'s requisition', async () => {
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(null);
-    await expect(requisitionService.getRequisitionForApproval({ ...manager, siteId: otherOrgId }, requisitionId)).rejects.toThrow(
-      NotFoundError,
-    );
+  it('a section with no lines cannot be sent (409 SECTION_EMPTY) and the PIN is not even asked', async () => {
+    serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [])]));
+    expect(await codeOf(requisitionsService.sendSection(kitchen, 'req-1', KITCHEN, '1234', KEY))).toBe('SECTION_EMPTY');
+    expect(mocks.verifyOwn).not.toHaveBeenCalled();
+  });
+
+  it('a wrong PIN stops the send and writes nothing', async () => {
+    serve(draft());
+    mocks.verifyOwn.mockRejectedValue(new AppError(401, 'INVALID_PIN', 'That PIN is not right.'));
+    expect(await codeOf(requisitionsService.sendSection(kitchen, 'req-1', KITCHEN, '0000', KEY))).toBe('INVALID_PIN');
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.publish).not.toHaveBeenCalled();
+  });
+
+  it('a repeated key returns the first result (replayed) without a PIN or a write', async () => {
+    mocks.repo['findEventByKey']!.mockResolvedValue(true);
+    const result = await requisitionsService.sendSection(kitchen, 'req-1', KITCHEN, '1234', KEY);
+    expect(result.replayed).toBe(true);
+    expect(mocks.verifyOwn).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('a section already Sent is refused', async () => {
+    expect(await codeOf(requisitionsService.sendSection(kitchen, 'req-1', KITCHEN, '1234', KEY))).toBe('SECTION_ALREADY_SENT');
   });
 });
 
-describe('requisitionService.getRequisitionForApproval', () => {
-  it('serializes onHand as null on every line', async () => {
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([buildApprovalSection({ lines: [buildApprovalLine()] })]) as never,
-    );
-
-    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
-
-    expect(detail.sections[0]!.lines[0]!.onHand).toBeNull();
+describe('recallSection (R14): only before approval', () => {
+  it('takes a Sent section back to Draft and reopens the requisition', async () => {
+    await requisitionsService.recallSection(kitchen, 'req-1', KITCHEN);
+    expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', { status: 'DRAFT', submittedAt: null, submittedById: null });
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'RECALLED' }));
   });
-
-  it('isAsRequested is true and changedLineCount is 0 when no line differs', async () => {
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([
-        buildApprovalSection({ lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('14.0000'), approvedQty: new Prisma.Decimal('14') })] }),
-      ]) as never,
-    );
-
-    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
-
-    expect(detail.sections[0]!.isAsRequested).toBe(true);
-    expect(detail.sections[0]!.changedLineCount).toBe(0);
+  it('is refused after approval (409 ALREADY_APPROVED)', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(requisitionsService.recallSection(kitchen, 'req-1', KITCHEN))).toBe('ALREADY_APPROVED');
   });
-
-  it('a never-reviewed line (approvedQty null) is not edited — regression: null was compared to requestedQty as "changed"', async () => {
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([
-        buildApprovalSection({ lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('2'), approvedQty: null })] }),
-      ]) as never,
-    );
-
-    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
-
-    expect(detail.sections[0]!.lines[0]!.isEdited).toBe(false);
-    expect(detail.sections[0]!.isAsRequested).toBe(true);
-    expect(detail.sections[0]!.changedLineCount).toBe(0);
-  });
-
-  it('a never-reviewed line (approvedQty still null) is NOT edited, even though it differs from requestedQty as a raw value (regression: null was miscounted as "changed")', async () => {
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([
-        buildApprovalSection({ lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('2'), approvedQty: null })] }),
-      ]) as never,
-    );
-
-    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
-
-    expect(detail.sections[0]!.lines[0]!.isEdited).toBe(false);
-    expect(detail.sections[0]!.isAsRequested).toBe(true);
-    expect(detail.sections[0]!.changedLineCount).toBe(0);
+  it('is the head\'s own action: the manager and another head cannot recall', async () => {
+    expect(await codeOf(requisitionsService.recallSection(branchManager, 'req-1', KITCHEN))).toBe('NOT_YOUR_DEPARTMENT');
+    expect(await codeOf(requisitionsService.recallSection(barista, 'req-1', KITCHEN))).toBe('NOT_YOUR_DEPARTMENT');
   });
 });
 
-describe('requisitionService.upsertApprovalLines', () => {
-  it('change without a reason throws ValidationError', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(
-      buildSection({ status: 'SUBMITTED', lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal(14) })] }) as never,
-    );
+describe('approve (R19): the signer and the path for Director and System Admin', () => {
+  const approveCall = (who: Actor) => requisitionsService.approve(who, 'req-1', { pin: '1234' }, KEY);
 
-    await expect(
-      requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', { lines: [{ id: lineId, approvedQty: '20' }] }),
-    ).rejects.toThrow(ValidationError);
+  it('the Branch Manager signs: frozen costs, approved status, no separate "signed as" record', async () => {
+    await approveCall(branchManager);
+    expect(mocks.verifyOwn).toHaveBeenCalledWith(branchManager, '1234');
+    expect(mocks.repo['freezeForApproval']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1');
+    expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'APPROVED', expect.objectContaining({ approvedById: 'mgr-1', approvedAsId: null }));
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'APPROVED', signedAs: 'BRANCH_MANAGER' }));
   });
 
-  it('equal value with no reason succeeds — the decimal trap: "14" vs Decimal("14.0000")', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(
-      buildSection({ status: 'SUBMITTED', lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('14.0000') })] }) as never,
-    );
-
-    await requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', {
-      lines: [{ id: lineId, approvedQty: '14' }],
-    });
-
-    expect(requisitionRepository.updateLineApproval).toHaveBeenCalledWith(
-      lineId,
-      expect.objectContaining({ editReason: null }),
-      txStub,
-    );
+  it('the Director may approve any branch with their own PIN, and the record shows who', async () => {
+    await approveCall(director);
+    expect(mocks.verifyOwn).toHaveBeenCalledWith(director, '1234');
+    expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'APPROVED', expect.objectContaining({ approvedById: 'dir-1', approvedAsId: 'dir-1' }));
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'APPROVED', toValue: 'DIRECTOR', actorId: 'dir-1' }));
   });
 
-  it('sets editedById on the update', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(
-      buildSection({ status: 'SUBMITTED', lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal(14) })] }) as never,
-    );
-
-    await requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', {
-      lines: [{ id: lineId, approvedQty: '20', editReason: 'Low stock' }],
-    });
-
-    expect(requisitionRepository.updateLineApproval).toHaveBeenCalledWith(
-      lineId,
-      expect.objectContaining({ editedById: manager.id, editReason: 'Low stock' }),
-      txStub,
-    );
+  it('the System Admin approves with their own PIN', async () => {
+    await approveCall(sysAdmin);
+    expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'APPROVED', expect.objectContaining({ approvedAsId: 'adm-1' }));
   });
 
-  it('deleted: true soft-deletes the line', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(
-      buildSection({ status: 'SUBMITTED', lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal(14) })] }) as never,
-    );
-
-    await requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', {
-      lines: [{ id: lineId, approvedQty: null, deleted: true }],
-    });
-
-    expect(requisitionRepository.softDeleteLine).toHaveBeenCalledWith(lineId, txStub);
-    expect(requisitionRepository.updateLineApproval).not.toHaveBeenCalled();
+  it('a Branch Manager of ANOTHER branch cannot approve (scope: the file is not theirs)', async () => {
+    mocks.repo['findFile']!.mockImplementation(async (_id: string, scope: { siteId?: string }) => (scope.siteId && scope.siteId !== SITE ? null : current));
+    expect(await codeOf(approveCall(otherManager))).toBe('NOT_FOUND');
   });
 
-  it('editing an approved requisition throws ConflictError', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'APPROVED' } as never);
-
-    await expect(
-      requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', { lines: [{ id: lineId, approvedQty: '20' }] }),
-    ).rejects.toThrow(ConflictError);
+  it.each([
+    ['a department head', kitchen],
+    ['the Attendant', attendant],
+    ['a member', member],
+  ])('%s may not approve', async (_n, who) => {
+    expect(['AUTHORIZATION_ERROR', 'NOT_YOUR_DEPARTMENT']).toContain(await codeOf(approveCall(who)));
+    expect(mocks.repo['setStatus']).not.toHaveBeenCalled();
   });
 
-  it('a manager-added line keeps requestedQty null and sets approvedQty (decision #5)', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'SUBMITTED', lines: [] }) as never);
-    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-
-    await requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', {
-      lines: [{ inventoryItemId: itemId, approvedQty: '5', editReason: 'Ran low mid-shift' }],
-    });
-
-    expect(requisitionRepository.createManagerLine).toHaveBeenCalledWith(
-      sectionId,
-      expect.objectContaining({ inventoryItemId: itemId, editedById: manager.id }),
-      txStub,
-    );
+  it('refuses a requisition still collecting (409 NOT_READY_TO_APPROVE)', async () => {
+    serve(makeRequisition('OPEN', readyRequisition().sections));
+    expect(await codeOf(approveCall(branchManager))).toBe('NOT_READY_TO_APPROVE');
   });
-
-  describe('fillMyself', () => {
-    it('requestedQty: null + approvedQty set; section NOT_STARTED -> SUBMITTED with submittedById = manager.id; calls markPendingApprovalIfOpen', async () => {
-      vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'OPEN' } as never);
-      vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'NOT_STARTED', lines: [] }) as never);
-      vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-      vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-
-      await requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', {
-        lines: [{ inventoryItemId: itemId, approvedQty: '10' }],
-        fillMyself: true,
-      });
-
-      expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(
-        sectionId,
-        ['NOT_STARTED', 'DRAFT'],
-        expect.objectContaining({ status: 'SUBMITTED', submittedById: manager.id }),
-        txStub,
-      );
-      expect(requisitionRepository.markPendingApprovalIfOpen).toHaveBeenCalledWith(requisitionId, txStub);
-    });
-
-    it('head-submitted-first throws ConflictError before writing', async () => {
-      vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-      vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'SUBMITTED', lines: [] }) as never);
-
-      await expect(
-        requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', { lines: [], fillMyself: true }),
-      ).rejects.toThrow(ConflictError);
-    });
-
-    it('already-submitted (race) throws ConflictError', async () => {
-      vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'OPEN' } as never);
-      vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'NOT_STARTED', lines: [] }) as never);
-      vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(0);
-
-      await expect(
-        requisitionService.upsertApprovalLines(manager, requisitionId, 'KITCHEN', { lines: [], fillMyself: true }),
-      ).rejects.toThrow(ConflictError);
-    });
+  it('refuses a signed one (409 ALREADY_APPROVED) and a cancelled one (409 CANCELLED)', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(approveCall(branchManager))).toBe('ALREADY_APPROVED');
+    serve(makeRequisition('CANCELLED', readyRequisition().sections));
+    expect(await codeOf(approveCall(branchManager))).toBe('CANCELLED');
+  });
+  it('a wrong PIN writes nothing', async () => {
+    mocks.verifyOwn.mockRejectedValue(new AppError(401, 'INVALID_PIN', 'That PIN is not right.'));
+    expect(await codeOf(approveCall(branchManager))).toBe('INVALID_PIN');
+    expect(mocks.repo['setStatus']).not.toHaveBeenCalled();
+  });
+  it('a repeated key returns the first result (replayed) and signs nothing again', async () => {
+    mocks.repo['findEventByKey']!.mockResolvedValue(true);
+    serve(makeRequisition('APPROVED', readyRequisition().sections, { approvedAt: new Date(), approvedBy: manager, approvedById: manager.id }));
+    const result = await approveCall(branchManager);
+    expect(result.replayed).toBe(true);
+    expect(mocks.repo['freezeForApproval']).not.toHaveBeenCalled();
   });
 });
 
-describe('requisitionService.returnSection', () => {
-  it('sets the note and transitions SUBMITTED -> RETURNED', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildApprovalSection() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(buildRequisitionWithSections([]) as never);
-
-    await requisitionService.returnSection(manager, requisitionId, 'KITCHEN', { note: 'Check the walk-in first' });
-
-    expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(
-      sectionId,
-      ['SUBMITTED'],
-      { status: 'RETURNED', returnedNote: 'Check the walk-in first' },
-      txStub,
-    );
+describe('cancel (R20): before approval only', () => {
+  const cancelCall = (who: Actor) => requisitionsService.cancel(who, 'req-1', { reason: 'Wrong day', pin: '1234' }, KEY);
+  it('cancels with a reason and a PIN; the file stays', async () => {
+    await cancelCall(branchManager);
+    expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'CANCELLED', expect.objectContaining({ cancelReason: 'Wrong day', cancelledById: 'mgr-1' }));
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'CANCELLED', reason: 'Wrong day' }));
   });
-
-  it('count 0 throws ConflictError', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'PENDING_APPROVAL' } as never);
-    vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildApprovalSection() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(0);
-
-    await expect(requisitionService.returnSection(manager, requisitionId, 'KITCHEN', { note: 'x' })).rejects.toThrow(ConflictError);
+  it('is refused after approval', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(cancelCall(branchManager))).toBe('ALREADY_APPROVED');
   });
-
-  it('return on an approved requisition throws ConflictError', async () => {
-    vi.mocked(requisitionRepository.findById).mockResolvedValue({ id: requisitionId, status: 'APPROVED' } as never);
-
-    await expect(requisitionService.returnSection(manager, requisitionId, 'KITCHEN', { note: 'x' })).rejects.toThrow(ConflictError);
+  it('is the manager\'s: a head and the Director cannot cancel', async () => {
+    expect(await codeOf(cancelCall(kitchen))).toBe('AUTHORIZATION_ERROR');
+    expect(await codeOf(cancelCall(director))).toBe('AUTHORIZATION_ERROR');
   });
 });
 
-describe('requisitionService.nudgeHead', () => {
-  it('makes no state change and does notify', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'NOT_STARTED' }) as never);
-    vi.mocked(requisitionRepository.findSectionHeads).mockResolvedValue([{ id: 'head-1', name: 'Kitchen Head' }]);
+describe('additions (R21, R22)', () => {
+  const approved = () =>
+    makeRequisition('APPROVED', readyRequisition().sections, { approvedAt: new Date('2026-10-08T08:00:00Z'), approvedBy: manager, approvedById: manager.id });
+  const addCall = (who: Actor = kitchen) => requisitionsService.addAddition(who, 'req-1', { lines: [{ itemId: 'i5', requestedQty: '3' }], pin: '1234' }, KEY);
 
-    await requisitionService.nudgeHead(manager, requisitionId, 'KITCHEN');
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(requisitionRepository.setSectionStatus).not.toHaveBeenCalled();
-    expect(socketService.emitRequisitionNudge).toHaveBeenCalledWith('head-1', expect.objectContaining({ requisitionId }));
+  it('a head adds to an approved requisition: a PENDING addition, its lines tied to it, signed with their PIN', async () => {
+    serve(approved());
+    mocks.repo['findFile']!.mockImplementation(async () => ({ ...current, additions: [makeAddition('add-1', KITCHEN)] }));
+    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i5']));
+    await addCall();
+    expect(mocks.verifyOwn).toHaveBeenCalledWith(kitchen, '1234');
+    expect(mocks.repo['createAddition']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ departmentId: KITCHEN, addedById: 'head-k' }));
+    const [, , lines] = mocks.repo['createLines']!.mock.calls[0] as [unknown, string, Array<{ additionId: string }>];
+    expect(lines[0]?.additionId).toBe('add-1');
   });
 
-  it('nudge on a submitted section throws ConflictError', async () => {
-    vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'SUBMITTED' }) as never);
-
-    await expect(requisitionService.nudgeHead(manager, requisitionId, 'KITCHEN')).rejects.toThrow(ConflictError);
-  });
-});
-
-describe('requisitionService.approveRequisition', () => {
-  const validRequisition = () =>
-    buildRequisitionWithSections([buildApprovalSection({ lines: [buildApprovalLine({ approvedQty: new Prisma.Decimal(14) })] })]);
-
-  it('wrong PIN throws UnauthorizedError and the approve write is never called', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(false);
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '0000' })).rejects.toThrow(UnauthorizedError);
-    expect(requisitionRepository.markApprovedIfPendingApproval).not.toHaveBeenCalled();
+  it('is locked once the department\'s dispatch is signed (409 ADDITION_LOCKED)', async () => {
+    serve(approved());
+    mocks.repo['hasDispatch']!.mockResolvedValue(true);
+    expect(await codeOf(addCall())).toBe('ADDITION_LOCKED');
   });
 
-  it('no PIN set throws UnauthorizedError', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: null } as never);
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).rejects.toThrow(UnauthorizedError);
+  it('before approval there is nothing to add to', async () => {
+    expect(await codeOf(addCall())).toBe('NOT_APPROVED');
   });
 
-  it('happy path threads txStub through every write', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(validRequisition() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.markApprovedIfPendingApproval).mockResolvedValue(1);
-
-    await requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' });
-
-    expect(requisitionRepository.setSectionStatus).toHaveBeenCalledWith(sectionId, ['SUBMITTED'], { status: 'SUBMITTED' }, txStub);
-    expect(requisitionRepository.markApprovedIfPendingApproval).toHaveBeenCalledWith(requisitionId, manager.id, txStub);
+  it('refuses an item not tagged to the department', async () => {
+    serve(approved());
+    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set());
+    expect(await codeOf(addCall())).toBe('ITEM_NOT_IN_DEPARTMENT');
   });
 
-  it('recall race (setSectionStatus -> 0) throws ConflictError with no approve write', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(validRequisition() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(0);
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).rejects.toThrow(ConflictError);
-    expect(requisitionRepository.markApprovedIfPendingApproval).not.toHaveBeenCalled();
+  it('only a department head adds (the manager does not)', async () => {
+    serve(approved());
+    expect(await codeOf(addCall(branchManager))).toBe('NOT_YOUR_DEPARTMENT');
   });
 
-  it('already-approved race (markApprovedIfPendingApproval -> 0) throws ConflictError', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(validRequisition() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.markApprovedIfPendingApproval).mockResolvedValue(0);
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).rejects.toThrow(ConflictError);
+  it('the Director approves an addition with their own PIN; the Block 2 hand-off runs', async () => {
+    serve({ ...approved(), additions: [makeAddition('add-1', KITCHEN)] });
+    await requisitionsService.approveAddition(director, 'req-1', 'add-1', { pin: '1234' }, KEY);
+    expect(mocks.verifyOwn).toHaveBeenCalledWith(director, '1234');
+    expect(mocks.repo['setAdditionStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'add-1', expect.objectContaining({ status: 'APPROVED', approvedById: 'dir-1' }));
+    expect(mocks.repo['freezeAdditionLines']).toHaveBeenCalledWith(expect.anything(), SITE, 'add-1');
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'ADDITION_APPROVED', additionId: 'add-1' }));
   });
 
-  it('pre-load APPROVED throws ConflictError before the transaction', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(buildRequisitionWithSections([], { status: 'APPROVED' }) as never);
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).rejects.toThrow(ConflictError);
-    expect(requisitionRepository.setSectionStatus).not.toHaveBeenCalled();
-  });
-
-  it('nothing SUBMITTED throws ConflictError before the transaction', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([buildApprovalSection({ status: 'NOT_STARTED', submittedById: null, submittedBy: null })]) as never,
-    );
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).rejects.toThrow(ConflictError);
-  });
-
-  it('freeze writes requestedQty into a null approvedQty line and does not re-write an already-set one', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([
-        buildApprovalSection({
-          lines: [
-            buildApprovalLine({ id: 'line-null', requestedQty: new Prisma.Decimal(20), approvedQty: null }),
-            buildApprovalLine({ id: 'line-set', requestedQty: new Prisma.Decimal(14), approvedQty: new Prisma.Decimal(14) }),
-          ],
-        }),
-      ]) as never,
-    );
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.markApprovedIfPendingApproval).mockResolvedValue(1);
-
-    await requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' });
-
-    expect(requisitionRepository.updateLineApproval).toHaveBeenCalledTimes(1);
-    expect(requisitionRepository.updateLineApproval).toHaveBeenCalledWith(
-      'line-null',
-      expect.objectContaining({ approvedQty: expect.anything() }),
-      txStub,
-    );
-  });
-
-  it('unsubmitted sections are never frozen and never block approval', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
-      buildRequisitionWithSections([
-        buildApprovalSection({ lines: [buildApprovalLine({ approvedQty: new Prisma.Decimal(14) })] }),
-        buildApprovalSection({
-          id: 'section-2',
-          departmentTag: 'BARISTA',
-          status: 'NOT_STARTED',
-          submittedById: null,
-          submittedBy: null,
-          lines: [buildApprovalLine({ id: 'unsubmitted-line', approvedQty: null })],
-        }),
-      ]) as never,
-    );
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.markApprovedIfPendingApproval).mockResolvedValue(1);
-
-    await requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' });
-
-    expect(requisitionRepository.updateLineApproval).not.toHaveBeenCalledWith('unsubmitted-line', expect.anything(), expect.anything());
-  });
-
-  it('a rejected notification promise does not reject approve', async () => {
-    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: manager.id, name: 'Manager', pinHash: 'hash' } as never);
-    vi.mocked(comparePin).mockResolvedValue(true);
-    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(validRequisition() as never);
-    vi.mocked(requisitionRepository.setSectionStatus).mockResolvedValue(1);
-    vi.mocked(requisitionRepository.markApprovedIfPendingApproval).mockResolvedValue(1);
-    const notificationFailure = new Error('notification pipe down');
-    vi.mocked(requisitionRepository.findSectionHeads).mockRejectedValue(notificationFailure);
-
-    // The service fires this notification with a bare `void` (never
-    // awaited) — catch it here so the test doesn't leak an unhandled
-    // rejection while still proving approve() itself resolves.
-    const unhandledRejection = new Promise<void>((resolve) => {
-      process.once('unhandledRejection', (reason) => {
-        expect(reason).toBe(notificationFailure);
-        resolve();
-      });
-    });
-
-    await expect(requisitionService.approveRequisition(manager, requisitionId, { pin: '1234' })).resolves.toBeDefined();
-    await unhandledRejection;
+  it('an addition already decided cannot be approved again', async () => {
+    serve({ ...approved(), additions: [makeAddition('add-1', KITCHEN, 'APPROVED')] });
+    expect(await codeOf(requisitionsService.approveAddition(branchManager, 'req-1', 'add-1', { pin: '1234' }, KEY))).toBe('ADDITION_NOT_PENDING');
   });
 });
 
-describe('requisitionService.listHistoryPage', () => {
-  const approved = () => buildRequisitionWithSections([{ status: 'SUBMITTED', returnedNote: null, lines: [] }], { status: 'APPROVED' });
-  const returned = () => buildRequisitionWithSections([{ status: 'RETURNED', returnedNote: 'x', lines: [] }], { status: 'PENDING_APPROVAL' });
-
-  it('filters by the derived status first, then pages, and reports the true total', async () => {
-    // 4 approved and 3 returned: page 2 of the Returned filter with 2 per page is the third returned one, and the total is 3.
-    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([approved(), returned(), approved(), returned(), approved(), returned(), approved()] as never);
-
-    const out = await requisitionService.listHistoryPage(manager, { limit: 25, status: 'RETURNED', page: 2, perPage: 2 });
-
-    expect(out.rows).toHaveLength(1);
-    expect(out.rows[0]!.displayStatus).toBe('RETURNED');
-    expect(out.pagination).toEqual({ total: 3, page: 2, perPage: 2, totalPages: 2 });
+describe('changeQuantity (R16)', () => {
+  const lineId = 'l1';
+  it('before approval the reason is optional, and the head is told', async () => {
+    serve(makeRequisition('PENDING_APPROVAL', readyRequisition().sections));
+    await requisitionsService.changeQuantity(branchManager, 'req-1', lineId, { approvedQty: '24' });
+    expect(mocks.repo['updateLine']).toHaveBeenCalledWith(expect.anything(), SITE, lineId, expect.objectContaining({ approvedQty: D(24), editedById: 'mgr-1' }));
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'QUANTITY_CHANGED', from: '30', to: '24', itemName: 'Milk' }));
   });
-
-  it("reads only the manager's own branch, and does not send the cursor path's limit", async () => {
-    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([]);
-
-    const out = await requisitionService.listHistoryPage(manager, { limit: 25, page: 1 });
-
-    expect(requisitionRepository.findHistoryRows).toHaveBeenCalledWith(branchOrgId, expect.objectContaining({ limit: 2000 }));
-    expect(out.pagination).toEqual({ total: 0, page: 1, perPage: 50, totalPages: 1 });
+  it('after approval a reason is required (422 REASON_REQUIRED)', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(requisitionsService.changeQuantity(branchManager, 'req-1', lineId, { approvedQty: '24' }))).toBe('REASON_REQUIRED');
+    expect(await codeOf(requisitionsService.changeQuantity(branchManager, 'req-1', lineId, { approvedQty: '24', reason: 'Short on stock' }))).toBe('NO_ERROR');
+  });
+  it('after the department is packed it is locked (409 DEPARTMENT_PACKED)', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    mocks.repo['hasDispatch']!.mockResolvedValue(true);
+    expect(await codeOf(requisitionsService.changeQuantity(branchManager, 'req-1', lineId, { approvedQty: '24', reason: 'x' }))).toBe('DEPARTMENT_PACKED');
+  });
+  it('records the event with from, to and reason', async () => {
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    await requisitionsService.changeQuantity(branchManager, 'req-1', lineId, { approvedQty: '24', reason: 'Short on stock' });
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'QUANTITY_CHANGED', fromValue: '30', toValue: '24', reason: 'Short on stock', lineId }));
+  });
+  it('is the manager\'s: a head and the Director cannot', async () => {
+    expect(await codeOf(requisitionsService.changeQuantity(kitchen, 'req-1', lineId, { approvedQty: '1' }))).toBe('AUTHORIZATION_ERROR');
+    expect(await codeOf(requisitionsService.changeQuantity(director, 'req-1', lineId, { approvedQty: '1' }))).toBe('AUTHORIZATION_ERROR');
+  });
+  it('an unknown line is not found', async () => {
+    expect(await codeOf(requisitionsService.changeQuantity(branchManager, 'req-1', 'nope', { approvedQty: '1' }))).toBe('NOT_FOUND');
   });
 });
 
-describe('requisitionService.listHistory', () => {
-  it('threads cursor as { cursor: { id }, skip: 1 } and filters on openedAt not approvedAt', async () => {
-    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([]);
+describe('nudge, skip and urgent', () => {
+  const collecting = () => makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 3)]), makeSection('sec-b', BARISTA, 'Barista', 'SUBMITTED', [makeLine('l3', 'i3', 'Beans', 5)])]);
 
-    await requisitionService.listHistory(manager, { limit: 25, cursor: requisitionId });
-
-    expect(requisitionRepository.findHistoryRows).toHaveBeenCalledWith(
-      branchOrgId,
-      expect.objectContaining({ cursor: requisitionId, limit: 25 }),
-    );
+  it('the manager nudges a department that has not sent; the head is told', async () => {
+    serve(collecting());
+    await requisitionsService.nudge(branchManager, 'req-1', KITCHEN);
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'NUDGED', departmentId: KITCHEN }));
   });
-
-  it('displayStatus derives RETURNED from any returned section', async () => {
-    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([
-      buildRequisitionWithSections(
-        [{ status: 'RETURNED', returnedNote: 'x', lines: [] }],
-        { status: 'PENDING_APPROVAL' },
-      ),
-    ] as never);
-
-    const rows = await requisitionService.listHistory(manager, { limit: 25 });
-
-    expect(rows[0]!.displayStatus).toBe('RETURNED');
+  it('a department that already sent is not nudged', async () => {
+    serve(collecting());
+    expect(await codeOf(requisitionsService.nudge(branchManager, 'req-1', BARISTA))).toBe('SECTION_ALREADY_SENT');
   });
+  it('"send without this section" skips it, drops its lines and recomputes the status', async () => {
+    serve(collecting());
+    await requisitionsService.skip(branchManager, 'req-1', KITCHEN);
+    expect(mocks.repo['removeSectionLines']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k');
+    expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'SKIPPED', skippedById: 'mgr-1' }));
+  });
+  it('a head cannot nudge or skip', async () => {
+    serve(collecting());
+    expect(await codeOf(requisitionsService.nudge(kitchen, 'req-1', BARISTA))).toBe('AUTHORIZATION_ERROR');
+    expect(await codeOf(requisitionsService.skip(kitchen, 'req-1', BARISTA))).toBe('AUTHORIZATION_ERROR');
+  });
+  it('urgent is set before approval and the manager hears at once; setting it again changes nothing', async () => {
+    serve(collecting());
+    await requisitionsService.setUrgent(branchManager, 'req-1', { urgent: true });
+    expect(mocks.repo['setUrgent']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', expect.objectContaining({ urgent: true }));
+    expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'URGENT_SET' }));
+    mocks.repo['setUrgent']!.mockClear();
+    serve({ ...collecting(), urgent: true, urgentAt: new Date() });
+    await requisitionsService.setUrgent(branchManager, 'req-1', { urgent: true });
+    expect(mocks.repo['setUrgent']).not.toHaveBeenCalled();
+  });
+  it('a head may set urgent for a requisition their department is part of; after approval nobody may', async () => {
+    serve(collecting());
+    expect(await codeOf(requisitionsService.setUrgent(kitchen, 'req-1', { urgent: true }))).toBe('NO_ERROR');
+    serve(makeRequisition('APPROVED', readyRequisition().sections));
+    expect(await codeOf(requisitionsService.setUrgent(branchManager, 'req-1', { urgent: true }))).toBe('ALREADY_APPROVED');
+  });
+});
 
-  it('signedByName comes from approvedBy, null when unapproved', async () => {
-    vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([
-      buildRequisitionWithSections([{ status: 'SUBMITTED', returnedNote: null, lines: [] }], { status: 'PENDING_APPROVAL', approvedBy: null }),
-    ] as never);
+describe('money and blind views (the file, R3)', () => {
+  it('the Branch Manager sees value per line, section and requisition', async () => {
+    const file = await requisitionsService.getFile(branchManager, 'req-1');
+    expect(file.valueKes).toBe('4700.00'); // (30 + 12 + 5) x 100
+    expect(file.sections[0]?.valueKes).toBe('4200.00');
+    expect(file.sections[0]?.lines[0]?.valueKes).toBe('3000.00');
+  });
+  it('the Director and the System Admin see money too', async () => {
+    expect((await requisitionsService.getFile(director, 'req-1')).valueKes).toBe('4700.00');
+    expect((await requisitionsService.getFile(sysAdmin, 'req-1')).valueKes).toBe('4700.00');
+  });
+  it('the Attendant reads the file with no money and no branch stock figures', async () => {
+    const file = await requisitionsService.getFile(attendant, 'req-1');
+    expect([...moneyKeys(file)]).toEqual([]);
+    expect(file.sections[0]?.lines[0]).not.toHaveProperty('onHand');
+    expect(file.sections[0]?.lines[0]).not.toHaveProperty('level');
+  });
+  it('a head sees only their own department, with stock figures for it and no money anywhere', async () => {
+    const file = await requisitionsService.getFile(kitchen, 'req-1');
+    expect(file.sections.map((s) => s.departmentName)).toEqual(['Kitchen']);
+    expect(file.sections[0]?.lines[0]).toMatchObject({ onHand: '9', level: '36' });
+    expect([...moneyKeys(file)]).toEqual([]);
+    expect(file.lineCount).toBe(2);
+  });
+  it('a head cannot open a requisition that has no section for their department', async () => {
+    serve(makeRequisition('OPEN', [makeSection('sec-b', BARISTA, 'Barista', 'DRAFT', [])]));
+    expect(await codeOf(requisitionsService.getFile(kitchen, 'req-1'))).toBe('NOT_YOUR_DEPARTMENT');
+  });
+  it('a member holds no right and cannot read', async () => {
+    expect(await codeOf(requisitionsService.getFile(member, 'req-1'))).toBe('AUTHORIZATION_ERROR');
+  });
+  it('frozen cost wins after approval: a later price change does not move the value', async () => {
+    const lines = [makeLine('l1', 'i1', 'Milk', 10, { approvedQty: D(8), unitCostAtApproval: D(50) })];
+    lines[0]!.item.currentCost = D(70);
+    serve(makeRequisition('APPROVED', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', lines)]));
+    expect((await requisitionsService.getFile(branchManager, 'req-1')).valueKes).toBe('400.00');
+  });
+  it('a pending addition adds no value until it is approved', async () => {
+    const add = makeLine('la', 'i9', 'Cream', 4, { additionId: 'add-1' });
+    serve({ ...makeRequisition('APPROVED', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', [makeLine('l1', 'i1', 'Milk', 10), add])]), additions: [makeAddition('add-1', KITCHEN)] });
+    const file = await requisitionsService.getFile(branchManager, 'req-1');
+    expect(file.valueKes).toBe('1000.00');
+    expect(file.additions[0]?.status).toBe('PENDING');
+    expect(file.can.approve).toBe(false); // the file is already signed; the addition has its own approve
+    expect(file.additions[0]?.can.approve).toBe(true);
+  });
+  it('the Director sees the approve action on a Ready-to-approve file', async () => {
+    expect((await requisitionsService.getFile(director, 'req-1')).can.approve).toBe(true);
+    expect((await requisitionsService.getFile(branchManager, 'req-1')).can.nudge).toBe(false); // not collecting
+  });
+});
 
-    const rows = await requisitionService.listHistory(manager, { limit: 25 });
+describe('approve summary (R10)', () => {
+  it('lists the departments, what the manager changed, and who would sign', async () => {
+    const changed = makeLine('l1', 'i1', 'Milk', 30, { approvedQty: D(24), editedById: 'mgr-1', editReason: 'Short' });
+    serve(makeRequisition('PENDING_APPROVAL', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', [changed])]));
+    const summary = await requisitionsService.getApproveSummary(director, 'req-1');
+    expect(summary.signingAs).toBe('DIRECTOR');
+    expect(summary.changes).toEqual([{ departmentName: 'Kitchen', itemName: 'Milk', from: '30', to: '24', reason: 'Short' }]);
+    expect(summary.signatureLine).toBe('One signature covers the whole requisition.');
+  });
+  it('is for approvers only', async () => {
+    expect(await codeOf(requisitionsService.getApproveSummary(kitchen, 'req-1'))).toBe('AUTHORIZATION_ERROR');
+  });
+});
 
-    expect(rows[0]!.signedByName).toBeNull();
+describe('section edit screen (R8)', () => {
+  it('returns the addable items, marks the ones already in, and shows stock only for the head\'s own department', async () => {
+    mocks.repo['listTaggedItems']!.mockResolvedValue([
+      { id: 'i1', name: 'Milk', usageUnit: 'L', currentCost: D(100), category: { id: 'c', name: 'Dairy', parentCategoryId: null } },
+      { id: 'i7', name: 'Butter', usageUnit: 'kg', currentCost: D(100), category: null },
+    ]);
+    mocks.repo['findDepartmentLocation']!.mockResolvedValue({ id: 'loc-k' });
+    mocks.repo['readStock']!.mockResolvedValue({ level: new Map([['i1', D(36)], ['i7', D(5)]]), onHand: new Map([['i1', D(9)], ['i7', D(8)]]) });
+    const edit = await requisitionsService.getSection(kitchen, 'req-1', KITCHEN);
+    expect(edit.addable.map((a) => [a.itemId, a.inSection, a.suggestedQty])).toEqual([['i1', true, '27'], ['i7', false, '0']]);
+    expect(edit.addable[0]).toMatchObject({ onHand: '9', level: '36' });
+    const asAttendant = await requisitionsService.getSection(attendant, 'req-1', KITCHEN);
+    expect(asAttendant.addable[0]).not.toHaveProperty('onHand');
+  });
+  it('another department\'s head cannot open it', async () => {
+    expect(await codeOf(requisitionsService.getSection(barista, 'req-1', KITCHEN))).toBe('NOT_YOUR_DEPARTMENT');
+  });
+});
+
+describe('print data (R6) carries no money', () => {
+  it('has no key that mentions value, cost, price or KES', () => {
+    const rec = makeRequisition('APPROVED', readyRequisition().sections, { approvedAt: new Date(), approvedBy: manager, approvedById: manager.id });
+    expect([...moneyKeys(buildPrint(rec))]).toEqual([]);
+  });
+  it('prints a cover plus one page per Sent department, marks a changed line, and puts approved additions on the page', () => {
+    const changed = makeLine('l1', 'i1', 'Milk', 30, { approvedQty: D(24), editedById: 'mgr-1' });
+    const added = makeLine('la', 'i9', 'Cream', 4, { additionId: 'add-1', approvedQty: D(4) });
+    const rec = {
+      ...makeRequisition('APPROVED', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', [changed, added]), makeSection('sec-b', BARISTA, 'Barista', 'SKIPPED', [])]),
+      additions: [makeAddition('add-1', KITCHEN, 'APPROVED')],
+    };
+    const print = buildPrint(rec);
+    expect(print.pages).toHaveLength(1);
+    expect(print.pages[0]?.lines[0]).toMatchObject({ itemName: 'Milk', requestedQty: '30', approvedQty: '24', changed: true });
+    expect(print.pages[0]?.additions[0]?.lines[0]).toMatchObject({ itemName: 'Cream' });
+    expect(print.cover.departments).toEqual([expect.objectContaining({ departmentName: 'Kitchen', page: 2, lineCount: 2 })]);
+    expect(print.cover.additionsCount).toBe(1);
+  });
+});
+
+describe('tenancy', () => {
+  it('every file read names the caller\'s branch, or any branch only for a hub reader', async () => {
+    await requisitionsService.getFile(branchManager, 'req-1');
+    await requisitionsService.getFile(kitchen, 'req-1');
+    await requisitionsService.getFile(director, 'req-1');
+    const scopes = mocks.repo['findFile']!.mock.calls.map((c) => c[1]);
+    expect(scopes).toEqual([{ siteId: SITE }, { siteId: SITE }, { anyBranch: true }]);
+  });
+  it('writes update through the branch they belong to', async () => {
+    await requisitionsService.recallSection(kitchen, 'req-1', KITCHEN);
+    expect(mocks.repo['updateSection']!.mock.calls.every((c) => c[1] === SITE)).toBe(true);
   });
 });

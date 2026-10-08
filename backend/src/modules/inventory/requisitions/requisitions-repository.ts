@@ -1,394 +1,367 @@
-import { Prisma, type DepartmentTag, type Requisition, type RequisitionSection, type RequisitionLine } from '@prisma/client';
+import { Prisma, type DepartmentTag, type RequisitionAdditionStatus, type RequisitionSectionStatus, type RequisitionStatus, type RequisitionType, type UserRole } from '@prisma/client';
 import { prisma } from '../../../config/database';
-import { getTodayNairobiRangeUtc } from '../../../utils/date-only';
-import type { RequisitionDisplayStatus } from './requisitions.types';
 
-type TxClient = Prisma.TransactionClient;
-type Client = typeof prisma | TxClient;
+type Db = Prisma.TransactionClient | typeof prisma;
 
-// ---------------------------------------------------------------------------
-// Requisitions (Session A — Department Head side only). No ledger write ever
-// happens from this repository — Milestone Four does not touch
-// InventoryTransaction (see session-a-plan.md §2).
-// ---------------------------------------------------------------------------
+/**
+ * Requisitions: database access only, no rules. Every query names the branch (`siteId`; column `organization_id`). The one
+ * deliberate exception is a hub reader (Director, Store Manager, Accountant, Attendant, System Admin), who reads any branch: the
+ * service passes `{ anyBranch: true }` and the query still limits itself to branch sites, never the Central Store.
+ */
+export type Scope = { siteId: string } | { anyBranch: true };
+const scopeWhere = (scope: Scope): Prisma.RequisitionWhereInput => ('siteId' in scope ? { siteId: scope.siteId } : { site: { type: 'BRANCH' } });
 
-const ALL_DEPARTMENT_TAGS: DepartmentTag[] = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
+const personSelect = { id: true, name: true, role: true } as const;
+const departmentSelect = { id: true, name: true, status: true, key: true } as const;
 
-export type RequisitionWithMySection = Requisition & {
-  sections: { departmentTag: DepartmentTag; status: RequisitionSection['status'] }[];
-};
+const itemSelect = {
+  id: true,
+  name: true,
+  usageUnit: true,
+  currentCost: true,
+  category: { select: { id: true, name: true, parentCategoryId: true } },
+} as const;
 
-export type RequisitionSectionWithLines = RequisitionSection & {
-  requisition: Pick<Requisition, 'id' | 'status'>;
-  lines: (RequisitionLine & {
-    item: { id: string; name: string; usageUnit: string; category: { id: string; name: string; parentCategoryId: string | null } | null };
-  })[];
-};
+const lineInclude = { item: { select: itemSelect } } as const;
 
-const approvalLineInclude = {
-  item: {
-    select: {
-      id: true,
-      name: true,
-      usageUnit: true,
-      category: { select: { id: true, name: true, parentCategoryId: true } },
+const fileInclude = {
+  site: { select: { id: true, name: true, code: true } },
+  openedBy: { select: personSelect },
+  approvedBy: { select: personSelect },
+  cancelledBy: { select: personSelect },
+  sections: {
+    include: {
+      department: { select: departmentSelect },
+      submittedBy: { select: personSelect },
+      skippedBy: { select: personSelect },
+      lines: { where: { deletedAt: null }, include: lineInclude, orderBy: [{ item: { name: 'asc' } }, { id: 'asc' }] },
     },
+    orderBy: [{ department: { position: 'asc' } }, { id: 'asc' }],
   },
-} as const;
+  additions: {
+    include: { department: { select: departmentSelect }, addedBy: { select: personSelect }, approvedBy: { select: personSelect } },
+    orderBy: { addedAt: 'asc' },
+  },
+} satisfies Prisma.RequisitionInclude;
 
-const approvalSectionInclude = {
-  submittedBy: { select: { id: true, name: true } },
-  lines: { where: { deletedAt: null }, include: approvalLineInclude, orderBy: { id: 'asc' } as const },
-} as const;
+export type RequisitionRecord = Prisma.RequisitionGetPayload<{ include: typeof fileInclude }>;
+export type SectionRecord = RequisitionRecord['sections'][number];
+export type LineRecord = SectionRecord['lines'][number];
+export type AdditionRecord = RequisitionRecord['additions'][number];
 
-export type RequisitionSectionForApproval = RequisitionSection & {
-  submittedBy: { id: string; name: string } | null;
-  lines: (RequisitionLine & {
-    item: { id: string; name: string; usageUnit: string; category: { id: string; name: string; parentCategoryId: string | null } | null };
-  })[];
-};
+export interface StaffRecord {
+  id: string;
+  name: string;
+  role: UserRole;
+  siteId: string | null;
+  isDepartmentHead: boolean;
+  departmentId: string | null;
+}
 
-export type RequisitionWithAllSections = Requisition & {
-  approvedBy: { id: string; name: string } | null;
-  sections: RequisitionSectionForApproval[];
-};
+export interface DepartmentWithItems {
+  id: string;
+  name: string;
+  key: DepartmentTag | null;
+  itemCount: number;
+}
 
-export type RequisitionForManagerList = Requisition & {
-  sections: { status: RequisitionSection['status']; lines: { requestedQty: Prisma.Decimal | null; approvedQty: Prisma.Decimal | null }[] }[];
-};
+export interface TaggedItem {
+  id: string;
+  name: string;
+  usageUnit: string;
+  currentCost: Prisma.Decimal;
+  category: { id: string; name: string; parentCategoryId: string | null } | null;
+}
 
-export type RequisitionHistoryRowData = Requisition & {
-  approvedBy: { id: string; name: string } | null;
-  sections: { status: RequisitionSection['status']; returnedNote: string | null; lines: { requestedQty: Prisma.Decimal | null; approvedQty: Prisma.Decimal | null }[] }[];
-  dispatches: { id: string; departmentTag: DepartmentTag; status: string; sequenceLabel: string }[];
-};
-
-export type CreateRequisitionInput = {
-  siteId: string;
+export interface EventInsert {
+  requisitionId: string;
+  sectionId?: string | null;
   type: string;
-  note?: string;
-  openedById: string;
-};
+  actorId: string;
+  actorRoleLabel: string;
+  fromValue?: string | null;
+  toValue?: string | null;
+  reason?: string | null;
+  lineId?: string | null;
+  idempotencyKey?: string | null;
+}
 
-export const requisitionRepository = {
-  /**
-   * Opens a requisition and creates all 5 RequisitionSection rows (one per
-   * DepartmentTag, NOT_STARTED) in one transaction.
-   */
-  create: async (input: CreateRequisitionInput): Promise<Requisition> => {
-    return prisma.$transaction(async (tx) => {
-      return tx.requisition.create({
-        data: {
-          siteId: input.siteId,
-          type: input.type as never,
-          note: input.note ?? null,
-          openedById: input.openedById,
-          sections: {
-            createMany: {
-              data: ALL_DEPARTMENT_TAGS.map((departmentTag) => ({ departmentTag, status: 'NOT_STARTED' as const })),
-            },
-          },
-        },
-      });
+export const requisitionsRepository = {
+  // --- Who ------------------------------------------------------------------------------------------------------------
+
+  findStaff: (userId: string): Promise<StaffRecord | null> =>
+    prisma.user.findFirst({
+      where: { id: userId, isActive: true, deletedAt: null },
+      select: { id: true, name: true, role: true, siteId: true, isDepartmentHead: true, departmentId: true },
+    }),
+
+  /** The heads of departments at one branch (the user with isDepartmentHead whose departmentId matches). */
+  listHeads: (siteId: string, departmentIds: string[]): Promise<Array<{ id: string; name: string; role: UserRole; departmentId: string }>> =>
+    departmentIds.length === 0
+      ? Promise.resolve([])
+      : prisma.user
+          .findMany({
+            where: { siteId, isDepartmentHead: true, isActive: true, deletedAt: null, departmentId: { in: departmentIds } },
+            select: { id: true, name: true, role: true, departmentId: true },
+            orderBy: { name: 'asc' },
+          })
+          .then((rows) => rows.flatMap((r) => (r.departmentId ? [{ id: r.id, name: r.name, role: r.role, departmentId: r.departmentId }] : []))),
+
+  // --- Reads ------------------------------------------------------------------------------------------------------------
+
+  findFile: (id: string, scope: Scope, db: Db = prisma): Promise<RequisitionRecord | null> =>
+    db.requisition.findFirst({ where: { id, ...scopeWhere(scope) }, include: fileInclude }),
+
+  /** A start that carried this key (R11), for the replay. */
+  findByStartKey: (siteId: string, openedById: string, idempotencyKey: string): Promise<{ id: string } | null> =>
+    prisma.requisition.findFirst({ where: { siteId, openedById, idempotencyKey }, select: { id: true } }),
+
+  /** A signing write that carried this key, for the replay. */
+  findEventByKey: async (requisitionId: string, siteId: string, actorId: string, idempotencyKey: string): Promise<boolean> =>
+    (await prisma.requisitionEvent.count({ where: { requisitionId, actorId, idempotencyKey, requisition: { siteId } } })) > 0,
+
+  /** The open (Collecting or Ready to approve) requisition for a cycle at a branch. */
+  findOpenForCycle: (siteId: string, cycle: RequisitionType, db: Db = prisma): Promise<{ id: string; reference: string } | null> =>
+    db.requisition.findFirst({ where: { siteId, type: cycle, status: { in: ['OPEN', 'PENDING_APPROVAL'] } }, select: { id: true, reference: true } }),
+
+  findSite: (siteId: string): Promise<{ id: string; name: string; code: string | null; type: 'BRANCH' | 'CENTRAL_STORE' } | null> =>
+    prisma.site.findFirst({ where: { id: siteId }, select: { id: true, name: true, code: true, type: true } }),
+
+  /** The branch's active departments with how many live items are tagged to each. */
+  listActiveDepartments: async (siteId: string, db: Db = prisma): Promise<DepartmentWithItems[]> => {
+    const rows = await db.department.findMany({
+      where: { siteId, status: 'ACTIVE' },
+      select: { id: true, name: true, key: true, _count: { select: { items: { where: { item: { deletedAt: null } } } } } },
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
     });
+    return rows.map((r) => ({ id: r.id, name: r.name, key: r.key, itemCount: r._count.items }));
   },
 
-  /**
-   * Role-scoped list for a Department Head: today's requisitions (Nairobi
-   * calendar day — a department files 2-3 a day, e.g. Morning/Afternoon/
-   * Evening/Ad-hoc, so "today" is the natural scope; older ones belong to a
-   * future history screen, not this list) for their branch org, with just
-   * enough section data for the service to derive `mySectionStatus` — never
-   * other departments' full section detail.
-   */
-  findAllBySite: async (siteId: string, limit: number): Promise<RequisitionWithMySection[]> => {
-    const { start, end } = getTodayNairobiRangeUtc();
-    return prisma.requisition.findMany({
-      where: { siteId, openedAt: { gte: start, lt: end } },
-      include: { sections: { select: { departmentTag: true, status: true } } },
-      orderBy: { openedAt: 'desc' },
-      take: limit,
+  /** Live items tagged to a department of this branch, with category and cost. The department must belong to the branch. */
+  listTaggedItems: async (siteId: string, departmentId: string, db: Db = prisma): Promise<TaggedItem[]> => {
+    const rows = await db.itemDepartment.findMany({
+      where: { departmentId, department: { siteId }, item: { deletedAt: null } },
+      select: { item: { select: itemSelect } },
+      orderBy: { item: { name: 'asc' } },
     });
+    return rows.map((r) => r.item);
   },
 
-  findById: async (id: string, siteId: string, client: Client = prisma): Promise<Requisition | null> => {
-    return client.requisition.findFirst({ where: { id, siteId } });
-  },
-
-  /**
-   * Hard delete — the one exception to this module's soft-delete convention
-   * (see `deleteLine` below). Only reachable when the caller has already
-   * confirmed zero sections were ever SUBMITTED (session-1-quick-wins-prompt
-   * #17): nothing of record exists yet on a requisition in that state, so
-   * there is no audit trail to lose. All 5 sections start `NOT_STARTED` on
-   * `create`, so a fresh requisition always has exactly 5 to delete.
-   * FKs are `ON DELETE RESTRICT` throughout (lines -> sections ->
-   * requisition), so deletion order matters here.
-   */
-  cancel: async (id: string, siteId: string): Promise<boolean> => {
-    return prisma.$transaction(async (tx) => {
-      const requisition = await tx.requisition.findFirst({
-        where: { id, siteId },
-        include: { sections: { select: { id: true, status: true } } },
-      });
-      if (!requisition) return false;
-      if (requisition.sections.some((s) => s.status === 'SUBMITTED')) return false;
-
-      const sectionIds = requisition.sections.map((s) => s.id);
-      await tx.requisitionLine.deleteMany({ where: { requisitionSectionId: { in: sectionIds } } });
-      await tx.requisitionSection.deleteMany({ where: { requisitionId: id } });
-      await tx.requisition.delete({ where: { id } });
-      return true;
+  /** Of these item ids, the ones that are live and tagged to the department. */
+  findTaggedItemIds: async (siteId: string, departmentId: string, itemIds: string[], db: Db = prisma): Promise<Set<string>> => {
+    if (itemIds.length === 0) return new Set();
+    const rows = await db.itemDepartment.findMany({
+      where: { departmentId, department: { siteId }, itemId: { in: itemIds }, item: { deletedAt: null } },
+      select: { itemId: true },
     });
+    return new Set(rows.map((r) => r.itemId));
   },
 
-  /**
-   * Flips OPEN -> PENDING_APPROVAL. Guarded with a where-status check so it
-   * only fires (and only counts) on the actual first transition — safe to
-   * call unconditionally after a successful submit.
-   */
-  markPendingApprovalIfOpen: async (id: string, tx: TxClient): Promise<number> => {
-    const updated = await tx.requisition.updateMany({
-      where: { id, status: 'OPEN' },
-      data: { status: 'PENDING_APPROVAL' },
-    });
-    return updated.count;
-  },
+  /** The branch-department stock location of a department (none for a department added after the five were provisioned). */
+  findDepartmentLocation: (siteId: string, departmentId: string, db: Db = prisma): Promise<{ id: string } | null> =>
+    db.location.findFirst({ where: { siteId, type: 'BRANCH_DEPARTMENT', departmentId, isActive: true }, select: { id: true } }),
 
-  findSectionWithLines: async (
-    requisitionId: string,
-    departmentTag: DepartmentTag,
+  /** Restock level and on hand per item at one branch-department location. On hand is the sum of the ledger. */
+  readStock: async (
     siteId: string,
-    client: Client = prisma,
-  ): Promise<RequisitionSectionWithLines | null> => {
-    return client.requisitionSection.findFirst({
-      where: { requisitionId, departmentTag, requisition: { siteId } },
-      include: {
-        requisition: { select: { id: true, status: true } },
-        lines: {
-          where: { deletedAt: null },
-          include: {
-            item: {
-              select: {
-                id: true,
-                name: true,
-                usageUnit: true,
-                category: { select: { id: true, name: true, parentCategoryId: true } },
-              },
-            },
-          },
-          orderBy: { id: 'asc' },
-        },
-      },
-    });
-  },
-
-  findSectionById: async (
-    requisitionId: string,
-    departmentTag: DepartmentTag,
-    siteId: string,
-    client: Client = prisma,
-  ): Promise<RequisitionSection | null> => {
-    return client.requisitionSection.findFirst({
-      where: { requisitionId, departmentTag, requisition: { siteId } },
-    });
-  },
-
-  /** Existing-line quantity edit (incl. "0" — zero-not-delete, row stays). */
-  updateLineQty: async (lineId: string, requestedQty: Prisma.Decimal.Value | null, tx: TxClient): Promise<void> => {
-    await tx.requisitionLine.update({ where: { id: lineId }, data: { requestedQty } });
-  },
-
-  /** New line via add-item; parAtRequest is snapshotted by the service before calling this. */
-  createLine: async (
-    sectionId: string,
-    input: { inventoryItemId: string; requestedQty: Prisma.Decimal.Value | null; parAtRequest: Prisma.Decimal.Value | null },
-    tx: TxClient,
-  ): Promise<void> => {
-    await tx.requisitionLine.create({
-      data: {
-        requisitionSectionId: sectionId,
-        inventoryItemId: input.inventoryItemId,
-        requestedQty: input.requestedQty,
-        parAtRequest: input.parAtRequest,
-      },
-    });
-  },
-
-  updateManagerNote: async (sectionId: string, managerNote: string | null, tx: TxClient): Promise<void> => {
-    await tx.requisitionSection.update({ where: { id: sectionId }, data: { managerNote } });
-  },
-
-  /**
-   * State-transition method (submit/recall). `where` includes the expected
-   * current status; zero rows affected -> service throws ConflictError. No
-   * silent partial-state (receiving-repository.ts's markSigned precedent).
-   */
-  setSectionStatus: async (
-    sectionId: string,
-    fromStatuses: RequisitionSection['status'][],
-    data: Partial<Pick<RequisitionSection, 'status' | 'submittedById' | 'submittedAt' | 'returnedNote'>>,
-    tx: TxClient,
-  ): Promise<number> => {
-    const updated = await tx.requisitionSection.updateMany({
-      where: { id: sectionId, status: { in: fromStatuses } },
-      data,
-    });
-    return updated.count;
-  },
-
-  // -------------------------------------------------------------------------
-  // Session B — Branch Manager approval.
-  // -------------------------------------------------------------------------
-
-  /**
-   * All 5 sections + lines (excluding soft-deleted) + item + submitter +
-   * approver, org-scoped through the relation (D-15 convention). The single
-   * read the whole approval detail screen is built from.
-   */
-  findByIdWithAllSections: async (
-    id: string,
-    siteId: string,
-    client: Client = prisma,
-  ): Promise<RequisitionWithAllSections | null> => {
-    return client.requisition.findFirst({
-      where: { id, siteId },
-      include: {
-        approvedBy: { select: { id: true, name: true } },
-        sections: { include: approvalSectionInclude, orderBy: { departmentTag: 'asc' } },
-      },
-    });
-  },
-
-  /** Manager's needs-approval list: today's requisitions, section+line shape only (totals/counts derived by the service). */
-  findAllBySiteForManager: async (siteId: string, limit: number): Promise<RequisitionForManagerList[]> => {
-    const { start, end } = getTodayNairobiRangeUtc();
-    return prisma.requisition.findMany({
-      where: { siteId, openedAt: { gte: start, lt: end } },
-      include: {
-        sections: {
-          select: { status: true, lines: { where: { deletedAt: null }, select: { requestedQty: true, approvedQty: true } } },
-        },
-      },
-      orderBy: { openedAt: 'desc' },
-      take: limit,
-    });
-  },
-
-  updateLineApproval: async (
-    lineId: string,
-    data: { approvedQty: Prisma.Decimal.Value | null; editReason: string | null; editedById: string },
-    tx: TxClient,
-  ): Promise<void> => {
-    await tx.requisitionLine.update({
-      where: { id: lineId },
-      data: { approvedQty: data.approvedQty, editReason: data.editReason, editedById: data.editedById },
-    });
-  },
-
-  /** Manager delete — soft, keeps the audit trail. Never a hard delete. */
-  softDeleteLine: async (lineId: string, tx: TxClient): Promise<void> => {
-    await tx.requisitionLine.update({ where: { id: lineId }, data: { deletedAt: new Date() } });
-  },
-
-  /** Manager-added line: `requestedQty` stays null (decision #5 — "manager-added, head never asked"). */
-  createManagerLine: async (
-    sectionId: string,
-    input: { inventoryItemId: string; approvedQty: Prisma.Decimal.Value; editedById: string; editReason: string | null },
-    tx: TxClient,
-  ): Promise<void> => {
-    await tx.requisitionLine.create({
-      data: {
-        requisitionSectionId: sectionId,
-        inventoryItemId: input.inventoryItemId,
-        requestedQty: null,
-        approvedQty: input.approvedQty,
-        editedById: input.editedById,
-        editReason: input.editReason,
-        addedFromNote: true,
-      },
-    });
-  },
-
-  /**
-   * Guarded updateMany — a `count()` under READ COMMITTED does not take row
-   * locks, so it cannot detect a concurrent recall between the pre-load and
-   * the write. `updateMany` does. Returns 0 when another manager already
-   * signed (see `13F1-0` — the already-approved read-only state).
-   */
-  markApprovedIfPendingApproval: async (id: string, actorId: string, tx: TxClient): Promise<number> => {
-    const updated = await tx.requisition.updateMany({
-      where: { id, status: 'PENDING_APPROVAL' },
-      data: { status: 'APPROVED', approvedById: actorId, approvedAt: new Date() },
-    });
-    return updated.count;
-  },
-
-  /**
-   * Filters on `openedAt`, not `approvedAt` — a still-open or returned
-   * requisition has no `approvedAt` yet but is still a real row a manager
-   * searching history by date range should find. Mirrors
-   * `receiving-repository.ts` `findHistoryRows`.
-   */
-  findHistoryRows: async (
-    siteId: string,
-    filters: { from?: Date; to?: Date; status?: RequisitionDisplayStatus; limit: number; cursor?: string },
-  ): Promise<RequisitionHistoryRowData[]> => {
-    const where: Prisma.RequisitionWhereInput = {
-      siteId,
-      ...(filters.from || filters.to
-        ? { openedAt: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } }
-        : {}),
+    locationId: string,
+    itemIds: string[],
+    db: Db = prisma,
+  ): Promise<{ level: Map<string, Prisma.Decimal>; onHand: Map<string, Prisma.Decimal> }> => {
+    if (itemIds.length === 0) return { level: new Map(), onHand: new Map() };
+    const [levels, sums] = await Promise.all([
+      db.restockLevel.findMany({ where: { siteId, locationId, inventoryItemId: { in: itemIds } }, select: { inventoryItemId: true, level: true } }),
+      db.inventoryTransaction.groupBy({ by: ['inventoryItemId'], where: { siteId, locationId, inventoryItemId: { in: itemIds } }, _sum: { quantity: true } }),
+    ]);
+    return {
+      level: new Map(levels.map((l) => [l.inventoryItemId, l.level])),
+      onHand: new Map(sums.map((s) => [s.inventoryItemId, s._sum.quantity ?? new Prisma.Decimal(0)])),
     };
-
-    return prisma.requisition.findMany({
-      where,
-      include: {
-        approvedBy: { select: { id: true, name: true } },
-        sections: {
-          select: {
-            status: true,
-            returnedNote: true,
-            lines: { where: { deletedAt: null }, select: { requestedQty: true, approvedQty: true } },
-          },
-        },
-        // Milestone Five addition (session-a-plan.md §1.4) — cross-links
-        // History to the Dispatch/Delivery screens. Additive only.
-        dispatches: {
-          select: { id: true, departmentTag: true, status: true, sequenceLabel: true },
-          orderBy: { departmentTag: 'asc' },
-        },
-      },
-      orderBy: { openedAt: 'desc' },
-      take: filters.limit,
-      ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
-    });
   },
 
-  findBranchManagers: async (siteId: string): Promise<{ id: string; name: string }[]> => {
-    return prisma.user.findMany({
-      where: { siteId, role: 'MANAGER', isActive: true },
-      select: { id: true, name: true },
-    });
+  findCategoryNames: async (ids: string[]): Promise<Map<string, string>> => {
+    if (ids.length === 0) return new Map();
+    const rows = await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    return new Map(rows.map((r) => [r.id, r.name]));
+  },
+
+  /** Is there an old-dispatch row for this department of the requisition? (The store has signed it.) Only the original five can have one. */
+  hasDispatch: async (requisitionId: string, siteId: string, departmentKey: DepartmentTag | null, db: Db = prisma): Promise<boolean> => {
+    if (!departmentKey) return false;
+    return (await db.dispatch.count({ where: { requisitionId, toSiteId: siteId, departmentTag: departmentKey } })) > 0;
+  },
+
+  // --- Numbering and locking ---------------------------------------------------------------------------------------------
+
+  /** Serialises the starts for one branch and cycle, so two parallel starts cannot both find "none open". Released at commit. */
+  lockCycle: async (tx: Prisma.TransactionClient, siteId: string, cycle: RequisitionType): Promise<void> => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`requisition:${siteId}:${cycle}`}))`;
+  },
+
+  // --- Writes (callers run them inside one `$transaction`) -----------------------------------------------------------------
+
+  createRequisition: (
+    tx: Prisma.TransactionClient,
+    data: { siteId: string; type: RequisitionType; reference: string; openedById: string; urgent: boolean; idempotencyKey: string },
+  ): Promise<{ id: string }> =>
+    tx.requisition.create({
+      data: {
+        siteId: data.siteId,
+        type: data.type,
+        reference: data.reference,
+        openedById: data.openedById,
+        urgent: data.urgent,
+        urgentAt: data.urgent ? new Date() : null,
+        idempotencyKey: data.idempotencyKey,
+      },
+      select: { id: true },
+    }),
+
+  createSection: (
+    tx: Prisma.TransactionClient,
+    data: { requisitionId: string; departmentId: string; departmentTag: DepartmentTag | null; status: RequisitionSectionStatus; skippedAt?: Date },
+  ): Promise<{ id: string }> =>
+    tx.requisitionSection.create({
+      data: {
+        requisitionId: data.requisitionId,
+        departmentId: data.departmentId,
+        departmentTag: data.departmentTag,
+        status: data.status,
+        ...(data.skippedAt ? { skippedAt: data.skippedAt } : {}),
+      },
+      select: { id: true },
+    }),
+
+  createLines: async (
+    tx: Prisma.TransactionClient,
+    sectionId: string,
+    lines: Array<{
+      inventoryItemId: string;
+      requestedQty: Prisma.Decimal;
+      suggestedQty: Prisma.Decimal | null;
+      parAtRequest: Prisma.Decimal | null;
+      onHandAtRequest: Prisma.Decimal | null;
+      additionId?: string;
+    }>,
+  ): Promise<void> => {
+    if (lines.length === 0) return;
+    await tx.requisitionLine.createMany({ data: lines.map((l) => ({ requisitionSectionId: sectionId, ...l })) });
+  },
+
+  /** Section update scoped through its requisition's branch. Returns false when the section is not at this branch. */
+  updateSection: async (
+    tx: Prisma.TransactionClient,
+    siteId: string,
+    sectionId: string,
+    data: Prisma.RequisitionSectionUncheckedUpdateManyInput,
+  ): Promise<boolean> => (await tx.requisitionSection.updateMany({ where: { id: sectionId, requisition: { siteId } }, data })).count > 0,
+
+  updateLine: async (tx: Prisma.TransactionClient, siteId: string, lineId: string, data: Prisma.RequisitionLineUncheckedUpdateManyInput): Promise<boolean> =>
+    (await tx.requisitionLine.updateMany({ where: { id: lineId, section: { requisition: { siteId } } }, data })).count > 0,
+
+  /** Soft-removes lines (the file keeps them out of every read and out of the old dispatch). */
+  removeLines: async (tx: Prisma.TransactionClient, siteId: string, lineIds: string[]): Promise<void> => {
+    if (lineIds.length === 0) return;
+    await tx.requisitionLine.updateMany({ where: { id: { in: lineIds }, deletedAt: null, section: { requisition: { siteId } } }, data: { deletedAt: new Date() } });
+  },
+
+  /** Soft-removes every live line of a section (Send without this section). */
+  removeSectionLines: async (tx: Prisma.TransactionClient, siteId: string, sectionId: string): Promise<void> => {
+    await tx.requisitionLine.updateMany({ where: { requisitionSectionId: sectionId, deletedAt: null, section: { requisition: { siteId } } }, data: { deletedAt: new Date() } });
+  },
+
+  setStatus: async (tx: Prisma.TransactionClient, siteId: string, id: string, status: RequisitionStatus, data: Prisma.RequisitionUncheckedUpdateManyInput = {}): Promise<boolean> =>
+    (await tx.requisition.updateMany({ where: { id, siteId }, data: { status, ...data } })).count > 0,
+
+  setUrgent: async (tx: Prisma.TransactionClient, siteId: string, id: string, data: { urgent: boolean; urgentAt: Date | null }): Promise<void> => {
+    await tx.requisition.updateMany({ where: { id, siteId }, data });
   },
 
   /**
-   * Resolves via `submittedById` where present, falling back to the
-   * department's head for the not-submitted "nudge" case (a NOT_STARTED/
-   * DRAFT section has no submitter yet).
+   * Approval: the unit cost is frozen on every live line of a Sent section, an unset Approved quantity takes the requested one (the old
+   * dispatch reads `approvedQty`), and any section that never went is marked Skipped so it carries no lines.
    */
-  findSectionHeads: async (
-    siteId: string,
-    departmentTag: DepartmentTag,
-    submittedById: string | null,
-  ): Promise<{ id: string; name: string }[]> => {
-    if (submittedById) {
-      const submitter = await prisma.user.findUnique({ where: { id: submittedById }, select: { id: true, name: true } });
-      return submitter ? [submitter] : [];
-    }
-    return prisma.user.findMany({
-      where: { siteId, departmentTag, isDepartmentHead: true, isActive: true },
-      select: { id: true, name: true },
+  freezeForApproval: async (tx: Prisma.TransactionClient, siteId: string, requisitionId: string): Promise<void> => {
+    const sections = await tx.requisitionSection.findMany({
+      where: { requisitionId, requisition: { siteId } },
+      select: { id: true, status: true, lines: { where: { deletedAt: null }, select: { id: true, requestedQty: true, approvedQty: true, item: { select: { currentCost: true } } } } },
     });
+    for (const section of sections) {
+      if (section.status === 'SUBMITTED') {
+        for (const line of section.lines) {
+          await tx.requisitionLine.updateMany({
+            where: { id: line.id, section: { requisition: { siteId } } },
+            data: { unitCostAtApproval: line.item.currentCost, approvedQty: line.approvedQty ?? line.requestedQty },
+          });
+        }
+      } else if (section.status !== 'SKIPPED') {
+        await tx.requisitionLine.updateMany({ where: { requisitionSectionId: section.id, deletedAt: null, section: { requisition: { siteId } } }, data: { deletedAt: new Date() } });
+        await tx.requisitionSection.updateMany({ where: { id: section.id, requisition: { siteId } }, data: { status: 'SKIPPED', skippedAt: new Date() } });
+      }
+    }
+  },
+
+  createAddition: (
+    tx: Prisma.TransactionClient,
+    data: { requisitionId: string; departmentId: string; addedById: string; sentPinSignedAt: Date },
+  ): Promise<{ id: string }> => tx.requisitionAddition.create({ data, select: { id: true } }),
+
+  setAdditionStatus: async (
+    tx: Prisma.TransactionClient,
+    siteId: string,
+    additionId: string,
+    data: { status: RequisitionAdditionStatus; approvedById: string; approvedAt: Date },
+  ): Promise<boolean> => (await tx.requisitionAddition.updateMany({ where: { id: additionId, requisition: { siteId } }, data })).count > 0,
+
+  /** Approval of an addition freezes the cost and sets the Approved quantity on its lines. */
+  freezeAdditionLines: async (tx: Prisma.TransactionClient, siteId: string, additionId: string): Promise<void> => {
+    const lines = await tx.requisitionLine.findMany({
+      where: { additionId, deletedAt: null, section: { requisition: { siteId } } },
+      select: { id: true, requestedQty: true, approvedQty: true, item: { select: { currentCost: true } } },
+    });
+    for (const line of lines) {
+      await tx.requisitionLine.updateMany({
+        where: { id: line.id, section: { requisition: { siteId } } },
+        data: { unitCostAtApproval: line.item.currentCost, approvedQty: line.approvedQty ?? line.requestedQty },
+      });
+    }
+  },
+
+  appendEvent: async (tx: Prisma.TransactionClient, data: EventInsert): Promise<void> => {
+    await tx.requisitionEvent.create({
+      data: {
+        requisitionId: data.requisitionId,
+        sectionId: data.sectionId ?? null,
+        type: data.type,
+        actorId: data.actorId,
+        actorRoleLabel: data.actorRoleLabel,
+        fromValue: data.fromValue ?? null,
+        toValue: data.toValue ?? null,
+        reason: data.reason ?? null,
+        lineId: data.lineId ?? null,
+        idempotencyKey: data.idempotencyKey ?? null,
+      },
+    });
+  },
+
+  /** When did the requisition become "all in"? The latest Sent or Skipped moment of its sections. */
+  findAllInAt: async (requisitionId: string, siteId: string): Promise<Date | null> => {
+    const rows = await prisma.requisitionSection.findMany({ where: { requisitionId, requisition: { siteId } }, select: { submittedAt: true, skippedAt: true } });
+    const times = rows.flatMap((r) => [r.submittedAt, r.skippedAt]).filter((t): t is Date => t !== null);
+    return times.length === 0 ? null : new Date(Math.max(...times.map((t) => t.getTime())));
+  },
+
+  /** The facts the state rules need, read inside the transaction that just changed a section. */
+  readSectionFacts: async (
+    tx: Prisma.TransactionClient,
+    siteId: string,
+    requisitionId: string,
+  ): Promise<{ status: RequisitionStatus; sections: Array<{ status: RequisitionSectionStatus; departmentActive: boolean }> } | null> => {
+    const row = await tx.requisition.findFirst({
+      where: { id: requisitionId, siteId },
+      select: { status: true, sections: { select: { status: true, department: { select: { status: true } } } } },
+    });
+    if (!row) return null;
+    return { status: row.status, sections: row.sections.map((s) => ({ status: s.status, departmentActive: s.department?.status === 'ACTIVE' })) };
   },
 };

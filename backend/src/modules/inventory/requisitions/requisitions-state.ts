@@ -1,0 +1,157 @@
+import type { NextStep, RequisitionStatus, SectionStatus, TrackerStep } from './_shared/requisitions-contract';
+
+/**
+ * The state rules of a requisition (docs/features/inventory/requisitions-contract.md §5) as pure functions, so the whole table is
+ * tested without a database. The service asks these questions; it never decides a state by itself.
+ */
+
+/** What a section needs to answer "is everything in?". A retired department that has not sent does not hold the requisition up. */
+export interface SectionFacts {
+  status: SectionStatus;
+  departmentActive: boolean;
+}
+
+/** A section's lines may be edited while it is Not started, a Draft or Sent (a Sent section reopens as a Draft). Skipped is final. */
+export const SECTION_EDITABLE: readonly SectionStatus[] = ['NOT_STARTED', 'DRAFT', 'SUBMITTED'];
+
+export type SavedSectionStatus = { allowed: true; status: SectionStatus } | { allowed: false };
+
+/** R12: the section's status after the head saves `lineCount` lines. Sent reopens as Draft; no lines at all is Not started. */
+export const sectionStatusAfterSave = (status: SectionStatus, lineCount: number): SavedSectionStatus => {
+  if (!SECTION_EDITABLE.includes(status)) return { allowed: false };
+  return { allowed: true, status: lineCount === 0 ? 'NOT_STARTED' : 'DRAFT' };
+};
+
+export type SendCheck = 'OK' | 'EMPTY' | 'NOT_SENDABLE';
+
+/** R13: only a Draft with at least one line can be sent. */
+export const checkSend = (status: SectionStatus, lineCount: number): SendCheck => {
+  if (status !== 'DRAFT' && status !== 'NOT_STARTED') return 'NOT_SENDABLE';
+  return lineCount === 0 ? 'EMPTY' : 'OK';
+};
+
+/** R14: only a Sent section can be recalled. */
+export const canRecall = (status: SectionStatus): boolean => status === 'SUBMITTED';
+
+/** R18: "Send without this section" is for a section that has not been sent. */
+export const canSkip = (status: SectionStatus): boolean => status === 'NOT_STARTED' || status === 'DRAFT';
+
+/** Every section that still counts is Sent or Skipped, and at least one was actually Sent (an all-skipped requisition has nothing to approve). */
+export const allIn = (sections: readonly SectionFacts[]): boolean => {
+  const counting = sections.filter((s) => s.departmentActive || s.status === 'SUBMITTED' || s.status === 'SKIPPED');
+  return counting.length > 0 && counting.every((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED') && counting.some((s) => s.status === 'SUBMITTED');
+};
+
+/** Collecting (OPEN) becomes Ready to approve (PENDING_APPROVAL) when everything is in, and back when a section reopens. Other statuses never move here. */
+export const statusAfterSectionChange = (current: RequisitionStatus, sections: readonly SectionFacts[]): RequisitionStatus => {
+  if (current !== 'OPEN' && current !== 'PENDING_APPROVAL') return current;
+  return allIn(sections) ? 'PENDING_APPROVAL' : 'OPEN';
+};
+
+export type WriteGuard = 'OK' | 'ALREADY_APPROVED' | 'CANCELLED';
+
+/** Writes that only make sense before the signature (R12, R14, R15, R17, R18, R20) and the error each other status gives. */
+export const guardBeforeApproval = (status: RequisitionStatus): WriteGuard => {
+  if (status === 'OPEN' || status === 'PENDING_APPROVAL') return 'OK';
+  return status === 'CANCELLED' ? 'CANCELLED' : 'ALREADY_APPROVED';
+};
+
+/** R19 needs Ready to approve; Collecting is "not ready", a signed or cancelled one has its own answer. */
+export type ApproveGuard = 'OK' | 'NOT_READY' | 'ALREADY_APPROVED' | 'CANCELLED';
+export const guardApprove = (status: RequisitionStatus): ApproveGuard => {
+  if (status === 'PENDING_APPROVAL') return 'OK';
+  if (status === 'OPEN') return 'NOT_READY';
+  return status === 'CANCELLED' ? 'CANCELLED' : 'ALREADY_APPROVED';
+};
+
+/** R16 and R21 work on a signed requisition; before it is signed there is nothing to add to. */
+export type AfterApprovalGuard = 'OK' | 'NOT_APPROVED' | 'CANCELLED' | 'CLOSED';
+export const guardAfterApproval = (status: RequisitionStatus): AfterApprovalGuard => {
+  if (status === 'APPROVED') return 'OK';
+  if (status === 'CANCELLED') return 'CANCELLED';
+  return status === 'CLOSED' ? 'CLOSED' : 'NOT_APPROVED';
+};
+
+export const URGENT_ESCALATION_MS = 60 * 60 * 1000;
+
+/** Urgent and still unsigned after one hour (the Director's list). */
+export const urgentOverHour = (r: { urgent: boolean; urgentAt: Date | null; status: RequisitionStatus }, now: Date): boolean =>
+  r.urgent && r.urgentAt !== null && (r.status === 'OPEN' || r.status === 'PENDING_APPROVAL') && now.getTime() - r.urgentAt.getTime() >= URGENT_ESCALATION_MS;
+
+// --- Money -----------------------------------------------------------------------
+
+/** value = approvedQty × unit cost; the cost is the one frozen at approval once approved, the current item cost before. Before the manager sets a number the request stands. */
+export const lineValueKes = (
+  line: { requestedQty: number; approvedQty: number | null },
+  cost: { unitCostAtApproval: number | null; currentCost: number },
+): number => (line.approvedQty ?? line.requestedQty) * (cost.unitCostAtApproval ?? cost.currentCost);
+
+// --- Next step and tracker ----------------------------------------------------------
+
+export interface NextStepFacts {
+  status: RequisitionStatus;
+  sections: ReadonlyArray<{ departmentId: string; departmentName: string; status: SectionStatus; departmentActive: boolean }>;
+  /** An addition is waiting for the signature. */
+  additionWaiting: boolean;
+  can: { nudge: boolean; approve: boolean; addToIt: boolean; print: boolean };
+}
+
+/** The Next step card (Paper step 22 wording; the words are a draft until the front end confirms them against the table). */
+export const nextStepOf = (f: NextStepFacts): NextStep => {
+  const none = { text: null, action: null, actionLabel: null, departmentId: null } as const;
+  if (f.status === 'CANCELLED') return { title: 'Cancelled', ...none, action: 'START_A_NEW_ONE', actionLabel: 'Start a new one' };
+  if (f.status === 'CLOSED') return { title: 'Closed', ...none, action: f.can.print ? 'PRINT' : null, actionLabel: f.can.print ? 'Print' : null };
+  if (f.status === 'APPROVED') {
+    if (f.additionWaiting) {
+      return { title: 'An addition is waiting for a signature', text: null, action: f.can.approve ? 'APPROVE_ADDITION' : null, actionLabel: f.can.approve ? 'Approve addition' : null, departmentId: null };
+    }
+    if (f.can.addToIt) return { title: 'Approved. Waiting for the Central Store.', text: null, action: 'ADD_TO_THIS_REQUISITION', actionLabel: 'Add to this requisition', departmentId: null };
+    return { title: 'Approved. Waiting for the Central Store.', ...none, action: f.can.print ? 'PRINT' : null, actionLabel: f.can.print ? 'Print' : null };
+  }
+  if (f.status === 'PENDING_APPROVAL') {
+    return { title: 'Everything is in. Ready for your signature.', text: null, action: f.can.approve ? 'APPROVE_AND_SIGN' : null, actionLabel: f.can.approve ? 'Approve and sign' : null, departmentId: null };
+  }
+  const waiting = f.sections.find((s) => s.departmentActive && (s.status === 'NOT_STARTED' || s.status === 'DRAFT'));
+  if (!waiting) return { title: 'Collecting', ...none };
+  return {
+    title: `${waiting.departmentName} hasn't sent yet`,
+    text: null,
+    action: f.can.nudge ? 'NUDGE' : null,
+    actionLabel: f.can.nudge ? `Nudge ${waiting.departmentName}` : null,
+    departmentId: waiting.departmentId,
+  };
+};
+
+export interface TrackerFacts {
+  status: RequisitionStatus;
+  openedAt: Date;
+  openedBy: { id: string; name: string; role: string };
+  allInAt: Date | null;
+  approvedAt: Date | null;
+  approvedBy: { id: string; name: string; role: string } | null;
+  closedAt: Date | null;
+}
+
+type TrackerStepKey = TrackerStep['key'];
+
+/** The six steps with their dates. Packed and Delivered are Block 2's; they stay To do until then. */
+export const trackerOf = (f: TrackerFacts, person: (u: { id: string; name: string; role: string }) => TrackerStep['by']): TrackerStep[] => {
+  const reached: Record<TrackerStepKey, { at: Date | null; by: TrackerStep['by'] } | null> = {
+    STARTED: { at: f.openedAt, by: person(f.openedBy) },
+    ALL_IN: f.allInAt ? { at: f.allInAt, by: null } : null,
+    APPROVED: f.approvedAt ? { at: f.approvedAt, by: f.approvedBy ? person(f.approvedBy) : null } : null,
+    PACKED: null,
+    DELIVERED: null,
+    CLOSED: f.closedAt ? { at: f.closedAt, by: null } : null,
+  };
+  const labels: Record<TrackerStepKey, string> = { STARTED: 'Started', ALL_IN: 'All in', APPROVED: 'Approved', PACKED: 'Packed', DELIVERED: 'Delivered', CLOSED: 'Closed' };
+  const order: TrackerStepKey[] = ['STARTED', 'ALL_IN', 'APPROVED', 'PACKED', 'DELIVERED', 'CLOSED'];
+  let currentSet = false;
+  return order.map((key) => {
+    const hit = reached[key];
+    if (hit) return { key, label: labels[key], state: 'DONE' as const, at: hit.at ? hit.at.toISOString() : null, by: hit.by };
+    const state = !currentSet && f.status !== 'CANCELLED' ? ('CURRENT' as const) : ('TODO' as const);
+    currentSet = currentSet || state === 'CURRENT';
+    return { key, label: labels[key], state, at: null, by: null };
+  });
+};

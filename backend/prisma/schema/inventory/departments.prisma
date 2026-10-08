@@ -1,0 +1,43 @@
+// ── Departments as data (Block 1, docs/features/inventory/requisitions-contract.md §2.1) ──
+// A branch's departments are rows. `key` is the legacy DepartmentTag for the original five and null for an added one.
+// Expand phase: the DepartmentTag enum columns stay and are dual-written beside these id links until the Block 4 contract migration.
+enum DepartmentStatus {
+  ACTIVE
+  RETIRED
+}
+
+model Department {
+  id        String           @id @default(uuid())
+  siteId    String           @map("organization_id") // the branch
+  name      String
+  key       DepartmentTag? // legacy enum value for the original five; null for an added department
+  status    DepartmentStatus @default(ACTIVE)
+  position  Int              @default(0)
+  retiredAt DateTime?        @map("retired_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  site                 Site                  @relation(fields: [siteId], references: [id])
+  items                ItemDepartment[]
+  staff                User[]                @relation("DepartmentStaff")
+  locations            Location[]
+  requisitionSections  RequisitionSection[]
+  requisitionAdditions RequisitionAddition[]
+
+  @@unique([siteId, name])
+  @@index([siteId, status])
+  @@map("departments")
+}
+
+/// Which departments an item is tagged to. Back-filled from InventoryItem.departmentTags; dual-written until Block 4.
+model ItemDepartment {
+  itemId       String @map("item_id")
+  departmentId String @map("department_id")
+
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+  department Department    @relation(fields: [departmentId], references: [id])
+
+  @@id([itemId, departmentId])
+  @@index([departmentId])
+  @@map("item_departments")
+}

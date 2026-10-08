@@ -22,6 +22,8 @@ model Site {
   type                         SiteType                      @default(BRANCH)
   company                      Company                       @relation(fields: [companyId], references: [id])
   name                         String
+  /// Three-letter branch code used in document references (REQ-NYR-0001). Null for the Central Store. Unique.
+  code                         String?                       @unique
   address                      String
   city                         String
   latitude                     Decimal                       @db.Decimal(10, 7)
@@ -94,6 +96,7 @@ model Site {
   countSections                CountSection[]
   countingThresholds           CountingThresholds?
   branchDays                   BranchDay[]
+  departments                  Department[]
 
   @@index([companyId])
   @@map("organizations")
@@ -127,6 +130,9 @@ model User {
   fcmToken                           String?                       @map("fcm_token")
   role                               UserRole
   departmentTag                      DepartmentTag?                @map("department_tag")
+  /// Id link to the branch's Department row; dual-written with departmentTag until the contract migration (Block 4).
+  departmentId                       String?                       @map("department_id")
+  department                         Department?                   @relation("DepartmentStaff", fields: [departmentId], references: [id])
   isDepartmentHead                   Boolean                       @default(false) @map("is_department_head")
   previousRole                       UserRole?                     @map("previous_role")
   isActive                           Boolean                       @default(true) @map("is_active")
@@ -232,6 +238,12 @@ model User {
   discrepanciesResolved              Discrepancy[]                 @relation("DiscrepancyResolvedBy")
   requisitionSectionsSubmitted       RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited             RequisitionLine[]             @relation("RequisitionLineEditedBy")
+  requisitionsCancelled              Requisition[]                 @relation("RequisitionCancelledBy")
+  requisitionsApprovedAs             Requisition[]                 @relation("RequisitionApprovedAs")
+  requisitionSectionsSkipped         RequisitionSection[]          @relation("RequisitionSectionSkippedBy")
+  requisitionAdditionsAdded          RequisitionAddition[]         @relation("RequisitionAdditionAddedBy")
+  requisitionAdditionsApproved       RequisitionAddition[]         @relation("RequisitionAdditionApprovedBy")
+  requisitionEvents                  RequisitionEvent[]            @relation("RequisitionEventActor")
 
   @@index([siteId])
   @@index([email])

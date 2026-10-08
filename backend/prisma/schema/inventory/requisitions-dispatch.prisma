@@ -5,40 +5,68 @@
 enum RequisitionType {
   MORNING
   AFTERNOON
-  EVENING
-  AD_HOC
+  EVENING // legacy: the expand migration maps EVENING and AD_HOC rows to EXTRA; new code never writes them
+  AD_HOC // legacy, as above
+  EXTRA // Block 1: the cycles are MORNING, AFTERNOON, EXTRA
 }
 
 enum RequisitionStatus {
-  OPEN // sections still being filled; nothing submitted yet is fine
-  PENDING_APPROVAL // at least one section submitted, not yet signed
+  OPEN // Collecting: sections still being filled
+  PENDING_APPROVAL // Ready to approve: every active section sent or skipped
   APPROVED // signed; visible in Central Store dispatch queue
+  CANCELLED // Block 1: cancelled before approval; the file stays
+  CLOSED // Block 1: set only through the Block 2 hook closeIfComplete
 }
 
 enum RequisitionSectionStatus {
   NOT_STARTED
   DRAFT // head has unsaved/in-progress edits
-  SUBMITTED
-  RETURNED // bounced back by branch manager with a note
+  SUBMITTED // "Sent" on the wire
+  RETURNED // legacy, never written by new code ("Return a section" is gone)
+  SKIPPED // Block 1: "Send without this section"
+}
+
+enum RequisitionAdditionStatus {
+  PENDING
+  APPROVED
+  CANCELLED
 }
 
 model Requisition {
-  id             String            @id @default(uuid())
-  siteId String            @map("organization_id") // branch org
-  type           RequisitionType
-  note           String? // optional free text, e.g. distinguishing two same-day AD_HOC requisitions
-  status         RequisitionStatus @default(OPEN)
-  openedById     String            @map("opened_by_id")
-  openedAt       DateTime          @default(now()) @map("opened_at")
-  approvedById   String?           @map("approved_by_id")
-  approvedAt     DateTime?         @map("approved_at")
+  id           String            @id @default(uuid())
+  siteId       String            @map("organization_id") // branch org
+  type         RequisitionType
+  note         String? // optional free text, e.g. distinguishing two same-day AD_HOC requisitions
+  status       RequisitionStatus @default(OPEN)
+  openedById   String            @map("opened_by_id")
+  openedAt     DateTime          @default(now()) @map("opened_at")
+  approvedById String?           @map("approved_by_id")
+  approvedAt   DateTime?         @map("approved_at")
 
-  site Site         @relation(fields: [siteId], references: [id])
-  openedBy     User                 @relation("RequisitionOpenedBy", fields: [openedById], references: [id])
-  approvedBy   User?                @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
-  sections     RequisitionSection[]
-  dispatches   Dispatch[]
+  // Block 1 (expand): see docs/features/inventory/requisitions-contract.md §2.3
+  reference         String // REQ-{branch code}-{nnnn}, taken from ReferenceCounter in the same transaction as the insert
+  urgent            Boolean   @default(false)
+  urgentAt          DateTime? @map("urgent_at")
+  urgentEscalatedAt DateTime? @map("urgent_escalated_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+  cancelledById     String?   @map("cancelled_by_id")
+  cancelReason      String?   @map("cancel_reason")
+  closedAt          DateTime? @map("closed_at")
+  approvedAsId      String?   @map("approved_as_id") // the signer when not the Branch Manager (Director or System Admin)
+  idempotencyKey    String?   @map("idempotency_key")
 
+  site        Site                  @relation(fields: [siteId], references: [id])
+  openedBy    User                  @relation("RequisitionOpenedBy", fields: [openedById], references: [id])
+  approvedBy  User?                 @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
+  cancelledBy User?                 @relation("RequisitionCancelledBy", fields: [cancelledById], references: [id])
+  approvedAs  User?                 @relation("RequisitionApprovedAs", fields: [approvedAsId], references: [id])
+  sections    RequisitionSection[]
+  dispatches  Dispatch[]
+  additions   RequisitionAddition[]
+  events      RequisitionEvent[]
+
+  @@unique([siteId, reference])
+  @@unique([siteId, openedById, idempotencyKey])
   @@index([siteId, status])
   @@map("requisitions")
 }
@@ -46,18 +74,24 @@ model Requisition {
 model RequisitionSection {
   id            String                   @id @default(uuid())
   requisitionId String                   @map("requisition_id")
-  departmentTag DepartmentTag            @map("department_tag")
+  departmentTag DepartmentTag?           @map("department_tag") // null for a department added in Block 1 (no legacy key)
   status        RequisitionSectionStatus @default(NOT_STARTED)
   submittedById String?                  @map("submitted_by_id")
   submittedAt   DateTime?                @map("submitted_at")
   returnedNote  String?                  @map("returned_note") // branch manager's reason, cleared on resubmit
   managerNote   String?                  @map("manager_note") // dept head's free-text "note for the manager"
+  departmentId  String?                  @map("department_id") // Block 1: dual-written with departmentTag (null departmentTag for an added department)
+  skippedById   String?                  @map("skipped_by_id")
+  skippedAt     DateTime?                @map("skipped_at")
 
   requisition Requisition       @relation(fields: [requisitionId], references: [id])
   submittedBy User?             @relation("RequisitionSectionSubmittedBy", fields: [submittedById], references: [id])
+  skippedBy   User?             @relation("RequisitionSectionSkippedBy", fields: [skippedById], references: [id])
+  department  Department?       @relation(fields: [departmentId], references: [id])
   lines       RequisitionLine[]
 
   @@unique([requisitionId, departmentTag])
+  @@unique([requisitionId, departmentId])
   @@map("requisition_sections")
 }
 
@@ -72,13 +106,66 @@ model RequisitionLine {
   editedById           String?   @map("edited_by_id") // who last changed approvedQty, if different from requestedQty
   editReason           String?   @map("edit_reason") // required by Flow 8 whenever approvedQty != requestedQty
   deletedAt            DateTime? @map("deleted_at") // manager delete — soft, keeps the audit trail
+  suggestedQty         Decimal?  @map("suggested_qty") @db.Decimal(12, 4) // what the screen pre-filled (restock level minus on hand)
+  onHandAtRequest      Decimal?  @map("on_hand_at_request") @db.Decimal(12, 4)
+  unitCostAtApproval   Decimal?  @map("unit_cost_at_approval") @db.Decimal(12, 4) // frozen when approved
+  additionId           String?   @map("addition_id")
 
-  section  RequisitionSection @relation(fields: [requisitionSectionId], references: [id])
-  item     InventoryItem      @relation(fields: [inventoryItemId], references: [id])
-  editedBy User?              @relation("RequisitionLineEditedBy", fields: [editedById], references: [id])
+  section  RequisitionSection   @relation(fields: [requisitionSectionId], references: [id])
+  item     InventoryItem        @relation(fields: [inventoryItemId], references: [id])
+  editedBy User?                @relation("RequisitionLineEditedBy", fields: [editedById], references: [id])
+  addition RequisitionAddition? @relation(fields: [additionId], references: [id])
 
   @@index([requisitionSectionId])
+  @@index([additionId])
   @@map("requisition_lines")
+}
+
+/// Lines a head adds after the requisition is approved, while the department's dispatch is not signed.
+model RequisitionAddition {
+  id              String                    @id @default(uuid())
+  requisitionId   String                    @map("requisition_id")
+  departmentId    String                    @map("department_id")
+  addedById       String                    @map("added_by_id")
+  addedAt         DateTime                  @default(now()) @map("added_at")
+  sentPinSignedAt DateTime                  @map("sent_pin_signed_at")
+  status          RequisitionAdditionStatus @default(PENDING)
+  approvedById    String?                   @map("approved_by_id")
+  approvedAt      DateTime?                 @map("approved_at")
+
+  requisition Requisition       @relation(fields: [requisitionId], references: [id])
+  department  Department        @relation(fields: [departmentId], references: [id])
+  addedBy     User              @relation("RequisitionAdditionAddedBy", fields: [addedById], references: [id])
+  approvedBy  User?             @relation("RequisitionAdditionApprovedBy", fields: [approvedById], references: [id])
+  lines       RequisitionLine[]
+
+  @@index([requisitionId, status])
+  @@map("requisition_additions")
+}
+
+/// Append-only activity: the file's Activity tab and the Audit log's REQUISITIONS source read it. Never edited or deleted.
+model RequisitionEvent {
+  id             String   @id @default(uuid())
+  requisitionId  String   @map("requisition_id")
+  sectionId      String?  @map("section_id")
+  type           String
+  actorId        String   @map("actor_id")
+  actorRoleLabel String   @map("actor_role_label")
+  at             DateTime @default(now())
+  fromValue      String?  @map("from_value")
+  toValue        String?  @map("to_value")
+  reason         String?
+  lineId         String?  @map("line_id")
+  /// The Idempotency-Key of the signing write that produced this event (send, approve, cancel, add, approve addition).
+  /// A repeated key by the same person on the same requisition returns the first result. Null for unsigned writes.
+  idempotencyKey String?  @map("idempotency_key")
+
+  requisition Requisition @relation(fields: [requisitionId], references: [id])
+  actor       User        @relation("RequisitionEventActor", fields: [actorId], references: [id])
+
+  @@unique([requisitionId, actorId, idempotencyKey])
+  @@index([requisitionId, at])
+  @@map("requisition_events")
 }
 
 // ── Milestone Five — Dispatch & Branch Receiving (Session A) ───────────────
@@ -96,8 +183,8 @@ enum DispatchStatus {
 
 model Dispatch {
   id                String         @id @default(uuid())
-  siteId    String         @map("organization_id") // hub org — Central Store owns this document
-  toSiteId  String         @map("to_organization_id") // branch org
+  siteId            String         @map("organization_id") // hub org — Central Store owns this document
+  toSiteId          String         @map("to_organization_id") // branch org
   requisitionId     String         @map("requisition_id")
   departmentTag     DepartmentTag  @map("department_tag") // one Dispatch per department, per Flow 9 step 4
   sequenceLabel     String         @map("sequence_label") // "Dispatch 4 · Nyeri Town · 17 Sep" — daily per-branch sequence, not a persistent ID
@@ -108,8 +195,8 @@ model Dispatch {
   confirmedAt       DateTime?      @map("confirmed_at")
   confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
 
-  site             Site   @relation("DispatchFrom", fields: [siteId], references: [id])
-  toSite           Site   @relation("DispatchTo", fields: [toSiteId], references: [id])
+  site                     Site           @relation("DispatchFrom", fields: [siteId], references: [id])
+  toSite                   Site           @relation("DispatchTo", fields: [toSiteId], references: [id])
   requisition              Requisition    @relation(fields: [requisitionId], references: [id])
   dispatchedBy             User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
   confirmedBy              User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
