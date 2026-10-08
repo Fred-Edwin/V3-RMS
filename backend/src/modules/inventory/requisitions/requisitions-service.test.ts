@@ -22,7 +22,7 @@ vi.mock('./requisitions-repository', () => {
     'findStaff', 'listHeads', 'findFile', 'findByStartKey', 'findEventByKey', 'findOpenForCycle', 'findSite', 'listActiveDepartments', 'listTaggedItems',
     'findTaggedItemIds', 'findDepartmentLocation', 'readStock', 'findCategoryNames', 'hasDispatch', 'lockCycle', 'createRequisition', 'createSection',
     'createLines', 'updateSection', 'updateLine', 'removeLines', 'removeSectionLines', 'setStatus', 'setUrgent', 'freezeForApproval', 'createAddition',
-    'setAdditionStatus', 'freezeAdditionLines', 'appendEvent', 'findAllInAt', 'readSectionFacts',
+    'setAdditionStatus', 'freezeAdditionLines', 'appendEvent', 'findAllInAt', 'readSectionFacts', 'setUrgentNote', 'findDepartment',
   ];
   for (const n of names) mocks.repo[n] = vi.fn();
   return { requisitionsRepository: mocks.repo };
@@ -220,9 +220,46 @@ describe('saveLines (R12): section lines validation, reopen on edit', () => {
     expect(await codeOf(requisitionsService.saveLines(barista, 'req-1', KITCHEN, lines('i1')))).toBe('NOT_YOUR_DEPARTMENT');
   });
 
-  it('the Branch Manager may fill a section herself', async () => {
-    mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
-    expect(await codeOf(requisitionsService.saveLines(branchManager, 'req-1', KITCHEN, lines('i1')))).toBe('NO_ERROR');
+  describe('on behalf of the head ("Fill it myself", Amendment 2)', () => {
+    const draft = () => serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 30)])]));
+
+    it('the Branch Manager fills a Draft section; the event says on behalf and the head is told', async () => {
+      draft();
+      mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
+      expect(await codeOf(requisitionsService.saveLines(branchManager, 'req-1', KITCHEN, lines('i1')))).toBe('NO_ERROR');
+      expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'LINE_CHANGED', reason: 'On behalf of the head', actorId: 'mgr-1' }));
+      expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'SECTION_EDITED_ON_BEHALF', departmentId: KITCHEN }));
+    });
+
+    it('a Not started section can be filled the same way', async () => {
+      serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'NOT_STARTED', [])]));
+      mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
+      expect(await codeOf(requisitionsService.saveLines(branchManager, 'req-1', KITCHEN, lines('i1')))).toBe('NO_ERROR');
+    });
+
+    it('a Sent section cannot be filled on behalf (409 SECTION_NOT_OPEN); only the head reopens it', async () => {
+      expect(await codeOf(requisitionsService.saveLines(branchManager, 'req-1', KITCHEN, lines('i1')))).toBe('SECTION_NOT_OPEN');
+      expect(mocks.publish).not.toHaveBeenCalled();
+    });
+
+    it('the head editing their own list leaves no on-behalf mark and tells nobody', async () => {
+      draft();
+      mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
+      await requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1'));
+      const event = mocks.repo['appendEvent']!.mock.calls[0]?.[1] as { reason?: string };
+      expect(event.reason).toBeUndefined();
+      expect(mocks.publish).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['the System Admin', sysAdmin],
+      ['the Director', director],
+      ['a Branch Manager of another branch', otherManager],
+      ['the Store Attendant', attendant],
+    ])('%s cannot fill a head\'s section', async (_n, who) => {
+      draft();
+      expect(await codeOf(requisitionsService.saveLines(who, 'req-1', KITCHEN, lines('i1')))).toBe('AUTHORIZATION_ERROR');
+    });
   });
 
   it('refuses once the requisition is signed (409 ALREADY_APPROVED) and once it is cancelled (409 CANCELLED)', async () => {
@@ -471,14 +508,14 @@ describe('nudge, skip and urgent', () => {
   });
   it('"send without this section" skips it, drops its lines and recomputes the status', async () => {
     serve(collecting());
-    await requisitionsService.skip(branchManager, 'req-1', KITCHEN);
+    await requisitionsService.skip(branchManager, 'req-1', [KITCHEN]);
     expect(mocks.repo['removeSectionLines']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k');
     expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'SKIPPED', skippedById: 'mgr-1' }));
   });
   it('a head cannot nudge or skip', async () => {
     serve(collecting());
     expect(await codeOf(requisitionsService.nudge(kitchen, 'req-1', BARISTA))).toBe('AUTHORIZATION_ERROR');
-    expect(await codeOf(requisitionsService.skip(kitchen, 'req-1', BARISTA))).toBe('AUTHORIZATION_ERROR');
+    expect(await codeOf(requisitionsService.skip(kitchen, 'req-1', [BARISTA]))).toBe('AUTHORIZATION_ERROR');
   });
   it('urgent is set before approval and the manager hears at once; setting it again changes nothing', async () => {
     serve(collecting());
@@ -601,6 +638,180 @@ describe('print data (R6) carries no money', () => {
     expect(print.pages[0]?.additions[0]?.lines[0]).toMatchObject({ itemName: 'Cream' });
     expect(print.cover.departments).toEqual([expect.objectContaining({ departmentName: 'Kitchen', page: 2, lineCount: 2 })]);
     expect(print.cover.additionsCount).toBe(1);
+  });
+});
+
+describe('Amendment 2 (back end B): on-behalf send, the R18 list, the urgent note, error codes in place', () => {
+  const draftPair = () =>
+    makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 30)]), makeSection('sec-b', BARISTA, 'Barista', 'NOT_STARTED', [])]);
+
+  describe('R13 on behalf', () => {
+    it('the Branch Manager sends a Draft section with her own PIN, recorded as hers, and the head is told', async () => {
+      serve(draftPair());
+      await requisitionsService.sendSection(branchManager, 'req-1', KITCHEN, '1234', KEY);
+      expect(mocks.verifyOwn).toHaveBeenCalledWith(branchManager, '1234');
+      expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'SUBMITTED', submittedById: 'mgr-1' }));
+      expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'SENT', reason: 'On behalf of the head', actorId: 'mgr-1', idempotencyKey: KEY }));
+      expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'SECTION_SENT', onBehalf: true, departmentId: KITCHEN }));
+    });
+
+    it('a section that is already Sent is SECTION_NOT_OPEN for the manager (and the PIN is not asked)', async () => {
+      expect(await codeOf(requisitionsService.sendSection(branchManager, 'req-1', KITCHEN, '1234', KEY))).toBe('SECTION_NOT_OPEN');
+      expect(mocks.verifyOwn).not.toHaveBeenCalled();
+    });
+
+    it.each([['the System Admin', sysAdmin], ['the Director', director], ['another branch\'s manager', otherManager]])('%s cannot send for a head', async (_n, who) => {
+      serve(draftPair());
+      expect(await codeOf(requisitionsService.sendSection(who, 'req-1', KITCHEN, '1234', KEY))).toBe('AUTHORIZATION_ERROR');
+    });
+
+    it('a repeated key replays even though the section is Sent by now', async () => {
+      mocks.repo['findEventByKey']!.mockResolvedValue(true);
+      expect((await requisitionsService.sendSection(branchManager, 'req-1', KITCHEN, '1234', KEY)).replayed).toBe(true);
+    });
+
+    it('the Branch Manager\'s view flags fill-myself and send only while the section is open', async () => {
+      serve(draftPair());
+      const file = await requisitionsService.getFile(branchManager, 'req-1');
+      expect(file.sections.find((s) => s.departmentId === KITCHEN)?.can).toMatchObject({ edit: true, send: true, fillMyself: true });
+      expect(file.sections.find((s) => s.departmentId === BARISTA)?.can).toMatchObject({ edit: true, send: false, fillMyself: true }); // no lines yet
+      serve(readyRequisition());
+      const sent = await requisitionsService.getFile(branchManager, 'req-1');
+      expect(sent.sections[0]?.can).toMatchObject({ edit: false, send: false, fillMyself: false });
+    });
+
+    it('the System Admin\'s view never offers to fill a head\'s section', async () => {
+      serve(draftPair());
+      const file = await requisitionsService.getFile(sysAdmin, 'req-1');
+      expect(file.sections.every((s) => !s.can.fillMyself && !s.can.edit)).toBe(true);
+    });
+  });
+
+  describe('R18 skip a list of departments', () => {
+    const three = () =>
+      makeRequisition('OPEN', [
+        makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 3)]),
+        makeSection('sec-b', BARISTA, 'Barista', 'NOT_STARTED', []),
+        makeSection('sec-p', 'dept-pastry', 'Pastry', 'SUBMITTED', [makeLine('l9', 'i9', 'Flour', 5)]),
+      ]);
+
+    it('skips every listed section in one transaction with one audit event per section', async () => {
+      serve(three());
+      const result = await requisitionsService.skip(branchManager, 'req-1', [KITCHEN, BARISTA]);
+      expect(mocks.transaction).toHaveBeenCalledTimes(1);
+      const events = mocks.repo['appendEvent']!.mock.calls.map((c) => c[1] as { type: string; sectionId: string });
+      expect(events.map((e) => [e.type, e.sectionId])).toEqual([['SKIPPED', 'sec-k'], ['SKIPPED', 'sec-b']]);
+      expect(mocks.repo['removeSectionLines']).toHaveBeenCalledTimes(2);
+      expect(result.sections.map((s) => s.departmentId)).toEqual([KITCHEN, BARISTA]);
+    });
+
+    it('one Sent section among them stops the whole call: SECTION_ALREADY_SENT and nothing is written', async () => {
+      serve(three());
+      expect(await codeOf(requisitionsService.skip(branchManager, 'req-1', [KITCHEN, 'dept-pastry']))).toBe('SECTION_ALREADY_SENT');
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.repo['appendEvent']).not.toHaveBeenCalled();
+    });
+
+    it('a section that was already skipped is SECTION_NOT_OPEN', async () => {
+      serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SKIPPED', []), makeSection('sec-b', BARISTA, 'Barista', 'DRAFT', [makeLine('l3', 'i3', 'Beans', 1)])]));
+      expect(await codeOf(requisitionsService.skip(branchManager, 'req-1', [KITCHEN]))).toBe('SECTION_NOT_OPEN');
+    });
+
+    it('a department that is not in the requisition is not found, and a signed or cancelled requisition refuses', async () => {
+      serve(three());
+      expect(await codeOf(requisitionsService.skip(branchManager, 'req-1', ['dept-nowhere']))).toBe('NOT_FOUND');
+      serve(makeRequisition('APPROVED', readyRequisition().sections));
+      expect(await codeOf(requisitionsService.skip(branchManager, 'req-1', [KITCHEN]))).toBe('ALREADY_APPROVED');
+      serve(makeRequisition('CANCELLED', readyRequisition().sections));
+      expect(await codeOf(requisitionsService.skip(branchManager, 'req-1', [KITCHEN]))).toBe('CANCELLED');
+    });
+  });
+
+  describe('nudge', () => {
+    it('a skipped department is SECTION_NOT_OPEN, a sent one SECTION_ALREADY_SENT', async () => {
+      serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'SKIPPED', []), makeSection('sec-b', BARISTA, 'Barista', 'SUBMITTED', [makeLine('l3', 'i3', 'Beans', 1)])]));
+      expect(await codeOf(requisitionsService.nudge(branchManager, 'req-1', KITCHEN))).toBe('SECTION_NOT_OPEN');
+      expect(await codeOf(requisitionsService.nudge(branchManager, 'req-1', BARISTA))).toBe('SECTION_ALREADY_SENT');
+    });
+  });
+
+  describe('the urgent note', () => {
+    const collecting = () => makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 3)])]);
+    beforeEach(() => {
+      mocks.repo['findSite']!.mockResolvedValue({ id: SITE, name: 'Nyeri Town', code: 'NYR', type: 'BRANCH' });
+      mocks.repo['findByStartKey']!.mockResolvedValue(null);
+      mocks.repo['findOpenForCycle']!.mockResolvedValue(null);
+      mocks.repo['listActiveDepartments']!.mockResolvedValue([]);
+    });
+
+    it('a start with Urgent keeps the note on the requisition and in the first event', async () => {
+      await requisitionsService.start(branchManager, { cycle: 'MORNING', urgent: true, urgentNote: 'Wedding at 4', idempotencyKey: KEY });
+      expect(mocks.repo['createRequisition']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ urgent: true, urgentNote: 'Wedding at 4' }));
+      expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'URGENT_SET', toValue: 'Wedding at 4' }));
+    });
+
+    it('a note without Urgent is dropped', async () => {
+      await requisitionsService.start(branchManager, { cycle: 'MORNING', urgentNote: 'ignored', idempotencyKey: KEY });
+      expect(mocks.repo['createRequisition']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ urgent: false, urgentNote: null }));
+    });
+
+    it('setting Urgent later stores the note; clearing it drops the note', async () => {
+      serve(collecting());
+      await requisitionsService.setUrgent(branchManager, 'req-1', { urgent: true, urgentNote: 'Out of milk' });
+      expect(mocks.repo['setUrgent']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', expect.objectContaining({ urgent: true, urgentNote: 'Out of milk' }));
+      serve({ ...collecting(), urgent: true, urgentAt: new Date(), urgentNote: 'Out of milk' });
+      await requisitionsService.setUrgent(branchManager, 'req-1', { urgent: false });
+      expect(mocks.repo['setUrgent']).toHaveBeenLastCalledWith(expect.anything(), SITE, 'req-1', { urgent: false, urgentAt: null, urgentNote: null });
+    });
+
+    it('changing only the note of an urgent requisition keeps the hour running (no new urgentAt, no new push)', async () => {
+      serve({ ...collecting(), urgent: true, urgentAt: new Date('2026-10-08T05:00:00Z'), urgentNote: 'old' });
+      await requisitionsService.setUrgent(branchManager, 'req-1', { urgent: true, urgentNote: 'new' });
+      expect(mocks.repo['setUrgent']).not.toHaveBeenCalled();
+      expect(mocks.repo['setUrgentNote']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'new');
+      expect(mocks.publish).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('approve and addition error codes', () => {
+    it('approve records how many lines the signature covered (pending addition lines excluded)', async () => {
+      await requisitionsService.approve(branchManager, 'req-1', { pin: '1234' }, KEY);
+      expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'APPROVED', fromValue: '3', toValue: 'BRANCH_MANAGER' }));
+    });
+
+    it('approving an addition on a requisition that is not signed is NOT_APPROVED; a decided one is ADDITION_NOT_PENDING', async () => {
+      const unsigned = makeRequisition('PENDING_APPROVAL', readyRequisition().sections, { additions: [makeAddition('add-1', KITCHEN)] });
+      serve(unsigned);
+      expect(await codeOf(requisitionsService.approveAddition(branchManager, 'req-1', 'add-1', { pin: '1234' }, KEY))).toBe('NOT_APPROVED');
+      serve(makeRequisition('APPROVED', readyRequisition().sections, { additions: [makeAddition('add-1', KITCHEN, 'APPROVED')] }));
+      expect(await codeOf(requisitionsService.approveAddition(branchManager, 'req-1', 'add-1', { pin: '1234' }, KEY))).toBe('ADDITION_NOT_PENDING');
+    });
+
+    it('an addition on an unsigned requisition is NOT_APPROVED; recalling a section never sent is SECTION_NOT_SENT', async () => {
+      serve(makeRequisition('OPEN', [makeSection('sec-k', KITCHEN, 'Kitchen', 'DRAFT', [makeLine('l1', 'i1', 'Milk', 3)])]));
+      expect(await codeOf(requisitionsService.addAddition(kitchen, 'req-1', { lines: [{ itemId: 'i1', requestedQty: '1' }], pin: '1234' }, KEY))).toBe('NOT_APPROVED');
+      expect(await codeOf(requisitionsService.recallSection(kitchen, 'req-1', KITCHEN))).toBe('SECTION_NOT_SENT');
+    });
+  });
+
+  describe('print fields (R6)', () => {
+    it('carries who asked, when, the Deliver to line, the addition approver\'s time and the caller\'s clock', () => {
+      const rec = makeRequisition('APPROVED', readyRequisition().sections, {
+        approvedAt: new Date('2026-10-08T08:00:00Z'),
+        additions: [{ ...makeAddition('add-1', KITCHEN, 'APPROVED'), approvedAt: new Date('2026-10-08T09:30:00Z'), approvedBy: manager }],
+      });
+      rec.sections[0]!.lines.push(makeLine('l-add', 'i7', 'Salt', 2, { additionId: 'add-1' }));
+      const now = new Date('2026-10-08T10:15:00Z');
+      const print = buildPrint(rec, now);
+      const kitchenPage = print.pages.find((p) => p.departmentName === 'Kitchen');
+      expect(kitchenPage?.askedBy?.name).toBe('Grace Wanjiru');
+      expect(kitchenPage?.askedAt).toBe('2026-10-08T07:00:00.000Z');
+      expect(kitchenPage?.deliverTo).toBe('Kitchen, Nyeri Town');
+      expect(kitchenPage?.additions[0]?.approvedAt).toBe('2026-10-08T09:30:00.000Z');
+      expect(print.startedAt).toBe('2026-10-08T06:00:00.000Z');
+      expect(print.generatedAt).toBe(now.toISOString());
+      expect(moneyKeys(print).size).toBe(0);
+    });
   });
 });
 

@@ -13,6 +13,7 @@ const repo = vi.hoisted(() => ({
   create: vi.fn(),
   rename: vi.fn(),
   setStatus: vi.fn(),
+  countOpenSections: vi.fn(),
 }));
 vi.mock('./departments-repository', () => ({ departmentsRepository: repo }));
 
@@ -48,6 +49,7 @@ beforeEach(() => {
   repo.listHeads.mockResolvedValue([{ id: 'u1', name: 'Grace Wanjiru', role: 'CHEF', departmentId: dept('1', 'Kitchen').id }]);
   repo.countItemsByDepartment.mockResolvedValue(new Map([[dept('1', 'Kitchen').id, 86]]));
   repo.findByName.mockResolvedValue(null);
+  repo.countOpenSections.mockResolvedValue(0);
   repo.findById.mockImplementation(async (id: string) => (id === dept('1', 'Kitchen').id ? dept('1', 'Kitchen') : id === dept('9', 'Garden').id ? dept('9', 'Garden', { status: 'RETIRED' }) : null));
   repo.create.mockImplementation(async (siteId: string, name: string) => dept('9', name, { siteId }));
   repo.rename.mockImplementation(async (_id: string, siteId: string, name: string) => dept('1', name, { siteId }));
@@ -124,6 +126,18 @@ describe('rename, retire, restore (R25, R26)', () => {
     await departmentsService.restore(manager, gardenId);
     expect(repo.setStatus).toHaveBeenCalledWith(gardenId, SITE, 'ACTIVE');
     expect(await codeOf(departmentsService.restore(manager, kitchenId))).toBe('DEPARTMENT_ACTIVE');
+  });
+  it('retire is refused while a requisition still has an open section for the department (409 DEPARTMENT_HAS_OPEN_SECTIONS)', async () => {
+    repo.countOpenSections.mockResolvedValue(2);
+    expect(await codeOf(departmentsService.retire(manager, kitchenId))).toBe('DEPARTMENT_HAS_OPEN_SECTIONS');
+    expect(repo.setStatus).not.toHaveBeenCalled();
+    expect(repo.countOpenSections).toHaveBeenCalledWith(SITE, kitchenId);
+  });
+  it('the open-section check does not stand in the way of restore, and an already-retired department answers first', async () => {
+    repo.countOpenSections.mockResolvedValue(2);
+    expect(await codeOf(departmentsService.retire(manager, gardenId))).toBe('DEPARTMENT_RETIRED');
+    await departmentsService.restore(manager, gardenId);
+    expect(repo.setStatus).toHaveBeenCalledWith(gardenId, SITE, 'ACTIVE');
   });
   it('a manager of another branch gets 403 WRONG_BRANCH; an unknown id is not found', async () => {
     expect(await codeOf(departmentsService.retire(otherManager, kitchenId))).toBe('WRONG_BRANCH');

@@ -80,6 +80,7 @@ export const makeRequisition = (status: RequisitionRecord['status'], sections: S
   urgent: false,
   urgentAt: null,
   urgentEscalatedAt: null,
+  urgentNote: null,
   cancelledAt: null,
   cancelledById: null,
   cancelReason: null,

@@ -161,6 +161,31 @@ export const authRepository = {
   },
 
   /**
+   * The FCM tokens of the people in given departments of one branch (the head and, unless `headsOnly`, the members): active users
+   * whose `departmentId` is listed. Requisitions notifications (inventory/_shared/notify.ts).
+   */
+  findDepartmentFcmTokens: async (
+    siteId: string,
+    departmentIds: string[],
+    headsOnly: boolean,
+  ): Promise<string[]> => {
+    if (departmentIds.length === 0) return [];
+    const users = await prisma.user.findMany({
+      where: {
+        siteId,
+        departmentId: { in: departmentIds },
+        ...(headsOnly ? { isDepartmentHead: true } : {}),
+        isActive: true,
+        deletedAt: null,
+        fcmToken: { not: null },
+      },
+      select: { fcmToken: true },
+    });
+
+    return users.map((u) => u.fcmToken as string);
+  },
+
+  /**
    * Returns the FCM tokens of every active DIRECTOR. Directors are a system-level
    * role that legitimately spans organizations, so there is deliberately no
    * organizationId filter here — used for staff-discount approval pushes.

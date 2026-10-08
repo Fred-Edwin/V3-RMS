@@ -18,7 +18,9 @@ export interface RequisitionEventBase {
 
 export type RequisitionNotice =
   /** Map row 1: a head sent a section (the Branch Manager hears; badge and tab count). */
-  | (RequisitionEventBase & { type: 'SECTION_SENT'; departmentId: string; departmentName: string; readyToApprove: boolean })
+  | (RequisitionEventBase & { type: 'SECTION_SENT'; departmentId: string; departmentName: string; readyToApprove: boolean; onBehalf?: boolean })
+  /** Amendment 2: the Branch Manager filled a department's list for its head ("Fill it myself"); the head is told. */
+  | (RequisitionEventBase & { type: 'SECTION_EDITED_ON_BEHALF'; departmentId: string; departmentName: string })
   /** Map row 2: the manager changed a quantity (the head of that department hears what changed). */
   | (RequisitionEventBase & { type: 'QUANTITY_CHANGED'; departmentId: string; departmentName: string; itemName: string; from: string; to: string; reason: string | null })
   /** Map row 3 starts here: Urgent was set (the Branch Manager hears now; the Director after 1 hour, by the worker job). */

@@ -22,15 +22,16 @@ export const AUDIT_AREAS = [
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 /** Listed in the Area menu, answered with nothing until the block that owns each one adds its source. */
-export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
+export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
 
 /**
  * The record a derived row points at, so the screen can draw the link: a count (`COUNT`, `id` is the count's id), a day on one
- * item's stock card (`STOCK_CARD`, `id` is the item's id), or the ledger searched for a reference (`LEDGER_SEARCH`, `id` is the
- * `ADJ-####`). `day` is the Nairobi day the entry happened, which the ledger links use as their date range.
+ * item's stock card (`STOCK_CARD`, `id` is the item's id), the ledger searched for a reference (`LEDGER_SEARCH`, `id` is the
+ * `ADJ-####`), or a requisition's file (`REQUISITION`, `id` is the requisition's id, `label` its `REQ-NYR-0112`). `day` is the
+ * Nairobi day the entry happened, which the ledger links use as their date range.
  */
 export interface AuditRecordLink {
-  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH';
+  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION';
   id: string;
   label: string;
   day?: string;
@@ -51,14 +52,14 @@ export interface AuditEntry {
   /** Prefixed with the source ("item:", "supplier:", "restock:", "purchasing:", "recipe:") so ids from different tables never collide. */
   id: string;
   at: string;
-  /** `role` is filled on Purchasing and Payments rows only. */
+  /** `role` is filled on Purchasing and Payments rows (the role) and on Requisitions rows (the role label recorded with the event). */
   actor: { id: string; name: string; role?: string };
   area: AuditArea;
   what: string;
   reason: string | null;
   /** Present on Purchasing and Payments rows only. */
   purchasing?: PurchasingAuditFields;
-  /** Present on Stock counts, Waste and Stock adjustments rows only. */
+  /** Present on Stock counts, Waste, Stock adjustments and Requisitions rows only. */
   record?: AuditRecordLink;
 }
 

@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { branchRepository } from '../../../repositories/branch-repository';
-import { ValidationError } from '../../../utils/errors';
+import { ForbiddenError, ValidationError } from '../../../utils/errors';
 import { requireHubReader } from '../_shared/central-store-access';
 import { trimDecimal } from '../catalog/item-history';
 import { describeItemChange, describeRecipeVersion, describeRestockChange, describeRunEntry, describeSupplierAudit, describeSupplierCreated, auditReason, recipeReason, runEntryReason } from './audit-log-describe';
@@ -10,6 +10,7 @@ import { AUDIT_AREAS } from './audit-log.types';
 import type { AuditLogQuery } from './audit-log-validators';
 import type { AuditSource } from './sources/source';
 import { stockAdjustmentsSource } from './sources/stock-adjustments-source';
+import { requisitionsSource } from './sources/requisitions-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
 
@@ -32,15 +33,27 @@ const idOf = (after: Record<string, unknown> | null, before: Record<string, unkn
 };
 
 /** The areas read from rows other features keep, each its own small module (`sources/`). */
-const DERIVED_SOURCES: readonly AuditSource[] = [stockCountsSource, wasteSource, stockAdjustmentsSource];
+const DERIVED_SOURCES: readonly AuditSource[] = [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource];
 
 /** The areas a branch can have entries in. With the Branch filter on, the hub's own areas answer nothing. */
 const BRANCH_AREAS: readonly AuditArea[] = ['RESTOCK_LEVELS', 'REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
 
-const requireScope = async (actor: Actor, branchId: string | undefined): Promise<{ scope: Scope; branches: Array<{ id: string; name: string }> }> => {
+/**
+ * The scope of one read. The hub roles (Store Manager, Accountant, Director, System Admin) read every branch and every Central Store
+ * area, narrowed by the Branch filter when it is set. The Branch Manager (Paper step 60, the own-branch audit link) reads ONE branch:
+ * their own. The Branch filter is forced to it, so the hub-only areas answer nothing and no other branch can be named.
+ */
+const requireScope = async (actor: Actor, requestedBranchId: string | undefined): Promise<{ scope: Scope; branches: Array<{ id: string; name: string }> }> => {
   const hubId = await requireHubReader(actor);
-  const branches = (await branchRepository.findActiveBranchOptions()).map((b) => ({ id: b.id, name: b.name }));
-  const peopleOrgIds = [hubId, ...branches.map((b) => b.id)];
+  const allBranches = (await branchRepository.findActiveBranchOptions()).map((b) => ({ id: b.id, name: b.name }));
+  const ownBranchOnly = actor.role === 'MANAGER';
+  if (ownBranchOnly && (!actor.siteId || (requestedBranchId !== undefined && requestedBranchId !== actor.siteId))) {
+    throw new ForbiddenError('You can only read the audit log of your own branch');
+  }
+  const branchId = ownBranchOnly ? (actor.siteId ?? undefined) : requestedBranchId;
+  const branches = ownBranchOnly ? allBranches.filter((b) => b.id === actor.siteId) : allBranches;
+  // The Branch Manager's "who" list never reaches the hub's people.
+  const peopleOrgIds = ownBranchOnly ? branches.map((b) => b.id) : [hubId, ...branches.map((b) => b.id)];
   if (branchId === undefined) return { scope: { hubId, restockOrgIds: peopleOrgIds, peopleOrgIds }, branches };
   if (!branches.some((b) => b.id === branchId)) throw new ValidationError('That branch is not one of yours to read', 'BRANCH_NOT_FOUND');
   return { scope: { hubId, restockOrgIds: [branchId], peopleOrgIds, branchId }, branches };
@@ -105,7 +118,8 @@ export const auditLogService = {
       Promise.all(derived.map((source) => source.entries(scope, filter, take))),
       Promise.all(derived.map((source) => source.count(scope, filter))),
       // The Who list lists everyone with an entry in the period, in the areas shown; a branch narrows it with the rest.
-      Promise.all(DERIVED_SOURCES.filter((source) => scope.branchId === undefined).map((source) => source.actorIds(scope, { from: query.from, to: query.to }))),
+      // With the Branch filter on, only the sources that belong to a branch list their people (the hub's own areas answer nothing).
+      Promise.all(DERIVED_SOURCES.filter((source) => scope.branchId === undefined || BRANCH_AREAS.includes(source.area)).map((source) => source.actorIds(scope, { from: query.from, to: query.to }))),
     ]);
 
     const snapshotItemIds = [...new Set(auditRows.map((r) => idOf(jsonOf(r.after), jsonOf(r.before))).filter((id): id is string => id !== null))];

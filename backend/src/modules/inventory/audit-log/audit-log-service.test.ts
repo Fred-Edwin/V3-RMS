@@ -4,6 +4,7 @@ import { auditLogRepository } from './audit-log-repository';
 import { auditLogService } from './audit-log-service';
 import { AuditLogQuerySchema } from './audit-log-validators';
 import { stockAdjustmentsSource } from './sources/stock-adjustments-source';
+import { requisitionsSource } from './sources/requisitions-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
 
@@ -31,6 +32,7 @@ vi.mock('./audit-log-repository', () => ({
 }));
 
 vi.mock('./sources/stock-counts-source', () => ({ stockCountsSource: { area: 'STOCK_COUNTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/requisitions-source', () => ({ requisitionsSource: { area: 'REQUISITIONS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/waste-source', () => ({ wasteSource: { area: 'WASTE', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/stock-adjustments-source', () => ({ stockAdjustmentsSource: { area: 'STOCK_ADJUSTMENTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 
@@ -73,7 +75,7 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
-  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource]) {
+  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource]) {
     vi.mocked(source.entries).mockResolvedValue([]);
     vi.mocked(source.count).mockResolvedValue(0);
     vi.mocked(source.actorIds).mockResolvedValue([]);
@@ -213,8 +215,57 @@ describe('auditLogService.list', () => {
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
   });
 
+  describe('REQUISITIONS (branch-site source, Block 1)', () => {
+    const bm = { id: 'm1', role: 'MANAGER', siteId: branchId } as never;
+    const otherBm = { id: 'm2', role: 'MANAGER', siteId: '44444444-4444-4444-8444-444444444444' } as never;
+    const entry = {
+      id: 'requisition:e1', at: at('12:00').toISOString(), actor: { id: 'm1', name: 'Mary', role: 'Branch Manager' }, area: 'REQUISITIONS' as const,
+      what: 'Approved REQ-NYR-0112 · 40 lines · signed with PIN', reason: null, record: { kind: 'REQUISITION' as const, id: 'r1', label: 'REQ-NYR-0112' },
+    };
+
+    it('a hub role reads every branch: the source gets the hub scope with no branch, and its rows are merged in', async () => {
+      vi.mocked(requisitionsSource.entries).mockResolvedValue([entry]);
+      vi.mocked(requisitionsSource.count).mockResolvedValue(1);
+      const page = await auditLogService.list(sm, query({ area: 'REQUISITIONS' }));
+      expect(requisitionsSource.entries).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId], peopleOrgIds: [hubId, branchId] }, expect.anything(), 50);
+      expect(page.entries[0]).toMatchObject({ area: 'REQUISITIONS', what: 'Approved REQ-NYR-0112 · 40 lines · signed with PIN', record: { kind: 'REQUISITION', label: 'REQ-NYR-0112' } });
+      expect(page.pagination.total).toBe(1);
+    });
+
+    it('the Branch filter keeps the source and still drops the hub\'s own areas', async () => {
+      await auditLogService.list(sm, query({ branchId }));
+      expect(requisitionsSource.entries).toHaveBeenCalledWith(expect.objectContaining({ branchId }), expect.anything(), 50);
+      expect(wasteSource.entries).not.toHaveBeenCalled();
+    });
+
+    it('the Branch filter lists the people of the branch sources in the Who list, not the hub\'s', async () => {
+      vi.mocked(requisitionsSource.actorIds).mockResolvedValue(['u1']);
+      vi.mocked(wasteSource.actorIds).mockResolvedValue(['u5']);
+      await auditLogService.list(sm, query({ branchId }));
+      expect(requisitionsSource.actorIds).toHaveBeenCalled();
+      expect(wasteSource.actorIds).not.toHaveBeenCalled();
+    });
+
+    it('a Branch Manager reads their own branch only: the scope is forced to it and the hub areas answer nothing', async () => {
+      await auditLogService.list(bm, query());
+      expect(requisitionsSource.entries).toHaveBeenCalledWith({ hubId, restockOrgIds: [branchId], peopleOrgIds: [branchId], branchId }, expect.anything(), 50);
+      expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+      expect(wasteSource.entries).not.toHaveBeenCalled();
+    });
+
+    it('a Branch Manager naming another branch is refused (403), and so is one with no branch', async () => {
+      await expect(auditLogService.list(bm, query({ branchId: '33333333-3333-4333-8333-333333333333' }))).rejects.toMatchObject({ statusCode: 403 });
+      await expect(auditLogService.list({ id: 'm3', role: 'MANAGER', siteId: null } as never, query())).rejects.toMatchObject({ statusCode: 403 });
+      expect(requisitionsSource.entries).not.toHaveBeenCalled();
+    });
+
+    it('a Branch Manager whose branch is not active gets BRANCH_NOT_FOUND, never another branch', async () => {
+      await expect(auditLogService.list(otherBm, query())).rejects.toMatchObject({ code: 'BRANCH_NOT_FOUND' });
+    });
+  });
+
   it('lists the Branches areas and answers them with nothing until each block adds its source', async () => {
-    for (const area of ['REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'] as const) {
+    for (const area of ['DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'] as const) {
       const page = await auditLogService.list(sm, query({ area }));
       expect(page.entries).toEqual([]);
       expect(page.pagination.total).toBe(0);
