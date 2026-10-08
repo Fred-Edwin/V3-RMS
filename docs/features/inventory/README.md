@@ -17,6 +17,7 @@ first feature of the redo and the template for the others
 | **What is left to do, in the owner's order** | [roadmap.md](roadmap.md) |
 | **Where the code is ahead of Paper (update Paper first, before new design work)** | [paper-updates-needed.md](paper-updates-needed.md) |
 | Designed-not-built Director/Accountant reports | [reports-spec.md](reports-spec.md) |
+| **Final design pass** (Requisitions, Dispatch, Branch day, Branch waste): screen outline and review batches, the four flows, discrepancy rules | [final-pass-screen-plan.md](final-pass-screen-plan.md), [requisitions-flow.md](requisitions-flow.md), [dispatch-flow.md](dispatch-flow.md), [branch-day-flow.md](branch-day-flow.md), [branch-waste-flow.md](branch-waste-flow.md), [discrepancies.md](discrepancies.md) |
 | Client demo script (rehearsed 2026-09-30; a few steps are stale, see its notes) | [demo-run-sheet.md](demo-run-sheet.md) |
 | Full approved wording for not-yet-rebuilt areas | None kept: the design notes for Prep and Counting were deleted when each was rebuilt (their content is in Paper and the docs) |
 | Why Prep is built the way it is (data model, rules, slices) | [prep-plan.md](prep-plan.md) |
@@ -40,7 +41,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [stock](../../../backend/src/modules/inventory/stock/README.md) | Stock position, ledger, stock card | Stock and Counting | approved | **rebuilt** (8 Oct 2026, awaiting merge) |
 | [waste](../../../backend/src/modules/inventory/waste/README.md) | Waste logging and reversal (a Department Head's branch waste in `waste/department/`) | Stock and Counting | approved | **rebuilt** (8 Oct 2026, awaiting merge) |
 | [counting](../../../backend/src/modules/inventory/counting/README.md) | Counts (many a day, any scope), review and approve, Count setup, settings, the Director's flagged lines, prints | Stock and Counting | approved | **rebuilt** (8 Oct 2026, awaiting merge) |
-| [requisitions](../../../backend/src/modules/inventory/requisitions/README.md) | Branch requisition and approval | Requisition and dispatch | not approved | old flow, pending redo |
+| [requisitions](../../../backend/src/modules/inventory/requisitions/README.md) | Branch requisition and approval | Requisition and dispatch | approved (8 Oct 2026) | old flow, pending redo |
 | [dispatch](../../../backend/src/modules/inventory/dispatch/README.md) | Fulfil, delivery, branch receiving, discrepancies | Requisition and dispatch | not approved | old flow, pending redo |
 | [branch-day](../../../backend/src/modules/inventory/branch-day/README.md) | Branch count, close, reopen, next-morning opening | Counting and closing | not approved | old flow, pending redo |
 | `_shared` | Stock scope helpers and cross-cutting tests | n/a | n/a | n/a |
