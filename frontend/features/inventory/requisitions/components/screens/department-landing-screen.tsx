@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
@@ -60,7 +59,6 @@ export function DepartmentLandingScreen() {
   if (!isDepartmentHead || !departmentTag) {
     return (
       <div className="flex min-h-screen flex-col bg-wds-neutral-50">
-        <MobileStatusBar />
         <MobileHubHeader title="Requisitions" subtitle="" userInitials={userInitials} orgLabel={orgLabel} />
         <div className="flex flex-1 items-center justify-center p-4">
           <PermissionDeniedState description="Requisitions are for department heads only." />
@@ -112,7 +110,6 @@ export function DepartmentLandingScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-neutral-50">
-      <MobileStatusBar />
       <MobileHubHeader title="Requisitions" subtitle={`${departmentLabel} · your branch`} userInitials={userInitials} orgLabel={orgLabel} />
       <div className="flex flex-col gap-5 px-4 pb-8 pt-5">
         <div className="flex flex-col gap-2.5">

@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
 import { StatusDot } from '@/components/ui2/status-dot';
@@ -118,7 +117,6 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
   if (status === 'loading' || !detail) {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <DispatchFulfilSkeletonMobile />
       </div>
     );
@@ -127,7 +125,6 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
   if (status === 'error') {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <div className="flex flex-1 items-center justify-center p-wds-4">
           <MobileErrorState title="Couldn't load this requisition" description={error ?? 'Try again.'} onRetry={reload} />
         </div>
@@ -157,7 +154,6 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <div className="flex flex-col gap-2 bg-wds-sidebar-top px-wds-4 py-3">
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => router.push('/app/inventory/dispatch')} aria-label="Back" className="shrink-0">

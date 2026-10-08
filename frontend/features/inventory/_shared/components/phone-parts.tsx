@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 
 /**
  * Parts the Central Store phone screens share (Paper chapters 6 and 7, "Parts · phone shell"):
- * the dark header with the status bar, the mono field label, the full-width primary button and the
+ * the dark header (no status bar: that belongs to the phone), the mono field label, the full-width primary button and the
  * green "done" note. The header carries a back arrow (a task) or a menu (a landing screen).
  */
 

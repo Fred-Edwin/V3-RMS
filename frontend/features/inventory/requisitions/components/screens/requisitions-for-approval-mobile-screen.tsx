@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useAuthStore } from '@/store/authStore';
 import { useRequisitionsForApproval } from '../../hooks/use-requisitions-for-approval';
 import { RequisitionsForApprovalListSkeletonMobile } from '../skeletons';
@@ -50,7 +49,6 @@ export function RequisitionsForApprovalMobileScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-      <MobileStatusBar />
       <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-wds-border px-4">
         <div className="flex grow flex-col gap-0.5">
           <div className="font-wds-sans text-[17px]/[19px] font-semibold text-wds-text-ink">Requisitions</div>

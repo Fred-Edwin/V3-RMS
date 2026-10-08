@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
@@ -58,7 +57,6 @@ export function RequisitionsListScreen() {
   if (!isDepartmentHead || !departmentTag) {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <MobileTaskHeader title="Requisitions" subtitle="" trailingAction="Cancel" onBack={() => router.back()} onTrailingAction={() => router.back()} />
         <div className="flex flex-1 items-center justify-center p-4">
           <PermissionDeniedState description="Requisitions are for department heads only." />
@@ -174,7 +172,6 @@ export function RequisitionsListScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <MobileTaskHeader title="Requisitions" subtitle="" trailingAction="Cancel" onBack={() => router.back()} onTrailingAction={() => router.back()} />
       <div className="flex-1 overflow-y-auto px-4 py-5">{body}</div>
       <ConfirmDialog

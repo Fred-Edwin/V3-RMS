@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileEmptyState, MobileErrorState } from '@/components/app/shell/mobile-states';
 import { useAuthStore } from '@/store/authStore';
 import { useDeliveries } from '../../hooks/use-deliveries';
@@ -122,7 +121,6 @@ export function BranchIncomingScreenMobile() {
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <div className="flex items-center gap-3 bg-wds-sidebar-mid px-wds-4 py-wds-3">
         <button type="button" aria-label="Open menu" className="flex shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0">

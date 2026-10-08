@@ -8,7 +8,6 @@ import { Button } from '@/components/ui2/button';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { useTableUrlState } from '@/components/ui2/data-table/use-table-url-state';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { Topbar } from '@/components/app/shell/topbar';
 import { PermissionDeniedState, LoadingState } from '@/components/app/shell/shell-states';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -314,7 +313,6 @@ export function ItemCatalogScreen() {
     const pills = categories.filter((c) => !c.retiredAt).map((c) => ({ id: c.id, name: c.name, count: c.itemCount }));
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-        <MobileStatusBar />
         <MobileHubHeader title="Item catalog" subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`} userInitials="JM" onMenuClick={openMobileNav} />
         {/* Search and category pills stay put; only the list below scrolls. */}
         <div className="flex shrink-0 flex-col gap-3 border-b border-wds-border bg-wds-surface px-4 py-3">
