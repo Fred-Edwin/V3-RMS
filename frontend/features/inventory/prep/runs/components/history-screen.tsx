@@ -3,8 +3,9 @@
 import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
-import { Input } from '@/components/ui2/input';
+import { DateRangePicker } from '@/components/ui2/date-range-picker';
 import { SearchInput } from '@/components/ui2/search-input';
+import { nairobiToday } from '@/components/ui2/data-table/table-dates';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { EmptyState, ErrorState, PermissionDeniedState } from '@/components/app/shell/shell-states';
@@ -93,6 +94,8 @@ function HistoryBody({ canReadFlags }: { canReadFlags: boolean }) {
   const [exporting, setExporting] = React.useState(false);
   const exportBusy = React.useRef(false);
 
+  // The Nairobi day, read once: a screen left open past midnight keeps yesterday as "today" until it is reloaded.
+  const today = React.useMemo(() => nairobiToday(), []);
   const backwards = isBackwardsRange(filters);
   const query = toRunsQuery(filters);
   // Keyed on the values, not on `filters`, so opening the drawer (which only changes `?run=`) does not refetch the table.
@@ -205,11 +208,16 @@ function HistoryBody({ canReadFlags }: { canReadFlags: boolean }) {
             <Labelled text="Status" className="w-[calc(50%-6px)] sm:w-[150px]">
               <FilterSelect label="Status" allLabel="All statuses" options={STATUS_OPTIONS} value={filters.status} onChange={(value) => update({ status: value as PrepRunStatus | undefined })} className={field} />
             </Labelled>
-            <Labelled text="From" htmlFor="history-from" className="w-[calc(50%-6px)] sm:w-[140px]">
-              <Input id="history-from" type="date" value={filters.from ?? ''} max={filters.to || undefined} onChange={(e) => update({ from: e.target.value || undefined })} className={`${field} font-wds-mono`} aria-invalid={backwards || undefined} />
-            </Labelled>
-            <Labelled text="To" htmlFor="history-to" className="w-[calc(50%-6px)] sm:w-[140px]">
-              <Input id="history-to" type="date" value={filters.to ?? ''} min={filters.from || undefined} onChange={(e) => update({ to: e.target.value || undefined })} className={`${field} font-wds-mono`} aria-invalid={backwards || undefined} />
+            <Labelled text="Dates" className="w-full sm:w-auto">
+              <DateRangePicker
+                label="Dates"
+                allowAny
+                today={today}
+                value={filters.from || filters.to ? { from: filters.from ?? filters.to ?? today, to: filters.to ?? today } : null}
+                onChange={(range) => update({ from: range?.from, to: range?.to })}
+                note="Later dates can’t be picked. Leave it on Any time to see every run."
+                buttonClassName={`${field} w-full justify-between sm:w-[220px]`}
+              />
             </Labelled>
             {!canReadFlags ? (
               <label className="flex h-[34px] cursor-pointer items-center gap-2 font-wds-sans text-wds-body-sm text-wds-text-ink max-sm:h-11">
