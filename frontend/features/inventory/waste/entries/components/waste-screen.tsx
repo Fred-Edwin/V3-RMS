@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
 import { DataTable, type TableColumn } from '@/components/ui2/data-table/data-table';
+import { effectiveRange, nairobiToday } from '@/components/ui2/data-table/table-dates';
 import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -22,15 +23,25 @@ import { LogWasteDrawer } from '../../log/components/log-waste-drawer';
 import { ReverseDesktopDialog, ReversePhoneSheet } from '../../reverse/components/reverse-dialogs';
 import { WASTE_STATES_COPY } from '../../_shared/lib/states-copy';
 import { wasteApi } from '../../_shared/services/waste-api';
-import type { WasteEntry, WasteList } from '../../_shared/types/waste-contract';
+import { WASTE_REASONS, WASTE_REASON_TEXT, type WasteEntry, type WasteList, type WasteReason } from '../../_shared/types/waste-contract';
 import { useAuthStore } from '@/store/authStore';
 
 const WASTE = '/app/inventory/stock/waste';
-const FILTERS: TableFilter[] = [{ kind: 'chips', key: 'period', options: [{ value: '', label: 'Today' }, { value: '7d', label: 'Last 7 days' }, { value: 'reversed', label: 'Reversed' }] }];
+/** Paper step 57: "Date: Today" is the starting range; the date is the day the entry was logged. */
+const DATE_FILTER = {
+  kind: 'dateRange',
+  fromKey: 'from',
+  toKey: 'to',
+  label: 'Date',
+  defaultPreset: 'today',
+  note: 'Later dates can’t be picked. Entries are listed by the day they were logged.',
+} as const satisfies TableFilter;
+const REASON_FILTER: TableFilter = { kind: 'dropdown', key: 'reason', label: 'Reason', options: WASTE_REASONS.map((value) => ({ value, label: WASTE_REASON_TEXT[value] })) };
+const STATUS_FILTER: TableFilter = { kind: 'dropdown', key: 'status', label: 'Status', options: [{ value: 'logged', label: 'Logged' }, { value: 'reversed', label: 'Reversed' }] };
 const COPY = {
   emptyTitle: 'No waste',
   emptyDescription: WASTE_STATES_COPY.wasteDesktop.empty,
-  filteredEmptyTitle: 'No waste in this period',
+  filteredEmptyTitle: 'No waste matches',
   filteredEmptyDescription: WASTE_STATES_COPY.wasteDesktop.empty,
   errorTitle: 'Could not load waste',
   errorDescription: 'Try again. Nothing was changed.',
@@ -130,8 +141,13 @@ function DesktopWaste() {
   const params = useSearchParams();
   const { can, ready } = usePermissions();
   const [kpis, setKpis] = React.useState<WasteList['kpis'] | null>(null);
-  const [counts, setCounts] = React.useState<Record<string, Record<string, number>>>({});
+  const [people, setPeople] = React.useState<{ id: string; name: string }[]>([]);
   const [refresh, setRefresh] = React.useState(0);
+  // "Logged by" lists whoever has logged waste here; it arrives with the first page of rows.
+  const filters = React.useMemo<TableFilter[]>(
+    () => [DATE_FILTER, REASON_FILTER, { kind: 'dropdown', key: 'loggedBy', label: 'Logged by', options: people.map((p) => ({ value: p.id, label: p.name })) }, STATUS_FILTER],
+    [people],
+  );
   const [reversing, setReversing] = React.useState<WasteEntry | null>(null);
   const drawer = params.get('drawer') === 'log';
 
@@ -183,18 +199,30 @@ function DesktopWaste() {
           label="Waste"
           columns={columns}
           getRowId={(e) => e.id}
-          filters={FILTERS}
+          filters={filters}
           copy={COPY}
-          counts={counts}
           enabled={ready}
           refreshToken={refresh}
-          searchPlaceholder="Search an item"
+          searchPlaceholder="Search an item or a person"
           onRowActivate={(e) => e.can.reverse && setReversing(e)}
           rowClassName={(e) => (e.status === 'REVERSED' ? 'bg-wds-neutral-50' : undefined)}
           fetchRows={async (q, { signal }) => {
-            const res = await wasteApi.list({ period: (q.filters.period as '7d' | 'reversed' | undefined) ?? 'today', search: q.search || undefined, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);
+            const range = effectiveRange(q.filters, DATE_FILTER, DATE_FILTER.defaultPreset, nairobiToday());
+            const res = await wasteApi.list(
+              {
+                search: q.search || undefined,
+                from: range?.from,
+                to: range?.to,
+                reason: q.filters.reason as WasteReason | undefined,
+                loggedBy: q.filters.loggedBy,
+                status: q.filters.status as 'logged' | 'reversed' | undefined,
+                page: q.page,
+                pageSize: q.perPage as 25 | 50 | 100,
+              },
+              signal,
+            );
             setKpis(res.kpis ?? null);
-            setCounts({ period: { '': res.chips.today, '7d': res.chips.last7, reversed: res.chips.reversed } });
+            if (res.people) setPeople(res.people);
             return { rows: res.rows, total: res.page.total };
           }}
         />

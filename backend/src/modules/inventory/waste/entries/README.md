@@ -5,7 +5,7 @@
 The waste list with its KPI strip (W3).
 
 ## Spec
-- **W3 `GET /inventory/stock/waste`** (`waste.read`), query `period=today|7d|reversed`, `scope=all|mine`, `search`, `page`, `pageSize` (25, 50 or 100; default 50). Newest first (a `reversed` period: newest reversal first).
+- **W3 `GET /inventory/stock/waste`** (`waste.read`), query `period=today|7d|reversed`, `scope=all|mine`, `search`, `page`, `pageSize` (25, 50 or 100; default 50). Newest first (a `reversed` period: newest reversal first). **Lane 0 additions (8 Oct 2026, all optional):** `from` and `to` (Nairobi days, both included, either alone; they replace `period` as the window on when the entry was logged), `reason`, `loggedBy` (a person's id; the Attendant stays on their own), `status=logged|reversed`. The page and not the chip counts or KPI strip follows these. The response adds `people` (who has logged waste, for "Logged by"; absent for the Attendant). A `from` after `to` is a 400.
 - Periods are Nairobi days: `today` from 00:00 today, `7d` from 00:00 six days ago (today included), `reversed` = reversed since then, whenever logged.
 - **Own entries only** for a caller without `stock.read` (the Attendant holds `waste.read` but none of the desktop reads), whatever `scope` says: a capability test (`seesOwnEntriesOnly`), never a role name. Everyone else may narrow with `scope=mine`.
 - **KPI cells** (callers who may see store-wide money; not the Attendant): `today` (KES, entries), `last7`, `most` (the item with the most value in 7 days and its commonest reason, "mostly expired"), `reversed` ("Both by the Attendant, same day", built from the reversals). A reversed entry's value counts for nothing everywhere. KPIs follow the scope but not the search.

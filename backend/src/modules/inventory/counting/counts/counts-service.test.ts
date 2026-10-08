@@ -149,6 +149,28 @@ describe('C2 list', () => {
     expect(countsRepository.list).toHaveBeenCalledWith(hubId, { status: 'waiting', search: 'samrat' }, { page: 3, pageSize: 25 });
   });
 
+  it('cuts the list and the chip counts to the Nairobi days asked for, both ends included', async () => {
+    vi.mocked(countsRepository.list).mockResolvedValue({ rows: [], total: 0 });
+    await countsService.list(manager, { ...query, from: '2026-10-01', to: '2026-10-05' }, now);
+    // Nairobi is UTC+3: 1 Oct starts at 30 Sep 21:00 UTC; the cut after 5 Oct is 5 Oct 21:00 UTC.
+    const range = { startedFrom: new Date('2026-09-30T21:00:00Z'), startedBefore: new Date('2026-10-05T21:00:00Z') };
+    expect(countsRepository.list).toHaveBeenCalledWith(hubId, { status: 'all', ...range }, { page: 1, pageSize: 50 });
+    expect(countsRepository.chipCounts).toHaveBeenCalledWith(hubId, undefined, range);
+  });
+
+  it('takes a lone From or a lone To', async () => {
+    vi.mocked(countsRepository.list).mockResolvedValue({ rows: [], total: 0 });
+    await countsService.list(manager, { ...query, from: '2026-10-01' }, now);
+    expect(countsRepository.list).toHaveBeenLastCalledWith(hubId, { status: 'all', startedFrom: new Date('2026-09-30T21:00:00Z') }, { page: 1, pageSize: 50 });
+    await countsService.list(manager, { ...query, to: '2026-10-01' }, now);
+    expect(countsRepository.list).toHaveBeenLastCalledWith(hubId, { status: 'all', startedBefore: new Date('2026-10-01T21:00:00Z') }, { page: 1, pageSize: 50 });
+  });
+
+  it('refuses a From after the To instead of answering with an empty list', async () => {
+    await expect(countsService.list(manager, { ...query, from: '2026-10-05', to: '2026-10-01' }, now)).rejects.toMatchObject({ statusCode: 400 });
+    expect(countsRepository.list).not.toHaveBeenCalled();
+  });
+
   it('differencesText covers every case', () => {
     expect(differencesText({ status: 'OPEN', exceeds: 0, within: 0 })).toBe('Not signed yet');
     expect(differencesText({ status: 'SUBMITTED', exceeds: 2, within: 0 })).toBe('2 exceed · 0 within');

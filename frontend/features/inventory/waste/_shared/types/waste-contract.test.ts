@@ -28,7 +28,7 @@ describe('waste contract mirror', () => {
 
   it('the Manager list has the KPI strip and the chips', () => {
     const list = fixtures.wasteListManager as WasteList;
-    expect(keysOf(list)).toEqual(['chips', 'kpis', 'page', 'rows']);
+    expect(keysOf(list)).toEqual(['chips', 'kpis', 'page', 'people', 'rows']);
     expect(keysOf(list.chips)).toEqual(['last7', 'reversed', 'today']);
   });
 });

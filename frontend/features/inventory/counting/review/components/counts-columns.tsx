@@ -13,7 +13,18 @@ import type { CountRow } from '../../_shared/types/counting-contract';
 
 export const COUNTS = '/app/inventory/stock/counts';
 
+/** Paper step 56: "Date: Last 30 days" is the starting range; the date is when the count started. */
+export const COUNTS_DATE_FILTER = {
+  kind: 'dateRange',
+  fromKey: 'from',
+  toKey: 'to',
+  label: 'Date',
+  defaultPreset: 'last30',
+  note: 'Later dates can’t be picked. Counts are listed by the day they were started. Counts waiting for approval always show.',
+} as const satisfies TableFilter;
+
 export const COUNTS_FILTERS: TableFilter[] = [
+  COUNTS_DATE_FILTER,
   {
     kind: 'chips',
     key: 'status',

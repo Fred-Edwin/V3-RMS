@@ -15,7 +15,7 @@
  * and only with the owner's approval.
  */
 import { z } from 'zod';
-import { decimalString, isoDateTime, kpiCellSchema, pageInfoSchema, pageQuerySchema, personSchema, positiveDecimal, uuid } from '../../_shared/wire';
+import { decimalString, isoDateTime, kpiCellSchema, nairobiDate, pageInfoSchema, pageQuerySchema, personSchema, positiveDecimal, uuid } from '../../_shared/wire';
 
 /** The four reason chips (Paper steps 17 and 22). Same values as the database enum `WasteReason`. */
 export const WASTE_REASONS = ['EXPIRY', 'SPOILAGE', 'DAMAGE_IN_STORE', 'PREP_ERROR'] as const;
@@ -126,6 +126,15 @@ export const wasteListQuerySchema = pageQuerySchema.extend({
   period: z.enum(['today', '7d', 'reversed']).default('today'),
   scope: z.enum(['all', 'mine']).default('all'),
   search: z.string().trim().min(1).optional(),
+  /**
+   * Lane 0 amendment (8 Oct 2026), all optional. `from` and `to` are Nairobi days (both included, either may be given alone) and
+   * replace `period` as the window on when the entry was logged. `reason`, `loggedBy` (a person's id) and `status` narrow the rows.
+   */
+  from: nairobiDate.optional(),
+  to: nairobiDate.optional(),
+  reason: wasteReasonSchema.optional(),
+  loggedBy: z.string().min(1).optional(),
+  status: z.enum(['logged', 'reversed']).optional(),
 });
 export const wasteListSchema = z.object({
   /** Today KES, Last 7 days, Most wasted, Reversed 7 days. Absent for the Attendant (their screen is a list only). */
@@ -134,6 +143,8 @@ export const wasteListSchema = z.object({
   chips: z.object({ today: z.number().int().nonnegative(), last7: z.number().int().nonnegative(), reversed: z.number().int().nonnegative() }),
   /** "2 items logged at 14:20. You can reverse your own entries today." The Attendant's own banner; absent for desktop roles. */
   bannerText: z.string().nullable().optional(),
+  /** Lane 0 amendment: who has logged waste here, for the "Logged by" filter. Absent for the Attendant (their list is their own). */
+  people: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
   page: pageInfoSchema,
 });
 export type WasteList = z.infer<typeof wasteListSchema>;

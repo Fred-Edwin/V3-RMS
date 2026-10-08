@@ -1,6 +1,7 @@
 import type { Request } from 'express';
-import { NotFoundError } from '../../../../utils/errors';
+import { NotFoundError, ValidationError } from '../../../../utils/errors';
 import { actorCan, requireHubReader } from '../../_shared/central-store-access';
+import { dayEndInstant, dayStartInstant } from '../../stock/_shared/nairobi-time';
 import { readCountDetail } from '../_shared/count-detail-reader';
 import { longestWithoutCount } from '../_shared/count-reads';
 import { capsOf } from '../_shared/count-state';
@@ -35,10 +36,13 @@ export const countsService = {
   /** C2: the Counts table with its chips, search and numbered pager. `differencesText` only for a caller who sees stock figures. */
   list: async (actor: Actor, query: CountsListQuery, now: Date = new Date()): Promise<CountsList> => {
     const siteId = await requireHubReader(actor);
+    if (query.from && query.to && query.from > query.to) throw new ValidationError('"from" must not be after "to"');
     const caps = capsOf(actor);
+    // Nairobi days: `from` starts at the start of that day, `to` is included, so the cut is the start of the day after it.
+    const range = { ...(query.from ? { startedFrom: dayStartInstant(query.from) } : {}), ...(query.to ? { startedBefore: dayEndInstant(query.to) } : {}) };
     const [{ rows, total }, chips, unsectioned] = await Promise.all([
-      countsRepository.list(siteId, { status: query.status, ...(query.search ? { search: query.search } : {}) }, { page: query.page, pageSize: query.pageSize }),
-      countsRepository.chipCounts(siteId),
+      countsRepository.list(siteId, { status: query.status, ...(query.search ? { search: query.search } : {}), ...range }, { page: query.page, pageSize: query.pageSize }),
+      countsRepository.chipCounts(siteId, undefined, range),
       countsRepository.unsectionedCount(siteId),
     ]);
     return {

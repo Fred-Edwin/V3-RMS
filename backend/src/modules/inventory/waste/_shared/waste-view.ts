@@ -98,6 +98,7 @@ export const wasteView = {
       page: WasteList['page'];
       kpis?: WasteList['kpis'];
       bannerText?: string | null;
+      people?: WasteList['people'];
     },
     now: Date,
   ): WasteList => ({
@@ -105,6 +106,7 @@ export const wasteView = {
     rows: input.logs.map((log) => wasteView.entry(actor, log, now)),
     chips: input.chips,
     ...(input.bannerText !== undefined ? { bannerText: input.bannerText } : {}),
+    ...(input.people ? { people: input.people } : {}),
     page: input.page,
   }),
 };

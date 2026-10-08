@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
 import { DataTable } from '@/components/ui2/data-table/data-table';
+import { effectiveRange, nairobiToday } from '@/components/ui2/data-table/table-dates';
 import { ScwKpiStrip, ScwKpiStripSkeleton } from '../../../_shared/components/scw-kpi-strip';
 import { ScwStatePanel } from '../../../_shared/components/scw-states';
 import { ScwTopbar } from '../../../_shared/components/scw-topbar';
@@ -14,7 +15,7 @@ import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { COUNTING_STATES_COPY } from '../../_shared/lib/states-copy';
 import { countingApi } from '../../_shared/services/counting-api';
 import type { CountRow } from '../../_shared/types/counting-contract';
-import { COUNTS, COUNTS_COPY, COUNTS_FILTERS, makeCountColumns } from './counts-columns';
+import { COUNTS, COUNTS_COPY, COUNTS_DATE_FILTER, COUNTS_FILTERS, makeCountColumns } from './counts-columns';
 
 /**
  * Counts (Paper steps 8 and 48, `1X6I-0`, `25F8-0`), for every desktop role. A summary strip, status chips (a strip cell with a
@@ -100,7 +101,8 @@ export function CountsListScreen() {
           onRowActivate={(r) => router.push(r.status === 'OPEN' && r.mine ? `${COUNTS}/${r.id}/count` : `${COUNTS}/${r.id}`)}
           rowClassName={(r) => (r.can.review ? 'bg-wds-warning-bg' : undefined)}
           fetchRows={async (q, { signal }) => {
-            const res = await countingApi.list({ status: (q.filters.status as 'waiting' | 'inProgress' | 'approved' | undefined) ?? 'all', search: q.search || undefined, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);
+            const range = effectiveRange(q.filters, COUNTS_DATE_FILTER, COUNTS_DATE_FILTER.defaultPreset, nairobiToday());
+            const res = await countingApi.list({ status: (q.filters.status as 'waiting' | 'inProgress' | 'approved' | undefined) ?? 'all', search: q.search || undefined, from: range?.from, to: range?.to, page: q.page, pageSize: q.perPage as 25 | 50 | 100 }, signal);
             setUnsectioned(res.chips.unsectioned);
             return {
               rows: res.rows,

@@ -57,31 +57,49 @@ export type RepeatHistory = { itemId: string; countReference: string; difference
 
 const PERSON = { select: { id: true, name: true, role: true } } as const;
 
+/** The range a list is cut to, as instants: `startedFrom` included, `startedBefore` excluded (the start of the day after `to`). */
+export type StartedRange = { startedFrom?: Date; startedBefore?: Date };
+/**
+ * A count waiting for approval (`SUBMITTED`) is always in the list, whatever the range (owner decision, 8 Oct 2026): it is work
+ * someone has to do, and an old one must not hide behind the default 30 days. The rows, the total, and the chip numbers all use
+ * this one rule, so they add up.
+ */
+const startedWhere = (range: StartedRange): Prisma.CountWhereInput =>
+  range.startedFrom || range.startedBefore
+    ? { OR: [{ status: 'SUBMITTED' }, { startedAt: { ...(range.startedFrom ? { gte: range.startedFrom } : {}), ...(range.startedBefore ? { lt: range.startedBefore } : {}) } }] }
+    : {};
+
 /** The Counts screens' reads. Every query carries `siteId`; nothing here writes. */
 export const countsRepository = {
   ...countRecordRepository,
   unsectionedCount: (siteId: string, client: Client = prisma): Promise<number> => countReadsRepository.unsectionedCount(siteId, client),
 
-  /** The Counts table: filtered by status chip and a search over reference, section and counter, newest first, one page. */
+  /** The Counts table: filtered by status chip, a date range on when the count started, and a search over reference, section and counter, newest first, one page. */
   list: async (
     siteId: string,
-    filter: { status: StatusFilter; search?: string },
+    filter: { status: StatusFilter; search?: string } & StartedRange,
     paging: { page: number; pageSize: number },
     client: Client = prisma,
   ): Promise<{ rows: CountListRow[]; total: number }> => {
     const where: Prisma.CountWhereInput = {
       siteId,
+      // Both the date range and the search are an OR of their own, so they sit side by side in an AND.
+      AND: [
+        startedWhere(filter),
+        ...(filter.search
+          ? [
+              {
+                OR: [
+                  { reference: { contains: filter.search, mode: 'insensitive' as const } },
+                  { counter: { name: { contains: filter.search, mode: 'insensitive' as const } } },
+                  { scopeSections: { some: { sectionName: { contains: filter.search, mode: 'insensitive' as const } } } },
+                  { lines: { some: { inventoryItem: { name: { contains: filter.search, mode: 'insensitive' as const } } } } },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(filter.status !== 'all' ? { status: STATUS_OF[filter.status] } : {}),
-      ...(filter.search
-        ? {
-            OR: [
-              { reference: { contains: filter.search, mode: 'insensitive' } },
-              { counter: { name: { contains: filter.search, mode: 'insensitive' } } },
-              { scopeSections: { some: { sectionName: { contains: filter.search, mode: 'insensitive' } } } },
-              { lines: { some: { inventoryItem: { name: { contains: filter.search, mode: 'insensitive' } } } } },
-            ],
-          }
-        : {}),
     };
     const [rows, total] = await Promise.all([
       client.count.findMany({
@@ -127,9 +145,9 @@ export const countsRepository = {
     };
   },
 
-  /** The numbers on the status chips (the search does not change them). */
-  chipCounts: async (siteId: string, client: Client = prisma): Promise<{ all: number; waiting: number; inProgress: number; approved: number }> => {
-    const grouped = await client.count.groupBy({ by: ['status'], where: { siteId }, _count: { _all: true } });
+  /** The numbers on the status chips: they follow the date range, not the search or the chip itself. */
+  chipCounts: async (siteId: string, client: Client = prisma, range: StartedRange = {}): Promise<{ all: number; waiting: number; inProgress: number; approved: number }> => {
+    const grouped = await client.count.groupBy({ by: ['status'], where: { siteId, ...startedWhere(range) }, _count: { _all: true } });
     const n = (s: CountStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
     return { all: grouped.reduce((t, g) => t + g._count._all, 0), waiting: n('SUBMITTED'), inProgress: n('OPEN'), approved: n('APPROVED') };
   },

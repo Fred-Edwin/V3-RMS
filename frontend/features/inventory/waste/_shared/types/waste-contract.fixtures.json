@@ -92,6 +92,7 @@
       }
     ],
     "chips": { "today": 4, "last7": 21, "reversed": 2 },
+    "people": [{ "id": "u-peter", "name": "Peter Kariuki" }],
     "page": { "page": 1, "pageSize": 50, "total": 4 }
   },
   "wasteListAttendant": {
