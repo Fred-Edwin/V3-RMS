@@ -15,7 +15,9 @@ import { plainQty, signedKes, signedMoney } from '../../../counting/_shared/lib/
 import { STOCK_STATES_COPY } from '../../_shared/lib/states-copy';
 import { stockApi } from '../../_shared/services/stock-api';
 import type { StockCardDay } from '../../_shared/types/stock-contract';
-import { DateRangePicker } from './date-range-picker';
+import { DateRangePicker } from '@/components/ui2/date-range-picker';
+
+const CARD_RANGE_NOTE = 'Later dates can’t be picked. Opening and closing figures use the first and last day you choose.';
 
 const cell = (v: string, red = false, plus = false): React.ReactNode => {
   const n = Number(v);
@@ -102,7 +104,7 @@ export function StockCardScreen({ itemId }: { itemId: string }) {
             </div>
             <div className="border border-wds-border bg-wds-surface">
               <div className="flex flex-wrap items-center gap-2 px-4 py-3.5">
-                <DateRangePicker value={{ from: d.from, to: d.to }} today={t} onChange={(r) => set({ from: r.from, to: r.to })} />
+                <DateRangePicker value={{ from: d.from, to: d.to }} today={t} note={CARD_RANGE_NOTE} onChange={(r) => r && set({ from: r.from, to: r.to })} />
                 <button type="button" onClick={() => set({ show: show === 'byDay' ? 'entries' : null })} className="h-8 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] outline-none hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring">Show · {show === 'byDay' ? 'By day' : 'By entries'} ⌄</button>
                 <button type="button" aria-pressed={chip === 'daysWithMovement'} onClick={() => set({ chip: chip === 'daysWithMovement' ? null : 'daysWithMovement' })} className={chipCls(chip === 'daysWithMovement')}>Days with movement</button>
                 <button type="button" aria-pressed={chip === 'adjustmentsOnly'} onClick={() => set({ chip: chip === 'adjustmentsOnly' ? null : 'adjustmentsOnly' })} className={chipCls(chip === 'adjustmentsOnly')}>Adjustments only</button>

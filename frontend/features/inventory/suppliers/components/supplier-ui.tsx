@@ -82,7 +82,7 @@ export function FilterMenu<T extends string>({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-wds-sm border border-wds-border-strong bg-white px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:shadow-wds-ring"
+          className="inline-flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-wds-sm border border-wds-border-strong bg-white px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:shadow-wds-ring max-sm:h-11"
         >
           {name}: {valueLabel} <span aria-hidden className="ml-1.5 text-[9px]">▾</span>
         </button>
