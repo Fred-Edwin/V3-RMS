@@ -23,6 +23,7 @@ import { clock, dayAndClock, dayLabel, elapsed, kes } from '../_shared/lib/requi
 import { LIST_COPY } from '../_shared/lib/list-copy';
 import { DocLink, ReqTabs, SectionSquares, StatusChip, UrgentTag, type TabDef } from './req-parts';
 import { StartDialog } from './start-dialog';
+import { useBadgesNudge } from '../hooks/use-badges-nudge';
 
 export type ListMode = 'queue' | 'discrepancies' | 'history';
 
@@ -36,6 +37,13 @@ const QUEUE_TABS: readonly { key: RequisitionTab; label: string }[] = [
 ];
 
 const DATE_FILTER = { kind: 'dateRange', fromKey: 'from', toKey: 'to', label: 'Date', defaultPreset: 'last30', allowAny: true } as const satisfies TableFilter;
+
+/**
+ * The table refetches when its search, filters or page change, and the stage tab is none of those, so the tab rides in the refresh
+ * token: a different tab is a different number, a nudge or a start moves to the next block of numbers.
+ */
+const TAB_SLOTS = 8;
+const tabSlot = (tab: RequisitionTab | undefined): number => (tab ? 1 + ['collecting', 'to-approve', 'to-pack', 'on-the-way', 'to-confirm', 'discrepancies', 'closed'].indexOf(tab) : 0);
 
 const isTab = (value: string | null): value is RequisitionTab => value !== null && [...QUEUE_TABS.map((t) => t.key), 'discrepancies', 'closed'].includes(value);
 
@@ -60,6 +68,9 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const [now, setNow] = React.useState(() => Date.now());
   const phone = useMediaQuery('(max-width: 639px)').matches;
   const departments = useLoader(ready ? 'departments' : null, () => departmentsApi.list(), 'Could not load departments.');
+
+  // Another person's change (a head sends, someone approves) reloads the rows and the tab counts at once.
+  useBadgesNudge(() => setRefresh((n) => n + 1));
 
   // Elapsed times tick once a minute.
   React.useEffect(() => {
@@ -111,8 +122,10 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
 
   const filters = React.useMemo<TableFilter[]>(() => {
     const list: TableFilter[] = [];
-    if (mode === 'history') list.push({ kind: 'dropdown', key: 'branchId', label: 'Branch', options: (branches ?? []).map((b) => ({ value: b.id, label: b.name })) }, DATE_FILTER, { kind: 'dropdown', key: 'status', label: 'Status', options: [{ value: 'CLOSED', label: 'Closed' }, { value: 'CANCELLED', label: 'Cancelled' }] });
-    else {
+    if (mode === 'history') {
+      if (hub) list.push({ kind: 'dropdown', key: 'branchId', label: 'Branch', options: (branches ?? []).map((b) => ({ value: b.id, label: b.name })) });
+      list.push(DATE_FILTER, { kind: 'dropdown', key: 'status', label: 'Status', options: [{ value: 'CLOSED', label: 'Closed' }, { value: 'CANCELLED', label: 'Cancelled' }] });
+    } else {
       if (hub) list.push({ kind: 'dropdown', key: 'branchId', label: 'Branch', options: (branches ?? []).map((b) => ({ value: b.id, label: b.name })) });
       if (mode === 'queue' && !hub) list.push({ kind: 'dropdown', key: 'cycle', label: 'Cycle', options: REQUISITION_CYCLES.map((c) => ({ value: c, label: CYCLE_TEXT[c] })) });
       list.push({ kind: 'dropdown', key: 'departmentId', label: 'Department', options: (departments.data?.rows ?? []).map((d) => ({ value: d.id, label: d.name })) });
@@ -246,7 +259,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
           filters={filters}
           copy={LIST_COPY[mode === 'queue' ? (forcedTab ?? activeTab ?? 'to-approve') : mode]}
           enabled={ready}
-          refreshToken={refresh}
+          refreshToken={refresh * TAB_SLOTS + tabSlot(forcedTab)}
           searchPlaceholder={mode === 'history' ? 'Search by number or branch' : hub ? 'Search by number or branch' : 'Search by number or department'}
           onRowActivate={(r) => router.push(href(r.id))}
           fetchRows={async (q, { signal: _signal }) => {

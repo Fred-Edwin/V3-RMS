@@ -5,12 +5,12 @@
  * (`FEATURE_REDO_PLAYBOOK.md` §9, `CODING_STANDARDS.md` §9). Add an export
  * here only when something outside this feature legitimately needs it.
  *
- * Block 1: the Department Head's phone screens are the rebuilt ones below. The old contract types are still re-exported until the
- * desktop PR deletes the old approval screens; the new mirror is `_shared/types/requisitions-contract.ts`.
+ * Block 1: the Department Head's phone screens are the rebuilt ones below; the contract mirror is
+ * `_shared/types/requisitions-contract.ts`. The desktop screens are exported from `features/inventory/index.ts`.
  */
 
-// Old contract types (removed with the old desktop screens).
-export * from './types';
+// The wire types (mirror of the back end's frozen contract).
+export * from './_shared/types/requisitions-contract';
 
 // The Department Head's phone screens (Paper steps 1 to 6, 10, 14, 15, 18 and G1).
 export { HeadHomeScreen } from './components/phone/head-home-screen';

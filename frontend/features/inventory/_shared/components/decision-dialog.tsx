@@ -66,7 +66,7 @@ export function DecisionDialog({ open, onOpenChange, title, description, tone, f
           </div>
           <div className="flex shrink-0 items-center justify-between gap-4 border-t border-wds-border px-6 py-4">
             <div className="font-wds-sans text-[12px] leading-4 text-wds-text-copy-muted">{footerNote}</div>
-            <div className="flex shrink-0 gap-2.5">{actions}</div>
+            <div className="flex shrink-0 gap-2.5 max-sm:[&_button]:min-h-11">{actions}</div>
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

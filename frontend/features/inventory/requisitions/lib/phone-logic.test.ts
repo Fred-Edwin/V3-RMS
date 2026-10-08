@@ -14,7 +14,6 @@ import {
 import { REQUISITION_ERROR_CODES } from '../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged } from '../hooks/use-section-draft';
 import { cleanTyped, formatQty, isValidQty, stepQty } from './qty';
-import { mockRequisitionsApi } from '../services/requisitions-mock';
 
 describe('quantities', () => {
   it('shows decimals as a person writes them', () => {
@@ -104,21 +103,5 @@ describe("the head's rows in the navigation table", () => {
     expect(labels(true).filter((l) => l === 'History')).toHaveLength(1);
     expect(hrefs(true)).not.toContain('/app/history');
     expect(hrefs(false)).toContain('/app/history');
-  });
-});
-
-describe('the mock follows the contract rules', () => {
-  const start = (cycle: 'MORNING' | 'AFTERNOON' | 'EXTRA') => mockRequisitionsApi.start({ cycle, idempotencyKey: 'k' });
-  const dept = 'd0000000-0000-4000-8000-000000000001';
-  it('refuses a second start in the same cycle, refuses a wrong PIN, and replays a repeated key', async () => {
-    const first = await start('AFTERNOON');
-    await expect(start('AFTERNOON')).rejects.toMatchObject({ code: 'REQUISITION_ALREADY_OPEN' });
-    await expect(mockRequisitionsApi.send(first.requisitionId, dept, '0000', 'k1')).rejects.toMatchObject({ code: 'INVALID_PIN' });
-    const sent = await mockRequisitionsApi.send(first.requisitionId, dept, '1234', 'k2');
-    expect(sent.replayed).toBe(false);
-    const again = await mockRequisitionsApi.send(first.requisitionId, dept, '1234', 'k2');
-    expect(again.replayed).toBe(true);
-    const recalled = await mockRequisitionsApi.recall(first.requisitionId, dept);
-    expect(recalled.section.status).toBe('DRAFT');
   });
 });

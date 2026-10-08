@@ -14,11 +14,22 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
 import { dispatchRepository } from '../dispatch/dispatch-repository';
 import { departmentLinks } from '../departments/department-links';
+import { LOCK_WAIT_MS, takeDbTestLock } from '../_shared/db-test-lock';
 import { requisitionsRepository } from './requisitions-repository';
 import { requisitionsService } from './requisitions-service';
 
 const enabled = process.env['RUN_DB_TESTS'] === '1';
 const tag = randomUUID().slice(0, 8);
+
+// The back-fill checks below read the whole database, so this file waits its turn behind any other database test file
+// (`requisitions-list.db.test.ts` builds branches and requisitions that would otherwise show up in those reads).
+let releaseDbLock: () => Promise<void> = async () => undefined;
+beforeAll(async () => {
+  if (enabled) releaseDbLock = await takeDbTestLock();
+}, LOCK_WAIT_MS);
+afterAll(async () => {
+  await releaseDbLock();
+});
 
 describe.skipIf(!enabled)('the migration back-fills (read-only checks of what the migration left)', () => {
   it('every branch has its five departments, keyed by the legacy value, and a unique code', async () => {

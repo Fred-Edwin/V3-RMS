@@ -1,6 +1,7 @@
 import type { PrepStation } from '@prisma/client';
 import type { PrepTicketRecord } from '../types/order.types';
-import { branchRoomName, getSocketServer, stationRoomName, userRoomName } from './socket';
+import { inventoryBadgesBridge } from './inventory-badges-bridge';
+import { branchRoomName, getSocketServer, inventoryAllSitesRoom, stationRoomName, userRoomName } from './socket';
 
 export interface OrderClaimedPayload {
   orderId: string;
@@ -56,6 +57,11 @@ export interface InventoryBadgesPayload {
   siteId: string;
   reason: string;
 }
+
+/** This process's own clients: the site's room, and the room of everyone who reads every site (the Director, the hub roles). */
+export const emitInventoryBadgesLocal = (payload: InventoryBadgesPayload): void => {
+  getSocketServer().to([branchRoomName(payload.siteId), inventoryAllSitesRoom]).emit('inventory:badges', payload);
+};
 
 export interface RequisitionSubmittedPayload {
   requisitionId: string;
@@ -159,7 +165,9 @@ export const socketService = {
 
   /** Inventory badge nudge (the one notification layer, `inventory/_shared/notify.ts`): open screens refetch their badge counts. */
   emitInventoryBadges: (siteId: string, payload: InventoryBadgesPayload): void => {
-    getSocketServer().to(branchRoomName(siteId)).emit('inventory:badges', payload);
+    emitInventoryBadgesLocal({ ...payload, siteId });
+    // The worker has no browsers of its own: tell the other processes too (a no-op for the one that hears itself).
+    void inventoryBadgesBridge.publish({ ...payload, siteId });
   },
 
   emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

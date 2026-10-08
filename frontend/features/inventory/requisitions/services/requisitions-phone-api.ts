@@ -1,7 +1,6 @@
 /**
  * The Department Head's phone calls (contract R3, R7, R8, R9, R11 to R15, R21), typed with the frozen mirror. Components never
- * call `fetch` or `apiClient`; they use these through their hooks. While back end B is unbuilt the calls can be answered by the
- * in-memory mock (`NEXT_PUBLIC_REQUISITIONS_MOCK=1`), which follows the same fixtures; at integration the flag is simply left off.
+ * call `fetch` or `apiClient`; they use these through their hooks.
  */
 import type {
   AddAdditionInput,
@@ -21,7 +20,6 @@ import type {
   StartRequisitionResult,
 } from '../_shared/types/requisitions-contract';
 import { callRequisitions, queryString } from './requisitions-call';
-import { mockRequisitionsApi } from './requisitions-mock';
 
 export interface RequisitionsPhoneApi {
   /** R7 */
@@ -59,4 +57,4 @@ const realApi: RequisitionsPhoneApi = {
   addAddition: (id, input, idempotencyKey) => callRequisitions<AddAdditionResult>('POST', `/${id}/additions`, input, idempotencyKey),
 };
 
-export const requisitionsApi: RequisitionsPhoneApi = process.env.NEXT_PUBLIC_REQUISITIONS_MOCK === '1' ? mockRequisitionsApi : realApi;
+export const requisitionsApi: RequisitionsPhoneApi = realApi;

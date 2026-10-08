@@ -18,6 +18,7 @@ import { auditLogService } from '../audit-log/audit-log-service';
 import { AuditLogQuerySchema } from '../audit-log/audit-log-validators';
 import { departmentLinks } from '../departments/department-links';
 import { departmentsService } from '../departments/departments-service';
+import { LOCK_WAIT_MS, takeDbTestLock } from '../_shared/db-test-lock';
 import { listRequisitionsQuerySchema } from './_shared/requisitions-contract';
 import { requisitionsListService } from './requisitions-list-service';
 import { requisitionsRepository } from './requisitions-repository';
@@ -26,6 +27,16 @@ import { requisitionsService } from './requisitions-service';
 const enabled = process.env['RUN_DB_TESTS'] === '1';
 const tag = randomUUID().slice(0, 8);
 const letters = (seed: string, first: string): string => `${first}${seed.replace(/[^a-f]/g, 'q').toUpperCase().slice(0, 2).padEnd(2, 'Q')}`;
+
+// This file builds branches, people and requisitions that other database files must not see mid-run (and the other way round), so
+// it waits its turn behind any other database test file.
+let releaseDbLock: () => Promise<void> = async () => undefined;
+beforeAll(async () => {
+  if (enabled) releaseDbLock = await takeDbTestLock();
+}, LOCK_WAIT_MS);
+afterAll(async () => {
+  await releaseDbLock();
+});
 
 describe.skipIf(!enabled)('back end B against the real database', () => {
   let hubId = '';

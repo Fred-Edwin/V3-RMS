@@ -80,7 +80,7 @@ export function FillForHeadSheet({ requisitionId, departmentId, departmentName, 
     <Sheet open={open} onOpenChange={(next) => (busy ? undefined : onOpenChange(next))}>
       <SheetContent
         side="right"
-        className="w-[560px]"
+        className="w-[560px] max-w-full"
         onCloseAutoFocus={(event) => {
           const target = returnFocus?.();
           if (target?.isConnected) {

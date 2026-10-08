@@ -24,6 +24,7 @@ import { ActivityTab, DocumentsTab } from './file-extra-tabs';
 import { FileItems } from './file-items';
 import { FillForHeadSheet } from './fill-for-head-sheet';
 import { MonoLabel, ReqTabs, StatusChip, UrgentTag } from './req-parts';
+import { useBadgesNudge } from '../hooks/use-badges-nudge';
 
 type View = 'items' | 'documents' | 'activity';
 
@@ -76,14 +77,8 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
     [params, router, base, id],
   );
 
-  // Another person's change (a head sends, the store packs) shows when the person comes back to the tab.
-  React.useEffect(() => {
-    const onVisible = (): void => {
-      if (document.visibilityState === 'visible') void reload();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [reload]);
+  // Another person's change (a head sends, the store packs) shows at once (socket nudge) or when the person comes back to the tab.
+  useBadgesNudge(() => void reload());
 
   const toast = (variant: 'success' | 'error', title: string, description?: string): void => {
     useWdsToastStore.getState().addToast({ variant, title, description });
@@ -137,7 +132,8 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
         data.branch.name,
         data.status === 'APPROVED' || data.status === 'CLOSED' ? (data.approvedAt ? `approved ${clock(data.approvedAt)}` : null) : `started ${clock(data.openedAt)}`,
         data.status === 'OPEN' || data.status === 'PENDING_APPROVAL' ? `${data.nextStep.facts.sectionsIn === data.nextStep.facts.sectionsTotal ? `all ${data.nextStep.facts.sectionsTotal}` : `${data.nextStep.facts.sectionsIn} of ${data.nextStep.facts.sectionsTotal}`} sections in` : null,
-        `${data.lineCount} lines${data.additions.length ? ` + ${data.additions.reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
+        // An approved addition's lines are already in `lineCount`; only the ones still waiting are "added" on top of it.
+        `${data.lineCount} lines${data.additions.some((a) => a.status === 'PENDING') ? ` + ${data.additions.filter((a) => a.status === 'PENDING').reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
         data.valueKes !== undefined ? `KES ${kes(data.valueKes)}${data.status === 'OPEN' ? ' so far' : ''}` : null,
       ]
         .filter(Boolean)
