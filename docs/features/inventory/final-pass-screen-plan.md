@@ -93,7 +93,7 @@ Then cover and screens index.
 6. A department's figures: opening, received, waste, counted, Used today
 7. Reason for an unusual figure
 8. Close the day: summary and PIN
-9. Closed day file (`DAY-nnnn`), with ledger links
+9. Closed day file (`DAY-NYR-nnnn`), with ledger links
 10. **Correct a count** on a closed day: one item, reason, PIN
 11. History, and the unusual-figure rule in Settings
 

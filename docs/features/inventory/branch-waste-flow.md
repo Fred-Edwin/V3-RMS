@@ -1,4 +1,4 @@
-# Branch waste: flow and rules (draft defaults, 7 Oct 2026; owner reviews before this group is drawn)
+# Branch waste: flow and rules (design approved 8 Oct 2026; where the table below says a PIN for the Branch Manager's reverse, the design log wins: reason only, no PIN)
 
 Group W, the last group of the final Inventory design pass. Branch waste is in this pass at the owner's request. It reuses the **approved Central Store waste pattern** (Paper page "Inventory . Stock and Counting", Chapter 5 "Waste during the day", and the newer waste chapters of the Stock, Count and Waste pass). Draw the branch version from those screens; do not invent a new layout. Screens: [final-pass-screen-plan.md](final-pass-screen-plan.md).
 
@@ -40,6 +40,19 @@ Heads and members see item names and units but **no costs**. The Branch Manager 
 ## Reference screens
 
 The group uses the one **States kit** drawn in Group R and has its own wording table.
+
+## Design log
+
+### Batch W1, "Log it" (8 Oct 2026): approved
+Paper page "Inventory · Branch waste", chapter 1. Five phone screens cloned from the approved Central Store waste screens (page "Inventory · Counting redesign (Oct 7)", steps 16 to 20, not the older chapter with the fake status bar) and re-worded for a department: **W1** pick what was wasted, **W2** how much and why (number pad, reason chips Expired, Spoiled, Damaged in store, Prep error), **W3** check, then log (no PIN), **W4** Kitchen waste today (the department's entries, Reverse on each), **W5** reverse a wrong entry (reason Logged the wrong item, Wrong quantity or Other; the entry stays, marked reversed). Changes from the Central Store version: the header says the branch and the department, the avatar is the Kitchen head's, the note asks "Anything the Branch Manager should know?", and the usual items are things a department holds (Beef stew and Pilau replace Tomatoes and Wheat flour, because departments never hold raw ingredients). Each step caption says who it is for and how many taps.
+- The reason list is the approved Central Store list (Expired, Spoiled, Damaged in store, Prep error), not the earlier draft list in "The journey" above.
+- Waste is never PIN-signed (owner, 8 Oct 2026), so the Branch Manager's reverse on desktop (batch W2) is a reason only, not a reason and a PIN as the table above says.
+
+### Group W complete (8 Oct 2026): W1 and W2 approved by the owner
+Added after the W2 review: **W8** Waste for any branch, read only (Director, Accountant, Store Manager, System Admin: Branch column, "Branch: All branches" picker, no Reverse link, sidebar with Waste under Branches) and **W9** the wording table (the words, buttons and messages, who does what). The cover and screens index (9 screens) are at the top of the page. W1 is also approved.
+
+### Batch W2, "See it" (8 Oct 2026): approved
+Chapter 2 on the same page. **W6** Branch waste (Branch Manager, desktop; read by all desktop roles): Branch / Waste, four figures (Today, Last 7 days, Most wasted, Reversed), search and filters first (Department, Reason, Status, Date), a table by time, item, quantity, department, reason, logged by and value (KES), a Reverse link on every active entry, reversed entries struck through with a "Reversed 09:12 · wrong item" chip, and the numbered pager with rows per page. The sidebar has Waste active under Branch. **W7** Reverse any entry: the approved Central Store dialog (entry, logged by, value, the effect on stock and the waste total, a required reason: Logged the wrong item, Wrong quantity, Other), **no PIN** (owner, 8 Oct 2026: waste is never PIN-signed). No Log waste button on desktop: logging is a phone job for the department.
 
 ## Defaults taken here, owner to confirm when reviewing
 

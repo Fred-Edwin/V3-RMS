@@ -42,6 +42,21 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [ ] **PIN and summary are one sheet** on the head's send (step 5); the code should not add a separate PIN step.
 - [ ] **Branch Manager sidebar** (drawn in R2): Operations, Manage, Other income, Branch (open), Central Store and Procurement (collapsed). The code's Branch group should list Requisitions and Day only (Deliveries folded into the list tabs). The brand row shows the branch name ("NYERI TOWN") where the Central Store master shows "HUB".
 
+## Branch day group (final design pass, logged 8 Oct 2026)
+- [ ] **Day has two sub-links, Today and History** (curved connector-rail design), with a count badge on Today (departments still to count). **Waste** is a new single row in the Branch group next to Day. Today the nav table has one `Day` row for the Branch Manager (`/app/branch/day`). Heads and members get **Count** and **Waste** rows in the phone drawer.
+- [ ] **The Director, Accountant, Store Manager and System Admin read the same Day pages**, so their Branches group holds **Day** (Today, History) and **Waste**; their one Requisitions link stays in the Central Store group (Group R). The nav table has no Day row for them yet. Today for a hub role has a branch picker (to draw in B4).
+- [ ] **Audit log must cover the new areas** (Requisitions, Dispatch, Discrepancies, Branch day, Branch waste), get a Branch filter, and the Branch Manager needs a branch-scoped **Audit log** link. Today it is hub-only (`audit.read`, Store Manager, Accountant, Director) and lists Catalog, Suppliers, Restock levels, Purchasing, Payments and Prep only. See `branch-day-flow.md`, "Audit trail".
+- [ ] **Words:** Opening stock, Closing stock (the evening count), Used today, Used value (KES) and Closing stock value (KES). The old screens and code say "counted", "consumption" and "gap".
+- [ ] **No unusual-figure rule.** The earlier draft asked for a reason on an unusual figure, a Director notice and a Settings rule; all removed. Do not build them. The department figures show a **Yesterday** column instead.
+- [ ] **New record number `DAY-<branch>-nnnn`**, and every usage entry the close writes shows it as a link back to the day file.
+- [ ] **Correct a count** (one item, reason, PIN, one linked ledger entry) and the **printed day sheet** (A4, one cover and one page per department, signatures and QR on the last page, a corrected sheet is a new document and the earlier one is kept) are new.
+- [ ] **History** uses the approved date range picker (page "Inventory · Counting redesign (Oct 7)"); hub roles get a Branch column and filter.
+
+## Branch waste group (final design pass, logged 8 Oct 2026)
+- [ ] **Waste row** under Branch for the Branch Manager, and under Branches for the hub roles (read only, Branch column and "Branch: All branches" picker). Heads and members log waste from the phone drawer (Waste row). Not in `nav-table.ts` yet.
+- [ ] **Branch Manager reverse is reason only, no PIN** (owner, 8 Oct 2026); the earlier draft said reason and PIN.
+- [ ] The phone screens are the approved Central Store waste screens re-worded for a department (header shows the branch and department; items are things a department holds).
+
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
 - Requisitions, Dispatch and Branch day (not approved).

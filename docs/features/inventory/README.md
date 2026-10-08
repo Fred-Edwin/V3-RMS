@@ -43,7 +43,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [counting](../../../backend/src/modules/inventory/counting/README.md) | Counts (many a day, any scope), review and approve, Count setup, settings, the Director's flagged lines, prints | Stock and Counting | approved | **rebuilt** (8 Oct 2026, awaiting merge) |
 | [requisitions](../../../backend/src/modules/inventory/requisitions/README.md) | Branch requisition and approval | Requisition and dispatch | approved (8 Oct 2026) | old flow, pending redo |
 | [dispatch](../../../backend/src/modules/inventory/dispatch/README.md) | Fulfil, delivery, branch receiving, discrepancies | Requisition and dispatch | not approved | old flow, pending redo |
-| [branch-day](../../../backend/src/modules/inventory/branch-day/README.md) | Branch count, close, reopen, next-morning opening | Counting and closing | not approved | old flow, pending redo |
+| [branch-day](../../../backend/src/modules/inventory/branch-day/README.md) | Branch count, close, correct a count, history (no reopen), next-morning opening | Counting and closing | approved (8 Oct 2026) | old flow, pending redo |
 | `_shared` | Stock scope helpers and cross-cutting tests | n/a | n/a | n/a |
 
 ## Roles
