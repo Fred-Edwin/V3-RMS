@@ -78,7 +78,8 @@ export const dispatchRepository = {
       type: r.type,
       openedAt: r.openedAt,
       toSite: r.site,
-      sections: r.sections,
+      // A department added in Block 1 has no legacy key; the old dispatch cannot see it until Block 2 replaces it (contract §10).
+      sections: r.sections.flatMap((s) => (s.departmentTag ? [{ ...s, departmentTag: s.departmentTag }] : [])),
       dispatches: r.dispatches,
     }));
   },
@@ -125,13 +126,20 @@ export const dispatchRepository = {
       type: requisition.type,
       openedAt: requisition.openedAt,
       toSiteName: requisition.site.name,
-      sections: requisition.sections.map((s) => ({
-        id: s.id,
-        departmentTag: s.departmentTag,
-        status: s.status,
-        requisition: { id: requisition.id, siteId: requisition.siteId, toSiteName: requisition.site.name },
-        lines: s.lines,
-      })),
+      // Sections of a department added in Block 1 (no legacy key) stay invisible to the old dispatch (contract §10).
+      sections: requisition.sections.flatMap((s) =>
+        s.departmentTag
+          ? [
+              {
+                id: s.id,
+                departmentTag: s.departmentTag,
+                status: s.status,
+                requisition: { id: requisition.id, siteId: requisition.siteId, toSiteName: requisition.site.name },
+                lines: s.lines,
+              },
+            ]
+          : [],
+      ),
     };
   },
 

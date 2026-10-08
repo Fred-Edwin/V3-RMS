@@ -236,7 +236,7 @@ const run = async (): Promise<void> => {
       });
 
       const requisition = await tx.requisition.create({
-        data: { siteId: town.id, type: 'AD_HOC', note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id, openedAt: daysAgo(11, 7), approvedAt: daysAgo(11, 8) },
+        data: { siteId: town.id, type: 'EXTRA', reference: `REQ-FIX-${Date.now().toString().slice(-6)}`, note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id, openedAt: daysAgo(11, 7), approvedAt: daysAgo(11, 8) },
       });
       const dispatchAt = daysAgo(11);
       const dispatch = await tx.dispatch.create({
