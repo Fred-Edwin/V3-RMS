@@ -12,7 +12,7 @@ const holds =
   (c: Capability): boolean =>
     caps.includes(c);
 
-const READ_ALL = holds('catalog.read', 'catalog.see_costs', 'restock.read', 'suppliers.read', 'payables.read', 'orders.read', 'prep.read', 'prep.read_flags', 'audit.read');
+const READ_ALL = holds('catalog.read', 'catalog.see_costs', 'restock.read', 'suppliers.read', 'payables.read', 'orders.read', 'prep.read', 'prep.read_flags', 'audit.read', 'requisitions.read', 'departments.read');
 const EVERYTHING = (): boolean => true;
 const BRANCHES = [
   { id: 'b-town', name: 'Nyeri Town' },
@@ -89,7 +89,7 @@ describe('every desktop role keeps every link it had before', () => {
       '/app/manage/reports',
       '/app/inbox',
       '/app/manage/staff',
-      '/app/manage/departments',
+      '/app/manage/department-settings',
       '/app/manage/menu',
       '/app/manage/shifts',
       '/app/manage/delivery-zones',
@@ -104,7 +104,7 @@ describe('every desktop role keeps every link it had before', () => {
       '/app/inventory/catalog',
     ],
     HR_MANAGER: ['/app/hr', '/app/hr/staff', '/app/hr/contract-types', '/app/hr/leave', '/app/hr/leave/calendar', '/app/hr/attendance', '/app/hr/shifts', '/app/hr/payroll', '/app/inbox', '/app/profile'],
-    STORE_MANAGER: ['/app/inventory/receiving', '/app/inventory/purchasing', '/app/inventory/prep', '/app/inventory/dispatch', '/app/inventory/suppliers', '/app/inventory/catalog', '/app/inventory/audit-log', '/app/inventory/settings'],
+    STORE_MANAGER: ['/app/inventory/receiving', '/app/inventory/purchasing', '/app/inventory/prep', '/app/inventory/requisitions', '/app/inventory/suppliers', '/app/inventory/catalog', '/app/inventory/audit-log', '/app/inventory/settings'],
   };
   for (const [role, expected] of Object.entries(had) as Array<[AppRole, string[]]>) {
     it(`${role}`, () => {
@@ -138,14 +138,17 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
 
   it('gives the Store Manager every destination, with Restock levels as the last branch under Stock & counts', () => {
     const groups = hub(navFor(ctxFor('STORE_MANAGER', { can: EVERYTHING })));
-    expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'dispatch', 'stock-counts', 'suppliers', 'catalog', 'audit-log', 'inventory-settings']);
+    expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'requisitions', 'stock-counts', 'suppliers', 'catalog', 'audit-log', 'inventory-settings']);
+    expect(item(groups, 'requisitions')?.subItems?.map((s) => s.key)).toEqual(['queue', 'discrepancies', 'history']);
     expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key)).toEqual(['overview', 'items', 'counts', 'waste', 'ledger', 'restock-levels']);
   });
 
   it('gives the other desktop roles the same tree, cut to what they may open today', () => {
     for (const role of ['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
       const groups = hub(navFor(ctxFor(role)));
-      expect(keys(groups), role).toEqual(['receiving', 'purchasing', 'prep', 'stock-counts', 'suppliers', 'catalog', 'audit-log']);
+      // The Branch Manager's Requisitions row is in the Branch group, so only the four hub roles get one here.
+      const requisitions = role === 'MANAGER' ? [] : ['requisitions'];
+      expect(keys(groups), role).toEqual(['receiving', 'purchasing', 'prep', ...requisitions, 'stock-counts', 'suppliers', 'catalog', 'audit-log']);
       // The old-flow stock screens are not theirs until Stock & counts is rebuilt: only Restock levels branches off.
       expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key), role).toEqual(['restock-levels']);
     }
@@ -270,8 +273,32 @@ describe('which row the current page lights', () => {
     expect(activeFor(storeManager, '/app/inventory/stock/restock-levels')).toMatchObject({ activeSubKey: 'restock-levels', framed: true });
   });
 
-  it('lights Dispatch for a discrepancy, which is resolved from the dispatch queue', () => {
-    expect(activeFor(storeManager, '/app/inventory/discrepancies/42').activeKey).toBe('dispatch');
+  it('lights Dispatch for a discrepancy on the Attendant, which is resolved from the dispatch queue', () => {
+    const attendant = navFor(ctxFor('STORE_ATTENDANT', { can: EVERYTHING }));
+    expect(activeFor(attendant, '/app/inventory/discrepancies/42').activeKey).toBe('dispatch');
+  });
+
+  it('gives the Branch Manager one Requisitions row (Queue, Discrepancies, History) and no Deliveries row', () => {
+    const groups = navFor(ctxFor('MANAGER', { can: EVERYTHING }));
+    expect(item(groups, 'branch-requisitions')?.subItems?.map((s) => s.href)).toEqual(['/app/branch/requisitions', '/app/branch/requisitions/discrepancies', '/app/branch/requisitions/history']);
+    expect(keys(groups)).not.toContain('branch-deliveries');
+    expect(activeFor(groups, '/app/branch/requisitions/some-id')).toMatchObject({ activeKey: 'branch-requisitions', activeSubKey: 'queue' });
+    expect(activeFor(groups, '/app/branch/requisitions/history')).toMatchObject({ activeSubKey: 'history' });
+  });
+
+  it('puts Departments under Branch Settings for the Director and under Manage for the Branch Manager', () => {
+    const dir = navFor(ctxFor('DIRECTOR', { can: EVERYTHING }));
+    expect(item(dir, 'director-settings')?.subItems?.map((s) => s.href)).toEqual(['/app/director/settings', '/app/director/settings/departments']);
+    expect(hrefs(navFor(ctxFor('MANAGER', { can: EVERYTHING })))).toContain('/app/manage/department-settings');
+  });
+
+  it('keeps Dispatch for the Attendant only; hub desktop roles get one Requisitions row instead', () => {
+    for (const role of ['STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const groups = navFor(ctxFor(role, { can: EVERYTHING }));
+      expect(keys(groups), role).toContain('requisitions');
+      expect(keys(groups), role).not.toContain('dispatch');
+    }
+    expect(keys(navFor(ctxFor('STORE_ATTENDANT', { can: EVERYTHING })))).toContain('dispatch');
   });
 
   it('says whether the page draws its own top bar: old pages do not, rebuilt screens do', () => {
