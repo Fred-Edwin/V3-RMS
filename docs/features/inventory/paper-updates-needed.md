@@ -57,6 +57,15 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [ ] **Branch Manager reverse is reason only, no PIN** (owner, 8 Oct 2026); the earlier draft said reason and PIN.
 - [ ] The phone screens are the approved Central Store waste screens re-worded for a department (header shows the branch and department; items are things a department holds).
 
+## Role-coverage gap fixes (logged 8 Oct 2026; see `role-coverage.md`)
+- [ ] **Attendant:** a "Stock & counts" Home (step 52), My counts (53), My waste with earlier days (54), and a Dispatch Done tab (G3). Code today opens Stock & counts straight into Counts.
+- [ ] **Department Head and member:** Past days under Day (steps 19 and 20), Kitchen waste with earlier days (55), History with Requisitions and Deliveries tabs (G1, G2), and the phone menu rows on the "Phone menus by role" artboard.
+- [ ] **Lists:** Counts and Waste gain a date range and (Waste) search, filters and a pager (56, 57); Prep history needs its From and To dates (the design has them, production does not).
+- [ ] **Audit log:** an Area menu with Stock counts, Waste and Stock adjustments; the date range picker instead of "Today / any time" (58, 59); a Branch Manager Audit log link under Branch (60).
+- [ ] **Hub roles:** Departments of any branch, read only, with a branch picker (G4); the Director's route to it is a proposal.
+- [ ] **Phones:** remove the fake "9:41" status bar from the built phone screens (seen in production on Catalog and Dispatch).
+- [ ] **Notifications:** build to the notification map; settle the two Open rows first.
+
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
 - Requisitions, Dispatch and Branch day (not approved).

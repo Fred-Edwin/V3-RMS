@@ -1,6 +1,6 @@
 # Branch waste: flow and rules (design approved 8 Oct 2026; where the table below says a PIN for the Branch Manager's reverse, the design log wins: reason only, no PIN)
 
-Group W, the last group of the final Inventory design pass. Branch waste is in this pass at the owner's request. It reuses the **approved Central Store waste pattern** (Paper page "Inventory . Stock and Counting", Chapter 5 "Waste during the day", and the newer waste chapters of the Stock, Count and Waste pass). Draw the branch version from those screens; do not invent a new layout. Screens: [final-pass-screen-plan.md](final-pass-screen-plan.md).
+Group W, the last group of the final Inventory design pass. Branch waste is in this pass at the owner's request. It reuses the **approved Central Store waste pattern** (Paper page "Inventory · Counting redesign (Oct 7)", chapter 4 and chapter 11 step 55; the older chapter on the "Stock and Counting" page was deleted on 8 Oct 2026). Draw the branch version from those screens; do not invent a new layout. Screens: [final-pass-screen-plan.md](final-pass-screen-plan.md).
 
 ## In one paragraph
 
