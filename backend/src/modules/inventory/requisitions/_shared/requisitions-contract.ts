@@ -269,6 +269,7 @@ export const rowMomentsSchema = z.object({
   /** The moment the last section went in (Collecting became Ready to approve). */
   allInAt: isoDateTime.nullable(),
   urgentAt: isoDateTime.nullable(),
+  /** R9 history rows: when the head's section was sent. R1 rows: null for now. */
   sentAt: isoDateTime.nullable(),
   closedAt: isoDateTime.nullable(),
   cancelledAt: isoDateTime.nullable(),

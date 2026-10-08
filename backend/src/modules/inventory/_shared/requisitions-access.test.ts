@@ -23,12 +23,14 @@ const ALL: Capability[] = [
   'departments.write',
 ];
 const READS: Capability[] = ['requisitions.read', 'requisitions.see_value', 'departments.read'];
-const BRANCH_JOBS: Capability[] = ALL.filter((c) => !READS.includes(c));
+const ON_BEHALF: Capability[] = ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf'];
+const BRANCH_JOBS: Capability[] = ALL.filter((c) => !READS.includes(c) && !ON_BEHALF.includes(c));
 
 const grid: Record<string, Capability[]> = {
   // The Store Manager reads everything here; the branch's jobs are not theirs.
   STORE_MANAGER: READS,
-  SYSTEM_ADMIN: ALL,
+  // Everything except "on behalf", which is the Branch Manager's alone.
+  SYSTEM_ADMIN: ALL.filter((c) => !ON_BEHALF.includes(c)),
   ACCOUNTANT: READS,
   // The Director reads everything and may approve any requisition or addition; no other write.
   DIRECTOR: [...READS, 'requisitions.approve'],
@@ -72,11 +74,10 @@ describe('Requisitions and Departments capability grid', () => {
     }
   });
 
-  it('"on behalf" (Amendment 2) is the Branch Manager and the System Admin only: not the Director, even though the Director approves', () => {
-    for (const cap of ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf'] as const) {
+  it('"on behalf" (Amendment 2) is the Branch Manager alone: not the System Admin, not the Director (who approves)', () => {
+    for (const cap of ON_BEHALF) {
       expect(actorCan({ role: 'MANAGER' } as never, cap), `MANAGER ${cap}`).toBe(true);
-      expect(actorCan({ role: 'SYSTEM_ADMIN' } as never, cap), `SYSTEM_ADMIN ${cap}`).toBe(true);
-      for (const role of ['DIRECTOR', 'STORE_MANAGER', 'ACCOUNTANT', 'STORE_ATTENDANT', 'CHEF', 'WAITER']) {
+      for (const role of ['SYSTEM_ADMIN', 'DIRECTOR', 'STORE_MANAGER', 'ACCOUNTANT', 'STORE_ATTENDANT', 'CHEF', 'WAITER']) {
         expect(actorCan({ role } as never, cap), `${role} ${cap}`).toBe(false);
       }
     }
