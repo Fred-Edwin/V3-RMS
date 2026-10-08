@@ -1,5 +1,5 @@
-import { DepartmentLandingScreen } from '@/features/inventory/requisitions';
+import { HeadHomeScreen } from '@/features/inventory/requisitions';
 
 export default function RequisitionsPage() {
-  return <DepartmentLandingScreen />;
+  return <HeadHomeScreen />;
 }

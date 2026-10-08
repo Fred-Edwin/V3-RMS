@@ -38,6 +38,20 @@ const ROLES: Array<{ label: string; user: AuthUser; isDepartmentHead?: boolean }
     },
   },
   {
+    label: 'Department Head (Kitchen)',
+    user: {
+      id: 'dev-kitchen-head',
+      name: 'Grace Wanjiru',
+      email: 'kitchen-head@dev.test',
+      role: 'CHEF',
+      organizationId: 'org-branch-1',
+      organizationName: 'Nyeri Town',
+      departmentTag: 'KITCHEN',
+      isDepartmentHead: true,
+    },
+    isDepartmentHead: true,
+  },
+  {
     label: 'Department Head (Barista)',
     user: {
       id: 'dev-dept-head',
@@ -79,6 +93,7 @@ const SCREENS = [
   { label: 'Item catalog', href: '/app/inventory/catalog' },
   { label: 'Suppliers', href: '/app/inventory/suppliers' },
   { label: 'Restock levels (department)', href: '/app/inventory/restock-levels' },
+  { label: 'Requisitions (head, mock)', href: '/app/requisitions' },
 ];
 
 function fakeAccessToken(user: AuthUser, isDepartmentHead: boolean): string {
