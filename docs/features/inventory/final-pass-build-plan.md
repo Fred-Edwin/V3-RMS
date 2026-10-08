@@ -8,12 +8,13 @@ This file is temporary working state (playbook §11). Extract anything still in 
 
 | Item | What | State | Contract | Owner check in production |
 |---|---|---|---|---|
-| Lane 0 | Status bar removed; Prep history dates; Audit log Area menu and range picker; Counts and Waste lists with date range and pager | built on `feat/lane-0-quick-fixes` (8 Oct); follow-up running: pending counts always show, 390/768/1024 and accessibility checks; then commit, PR, merge to main | amends the Stock/Counting/Waste contract (list filters) | pending |
+| Lane 0 | Status bar removed; Prep history dates; Audit log Area menu and range picker; Counts and Waste lists with date range and pager | merged to main (#102, 8 Oct) | amended the Stock/Counting/Waste contract (list filters; waiting counts always show) | pending |
 | Block 1 | Requisitions + foundations (departments as data, branch code, numbering, notification layer, heads onto the shell) | **integrated on `feat/req-integration` (8 Oct), awaiting the owner's go.** Back end A and B, phone and desktop screens are merged and now run on the real API (mocks deleted). Walked in a real browser as a head, the Branch Manager, the Director, the Store Manager and the Accountant (Attendant by API). Found and fixed: stage tabs never fetched, screens did not update live, the worker's escalation nudge never reached any browser (Redis bridge + all-sites room), added lines counted twice, drawer overflowed at 390. Backend build and 3704 tests pass, frontend build and 578 tests pass, the two database test files now pass together. Release steps: `block-1-release.md`; screens built without a drawing: `block-1-undrawn-review.md`. Not pushed or merged | frozen, Amendments 1 and 2 | pending |
-| Block 2 | Dispatch and discrepancies | not started | to write after Block 1 | pending |
+| Block 2 | Dispatch and discrepancies | contract frozen by the owner (`dispatch-contract.md`, with "leave a department out at the final review"); contract-in-code session running on `feat/dispatch-contract` | frozen, in code next | pending |
 | Block 3 | Branch waste | not started | to write after Block 2 | pending |
 | Block 4 | Branch day | not started | to write after Block 3 | pending |
-| Block 5 | Gap fixes: Attendant Home, My counts, My waste; member waste history | not started | small amendment to the frozen Stock/Counting/Waste contract, owner approves | pending |
+| Block 5 | Gap fixes: Attendant home (52), My counts (53), My waste today and earlier (54). Step 55 (department waste, today and earlier) proposed to move to Block 3 | amendment drafted (`stock-count-waste-amendment-2.md`), waiting for the owner's approval; two small sessions (back end, then front end) | draft amendment | pending |
+| Paper session 4 | Stale stamps; the design for items, head and staff of an added department; catch-up for Block 1's undrawn pieces | prompt written (`docs/sessions/final-pass-paper-session-4-catch-up.md`) | none | n/a |
 
 Sessions per block and their prompts: `docs/sessions/final-pass-*.md`. Common rules every prompt repeats: `docs/sessions/final-pass-session-common.md`.
 
