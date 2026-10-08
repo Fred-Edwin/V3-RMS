@@ -2,10 +2,10 @@ import { Suspense } from 'react';
 
 import { RequisitionsListScreen } from '@/features/inventory';
 
-export default function BranchRequisitionsHistoryPage() {
+export default function InventoryRequisitionsPage() {
   return (
     <Suspense>
-      <RequisitionsListScreen base="/app/branch/requisitions" mode="history" />
+      <RequisitionsListScreen base="/app/inventory/requisitions" mode="queue" />
     </Suspense>
   );
 }

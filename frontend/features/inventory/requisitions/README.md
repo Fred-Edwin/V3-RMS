@@ -14,5 +14,14 @@ Phone (heads): home, section, add item, send sheet, sent, my requisitions. Deskt
 ## Amendment 2 (8 Oct 2026)
 The mirror and its fixtures carry Amendment 2 (`docs/features/inventory/requisitions-amendment-2.md`). Two things change what the screens write: the **Next step card and the tracker are facts only** (`nextStep` is `{ action, departmentId, facts }`, a tracker step has no `label`), so each screen writes the title, body and labels from Paper step 22; and the **cancel reason is "preset — note"** (`CANCEL_PRESETS`, `parseCancelReason`). The six new error codes are listed in `REQUISITION_ERROR_CODES`. Their wording by audience (heads: "Your list…", managers: "That section…") is **not written yet**: it comes from the front-end sessions' gap reports, which are not on this branch.
 
+## Desktop (Block 1, built on `feat/req-fe-desktop`)
+- **Screens:** `requisitions-list-screen` (steps 7, 7b, 7c, 7d, 18b: one list for every role, modes queue / discrepancies / history, tabs and filters in the URL), `requisition-file-screen` (8, 9, 11, 12, 13, 16, cancelled file), `approve-drawer` (11), `cancel-dialog` (19), `additions-panel` (16), `file-items` (rail, lines, change-quantity popover), `file-extra-tabs` (Documents, Activity), `fill-for-head-sheet` ("Fill it myself"), `start-dialog`, `requisition-print-screen` (17, no money). Departments is in `../departments`.
+- **Words:** `_shared/lib/requisitions-words.ts` writes every Next step title and body, tracker label, rail line, chip and error sentence (by audience) from Paper step 22; the back end sends facts only. `_shared/lib/list-copy.ts` is the per-tab empty and error wording on the States kit.
+- **Service:** `_shared/services/requisitions-api.ts`. `NEXT_PUBLIC_REQUISITIONS_MOCK=1` answers from the contract fixtures (`requisitions-mock.ts`) until back end B lands; unset it at integration.
+- **Badges:** `hooks/use-requisition-badges.ts` reads R2 and refetches on the `inventory:badges` socket nudge and on focus; the shell shows it on the Requisitions row.
+- **Routes:** `/app/branch/requisitions[/discrepancies|/history|/:id]` (Branch Manager), `/app/inventory/requisitions[...]` (hub roles), `/app/branch/requisitions-print/:id`.
+- **Built without a Paper screen** (same style, reported to the owner): the file's "…" menu, Documents and Activity contents, the Start dialog, "Fill it myself" editor, Cancelled file line, the Other-reason field in the change popover, Restore, Add and Rename dialogs.
+- Old desktop screens (approval, history, both manager phone approval screens) and the print handoff are deleted. The old head screens and hooks stay for the phone session and the old dispatch.
+
 ## Status
-Contract mirror and wording landed; components, hooks and services not started.
+Desktop built against fixtures; real API not wired. Phone screens are another session's.

@@ -38,6 +38,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead;
   }
 
+  // The printed requisition is read by every desktop role that reads requisitions (the file itself is gated by the API's table).
+  if (pathname.startsWith('/app/branch/requisitions-print')) {
+    return role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // Milestone Four, Session B — Branch Manager approval workspace
   // (decision #8: lives at /app/branch, not under /app/requisitions).
   if (pathname.startsWith('/app/branch')) {
@@ -133,6 +138,10 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     }
     if (pathname.startsWith('/app/inventory/catalog')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
+    }
+    // Requisitions (rebuilt, Block 1): every desktop role reads the list and the file; the API's access table decides what each may do.
+    if (pathname.startsWith('/app/inventory/requisitions')) {
+      return isDesktopCentralStoreRole;
     }
     // Purchasing and Receiving (mock-first rebuild): every desktop role reads them, the Attendant works them on the phone.
     if (pathname.startsWith('/app/inventory/purchasing') || pathname.startsWith('/app/inventory/receiving')) {

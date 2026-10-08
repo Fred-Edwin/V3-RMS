@@ -6,6 +6,7 @@ const request = async <T>(
   path: string,
   body?: unknown,
   token?: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> => {
   const response = await fetch(`${env.apiUrl}${path}`, {
     method,
@@ -14,6 +15,7 @@ const request = async <T>(
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -70,14 +72,14 @@ export const apiClient = {
   get: <T>(path: string, token?: string): Promise<T> => request<T>('GET', path, undefined, token),
   getWithEnvelope: <T>(path: string, token?: string): Promise<ApiResponseEnvelope<T>> =>
     requestEnvelope<T>('GET', path, undefined, token),
-  post: <T>(path: string, body: unknown, token?: string): Promise<T> =>
-    request<T>('POST', path, body, token),
+  post: <T>(path: string, body: unknown, token?: string, headers?: Record<string, string>): Promise<T> =>
+    request<T>('POST', path, body, token, headers),
   postWithEnvelope: <T>(path: string, body: unknown, token?: string): Promise<ApiResponseEnvelope<T>> =>
     requestEnvelope<T>('POST', path, body, token),
   put: <T>(path: string, body: unknown, token?: string): Promise<T> =>
     request<T>('PUT', path, body, token),
-  patch: <T>(path: string, body: unknown, token?: string): Promise<T> =>
-    request<T>('PATCH', path, body, token),
+  patch: <T>(path: string, body: unknown, token?: string, headers?: Record<string, string>): Promise<T> =>
+    request<T>('PATCH', path, body, token, headers),
   delete: <T>(path: string, token?: string, body?: unknown): Promise<T> =>
     request<T>('DELETE', path, body, token),
 };

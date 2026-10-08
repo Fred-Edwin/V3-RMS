@@ -61,10 +61,10 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox' | 'prep-needs-look';
+export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
-export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags' };
+export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read' };
 
 interface Visibility {
   /** Roles that see the row. Never wider than what the route gate lets in. */
@@ -157,8 +157,6 @@ const HOUSEKEEPING: AppRole = 'HOUSEKEEPING';
 const DESKTOP_HUB: readonly AppRole[] = [STORE_MANAGER, ACCOUNTANT, DIRECTOR, MANAGER, SYSTEM_ADMIN];
 /** Those, plus the Attendant, who works the Central Store from a phone. */
 const HUB_ALL: readonly AppRole[] = [...DESKTOP_HUB, STORE_ATTENDANT];
-/** The screens still on the old Central Store flow. */
-const OLD_FLOW: readonly AppRole[] = [STORE_MANAGER, STORE_ATTENDANT];
 const ALL_HUMAN: readonly AppRole[] = [WAITER, CHEF, BARISTA, MANAGER, DIRECTOR, ACCOUNTANT, HR_MANAGER, SYSTEM_ADMIN, STEWARD, HOUSEKEEPING, STORE_MANAGER, STORE_ATTENDANT];
 const SHIFT_STAFF: readonly AppRole[] = [WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
 
@@ -201,7 +199,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'manage-analytics', label: 'Analytics', group: 'mgr-operations', icon: ico.analytics, oldHref: '/app/manage/reports', roles: [MANAGER] },
   { key: 'manage-inbox', label: 'Inbox', group: 'mgr-operations', icon: ico.inbox, oldHref: '/app/inbox', roles: [MANAGER], badge: 'inbox' },
   { key: 'manage-staff', label: 'Staff', group: 'mgr-manage', icon: ico.staff, oldHref: '/app/manage/staff', roles: [MANAGER] },
-  { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, oldHref: '/app/manage/departments', roles: [MANAGER] },
+  // Paper step 20: Departments in Settings (add, rename, retire). The old heads page stays at /app/manage/departments until its own redo.
+  { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, newHref: '/app/manage/department-settings', roles: [MANAGER] },
   { key: 'manage-menu', label: 'Menu', group: 'mgr-manage', icon: ico.menu, oldHref: '/app/manage/menu', roles: [MANAGER] },
   { key: 'manage-shifts', label: 'Shifts', group: 'mgr-manage', icon: ico.shifts, oldHref: '/app/manage/shifts', roles: [MANAGER] },
   { key: 'manage-delivery-zones', label: 'Delivery Zones', group: 'mgr-manage', icon: ico.delivery, oldHref: '/app/manage/delivery-zones', roles: [MANAGER] },
@@ -213,8 +212,20 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'income-record', label: 'Record Income', group: 'mgr-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [MANAGER] },
   { key: 'income-entries', label: 'Income Entries', group: 'mgr-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [MANAGER] },
   // The Branch workspace is rebuilt: its screens draw their own top bar.
-  { key: 'branch-requisitions', label: 'Requisitions', group: 'mgr-branch', icon: ico.clipboard, newHref: '/app/branch/requisitions', roles: [MANAGER] },
-  { key: 'branch-deliveries', label: 'Deliveries', group: 'mgr-branch', icon: ico.truck, newHref: '/app/branch/deliveries', roles: [MANAGER] },
+  // One Requisitions row with Queue, Discrepancies and History; the Deliveries row is gone (folded into the Queue tabs).
+  {
+    key: 'branch-requisitions',
+    label: 'Requisitions',
+    group: 'mgr-branch',
+    icon: ico.clipboard,
+    roles: [MANAGER],
+    badge: 'requisitions',
+    subItems: [
+      { key: 'queue', label: 'Queue', newHref: '/app/branch/requisitions', roles: [MANAGER], badge: 'requisitions' },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/branch/requisitions/discrepancies', roles: [MANAGER] },
+      { key: 'history', label: 'History', newHref: '/app/branch/requisitions/history', roles: [MANAGER] },
+    ],
+  },
   { key: 'branch-day', label: 'Day', group: 'mgr-branch', icon: ico.day, newHref: '/app/branch/day', roles: [MANAGER] },
 
   // ── Director ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -225,7 +236,18 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'director-income', label: 'Categories & Entries', group: 'dir-income', icon: ico.tags, oldHref: '/app/director/other-income', roles: [DIRECTOR] },
   { key: 'director-incidents', label: 'Incident Log', group: 'dir-operations', icon: ico.shield, oldHref: '/app/director/incidents', roles: [DIRECTOR] },
   { key: 'director-discounts', label: 'Discounts', group: 'dir-operations', icon: ico.percent, oldHref: '/app/admin/discounts', roles: [DIRECTOR] },
-  { key: 'director-settings', label: 'Branch Settings', group: 'dir-operations', icon: ico.settings, oldHref: '/app/director/settings', roles: [DIRECTOR] },
+  // Branch Settings is an existing page; Departments (Paper G4, read only with a branch picker) sits under it.
+  {
+    key: 'director-settings',
+    label: 'Branch Settings',
+    group: 'dir-operations',
+    icon: ico.settings,
+    roles: [DIRECTOR],
+    subItems: [
+      { key: 'settings', label: 'Settings', oldHref: '/app/director/settings', roles: [DIRECTOR] },
+      { key: 'departments', label: 'Departments', newHref: '/app/director/settings/departments', roles: [DIRECTOR], capability: 'departments.read' },
+    ],
+  },
   { key: 'director-payroll', label: 'Payroll', group: 'dir-operations', icon: ico.payslips, oldHref: '/app/hr/payroll', roles: [DIRECTOR] },
   { key: 'director-corporate', label: 'Corporate Accounts', group: 'dir-credit', icon: ico.departments, oldHref: '/app/director/corporate-accounts', roles: [DIRECTOR], flag: 'credit' },
   { key: 'director-outstanding', label: 'Outstanding Balances', group: 'dir-credit', icon: ico.alert, oldHref: '/app/director/outstanding-balances', roles: [DIRECTOR], flag: 'credit' },
@@ -294,8 +316,24 @@ export const NAV_ROWS: readonly NavRow[] = [
       { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: HUB_ALL },
     ],
   },
-  // Discrepancies are resolved from the dispatch queue, so they light Dispatch.
-  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, oldHref: '/app/inventory/dispatch', framed: true, match: ['/app/inventory/discrepancies'], roles: OLD_FLOW, hub: true },
+  // One Requisitions row for the hub desktop roles (it replaces Dispatch for them); the Branch Manager has the Branch group's own row.
+  {
+    key: 'requisitions',
+    label: 'Requisitions',
+    group: 'central-store',
+    icon: ico.clipboard,
+    roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN],
+    capability: 'requisitions.read',
+    hub: true,
+    badge: 'requisitions',
+    subItems: [
+      { key: 'queue', label: 'Queue', newHref: '/app/inventory/requisitions', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN], badge: 'requisitions' },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/inventory/requisitions/discrepancies', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+      { key: 'history', label: 'History', newHref: '/app/inventory/requisitions/history', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+    ],
+  },
+  // The Attendant keeps Dispatch (Block 2 rebuilds its page). Discrepancies are resolved from the dispatch queue, so they light Dispatch.
+  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, oldHref: '/app/inventory/dispatch', framed: true, match: ['/app/inventory/discrepancies'], roles: [STORE_ATTENDANT], hub: true },
   {
     key: 'stock-counts',
     label: 'Stock & counts',

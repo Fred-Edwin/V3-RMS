@@ -37,6 +37,13 @@ export { DepartmentRestockLevelsScreen } from './restock/components/screens/depa
 export { SuppliersListScreen } from './suppliers/components/screens/suppliers-list-screen';
 export { SupplierPageScreen } from './suppliers/components/screens/supplier-page-screen';
 
+// Requisitions rebuild (Block 1, desktop): the list, the file, the printed A4, the sidebar badge, and Departments in Settings.
+export { RequisitionsListScreen } from './requisitions/components/requisitions-list-screen';
+export { RequisitionFileScreen } from './requisitions/components/requisition-file-screen';
+export { RequisitionPrintScreen } from './requisitions/components/requisition-print-screen';
+export { useRequisitionBadges } from './requisitions/hooks/use-requisition-badges';
+export { DepartmentsScreen } from './departments/components/departments-screen';
+
 // Milestone Three — Prep.
 export { PrepHomeScreen } from './prep/runs/components/prep-home-screen';
 export { RecordRunScreen } from './prep/record/components/record-run-screen';

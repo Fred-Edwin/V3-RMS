@@ -10,4 +10,4 @@ The Departments settings screen: a table of a branch's departments (name, head, 
 Amendment 2: retire can answer `DEPARTMENT_HAS_OPEN_SECTIONS` (409) while any section is open. Restore stays and appears in a retired row's menu.
 
 ## Status
-Not built. Components (table, add and rename dialogs), hooks and services arrive in Block 1's desktop front-end session. Nav row: Operations › Branch Settings › Departments (`nav-table.ts`).
+Built (desktop, Block 1): `components/departments-screen.tsx` (table, Add and Rename dialogs, Retire with its confirmation, Restore) and `services/departments-api.ts` (R23 to R26; `NEXT_PUBLIC_REQUISITIONS_MOCK=1` answers from the fixtures). Routes: `/app/manage/department-settings` (Branch Manager, Manage › Departments; the old head-assignment page stays at `/app/manage/departments`) and `/app/director/settings/departments` (Director, read only with a branch picker, under Operations › Branch Settings). Tagging items, a head and staff to an added department waits for a Paper design.
