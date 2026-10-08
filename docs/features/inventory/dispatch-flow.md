@@ -96,7 +96,7 @@ Chapter 5, seven phone screens for the Store Attendant, thread `REQ-NYR-0112` an
 - **Open question for the owner:** one final signature means a department that is not ready holds the others. Group R steps 13 and 14 still show Kitchen and Barista on the way while Pastry is packing; they need updating if the owner confirms the single send (recommendation: update them to show all five leaving together).
 - **Judgement calls:** the second branch is invented (Karatina, code KRT); the attendant is shown by title only; times continue Group R (all packed 3:01, signed 3:03, left 3:05).
 
-### Batch D3, "The files" (8 Oct 2026): drawn, awaiting owner review
+### Batch D3, "The files" (8 Oct 2026): approved by the owner, 8 Oct 2026
 
 Chapter 7, desktop, Store Manager (every desktop role reads it). Numbering: D13 to D18 plus D17b, so Exceptions start at D19.
 - **D13 Dispatch file** (`DSP-NYR-0232`): tracker to "Counted at the branch", Next step card "Milk 1L is short by 2" with **Record a finding**, tabs Items / Documents / Activity, items with Sent, Counted and Gap.
@@ -116,7 +116,7 @@ Chapter 7, desktop, Store Manager (every desktop role reads it). Numbering: D13 
 When a link has several pages it uses the sub-link **design** of the approved Prep sidebar (chevron on the parent, indented rail, filled square on the active one, counts at the right). **Queue** (live work as tabs: Collecting, To approve, To pack, On the way, To confirm), **Discrepancies** (its own list: gap, finding, days open), **History** (closed and cancelled, with search and a date filter). Same three for every desktop role; Department Heads have no sidebar. Carriers and Departments stay in Settings. Rolled out to every desktop sidebar in Group R (Chapters 2 to 4, except step 20, which has the Manage group open) and Group D (D13 to D16). Drawn as new Group R steps 7c (Discrepancies list) and 7d (History). Working parts: "Parts · Requisitions sidebar states" and the Branch Manager and Store Manager sidebar parts.
 - **Not yet updated:** D18 (Carriers) still shows the old Requisitions-active sidebar; it should show Settings under Procurement.
 
-### Batch D4, "Exceptions and reference" (8 Oct 2026): drawn, awaiting owner review
+### Batch D4, "Exceptions and reference" (8 Oct 2026): approved by the owner, 8 Oct 2026 (Group D approved, with the sub-link rollout)
 
 Chapter 8, plus the group's cover and screens index (23 screens).
 - **D19 Confirm for a department** (Branch Manager, desktop drawer): Pastry's delivery not counted 2 hours after arrival; the Branch Manager does the same blind count, signs "on behalf of Pastry", PIN. The record shows who really counted.

@@ -23,7 +23,8 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Purchasing and Receiving | Approved | **Mock-data front-end complete** (5 Oct 2026): order to delivery, invoice, payment, closed file, statement, audit log, the Attendant's phone views and every exception, all on demo data kept in the browser. The old supplier "record invoice/payment" drawers are gone. Real back-end waits for client approval; its brief is `purchasing-mock/backend-rules.md` |
 | Prep, Stock, Waste, Counting | Approved | Old flow, rebuild pending |
 | Requisitions | Approved (8 Oct 2026, Paper chapters 1 to 4, 24 screens) | Old flow, rebuild pending |
-| Dispatch, Branch day | **Not approved** | Old flow. Needs Paper design first (final design pass: Dispatch next) |
+| Dispatch | Approved (8 Oct 2026, Paper chapters 5 to 8, 23 screens) | Old flow, rebuild pending |
+| Branch day, Branch waste | **Not approved** | Old flow. Needs Paper design first (final design pass: in a separate session) |
 
 **Next, in the owner's order:**
 1. ~~Purchasing mock Session 2~~ merged (the demo script is [features/inventory/purchasing-mock/demo-script.md](features/inventory/purchasing-mock/demo-script.md)).
