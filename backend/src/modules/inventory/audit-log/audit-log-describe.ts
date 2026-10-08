@@ -111,3 +111,35 @@ export function describeRestockChange(
 }
 
 export const describeSupplierCreated = (name: string, code: string): string => `Created supplier ${name} (${code})`;
+
+const itemsWord = (n: number): string => `${n} ${n === 1 ? 'item' : 'items'}`;
+
+/** Stock counts. "Signed the count · Samrat · 35 items · signed with PIN" (the counter signs; the Manager approves later). */
+export const describeCountSigned = (sections: string, itemsCounted: number): string => `Signed the count · ${sections} · ${itemsWord(itemsCounted)} · signed with PIN`;
+
+/** "Approved the count · 38 adjustments, net −KES 5,681 · signed with PIN"; with nothing posted: "no adjustments". */
+export const describeCountApproved = (adjustments: number, netKes: string): string =>
+  `Approved the count · ${adjustments === 0 ? 'no adjustments' : `${adjustments} ${adjustments === 1 ? 'adjustment' : 'adjustments'}, net ${netKes}`} · signed with PIN`;
+
+/** A count the Manager counted and signed themselves is applied at once: one entry, not two. */
+export const describeCountSignedAndApplied = (sections: string, itemsCounted: number, adjustments: number, netKes: string): string =>
+  `Signed and applied the count · ${sections} · ${itemsWord(itemsCounted)} · ${adjustments === 0 ? 'no adjustments' : `${adjustments} ${adjustments === 1 ? 'adjustment' : 'adjustments'}, net ${netKes}`} · signed with PIN`;
+
+/** "3 kg", "1.5 L": a quantity without trailing zeros, then its unit. */
+export const quantityWithUnit = (quantity: string, unit: string): string => `${trimDecimal(quantity)} ${unit}`;
+
+/** Waste. "Logged waste · Marinated chicken 3 kg · Expired · KES 1,260". */
+export const describeWasteLogged = (itemName: string, quantity: string, unit: string, reasonText: string, valueKes: string): string =>
+  `Logged waste · ${itemName} ${quantityWithUnit(quantity, unit)} · ${reasonText} · ${valueKes}`;
+
+/** "Reversed waste entry · Milk 6 L · reason: logged the wrong item". The note stands in for the reason when it is Other. */
+export const describeWasteReversed = (itemName: string, quantity: string, unit: string, reasonText: string, note: string | null): string =>
+  `Reversed waste entry · ${itemName} ${quantityWithUnit(quantity, unit)} · reason: ${note && reasonText === 'Other' ? note : reasonText.replace(/^./, (c) => c.toLowerCase())}`;
+
+/** Stock adjustments. "Posted a movement · Eggs −2 trays · reason Spoilage"; a reversing row reads "Reversed movement ADJ-0041 · …". */
+export function describeAdjustment(input: { itemName: string; signedQuantity: string; unit: string; reason: string | null; reverses: string | null }): string {
+  const qty = Number(input.signedQuantity);
+  const shown = qty < 0 ? `−${trimDecimal(input.signedQuantity.replace('-', ''))}` : `+${trimDecimal(input.signedQuantity)}`;
+  const head = input.reverses ? `Reversed movement ${input.reverses}` : 'Posted a movement';
+  return `${head} · ${input.itemName} ${shown} ${input.unit}${input.reason ? ` · reason ${input.reason}` : ''}`;
+}

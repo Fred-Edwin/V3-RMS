@@ -3,6 +3,9 @@ import { branchRepository } from '../../../repositories/branch-repository';
 import { auditLogRepository } from './audit-log-repository';
 import { auditLogService } from './audit-log-service';
 import { AuditLogQuerySchema } from './audit-log-validators';
+import { stockAdjustmentsSource } from './sources/stock-adjustments-source';
+import { stockCountsSource } from './sources/stock-counts-source';
+import { wasteSource } from './sources/waste-source';
 
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findActiveBranchOptions: vi.fn() } }));
 vi.mock('./audit-log-repository', () => ({
@@ -26,6 +29,10 @@ vi.mock('./audit-log-repository', () => ({
     actorIds: vi.fn(),
   },
 }));
+
+vi.mock('./sources/stock-counts-source', () => ({ stockCountsSource: { area: 'STOCK_COUNTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/waste-source', () => ({ wasteSource: { area: 'WASTE', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/stock-adjustments-source', () => ({ stockAdjustmentsSource: { area: 'STOCK_ADJUSTMENTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 
 const hubId = '11111111-1111-4111-8111-111111111111';
 const branchId = '22222222-2222-4222-8222-222222222222';
@@ -66,6 +73,11 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
+  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource]) {
+    vi.mocked(source.entries).mockResolvedValue([]);
+    vi.mocked(source.count).mockResolvedValue(0);
+    vi.mocked(source.actorIds).mockResolvedValue([]);
+  }
 });
 
 describe('auditLogService.list', () => {
@@ -81,7 +93,7 @@ describe('auditLogService.list', () => {
 
   it('scopes every read to the hub, and restock reads to the hub and its branches', async () => {
     await auditLogService.list(sm, query());
-    const scope = { hubId, restockOrgIds: [hubId, branchId] };
+    const scope = { hubId, restockOrgIds: [hubId, branchId], peopleOrgIds: [hubId, branchId] };
     expect(auditLogRepository.itemChanges).toHaveBeenCalledWith(scope, expect.anything(), 50);
     expect(auditLogRepository.restockChanges).toHaveBeenCalledWith(scope, expect.anything(), 50);
     expect(auditLogRepository.userNames).toHaveBeenCalledWith(scope, expect.any(Array));
@@ -118,7 +130,7 @@ describe('auditLogService.list', () => {
       purchasing: { action: 'Recorded payment', document: 'PAY-0031', detail: 'KES 12,000 by M-Pesa', orderId: 'o1', orderReference: 'LPO-0044', supplierName: 'Samrat' },
     });
     expect(page.pagination.total).toBe(5);
-    expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId] }, expect.anything(), ['PURCHASING', 'PAYMENTS'], 50);
+    expect(auditLogRepository.purchasingEntries).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId], peopleOrgIds: [hubId, branchId] }, expect.anything(), ['PURCHASING', 'PAYMENTS'], 50);
   });
 
   it('reads only the Payments rows when that area is asked for', async () => {
@@ -141,7 +153,7 @@ describe('auditLogService.list', () => {
     expect(page.entries[2]).toMatchObject({ what: 'Recipe set for Fried chicken', reason: null, actor: { name: 'Isabel' } });
     expect(page.pagination.total).toBe(3);
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
-    expect(auditLogRepository.recipeVersions).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId] }, expect.anything(), 50);
+    expect(auditLogRepository.recipeVersions).toHaveBeenCalledWith({ hubId, restockOrgIds: [hubId, branchId], peopleOrgIds: [hubId, branchId] }, expect.anything(), 50);
   });
 
   it('derives Recorded, Corrected, Cancelled and Reviewed entries (area PREP) from the run columns', async () => {
@@ -169,6 +181,62 @@ describe('auditLogService.list', () => {
   it('leaves the run entries out when another area is asked for', async () => {
     await auditLogService.list(sm, query({ area: 'CATALOG' }));
     expect(auditLogRepository.runEntries).not.toHaveBeenCalled();
+  });
+
+  it('merges the derived areas (Stock counts, Waste, Stock adjustments) with the record link each carries', async () => {
+    vi.mocked(stockCountsSource.entries).mockResolvedValue([
+      { id: 'count:approved:c9', at: at('14:00').toISOString(), actor: { id: 'u1', name: 'Isabel' }, area: 'STOCK_COUNTS', what: 'Approved the count · 2 adjustments, net −KES 300 · signed with PIN', reason: null, record: { kind: 'COUNT', id: 'c9', label: 'CNT-2026-1013' } },
+    ]);
+    vi.mocked(wasteSource.entries).mockResolvedValue([
+      { id: 'waste:logged:w1', at: at('14:30').toISOString(), actor: { id: 'u5', name: 'Peter' }, area: 'WASTE', what: 'Logged waste · Milk 6 L · Spoiled · KES 600', reason: null, record: { kind: 'STOCK_CARD', id: 'i9', label: 'Stock ledger entry', day: '2026-10-03' } },
+    ]);
+    vi.mocked(stockAdjustmentsSource.entries).mockResolvedValue([
+      { id: 'adjustment:a1', at: at('14:15').toISOString(), actor: { id: 'u1', name: 'Isabel' }, area: 'STOCK_ADJUSTMENTS', what: 'Posted a movement · Eggs −2 trays', reason: null, record: { kind: 'LEDGER_SEARCH', id: 'ADJ-0042', label: 'ADJ-0042', day: '2026-10-03' } },
+    ]);
+    vi.mocked(stockCountsSource.count).mockResolvedValue(2);
+    vi.mocked(wasteSource.count).mockResolvedValue(3);
+    vi.mocked(stockAdjustmentsSource.count).mockResolvedValue(4);
+    vi.mocked(wasteSource.actorIds).mockResolvedValue(['u5']);
+    vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick'], ['u5', 'Peter']]));
+    const page = await auditLogService.list(sm, query());
+    expect(page.entries.slice(0, 3).map((e) => e.id)).toEqual(['waste:logged:w1', 'adjustment:a1', 'count:approved:c9']);
+    expect(page.entries[0]?.record).toEqual({ kind: 'STOCK_CARD', id: 'i9', label: 'Stock ledger entry', day: '2026-10-03' });
+    expect(page.pagination.total).toBe(4 + 2 + 3 + 4);
+    expect(page.actors.map((a) => a.name)).toEqual(['Frederick', 'Isabel', 'Peter']);
+  });
+
+  it('reads only the derived area asked for', async () => {
+    await auditLogService.list(sm, query({ area: 'WASTE' }));
+    expect(wasteSource.entries).toHaveBeenCalledTimes(1);
+    expect(stockCountsSource.entries).not.toHaveBeenCalled();
+    expect(stockAdjustmentsSource.entries).not.toHaveBeenCalled();
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+  });
+
+  it('lists the Branches areas and answers them with nothing until each block adds its source', async () => {
+    for (const area of ['REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'] as const) {
+      const page = await auditLogService.list(sm, query({ area }));
+      expect(page.entries).toEqual([]);
+      expect(page.pagination.total).toBe(0);
+    }
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+  });
+
+  it('with the Branch filter on, reads only that branch’s restock changes and none of the hub’s own areas', async () => {
+    await auditLogService.list(sm, query({ branchId }));
+    const scope = { hubId, restockOrgIds: [branchId], peopleOrgIds: [hubId, branchId], branchId };
+    expect(auditLogRepository.restockChanges).toHaveBeenCalledWith(scope, expect.anything(), 50);
+    expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+    expect(auditLogRepository.supplierAudits).not.toHaveBeenCalled();
+    expect(auditLogRepository.purchasingEntries).not.toHaveBeenCalled();
+    expect(auditLogRepository.recipeVersions).not.toHaveBeenCalled();
+    expect(stockCountsSource.entries).not.toHaveBeenCalled();
+    expect(wasteSource.entries).not.toHaveBeenCalled();
+    expect(stockAdjustmentsSource.entries).not.toHaveBeenCalled();
+  });
+
+  it('refuses a branch that is not one of the active branches', async () => {
+    await expect(auditLogService.list(sm, query({ branchId: '33333333-3333-4333-8333-333333333333' }))).rejects.toMatchObject({ statusCode: 400, code: 'BRANCH_NOT_FOUND' });
   });
 
   it('refuses anyone outside the hub', async () => {
