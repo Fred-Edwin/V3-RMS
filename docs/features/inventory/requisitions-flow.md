@@ -143,6 +143,10 @@ Judgement calls (owner to confirm):
 - **Document numbers are blue `#1F5BAE`, not copper.** `REQ-`, `DSP-` and the rest are Geist Mono in `#1F5BAE` (owner's colour), underlined when they are links. Copper stays for the main button, the active tab and the selected row. Applies to every later screen, in every group.
 - **Step 17 follows the approved LPO and statement template:** A4 794 by 1123, 48px side margins, the 10px navy top bar, the round logo with "Wendo Coffee Bistro" and a grey subtitle, a small mono label above a large mono document number, a two-column info block (party left, key and value right), a table with a `#` column and mono uppercase headers over a navy rule, cursive PIN signatures (Alex Brush) with "Signed with PIN", a QR code, and the standard Lobster footer. No money. Ink and grey only, no copper. The department page keeps the same header, with the dispatch number under the requisition number, a Packed tick column, and blank Packed by, Signed by and Carried by lines (the Dispatch group will draw the delivery note itself).
 
+### Change after approval: sidebar sub-links (owner, 8 Oct 2026)
+
+Requisitions is a parent link with three sub-links, drawn in the Prep sidebar's sub-link design: **Queue** (the live list; tabs are now Collecting, To approve, To pack, On the way, To confirm), **Discrepancies** (its own list, step 7c) and **History** (closed and cancelled, step 7d). **The Closed and Discrepancies tabs are removed from the list.** Carriers and Departments stay in Settings. All Group R desktop sidebars were updated except step 20 (Manage open). Also: step 13 now shows all five departments On the way together, matching the single final send in Dispatch (`dispatch-flow.md`).
+
 ### Batch R4, "Exceptions and reference" (8 Oct 2026): approved by the owner, 8 Oct 2026
 
 Chapter 4 plus the group cover and screens index (24 screens in all).
