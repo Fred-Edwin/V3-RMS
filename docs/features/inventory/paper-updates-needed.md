@@ -68,5 +68,5 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
-- Requisitions, Dispatch and Branch day (not approved).
+- Requisitions, Dispatch, Branch day and Branch waste are **approved** (8 Oct 2026). Stale "awaiting review" stamps still on the map page, the gap-fixes page, Counting and closing chapter 5 and the Dispatch rows of the map table need a Paper session.
 - Phone versions for the desktop roles (deferred until the whole inventory feature is built).

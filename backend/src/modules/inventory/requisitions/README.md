@@ -1,8 +1,8 @@
 # requisitions
 
-**Design:** *Requisition and dispatch* page exists in Paper but is **not yet approved**; a walkthrough decisions file has not been written · **Code:** built to the old flow (Milestones Four), **pending redo**.
+**Design:** *Requisition and dispatch* page in Paper, **approved by the owner (8 Oct 2026)**; flow in `docs/features/inventory/requisitions-flow.md` · **Code:** built to the old flow (Milestone Four), **pending redo** (Block 1 of `docs/features/inventory/final-pass-build-plan.md`).
 
-A branch asks the Central Store for stock. Rules below are the original description and still stand until the walkthrough replaces them.
+A branch asks the Central Store for stock. Where the rules below disagree with Paper or `requisitions-flow.md`, Paper wins: there is no "Return a section", cycles are Morning, Afternoon and Extra, the Director may approve any requisition, and a head's send needs a PIN.
 
 ## Who can do what
 - **Department Head** (phone): fills their own department's section only; sees only their slice of the catalog; opening count at start of day lives with branch-day.

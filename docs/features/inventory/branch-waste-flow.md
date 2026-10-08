@@ -11,22 +11,22 @@ A department member logs what was thrown away, spoiled or broken, with a reason,
 | Role | Does |
 |---|---|
 | Department member or head | Logs waste for their own department, sees their own entries for today, reverses their own wrong entry |
-| Branch Manager | Reads all branch waste with values; may reverse any entry with a reason and a PIN |
+| Branch Manager | Reads all branch waste with values; may reverse any entry with a reason (no PIN: waste is never PIN-signed) |
 | Director, Accountant, Store Manager, System Admin | Read every branch's waste; System Admin can act with their own PIN |
 
 Heads and members see item names and units but **no costs**. The Branch Manager and the desktop roles see values.
 
 ## The journey (phone first, 3 taps for one item)
 
-1. **Log waste.** Pick the item (search, grouped by category), the quantity, a reason (**Spoiled, Expired, Dropped or broken, Prepared too much, Other**) and an optional photo. Several items can be added before sending.
+1. **Log waste.** Pick the item (search, grouped by category), the quantity, a reason (the approved Central Store list: **Expired, Spoiled, Damaged in store, Prep error**) and an optional photo. Several items can be added before sending.
 2. **Check before it is logged.** A short summary of the lines and the effect on stock ("−3 kg Tomatoes"), then **Log it**. Waste is a stock movement, so it needs the summary; a PIN is used only where the owner asked for one (kept as in the approved Central Store waste screens).
-3. **My waste today.** The member's entries, newest first, each with **Reverse**.
+3. **My department's waste, today and earlier** (step 55 supersedes W4). Entries newest first with a date range; **Reverse** only on your own entries logged today.
 4. **Reverse a wrong entry.** A short sheet: reason, then confirm. The reversal is a new linked entry; the original stays visible.
 
 ## Desktop, Branch Manager (read by all desktop roles)
 
 - **Branch waste**: a table by department, reason and value, with search and filters first, a numbered pager, and a date range (table convention, `UI_BUILD_RULES` §4a).
-- **Reverse any entry**, with a required reason and the Branch Manager's PIN.
+- **Reverse any entry**, with a required reason (Logged the wrong item, Wrong quantity, Other). No PIN.
 - Each entry opens to show who logged it, when, reason, photo and its ledger entry.
 
 ## Rules

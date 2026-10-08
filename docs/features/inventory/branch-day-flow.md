@@ -72,7 +72,7 @@ Which departments exist (shared with Requisitions: [requisitions-flow.md](requis
 - **Opening count:** accepting shows last night's signed figures; **Recount** starts a blind count; the overnight difference is seen by the Branch Manager (with the person's name), heads see no costs.
 - **Sidebar:** **Day** has two sub-links, **Today** and **History**; **Waste** is a new single row in the Branch group beside Day; heads and members get **Count** and **Waste** in the phone drawer. Part: "Parts · sidebar · Branch Manager · Day, Today active".
 
-### Batch B1, "Open and count" (8 Oct 2026): drawn, awaiting owner review
+### Batch B1, "Open and count" (8 Oct 2026): approved
 
 Chapter 1, thread Wednesday 7 October at Nyeri Town, `DAY-NYR-0044`. Numbering: steps 1, 2, 2b, 3, 3b, 4 (phone) and 5 (desktop); **2b and 3b are additions to the plan** so that every PIN has a receipt-style summary first.
 - **1 Opening count** (7:10 am): last night's signed figures, **Yes, same as last night** or **No, I'll recount**. Accepting is 1 tap, no PIN.
@@ -97,7 +97,7 @@ Judgement calls (owner to confirm):
 3. **Date range picker.** Every history page uses the approved date range picker from the Counting redesign page (quick picks Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, Pick a date or range; later dates cannot be picked). Drawn in step 10c.
 4. **The Director reads everything the Branch Manager reads.** The Director's sidebar now has Requisitions, Day (Today, History) and Waste under Branches, the same rows as the Branch Manager. The same pages are used with a Branch column and Branch filter on History; **Today for a hub role needs a branch picker, not yet drawn** (open question below).
 
-### Batch B2, "Review and close" (8 Oct 2026): drawn, awaiting owner review
+### Batch B2, "Review and close" (8 Oct 2026): approved
 Chapter 2, steps 6 to 9. Thread: Wednesday 7 October, 7:31 pm to 7:48 pm.
 - **6 A department's figures** (Pastry): two-pane (department rail with Used value and a branch total; the selected department's items on the right, dark hairlines). Columns: Opening stock, Received, Waste, Closing stock, Used today, Yesterday, Used value, Closing stock value; a total row; the opening check and delivery shown above the table.
 - **7 Today, ready to close** (Close the day is active, three green ticks, Opening not checked noted as not blocking).
@@ -105,7 +105,7 @@ Chapter 2, steps 6 to 9. Thread: Wednesday 7 October, 7:31 pm to 7:48 pm.
 - **9 The day is closed:** green confirmation, **Open the day file** and **Print the day sheet**, and the first five of the 43 ledger entries, each with `DAY-NYR-0044` as a link.
 - Judgement calls: the Karatina branch (KRT) and its manager Lucy Wanjiku are invented; item names, prices and figures for Pastry and Housekeeping are invented but add up (Pastry used 8,760 and closing stock value 15,840; Housekeeping used 1,860 and closing stock value 26,800).
 
-### Batch B3, "The record" (8 Oct 2026): drawn, awaiting owner review
+### Batch B3, "The record" (8 Oct 2026): approved
 Chapter 3, steps 10 to 13d.
 - **10 History** (Branch Manager): search by day number, date range, status; columns Day (link) and date, Departments counted, Used value, Closing stock value, Status (Open, Closed, Corrected), Closed by; numbered pager.
 - **10b History across branches** (Director; the Accountant, Store Manager and System Admin see the same): adds a Branch column and filter; read only.

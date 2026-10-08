@@ -1,8 +1,8 @@
 # branch-day
 
-**Design:** *Counting and closing* page in Paper, **not yet approved** · **Code:** built to the old flow (Milestone Six S3–S4), **pending redo**.
+**Design:** *Counting and closing* page in Paper, **approved by the owner (8 Oct 2026)**; flow in `branch-day-flow.md` · **Code:** built to the old flow (Milestone Six S3–S4), **pending redo** (Block 4 of `docs/features/inventory/final-pass-build-plan.md`).
 
-A branch's end-of-day count and close, reopen, and the next-morning opening. Rules below are from the original description and the Milestone Six owner decisions until the walkthrough replaces them.
+A branch's end-of-day count and close, and the next-morning opening. Where the rules below disagree with Paper or `branch-day-flow.md`, Paper wins: heads count their own department blind, there is no reopen (Correct a count instead), no reason thresholds and no `CONSUMPTION` reason, and the figure is Used today.
 
 ## Who can do what
 - **Branch Manager**: enters counts for all five departments on Today's day, adds reasons, signs and closes (PIN), reopens with a reason, sets the branch reason and overnight thresholds.

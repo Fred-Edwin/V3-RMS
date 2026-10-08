@@ -1,8 +1,8 @@
 # dispatch
 
-**Design:** *Requisition and dispatch* page in Paper, **not yet approved** · **Code:** built to the old flow (Milestone Five, discrepancies in Six), **pending redo**.
+**Design:** *Requisition and dispatch* page in Paper, **approved by the owner (8 Oct 2026)**; flows in `dispatch-flow.md` and `discrepancies.md` · **Code:** built to the old flow (Milestone Five, discrepancies in Six), **pending redo** (Block 2 of `docs/features/inventory/final-pass-build-plan.md`).
 
-Fulfil approved requisitions at the Central Store, deliver, confirm at the branch, and resolve discrepancies. Rules below are the original description until the walkthrough replaces them.
+Fulfil approved requisitions at the Central Store, deliver, confirm at the branch, and record findings on gaps. Where the rules below disagree with Paper or `discrepancies.md`, Paper wins: the branch counts blind, a gap is held as unaccounted until the Store Manager records one of four findings, and the old outcomes (found and re-delivered, transit loss, miscount corrected) are gone.
 
 ## Who can do what
 - **Store Manager/Attendant**: fulfil per department, sign and dispatch; Store Manager resolves discrepancies.
