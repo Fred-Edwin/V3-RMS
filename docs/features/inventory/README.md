@@ -18,6 +18,7 @@ first feature of the redo and the template for the others
 | **Where the code is ahead of Paper (update Paper first, before new design work)** | [paper-updates-needed.md](paper-updates-needed.md) |
 | Designed-not-built Director/Accountant reports | [reports-spec.md](reports-spec.md) |
 | **Final design pass** (Requisitions, Dispatch, Branch day, Branch waste): screen outline and review batches, the four flows, discrepancy rules | [final-pass-screen-plan.md](final-pass-screen-plan.md), [requisitions-flow.md](requisitions-flow.md), [dispatch-flow.md](dispatch-flow.md), [branch-day-flow.md](branch-day-flow.md), [branch-waste-flow.md](branch-waste-flow.md), [discrepancies.md](discrepancies.md) |
+| **Final build: plan, blocks, status table, code placement** and the Block 1 contract | [final-pass-build-plan.md](final-pass-build-plan.md), [requisitions-contract.md](requisitions-contract.md); session prompts in `docs/sessions/final-pass-*.md` |
 | Client demo script (rehearsed 2026-09-30; a few steps are stale, see its notes) | [demo-run-sheet.md](demo-run-sheet.md) |
 | Full approved wording for not-yet-rebuilt areas | None kept: the design notes for Prep and Counting were deleted when each was rebuilt (their content is in Paper and the docs) |
 | Why Prep is built the way it is (data model, rules, slices) | [prep-plan.md](prep-plan.md) |
