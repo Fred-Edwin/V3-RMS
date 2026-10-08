@@ -8,7 +8,6 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { Topbar } from '@/components/app/shell/topbar';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { roleLabel } from '@/components/app/shell/role-label';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
@@ -298,7 +297,6 @@ export function DayHistoryDetailScreen({ dayId }: { dayId: string }) {
     if (detail && summary && selectedTag) {
       return (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-          <MobileStatusBar className="bg-wds-sidebar-top" />
           <BackHeader
             title={`${summary.name} · end-of-day count`}
             subtitle={`${summary.countedBy ? `${summary.countedBy.name} · ` : ''}counted ${summary.countedAt ? formatClock(summary.countedAt) : '—'} · ${dateLong}`}
@@ -318,7 +316,6 @@ export function DayHistoryDetailScreen({ dayId }: { dayId: string }) {
     }
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-        <MobileStatusBar className="bg-wds-sidebar-top" />
         <BackHeader
           title={detail ? formatCountDateFull(detail.date) : 'Day close history'}
           subtitle={detail ? subtitleFor(detail).replace(' · all 5 departments', '') : branchName}

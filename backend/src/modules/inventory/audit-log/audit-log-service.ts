@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { branchRepository } from '../../../repositories/branch-repository';
+import { ValidationError } from '../../../utils/errors';
 import { requireHubReader } from '../_shared/central-store-access';
 import { trimDecimal } from '../catalog/item-history';
 import { describeItemChange, describeRecipeVersion, describeRestockChange, describeRunEntry, describeSupplierAudit, describeSupplierCreated, auditReason, recipeReason, runEntryReason } from './audit-log-describe';
@@ -7,6 +8,10 @@ import { auditLogRepository, type PurchasingArea, type RunEntryKind, type Scope 
 import type { AuditArea, AuditEntry, AuditLogPage } from './audit-log.types';
 import { AUDIT_AREAS } from './audit-log.types';
 import type { AuditLogQuery } from './audit-log-validators';
+import type { AuditSource } from './sources/source';
+import { stockAdjustmentsSource } from './sources/stock-adjustments-source';
+import { stockCountsSource } from './sources/stock-counts-source';
+import { wasteSource } from './sources/waste-source';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -26,10 +31,19 @@ const idOf = (after: Record<string, unknown> | null, before: Record<string, unkn
   return typeof id === 'string' ? id : null;
 };
 
-const requireScope = async (actor: Actor): Promise<Scope> => {
+/** The areas read from rows other features keep, each its own small module (`sources/`). */
+const DERIVED_SOURCES: readonly AuditSource[] = [stockCountsSource, wasteSource, stockAdjustmentsSource];
+
+/** The areas a branch can have entries in. With the Branch filter on, the hub's own areas answer nothing. */
+const BRANCH_AREAS: readonly AuditArea[] = ['RESTOCK_LEVELS', 'REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
+
+const requireScope = async (actor: Actor, branchId: string | undefined): Promise<{ scope: Scope; branches: Array<{ id: string; name: string }> }> => {
   const hubId = await requireHubReader(actor);
-  const branches = await branchRepository.findActiveBranchOptions();
-  return { hubId, restockOrgIds: [hubId, ...branches.map((b) => b.id)] };
+  const branches = (await branchRepository.findActiveBranchOptions()).map((b) => ({ id: b.id, name: b.name }));
+  const peopleOrgIds = [hubId, ...branches.map((b) => b.id)];
+  if (branchId === undefined) return { scope: { hubId, restockOrgIds: peopleOrgIds, peopleOrgIds }, branches };
+  if (!branches.some((b) => b.id === branchId)) throw new ValidationError('That branch is not one of yours to read', 'BRANCH_NOT_FOUND');
+  return { scope: { hubId, restockOrgIds: [branchId], peopleOrgIds, branchId }, branches };
 };
 
 type RunEntryRow = Awaited<ReturnType<typeof auditLogRepository.runEntries>>[number];
@@ -47,21 +61,24 @@ const runEntry = (run: RunEntryRow, kind: RunEntryKind, at: Date, actor: { id: s
 
 /**
  * The Audit log (API_CONTRACT.md §30.12): item history, supplier audit rows, supplier creations, restock level
- * changes and the purchase file's Purchasing and Payments rows, newest first, in one list. Read-only; each source is read up to the end of the requested page and the
- * merged list is cut to it, so a page is exact whatever the mix.
+ * changes, Prep, the purchase file's Purchasing and Payments rows and the derived areas in `sources/` (Stock counts, Waste, Stock
+ * adjustments), newest first, in one list. Read-only; each source is read up to the end of the requested page and the
+ * merged list is cut to it, so a page is exact whatever the mix. The Branch filter narrows to one branch: only restock levels
+ * set there answer (the five Branches areas are listed and stay empty until each block adds its source).
  */
 export const auditLogService = {
   list: async (actor: Actor, query: AuditLogQuery): Promise<AuditLogPage> => {
-    const scope = await requireScope(actor);
+    const { scope, branches } = await requireScope(actor, query.branchId);
     const filter = { from: query.from, to: query.to, actorId: query.actorId };
     const areas: readonly AuditArea[] = query.area ? [query.area] : AUDIT_AREAS;
     const take = query.page * query.perPage;
-    const wants = (area: AuditArea) => areas.includes(area);
+    const wants = (area: AuditArea) => areas.includes(area) && (scope.branchId === undefined || BRANCH_AREAS.includes(area));
+    const derived = DERIVED_SOURCES.filter((source) => wants(source.area));
 
-    const purchasingAreas = areas.filter((a): a is PurchasingArea => a === 'PURCHASING' || a === 'PAYMENTS');
+    const purchasingAreas = areas.filter((a): a is PurchasingArea => (a === 'PURCHASING' || a === 'PAYMENTS') && wants(a));
 
     const prepWanted = wants('PREP');
-    const [itemRows, auditRows, createdRows, restockRows, purchasingRows, recipeRows, runRecorded, runCorrected, runCancelled, runReviewed, counts, actorIds] = await Promise.all([
+    const [itemRows, auditRows, createdRows, restockRows, purchasingRows, recipeRows, runRecorded, runCorrected, runCancelled, runReviewed, counts, actorIds, derivedEntries, derivedCounts, derivedActorIds] = await Promise.all([
       wants('CATALOG') ? auditLogRepository.itemChanges(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.supplierAudits(scope, filter, take) : [],
       wants('SUPPLIERS') ? auditLogRepository.suppliersCreated(scope, filter, take) : [],
@@ -85,13 +102,18 @@ export const auditLogService = {
         prepWanted ? auditLogRepository.countRunEntries(scope, filter, 'REVIEWED') : 0,
       ]),
       auditLogRepository.actorIds(scope, { from: query.from, to: query.to }),
+      Promise.all(derived.map((source) => source.entries(scope, filter, take))),
+      Promise.all(derived.map((source) => source.count(scope, filter))),
+      // The Who list lists everyone with an entry in the period, in the areas shown; a branch narrows it with the rest.
+      Promise.all(DERIVED_SOURCES.filter((source) => scope.branchId === undefined).map((source) => source.actorIds(scope, { from: query.from, to: query.to }))),
     ]);
 
     const snapshotItemIds = [...new Set(auditRows.map((r) => idOf(jsonOf(r.after), jsonOf(r.before))).filter((id): id is string => id !== null))];
     const creatorIds = [...new Set(createdRows.map((r) => r.createdById).filter((id): id is string => id !== null))];
+    const everyActorId = [...new Set([...actorIds, ...derivedActorIds.flat()])];
     const [itemNames, userNames] = await Promise.all([
       auditLogRepository.itemNames(scope, snapshotItemIds),
-      auditLogRepository.userNames(scope, [...new Set([...creatorIds, ...actorIds])]),
+      auditLogRepository.userNames(scope, [...new Set([...creatorIds, ...everyActorId])]),
     ]);
 
     const entries: AuditEntry[] = [
@@ -147,6 +169,7 @@ export const auditLogService = {
       ...runCorrected.map((r): AuditEntry => runEntry(r, 'CORRECTED', r.createdAt, r.createdBy)),
       ...runCancelled.flatMap((r): AuditEntry[] => (r.closedAt && r.closedBy ? [runEntry(r, 'CANCELLED', r.closedAt, r.closedBy)] : [])),
       ...runReviewed.flatMap((r): AuditEntry[] => (r.reviewedAt && r.reviewedBy ? [runEntry(r, 'REVIEWED', r.reviewedAt, r.reviewedBy)] : [])),
+      ...derivedEntries.flat(),
       ...purchasingRows.map((r): AuditEntry => ({
         id: `purchasing:${r.id}`,
         at: r.at.toISOString(),
@@ -166,12 +189,13 @@ export const auditLogService = {
     ];
 
     entries.sort((a, b) => (a.at === b.at ? (a.id < b.id ? 1 : -1) : a.at < b.at ? 1 : -1));
-    const total = counts.reduce((sum, n) => sum + n, 0);
+    const total = [...counts, ...derivedCounts].reduce((sum, n) => sum + n, 0);
     const start = (query.page - 1) * query.perPage;
 
     return {
       entries: entries.slice(start, start + query.perPage),
-      actors: actorIds.flatMap((id) => (userNames.has(id) ? [{ id, name: userNames.get(id) as string }] : [])).sort((a, b) => a.name.localeCompare(b.name)),
+      actors: everyActorId.flatMap((id) => (userNames.has(id) ? [{ id, name: userNames.get(id) as string }] : [])).sort((a, b) => a.name.localeCompare(b.name)),
+      branches,
       pagination: { total, page: query.page, perPage: query.perPage, totalPages: Math.max(1, Math.ceil(total / query.perPage)) },
     };
   },

@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
@@ -78,7 +77,6 @@ export function RequisitionSectionFillScreen({ requisitionId, departmentTag }: R
   if (!isOwnDepartment) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <MobileTaskHeader title="Requisition" subtitle="" trailingAction="Cancel" onBack={() => router.back()} onTrailingAction={() => router.back()} />
         <div className="flex flex-1 items-center justify-center p-4">
           <PermissionDeniedState description="This section belongs to a different department." />
@@ -307,7 +305,6 @@ export function RequisitionSectionFillScreen({ requisitionId, departmentTag }: R
   // bottom tab bar would otherwise sit on top of and intercept clicks for.
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <MobileTaskHeader
         title={`${departmentLabel} · my section`}
         subtitle=""

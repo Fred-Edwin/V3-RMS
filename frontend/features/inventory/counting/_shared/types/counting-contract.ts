@@ -167,6 +167,9 @@ export interface CountsSummary {
 export interface CountsListQuery extends PageQuery {
   status?: 'all' | 'waiting' | 'inProgress' | 'approved';
   search?: string;
+  /** Lane 0 amendment (8 Oct 2026): only counts started on these Nairobi days (`YYYY-MM-DD`), both included; either may be given alone. Counts waiting for approval always appear, whatever the range (owner decision, 8 Oct 2026); rows, total and chip numbers follow the same rule. */
+  from?: string;
+  to?: string;
 }
 
 export interface CountRow {

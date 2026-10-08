@@ -8,7 +8,6 @@ import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { FormErrorBanner, STOCK_DRAWER_MOTION, StockErrorCard, StockMobileHeader, formatKes, formatNairobiDayMonth, useReturnFocus } from '@/features/inventory';
 import { saveBranchThresholds, useBranchThresholds } from '../hooks/use-branch-day';
@@ -240,7 +239,6 @@ export function BranchThresholdsDrawer({ open, onOpenChange, variant, branchName
           }}
           className="fixed inset-0 z-50 flex flex-col bg-wds-canvas motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-[250ms] motion-safe:ease-[cubic-bezier(0.32,0.72,0,1)]"
         >
-          <MobileStatusBar className="bg-wds-sidebar-top" />
           <StockMobileHeader title="Thresholds" subtitle={`${branchName} · applies from the next count`} onBack={requestClose} trailingLabel="Done" onTrailing={() => (canSave ? void form.save() : requestClose())} />
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5">
             <Body form={form} mobile />

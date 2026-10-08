@@ -12,7 +12,6 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useDebouncedValue, useStockLedger, useStockList, useStockSummary } from '../../hooks/use-stock';
 import { listItems } from '../../../services';
 import type { InventoryTransactionTypeValue, LedgerQuery, LedgerRow, LedgerSummary, StockSummary } from '../../types/stock';
@@ -434,7 +433,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
     };
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas lg:mx-auto lg:w-full lg:max-w-[480px] lg:border-x lg:border-wds-border">
-        <MobileStatusBar />
         <LedgerMobileHeader title="Stock ledger" subtitle={locationLine} onBack={back} />
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [&>*]:shrink-0">
           {highlightRow ? (
@@ -867,7 +865,6 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
     const back = () => router.push(scope === 'store' ? '/app/inventory/stock' : '/app/requisitions');
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas lg:mx-auto lg:w-full lg:max-w-[480px] lg:border-x lg:border-wds-border">
-        <MobileStatusBar />
         <LedgerMobileHeader title="Stock ledger" subtitle={locationLineFor(scope, null, dept.departmentLabel, dept.branchName)} onBack={back} />
         <main className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain p-4 [&>*]:shrink-0">
           <p className="font-wds-sans text-[13px]/[18px] text-wds-text-copy-muted">

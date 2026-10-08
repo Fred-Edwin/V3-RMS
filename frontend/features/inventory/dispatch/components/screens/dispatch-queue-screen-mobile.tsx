@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileEmptyState, MobileErrorState } from '@/components/app/shell/mobile-states';
 import { useAuthStore } from '@/store/authStore';
@@ -113,7 +112,6 @@ export function DispatchQueueScreenMobile() {
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <MobileHubHeader
         title="Dispatch"
         subtitle="Approved requisitions — pick, pack, sign out. Oldest first."

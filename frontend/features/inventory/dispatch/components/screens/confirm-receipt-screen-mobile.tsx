@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
 import { useAuthStore } from '@/store/authStore';
@@ -112,7 +111,6 @@ export function ConfirmReceiptScreenMobile({ dispatchId }: ConfirmReceiptScreenM
   if (status === 'loading' || !detail) {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <DispatchFulfilSkeletonMobile />
       </div>
     );
@@ -121,7 +119,6 @@ export function ConfirmReceiptScreenMobile({ dispatchId }: ConfirmReceiptScreenM
   if (status === 'error') {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <div className="flex flex-1 items-center justify-center p-wds-4">
           <MobileErrorState title="Couldn't load this delivery" description={error ?? 'Try again.'} onRetry={reload} />
         </div>
@@ -137,7 +134,6 @@ export function ConfirmReceiptScreenMobile({ dispatchId }: ConfirmReceiptScreenM
     const hasDiscrepancy = lastDeliveryNote.status === 'DISCREPANCY_OPEN';
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
         <div className="flex items-center gap-3 border-b border-wds-border px-wds-4 py-3">
           <button type="button" onClick={() => router.push('/app/branch/deliveries')} aria-label="Back" className="shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -214,7 +210,6 @@ export function ConfirmReceiptScreenMobile({ dispatchId }: ConfirmReceiptScreenM
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
       <div className="flex items-center gap-3 border-b border-wds-border px-wds-4 py-3">
         <button type="button" onClick={() => router.push('/app/branch/deliveries')} aria-label="Back" className="shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>

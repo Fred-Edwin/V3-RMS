@@ -1,11 +1,12 @@
 import type { Request } from 'express';
 import { blindnessOf } from '../../_shared/blind-rule';
 import { requireHubReader } from '../../_shared/central-store-access';
-import { addDays, clockText, dayStartInstant, nairobiDay } from '../../stock/_shared/nairobi-time';
+import { ValidationError } from '../../../../utils/errors';
+import { addDays, clockText, dayEndInstant, dayStartInstant, nairobiDay } from '../../stock/_shared/nairobi-time';
 import type { WasteList } from '../_shared/waste-contract';
 import { seesOwnEntriesOnly } from '../_shared/waste-rules';
 import { wasteView } from '../_shared/waste-view';
-import { entriesRepository, type EntryScope, type EntryWindow } from './entries-repository';
+import { entriesRepository, type EntryNarrow, type EntryScope, type EntryWindow } from './entries-repository';
 import { buildWasteKpis } from './entries-kpis';
 import type { WasteListQuery } from './entries.types';
 
@@ -23,11 +24,21 @@ export const entriesService = {
    */
   list: async (actor: Actor, query: WasteListQuery, now: Date = new Date()): Promise<WasteList> => {
     const siteId = await requireHubReader(actor);
+    if (query.from && query.to && query.from > query.to) throw new ValidationError('"from" must not be after "to"');
     const ownOnly = seesOwnEntriesOnly(actor);
+    // Whose entries: the Attendant's own, always; "mine" for anyone; else the person picked in "Logged by". The Attendant's own wins.
+    const loggedById = ownOnly || query.scope === 'mine' ? actor.id : query.loggedBy;
     const scope: EntryScope = {
       siteId,
-      ...(ownOnly || query.scope === 'mine' ? { loggedById: actor.id } : {}),
+      ...(loggedById ? { loggedById } : {}),
       ...(query.search ? { search: query.search } : {}),
+    };
+    // Nairobi days: `from` starts at the start of that day, `to` is included, so the cut is the start of the day after it.
+    const narrow: EntryNarrow = {
+      ...(query.from ? { loggedFrom: dayStartInstant(query.from) } : {}),
+      ...(query.to ? { loggedBefore: dayEndInstant(query.to) } : {}),
+      ...(query.reason ? { reason: query.reason } : {}),
+      ...(query.status ? { status: query.status } : {}),
     };
     // KPIs follow the scope but not the search; chips follow both, so a chip's number matches its rows.
     const kpiScope: EntryScope = { siteId, ...(scope.loggedById ? { loggedById: scope.loggedById } : {}) };
@@ -35,9 +46,10 @@ export const entriesService = {
     const today = nairobiDay(now);
     const window: EntryWindow = { todayStart: dayStartInstant(today), last7Start: dayStartInstant(addDays(today, -6)) };
 
-    const [{ rows, total }, chips] = await Promise.all([
-      entriesRepository.findPage(scope, query.period, window, query.page, query.pageSize),
+    const [{ rows, total }, chips, people] = await Promise.all([
+      entriesRepository.findPage(scope, query.period, window, query.page, query.pageSize, narrow),
       entriesRepository.chipCounts(scope, window),
+      ownOnly ? undefined : entriesRepository.loggers(siteId),
     ]);
 
     let kpis: WasteList['kpis'];
@@ -52,6 +64,6 @@ export const entriesService = {
       bannerText = batch ? bannerFor(batch) : null;
     }
 
-    return wasteView.list(actor, { logs: rows, chips, page: { page: query.page, pageSize: query.pageSize, total }, kpis, bannerText }, now);
+    return wasteView.list(actor, { logs: rows, chips, page: { page: query.page, pageSize: query.pageSize, total }, kpis, bannerText, people }, now);
   },
 };

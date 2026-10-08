@@ -82,6 +82,13 @@ export interface WasteListQuery extends PageQuery {
   period?: 'today' | '7d' | 'reversed';
   scope?: 'all' | 'mine';
   search?: string;
+  /** Lane 0 amendment (8 Oct 2026): Nairobi days (`YYYY-MM-DD`), both included, replacing `period` as the window on when it was logged. */
+  from?: string;
+  to?: string;
+  reason?: WasteReason;
+  /** A person's id, from `WasteList.people`. */
+  loggedBy?: string;
+  status?: 'logged' | 'reversed';
 }
 
 export interface WasteList {
@@ -91,6 +98,8 @@ export interface WasteList {
   chips: { today: number; last7: number; reversed: number };
   /** The Attendant's own banner: "2 items logged at 14:20. You can reverse your own entries today." */
   bannerText?: string | null;
+  /** Lane 0 amendment: who has logged waste here, for the "Logged by" filter. Absent for the Attendant. */
+  people?: { id: string; name: string }[];
   page: PageInfo;
 }
 

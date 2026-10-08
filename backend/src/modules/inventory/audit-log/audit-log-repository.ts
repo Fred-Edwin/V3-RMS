@@ -9,13 +9,18 @@ import type { AuditLogQuery } from './audit-log-validators';
 
 export interface Scope {
   hubId: string;
-  /** The hub and its active branches, for restock changes made at a branch department. */
+  /** The hub and its active branches, for restock changes made at a branch department; just the one branch when the Branch filter is set. */
   restockOrgIds: string[];
+  /** The hub and its active branches: whose people can appear as "who". Never narrowed by the Branch filter. */
+  peopleOrgIds: string[];
+  /** Set when the Branch filter names a branch. Sources that belong to the hub answer nothing then. */
+  branchId?: string;
 }
 
 export type PurchasingArea = 'PURCHASING' | 'PAYMENTS';
 
-type Filter = Pick<AuditLogQuery, 'from' | 'to' | 'actorId'>;
+export type AuditFilter = Pick<AuditLogQuery, 'from' | 'to' | 'actorId'>;
+type Filter = AuditFilter;
 
 const when = (f: Filter) => (f.from || f.to ? { createdAt: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {});
 const whenAt = (f: Filter) => (f.from || f.to ? { at: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {});
@@ -146,7 +151,7 @@ export const auditLogRepository = {
   },
   userNames: async (scope: Scope, ids: string[]): Promise<Map<string, string>> => {
     if (ids.length === 0) return new Map();
-    const rows = await prisma.user.findMany({ where: { siteId: { in: scope.restockOrgIds }, id: { in: ids } }, select: { id: true, name: true } });
+    const rows = await prisma.user.findMany({ where: { siteId: { in: scope.peopleOrgIds }, id: { in: ids } }, select: { id: true, name: true } });
     return new Map(rows.map((r) => [r.id, r.name]));
   },
 

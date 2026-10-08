@@ -79,5 +79,14 @@ describe('inputs that must be refused', () => {
   it('the list defaults to today, everyone, 50 rows', () => {
     const q = wasteListQuerySchema.parse({});
     expect(q).toMatchObject({ period: 'today', scope: 'all', page: 1, pageSize: 50 });
+    expect(q).not.toHaveProperty('from');
+  });
+
+  it('takes the Lane 0 filters, all optional: a Nairobi date range, a reason, a person, logged or reversed', () => {
+    const q = wasteListQuerySchema.parse({ from: '2026-10-01', to: '2026-10-05', reason: 'EXPIRY', loggedBy: 'u-peter', status: 'reversed' });
+    expect(q).toMatchObject({ from: '2026-10-01', to: '2026-10-05', reason: 'EXPIRY', loggedBy: 'u-peter', status: 'reversed' });
+    expect(wasteListQuerySchema.safeParse({ from: '1 Oct' }).success).toBe(false);
+    expect(wasteListQuerySchema.safeParse({ reason: 'STOLEN' }).success).toBe(false);
+    expect(wasteListQuerySchema.safeParse({ status: 'gone' }).success).toBe(false);
   });
 });

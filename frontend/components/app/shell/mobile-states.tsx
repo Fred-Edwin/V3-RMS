@@ -4,8 +4,8 @@ import { cn } from '@/lib/cn';
 
 /**
  * Mobile Universal States — Empty / Loading / Error / Permission-denied.
- * Cross-feature shell (same category as `mobile-headers.tsx`/
- * `mobile-status-bar.tsx`), not feature-scoped, mirroring the desktop
+ * Cross-feature shell (same category as `mobile-headers.tsx`), not
+ * feature-scoped, mirroring the desktop
  * `shell-states.tsx`'s API shape (title/description/onRetry) but a
  * genuinely different mobile layout — confirmed, not resized from the
  * desktop card. Reference: page `3-0`, node `X7O-0` ("10m · Universal

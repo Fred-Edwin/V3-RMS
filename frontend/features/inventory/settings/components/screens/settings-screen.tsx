@@ -9,7 +9,6 @@ import { PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { SigningPinCard } from '@/components/app/shell/signing-pin-card';
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';
 import { TeamPanel } from '../team/team-panel';
 
@@ -64,7 +63,6 @@ export function SettingsScreen() {
   if (!isDesktop) {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-        <MobileStatusBar />
         <MobileHubHeader
           title="Settings"
           subtitle="Your team and your signing PIN"

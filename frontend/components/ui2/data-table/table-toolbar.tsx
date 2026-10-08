@@ -4,7 +4,9 @@ import * as React from 'react';
 import { Search } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { DateRangePicker } from '../date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '../select';
+import { type DatePreset, effectiveRange, nairobiToday, rangeToFilters } from './table-dates';
 
 export interface FilterOption {
   /** The value written to the URL and sent to the fetch function. `''` is "All" (no filter). */
@@ -40,11 +42,29 @@ export interface ToggleChipsFilter {
   toggles: { key: string; label: string }[];
 }
 
-export type TableFilter = ChipFilter | DropdownFilter | ToggleChipsFilter;
+/**
+ * The approved date range picker (Paper steps 28, 56, 57, 58). Owns two URL parameters (`from`, `to`; "any time" is `from=any`).
+ * `defaultPreset` is the range shown when the URL has none, so the clean address is the starting view. The feature reads the
+ * range back with `effectiveRange(query.filters, filter, filter.defaultPreset, nairobiToday())`.
+ */
+export interface DateRangeFilter {
+  kind: 'dateRange';
+  fromKey: string;
+  toKey: string;
+  /** Names the button for assistive technology: "Date". */
+  label: string;
+  defaultPreset: DatePreset;
+  /** Adds the "Any time" quick pick. */
+  allowAny?: boolean;
+  /** The line under the calendar. */
+  note?: string;
+}
+
+export type TableFilter = ChipFilter | DropdownFilter | ToggleChipsFilter | DateRangeFilter;
 
 /** The URL parameter names a set of filters owns. */
 export function filterKeysOf(filters: readonly TableFilter[]): string[] {
-  return filters.flatMap((f) => (f.kind === 'toggles' ? f.toggles.map((t) => t.key) : [f.key]));
+  return filters.flatMap((f) => (f.kind === 'toggles' ? f.toggles.map((t) => t.key) : f.kind === 'dateRange' ? [f.fromKey, f.toKey] : [f.key]));
 }
 
 const ALL = '__all__';
@@ -60,6 +80,8 @@ export interface TableToolbarProps {
   values: Record<string, string>;
   counts?: Record<string, Record<string, number>>;
   onFilterChange: (key: string, value: string) => void;
+  /** Sets several filter keys at once (a date range's `from` and `to`), as one change and one history entry. */
+  onFiltersChange?: (changes: Record<string, string>) => void;
   className?: string;
 }
 
@@ -73,22 +95,26 @@ export function TableToolbar({
   values,
   counts,
   onFilterChange,
+  onFiltersChange,
   className,
 }: TableToolbarProps) {
   const chips = filters.filter((f): f is ChipFilter => f.kind === 'chips');
   const toggleGroups = filters.filter((f): f is ToggleChipsFilter => f.kind === 'toggles');
   const dropdowns = filters.filter((f): f is DropdownFilter => f.kind === 'dropdown');
+  const dateRanges = filters.filter((f): f is DateRangeFilter => f.kind === 'dateRange');
+  // The Nairobi day is read once per mount: a table left open past midnight keeps yesterday's "Today" until it is reloaded.
+  const today = React.useMemo(() => nairobiToday(), []);
 
   const chipClass = (active: boolean) =>
     cn(
-      'border px-[11px] py-1.5 font-wds-sans text-[12px] leading-4 transition-colors',
+      'border px-[11px] py-1.5 font-wds-sans text-[12px] leading-4 transition-colors max-sm:min-h-11',
       focusRing,
       active ? 'border-wds-text-ink bg-wds-text-ink text-white' : 'border-wds-border-strong bg-transparent text-wds-text-ink hover:bg-wds-neutral-50'
     );
 
   return (
     <div role="search" aria-label={searchLabel} className={cn('flex flex-wrap items-center gap-2 px-4 py-3', className)}>
-      <label className="flex h-8 w-full shrink-0 items-center gap-2 border border-wds-border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring sm:w-[240px]">
+      <label className="flex h-8 max-sm:h-11 w-full shrink-0 items-center gap-2 border border-wds-border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring sm:w-[240px]">
         <Search className="size-[13px] shrink-0 text-wds-text-faint" strokeWidth={1.5} aria-hidden />
         <input
           type="text"
@@ -150,14 +176,29 @@ export function TableToolbar({
         );
       })}
 
-      {dropdowns.length > 0 ? (
+      {dropdowns.length > 0 || dateRanges.length > 0 ? (
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {dateRanges.map((f) => (
+            <DateRangePicker
+              key={`${f.fromKey}:${f.toKey}`}
+              label={f.label}
+              today={today}
+              allowAny={f.allowAny}
+              note={f.note}
+              value={effectiveRange(values, f, f.defaultPreset, today)}
+              onChange={(range) => {
+                const changes = rangeToFilters(range, f, f.defaultPreset, today);
+                if (onFiltersChange) onFiltersChange(changes);
+                else Object.entries(changes).forEach(([key, value]) => onFilterChange(key, value));
+              }}
+            />
+          ))}
           {dropdowns.map((f) => {
             const current = values[f.key] ?? '';
             const chosen = f.options.find((o) => o.value === current);
             return (
               <Select key={f.key} value={current === '' ? ALL : current} onValueChange={(v) => onFilterChange(f.key, v === ALL ? '' : v)}>
-                <SelectTrigger aria-label={f.label} className="h-8 w-auto gap-1.5 rounded-none border-wds-border-strong px-3 text-[12px] leading-4">
+                <SelectTrigger aria-label={f.label} className="h-8 w-auto gap-1.5 rounded-none border-wds-border-strong px-3 text-[12px] leading-4 max-sm:h-11">
                   <span>
                     {f.label} · {chosen && chosen.value !== '' ? chosen.label : 'All'}
                   </span>

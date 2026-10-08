@@ -8,7 +8,6 @@ import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { useThresholds } from '../hooks/use-counts';
 import { saveThresholds } from '../services/count-api-service';
@@ -256,7 +255,6 @@ export function ThresholdsDrawer({
           }}
           className="fixed inset-0 z-50 flex flex-col bg-wds-canvas motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-[250ms] motion-safe:ease-[cubic-bezier(0.32,0.72,0,1)]"
         >
-          <MobileStatusBar className="bg-wds-sidebar-top" />
           <StockMobileHeader
             title="Thresholds"
             subtitle="When a count variance needs a reason — applies from the next count"

@@ -258,6 +258,9 @@ export const countsListQuerySchema = pageQuerySchema.extend({
   status: z.enum(['all', 'waiting', 'inProgress', 'approved']).default('all'),
   /** Matches reference, section name or counter name. */
   search: z.string().trim().min(1).optional(),
+  /** Lane 0 amendment (8 Oct 2026): only counts started on these Nairobi days, both ends included. Either may be given alone. Counts waiting for approval (`SUBMITTED`) always appear, whatever the range (owner decision, 8 Oct 2026); the rows, the total and the chip numbers all follow that one rule. */
+  from: nairobiDate.optional(),
+  to: nairobiDate.optional(),
 });
 export const countRowSchema = z.object({
   id: uuid,

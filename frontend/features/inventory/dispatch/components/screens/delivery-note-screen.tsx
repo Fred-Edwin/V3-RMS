@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui2/button';
 import { Topbar } from '@/components/app/shell/topbar';
 import { ErrorState } from '@/components/app/shell/shell-states';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -144,7 +143,6 @@ function MobileNote({ note, isDriversCopy }: { note: DeliveryNote; isDriversCopy
 
   return (
     <div className="flex min-h-screen flex-col bg-wds-neutral-50">
-      <MobileStatusBar />
       <div className="flex items-center gap-3 border-b border-wds-border px-wds-4 py-3">
         <button type="button" onClick={() => router.back()} aria-label="Back" className="shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -235,7 +233,6 @@ export function DeliveryNoteScreen({ dispatchId, isDriversCopy = true }: Deliver
       </div>
     ) : (
       <div className="flex min-h-screen flex-col bg-wds-neutral-50">
-        <MobileStatusBar />
         <div className="flex flex-col gap-3 p-wds-4">
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-48 w-full rounded-wds-sm" />
@@ -254,7 +251,6 @@ export function DeliveryNoteScreen({ dispatchId, isDriversCopy = true }: Deliver
       </div>
     ) : (
       <div className="flex min-h-screen flex-col bg-wds-neutral-50">
-        <MobileStatusBar />
         <div className="flex flex-1 items-center justify-center p-wds-4">
           <MobileErrorState title="Couldn't load this delivery note" description={error ?? 'Try again.'} onRetry={reload} />
         </div>

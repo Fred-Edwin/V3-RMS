@@ -6,7 +6,6 @@ import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/cn';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import type { CreateWasteResult } from '../types/waste';
 import { LogWasteFields, useLogWasteForm } from './log-waste-form';
@@ -205,7 +204,6 @@ export function LogWasteMobile({ locationLabel, onClose, onLogged, asOverlay = t
           : 'min-h-full',
       )}
     >
-      <MobileStatusBar className="bg-wds-sidebar-top" />
       <StockMobileHeader
         title="Log waste"
         subtitle={`Writes a waste entry against ${locationLabel}`}

@@ -19,7 +19,9 @@ import { plainQty, signedMoney } from '../../../counting/_shared/lib/count-forma
 import { STOCK_ERROR_COPY, STOCK_STATES_COPY } from '../../_shared/lib/states-copy';
 import { stockApi } from '../../_shared/services/stock-api';
 import type { LedgerList, LedgerRow } from '../../_shared/types/stock-contract';
-import { DateRangePicker, type DateRange } from './date-range-picker';
+import { DateRangePicker, type DateRange } from '@/components/ui2/date-range-picker';
+
+const LEDGER_RANGE_NOTE = 'Later dates can’t be picked. Opening and closing figures use the first and last day you choose.';
 
 const COPY = {
   emptyTitle: 'No movements',
@@ -122,7 +124,7 @@ export function StockLedgerScreen() {
             <p className="font-wds-sans text-[13px] leading-[19px] text-wds-text-secondary">One row per item: opening, what came in, where it went, closing. Open an item for its full history. {meta ? meta.periodText : ''}</p>
           </div>
           <div className="flex items-center gap-2">
-            <DateRangePicker value={range} today={t} onChange={setRange} />
+            <DateRangePicker value={range} today={t} note={LEDGER_RANGE_NOTE} onChange={(r) => r && setRange(r)} />
             <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting} className="h-8">{exporting ? 'Exporting…' : 'Export'}</Button>
           </div>
         </div>

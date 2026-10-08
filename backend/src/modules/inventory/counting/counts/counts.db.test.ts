@@ -71,6 +71,33 @@ describe.skipIf(!enabled)('counts reads against the real database', () => {
           expect((await countsRepository.list(siteId, { status: 'approved' }, { page: 1, pageSize: 25 }, tx)).rows.map((r) => r.reference).join()).not.toContain('CNT-ZZ');
           expect((await countsRepository.list(siteId, { status: 'all', search: item.name }, { page: 1, pageSize: 25 }, tx)).total).toBe(3); // search finds a count by its item
 
+          // A count waiting for approval always shows, whatever the range; an old approved one does not (owner decision, 8 Oct 2026).
+          const longAgo = new Date(Date.now() - 100 * 86400_000);
+          const mk = (status: 'SUBMITTED' | 'APPROVED', tag: string) =>
+            tx.count.create({ data: { siteId, locationId: location.id, reference: `CNT-ZZ-OLD-${tag}-${Date.now()}`, counterId: user.id, status, startedAt: longAgo, signedAt: longAgo } });
+          const oldWaiting = await mk('SUBMITTED', 'W');
+          const oldApproved = await mk('APPROVED', 'A');
+          const window = { startedFrom: new Date(Date.now() - 30 * 86400_000), startedBefore: new Date(Date.now() + 86400_000) };
+          const inWindow = await countsRepository.list(siteId, { status: 'all', ...window }, { page: 1, pageSize: 100 }, tx);
+          expect(inWindow.rows.map((r) => r.id)).toContain(oldWaiting.id);
+          expect(inWindow.rows.map((r) => r.id)).not.toContain(oldApproved.id);
+          const waitingOnly = await countsRepository.list(siteId, { status: 'waiting', ...window }, { page: 1, pageSize: 100 }, tx);
+          expect(waitingOnly.rows.map((r) => r.id)).toContain(oldWaiting.id);
+          expect((await countsRepository.list(siteId, { status: 'approved', ...window }, { page: 1, pageSize: 100 }, tx)).rows.map((r) => r.id)).not.toContain(oldApproved.id);
+          // Rows, total and chips are one rule, so they add up: the "All" chip is the total, and the chips split it.
+          const windowChips = await countsRepository.chipCounts(siteId, tx, window);
+          expect(windowChips.all).toBe(inWindow.total);
+          expect(windowChips.waiting + windowChips.inProgress + windowChips.approved).toBe(windowChips.all);
+          expect(windowChips.waiting).toBe(waitingOnly.total);
+          // A search still narrows the always-shown waiting counts.
+          expect((await countsRepository.list(siteId, { status: 'all', search: 'no-such-count-zz', ...window }, { page: 1, pageSize: 100 }, tx)).total).toBe(0);
+
+          // The date range cuts on when the count started, for the rows and the chips alike.
+          const future = { startedFrom: new Date(Date.now() + 86400_000) };
+          expect((await countsRepository.list(siteId, { status: 'all', ...future }, { page: 1, pageSize: 25 }, tx)).rows.every((r) => r.status === 'SUBMITTED')).toBe(true);
+          expect((await countsRepository.chipCounts(siteId, tx, future)).approved).toBe(0);
+          expect((await countsRepository.list(siteId, { status: 'all', startedBefore: new Date(Date.now() - 86400_000 * 365 * 10) }, { page: 1, pageSize: 100 }, tx)).rows.every((r) => r.status === 'SUBMITTED')).toBe(true);
+
           const chips = await countsRepository.chipCounts(siteId, tx);
           expect(chips.waiting).toBeGreaterThanOrEqual(3);
           const facts = await countsRepository.summaryFacts(siteId, new Date(Date.now() - 7 * 86400_000), tx);

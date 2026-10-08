@@ -7,7 +7,6 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { FormErrorBanner, STOCK_DRAWER_MOTION, StockMobileHeader, formatClock, formatCountDateLong, useReturnFocus } from '@/features/inventory';
 import type { BranchDayToday } from '../types/branch-day';
 
@@ -119,7 +118,6 @@ export function ReopenDay({ open, onOpenChange, variant, today, actor, busy, err
           }}
           className="fixed inset-0 z-50 flex flex-col bg-wds-canvas motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-[250ms] motion-safe:ease-[cubic-bezier(0.32,0.72,0,1)]"
         >
-          <MobileStatusBar className="bg-wds-sidebar-top" />
           <StockMobileHeader title={`Reopen ${dateLong}`} subtitle={closedLine} onBack={requestClose} trailingLabel="Cancel" onTrailing={requestClose} />
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
             <ReopenBody reason={reason} setReason={setReason} busy={busy} error={error} actor={actor} mobile />

@@ -160,6 +160,7 @@ export function DataTable<Row>({
   }, [paged, status, result, query.page, pages, setPage]);
 
   const onFilterChange = React.useCallback((key: string, value: string) => patch({ filters: { [key]: value } }), [patch]);
+  const onFiltersChange = React.useCallback((changes: Record<string, string>) => patch({ filters: changes }), [patch]);
   const narrowed = hasActiveNarrowing(query);
   const showToolbar = searchable || filters.length > 0;
 
@@ -284,6 +285,7 @@ export function DataTable<Row>({
           values={query.filters}
           counts={counts ?? result?.counts}
           onFilterChange={onFilterChange}
+          onFiltersChange={onFiltersChange}
           className={searchable ? undefined : '[&>label]:hidden'}
         />
       ) : null}

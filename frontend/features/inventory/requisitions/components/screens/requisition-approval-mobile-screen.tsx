@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
 import { Textarea } from '@/components/ui2/textarea';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { SignSheetDialog, SignedBySignature } from '@/components/app/shell/sign-sheet';
 import { useAuthStore } from '@/store/authStore';
@@ -413,7 +412,6 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-        <MobileStatusBar />
         <RequisitionApprovalSkeletonMobile />
       </div>
     );
@@ -422,7 +420,6 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
   if (status === 'error') {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-        <MobileStatusBar />
         <div className="flex flex-1 items-center justify-center p-wds-4">
           <ErrorState title="Couldn't load this requisition" description={error ?? 'Try again.'} onRetry={reload} />
         </div>
@@ -434,7 +431,6 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
-      <MobileStatusBar />
       <BackHeader
         title={requisitionTypeLabel(requisition.type)}
         subtitle={

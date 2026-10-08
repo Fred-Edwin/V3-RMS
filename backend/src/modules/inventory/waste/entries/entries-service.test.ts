@@ -8,7 +8,7 @@ import { bannerFor, entriesService } from './entries-service';
 
 vi.mock('../../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('./entries-repository', () => ({
-  entriesRepository: { findPage: vi.fn(), chipCounts: vi.fn(), findLast7: vi.fn(), findReversedLast7: vi.fn(), latestBatchToday: vi.fn() },
+  entriesRepository: { findPage: vi.fn(), chipCounts: vi.fn(), findLast7: vi.fn(), findReversedLast7: vi.fn(), latestBatchToday: vi.fn(), loggers: vi.fn() },
 }));
 
 const HUB = '11111111-1111-4111-8111-111111111111';
@@ -50,6 +50,7 @@ beforeEach(() => {
   vi.mocked(entriesRepository.findLast7).mockResolvedValue([log()]);
   vi.mocked(entriesRepository.findReversedLast7).mockResolvedValue([]);
   vi.mocked(entriesRepository.latestBatchToday).mockResolvedValue({ at: new Date('2026-10-13T11:20:00Z'), count: 2 });
+  vi.mocked(entriesRepository.loggers).mockResolvedValue([{ id: 'u-peter', name: 'Peter Kariuki' }]);
 });
 
 describe('entriesService.list (W3)', () => {
@@ -105,6 +106,39 @@ describe('entriesService.list (W3)', () => {
   it('says banner null when the Attendant has logged nothing today', async () => {
     vi.mocked(entriesRepository.latestBatchToday).mockResolvedValue(null);
     expect((await entriesService.list(attendant, query, NOW)).bannerText).toBeNull();
+  });
+
+  it('cuts the page to the Nairobi days asked for, both ends included, with the reason and status', async () => {
+    await entriesService.list(manager, { ...query, from: '2026-10-01', to: '2026-10-05', reason: 'EXPIRY', status: 'reversed' }, NOW);
+    expect(vi.mocked(entriesRepository.findPage).mock.calls[0]![5]).toEqual({
+      loggedFrom: new Date('2026-09-30T21:00:00Z'),
+      loggedBefore: new Date('2026-10-05T21:00:00Z'),
+      reason: 'EXPIRY',
+      status: 'reversed',
+    });
+    // The chips and the KPI strip are not narrowed by these.
+    expect(vi.mocked(entriesRepository.chipCounts).mock.calls[0]![0]).not.toHaveProperty('loggedById');
+  });
+
+  it('narrows to one person with Logged by, but an Attendant stays on their own entries', async () => {
+    await entriesService.list(manager, { ...query, loggedBy: 'u-peter' }, NOW);
+    expect(vi.mocked(entriesRepository.findPage).mock.calls[0]![0]).toMatchObject({ loggedById: 'u-peter' });
+    await entriesService.list(attendant, { ...query, loggedBy: 'u-sam' }, NOW);
+    expect(vi.mocked(entriesRepository.findPage).mock.calls[1]![0]).toMatchObject({ loggedById: 'u-peter' });
+  });
+
+  it('lists who has logged waste for the desktop roles, and nobody for the Attendant', async () => {
+    const list = await entriesService.list(manager, query, NOW);
+    expect(() => wasteListSchema.parse(list)).not.toThrow();
+    expect(list.people).toEqual([{ id: 'u-peter', name: 'Peter Kariuki' }]);
+    const own = await entriesService.list(attendant, query, NOW);
+    expect(own).not.toHaveProperty('people');
+    expect(entriesRepository.loggers).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a From after the To', async () => {
+    await expect(entriesService.list(manager, { ...query, from: '2026-10-05', to: '2026-10-01' }, NOW)).rejects.toMatchObject({ statusCode: 400 });
+    expect(entriesRepository.findPage).not.toHaveBeenCalled();
   });
 
   it('carries the chip counts and the pager', async () => {

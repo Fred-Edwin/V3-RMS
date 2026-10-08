@@ -21,6 +21,10 @@ function**; it does not build a toolbar, a footer or URL handling.
 />
 ```
 
+- **Date range:** `{ kind: 'dateRange', fromKey: 'from', toKey: 'to', label: 'Date', defaultPreset: 'today' | 'last7' | 'last30' | 'any', allowAny?, note? }`
+  puts the approved picker (`ui2/date-range-picker.tsx`) beside the dropdowns. The URL holds `from` and `to` only when the person
+  moved off the starting range (`from=any` means no dates). In `fetchRows` read it with
+  `effectiveRange(q.filters, filter, filter.defaultPreset, nairobiToday())` (`table-dates.ts`); days are Nairobi days.
 - `fetchRows(query, { signal })` receives `{ page, perPage, search, filters }` and returns `{ rows, total, counts? }`.
   `total` is every row matching the search and filters, not the page. It runs when the URL state changes (search is debounced
   250 ms), never per keystroke; an inline function is fine. Pass `refreshToken` to reload after a save elsewhere on the screen.
