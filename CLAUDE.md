@@ -33,7 +33,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/API_CONTRACT.md`          | Implementing any API endpoint                  |
 | `docs/DESIGN_SYSTEM.md`         | Building any UI component or page              |
 | `docs/CODING_STANDARDS.md`      | Writing any code — always                      |
-| `docs/UI_BUILD_RULES.md`        | Building any screen (states, shells, tables, Paper fidelity checks) |
+| `docs/UI_BUILD_RULES.md`        | Building any screen (states, shells, tables, Paper fidelity checks). §4a is the one table convention: search and filters first, type-ahead, numbered pager with rows per page, no infinite scroll |
 | `docs/features/<feature>/README.md` + the sub-module `README.md` | Working on a redone feature — the living spec and status |
 | `docs/archive/INDEX.md`         | Historical phase context — NOT current guidance |
 
@@ -183,14 +183,13 @@ designs (file "Wendo RMS · Approved designs", `01M3TP8J54R83RHC9FJ7RAHGKG`).
 Restructured 2026-10-03 into 11 sub-modules under `backend/src/modules/inventory/`
 and `frontend/features/inventory/` (pure moves; no behaviour change).
 
-- **Rebuilt to approved design:** catalog, restock, suppliers.
-- **Approved design, code still (partly) on the old flow (rebuild next):**
-  stock, waste, counting, prep. **Purchasing and Receiving is rebuilt on a
-  mock-data front-end** (complete 5 Oct 2026: need to payment, closed file, supplier
-  orders and statement, audit log, Attendant phone views, every exception; System
-  Admin demo bar, curated fixtures in `frontend/features/inventory/purchasing/mock/`;
-  awaiting client approval, then the back-end session builds from
-  `docs/features/inventory/purchasing-mock/backend-rules.md`).
+- **Rebuilt to approved design and live:** catalog, restock, suppliers, purchasing
+  and receiving, prep (PRs #87, #89, #90).
+- **Rebuilt on branch `feat/stock-count-waste` (8 Oct 2026, awaiting merge):**
+  stock, counting, waste (39 endpoints; API in `docs/API_CONTRACT.md` §34; data in
+  `docs/DATA_MODEL.md` §4.85). Daily count and Spot count are gone; the old count
+  tables are dropped by a guarded migration. Branch day still imports a few old
+  counting files, kept on purpose and marked for its own refactor.
 - **Design not yet approved, code on the old flow:** requisitions, dispatch, branch-day.
 - Two open owner decisions (miscount-correction ledger effect; attendant on-hand
   in dispatch fulfil) are in `docs/features/inventory/decisions.md`.

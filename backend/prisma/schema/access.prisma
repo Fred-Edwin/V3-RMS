@@ -89,7 +89,9 @@ model Site {
   dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
   dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
   wasteLogs                    WasteLog[]
-  stockCounts                  StockCount[]
+  wasteBatches                 WasteBatch[]
+  counts                       Count[]
+  countSections                CountSection[]
   countingThresholds           CountingThresholds?
   branchDays                   BranchDay[]
 
@@ -185,9 +187,13 @@ model User {
   restockLevelsSet                   RestockLevel[]                @relation("RestockLevelSetBy")
   restockLevelChanges                RestockLevelChange[]          @relation("RestockLevelChangedBy")
   wasteLogsLogged                    WasteLog[]                    @relation("WasteLogLoggedBy")
-  stockCountsCounted                 StockCount[]                  @relation("StockCountCounter")
-  stockCountsVerified                StockCount[]                  @relation("StockCountVerifier")
-  stockCountsReturned                StockCount[]                  @relation("StockCountReturnedBy")
+  wasteLogsReversed                  WasteLog[]                    @relation("WasteLogReversedBy")
+  wasteBatches                       WasteBatch[]
+  countsCounted                      Count[]                       @relation("CountCounter")
+  countsApproved                     Count[]                       @relation("CountApprover")
+  countLinesDecided                  CountLine[]                   @relation("CountLineDecidedBy")
+  countLinesSeen                     CountLine[]                   @relation("CountLineDirectorSeenBy")
+  countItemMoves                     CountItemMove[]               @relation("CountItemMoveMovedBy")
   countingThresholdsUpdated          CountingThresholds[]          @relation("CountingThresholdsUpdatedBy")
   branchDaysClosed                   BranchDay[]                   @relation("BranchDayClosedBy")
   branchDayDepartmentsCounted        BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")

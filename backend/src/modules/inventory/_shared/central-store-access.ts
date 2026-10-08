@@ -57,6 +57,20 @@ export const CAPABILITIES = [
   'prep.fix_any', // correct or cancel any run, any age
   'prep.review', // Mark reviewed
   'prep.recipes_write', // set and edit usual recipes
+  // Stock, Counting and Waste (docs/features/inventory/stock-count-waste-contract.md §3). The client has not approved these
+  // mappings; each is a one-row edit below. The Store Attendant holds none of the `*.read` rows except `waste.read`, which the
+  // waste service narrows to their own entries.
+  'stock.read', // Overview, All items, Stock ledger, Stock card (positions, costs follow `catalog.see_costs`)
+  'counts.read', // every count with expected stock, differences and the Director's flagged lines
+  'counts.record', // start a count, count, sign it with the caller's PIN, recount; the Attendant's reorder for today and item moves
+  'counts.resolve', // decide lines, approve and sign a submitted count with a PIN, ask for a recount
+  'counts.setup', // sections, order, items, undo a move, the within-range settings
+  'counts.acknowledge', // "Mark seen" on a flagged line (Director)
+  'counts.set_director_alert', // the Director alert amount
+  'waste.read', // every waste entry (the Attendant: their own only)
+  'waste.log', // log waste at the Central Store
+  'waste.reverse_own', // reverse an entry the caller logged earlier the same day
+  'waste.reverse_any', // reverse any entry
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -77,12 +91,18 @@ const READ_EVERYTHING: readonly Capability[] = [
   'prep.read',
   'prep.see_costs',
   'prep.read_flags',
+  'stock.read',
+  'counts.read',
+  'waste.read',
   'audit.read',
   'central_store.read_any_org',
 ];
 
+/** Capabilities that belong to one named job, so the Store Manager does not inherit them from "everything". */
+const NOT_THE_STORE_MANAGERS: readonly Capability[] = ['central_store.read_any_org', 'counts.acknowledge', 'counts.set_director_alert'];
+
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {
-  STORE_MANAGER: CAPABILITIES.filter((c) => c !== 'central_store.read_any_org'),
+  STORE_MANAGER: CAPABILITIES.filter((c) => !NOT_THE_STORE_MANAGERS.includes(c)),
   SYSTEM_ADMIN: CAPABILITIES,
   ACCOUNTANT: [
     ...READ_EVERYTHING,
@@ -93,7 +113,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'payables.record_payment',
     'payables.record_deposit',
   ],
-  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details'],
+  // The Director's only writes in Counting: "Mark seen" and the alert amount.
+  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert'],
   // The Branch Manager reads everything except supplier payment details.
   MANAGER: READ_EVERYTHING,
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
@@ -110,6 +131,11 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'orders.receive',
     'prep.read',
     'prep.record',
+    // Counts blind (own count only), logs waste, reads and reverses their own waste the same day.
+    'counts.record',
+    'waste.read',
+    'waste.log',
+    'waste.reverse_own',
   ],
 };
 

@@ -11,7 +11,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 import { ConflictError, ValidationError } from '../../../../utils/errors';
-import { stockRepository } from '../stock-repository';
+import { stockRepository } from '../_shared/stock-repository';
 import { postStockMovement } from './ledger-door';
 import { allowLedgerEditsInThisTransaction } from '../../../../scripts/ledger-dev-bypass';
 
@@ -198,8 +198,115 @@ describe.skipIf(!enabled)('postStockMovement against the real database', () => {
     });
   });
 
+  /** An OPEN count with one line on the hub, inside `tx` (the Counting rebuild, migration 20261008100000). */
+  const newCountLine = async (tx: Prisma.TransactionClient, f: Awaited<ReturnType<typeof fixtures>>) => {
+    const count = await tx.count.create({
+      data: {
+        siteId: f.location.siteId,
+        locationId: f.location.id,
+        reference: `CNT-TEST-${Date.now()}`,
+        counterId: f.user.id,
+      },
+    });
+    return tx.countLine.create({
+      data: { siteId: f.location.siteId, countId: count.id, inventoryItemId: f.item.id, position: 0 },
+    });
+  };
+
+  it('posts a count-line adjustment: signed quantity, ADJ number, countLineId set, on the count’s site', async () => {
+    const f = await fixtures();
+    await inRolledBackTx(async (tx) => {
+      const line = await newCountLine(tx, f);
+      const before = await stockRepository.onHandForItem(f.location.siteId, f.location.id, f.item.id, tx);
+      const row = await postStockMovement(tx, {
+        type: 'ADJUSTMENT',
+        locationId: f.location.id,
+        inventoryItemId: f.item.id,
+        quantity: new Prisma.Decimal('-2.5'),
+        unitCost: new Prisma.Decimal(90),
+        reason: 'Prep use not logged',
+        userId: f.user.id,
+        links: { countLineId: line.id },
+      });
+      expect(row.countLineId).toBe(line.id);
+      expect(row.siteId).toBe(f.location.siteId);
+      expect(row.quantity.toString()).toBe('-2.5');
+      expect(row.reference).toMatch(/^ADJ-\d{4}$/);
+      const after = await stockRepository.onHandForItem(f.location.siteId, f.location.id, f.item.id, tx);
+      expect(after.toString()).toBe(before.minus('2.5').toString());
+    });
+  });
+
+  it('refuses a count line from another site (findLinkOwnerSites reads countLineId)', async () => {
+    const f = await fixtures();
+    const branch = await prisma.location.findFirst({ where: { type: 'BRANCH_DEPARTMENT' } });
+    if (!branch) return;
+    await inRolledBackTx(async (tx) => {
+      const line = await newCountLine(tx, f);
+      await expect(
+        postStockMovement(tx, {
+          type: 'ADJUSTMENT',
+          locationId: branch.id,
+          inventoryItemId: f.item.id,
+          quantity: new Prisma.Decimal(1),
+          unitCost: new Prisma.Decimal(90),
+          userId: f.user.id,
+          links: { countLineId: line.id },
+        }),
+      ).rejects.toThrow(/another site/);
+    });
+  });
+
+  it('reverses a waste row: the stock nets back exactly and a second reversal is refused', async () => {
+    const f = await fixtures();
+    await inRolledBackTx(async (tx) => {
+      const log = await newWasteLog(tx, f);
+      const post = (reverses?: string) =>
+        postStockMovement(tx, {
+          type: 'WASTE',
+          locationId: f.location.id,
+          inventoryItemId: f.item.id,
+          quantity: new Prisma.Decimal(3),
+          unitCost: new Prisma.Decimal(90),
+          userId: f.user.id,
+          links: { wasteLogId: log.id },
+          ...(reverses ? { reversesTransactionId: reverses } : {}),
+        });
+      const onHand = () => stockRepository.onHandForItem(f.location.siteId, f.location.id, f.item.id, tx);
+      const start = await onHand();
+      const original = await post();
+      expect((await onHand()).toString()).toBe(start.minus(3).toString());
+      const undo = await post(original.id);
+      expect(undo.type).toBe('WASTE');
+      expect(undo.quantity.toString()).toBe('3');
+      expect(undo.reversesTransactionId).toBe(original.id);
+      expect((await onHand()).toString()).toBe(start.toString());
+      await expect(post(original.id)).rejects.toBeInstanceOf(ConflictError);
+      await expect(post(undo.id)).rejects.toThrow(/cannot be reversed/);
+    });
+  });
+
   // The database trigger from migration 20261004120000_ledger_append_only_trigger.
   describe('append-only trigger', () => {
+    it('refuses to delete a count line a ledger row points at (the FK would null the link)', async () => {
+      const f = await fixtures();
+      await expect(
+        prisma.$transaction(async (tx) => {
+          const line = await newCountLine(tx, f);
+          await postStockMovement(tx, {
+            type: 'ADJUSTMENT',
+            locationId: f.location.id,
+            inventoryItemId: f.item.id,
+            quantity: new Prisma.Decimal(1),
+            unitCost: new Prisma.Decimal(90),
+            userId: f.user.id,
+            links: { countLineId: line.id },
+          });
+          await tx.countLine.delete({ where: { id: line.id } });
+        }),
+      ).rejects.toThrow(/append-only/);
+    });
+
     /** Posts one WASTE row inside `tx` and hands back what the forbidden operations need. */
     const postOne = async (tx: Prisma.TransactionClient) => {
       const f = await fixtures();

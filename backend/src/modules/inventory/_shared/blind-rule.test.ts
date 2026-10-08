@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blindnessOf, withoutFinancials, withoutStockFigures } from './blind-rule';
+import { blindnessOf, withoutCountFigures, withoutFinancials, withoutStockFigures } from './blind-rule';
+import { COUNT_STOCK_FIGURE_KEYS } from '../counting/_shared/counting-contract';
 
 const attendant = { role: 'STORE_ATTENDANT' as const };
 const storeManager = { role: 'STORE_MANAGER' as const };
@@ -45,5 +46,34 @@ describe('withoutStockFigures / withoutFinancials', () => {
   it('returns the object untouched for a role that may see it', () => {
     expect(withoutStockFigures(storeManager, row)).toBe(row);
     expect(withoutFinancials(accountant, row)).toBe(row);
+  });
+});
+
+describe('withoutCountFigures', () => {
+  const figures = Object.fromEntries(COUNT_STOCK_FIGURE_KEYS.map((key) => [key, 'x']));
+  const count = {
+    reference: 'CNT-2026-0001',
+    ...figures,
+    lines: [{ itemName: 'Sugar', countedQty: '4', unitCost: '178', ...figures }, { itemName: 'Milk', countedQty: '2', nested: { ...figures, keep: 1 } }],
+    startedAt: new Date('2026-10-08T07:00:00Z'),
+  };
+
+  it('removes every count figure key at any depth for the Attendant and keeps the rest (dates stay dates)', () => {
+    const out = withoutCountFigures(attendant, count);
+    expect(JSON.stringify(out)).not.toMatch(new RegExp(`"(${COUNT_STOCK_FIGURE_KEYS.join('|')})"`));
+    expect(out.lines[0]).toEqual({ itemName: 'Sugar', countedQty: '4', unitCost: '178' });
+    expect(out.lines[1]).toMatchObject({ itemName: 'Milk', nested: { keep: 1 } });
+    expect(out.reference).toBe('CNT-2026-0001');
+    expect(out.startedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not change what it was given', () => {
+    withoutCountFigures(attendant, count);
+    expect(count).toHaveProperty('expectedQty');
+  });
+
+  it('returns the object untouched for a role that sees stock figures', () => {
+    expect(withoutCountFigures(storeManager, count)).toBe(count);
+    expect(withoutCountFigures(accountant, count)).toBe(count);
   });
 });

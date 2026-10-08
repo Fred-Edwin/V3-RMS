@@ -51,9 +51,9 @@ export const ledgerRepository = {
         const row = await tx.wasteLog.findUnique({ where: { id }, select: { siteId: true } });
         return row ? [row.siteId] : null;
       }
-      case 'stockCountLineId': {
-        const row = await tx.stockCountLine.findUnique({ where: { id }, select: { stockCount: { select: { siteId: true } } } });
-        return row ? [row.stockCount.siteId] : null;
+      case 'countLineId': {
+        const row = await tx.countLine.findUnique({ where: { id }, select: { count: { select: { siteId: true } } } });
+        return row ? [row.count.siteId] : null;
       }
       case 'branchDayLineId': {
         const row = await tx.branchDayLine.findUnique({

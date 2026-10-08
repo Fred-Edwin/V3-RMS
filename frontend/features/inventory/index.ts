@@ -45,13 +45,14 @@ export { PrepHistoryScreen } from './prep/runs/components/history-screen';
 export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 
 // Milestone Six, Session 1 — Stock position & waste.
-export { StockHubScreen } from './stock/components/screens/stock-hub-screen';
-export { StockItemsScreen } from './stock/components/screens/stock-items-screen';
-export { StockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
-export { DepartmentLogWasteScreen } from './waste/components/screens/department-log-waste-screen';
-export { DailyCountScreen } from './counting/components/screens/daily-count-screen';
-export { StockCountsScreen } from './counting/components/screens/stock-counts-screen';
-export { SpotCountScreen } from './counting/components/screens/spot-count-screen';
+// The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
+export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
+export { WasteScreen, LogWastePhoneScreen } from './waste';
+export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
+export { DepartmentLogWasteScreen } from './waste/department/components/department-log-waste-screen';
+
+// Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
+export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
 
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './settings/components/screens/settings-screen';
@@ -66,8 +67,8 @@ export { CountReasonControl } from './counting/components/count-reason';
 export type { CountReasonControlProps, ReasonOption } from './counting/components/count-reason';
 export { Reveal, StatCell, StatusDot } from './counting/components/count-verify-parts';
 export { HighlightOnChange } from './stock/components/highlight-on-change';
-export { StockMobileHeader } from './stock/components/stock-mobile-header';
-export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/components/log-waste-drawer';
+export { StockMobileHeader } from './_shared/components/stock-mobile-header';
+export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/department/components/log-waste-drawer';
 export {
   FormErrorBanner,
   KpiValueSkeleton,

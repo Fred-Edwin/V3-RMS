@@ -38,9 +38,11 @@ import prepRunsRoutes from '../modules/inventory/prep/runs/runs-routes';
 import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
 import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
-import stockRoutes from '../modules/inventory/stock/stock-routes';
-import wasteRoutes from '../modules/inventory/waste/waste-routes';
-import countRoutes from '../modules/inventory/counting/count-routes';
+import wasteRoutes from '../modules/inventory/waste/department/waste-routes';
+import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
+import countingRoutes from '../modules/inventory/counting/counting-routes';
+import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';
+import wasteHubRoutes from '../modules/inventory/waste/waste-hub-routes';
 import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
@@ -87,9 +89,13 @@ apiRouter.use(prepReviewRoutes); // before prepRunsRoutes: `/runs/export` must w
 apiRouter.use(prepRunsRoutes);
 apiRouter.use(prepFixRoutes);
 apiRouter.use('/inventory/prep', prepRecipesRoutes);
-apiRouter.use(stockRoutes);
 apiRouter.use(wasteRoutes);
-apiRouter.use(countRoutes);
+apiRouter.use(thresholdsRoutes);
+// The Stock, Counting and Waste rebuild (feat/stock-count-waste): new paths under /inventory/stock, none shared with the old
+// routers above, which are deleted at release. Each aggregator lists its folders; the build sessions fill the folder routers.
+apiRouter.use(countingRoutes);
+apiRouter.use(stockHubRoutes);
+apiRouter.use(wasteHubRoutes);
 apiRouter.use(branchDayRoutes);
 apiRouter.use(requisitionsRoutes);
 apiRouter.use(dispatchRoutes);

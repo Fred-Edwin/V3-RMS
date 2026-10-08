@@ -40,7 +40,7 @@ const LINK_FOR: Record<string, LedgerLink> = {
   WASTE: 'wasteLogId',
   DISPATCH_OUT: 'dispatchLineId',
   DISPATCH_IN: 'dispatchLineId',
-  ADJUSTMENT: 'stockCountLineId',
+  ADJUSTMENT: 'countLineId',
 };
 
 const base = (overrides: Partial<PostStockMovementInput> = {}): PostStockMovementInput => ({
@@ -92,20 +92,48 @@ describe('postStockMovement — sign, link, cost and reference per type', () => 
   }
 
   it('ADJUSTMENT keeps the caller’s sign (both ways) and gets an ADJ reference from the location’s site', async () => {
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('-2.5'), links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('-2.5'), links: { countLineId: 'cl-1' } }));
     expect(created().quantity.toString()).toBe('-2.5');
     expect(created().reference).toBe('ADJ-0007');
     expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(tx, hubSite, 'ADJ');
 
     vi.mocked(ledgerRepository.create).mockClear();
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('4'), links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('4'), links: { countLineId: 'cl-1' } }));
     expect(created().quantity.toString()).toBe('4');
   });
 
   it('ADJUSTMENT accepts each of its four source links', async () => {
+    expect(LEDGER_RULES.ADJUSTMENT!.links).toHaveLength(4);
     for (const link of LEDGER_RULES.ADJUSTMENT!.links) {
       await expect(postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { [link]: 'doc-1' } }))).resolves.toBeDefined();
     }
+  });
+
+  it('a count line posts an adjustment with its signed quantity, the count-line link and an ADJ number, on the line’s own site', async () => {
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('-1.5'), links: { countLineId: 'count-line-1' } }));
+    expect(created().links).toEqual({ countLineId: 'count-line-1' });
+    expect(created().quantity.toString()).toBe('-1.5');
+    expect(created().reference).toBe('ADJ-0007');
+    expect(ledgerRepository.findLinkOwnerSites).toHaveBeenCalledWith(tx, 'countLineId', 'count-line-1');
+  });
+
+  it('refuses a count line from another site, a missing one, and a count line on any type but ADJUSTMENT', async () => {
+    vi.mocked(ledgerRepository.findLinkOwnerSites).mockResolvedValue([branchSite]);
+    await expect(
+      postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'count-line-1' } })),
+    ).rejects.toThrow(/belongs to another site/);
+    vi.mocked(ledgerRepository.findLinkOwnerSites).mockResolvedValue(null);
+    await expect(
+      postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'count-line-1' } })),
+    ).rejects.toThrow(/does not exist/);
+    await expect(postStockMovement(tx, base({ type: 'WASTE', links: { countLineId: 'count-line-1' } }))).rejects.toThrow(/exactly one of/);
+    expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a movement that carries a count-line link and another link', async () => {
+    await expect(
+      postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'count-line-1', branchDayLineId: 'old-1' } })),
+    ).rejects.toThrow(/exactly one of/);
   });
 
   it('derives siteId from the location, so a branch department posts on the branch site', async () => {
@@ -123,7 +151,7 @@ describe('postStockMovement — sign, link, cost and reference per type', () => 
   });
 
   it('joins the caller’s transaction: every repository call receives the same tx', async () => {
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'cl-1' } }));
     expect(vi.mocked(ledgerRepository.findLocationOwner).mock.calls[0]![0]).toBe(tx);
     expect(vi.mocked(ledgerRepository.findLinkOwnerSites).mock.calls[0]![0]).toBe(tx);
     expect(vi.mocked(ledgerRepository.create).mock.calls[0]![0]).toBe(tx);
@@ -152,7 +180,7 @@ describe('postStockMovement — rejections', () => {
   it('rejects a zero quantity, and a negative quantity on any type but ADJUSTMENT', async () => {
     await rejects(base({ quantity: D(0) }), ValidationError, /above zero/);
     await rejects(base({ quantity: D(-3) }), ValidationError, /positive number/);
-    await rejects(base({ type: 'ADJUSTMENT', quantity: D(0), links: { stockCountLineId: 'cl-1' } }), ValidationError, /above zero/);
+    await rejects(base({ type: 'ADJUSTMENT', quantity: D(0), links: { countLineId: 'cl-1' } }), ValidationError, /above zero/);
   });
 
   it('rejects a negative unit cost', async () => {
@@ -206,7 +234,7 @@ describe('postStockMovement — reversals', () => {
     alreadyReversed: false,
   };
   const reversal = (overrides: Partial<PostStockMovementInput> = {}) =>
-    base({ type: 'ADJUSTMENT', quantity: D(-5), links: { stockCountLineId: 'cl-1' }, reversesTransactionId: 'orig-1', ...overrides });
+    base({ type: 'ADJUSTMENT', quantity: D(-5), links: { countLineId: 'cl-1' }, reversesTransactionId: 'orig-1', ...overrides });
 
   beforeEach(() => {
     vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(original);
@@ -235,7 +263,9 @@ describe('postStockMovement — reversals', () => {
   });
 
   it('rejects a reversal that is not an adjustment, or whose target is missing, mismatched or not an adjustment', async () => {
-    await expect(postStockMovement(tx, base({ reversesTransactionId: 'orig-1' }))).rejects.toThrow(/Only an adjustment or a prep row can reverse/);
+    await expect(
+      postStockMovement(tx, base({ type: 'RECEIVE', links: { purchaseDeliveryLineId: 'pdl-1' }, reversesTransactionId: 'orig-1' })),
+    ).rejects.toThrow(/Only an adjustment, a prep row or a waste row can reverse/);
 
     vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(null);
     await expect(postStockMovement(tx, reversal())).rejects.toThrow(/does not exist/);
@@ -252,6 +282,61 @@ describe('postStockMovement — reversals', () => {
   it('rejects a reversal for the wrong quantity', async () => {
     await expect(postStockMovement(tx, reversal({ quantity: D(-4) }))).rejects.toThrow(/undo the original quantity/);
     expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('postStockMovement — reversing a waste row', () => {
+  const waste = {
+    id: 'orig-w',
+    siteId: hubSite,
+    locationId: storeLocation.id,
+    inventoryItemId: 'item-1',
+    type: 'WASTE' as const,
+    quantity: D(-3),
+    reversesTransactionId: null,
+    alreadyReversed: false,
+  };
+  const reverse = (quantity: number, overrides: Partial<PostStockMovementInput> = {}) =>
+    base({ type: 'WASTE', quantity: D(quantity), reversesTransactionId: 'orig-w', ...overrides });
+
+  it('keeps the original’s type and stores the same quantity positive, linked to the original', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(waste);
+    await postStockMovement(tx, reverse(3));
+    expect(created().type).toBe('WASTE');
+    expect(created().quantity.toString()).toBe('3');
+    expect(created().reversesTransactionId).toBe('orig-w');
+    expect(created().links).toEqual({ wasteLogId: 'waste-1' });
+    expect(created().reference).toBeNull();
+  });
+
+  it('refuses a wrong quantity, another item, another location, a row of another type, a second reversal and a reversal of a reversal', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(waste);
+    await expect(postStockMovement(tx, reverse(2))).rejects.toThrow(/undo the original quantity/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...waste, inventoryItemId: 'other' });
+    await expect(postStockMovement(tx, reverse(3))).rejects.toThrow(/must match the original/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...waste, locationId: 'elsewhere' });
+    await expect(postStockMovement(tx, reverse(3))).rejects.toThrow(/must match the original/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...waste, type: 'PREP_CONSUME' as const });
+    await expect(postStockMovement(tx, reverse(3))).rejects.toThrow(/waste row can only be reversed by a row of the same type/);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...waste, alreadyReversed: true });
+    await expect(postStockMovement(tx, reverse(3))).rejects.toBeInstanceOf(ConflictError);
+
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...waste, quantity: D(3), reversesTransactionId: 'x' });
+    await expect(postStockMovement(tx, reverse(3))).rejects.toThrow(/cannot be reversed/);
+
+    expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('turns a racing second reversal (unique index) into the same conflict', async () => {
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(waste);
+    vi.mocked(ledgerRepository.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'x' }),
+    );
+    await expect(postStockMovement(tx, reverse(3))).rejects.toBeInstanceOf(ConflictError);
   });
 });
 

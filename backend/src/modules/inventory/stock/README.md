@@ -1,37 +1,38 @@
 # stock
 
-**Design:** approved (Paper: *Stock and Counting*, chapters 5–6) · **Code:** built to the old flow, **pending redo**.
+**Design:** approved (Paper: *Inventory · Counting redesign (Oct 7)*, steps 27 to 29 and 42) · **Code:** rebuilt to the frozen contract (Stock, Counting and Waste rebuild, Back end B). The old stock routes, controller, validators and repository are deleted.
 
-Full approved wording: [../counting/DESIGN-NOTES.md](../counting/DESIGN-NOTES.md).
+Where stock is and where it went: the Overview, All items, the Stock ledger and the Stock card, plus the ledger door that posts every movement.
 
-Where stock is and where it went: the stock position, the **Stock ledger** (one row per item with opening, in, sent out, Prep use, waste, adjusted, closing) and the **Stock card** per item.
+## Sub-modules
+| Folder | Screens | Endpoints | README |
+|---|---|---|---|
+| `overview/` | Overview hub | S1 | [overview](overview/README.md) |
+| `items/` | All items | S2 | [items](items/README.md) |
+| `history/` | Stock ledger, CSV export, Stock card | S3, S4, S5 | [history](history/README.md) |
+| `ledger/` | the door (below); not a screen | none | this file |
+| `_shared/` | the frozen contract, `stock-repository`, `stock-status`, `stock-kpis`, `stock-sections`, `stock-text`, `stock-view`, `nairobi-time`, `person`, `movement-reference` | none | this file |
 
 ## Who can do what
-- **Store Manager** (and Branch Manager, Department Head within their scope): see values. **Accountant/Director** views wait for their shells.
-- **Store Attendant**: no on-hand, no ledger, no values anywhere (server-enforced; waste hint shows no stock).
-
-## Approved behaviour
-- Ledger landing: filters date range (quick picks + two-month calendar), section, "Had adjustments", "Had waste", "Negative stock only", search by item or reference (ADJ-3402, CNT-2026-1013). Footer "Showing x of y"; export.
-- Stock card: opening-to-closing strip, one row per day with source reference (ADJ, DSP, GRN), "By day" grouping; opening a day shows its entries. Quiet periods collapse.
-- The ledger is never edited; a correction is a new linked entry.
-- No all-items Journal (dropped 1 Oct 2026); the Audit log covers who/when/why.
-- Strips: hub (items tracked, low or out, negative, today's count), all-items (tracked, low/out, negative, on-hand value).
-
-## Built today vs approved
-When rebuilt, strip responses with the shared blind rule (`_shared/blind-rule.ts`) instead of an `isAttendant` check: the Attendant sees costs but no stock figures.
-Built in Milestone Six (stock hub, all items, ledger, hub KPI strip) to the older design. Gaps to close in the redo: ledger summary view with the opening→closing columns, Stock card, date picker with quick picks, "Had waste"/"Had adjustments" chips, attendant stripped of figures.
+All five endpoints need `stock.read`, held by the Store Manager, System Admin, Accountant, Director and Branch Manager. The **Store Attendant gets 403 on every one** (a refusal, not a stripped body). Money follows `catalog.see_costs` through `withoutStockCosts`. Stock is read only; everything that changes stock goes through the door.
 
 ## Endpoints
-3 endpoints (generated from the route files; re-run if routes change).
+All under `/api/v1/inventory/stock`, mounted by `stock-hub-routes.ts`.
 
-| Method | Path | Roles |
+| # | Method and path | Capability |
 |---|---|---|
-| GET | `/inventory/stock` | STORE_MANAGER |
-| GET | `/inventory/stock/summary` | STORE_MANAGER, STORE_ATTENDANT |
-| GET | `/inventory/stock/items/:itemId/ledger` | STORE_MANAGER, MANAGER |
+| S1 | `GET /overview` | `stock.read` |
+| S2 | `GET /items` | `stock.read` |
+| S3 | `GET /ledger` | `stock.read` |
+| S4 | `GET /ledger/export` (registered before S5) | `stock.read` |
+| S5 | `GET /ledger/:itemId` | `stock.read` |
 
-## Code map
-`stock-controller.ts`, `stock-repository.ts`, `stock-routes.ts`, `stock-service.ts`, `stock-validators.ts`, `stock.types.ts`. 1 test files beside the code.
+## Rules that hold across the folders
+- On-hand is always Σ ledger quantity at the Central Store, never stored.
+- The ledger values each movement at its own `unit_cost`; All items values stock at the item's **current cost** (latest-price costing). The two can differ.
+- Status of an item: `NEGATIVE` (< 0), `OUT` (= 0, a restock level set), `LOW` (0 < on hand < level), else `OK` (`_shared/stock-status.ts`).
+- Counting is read only through `counting/_shared/count-reads.ts`, with one flagged exception (the section filter, see `history/README.md`).
+- Days are Africa/Nairobi days (`_shared/nairobi-time.ts`).
 
 ## The stock ledger door (`ledger/`, added 4 Oct 2026)
 **Purpose:** the one way to post a stock movement. Every flow calls `postStockMovement(tx, input)` instead of writing `inventoryTransaction` itself. Other modules import it from `modules/inventory/index.ts`; sub-modules inside Inventory import `stock/ledger/ledger-door` directly.
@@ -61,18 +62,19 @@ postStockMovement(tx, {
 | `WASTE` | − | `wasteLogId` |
 | `DISPATCH_IN` | + | `dispatchLineId` |
 | `DISPATCH_OUT` | − | `dispatchLineId` |
-| `ADJUSTMENT` | as given | one of `stockCountLineId`, `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+| `ADJUSTMENT` | as given | one of `countLineId` (the Counting rebuild), `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+
+A **waste row can be reversed** (Waste W4, no PIN): `reversal: 'WASTE'`, the same rule as Prep: the caller sends the same positive quantity with `reversesTransactionId`; the door stores it positive and the original must be a WASTE row at the same site, location and item with the exact opposite quantity (one reversal per row, a reversal is never reversed).
 
 **Guard:** `ledger/ledger-guard.test.ts` fails on any direct ledger write (`create`, `createMany`, `update`, `updateMany`, `delete`, `deleteMany`, `upsert`, or raw SQL) outside the door. Seed scripts in `src/scripts/` are not checked. The allow-list below only shrinks; lower the count when a rebuild moves the writer (the test also fails on a stale entry).
 
 | File | Direct writes left | Moves with |
 |---|---|---|
-| `counting/count-service.ts` | 1 | Stock & counts rebuild |
 | `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
 | `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
 
-Already on the door: **Waste** (`waste/waste-service.ts`), **Purchasing receiving** (the delivery lines) and **Prep** (`prep/record/` posts runs, `prep/fix/` posts the reversing rows).
+Already on the door: **Waste** (`waste/log/` posts, `waste/reverse/` reverses, and the Department Head's `waste/department/`), **Purchasing receiving** (the delivery lines) and **Prep** (`prep/record/` posts runs, `prep/fix/` posts the reversing rows).
 
 **Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 
@@ -83,5 +85,8 @@ A trigger on `inventory_transactions` makes the database itself refuse `UPDATE` 
 - **Not blocked:** `TRUNCATE` (nothing uses it; dev resets drop the schema). A superuser can still drop the trigger deliberately.
 - **Correcting a mistake on production** is therefore always a new linked row through the door, never an SQL edit.
 
+## Kept for branch day
+`stock-service.ts` exports only `departmentLabel`, marked `// kept for the branch-day refactor: delete when branch day is redone`. Nothing else of the old stock code remains.
+
 ## Coupling
-Uses `_shared/stock-scope`, `catalog/inventory-repository`, `counting/count-service`, `counting/count-calc`. The door uses `purchasing/receiving-repository` for the ADJ reference counter.
+Reads Counting only through `counting/_shared/count-reads.ts` (and the flagged section filter). Uses `_shared/{central-store-access,blind-rule,wire}`, `repositories/location-repository`. Prep imports `stock/_shared/stock-repository`; Waste imports the door and `stock/_shared`. The door uses `_shared/reference-counter` for the ADJ number.

@@ -1,3 +1,4 @@
+// kept for the branch-day refactor: delete when branch day is redone
 /**
  * Counting thresholds — defaults (Milestone Six, plan §1.9). These are the
  * fallback when an organization has no `CountingThresholds` row yet; a row is

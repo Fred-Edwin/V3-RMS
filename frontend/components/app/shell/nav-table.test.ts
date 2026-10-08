@@ -139,7 +139,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   it('gives the Store Manager every destination, with Restock levels as the last branch under Stock & counts', () => {
     const groups = hub(navFor(ctxFor('STORE_MANAGER', { can: EVERYTHING })));
     expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'dispatch', 'stock-counts', 'suppliers', 'catalog', 'audit-log', 'inventory-settings']);
-    expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key)).toEqual(['overview', 'items', 'daily-count', 'spot-count', 'ledger', 'restock-levels']);
+    expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key)).toEqual(['overview', 'items', 'counts', 'waste', 'ledger', 'restock-levels']);
   });
 
   it('gives the other desktop roles the same tree, cut to what they may open today', () => {
@@ -160,7 +160,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
 
   it('opens the first branch from a parent, so a role with one working branch lands on it', () => {
     expect(item(navFor(ctxFor('MANAGER')), 'stock-counts')?.href).toBe('/app/inventory/stock/restock-levels');
-    expect(item(navFor(ctxFor('STORE_MANAGER')), 'stock-counts')?.href).toBe('/app/inventory/stock');
+    expect(item(navFor(ctxFor('STORE_MANAGER', { can: EVERYTHING })), 'stock-counts')?.href).toBe('/app/inventory/stock');
   });
 
   it('shows nothing the person has no capability for, and drops a parent with no branch left', () => {
@@ -168,12 +168,31 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
     expect(keys(hub(navFor(ctxFor('MANAGER', { can: holds() }))))).toEqual([]);
   });
 
-  it('keeps the Store Attendant to the catalog and the blind count', () => {
-    const groups = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('catalog.read', 'suppliers.read_basic', 'orders.request', 'orders.receive', 'prep.read', 'prep.record') })));
+  it('keeps the Store Attendant to the catalog, Counts and Waste (the page shows them Pick a section, never the desktop count)', () => {
+    const groups = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('catalog.read', 'suppliers.read_basic', 'orders.request', 'orders.receive', 'prep.read', 'prep.record', 'counts.record', 'waste.read', 'waste.log') })));
     expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'dispatch', 'stock-counts', 'catalog']);
     const stock = item(groups, 'stock-counts');
-    expect(stock?.subItems?.map((s) => s.key)).toEqual(['overview', 'daily-count-blind']);
-    expect(stock?.subItems?.find((s) => s.key === 'daily-count-blind')?.href).toBe('/app/inventory/stock/daily-count');
+    expect(stock?.subItems?.map((s) => s.key)).toEqual(['counts', 'waste']);
+    expect(stock?.subItems?.find((s) => s.key === 'counts')?.href).toBe('/app/inventory/stock/counts');
+    expect(stock?.subItems?.find((s) => s.key === 'waste')?.href).toBe('/app/inventory/stock/waste');
+  });
+
+  it('gives every desktop role the rebuilt Stock & counts links they may read, and the Director and Accountant no write links', () => {
+    for (const role of ['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const stock = item(hub(navFor(ctxFor(role, { can: holds('stock.read', 'counts.read', 'waste.read', 'restock.read') }))), 'stock-counts');
+      expect(stock?.subItems?.map((s) => s.key), role).toEqual(['overview', 'items', 'counts', 'waste', 'ledger', 'restock-levels']);
+      expect(stock?.href, role).toBe('/app/inventory/stock');
+    }
+  });
+
+  it('points every Stock & counts sub-link at a rebuilt page: Daily count and Spot count are gone', () => {
+    const stockRow = NAV_ROWS.find((row) => row.key === 'stock-counts');
+    expect(stockRow?.subItems?.map((s) => s.key)).not.toContain('daily-count');
+    expect(stockRow?.subItems?.map((s) => s.key)).not.toContain('spot-count');
+    for (const sub of stockRow?.subItems ?? []) {
+      expect(sub.oldHref, sub.key).toBeUndefined();
+      expect(sub.newHref, sub.key).toMatch(/^\/app\/inventory\/stock/);
+    }
   });
 
   it('gives Prep three sub-links, Runs, Usual recipes and History, to the Store Manager and the Attendant alike', () => {
@@ -214,7 +233,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
   });
 
   it('shows the Central Store rows by the previewed role while a System Admin previews, and the rest by their real role', () => {
-    const groups = navFor(ctxFor('SYSTEM_ADMIN', { hubRole: 'STORE_ATTENDANT', can: holds('catalog.read', 'prep.read') }));
+    const groups = navFor(ctxFor('SYSTEM_ADMIN', { hubRole: 'STORE_ATTENDANT', can: holds('catalog.read', 'prep.read', 'counts.record', 'waste.read') }));
     expect(keys(hub(groups))).toEqual(['prep', 'dispatch', 'stock-counts', 'catalog']);
     expect(groupKeys(groups)).toContain('adm-admin');
   });

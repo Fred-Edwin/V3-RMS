@@ -142,6 +142,17 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     if (pathname.startsWith('/app/inventory/prep')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
+    // Stock, Counting and Waste (rebuilt): every desktop role reads every screen; the Attendant counts and logs waste on the phone
+    // (Counts, Waste) and may print the blank sheet. The Branch Manager is the `MANAGER` role. The API decides who may write.
+    const isHubReader = isDesktopCentralStoreRole;
+    if (pathname.startsWith('/app/inventory/count-print')) {
+      return pathname.startsWith('/app/inventory/count-print/blank') ? isHubReader || role === 'STORE_ATTENDANT' : isHubReader;
+    }
+    if (pathname.startsWith('/app/inventory/stock')) {
+      // The Attendant's two links in the navigation table are Counts and Waste (contract §13, switched at release).
+      const attendantArea = /^\/app\/inventory\/stock\/(counts|waste)(\/|$)/.test(pathname);
+      return isHubReader || (role === 'STORE_ATTENDANT' && attendantArea);
+    }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 

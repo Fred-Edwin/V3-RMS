@@ -17,7 +17,7 @@ import { useDebouncedValue, useStockLedger, useStockList, useStockSummary } from
 import { listItems } from '../../../services';
 import type { InventoryTransactionTypeValue, LedgerQuery, LedgerRow, LedgerSummary, StockSummary } from '../../types/stock';
 import { StockTopbar } from '../stock-topbar';
-import { LogWasteDrawer } from '../../../waste/components/log-waste-drawer';
+import { LogWasteDrawer } from '../../../waste/department/components/log-waste-drawer';
 import { DropdownFilter } from '../stock-table';
 import {
   KpiValueSkeleton,

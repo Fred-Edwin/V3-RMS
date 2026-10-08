@@ -5190,3 +5190,83 @@ Request and response shapes are exactly the schemas in `prep-contract.ts` (`RunS
 - **Correct and cancel:** reversing rows (original type, opposite sign, linked by `reversesTransactionId`, once per row); the old run becomes `CORRECTED` (or `CANCELLED`), the new run is `RECORDED` with `replacesRunId`. Output cost changes only when the run fixed is the latest `RECORDED` run of that output; a cancel leaves it unchanged. A cancel may take stock below zero. An Attendant's correction goes to Needs a look.
 - **Audit log:** `GET /inventory/audit-log` gains area `PREP` (Recorded, Corrected, Cancelled, Reviewed, Recipe set, Recipe changed), derived from run and recipe-version columns.
 
+## 34. Inventory — Stock, Counting and Waste rebuild (BUILT, contract frozen 8 Oct 2026)
+
+> **STATUS: BUILT on branch `feat/stock-count-waste` (39 endpoints; live once merged and deployed). Replaces the Counting, Stock and Central Store waste parts of §26 (the old `/inventory/counts`, `/inventory/spot-counts`, `/inventory/stock` and `/inventory/waste` Central Store routes are deleted); the Department Head's branch waste (`GET /inventory/waste/items`, `GET`/`POST /inventory/waste`) is unchanged and lives in `waste/department/`, and the Branch Manager's `GET`/`PUT /inventory/thresholds` stay (branch day).** Source of truth in code: `backend/src/modules/inventory/{counting,stock,waste}/_shared/*-contract.ts` (Zod), mirrored by hand in `frontend/features/inventory/{counting,stock,waste}/_shared/types/*-contract.ts`; the three `*-contract.test.ts` files check both against the shared `*-contract.fixtures.json`. A change needs the owner and a same-commit change to the schema file, the mirror, the fixtures and this section.
+
+### 34.1 Conventions
+
+- Counting and Stock under **`/inventory/stock`**, Waste under **`/inventory/stock/waste`**. Standard envelope `{ success, data }` (§1). Every route has `authenticate` and `requireCapability(...)`, never `requireRole`; reads resolve the site with `requireHubReader`, writes with `requireHubActor` (D-15). Every query carries the hub `siteId`.
+- Decimals are strings, ids strings, timestamps ISO 8601 UTC, dates `YYYY-MM-DD` read as Africa/Nairobi days. Tables return numbered pages (`page`, `pageSize` 25, 50 or 100, default 50).
+- Counts are `CNT-{year}-{nnnn}` and adjustments `ADJ-nnnn`, gap-free per site through the reference counter. Start, sign and approve carry an `idempotencyKey`; a repeat returns the same record with `200` (first time `201`). Waste log carries one per batch.
+- Capabilities (role grid in `central-store-access.ts`): `stock.read`, `counts.read`, `counts.record`, `counts.resolve`, `counts.setup`, `counts.acknowledge`, `counts.set_director_alert`, `waste.read`, `waste.log`, `waste.reverse_own`, `waste.reverse_any`. Store Manager and System Admin hold the writes; the Attendant holds `counts.record`, `waste.read`, `waste.log`, `waste.reverse_own` (no `stock.read`, so every Stock endpoint is `403` for them); the Director holds the reads plus `counts.acknowledge` and `counts.set_director_alert`; the Accountant and Branch Manager hold the reads only.
+- Only signing a count (C13) and approving one (C29) are PIN-signed (the caller's **own** PIN; a missing or wrong PIN is `INVALID_PIN` on the server, and the shell sign dialog sets a first PIN before it signs). **No PIN anywhere in Waste.**
+- Error codes (in `error.code`): `YOU_HAVE_OPEN_COUNT`, `SECTION_BUSY`, `NOTHING_TO_COUNT`, `RECOUNT_NOT_ALLOWED`, `NOTHING_COUNTED`, `CAUSE_REQUIRED`, `COUNT_NOT_OPEN`, `COUNT_NOT_SUBMITTED`, `LINES_UNDECIDED`, `INVALID_PIN`, `SECTION_NAME_TAKEN`, `LAYOUT_CHANGED` (409), `MOVE_ALREADY_UNDONE`, `ITEM_RETIRED`, `NOT_YOUR_ENTRY`, `REVERSAL_WINDOW_PASSED`, `ALREADY_REVERSED`, `DATE_IN_FUTURE`, `RANGE_INVALID`, `EXPORT_TOO_LARGE` (413).
+
+### 34.2 Blind rule
+
+One view builder per response decides which keys exist (`count-view.ts`, `stock-view.ts`, `waste-view.ts`), never a role-name check. A caller without `restock.read` (the Attendant) never receives `expectedQty`, `difference`, `value`, `percent`, `result`, `figures`, `shortStreak` or any stock figure; for them the section-end check names lines and typed numbers only. Money follows `catalog.see_costs`: the Attendant sees item cost and price, never financials or totals of stock. A waste list for a caller without `stock.read` is their **own entries only**, whatever `scope` says (decided by that capability, not a role).
+
+### 34.3 Counting endpoints (30)
+
+| # | Method, path | Capability (+ service rule) | Notes |
+|---|---|---|---|
+| C1 | `GET /counts/summary` | `counts.read` | The Manager's strip (Waiting, In progress, Exceeded 7 days, Longest without a count) or the Director's (Flagged, Net difference, Short 3 counts running, Longest without a count) |
+| C2 | `GET /counts` | `counts.read` | Query `status`, `search`, page; chips; `differencesText` needs `restock.read` |
+| C3 | `GET /counts/flagged` | `counts.read` | Lines flagged to the Director |
+| C4 | `GET /counts/repeat-shortfalls` | `counts.read` | Items short three counts running |
+| C5 | `GET /counts/:id` | `counts.read`, or `counts.record` and the caller is the counter | Registered last |
+| C6 | `GET /counts/:id/print` | `counts.read` | Printed count record data |
+| C7 | `GET /counts/blank-sheet` | `counts.read` or `counts.record` | No stock figures |
+| C8 | `GET /counts/start-options` | `counts.record` | Sections, who is busy, the caller's open count, `?recountLineId=` |
+| C9 | `POST /counts` | `counts.record` | `YOU_HAVE_OPEN_COUNT`, `SECTION_BUSY`, `NOTHING_TO_COUNT`, `RECOUNT_NOT_ALLOWED` |
+| C10 | `PUT /counts/:id/lines` | `counts.record`, the counter, OPEN | Autosave; a number and `skipped` are exclusive |
+| C11 | `POST /counts/:id/check` | `counts.record`, the counter, OPEN | Section-end check, offered once per line |
+| C12 | `GET /counts/:id/sign-preview` | `counts.record`, the counter, OPEN | |
+| C13 | `POST /counts/:id/sign` | `counts.record`, the counter, OPEN. **Own PIN** | Attendant: OPEN → SUBMITTED. Holder of `counts.resolve`: OPEN → APPROVED, every non-zero line posts, outside-range lines flagged to the Director. `INVALID_PIN`, `NOTHING_COUNTED`, `CAUSE_REQUIRED`, `COUNT_NOT_OPEN` |
+| C14 | `PUT /counts/section-order/today` | `counts.record` | The Attendant's order for today |
+| C15 | `GET /count-setup` | `counts.read` | Stamps the visit ("moved since your last visit") |
+| C16 | `GET /count-setup/sections/:id/items` | `counts.read` | `unsectioned` allowed |
+| C17 | `POST /count-setup/sections` | `counts.setup` | `SECTION_NAME_TAKEN` |
+| C18 | `PUT /count-setup/layout` | `counts.setup` | 409 `LAYOUT_CHANGED` on a stale `version` |
+| C19 | `GET /count-setup/add-items` | `counts.setup` | Type-ahead, filters, numbered pager |
+| C20 | `POST /count-setup/sections/:id/items` | `counts.setup` | Items in another section move (logged) |
+| C21 | `POST /count-setup/items/:itemId/move` | `counts.record` | Applies at once, logged; an item inside an OPEN count keeps its line |
+| C22 | `POST /count-setup/moves/:id/undo` | `counts.setup` | `MOVE_ALREADY_UNDONE` |
+| C23 | `GET /count-settings` | `counts.read` | Range in KES and %, repeat-shortfall switch, alert amount |
+| C24 | `GET /count-settings/preview` | `counts.read` | The last 7 days recomputed with proposed numbers |
+| C25 | `PUT /count-settings` | `counts.setup` | Applies from the next signed count |
+| C26 | `PUT /count-settings/director-alert` | `counts.set_director_alert` | The only Director setting write |
+| C27 | `POST /counts/:id/decisions` | `counts.resolve`, SUBMITTED | One line, several, or a group; `COUNT_NOT_SUBMITTED` |
+| C28 | `GET /counts/:id/approve-preview` | `counts.resolve`, SUBMITTED | |
+| C29 | `POST /counts/:id/approve` | `counts.resolve`, SUBMITTED. **Own PIN** | One `ADJUSTMENT` per posting line in one transaction, all or none. `LINES_UNDECIDED`, `INVALID_PIN` |
+| C30 | `POST /counts/seen` | `counts.acknowledge` | Mark seen; only lines flagged to the Director |
+
+### 34.4 Stock endpoints (5, all `stock.read`)
+
+| # | Method, path | Notes |
+|---|---|---|
+| S1 | `GET /overview` | Four KPI cells, today's counts, longest without a count; `can.startCount` |
+| S2 | `GET /items` | All items: search, `status` chips, `categoryId`, `type`, `departmentTag`, `sectionId`, numbered pager; value at the current cost |
+| S3 | `GET /ledger` | Ledger summary per item for `from`..`to` (default 30 days); opening + in + sentOut + prepUse + waste + adjusted = closing, valued at each row's own cost; `chip` all, adjustments, waste, negative |
+| S4 | `GET /ledger/export` | The same query as CSV, at most 10,000 rows (413 `EXPORT_TOO_LARGE`); registered before S5 |
+| S5 | `GET /ledger/:itemId` | Stock card, `show=byDay` (5 most recent days and one collapsed earlier row) or `entries` |
+
+### 34.5 Waste endpoints (4, base `/inventory/stock/waste`)
+
+| # | Method, path | Capability (+ service rule) | Notes |
+|---|---|---|---|
+| W1 | `GET /items` | `waste.log` | `often` = the caller's most logged in 60 days (up to 6) |
+| W2 | `POST /` | `waste.log` | One transaction: a `WasteLog` and a WASTE ledger row per entry through the door; negative stock allowed and flagged, never blocked; `ITEM_RETIRED` |
+| W3 | `GET /` | `waste.read` | `period` today, 7d, reversed; own entries only without `stock.read`; KPI strip; the Attendant's banner |
+| W4 | `POST /:id/reverse` | `waste.reverse_any`, or `waste.reverse_own` on the caller's entry the same Nairobi day. **No PIN** | A linked opposite-sign row; the original stays. `NOT_YOUR_ENTRY`, `REVERSAL_WINDOW_PASSED`, `ALREADY_REVERSED` |
+
+### 34.6 Rules the services apply
+
+- **Judging a line:** `difference = counted − expected`; within range when `|value| ≤ rangeKes` **and** `percent ≤ rangePercent` (ties within); an exact match is within range; `expected ≤ 0` makes any difference exceed; a skipped line is never judged or adjusted.
+- **Sign freezes figures:** expected stock is the ledger on-hand at `signedAt`, and the settings in force are frozen on the count.
+- **One open count per person; a section is in one open count at a time** (two partial unique indexes back the service rules). Many counts a day. No spot count, no cancel (a stuck count is finished by its counter).
+- **Ledger:** every stock movement goes through `postStockMovement`; a count line links by `count_line_id`; a waste reversal keeps the original's type with the opposite sign. The old `stock_count_line_id` link and the old count tables were dropped by the `stock_count_waste_contract` migration.
+- **Director:** *flagged* = every outside-range line of a count the Manager signs herself, until marked seen; *alert* = any line whose value reaches the alert amount raises a push on that sign or approval, held 22:00 to 05:00 Africa/Nairobi. No inbox row.
+- **Sections:** one `SUPPLIER` section per supplier with items (name and supplier fixed) plus `MANUAL` sections ("Others", "Packaging"); "Not in any section" is computed at read time.
+

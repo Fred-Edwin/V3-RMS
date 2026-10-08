@@ -56,6 +56,7 @@ describe('the Central Store permissions table', () => {
       'catalog.add_missing',
       'catalog.read',
       'catalog.see_costs',
+      'counts.record',
       'orders.read',
       'orders.receive',
       'orders.request',
@@ -63,6 +64,9 @@ describe('the Central Store permissions table', () => {
       'prep.record',
       'suppliers.quick_add',
       'suppliers.read_basic',
+      'waste.log',
+      'waste.read',
+      'waste.reverse_own',
     ]);
     expect(roleCan('STORE_ATTENDANT', 'catalog.see_costs')).toBe(true);
     for (const c of [

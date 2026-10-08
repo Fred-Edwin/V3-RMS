@@ -1,0 +1,479 @@
+{
+  "attendantCountDetail": {
+    "id": "c0000000-0000-4000-8000-000000000002",
+    "reference": "CNT-2026-1014",
+    "status": "OPEN",
+    "statusText": "In progress",
+    "sections": [{ "id": "5e000000-0000-4000-8000-000000000001", "name": "Samrat" }],
+    "scope": "SECTIONS",
+    "counter": { "id": "u-linnet", "name": "Linnet Wanjiru", "initials": "LW", "roleLabel": "Store Attendant" },
+    "startedAt": "2026-10-13T04:05:00.000Z",
+    "signedAt": null,
+    "approvedAt": null,
+    "approver": null,
+    "selfSigned": false,
+    "recountOf": null,
+    "progress": { "total": 37, "counted": 12, "skipped": 1, "zero": 1, "rechecked": 0, "text": "12 of 37 counted · 1 skipped" },
+    "savedAt": "2026-10-13T04:19:00.000Z",
+    "tracker": {
+      "steps": [
+        { "key": "COUNTED", "state": "CURRENT", "at": null },
+        { "key": "SUBMITTED", "state": "TODO", "at": null },
+        { "key": "CHECKED", "state": "TODO", "at": null },
+        { "key": "APPROVED", "state": "TODO", "at": null }
+      ]
+    },
+    "lines": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000004",
+        "itemId": "10000000-0000-4000-8000-000000000004",
+        "itemName": "Gram flour",
+        "unit": "kg",
+        "sectionId": "5e000000-0000-4000-8000-000000000001",
+        "sectionName": "Samrat",
+        "position": 0,
+        "countedQty": "3",
+        "skipped": false,
+        "recheck": "NONE",
+        "firstCountedQty": null,
+        "lastCountedAt": "2026-10-12T05:30:00.000Z",
+        "lastCountedText": "Yesterday",
+        "unitCost": "180.00",
+        "can": { "decide": false, "countAgain": false }
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000003",
+        "itemId": "10000000-0000-4000-8000-000000000003",
+        "itemName": "Brown sugar",
+        "unit": "kg",
+        "sectionId": "5e000000-0000-4000-8000-000000000001",
+        "sectionName": "Samrat",
+        "position": 3,
+        "countedQty": null,
+        "skipped": true,
+        "recheck": "NONE",
+        "firstCountedQty": null,
+        "lastCountedAt": "2026-10-07T05:30:00.000Z",
+        "lastCountedText": "6 days ago",
+        "unitCost": "178.00",
+        "can": { "decide": false, "countAgain": false }
+      }
+    ],
+    "can": { "count": true, "sign": true, "decide": false, "approve": false, "print": false }
+  },
+  "managerCountDetail": {
+    "id": "c0000000-0000-4000-8000-000000000001",
+    "reference": "CNT-2026-1013",
+    "status": "SUBMITTED",
+    "statusText": "Waiting for you",
+    "sections": [{ "id": "5e000000-0000-4000-8000-000000000001", "name": "Samrat" }],
+    "scope": "SECTIONS",
+    "counter": { "id": "u-linnet", "name": "Linnet Wanjiru", "initials": "LW", "roleLabel": "Store Attendant" },
+    "startedAt": "2026-10-13T04:05:00.000Z",
+    "signedAt": "2026-10-13T04:42:00.000Z",
+    "approvedAt": null,
+    "approver": null,
+    "selfSigned": false,
+    "recountOf": null,
+    "progress": { "total": 37, "counted": 36, "skipped": 1, "zero": 4, "rechecked": 2, "text": "36 of 37 counted · 1 skipped" },
+    "savedAt": "2026-10-13T04:41:00.000Z",
+    "tracker": {
+      "steps": [
+        { "key": "COUNTED", "state": "DONE", "at": "2026-10-13T04:41:00.000Z" },
+        { "key": "SUBMITTED", "state": "DONE", "at": "2026-10-13T04:42:00.000Z" },
+        { "key": "CHECKED", "state": "CURRENT", "at": null },
+        { "key": "APPROVED", "state": "TODO", "at": null }
+      ]
+    },
+    "figures": {
+      "counted": 36,
+      "withinRange": 32,
+      "exceeds": 4,
+      "notCounted": 1,
+      "toDecide": 4,
+      "decided": 0,
+      "netDifferenceKes": "-5681.00",
+      "withinRangeNetKes": "-193.00"
+    },
+    "range": { "kes": 500, "percent": "5" },
+    "expectedAsOf": "2026-10-13T04:42:00.000Z",
+    "timeline": [
+      { "label": "Counted", "at": "2026-10-13T04:41:00.000Z", "detail": "07:05 to 07:41" },
+      { "label": "Signed with PIN", "at": "2026-10-13T04:42:00.000Z", "detail": null }
+    ],
+    "lines": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "itemName": "Sugar, white",
+        "unit": "kg",
+        "sectionId": "5e000000-0000-4000-8000-000000000001",
+        "sectionName": "Samrat",
+        "position": 12,
+        "countedQty": "164",
+        "skipped": false,
+        "recheck": "RECOUNTED",
+        "firstCountedQty": "162",
+        "lastCountedAt": "2026-10-07T05:30:00.000Z",
+        "lastCountedText": "6 days ago",
+        "unitCost": "183.00",
+        "expectedQty": "180",
+        "difference": "-16",
+        "differencePercent": "-8.9",
+        "differenceValueKes": "-2928.00",
+        "result": "EXCEEDS",
+        "story": "No prep use logged for sugar this week. Last counted 6 days ago.",
+        "suggestedCause": "PREP_NOT_LOGGED",
+        "shortStreak": 3,
+        "decision": { "kind": "PENDING", "cause": null, "causeNote": null, "movementKind": null, "text": "", "by": null, "at": null },
+        "director": { "flagged": false, "alert": false, "seenAt": null, "seenBy": null },
+        "adjustmentRef": null,
+        "can": { "decide": true, "countAgain": false }
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000003",
+        "itemId": "10000000-0000-4000-8000-000000000003",
+        "itemName": "Brown sugar",
+        "unit": "kg",
+        "sectionId": "5e000000-0000-4000-8000-000000000001",
+        "sectionName": "Samrat",
+        "position": 3,
+        "countedQty": null,
+        "skipped": true,
+        "recheck": "NONE",
+        "firstCountedQty": null,
+        "lastCountedAt": "2026-10-07T05:30:00.000Z",
+        "lastCountedText": "6 days ago",
+        "unitCost": "178.00",
+        "expectedQty": "100",
+        "result": "NOT_COUNTED",
+        "story": null,
+        "suggestedCause": null,
+        "shortStreak": 0,
+        "decision": { "kind": "PENDING", "cause": null, "causeNote": null, "movementKind": null, "text": "", "by": null, "at": null },
+        "director": { "flagged": false, "alert": false, "seenAt": null, "seenBy": null },
+        "adjustmentRef": null,
+        "can": { "decide": false, "countAgain": false }
+      }
+    ],
+    "can": { "count": false, "sign": false, "decide": true, "approve": false, "print": false }
+  },
+  "countsSummaryManager": {
+    "audience": "manager",
+    "kpis": [
+      { "key": "waiting", "label": "WAITING FOR YOU", "value": "1", "caption": "Samrat · signed 07:42", "tone": "WARN", "filter": "waiting" },
+      { "key": "inProgress", "label": "IN PROGRESS", "value": "1", "caption": "Summer · Peter, 14 of 28", "tone": "NEUTRAL", "filter": "inProgress" },
+      { "key": "exceeded7d", "label": "EXCEEDED THE RANGE · 7 DAYS", "value": "7 lines", "caption": "Net difference −KES 7,940", "tone": "ALERT" },
+      { "key": "longest", "label": "LONGEST WITHOUT A COUNT", "value": "6 days", "caption": "Others section", "tone": "WARN" }
+    ]
+  },
+  "countsList": {
+    "rows": [
+      {
+        "id": "c0000000-0000-4000-8000-000000000001",
+        "reference": "CNT-2026-1013",
+        "status": "SUBMITTED",
+        "statusText": "Waiting for you",
+        "sectionsText": "Samrat",
+        "counter": { "id": "u-linnet", "name": "Linnet Wanjiru", "initials": "LW", "roleLabel": "Store Attendant" },
+        "startedAt": "2026-10-13T04:05:00.000Z",
+        "signedAt": "2026-10-13T04:42:00.000Z",
+        "signedText": "Today 07:42",
+        "itemsCounted": 36,
+        "itemsTotal": 37,
+        "itemsText": "36",
+        "differencesText": "4 exceed · 32 within",
+        "recountOf": null,
+        "mine": false,
+        "can": { "review": true }
+      },
+      {
+        "id": "c0000000-0000-4000-8000-000000000003",
+        "reference": "CNT-2026-1014",
+        "status": "OPEN",
+        "statusText": "In progress",
+        "sectionsText": "Eggs",
+        "counter": { "id": "u-peter", "name": "Peter Kariuki", "initials": "PK", "roleLabel": "Store Attendant" },
+        "startedAt": "2026-10-13T06:10:00.000Z",
+        "signedAt": null,
+        "signedText": "Started 09:10",
+        "itemsCounted": 0,
+        "itemsTotal": 1,
+        "itemsText": "0 of 1",
+        "differencesText": "Not signed yet",
+        "recountOf": { "id": "c0000000-0000-4000-8000-000000000004", "reference": "CNT-2026-1012" },
+        "mine": false,
+        "can": { "review": false }
+      }
+    ],
+    "chips": { "all": 5, "waiting": 1, "inProgress": 1, "approved": 3, "unsectioned": 3 },
+    "page": { "page": 1, "pageSize": 50, "total": 5 }
+  },
+  "flaggedList": {
+    "rows": [
+      {
+        "countId": "c0000000-0000-4000-8000-000000000005",
+        "countReference": "CNT-2026-1015",
+        "lineId": "a0000000-0000-4000-8000-000000000010",
+        "itemName": "Eggs",
+        "unit": "trays",
+        "difference": "-2",
+        "differenceValueKes": "-1040.00",
+        "cause": "MISCOUNT",
+        "causeText": "Miscount",
+        "countedBy": { "id": "u-isabel", "name": "Isabel Njoki", "initials": "IN", "roleLabel": "Store Manager" },
+        "alert": false,
+        "seenAt": null,
+        "seenBy": null,
+        "can": { "markSeen": true }
+      }
+    ],
+    "chips": { "flaggedToMe": 3, "allCounts": 5, "repeatShortfalls": 2 },
+    "page": { "page": 1, "pageSize": 50, "total": 4 }
+  },
+  "repeatShortfallList": {
+    "rows": [
+      {
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "itemName": "Sugar, white",
+        "unit": "kg",
+        "sectionName": "Samrat",
+        "shortRuns": 3,
+        "lastCounts": [
+          { "countReference": "CNT-2026-1013", "difference": "-16", "at": "2026-10-13T04:42:00.000Z" },
+          { "countReference": "CNT-2026-1011", "difference": "-2", "at": "2026-10-11T04:30:00.000Z" },
+          { "countReference": "CNT-2026-1008", "difference": "-1", "at": "2026-10-08T04:30:00.000Z" }
+        ]
+      }
+    ],
+    "chips": { "flaggedToMe": 3, "allCounts": 5, "repeatShortfalls": 2 },
+    "page": { "page": 1, "pageSize": 50, "total": 2 }
+  },
+  "countRecordPrint": {
+    "reference": "CNT-2026-1014",
+    "generatedText": "Generated 13 Oct 2026, 09:18",
+    "sectionsText": "Samrat, Summer",
+    "counterName": "Linnet Wanjiru",
+    "timeText": "07:02 to 07:41",
+    "counted": 59,
+    "total": 65,
+    "differences": 5,
+    "netValueKes": "-6740.00",
+    "rows": [
+      { "itemName": "Eggs (trays)", "unit": "trays", "expected": "24", "counted": "22", "difference": "-2", "valueKes": "-1040.00", "decisionText": "Written off · Spoilage" },
+      { "itemName": "Cooking oil (L)", "unit": "L", "expected": "99", "counted": "79", "difference": "-20", "valueKes": "-4100.00", "decisionText": "Movement logged · Dispatch" }
+    ],
+    "footnote": "The other 54 counted items matched. 6 items were skipped and keep their last count. This copy is for the Manager and shows expected stock.",
+    "signatures": [
+      { "role": "COUNTED_BY", "name": "Linnet Wanjiru", "roleLabel": "Store Attendant", "signedAtText": "13 Oct 07:41" },
+      { "role": "APPROVED_BY", "name": "Isabel Njoki", "roleLabel": "Store Manager", "signedAtText": "13 Oct 09:15" }
+    ]
+  },
+  "blankSheet": {
+    "printedAtText": "Printed 06:50 · Tue 13 Oct 2026",
+    "dateText": "13 OCT",
+    "sections": [
+      {
+        "id": "5e000000-0000-4000-8000-000000000001",
+        "name": "Samrat",
+        "detail": "Section 1 of 4 · Samrat Supermarket Ltd · 37 items",
+        "items": [
+          { "name": "Gram flour", "unit": "kg" },
+          { "name": "Vanilla essence", "unit": "bottles" }
+        ]
+      }
+    ]
+  },
+  "startOptionsAttendant": {
+    "sections": [
+      {
+        "id": "5e000000-0000-4000-8000-000000000001",
+        "name": "Samrat",
+        "supplierName": "Samrat Supermarket Ltd",
+        "itemCount": 37,
+        "lastCountedAt": "2026-10-12T05:30:00.000Z",
+        "lastCountedText": "Yesterday",
+        "lastCountedBy": "Linnet",
+        "longestSinceCount": false,
+        "busy": null
+      },
+      {
+        "id": "5e000000-0000-4000-8000-000000000003",
+        "name": "Others",
+        "supplierName": null,
+        "itemCount": 41,
+        "lastCountedAt": "2026-10-07T05:30:00.000Z",
+        "lastCountedText": "6 days ago",
+        "lastCountedBy": "Peter",
+        "longestSinceCount": true,
+        "busy": { "countId": "c0000000-0000-4000-8000-000000000003", "reference": "CNT-2026-1014", "counterName": "Peter Kariuki" }
+      }
+    ],
+    "order": { "mode": "SHELF", "appliesTo": "2026-10-13" },
+    "unsectionedCount": 3,
+    "openCount": null,
+    "recount": null,
+    "can": { "start": true }
+  },
+  "startCountInput": { "sectionIds": ["5e000000-0000-4000-8000-000000000003"], "idempotencyKey": "6f1f2c0e-6a1d-4a0e-9c7f" },
+  "recountStartInput": { "recountOfLineId": "a0000000-0000-4000-8000-000000000010", "idempotencyKey": "9b2c1d3e-4f5a-4b6c-8d7e" },
+  "saveLinesInput": {
+    "lines": [
+      { "lineId": "a0000000-0000-4000-8000-000000000004", "countedQty": "3", "skipped": false },
+      { "lineId": "a0000000-0000-4000-8000-000000000003", "countedQty": null, "skipped": true },
+      { "lineId": "a0000000-0000-4000-8000-000000000001", "countedQty": "164", "skipped": false, "recheck": "RECOUNTED" }
+    ]
+  },
+  "saveLinesResultAttendant": {
+    "savedAt": "2026-10-13T04:19:00.000Z",
+    "progress": { "total": 37, "counted": 12, "skipped": 1, "zero": 1, "rechecked": 0, "text": "12 of 37 counted · 1 skipped" }
+  },
+  "saveLinesResultManager": {
+    "savedAt": "2026-10-13T08:20:00.000Z",
+    "progress": { "total": 41, "counted": 14, "skipped": 1, "zero": 0, "rechecked": 1, "text": "14 of 41 counted · 1 skipped" },
+    "lines": [{ "lineId": "a0000000-0000-4000-8000-000000000010", "result": "EXCEEDS", "difference": "-2", "differenceValueKes": "-1040.00" }]
+  },
+  "checkInput": { "sectionId": "5e000000-0000-4000-8000-000000000001" },
+  "checkResult": {
+    "items": [
+      { "lineId": "a0000000-0000-4000-8000-000000000001", "itemName": "Sugar, white", "unit": "kg", "sectionName": "Samrat", "counted": "164" },
+      { "lineId": "a0000000-0000-4000-8000-000000000020", "itemName": "Cooking oil", "unit": "L", "sectionName": "Samrat", "counted": "74" }
+    ],
+    "text": "Samrat done. Check 2 items again?"
+  },
+  "signPreviewAttendant": { "itemCount": 37, "zero": 4, "skipped": 1 },
+  "signPreviewManager": {
+    "itemCount": 40,
+    "zero": 0,
+    "skipped": 1,
+    "figures": {
+      "appliedLines": 37,
+      "appliedNetKes": "-120.00",
+      "outside": [
+        { "lineId": "a0000000-0000-4000-8000-000000000010", "itemName": "Eggs", "unit": "trays", "difference": "-2", "differenceValueKes": "-1040.00", "cause": "MISCOUNT" },
+        { "lineId": "a0000000-0000-4000-8000-000000000011", "itemName": "Honey 1 kg", "unit": "jars", "difference": "-1", "differenceValueKes": "-850.00", "cause": "MISCOUNT" },
+        { "lineId": "a0000000-0000-4000-8000-000000000012", "itemName": "Baking powder", "unit": "tins", "difference": "-1", "differenceValueKes": "-210.00", "cause": null }
+      ],
+      "netKes": "-2220.00",
+      "causesNeeded": ["a0000000-0000-4000-8000-000000000012"],
+      "directorNote": "The Director sees these lines with your causes."
+    }
+  },
+  "signInput": {
+    "pin": "1234",
+    "causes": [{ "lineId": "a0000000-0000-4000-8000-000000000012", "cause": "SPOILAGE" }],
+    "idempotencyKey": "0a1b2c3d-4e5f-4a6b-8c7d"
+  },
+  "sectionOrderInput": {
+    "sectionIds": [
+      "5e000000-0000-4000-8000-000000000001",
+      "5e000000-0000-4000-8000-000000000003",
+      "5e000000-0000-4000-8000-000000000002",
+      "5e000000-0000-4000-8000-000000000004"
+    ]
+  },
+  "setupView": {
+    "version": "2026-10-13T04:12:00.000Z",
+    "sections": [
+      { "id": "5e000000-0000-4000-8000-000000000001", "name": "Samrat", "kind": "SUPPLIER", "supplierName": "Samrat Supermarket Ltd", "itemCount": 37, "position": 0, "tagText": null },
+      { "id": "5e000000-0000-4000-8000-000000000003", "name": "Others", "kind": "MANUAL", "supplierName": null, "itemCount": 41, "position": 2, "tagText": "manual section" }
+    ],
+    "unsectioned": { "count": 3, "text": "3 new items · never counted until placed" },
+    "movedSinceLastVisit": [
+      {
+        "id": "b0000000-0000-4000-8000-000000000001",
+        "itemId": "10000000-0000-4000-8000-000000000030",
+        "itemName": "Rice, 25 kg bag",
+        "fromSectionId": "5e000000-0000-4000-8000-000000000002",
+        "fromSectionName": "Summer",
+        "toSectionId": "5e000000-0000-4000-8000-000000000003",
+        "toSectionName": "Others",
+        "by": { "id": "u-linnet", "name": "Linnet Wanjiru", "initials": "LW", "roleLabel": "Store Attendant" },
+        "at": "2026-10-13T04:12:00.000Z",
+        "undone": false,
+        "text": "Moved here from Summer by Linnet · 13 Oct 07:12",
+        "can": { "undo": true }
+      }
+    ],
+    "movedText": "1 item moved by the Attendant since your last visit.",
+    "can": { "edit": true }
+  },
+  "sectionItems": {
+    "section": { "id": "5e000000-0000-4000-8000-000000000003", "name": "Others", "itemCount": 41 },
+    "items": [
+      { "itemId": "10000000-0000-4000-8000-000000000010", "name": "Eggs", "unit": "trays", "lastCountedAt": "2026-10-13T05:00:00.000Z", "lastCountedText": "Today", "stale": false, "movedHere": null },
+      { "itemId": "10000000-0000-4000-8000-000000000020", "name": "Cornflour 2 kg", "unit": "packs", "lastCountedAt": "2026-10-07T05:00:00.000Z", "lastCountedText": "6 days ago", "stale": true, "movedHere": null }
+    ]
+  },
+  "layoutInput": {
+    "version": "2026-10-13T04:12:00.000Z",
+    "sections": [
+      { "id": "5e000000-0000-4000-8000-000000000001", "itemIds": ["10000000-0000-4000-8000-000000000004", "10000000-0000-4000-8000-000000000003"] },
+      { "id": "unsectioned", "itemIds": [] }
+    ]
+  },
+  "addItemsList": {
+    "rows": [
+      {
+        "itemId": "10000000-0000-4000-8000-000000000040",
+        "name": "Oat milk 1 L",
+        "categoryName": "Beverages",
+        "typeText": "Stocked",
+        "unit": "cartons",
+        "placement": { "kind": "UNSECTIONED", "note": "New, no supplier" }
+      },
+      {
+        "itemId": "10000000-0000-4000-8000-000000000041",
+        "name": "Rolled oats 1 kg",
+        "categoryName": "Dry goods",
+        "typeText": "Stocked",
+        "unit": "bags",
+        "placement": { "kind": "IN_SECTION", "sectionId": "5e000000-0000-4000-8000-000000000002", "sectionName": "Summer" }
+      }
+    ],
+    "chips": { "unsectioned": 3, "otherSections": 138 },
+    "matchText": "3 matches for “oat” · all sections",
+    "page": { "page": 1, "pageSize": 50, "total": 3 }
+  },
+  "addItemsInput": { "itemIds": ["10000000-0000-4000-8000-000000000040", "10000000-0000-4000-8000-000000000041"] },
+  "moveItemInput": { "toSectionId": "5e000000-0000-4000-8000-000000000002" },
+  "countSettings": {
+    "rangeKes": 500,
+    "rangePercent": "5",
+    "flagRepeatShortfalls": true,
+    "directorAlertKes": 5000,
+    "rangeUpdatedBy": { "id": "u-isabel", "name": "Isabel Njoki", "initials": "IN", "roleLabel": "Store Manager" },
+    "rangeUpdatedAt": "2026-10-01T06:00:00.000Z",
+    "alertUpdatedBy": { "id": "u-grace", "name": "Grace Wambui", "initials": "GW", "roleLabel": "Director" },
+    "alertUpdatedAt": "2026-09-20T06:00:00.000Z",
+    "can": { "editRange": true, "editDirectorAlert": false }
+  },
+  "settingsPreview": {
+    "range": { "withinRange": 212, "outsideRange": 19, "hint": "Raising the percentage to 8 would move 6 lines into range. Nothing changes for counts already signed." },
+    "alert": { "countsOver": 3, "hint": "3 counts went over KES 5,000. At KES 8,000 it would have been 1." }
+  },
+  "updateSettingsInput": { "rangeKes": 500, "rangePercent": "5", "flagRepeatShortfalls": true },
+  "updateDirectorAlertInput": { "alertKes": 5000 },
+  "decisionInputWriteOff": {
+    "lineIds": ["a0000000-0000-4000-8000-000000000001", "a0000000-0000-4000-8000-000000000020"],
+    "decision": { "kind": "WRITE_OFF", "cause": "PREP_NOT_LOGGED" }
+  },
+  "decisionInputMovement": {
+    "lineIds": ["a0000000-0000-4000-8000-000000000020"],
+    "decision": { "kind": "MOVEMENT_LOGGED", "movementKind": "DISPATCH" }
+  },
+  "decisionInputAcceptGroup": { "group": "WITHIN_RANGE", "decision": { "kind": "ACCEPTED" } },
+  "approvePreview": {
+    "rows": [
+      { "lineId": "a0000000-0000-4000-8000-000000000001", "label": "Sugar, white · Prep use not logged", "valueKes": "-2928.00" },
+      { "lineId": "a0000000-0000-4000-8000-000000000020", "label": "Cooking oil · Miscount", "valueKes": "-1560.00" }
+    ],
+    "withinRange": { "count": 32, "netKes": "-193.00" },
+    "adjustments": 36,
+    "netKes": "-5681.00",
+    "directorNote": "Director is not alerted. No single difference reaches KES 5,000.",
+    "notCountedNote": "Brown sugar was not counted, so nothing is written for it."
+  },
+  "approveInput": { "pin": "1234", "idempotencyKey": "7a8b9c0d-1e2f-4a3b-9c4d" },
+  "seenInput": { "lineIds": ["a0000000-0000-4000-8000-000000000010"] }
+}
