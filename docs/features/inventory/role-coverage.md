@@ -128,7 +128,10 @@ A3 to A6: yes, past-record lists in the same shape as steps 53 to 55 (date range
 ### Re-check after the Dispatch session's work (8 Oct 2026)
 A1 and A2 are **closed**: the page now has the Director's Requisitions queue with a Branch column and filter (step 18b), and a hub Requisitions History with a Branch filter and a date range (step 7d), plus a hub Discrepancies list (step 7c). They were already drawn when the audit text was written from the earlier index.
 
-### Drawn in response (all awaiting owner review)
+### Open items decided (owner, 8 Oct 2026: "go with your proposal"; the drawings are approved)
+The Director reaches Departments through Operations › Branch Settings › Departments (a new nav row at build). A dispatch that is signed and sent pushes the department members at the branch. The Director's count alert is an Inbox row and a push, as Paper step 46 draws it; the counting README ("no Inbox row") is updated at build to follow Paper. Both notification-map rows are marked Decided.
+
+### Drawn in response (approved by the owner, 8 Oct 2026)
 - **A3, A5, A4, A10** on the new Paper page "Inventory · Requisition and dispatch: gap fixes (8 Oct)": **G1** My requisitions (Department Head), **G2** My deliveries (head and member, with gap results), **G3** the Attendant's Dispatch with a Done tab, **G4** Departments of any branch, read only. The Director's route to Departments (Operations › Branch Settings › Departments) is a **proposal**; the nav table has no such row.
 - **A6** on "Inventory · Counting and closing", chapter 5: step **19** My department's past days, step **20** one past day (quantities only).
 - **A8** and **A9** on the new page "Inventory · Final design pass: map": the phone menus for the Attendant, a Department Head and a member, and the notification map (16 rows; two Open items: the Director's count alert Inbox row, where code and Paper disagree, and the push for a dispatch that is on its way).
