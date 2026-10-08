@@ -16,6 +16,11 @@
  * ("Collecting", "Ready to approve"). Signing writes (R13, R19, R20, R21, R22) take `{ pin }` and an `Idempotency-Key`
  * header; a repeated key returns the first result with `replayed: true`. R11 carries its key in the body, as the contract says.
  *
+ * Amendment 2 (owner approved 8 Oct 2026, docs/features/inventory/requisitions-amendment-2.md) is applied: list filters and
+ * row moments, Home additions, the urgent note, the R18 list, the "preset — note" cancel reason, the print fields, facts-only
+ * Next step and tracker, and six more error codes. "On behalf" (the Branch Manager filling and sending a section) adds access
+ * rows but no wire shape: `sentBy` already says who sent it.
+ *
  * Do not change a shape here without changing the contract document, the mirror and the fixtures in the same commit, and only
  * with the owner's approval.
  */
@@ -37,6 +42,10 @@ export const idempotencyKeySchema = z.string().min(8).max(64);
 
 /** The 4-digit PIN every signing write carries. Never logged, never returned. */
 export const pinSchema = z.string().regex(/^\d{4}$/, 'PIN must be 4 digits');
+
+/** Amendment 2: the optional note that goes with Urgent (R11, R15). */
+export const URGENT_NOTE_MAX = 200;
+export const urgentNoteSchema = z.string().trim().min(1).max(URGENT_NOTE_MAX);
 
 // --- Words and enums -----------------------------------------------------------
 
@@ -193,23 +202,34 @@ export const additionSchema = z.object({
 export type Addition = z.infer<typeof additionSchema>;
 
 /** One step of the tracker, with the date and who (Paper steps 8, 12, 13). */
+/**
+ * Amendment 2: the tracker returns facts only (`at`, `by`, `count`); the labels and the second lines ("Started", "3 of 5 sections in")
+ * are the front ends', written from Paper.
+ */
 export const trackerStepSchema = z.object({
   key: z.enum(['STARTED', 'ALL_IN', 'APPROVED', 'PACKED', 'DELIVERED', 'CLOSED']),
-  label: z.string(),
   state: z.enum(['DONE', 'CURRENT', 'TODO']),
   at: isoDateTime.nullable(),
   by: personSchema.nullable(),
+  /** The step's count where it has one (ALL_IN: sections in of sections counted); null otherwise. */
+  count: z.object({ done: z.number().int().nonnegative(), total: z.number().int().nonnegative() }).nullable(),
 });
 export type TrackerStep = z.infer<typeof trackerStepSchema>;
 
+/**
+ * Amendment 2: the Next step card returns the action key and facts only; `title`, `text` and `actionLabel` are dropped and the
+ * front ends write them from Paper (step 22). Which state the card is in follows from `status`, `action` and `facts`.
+ */
 export const nextStepSchema = z.object({
-  /** "Housekeeping hasn't sent yet" · "Everything is in. Ready for your signature." */
-  title: z.string(),
-  text: z.string().nullable(),
   action: nextStepActionSchema.nullable(),
-  actionLabel: z.string().nullable(),
-  /** The department the action is about (Nudge Housekeeping). */
+  /** The department the action is about (Nudge Housekeeping); the first one still to send while Collecting. */
   departmentId: uuid.nullable(),
+  facts: z.object({
+    /** Sections Sent or Skipped, and the sections that count (an active department, or one already Sent or Skipped). */
+    sectionsIn: z.number().int().nonnegative(),
+    sectionsTotal: z.number().int().nonnegative(),
+    additionsWaiting: z.number().int().nonnegative(),
+  }),
 });
 export type NextStep = z.infer<typeof nextStepSchema>;
 
@@ -234,10 +254,32 @@ export const listRequisitionsQuerySchema = pageQuerySchema.extend({
   from: nairobiDate.optional(),
   to: nairobiDate.optional(),
   status: requisitionStatusSchema.optional(),
+  /** Amendment 2: filters of the desktop list. `urgent=true` keeps urgent requisitions only. */
+  cycle: requisitionCycleSchema.optional(),
+  departmentId: uuid.optional(),
+  urgent: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
 export type ListRequisitionsQuery = z.infer<typeof listRequisitionsQuerySchema>;
 
-export const requisitionRowSchema = z.object({
+/**
+ * Amendment 2: the moments a row carries so the screens can say "Waiting 2h" (from `allInAt`) and "Unapproved for" (from the same
+ * start the 1-hour Director alert uses, contract §7). All nullable. Shared by the R1 rows and the R9 history rows.
+ */
+export const rowMomentsSchema = z.object({
+  /** The moment the last section went in (Collecting became Ready to approve). */
+  allInAt: isoDateTime.nullable(),
+  urgentAt: isoDateTime.nullable(),
+  sentAt: isoDateTime.nullable(),
+  closedAt: isoDateTime.nullable(),
+  cancelledAt: isoDateTime.nullable(),
+  /** "preset — note" (R20). */
+  cancelReason: z.string().nullable(),
+  /** The note given when Urgent was set (max 200 characters). */
+  urgentNote: z.string().max(200).nullable(),
+});
+export type RowMoments = z.infer<typeof rowMomentsSchema>;
+
+export const requisitionRowSchema = rowMomentsSchema.extend({
   id: uuid,
   /** "REQ-NYR-0112" */
   reference: z.string(),
@@ -388,6 +430,10 @@ export const printSchema = z.object({
   branch: branchRefSchema,
   cycleLabel: z.string(),
   urgent: z.boolean(),
+  /** Amendment 2: when the requisition was started. */
+  startedAt: isoDateTime,
+  /** Amendment 2: when this print was produced (the footer line). */
+  generatedAt: isoDateTime,
   approvedAt: isoDateTime.nullable(),
   approvedBy: personSchema.nullable(),
   cover: z.object({
@@ -399,8 +445,22 @@ export const printSchema = z.object({
     z.object({
       departmentId: uuid,
       departmentName: z.string(),
+      /** Amendment 2: who asked (name and role label as recorded) and when the section was sent. Null while not recorded. */
+      askedBy: personSchema.nullable(),
+      askedAt: isoDateTime.nullable(),
+      /** Amendment 2: "Deliver to" line of the department page. Null while not recorded. */
+      deliverTo: z.string().nullable(),
       lines: z.array(printPageLineSchema),
-      additions: z.array(z.object({ addedAt: isoDateTime, addedBy: personSchema, approvedBy: personSchema.nullable(), lines: z.array(printPageLineSchema) })),
+      additions: z.array(
+        z.object({
+          addedAt: isoDateTime,
+          addedBy: personSchema,
+          /** The addition approver's signature block (name and role label) and the time they signed. */
+          approvedBy: personSchema.nullable(),
+          approvedAt: isoDateTime.nullable(),
+          lines: z.array(printPageLineSchema),
+        }),
+      ),
     }),
   ),
   /** What the QR code carries: a link to the file. */
@@ -410,10 +470,15 @@ export type Print = z.infer<typeof printSchema>;
 
 // --- R7 GET /home (a head; Paper steps 1, 14) ------------------------------------
 
+/** One cycle's open requisition on the head's home: the file to open and its status. */
+export const openByCycleEntrySchema = z.object({ requisitionId: uuid, status: requisitionStatusSchema });
+
 export const homeSchema = z.object({
   department: z.object({ id: uuid, name: z.string() }),
   /** Chosen by time of day; the head can switch to Morning, Afternoon or Extra. */
   suggestedCycle: requisitionCycleSchema,
+  /** Amendment 2: how many lines the suggestion would pre-fill for this department ("12 items suggested"). */
+  suggestedLineCount: z.number().int().nonnegative(),
   /** The open requisition for the suggested cycle, with the head's own section; null = "Start the afternoon requisition". */
   open: z
     .object({
@@ -424,12 +489,26 @@ export const homeSchema = z.object({
       status: requisitionStatusSchema,
       statusText: z.string(),
       urgent: z.boolean(),
+      /** Amendment 2: when the requisition was started. */
+      openedAt: isoDateTime,
       section: sectionSummarySchema,
       can: z.object({ edit: z.boolean(), recall: z.boolean(), addToIt: z.boolean() }),
     })
     .nullable(),
+  /** Amendment 2: per cycle, today's requisition for the branch (id and status) or none; drives the cycle chips. */
+  openByCycle: z.object({ MORNING: openByCycleEntrySchema.nullable(), AFTERNOON: openByCycleEntrySchema.nullable(), EXTRA: openByCycleEntrySchema.nullable() }),
   earlierToday: z.array(
-    z.object({ requisitionId: uuid, reference: z.string(), cycleLabel: z.string(), status: requisitionStatusSchema, statusText: z.string(), sectionStatus: sectionStatusSchema, lineCount: z.number().int().nonnegative() }),
+    z.object({
+      requisitionId: uuid,
+      reference: z.string(),
+      cycleLabel: z.string(),
+      status: requisitionStatusSchema,
+      statusText: z.string(),
+      sectionStatus: sectionStatusSchema,
+      lineCount: z.number().int().nonnegative(),
+      /** Amendment 2: when the head's section was sent (null when it was not). */
+      sentAt: isoDateTime.nullable(),
+    }),
   ),
 });
 export type Home = z.infer<typeof homeSchema>;
@@ -454,6 +533,8 @@ export const sectionEditSchema = z.object({
   cycleLabel: z.string(),
   requisitionStatus: requisitionStatusSchema,
   urgent: z.boolean(),
+  /** Amendment 2: when the requisition was started. */
+  openedAt: isoDateTime,
   section: sectionDetailSchema,
   addable: z.array(addableItemSchema),
 });
@@ -470,7 +551,7 @@ export type HistoryMineQuery = z.infer<typeof historyMineQuerySchema>;
 /** No money, no other departments. */
 export const historyMineSchema = z.object({
   rows: z.array(
-    z.object({
+    rowMomentsSchema.extend({
       requisitionId: uuid,
       reference: z.string(),
       cycleLabel: z.string(),
@@ -520,7 +601,7 @@ export type MutationResult = z.infer<typeof mutationResultSchema>;
 
 /** A head (own branch) or `requisitions.start`. Creates a section per active department; the starter's is pre-filled. */
 export const startRequisitionInputSchema = z
-  .object({ cycle: requisitionCycleSchema, urgent: z.boolean().optional(), idempotencyKey: idempotencyKeySchema })
+  .object({ cycle: requisitionCycleSchema, urgent: z.boolean().optional(), urgentNote: urgentNoteSchema.optional(), idempotencyKey: idempotencyKeySchema })
   .strict();
 export type StartRequisitionInput = z.infer<typeof startRequisitionInputSchema>;
 /** 201, or 200 with `replayed: true`. 409 `REQUISITION_ALREADY_OPEN` when one is open for the cycle. */
@@ -557,7 +638,7 @@ export type RecallSectionResult = z.infer<typeof recallSectionResultSchema>;
 
 // --- R15 PUT /:id/urgent -----------------------------------------------------------
 
-export const setUrgentInputSchema = z.object({ urgent: z.boolean() }).strict();
+export const setUrgentInputSchema = z.object({ urgent: z.boolean(), urgentNote: urgentNoteSchema.optional() }).strict();
 export type SetUrgentInput = z.infer<typeof setUrgentInputSchema>;
 export const setUrgentResultSchema = mutationResultSchema.extend({ urgent: z.boolean(), urgentAt: isoDateTime.nullable() });
 export type SetUrgentResult = z.infer<typeof setUrgentResultSchema>;
@@ -580,9 +661,15 @@ export type ChangeQuantityResult = z.infer<typeof changeQuantityResultSchema>;
 export const nudgeResultSchema = mutationResultSchema.extend({ nudgedAt: isoDateTime });
 export type NudgeResult = z.infer<typeof nudgeResultSchema>;
 
-// --- R18 POST /:id/sections/:departmentId/skip (no body) ---------------------------
+// --- R18 POST /:id/skip (Amendment 2: a list of departments) --------------------------
 
-export const skipSectionResultSchema = mutationResultSchema.extend({ section: sectionSummarySchema, readyToApprove: z.boolean() });
+/** One transaction, one audit event per section. Every listed section must be Not started or Draft. */
+export const skipSectionsInputSchema = z
+  .object({ departmentIds: z.array(uuid).min(1).max(20) })
+  .strict()
+  .refine((v) => new Set(v.departmentIds).size === v.departmentIds.length, 'A department can be listed once');
+export type SkipSectionsInput = z.infer<typeof skipSectionsInputSchema>;
+export const skipSectionResultSchema = mutationResultSchema.extend({ sections: z.array(sectionSummarySchema), readyToApprove: z.boolean() });
 export type SkipSectionResult = z.infer<typeof skipSectionResultSchema>;
 
 // --- R19 POST /:id/approve ----------------------------------------------------------
@@ -600,7 +687,28 @@ export type ApproveResult = z.infer<typeof approveResultSchema>;
 
 // --- R20 POST /:id/cancel ------------------------------------------------------------
 
-export const cancelInputSchema = z.object({ reason: z.string().trim().min(3).max(300), pin: pinSchema }).strict();
+/** Amendment 2: the reason is "preset — note". `Other` needs a note; the others may carry one. */
+export const CANCEL_PRESETS = ['Asked for the wrong cycle', 'Asked twice by mistake', 'No longer needed', 'Other'] as const;
+export type CancelPreset = (typeof CANCEL_PRESETS)[number];
+export const CANCEL_REASON_SEPARATOR = ' — ';
+export const CANCEL_REASON_MAX = 300;
+/** Splits a reason into its preset and note; null when it does not start with a preset. */
+export const parseCancelReason = (reason: string): { preset: CancelPreset; note: string } | null => {
+  for (const preset of CANCEL_PRESETS) {
+    if (reason === preset) return { preset, note: '' };
+    if (reason.startsWith(preset + CANCEL_REASON_SEPARATOR)) return { preset, note: reason.slice(preset.length + CANCEL_REASON_SEPARATOR.length).trim() };
+  }
+  return null;
+};
+export const cancelReasonSchema = z
+  .string()
+  .trim()
+  .max(CANCEL_REASON_MAX)
+  .refine((v) => {
+    const parsed = parseCancelReason(v);
+    return parsed !== null && (parsed.preset !== 'Other' || parsed.note.length > 0);
+  }, 'Pick a reason; "Other" needs a note');
+export const cancelInputSchema = z.object({ reason: cancelReasonSchema, pin: pinSchema }).strict();
 export type CancelInput = z.infer<typeof cancelInputSchema>;
 export const cancelResultSchema = mutationResultSchema.extend({ cancelledAt: isoDateTime });
 export type CancelResult = z.infer<typeof cancelResultSchema>;
@@ -637,6 +745,13 @@ export const REQUISITION_ERROR_CODES = [
   'REASON_REQUIRED', // 422: R16 after approval
   'DEPARTMENT_PACKED', // 409: R16 after the department is packed (Block 2 fills the rule)
   'CANCELLED', // 409: any write on a cancelled requisition
+  // Amendment 2
+  'SECTION_NOT_SENT', // 409: R14 recall of a section that was not sent
+  'SECTION_ALREADY_SENT', // 409: R13 send, or R18 skip, of a section that was already sent
+  'NOT_APPROVED', // 409: R16 after-approval change, R21 and R22 on a requisition that is not signed yet
+  'SECTION_NOT_OPEN', // 409: R12, R13 on behalf, or R18 on a section that is not Not started or Draft
+  'ADDITION_NOT_PENDING', // 409: R22 on an addition that is already approved or cancelled
+  'BRANCH_CODE_MISSING', // 400: R11, the branch has no three-letter code yet (REQ-{code}-{nnnn} cannot be numbered)
 ] as const;
 export type RequisitionErrorCode = (typeof REQUISITION_ERROR_CODES)[number];
 

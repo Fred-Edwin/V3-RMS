@@ -81,6 +81,9 @@ export const CAPABILITIES = [
   'requisitions.cancel', // cancel before approval, with a reason and a PIN
   'requisitions.nudge', // nudge a department; send without a section
   'requisitions.set_urgent', // set or clear Urgent before approval
+  // Amendment 2 ("Fill it myself", Paper): the Branch Manager opens, edits and sends a Not started or Draft section for a department, with their own PIN.
+  'requisitions.edit_on_behalf', // open and edit a department's section that is Not started or Draft
+  'requisitions.send_on_behalf', // send that section with the caller's own PIN; recorded as sent by the caller for that department
   'departments.read', // Departments settings, read only
   'departments.write', // add, rename, retire, restore (own branch)
   // Audit log
@@ -125,6 +128,8 @@ const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
   'requisitions.cancel',
   'requisitions.nudge',
   'requisitions.set_urgent',
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
   'departments.write',
 ];
 
@@ -151,6 +156,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'requisitions.cancel',
     'requisitions.nudge',
     'requisitions.set_urgent',
+    'requisitions.edit_on_behalf',
+    'requisitions.send_on_behalf',
     'departments.write',
   ],
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,

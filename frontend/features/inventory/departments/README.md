@@ -7,5 +7,7 @@ The Departments settings screen: a table of a branch's departments (name, head, 
 ## Contract
 `types/departments-contract.ts` is a hand-written mirror of `backend/src/modules/inventory/departments/_shared/departments-contract.ts` (R23 to R26). `types/departments-contract.fixtures.json` is byte-identical to the back end's; `types/departments-contract.test.ts` types it with the mirror. Screens read the `can` flags and `canAdd`, never a role name.
 
+Amendment 2: retire can answer `DEPARTMENT_HAS_OPEN_SECTIONS` (409) while any section is open. Restore stays and appears in a retired row's menu.
+
 ## Status
 Not built. Components (table, add and rename dialogs), hooks and services arrive in Block 1's desktop front-end session. Nav row: Operations › Branch Settings › Departments (`nav-table.ts`).

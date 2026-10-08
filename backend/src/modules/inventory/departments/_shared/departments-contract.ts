@@ -72,12 +72,14 @@ export const renameDepartmentInputSchema = z.object({ name: departmentNameSchema
 export type RenameDepartmentInput = z.infer<typeof renameDepartmentInputSchema>;
 
 // --- R26 POST /inventory/departments/:id/retire and /restore (no body) -------------------
-/** The response is the updated `DepartmentRow`. Past requisitions keep their sections; a retired department gets no section in new ones. */
+/** The response is the updated `DepartmentRow`. Past requisitions keep their sections; a retired department gets no section in new ones.
+ * Amendment 2: retire is refused with `DEPARTMENT_HAS_OPEN_SECTIONS` while any section is open; restore stays and shows in a retired row's menu. */
 
 export const DEPARTMENT_ERROR_CODES = [
   'DEPARTMENT_NAME_TAKEN', // 409: R24, R25
   'DEPARTMENT_RETIRED', // 409: R25 on a retired department, R26 retire twice
   'DEPARTMENT_ACTIVE', // 409: R26 restore of an active department
   'WRONG_BRANCH', // 403: a Branch Manager writing to another branch
+  'DEPARTMENT_HAS_OPEN_SECTIONS', // 409: R26 retire while any requisition still has an open section for it (Amendment 2); restore stays
 ] as const;
 export type DepartmentErrorCode = (typeof DEPARTMENT_ERROR_CODES)[number];

@@ -138,28 +138,42 @@ describe('nextStepOf', () => {
   ];
   const can = { nudge: true, approve: true, addToIt: false, print: true };
   it('names the department that has not sent and offers a nudge', () => {
-    expect(nextStepOf({ status: 'OPEN', sections, additionWaiting: false, can })).toMatchObject({ title: "Housekeeping hasn't sent yet", action: 'NUDGE', actionLabel: 'Nudge Housekeeping', departmentId: 'h' });
+    expect(nextStepOf({ status: 'OPEN', sections, additionsWaiting: 0, can })).toMatchObject({ action: 'NUDGE', departmentId: 'h', facts: { sectionsIn: 1, sectionsTotal: 2, additionsWaiting: 0 } });
   });
   it('offers no button to someone who cannot nudge', () => {
-    expect(nextStepOf({ status: 'OPEN', sections, additionWaiting: false, can: { ...can, nudge: false } }).action).toBeNull();
+    expect(nextStepOf({ status: 'OPEN', sections, additionsWaiting: 0, can: { ...can, nudge: false } }).action).toBeNull();
   });
   it('asks for the signature when everything is in', () => {
-    expect(nextStepOf({ status: 'PENDING_APPROVAL', sections, additionWaiting: false, can })).toMatchObject({ action: 'APPROVE_AND_SIGN' });
+    expect(nextStepOf({ status: 'PENDING_APPROVAL', sections, additionsWaiting: 0, can })).toMatchObject({ action: 'APPROVE_AND_SIGN' });
   });
-  it('shows a waiting addition to the approver', () => {
-    expect(nextStepOf({ status: 'APPROVED', sections, additionWaiting: true, can })).toMatchObject({ action: 'APPROVE_ADDITION' });
+  it('shows a waiting addition to the approver and counts it', () => {
+    expect(nextStepOf({ status: 'APPROVED', sections, additionsWaiting: 2, can })).toMatchObject({ action: 'APPROVE_ADDITION', facts: { additionsWaiting: 2 } });
   });
   it('lets a head add to an approved requisition', () => {
-    expect(nextStepOf({ status: 'APPROVED', sections, additionWaiting: false, can: { ...can, approve: false, addToIt: true } })).toMatchObject({ action: 'ADD_TO_THIS_REQUISITION' });
+    expect(nextStepOf({ status: 'APPROVED', sections, additionsWaiting: 0, can: { ...can, approve: false, addToIt: true } })).toMatchObject({ action: 'ADD_TO_THIS_REQUISITION' });
   });
   it('offers a new one after a cancel', () => {
-    expect(nextStepOf({ status: 'CANCELLED', sections, additionWaiting: false, can })).toMatchObject({ action: 'START_A_NEW_ONE' });
+    expect(nextStepOf({ status: 'CANCELLED', sections, additionsWaiting: 0, can })).toMatchObject({ action: 'START_A_NEW_ONE' });
+  });
+  it('carries facts only: no title, text or button label (Amendment 2)', () => {
+    const keys = Object.keys(nextStepOf({ status: 'OPEN', sections, additionsWaiting: 0, can }));
+    expect(keys.sort()).toEqual(['action', 'departmentId', 'facts']);
+  });
+  it('does not count a retired department that never sent', () => {
+    const withRetired = [...sections, { departmentId: 'r', departmentName: 'Old', status: 'NOT_STARTED' as const, departmentActive: false }];
+    expect(nextStepOf({ status: 'OPEN', sections: withRetired, additionsWaiting: 0, can }).facts).toMatchObject({ sectionsIn: 1, sectionsTotal: 2 });
   });
 });
 
 describe('trackerOf', () => {
   const person = (u: { id: string; name: string }) => ({ id: u.id, name: u.name, initials: 'X', roleLabel: 'r' });
-  const base = { openedAt: new Date('2026-10-08T06:00:00Z'), openedBy: { id: 'u', name: 'Ann', role: 'CHEF' }, allInAt: null, approvedAt: null, approvedBy: null, closedAt: null };
+  const base = { openedAt: new Date('2026-10-08T06:00:00Z'), openedBy: { id: 'u', name: 'Ann', role: 'CHEF' }, allInAt: null, approvedAt: null, approvedBy: null, closedAt: null, sectionsIn: 3, sectionsTotal: 5 };
+  it('returns facts only: key, state, date, who and a count (Amendment 2)', () => {
+    const t = trackerOf({ ...base, status: 'OPEN' }, person);
+    expect(Object.keys(t[0]!).sort()).toEqual(['at', 'by', 'count', 'key', 'state']);
+    expect(t.find((s) => s.key === 'ALL_IN')!.count).toEqual({ done: 3, total: 5 });
+    expect(t.find((s) => s.key === 'STARTED')!.count).toBeNull();
+  });
   it('marks Started done and All in current while collecting', () => {
     const t = trackerOf({ ...base, status: 'OPEN' }, person);
     expect(t.map((s) => s.state)).toEqual(['DONE', 'CURRENT', 'TODO', 'TODO', 'TODO', 'TODO']);

@@ -91,35 +91,34 @@ export const lineValueKes = (
 export interface NextStepFacts {
   status: RequisitionStatus;
   sections: ReadonlyArray<{ departmentId: string; departmentName: string; status: SectionStatus; departmentActive: boolean }>;
-  /** An addition is waiting for the signature. */
-  additionWaiting: boolean;
+  /** How many additions are waiting for the signature. */
+  additionsWaiting: number;
   can: { nudge: boolean; approve: boolean; addToIt: boolean; print: boolean };
 }
 
-/** The Next step card (Paper step 22 wording; the words are a draft until the front end confirms them against the table). */
+/**
+ * The Next step card as facts (Amendment 2): the action key, the department it is about and the counts. The words (title, body,
+ * button label) are the front ends', written from Paper step 22.
+ */
 export const nextStepOf = (f: NextStepFacts): NextStep => {
-  const none = { text: null, action: null, actionLabel: null, departmentId: null } as const;
-  if (f.status === 'CANCELLED') return { title: 'Cancelled', ...none, action: 'START_A_NEW_ONE', actionLabel: 'Start a new one' };
-  if (f.status === 'CLOSED') return { title: 'Closed', ...none, action: f.can.print ? 'PRINT' : null, actionLabel: f.can.print ? 'Print' : null };
-  if (f.status === 'APPROVED') {
-    if (f.additionWaiting) {
-      return { title: 'An addition is waiting for a signature', text: null, action: f.can.approve ? 'APPROVE_ADDITION' : null, actionLabel: f.can.approve ? 'Approve addition' : null, departmentId: null };
-    }
-    if (f.can.addToIt) return { title: 'Approved. Waiting for the Central Store.', text: null, action: 'ADD_TO_THIS_REQUISITION', actionLabel: 'Add to this requisition', departmentId: null };
-    return { title: 'Approved. Waiting for the Central Store.', ...none, action: f.can.print ? 'PRINT' : null, actionLabel: f.can.print ? 'Print' : null };
-  }
-  if (f.status === 'PENDING_APPROVAL') {
-    return { title: 'Everything is in. Ready for your signature.', text: null, action: f.can.approve ? 'APPROVE_AND_SIGN' : null, actionLabel: f.can.approve ? 'Approve and sign' : null, departmentId: null };
-  }
-  const waiting = f.sections.find((s) => s.departmentActive && (s.status === 'NOT_STARTED' || s.status === 'DRAFT'));
-  if (!waiting) return { title: 'Collecting', ...none };
-  return {
-    title: `${waiting.departmentName} hasn't sent yet`,
-    text: null,
-    action: f.can.nudge ? 'NUDGE' : null,
-    actionLabel: f.can.nudge ? `Nudge ${waiting.departmentName}` : null,
-    departmentId: waiting.departmentId,
+  const counting = f.sections.filter((s) => s.departmentActive || s.status === 'SUBMITTED' || s.status === 'SKIPPED');
+  const facts = {
+    sectionsIn: counting.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length,
+    sectionsTotal: counting.length,
+    additionsWaiting: f.additionsWaiting,
   };
+  const card = (action: NextStep['action'], departmentId: string | null = null): NextStep => ({ action, departmentId, facts });
+  if (f.status === 'CANCELLED') return card('START_A_NEW_ONE');
+  if (f.status === 'CLOSED') return card(f.can.print ? 'PRINT' : null);
+  if (f.status === 'APPROVED') {
+    if (f.additionsWaiting > 0) return card(f.can.approve ? 'APPROVE_ADDITION' : null);
+    if (f.can.addToIt) return card('ADD_TO_THIS_REQUISITION');
+    return card(f.can.print ? 'PRINT' : null);
+  }
+  if (f.status === 'PENDING_APPROVAL') return card(f.can.approve ? 'APPROVE_AND_SIGN' : null);
+  const waiting = f.sections.find((s) => s.departmentActive && (s.status === 'NOT_STARTED' || s.status === 'DRAFT'));
+  if (!waiting) return card(null);
+  return card(f.can.nudge ? 'NUDGE' : null, waiting.departmentId);
 };
 
 export interface TrackerFacts {
@@ -130,11 +129,14 @@ export interface TrackerFacts {
   approvedAt: Date | null;
   approvedBy: { id: string; name: string; role: string } | null;
   closedAt: Date | null;
+  /** Sections Sent or Skipped, and the sections that count: the "All in" step's count. */
+  sectionsIn: number;
+  sectionsTotal: number;
 }
 
 type TrackerStepKey = TrackerStep['key'];
 
-/** The six steps with their dates. Packed and Delivered are Block 2's; they stay To do until then. */
+/** The six steps as facts (Amendment 2): state, date, who, and a count where the step has one. The labels are the front ends'. Packed and Delivered are Block 2's; they stay To do until then. */
 export const trackerOf = (f: TrackerFacts, person: (u: { id: string; name: string; role: string }) => TrackerStep['by']): TrackerStep[] => {
   const reached: Record<TrackerStepKey, { at: Date | null; by: TrackerStep['by'] } | null> = {
     STARTED: { at: f.openedAt, by: person(f.openedBy) },
@@ -144,14 +146,14 @@ export const trackerOf = (f: TrackerFacts, person: (u: { id: string; name: strin
     DELIVERED: null,
     CLOSED: f.closedAt ? { at: f.closedAt, by: null } : null,
   };
-  const labels: Record<TrackerStepKey, string> = { STARTED: 'Started', ALL_IN: 'All in', APPROVED: 'Approved', PACKED: 'Packed', DELIVERED: 'Delivered', CLOSED: 'Closed' };
   const order: TrackerStepKey[] = ['STARTED', 'ALL_IN', 'APPROVED', 'PACKED', 'DELIVERED', 'CLOSED'];
+  const countOf = (key: TrackerStepKey): TrackerStep['count'] => (key === 'ALL_IN' ? { done: f.sectionsIn, total: f.sectionsTotal } : null);
   let currentSet = false;
   return order.map((key) => {
     const hit = reached[key];
-    if (hit) return { key, label: labels[key], state: 'DONE' as const, at: hit.at ? hit.at.toISOString() : null, by: hit.by };
+    if (hit) return { key, state: 'DONE' as const, at: hit.at ? hit.at.toISOString() : null, by: hit.by, count: countOf(key) };
     const state = !currentSet && f.status !== 'CANCELLED' ? ('CURRENT' as const) : ('TODO' as const);
     currentSet = currentSet || state === 'CURRENT';
-    return { key, label: labels[key], state, at: null, by: null };
+    return { key, state, at: null, by: null, count: countOf(key) };
   });
 };

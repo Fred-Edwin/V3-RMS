@@ -17,6 +17,8 @@ const ALL: Capability[] = [
   'requisitions.cancel',
   'requisitions.nudge',
   'requisitions.set_urgent',
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
   'departments.read',
   'departments.write',
 ];
@@ -42,7 +44,7 @@ const roleOf = (key: string): string => (key === 'BRANCH_MANAGER_AS_MANAGER' ? '
 const mine = (c: string): boolean => /^(requisitions|departments)\./.test(c);
 
 describe('Requisitions and Departments capability grid', () => {
-  it('declares exactly the ten capabilities', () => {
+  it('declares exactly the twelve capabilities', () => {
     expect(CAPABILITIES.filter(mine).sort()).toEqual([...ALL].sort());
   });
 
@@ -67,6 +69,16 @@ describe('Requisitions and Departments capability grid', () => {
       expect(actorCan({ role: 'STORE_MANAGER' } as never, cap), `STORE_MANAGER ${cap}`).toBe(false);
       expect(actorCan({ role: 'ACCOUNTANT' } as never, cap), `ACCOUNTANT ${cap}`).toBe(false);
       expect(actorCan({ role: 'DIRECTOR' } as never, cap), `DIRECTOR ${cap}`).toBe(cap === 'requisitions.approve');
+    }
+  });
+
+  it('"on behalf" (Amendment 2) is the Branch Manager and the System Admin only: not the Director, even though the Director approves', () => {
+    for (const cap of ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf'] as const) {
+      expect(actorCan({ role: 'MANAGER' } as never, cap), `MANAGER ${cap}`).toBe(true);
+      expect(actorCan({ role: 'SYSTEM_ADMIN' } as never, cap), `SYSTEM_ADMIN ${cap}`).toBe(true);
+      for (const role of ['DIRECTOR', 'STORE_MANAGER', 'ACCOUNTANT', 'STORE_ATTENDANT', 'CHEF', 'WAITER']) {
+        expect(actorCan({ role } as never, cap), `${role} ${cap}`).toBe(false);
+      }
     }
   });
 

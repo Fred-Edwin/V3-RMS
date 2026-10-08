@@ -156,6 +156,10 @@ Each write appends a `RequisitionEvent`. The Audit log sub-module reads `Requisi
 7. **The one open check:** that session did not open Paper steps 1 to 20 at full size. The two front-end sessions do that first (their prompts say so) and report every gap; I batch the gaps into **Amendment 2** before back end B starts. Back end A's migration and write rules are not affected by it.
 8. The front-end `requisitions/index.ts` barrel does not export the new mirror yet (old type names clash); that switch belongs to the PR that deletes the old screens.
 
+## 17. Amendment 2 (owner approved 8 Oct 2026)
+
+The list of changes is `requisitions-amendment-2.md` (wire changes §1, error codes §2, behaviour decisions §3, navigation §4, back end B scope §5); it applies on top of this document and Amendment 1, and Paper still wins. It is in code in `requisitions/_shared/requisitions-contract.ts`, `departments/_shared/departments-contract.ts`, both fixtures files, both front-end mirrors and the access table (`requisitions.edit_on_behalf`, `requisitions.send_on_behalf`: Branch Manager and System Admin). Where this document and the amendment disagree, the amendment wins: R18 takes a list, R20's reason is "preset — note", the Next step card and the tracker return facts only, and the capability list in §3 has two more rows.
+
 ## 9. Ledger
 
 Requisitions never write the stock ledger. No change to `ledger-guard.test.ts` in Block 1.

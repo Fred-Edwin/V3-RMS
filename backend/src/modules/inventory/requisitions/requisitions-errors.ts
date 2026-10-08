@@ -18,13 +18,16 @@ const STATUS: Record<RequisitionErrorCode, number> = {
   REASON_REQUIRED: 422,
   DEPARTMENT_PACKED: 409,
   CANCELLED: 409,
+  SECTION_NOT_SENT: 409,
+  SECTION_ALREADY_SENT: 409,
+  NOT_APPROVED: 409,
+  SECTION_NOT_OPEN: 409,
+  ADDITION_NOT_PENDING: 409,
+  BRANCH_CODE_MISSING: 400,
 };
 
 export const requisitionError = (code: RequisitionErrorCode, message: string, details?: unknown): AppError => new AppError(STATUS[code], code, message, details);
 
-/**
- * Codes the contract's list does not carry, for states it does not name (see the README, "Contract drift"). They are plain 409s with
- * a stable code so a screen can still switch on them.
- */
+/** The state-conflict codes Amendment 2 added to the contract's list: plain 409s with a stable code so a screen can switch on them. */
 export const stateConflict = (code: 'SECTION_NOT_SENT' | 'SECTION_ALREADY_SENT' | 'NOT_APPROVED' | 'SECTION_NOT_OPEN' | 'ADDITION_NOT_PENDING', message: string): AppError =>
-  new AppError(409, code, message);
+  requisitionError(code, message);

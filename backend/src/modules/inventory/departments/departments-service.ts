@@ -13,6 +13,7 @@ const STATUS: Record<DepartmentErrorCode, number> = {
   DEPARTMENT_RETIRED: 409,
   DEPARTMENT_ACTIVE: 409,
   WRONG_BRANCH: 403,
+  DEPARTMENT_HAS_OPEN_SECTIONS: 409,
 };
 
 const departmentError = (code: DepartmentErrorCode, message: string): AppError => new AppError(STATUS[code], code, message);

@@ -53,7 +53,10 @@ export interface RenameDepartmentInput {
   name: string;
 }
 
-/** R26 retire / restore: no body, the response is the updated `DepartmentRow`. */
+/**
+ * R26 retire / restore: no body, the response is the updated `DepartmentRow`. Amendment 2: retire is refused with
+ * `DEPARTMENT_HAS_OPEN_SECTIONS` while any section is open; restore stays and shows in a retired row's menu.
+ */
 
-export const DEPARTMENT_ERROR_CODES = ['DEPARTMENT_NAME_TAKEN', 'DEPARTMENT_RETIRED', 'DEPARTMENT_ACTIVE', 'WRONG_BRANCH'] as const;
+export const DEPARTMENT_ERROR_CODES = ['DEPARTMENT_NAME_TAKEN', 'DEPARTMENT_RETIRED', 'DEPARTMENT_ACTIVE', 'WRONG_BRANCH', 'DEPARTMENT_HAS_OPEN_SECTIONS'] as const;
 export type DepartmentErrorCode = (typeof DEPARTMENT_ERROR_CODES)[number];
