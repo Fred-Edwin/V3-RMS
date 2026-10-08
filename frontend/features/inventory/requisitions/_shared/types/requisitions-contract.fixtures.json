@@ -1,0 +1,632 @@
+{
+  "listManager": {
+    "tab": "to-approve",
+    "rows": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000112",
+        "reference": "REQ-NYR-0112",
+        "cycle": "AFTERNOON",
+        "cycleLabel": "Afternoon · Wed 7 Oct",
+        "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "status": "PENDING_APPROVAL",
+        "statusText": "Ready to approve",
+        "tab": "to-approve",
+        "sections": [
+          { "departmentId": "d0000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "status": "SUBMITTED" },
+          { "departmentId": "d0000000-0000-4000-8000-000000000005", "departmentName": "Housekeeping", "status": "SKIPPED" }
+        ],
+        "lineCount": 40,
+        "valueKes": "58020.00",
+        "openedAt": "2026-10-07T10:42:00.000Z",
+        "urgent": false,
+        "urgentOverHour": false,
+        "additionWaiting": false,
+        "rowAction": { "action": "APPROVE_AND_SIGN", "label": "Approve and sign", "departmentId": null }
+      }
+    ],
+    "tabCounts": { "collecting": 1, "to-approve": 1, "to-pack": 2, "on-the-way": 0, "to-confirm": 1, "discrepancies": 0, "closed": 14 },
+    "waitingForYou": 1,
+    "page": { "page": 1, "pageSize": 50, "total": 1 }
+  },
+  "listHubCollecting": {
+    "tab": "collecting",
+    "rows": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000201",
+        "reference": "REQ-KRT-0045",
+        "cycle": "MORNING",
+        "cycleLabel": "Morning · Wed 7 Oct",
+        "branch": { "id": "b0000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+        "status": "OPEN",
+        "statusText": "Collecting",
+        "tab": "collecting",
+        "sections": [
+          { "departmentId": "d0000000-0000-4000-8000-000000000011", "departmentName": "Kitchen", "status": "SUBMITTED" },
+          { "departmentId": "d0000000-0000-4000-8000-000000000015", "departmentName": "Housekeeping", "status": "NOT_STARTED" }
+        ],
+        "lineCount": 22,
+        "valueKes": "31400.00",
+        "openedAt": "2026-10-07T05:10:00.000Z",
+        "urgent": true,
+        "urgentOverHour": true,
+        "additionWaiting": false,
+        "rowAction": { "action": "NUDGE", "label": "Nudge Housekeeping", "departmentId": "d0000000-0000-4000-8000-000000000015" }
+      }
+    ],
+    "tabCounts": { "collecting": 1, "to-approve": 1, "to-pack": 2, "on-the-way": 0, "to-confirm": 1, "discrepancies": 0, "closed": 31 },
+    "waitingForYou": 0,
+    "branches": [
+      { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+      { "id": "b0000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 1 }
+  },
+  "listAttendant": {
+    "tab": "to-pack",
+    "rows": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000111",
+        "reference": "REQ-NYR-0111",
+        "cycle": "MORNING",
+        "cycleLabel": "Morning · Wed 7 Oct",
+        "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "status": "APPROVED",
+        "statusText": "Approved",
+        "tab": "to-pack",
+        "sections": [{ "departmentId": "d0000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "status": "SUBMITTED" }],
+        "lineCount": 18,
+        "openedAt": "2026-10-07T05:30:00.000Z",
+        "urgent": false,
+        "urgentOverHour": false,
+        "additionWaiting": false,
+        "rowAction": null
+      }
+    ],
+    "tabCounts": { "collecting": 1, "to-approve": 1, "to-pack": 2, "on-the-way": 0, "to-confirm": 1, "discrepancies": 0, "closed": 14 },
+    "waitingForYou": 2,
+    "page": { "page": 1, "pageSize": 50, "total": 1 }
+  },
+  "badgesManager": { "requisitions": 1, "toApprove": 1 },
+  "badgesStore": { "requisitions": 2, "toPack": 2 },
+  "fileManager": {
+    "id": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "cycle": "AFTERNOON",
+    "cycleLabel": "Afternoon · Wed 7 Oct",
+    "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "status": "PENDING_APPROVAL",
+    "statusText": "Ready to approve",
+    "urgent": false,
+    "urgentAt": null,
+    "urgentOverHour": false,
+    "openedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+    "openedAt": "2026-10-07T10:42:00.000Z",
+    "approvedBy": null,
+    "approvedAt": null,
+    "cancelled": null,
+    "closedAt": null,
+    "tracker": [
+      { "key": "STARTED", "label": "Started", "state": "DONE", "at": "2026-10-07T10:42:00.000Z", "by": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" } },
+      { "key": "ALL_IN", "label": "All sections in", "state": "DONE", "at": "2026-10-07T11:10:00.000Z", "by": null },
+      { "key": "APPROVED", "label": "Approved", "state": "CURRENT", "at": null, "by": null },
+      { "key": "PACKED", "label": "Packed", "state": "TODO", "at": null, "by": null },
+      { "key": "DELIVERED", "label": "Delivered", "state": "TODO", "at": null, "by": null },
+      { "key": "CLOSED", "label": "Closed", "state": "TODO", "at": null, "by": null }
+    ],
+    "nextStep": {
+      "title": "Everything is in. Ready for your signature.",
+      "text": "One signature covers the whole requisition.",
+      "action": "APPROVE_AND_SIGN",
+      "actionLabel": "Approve and sign",
+      "departmentId": null
+    },
+    "sections": [
+      {
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "status": "SUBMITTED",
+        "statusText": "Sent",
+        "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "sentAt": "2026-10-07T10:58:00.000Z",
+        "sentBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "skippedAt": null,
+        "skippedBy": null,
+        "lineCount": 2,
+        "changedCount": 1,
+        "valueKes": "4320.00",
+        "noteForManager": "Eggs are going fast on weekends.",
+        "lines": [
+          {
+            "id": "c0000000-0000-4000-8000-000000000001",
+            "itemId": "10000000-0000-4000-8000-000000000001",
+            "itemName": "Milk",
+            "unit": "L",
+            "categoryPath": ["Dairy"],
+            "requestedQty": "30",
+            "approvedQty": "24",
+            "suggestedQty": "27",
+            "onHand": "9",
+            "level": "36",
+            "changedFromSuggested": true,
+            "changedByManager": true,
+            "changeReason": "Short at the store",
+            "additionId": null,
+            "valueKes": "2280.00"
+          },
+          {
+            "id": "c0000000-0000-4000-8000-000000000002",
+            "itemId": "10000000-0000-4000-8000-000000000002",
+            "itemName": "Eggs",
+            "unit": "tray",
+            "categoryPath": ["Proteins", "Eggs"],
+            "requestedQty": "6",
+            "approvedQty": "6",
+            "suggestedQty": "6",
+            "onHand": "2",
+            "level": "8",
+            "changedFromSuggested": false,
+            "changedByManager": false,
+            "changeReason": null,
+            "additionId": null,
+            "valueKes": "2040.00"
+          }
+        ],
+        "can": { "edit": true, "send": false, "recall": false, "nudge": false, "skip": false, "fillMyself": true, "changeQuantity": true }
+      },
+      {
+        "departmentId": "d0000000-0000-4000-8000-000000000005",
+        "departmentName": "Housekeeping",
+        "status": "SKIPPED",
+        "statusText": "Sent without this section",
+        "head": null,
+        "sentAt": null,
+        "sentBy": null,
+        "skippedAt": "2026-10-07T11:10:00.000Z",
+        "skippedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+        "lineCount": 0,
+        "changedCount": 0,
+        "valueKes": "0.00",
+        "noteForManager": null,
+        "lines": [],
+        "can": { "edit": true, "send": false, "recall": false, "nudge": false, "skip": false, "fillMyself": true, "changeQuantity": false }
+      }
+    ],
+    "additions": [],
+    "dispatches": [],
+    "lineCount": 2,
+    "valueKes": "4320.00",
+    "can": { "nudge": false, "skip": false, "changeQuantity": true, "approve": true, "cancel": true, "setUrgent": true, "addToIt": false, "print": false, "startNew": false }
+  },
+  "fileHeadApproved": {
+    "id": "a0000000-0000-4000-8000-000000000111",
+    "reference": "REQ-NYR-0111",
+    "cycle": "MORNING",
+    "cycleLabel": "Morning · Wed 7 Oct",
+    "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "status": "APPROVED",
+    "statusText": "Approved",
+    "urgent": false,
+    "urgentAt": null,
+    "urgentOverHour": false,
+    "openedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+    "openedAt": "2026-10-07T05:30:00.000Z",
+    "approvedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+    "approvedAt": "2026-10-07T06:20:00.000Z",
+    "cancelled": null,
+    "closedAt": null,
+    "tracker": [
+      { "key": "STARTED", "label": "Started", "state": "DONE", "at": "2026-10-07T05:30:00.000Z", "by": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" } },
+      { "key": "ALL_IN", "label": "All sections in", "state": "DONE", "at": "2026-10-07T06:05:00.000Z", "by": null },
+      { "key": "APPROVED", "label": "Approved", "state": "DONE", "at": "2026-10-07T06:20:00.000Z", "by": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" } },
+      { "key": "PACKED", "label": "Packed", "state": "CURRENT", "at": null, "by": null },
+      { "key": "DELIVERED", "label": "Delivered", "state": "TODO", "at": null, "by": null },
+      { "key": "CLOSED", "label": "Closed", "state": "TODO", "at": null, "by": null }
+    ],
+    "nextStep": { "title": "Approved. The Central Store is packing.", "text": "You can add lines until your dispatch is signed.", "action": "ADD_TO_THIS_REQUISITION", "actionLabel": "Add to this requisition", "departmentId": "d0000000-0000-4000-8000-000000000001" },
+    "sections": [
+      {
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "status": "SUBMITTED",
+        "statusText": "Sent",
+        "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "sentAt": "2026-10-07T05:50:00.000Z",
+        "sentBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "skippedAt": null,
+        "skippedBy": null,
+        "lineCount": 1,
+        "changedCount": 0,
+        "noteForManager": null,
+        "lines": [
+          {
+            "id": "c0000000-0000-4000-8000-000000000011",
+            "itemId": "10000000-0000-4000-8000-000000000001",
+            "itemName": "Milk",
+            "unit": "L",
+            "categoryPath": ["Dairy"],
+            "requestedQty": "27",
+            "approvedQty": "27",
+            "suggestedQty": "27",
+            "onHand": "9",
+            "level": "36",
+            "changedFromSuggested": false,
+            "changedByManager": false,
+            "changeReason": null,
+            "additionId": null
+          }
+        ],
+        "can": { "edit": false, "send": false, "recall": false, "nudge": false, "skip": false, "fillMyself": false, "changeQuantity": false }
+      }
+    ],
+    "additions": [],
+    "dispatches": [],
+    "lineCount": 1,
+    "can": { "nudge": false, "skip": false, "changeQuantity": false, "approve": false, "cancel": false, "setUrgent": false, "addToIt": true, "print": false, "startNew": false }
+  },
+  "activity": {
+    "events": [
+      {
+        "id": "e0000000-0000-4000-8000-000000000003",
+        "type": "QUANTITY_CHANGED",
+        "at": "2026-10-07T11:02:00.000Z",
+        "actor": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+        "sentence": "The Branch Manager changed Milk from 30 to 24 (Short at the store)",
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "lineId": "c0000000-0000-4000-8000-000000000001",
+        "fromValue": "30",
+        "toValue": "24",
+        "reason": "Short at the store",
+        "link": null
+      },
+      {
+        "id": "e0000000-0000-4000-8000-000000000002",
+        "type": "SENT",
+        "at": "2026-10-07T10:58:00.000Z",
+        "actor": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "sentence": "The Kitchen Head sent the Kitchen's list for approval · 2 lines · signed with PIN",
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "lineId": null,
+        "fromValue": null,
+        "toValue": null,
+        "reason": null,
+        "link": { "kind": "REQUISITION", "id": "a0000000-0000-4000-8000-000000000112", "reference": "REQ-NYR-0112" }
+      }
+    ]
+  },
+  "documents": {
+    "documents": [
+      { "id": "f0000000-0000-4000-8000-000000000001", "version": 1, "label": "Requisition · approved", "at": "2026-10-07T06:20:00.000Z", "by": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" } }
+    ]
+  },
+  "print": {
+    "reference": "REQ-NYR-0111",
+    "branch": { "id": "b0000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "cycleLabel": "Morning · Wed 7 Oct",
+    "urgent": false,
+    "approvedAt": "2026-10-07T06:20:00.000Z",
+    "approvedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+    "cover": {
+      "departments": [{ "departmentId": "d0000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "lineCount": 1, "page": 2, "dispatchReference": null }],
+      "managerChanges": [{ "departmentName": "Kitchen", "itemName": "Milk", "from": "30", "to": "27", "reason": null }],
+      "additionsCount": 0
+    },
+    "pages": [
+      {
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "lines": [{ "n": 1, "itemName": "Milk", "unit": "L", "requestedQty": "30", "approvedQty": "27", "changed": true }],
+        "additions": []
+      }
+    ],
+    "qrPayload": "https://v3-rms.vercel.app/app/branch/requisitions/a0000000-0000-4000-8000-000000000111"
+  },
+  "home": {
+    "department": { "id": "d0000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "suggestedCycle": "AFTERNOON",
+    "open": {
+      "requisitionId": "a0000000-0000-4000-8000-000000000112",
+      "reference": "REQ-NYR-0112",
+      "cycle": "AFTERNOON",
+      "cycleLabel": "Afternoon · Wed 7 Oct",
+      "status": "OPEN",
+      "statusText": "Collecting",
+      "urgent": false,
+      "section": {
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "status": "DRAFT",
+        "statusText": "Draft",
+        "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+        "sentAt": null,
+        "sentBy": null,
+        "skippedAt": null,
+        "skippedBy": null,
+        "lineCount": 12,
+        "changedCount": 0
+      },
+      "can": { "edit": true, "recall": false, "addToIt": false }
+    },
+    "earlierToday": [
+      { "requisitionId": "a0000000-0000-4000-8000-000000000111", "reference": "REQ-NYR-0111", "cycleLabel": "Morning · Wed 7 Oct", "status": "APPROVED", "statusText": "Approved", "sectionStatus": "SUBMITTED", "lineCount": 18 }
+    ]
+  },
+  "homeNoneOpen": {
+    "department": { "id": "d0000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "suggestedCycle": "MORNING",
+    "open": null,
+    "earlierToday": []
+  },
+  "sectionEdit": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "cycleLabel": "Afternoon · Wed 7 Oct",
+    "requisitionStatus": "OPEN",
+    "urgent": false,
+    "section": {
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "DRAFT",
+      "statusText": "Draft",
+      "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "sentAt": null,
+      "sentBy": null,
+      "skippedAt": null,
+      "skippedBy": null,
+      "lineCount": 1,
+      "changedCount": 0,
+      "noteForManager": null,
+      "lines": [
+        {
+          "id": "c0000000-0000-4000-8000-000000000021",
+          "itemId": "10000000-0000-4000-8000-000000000001",
+          "itemName": "Milk",
+          "unit": "L",
+          "categoryPath": ["Dairy"],
+          "requestedQty": "27",
+          "approvedQty": null,
+          "suggestedQty": "27",
+          "onHand": "9",
+          "level": "36",
+          "changedFromSuggested": false,
+          "changedByManager": false,
+          "changeReason": null,
+          "additionId": null
+        }
+      ],
+      "can": { "edit": true, "send": true, "recall": false, "nudge": false, "skip": false, "fillMyself": false, "changeQuantity": false }
+    },
+    "addable": [
+      { "itemId": "10000000-0000-4000-8000-000000000001", "itemName": "Milk", "unit": "L", "categoryPath": ["Dairy"], "suggestedQty": "27", "onHand": "9", "level": "36", "inSection": true },
+      { "itemId": "10000000-0000-4000-8000-000000000003", "itemName": "Butter", "unit": "kg", "categoryPath": ["Dairy"], "suggestedQty": "0", "onHand": "5", "level": "4", "inSection": false }
+    ]
+  },
+  "historyMine": {
+    "rows": [
+      { "requisitionId": "a0000000-0000-4000-8000-000000000111", "reference": "REQ-NYR-0111", "cycleLabel": "Morning · Wed 7 Oct", "status": "APPROVED", "statusText": "Approved", "sectionStatus": "SUBMITTED", "lineCount": 18, "openedAt": "2026-10-07T05:30:00.000Z" }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 1 }
+  },
+  "approveSummary": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "lineCount": 40,
+    "valueKes": "58020.00",
+    "departments": [
+      { "departmentId": "d0000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "status": "SUBMITTED", "lineCount": 40, "valueKes": "58020.00" },
+      { "departmentId": "d0000000-0000-4000-8000-000000000005", "departmentName": "Housekeeping", "status": "SKIPPED", "lineCount": 0, "valueKes": "0.00" }
+    ],
+    "changes": [{ "departmentName": "Kitchen", "itemName": "Milk", "from": "30", "to": "24", "reason": "Short at the store" }],
+    "signatureLine": "One signature covers the whole requisition.",
+    "signingAs": "BRANCH_MANAGER"
+  },
+  "startInput": { "cycle": "AFTERNOON", "urgent": false, "idempotencyKey": "8f1c2d3e-4a5b-4c6d" },
+  "startResult": { "requisitionId": "a0000000-0000-4000-8000-000000000112", "reference": "REQ-NYR-0112", "status": "OPEN", "statusText": "Collecting", "replayed": false },
+  "saveLinesInput": {
+    "lines": [
+      { "itemId": "10000000-0000-4000-8000-000000000001", "requestedQty": "30" },
+      { "itemId": "10000000-0000-4000-8000-000000000002", "requestedQty": "6" }
+    ],
+    "noteForManager": "Eggs are going fast on weekends."
+  },
+  "sendSectionInput": { "pin": "4821" },
+  "sendSectionResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "status": "PENDING_APPROVAL",
+    "statusText": "Ready to approve",
+    "replayed": false,
+    "section": {
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "SUBMITTED",
+      "statusText": "Sent",
+      "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "sentAt": "2026-10-07T10:58:00.000Z",
+      "sentBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "skippedAt": null,
+      "skippedBy": null,
+      "lineCount": 2,
+      "changedCount": 0
+    },
+    "readyToApprove": true
+  },
+  "recallSectionResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "status": "OPEN",
+    "statusText": "Collecting",
+    "replayed": false,
+    "section": {
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "DRAFT",
+      "statusText": "Draft",
+      "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "sentAt": null,
+      "sentBy": null,
+      "skippedAt": null,
+      "skippedBy": null,
+      "lineCount": 2,
+      "changedCount": 0
+    }
+  },
+  "setUrgentInput": { "urgent": true },
+  "setUrgentResult": { "requisitionId": "a0000000-0000-4000-8000-000000000112", "reference": "REQ-NYR-0112", "status": "OPEN", "statusText": "Collecting", "replayed": false, "urgent": true, "urgentAt": "2026-10-07T11:15:00.000Z" },
+  "changeQuantityInput": { "approvedQty": "24", "reason": "Short at the store" },
+  "changeQuantityResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "status": "PENDING_APPROVAL",
+    "statusText": "Ready to approve",
+    "replayed": false,
+    "line": {
+      "id": "c0000000-0000-4000-8000-000000000001",
+      "itemId": "10000000-0000-4000-8000-000000000001",
+      "itemName": "Milk",
+      "unit": "L",
+      "categoryPath": ["Dairy"],
+      "requestedQty": "30",
+      "approvedQty": "24",
+      "suggestedQty": "27",
+      "onHand": "9",
+      "level": "36",
+      "changedFromSuggested": true,
+      "changedByManager": true,
+      "changeReason": "Short at the store",
+      "additionId": null,
+      "valueKes": "2280.00"
+    },
+    "section": {
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "SUBMITTED",
+      "statusText": "Sent",
+      "head": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "sentAt": "2026-10-07T10:58:00.000Z",
+      "sentBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "skippedAt": null,
+      "skippedBy": null,
+      "lineCount": 2,
+      "changedCount": 1,
+      "valueKes": "4320.00"
+    },
+    "valueKes": "4320.00"
+  },
+  "nudgeResult": { "requisitionId": "a0000000-0000-4000-8000-000000000112", "reference": "REQ-NYR-0112", "status": "OPEN", "statusText": "Collecting", "replayed": false, "nudgedAt": "2026-10-07T11:05:00.000Z" },
+  "skipSectionResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "status": "PENDING_APPROVAL",
+    "statusText": "Ready to approve",
+    "replayed": false,
+    "section": {
+      "departmentId": "d0000000-0000-4000-8000-000000000005",
+      "departmentName": "Housekeeping",
+      "status": "SKIPPED",
+      "statusText": "Sent without this section",
+      "head": null,
+      "sentAt": null,
+      "sentBy": null,
+      "skippedAt": "2026-10-07T11:10:00.000Z",
+      "skippedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+      "lineCount": 0,
+      "changedCount": 0
+    },
+    "readyToApprove": true
+  },
+  "approveInput": { "pin": "4821" },
+  "approveResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000112",
+    "reference": "REQ-NYR-0112",
+    "status": "APPROVED",
+    "statusText": "Approved",
+    "replayed": false,
+    "approvedAt": "2026-10-07T11:11:00.000Z",
+    "approvedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+    "valueKes": "58020.00"
+  },
+  "cancelInput": { "reason": "Raised by mistake, the Kitchen will start again", "pin": "4821" },
+  "cancelResult": { "requisitionId": "a0000000-0000-4000-8000-000000000112", "reference": "REQ-NYR-0112", "status": "CANCELLED", "statusText": "Cancelled", "replayed": false, "cancelledAt": "2026-10-07T11:20:00.000Z" },
+  "addAdditionInput": { "lines": [{ "itemId": "10000000-0000-4000-8000-000000000003", "requestedQty": "2" }], "pin": "4821" },
+  "addAdditionResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000111",
+    "reference": "REQ-NYR-0111",
+    "status": "APPROVED",
+    "statusText": "Approved",
+    "replayed": false,
+    "addition": {
+      "id": "ad000000-0000-4000-8000-000000000001",
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "PENDING",
+      "statusText": "Waiting for the Branch Manager",
+      "addedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "addedAt": "2026-10-07T07:10:00.000Z",
+      "approvedBy": null,
+      "approvedAt": null,
+      "lines": [
+        {
+          "id": "c0000000-0000-4000-8000-000000000031",
+          "itemId": "10000000-0000-4000-8000-000000000003",
+          "itemName": "Butter",
+          "unit": "kg",
+          "categoryPath": ["Dairy"],
+          "requestedQty": "2",
+          "approvedQty": null,
+          "suggestedQty": null,
+          "onHand": "5",
+          "level": "4",
+          "changedFromSuggested": false,
+          "changedByManager": false,
+          "changeReason": null,
+          "additionId": "ad000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "can": { "approve": false }
+    }
+  },
+  "approveAdditionInput": { "pin": "4821" },
+  "approveAdditionResult": {
+    "requisitionId": "a0000000-0000-4000-8000-000000000111",
+    "reference": "REQ-NYR-0111",
+    "status": "APPROVED",
+    "statusText": "Approved",
+    "replayed": false,
+    "addition": {
+      "id": "ad000000-0000-4000-8000-000000000001",
+      "departmentId": "d0000000-0000-4000-8000-000000000001",
+      "departmentName": "Kitchen",
+      "status": "APPROVED",
+      "statusText": "Approved",
+      "addedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" },
+      "addedAt": "2026-10-07T07:10:00.000Z",
+      "approvedBy": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" },
+      "approvedAt": "2026-10-07T07:20:00.000Z",
+      "lines": [
+        {
+          "id": "c0000000-0000-4000-8000-000000000031",
+          "itemId": "10000000-0000-4000-8000-000000000003",
+          "itemName": "Butter",
+          "unit": "kg",
+          "categoryPath": ["Dairy"],
+          "requestedQty": "2",
+          "approvedQty": "2",
+          "suggestedQty": null,
+          "onHand": "5",
+          "level": "4",
+          "changedFromSuggested": false,
+          "changedByManager": false,
+          "changeReason": null,
+          "additionId": "ad000000-0000-4000-8000-000000000001",
+          "valueKes": "1600.00"
+        }
+      ],
+      "valueKes": "1600.00",
+      "can": { "approve": false }
+    }
+  },
+  "errorAlreadyOpen": { "success": false, "error": { "code": "REQUISITION_ALREADY_OPEN", "message": "An afternoon requisition is already open for this branch." } },
+  "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work. Check it and try again." } },
+  "errorAdditionLocked": { "success": false, "error": { "code": "ADDITION_LOCKED", "message": "The Kitchen's dispatch is already signed. Start an Extra requisition instead." } },
+  "errorReasonRequired": { "success": false, "error": { "code": "REASON_REQUIRED", "message": "Give a reason for changing an approved quantity." } }
+}

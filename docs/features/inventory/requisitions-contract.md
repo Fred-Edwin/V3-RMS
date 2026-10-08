@@ -46,7 +46,7 @@ enum RequisitionSectionStatus + SKIPPED                  // "Send without this s
 Requisition  + reference String @@unique([siteId, reference]), urgent Boolean @default(false), urgentAt DateTime?, urgentEscalatedAt DateTime?,
              cancelledAt?, cancelledById?, cancelReason String?, closedAt?, approvedAsId String? (the signer if not the Branch Manager: Director or System Admin),
              idempotencyKey String? @@unique([siteId, openedById, idempotencyKey])
-RequisitionSection + departmentId (FK Department, dual-written with departmentTag), sentAt?, skippedById?, skippedAt?
+RequisitionSection + departmentId (FK Department, dual-written with departmentTag), skippedById?, skippedAt?   // "sent" is the existing SUBMITTED status with submittedAt and submittedById (amendment 1: no sentAt); the wire shows SUBMITTED as "Sent"
 RequisitionLine + suggestedQty Decimal?   // what the screen pre-filled (restock level minus on hand), for "changed from 27"
                 + onHandAtRequest Decimal? // beside parAtRequest, both shown under the item name
                 + unitCostAtApproval Decimal(12,4)? // frozen when approved; the Branch Manager's value
@@ -137,11 +137,24 @@ Heads and members: item names, units, quantities, on hand and restock level for 
 
 ## 7. Notifications, badges, sockets, timers (the one notification layer)
 
-A small layer in `_shared/` (`notify.ts`) used by every block: it writes an Inbox row where the map says, sends an FCM push (existing push service) to the named people, and emits a socket nudge `inventory:badges` to the site room so open screens refetch R2. **Quiet hours:** only the Director's count alert is held 22:00 to 05:00 Africa/Nairobi today; the layer takes a `holdInQuietHours` flag. Moments in Block 1 (map rows): 1 head sends (Branch Manager: badge and tab count), 2 manager changes quantities (head: push and the phone screen), 3 urgent over an hour (Director: banner and push), 4 approved (store: badge; heads: told), 13 cancelled (head, and the store if it was approved: Inbox row and push, per the default). Jobs (existing worker): the urgent escalation, checked every minute.
+A small layer in `_shared/` (`notify.ts`) used by every block: it sends an FCM push (existing push service: `authRepository.findFcmTokensByRole`, `findDirectorFcmTokens`, plus a new small finder for a department's head and members; **amendment 1: it writes no Inbox row, because the product's Inbox is chat only; wherever the map says "Inbox row" the build gives a push, a badge and a line on the page, and the Inbox row waits for a later notification-centre decision**) to the named people, and emits a socket nudge `inventory:badges` to the site room so open screens refetch R2. **Quiet hours:** only the Director's count alert is held 22:00 to 05:00 Africa/Nairobi today; the layer takes a `holdInQuietHours` flag. Moments in Block 1 (map rows): 1 head sends (Branch Manager: badge and tab count), 2 manager changes quantities (head: push and the phone screen), 3 urgent over an hour (Director: banner and push), 4 approved (store: badge; heads: told), 13 cancelled (head, and the store if it was approved: push and the Cancelled line on the file, per the default). The socket event `inventory:badges` is new (the old requisition payloads are the only existing events). Jobs (existing worker): the urgent escalation, checked every minute.
 
 ## 8. Audit
 
 Each write appends a `RequisitionEvent`. The Audit log sub-module reads `RequisitionEvent` as a new source with area `REQUISITIONS` (lane 0 adds the Area menu, the range picker and the Branch filter; back end B adds the source and the sentences, for example "Approved REQ-NYR-0112 · 40 lines · signed with PIN", with the record link). Events: started, line changed, sent, recalled, quantity changed (from, to, reason), skipped, nudged, urgent set or cleared, approved (signer), cancelled (reason), addition added, addition approved. Printing is not an event. Nothing is edited or deleted.
+
+**Amendment 1, scope change:** the Audit log is hub-only today and merges five fixed sources. Back end B extends it to read **branch-site** sources: requisition events live on the branch site, so the service gains a scope parameter (hub roles read every branch through `central_store.read_any_org`; the Branch Manager's own-branch audit link, Paper step 60, reads only their branch) while the hub-only guard for the Central Store areas stays. This is the shared groundwork Blocks 2 to 4 reuse; keep it small and tested.
+
+## 16. Amendment 1 (owner decisions on the contract-in-code review, 8 Oct 2026)
+
+1. **Departments and Site.code do not exist yet:** the migration creates `Site.code`, `Department`, `ItemDepartment`, `User.departmentId` and `Location.departmentId`.
+2. **Store Manager exclusions:** the access table gives the Store Manager everything except an exclusion list; the new start, change-quantity, approve, cancel, nudge, set-urgent and departments-write rows were added to that list so §3 holds.
+3. **Role names:** the Branch Manager's role value is `MANAGER`; the Director holds only `requisitions.approve` among the writes.
+4. **No Inbox rows** (see §7). Push, badge and on-page lines only. The Director's count alert Inbox row (map row 10) and the "Inbox row" wording elsewhere are deferred; `counting` keeps its current behaviour.
+5. **`sentAt` dropped** (see §2.3).
+6. **Wire shapes the contract-in-code session proposed are accepted:** database status names plus a `statusText`; R8 returns the department's addable items so the screen searches them locally (no add-item search endpoint); R16's reason is free text (maximum length) because the chips are a screen convention; `can` flags, `nextStep`, `tracker`, `rowAction`, the mutation result common part and the error envelope are the shapes in `requisitions-contract.ts`; heads see only their own section and additions in R3; the print has no money keys.
+7. **The one open check:** that session did not open Paper steps 1 to 20 at full size. The two front-end sessions do that first (their prompts say so) and report every gap; I batch the gaps into **Amendment 2** before back end B starts. Back end A's migration and write rules are not affected by it.
+8. The front-end `requisitions/index.ts` barrel does not export the new mirror yet (old type names clash); that switch belongs to the PR that deletes the old screens.
 
 ## 9. Ledger
 
