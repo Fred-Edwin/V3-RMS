@@ -20,7 +20,8 @@ export const composeCancelReason = (preset: CancelPreset, note: string): string 
 };
 
 /** Paper step 19. Before approval only; the file stays, marked Cancelled. "Other" needs a note. */
-export function CancelDialog({ requisitionId, reference, cycleLabel, lineCount, open, onOpenChange, onCancelled }: {
+export function CancelDialog({ requisitionId, reference, cycleLabel, lineCount, open, onOpenChange, onCancelled, returnFocus }: {
+  returnFocus?: () => HTMLElement | null;
   requisitionId: string;
   reference: string;
   cycleLabel: string;
@@ -65,6 +66,7 @@ export function CancelDialog({ requisitionId, reference, cycleLabel, lineCount, 
       description={`${reference} · ${cycleLabel.split(' · ')[0]} · ${lineCount} lines`}
       error={failure}
       busy={cancel.saving}
+      returnFocus={returnFocus}
       actions={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={cancel.saving}>

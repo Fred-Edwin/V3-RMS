@@ -9,6 +9,7 @@ import { DataTable, type TableColumn } from '@/components/ui2/data-table/data-ta
 import { effectiveRange, nairobiToday } from '@/components/ui2/data-table/table-dates';
 import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
 import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { formatApiErrorMessage } from '@/types/api';
@@ -57,6 +58,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const [refresh, setRefresh] = React.useState(0);
   const [startOpen, setStartOpen] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
+  const phone = useMediaQuery('(max-width: 639px)').matches;
   const departments = useLoader(ready ? 'departments' : null, () => departmentsApi.list(), 'Could not load departments.');
 
   // Elapsed times tick once a minute.
@@ -100,7 +102,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       else router.push(href(row.id));
     };
     return (
-      <Button variant="secondary" onClick={(event) => { event.stopPropagation(); run(); }} className="h-10 px-5 text-[14px]">
+      <Button variant="secondary" onClick={(event) => { event.stopPropagation(); run(); }} className="h-10 px-5 text-[14px] max-sm:h-11">
         {action.action === 'APPROVE_AND_SIGN' ? 'Review and approve' : action.label}
         <span className="sr-only"> {row.reference}</span>
       </Button>
@@ -167,7 +169,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
     const time: TableColumn<RequisitionRow> = {
       id: 'time',
       header: tab === 'collecting' ? 'Open for' : hub ? 'Unapproved for' : 'Waiting',
-      width: '120px',
+      width: '150px',
       cell: (r) => {
         const from = tab === 'collecting' ? r.openedAt : hub && r.urgentAt ? r.urgentAt : (r.allInAt ?? r.openedAt);
         return <span className={r.urgentOverHour ? 'font-wds-mono text-[14px] text-wds-error-fg' : 'font-wds-mono text-[14px] text-wds-text-ink'}>{elapsed(from, now)}</span>;
@@ -210,12 +212,35 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
-          <h1 className="font-wds-sans text-wds-mobile-title tracking-tight text-wds-text-ink">{title}</h1>
-          <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary">{subtitle}</p>
+          <h1 className="font-wds-sans text-wds-mobile-title tracking-[-0.01em] text-wds-text-ink">{title}</h1>
+          <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{subtitle}</p>
         </div>
         {mode === 'queue' ? <ReqTabs label="Requisition stage" tabs={tabs} active={forcedTab ?? activeTab ?? 'to-approve'} onChange={setTab} /> : null}
         <DataTable<RequisitionRow>
           label={title}
+          layout={phone ? 'cards' : 'table'}
+          renderCard={(r, { term }) => (
+            <div className="flex flex-col gap-2 border-b border-wds-neutral-100 px-4 py-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <DocLink href={href(r.id)}><HighlightMatch text={r.reference} term={term} /></DocLink>
+                  {r.urgent ? <UrgentTag /> : null}
+                </span>
+                {r.valueKes !== undefined ? <span className="font-wds-mono text-[14px] text-wds-text-ink">{kes(r.valueKes)}</span> : null}
+              </div>
+              <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+                {subline(r, forcedTab ?? activeTab ?? 'to-approve', mode === 'history')}
+                {hub ? ` · ${r.branch.name}` : ''}
+              </span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5 font-wds-sans text-[13px] text-wds-text-ink">
+                  <SectionSquares sections={r.sections} />
+                  {r.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length} of {r.sections.length} in · {r.lineCount} lines
+                </span>
+                {rowAction(r)}
+              </div>
+            </div>
+          )}
           columns={columns}
           getRowId={(r) => r.id}
           filters={filters}

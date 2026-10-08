@@ -58,7 +58,11 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
     useWdsToastStore.getState().addToast({ variant: 'success', title, description });
   };
 
+  // Focus goes back to the Add button or the row's "…" button, which outlive the menu item that opened the dialog.
+  const returnTo = React.useRef<HTMLElement | null>(null);
+  const addButton = React.useRef<HTMLButtonElement>(null);
   const open = (next: Dialog | null): void => {
+    if (next) returnTo.current = next.kind === 'add' ? addButton.current : document.querySelector<HTMLElement>(`[aria-label="Actions for ${next.row.name}"]`);
     add.clear();
     rename.clear();
     retire.clear();
@@ -96,8 +100,8 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex items-start justify-between gap-6">
           <div className="flex max-w-[760px] flex-col gap-1">
-            <h1 className="font-wds-sans text-wds-mobile-title tracking-tight text-wds-text-ink">Departments</h1>
-            <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-secondary">
+            <h1 className="font-wds-sans text-wds-mobile-title tracking-[-0.01em] text-wds-text-ink">Departments</h1>
+            <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">
               {readOnly
                 ? 'Each active department gets a section in every requisition. Read only here: the Branch Manager adds, renames or retires departments.'
                 : `${data?.branch.name ?? 'This branch'} · each active department gets a section in every requisition. A department with no items counts as done.`}
@@ -114,7 +118,7 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
                 </SelectContent>
               </Select>
             ) : null}
-            {data?.canAdd ? <Button size="lg" onClick={() => open({ kind: 'add' })}>Add a department</Button> : null}
+            {data?.canAdd ? <Button ref={addButton} size="lg" onClick={() => open({ kind: 'add' })}>Add a department</Button> : null}
           </div>
         </div>
 
@@ -142,12 +146,12 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
                   <TableRow key={row.id} className={cn(retired && 'text-wds-text-faint')}>
                     <TableCell className="py-3.5">
                       <div className="flex flex-col">
-                        <span className={cn('font-wds-sans text-[16px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</span>
-                        {retired && row.retiredAt ? <span className="font-wds-sans text-[14px] text-wds-text-secondary">Retired {retiredOn(row.retiredAt)}. Its past requisitions are kept.</span> : null}
+                        <span className={cn('font-wds-sans text-[14px] leading-[18px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</span>
+                        {retired && row.retiredAt ? <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">Retired {retiredOn(row.retiredAt)}. Its past requisitions are kept.</span> : null}
                       </div>
                     </TableCell>
-                    <TableCell className="font-wds-sans text-[15px]">{shortName(row.head)}</TableCell>
-                    <TableCell className="text-right font-wds-mono text-[15px]">{retired ? '' : row.itemsTagged}</TableCell>
+                    <TableCell className="font-wds-sans text-[14px] leading-[18px]">{shortName(row.head)}</TableCell>
+                    <TableCell className="text-right font-wds-mono text-[14px]">{retired ? '' : row.itemsTagged}</TableCell>
                     <TableCell className="pl-8">
                       <span className={cn('inline-flex h-[26px] items-center gap-1.5 border px-2.5 font-wds-sans text-[14px]', retired ? 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary' : 'border-wds-success-border bg-wds-success-bg text-wds-success-fg')}>
                         {retired ? null : <span aria-hidden className="size-1.5 rounded-full bg-wds-success-fg" />}
@@ -205,6 +209,7 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
         tone={dialog?.kind === 'retire' ? 'warning' : undefined}
         error={failure}
         busy={active.saving}
+        returnFocus={() => returnTo.current}
         actions={
           <>
             <Button variant="secondary" onClick={() => open(null)} disabled={active.saving}>Cancel</Button>

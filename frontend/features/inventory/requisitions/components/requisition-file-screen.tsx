@@ -51,6 +51,10 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   const [busy, setBusy] = React.useState(false);
   const data = file.data;
   const reload = file.reload;
+  // Dialogs and sheets opened from a menu return focus to the control that opened the menu (the menu item is gone by then).
+  const moreRef = React.useRef<HTMLButtonElement>(null);
+  const caretRef = React.useRef<HTMLButtonElement>(null);
+  const fillTrigger = React.useRef<HTMLElement | null>(null);
 
   const view: View = params.get('view') === 'documents' ? 'documents' : params.get('view') === 'activity' ? 'activity' : 'items';
   const drawer = params.get('drawer') === 'approve';
@@ -170,18 +174,18 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
             <header className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="font-wds-sans text-wds-mobile-title tracking-tight text-wds-text-ink">{data.cycleLabel.split(' · ')[0]} · {dayLabel(data.openedAt)}</h1>
+                  <h1 className="font-wds-sans text-wds-mobile-title tracking-[-0.01em] text-wds-text-ink">{data.cycleLabel.split(' · ')[0]} · {dayLabel(data.openedAt)}</h1>
                   <StatusChip chip={chip} />
                   {data.urgent ? <UrgentTag /> : null}
                 </div>
-                <p className="font-wds-mono text-[14px] leading-5 text-wds-text-secondary">{subline}</p>
+                <p className="font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">{subline}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {approved ? <Button variant="secondary" onClick={() => router.push(base)}>Back to requisitions</Button> : null}
                 {data.can.print || data.can.setUrgent || data.can.cancel ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" aria-label="More actions" disabled={busy}><MoreHorizontal /></Button>
+                      <Button ref={moreRef} variant="secondary" size="icon" aria-label="More actions" disabled={busy}><MoreHorizontal /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       {data.can.print ? <DropdownMenuItem onSelect={() => window.open(printHref, '_blank', 'noopener')}>Print</DropdownMenuItem> : null}
@@ -202,22 +206,22 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
               </div>
             </header>
 
-            <ol aria-label="Progress" className="grid grid-cols-6 gap-4">
+            <ol aria-label="Progress" className="grid grid-cols-3 gap-x-4 gap-y-5 lg:grid-cols-6">
               {trackerWords(data.tracker, data.can.approve).map((step, index, all) => (
-                <li key={step.key} aria-current={step.state === 'CURRENT' ? 'step' : undefined} className="relative flex flex-col gap-1 pt-6">
+                <li key={step.key} aria-current={step.state === 'CURRENT' ? 'step' : undefined} className="relative flex flex-col gap-1 pt-6 max-lg:[&:nth-child(3n)>span:nth-child(2)]:hidden">
                   <span aria-hidden className={cn('absolute left-0 top-0 z-10 size-3.5 rounded-full border-2', step.state === 'DONE' ? 'border-wds-success-fg bg-wds-success-fg' : step.state === 'CURRENT' ? 'border-wds-caramel-700 bg-wds-surface' : 'border-wds-border-strong bg-wds-surface')} />
                   {index < all.length - 1 ? <span aria-hidden className={cn('absolute left-3.5 right-[-16px] top-[6px] h-[2px]', step.state === 'DONE' ? 'bg-wds-success-fg' : 'bg-wds-border')} /> : null}
-                  <span className={cn('font-wds-sans text-[16px] leading-5', step.state === 'TODO' ? 'text-wds-text-secondary' : 'font-medium text-wds-text-ink')}>{step.label}</span>
-                  <span className={cn('font-wds-sans text-[14px] leading-[18px]', step.state === 'TODO' ? 'text-wds-text-faint' : 'text-wds-text-secondary')}>{step.second}</span>
+                  <span className={cn('font-wds-sans text-[14px] leading-[18px]', step.state === 'TODO' ? 'text-wds-text-secondary' : 'font-semibold text-wds-text-ink')}>{step.label}</span>
+                  <span className={cn('font-wds-sans text-[13px] leading-4', step.state === 'TODO' ? 'text-wds-text-faint' : 'text-wds-text-secondary')}>{step.second}</span>
                 </li>
               ))}
             </ol>
 
-            <section aria-label="Next step" className="flex items-center justify-between gap-8 border border-wds-border border-l-[3px] border-l-wds-caramel-500 bg-wds-surface px-6 py-5">
+            <section aria-label="Next step" className="flex flex-col items-stretch justify-between gap-5 border border-wds-border border-l-[3px] sm:flex-row sm:items-center sm:gap-8 border-l-wds-caramel-500 bg-wds-surface px-6 py-5">
               <div className="flex max-w-[860px] flex-col gap-1.5">
                 <MonoLabel>Next step</MonoLabel>
-                <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-tight text-wds-text-ink">{words.title}</h2>
-                <p className="font-wds-sans text-[16px] leading-6 text-wds-text-secondary">{words.body}</p>
+                <h2 className="font-wds-sans text-[18px] font-semibold leading-6 tracking-[-0.01em] text-wds-text-ink">{words.title}</h2>
+                <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{words.body}</p>
               </div>
               {words.action && words.actionLabel ? (
                 data.nextStep.action === 'NUDGE' ? (
@@ -225,11 +229,11 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                     <Button size="lg" onClick={doNextStep} disabled={busy} className="h-[46px] rounded-r-none px-6 text-[16px]">{words.actionLabel}</Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="lg" aria-label="More ways to deal with the missing section" disabled={busy} className="h-[46px] rounded-l-none border-l border-wds-primary-fg/30 px-3">▾</Button>
+                        <Button ref={caretRef} size="lg" aria-label="More ways to deal with the missing section" disabled={busy} className="h-[46px] rounded-l-none border-l border-wds-primary-fg/30 px-3">▾</Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[340px]">
                         {data.sections.find((s) => s.departmentId === data.nextStep.departmentId)?.can.fillMyself ? (
-                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={() => setFillFor(data.nextStep.departmentId)}>
+                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={() => { fillTrigger.current = caretRef.current; setFillFor(data.nextStep.departmentId); }}>
                             <span className="text-[16px]">Fill it myself</span>
                             <span className="text-[14px] text-wds-text-secondary">Start {missing[0]?.departmentName}&apos;s section for them</span>
                           </DropdownMenuItem>
@@ -237,7 +241,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                         {data.can.skip ? (
                           <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={sendWithoutMissing}>
                             <span className="text-[16px]">Send without this section</span>
-                            <span className="text-[14px] text-wds-text-secondary">Approve the {data.nextStep.facts.sectionsIn} sections that are in</span>
+                            <span className="text-[14px] text-wds-text-secondary">{data.nextStep.facts.sectionsIn === 1 ? 'Approve the 1 section that is in' : `Approve the ${data.nextStep.facts.sectionsIn} sections that are in`}</span>
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -270,13 +274,15 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                   { key: 'activity', label: 'Activity' },
                 ]}
               />
+              <div role="tabpanel" aria-labelledby={`req-tab-${view}`}>
               {view === 'items' ? (
-                <FileItems file={data} selected={selected} onSelect={(departmentId) => setParam({ department: departmentId })} onChanged={() => void reload()} onFillMyself={setFillFor} />
+                <FileItems file={data} selected={selected} onSelect={(departmentId) => setParam({ department: departmentId })} onChanged={() => void reload()} onFillMyself={(departmentId, trigger) => { fillTrigger.current = trigger; setFillFor(departmentId); }} />
               ) : view === 'documents' ? (
                 <DocumentsTab requisitionId={id} printHref={printHref} canPrint={data.can.print} />
               ) : (
                 <ActivityTab requisitionId={id} recordHref={(kind, rid) => (kind === 'REQUISITION' ? `${base}/${rid}` : null)} />
               )}
+              </div>
             </div>
           </>
         )}
@@ -289,6 +295,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
           reference={data.reference}
           cycleLabel={data.cycleLabel}
           lineCount={data.lineCount}
+          returnFocus={() => moreRef.current}
           open={cancelling && data.can.cancel}
           onOpenChange={(open) => setParam({ dialog: open ? 'cancel' : null })}
           onCancelled={() => {
@@ -314,6 +321,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
         requisitionId={id}
         departmentId={fillFor}
         departmentName={data?.sections.find((s) => s.departmentId === fillFor)?.departmentName ?? 'the department'}
+        returnFocus={() => fillTrigger.current}
         onOpenChange={(open) => !open && setFillFor(null)}
         onSent={() => {
           setFillFor(null);

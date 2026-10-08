@@ -25,15 +25,24 @@ export interface DecisionDialogProps {
   error?: string | null;
   /** While a request is in flight the dialog cannot be dismissed. */
   busy?: boolean;
+  /** Where focus goes on close, for a dialog opened from a menu item (which no longer exists by then). Falls back to the opener. */
+  returnFocus?: () => HTMLElement | null;
   children: React.ReactNode;
 }
 
-export function DecisionDialog({ open, onOpenChange, title, description, tone, footerNote, actions, error, busy = false, children }: DecisionDialogProps) {
+export function DecisionDialog({ open, onOpenChange, title, description, tone, footerNote, actions, error, busy = false, returnFocus, children }: DecisionDialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(next) => (busy ? undefined : onOpenChange(next))}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-wds-scrim data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
+          onCloseAutoFocus={(event) => {
+            const target = returnFocus?.();
+            if (target?.isConnected) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}
           className={cn(
             'fixed left-1/2 top-1/2 z-[60] flex max-h-[calc(100dvh-32px)] w-[600px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col',
             'border border-wds-border-strong bg-wds-surface outline-none',

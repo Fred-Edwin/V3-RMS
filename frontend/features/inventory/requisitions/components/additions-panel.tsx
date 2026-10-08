@@ -43,7 +43,7 @@ export function AdditionsPanel({ file, onApprove }: { file: RequisitionFile; onA
                 ) : null}
               </div>
             </div>
-            <div className="grid grid-cols-[1fr_170px_130px_110px] gap-4 border-b border-wds-border px-4 py-2.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_120px_96px_84px] xl:grid-cols-[minmax(0,1fr)_170px_130px_110px] gap-4 border-b border-wds-border px-4 py-2.5">
               <MonoLabel>Item</MonoLabel>
               <MonoLabel className="text-right">Already approved</MonoLabel>
               <MonoLabel className="text-right">Added</MonoLabel>
@@ -53,7 +53,7 @@ export function AdditionsPanel({ file, onApprove }: { file: RequisitionFile; onA
               {addition.lines.map((line) => {
                 const before = alreadyApproved(file, addition, line.itemId);
                 return (
-                  <li key={line.id} className="grid grid-cols-[1fr_170px_130px_110px] items-center gap-4 border-b border-wds-border px-4 py-3 last:border-b-0">
+                  <li key={line.id} className="grid grid-cols-[minmax(0,1fr)_120px_96px_84px] xl:grid-cols-[minmax(0,1fr)_170px_130px_110px] items-center gap-4 border-b border-wds-border px-4 py-3 last:border-b-0">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-wds-sans text-[15px] font-medium text-wds-text-ink">{line.itemName}</span>
                       <span className="font-wds-sans text-[14px] text-wds-text-secondary">
@@ -114,7 +114,7 @@ export function ApproveAdditionDialog({ file, addition, onOpenChange, onApproved
       open={open}
       onOpenChange={onOpenChange}
       title="Approve the addition"
-      description={addition ? `${file.reference} · ${addition.departmentName} · ${addition.lines.length} lines${addition.valueKes !== undefined ? ` · KES ${kes(addition.valueKes)}` : ''}` : ''}
+      description={addition ? `${file.reference} · ${addition.departmentName} · ${addition.lines.length} ${addition.lines.length === 1 ? 'line' : 'lines'}${addition.valueKes !== undefined ? ` · KES ${kes(addition.valueKes)}` : ''}` : ''}
       error={failure}
       busy={approve.saving}
       actions={
@@ -129,7 +129,7 @@ export function ApproveAdditionDialog({ file, addition, onOpenChange, onApproved
       }
     >
       <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-ink">
-        Your signature adds these {addition?.lines.length ?? 0} lines to the {addition?.departmentName}&apos;s part of the requisition and sends them to the Central Store. The {approvedLines} approved lines stay as they are.
+        Your signature adds {addition?.lines.length === 1 ? 'this 1 line' : `these ${addition?.lines.length ?? 0} lines`} to the {addition?.departmentName}&apos;s part of the requisition and sends {addition?.lines.length === 1 ? 'it' : 'them'} to the Central Store. The {approvedLines} approved {approvedLines === 1 ? 'line stays' : 'lines stay'} as {approvedLines === 1 ? 'it is' : 'they are'}.
       </p>
       <PinField value={pin} onChange={setPin} onSubmit={() => void submit()} invalid={approve.failure?.code === 'INVALID_PIN'} id="addition-pin" />
     </DecisionDialog>

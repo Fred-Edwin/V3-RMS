@@ -60,9 +60,21 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
 
   return (
     <Sheet open={open} onOpenChange={(next) => (approve.saving ? undefined : onOpenChange(next))}>
-      <SheetContent side="right" className="w-[540px]" onOpenAutoFocus={(event) => { event.preventDefault(); pinRef.current?.focus(); }}>
+      <SheetContent
+        side="right"
+        className="w-[540px]"
+        onOpenAutoFocus={(event) => { event.preventDefault(); pinRef.current?.focus(); }}
+        onCloseAutoFocus={(event) => {
+          // Opened from the list or a link there is no opener to return to: land on the Next step button, where signing starts.
+          const button = document.querySelector<HTMLElement>('section[aria-label="Next step"] button');
+          if (button) {
+            event.preventDefault();
+            button.focus();
+          }
+        }}
+      >
         <SheetHeader>
-          <SheetTitle>Approve and sign</SheetTitle>
+          <SheetTitle className="text-[22px] font-semibold leading-7 tracking-[-0.01em]">Approve and sign</SheetTitle>
           <SheetDescription className="font-wds-mono">{data ? `${data.reference} · ${data.departments.length} departments` : 'Loading the summary'}</SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
@@ -76,7 +88,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 <div className="flex items-end justify-between border-b border-wds-neutral-950 px-4 pb-3 pt-3.5">
                   <div className="flex flex-col gap-1">
                     <MonoLabel>What you are sending</MonoLabel>
-                    <span className="font-wds-sans text-[28px] font-semibold leading-8 tracking-tight text-wds-text-ink">{data.lineCount} lines</span>
+                    <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} lines</span>
                   </div>
                   {data.valueKes !== undefined ? <span className="font-wds-mono text-[22px] leading-7 text-wds-text-ink">KES {kes(data.valueKes)}</span> : null}
                 </div>

@@ -56,8 +56,8 @@ export function ReqTabs<T extends string>({ tabs, active, onChange, label }: { t
             onClick={() => onChange(tab.key)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(
-              'flex items-center gap-1.5 border-b-2 px-1 pb-2.5 pt-1 font-wds-sans text-[15px] leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-[0_2px_0_0_var(--wds-selected-edge)]',
-              selected ? 'border-wds-selected-edge font-medium text-wds-text-ink' : 'border-transparent text-wds-text-secondary hover:text-wds-text-ink',
+              'flex items-center gap-1.5 border-b-2 px-1 pb-2.5 pt-1 font-wds-sans text-[14px] leading-[18px] transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-[0_2px_0_0_var(--wds-selected-edge)]',
+              selected ? 'border-wds-selected-edge font-semibold text-wds-text-ink' : 'border-transparent text-wds-text-secondary hover:text-wds-text-ink',
             )}
           >
             {tab.label}
@@ -105,7 +105,7 @@ const CHIP_DOT: Record<Chip['tone'], string> = {
 /** The status chip: a dot and a word in a bordered box. */
 export function StatusChip({ chip }: { chip: Chip }) {
   return (
-    <span className={cn('inline-flex h-6 items-center gap-1.5 border px-2.5 font-wds-sans text-[13px] leading-4', CHIP_TONE[chip.tone])}>
+    <span className={cn('inline-flex h-6 items-center gap-1.5 whitespace-nowrap border px-2.5 font-wds-sans text-[13px] leading-4', CHIP_TONE[chip.tone])}>
       <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', CHIP_DOT[chip.tone])} />
       {chip.text}
     </span>

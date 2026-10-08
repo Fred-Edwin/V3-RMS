@@ -28,7 +28,8 @@ const fromLine = (l: RequisitionLine): Draft => ({ itemId: l.itemId, itemName: l
  * "Fill it myself" (Amendment 2; not drawn in Paper, built in the drawer style). The Branch Manager edits a section that is Not
  * started or Draft, then sends it with their own PIN. It is recorded as sent by the Branch Manager for that department and the head is told.
  */
-export function FillForHeadSheet({ requisitionId, departmentId, departmentName, onOpenChange, onSent }: {
+export function FillForHeadSheet({ requisitionId, departmentId, departmentName, onOpenChange, onSent, returnFocus }: {
+  returnFocus?: () => HTMLElement | null;
   requisitionId: string;
   departmentId: string | null;
   departmentName: string;
@@ -77,7 +78,17 @@ export function FillForHeadSheet({ requisitionId, departmentId, departmentName, 
 
   return (
     <Sheet open={open} onOpenChange={(next) => (busy ? undefined : onOpenChange(next))}>
-      <SheetContent side="right" className="w-[560px]">
+      <SheetContent
+        side="right"
+        className="w-[560px]"
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus?.();
+          if (target?.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <SheetHeader>
           <SheetTitle>Fill {departmentName}&apos;s list</SheetTitle>
           <SheetDescription>You send it for them with your own PIN. It is recorded as sent by the Branch Manager, and the {departmentName} head is told.</SheetDescription>

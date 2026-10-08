@@ -27,7 +27,11 @@ function ChangePopover({ line, from, to, reasonRequired, saving, failure, onSave
   const [chip, setChip] = React.useState<ChangeReasonChip | null>(null);
   const [other, setOther] = React.useState('');
   const first = React.useRef<HTMLButtonElement>(null);
-  React.useEffect(() => first.current?.focus(), []);
+  // Focus moves a tick later, so the Enter that opened the popover cannot also press the first chip.
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => first.current?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const reason = chip === 'Other' ? other.trim() : (chip ?? '');
   const blocked = reasonRequired && reason === '';
   return (
@@ -116,19 +120,20 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
   const changed = line.changedByManager;
   const stock = line.onHand !== undefined ? `On hand ${line.onHand}${line.level !== undefined ? ` · Restock level ${line.level}` : ''}` : null;
   return (
-    <li className={cn('relative grid grid-cols-[1fr_130px_150px_110px] items-center gap-4 border-b border-wds-border px-4 py-3', changed && 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]')}>
+    <li className={cn('relative grid grid-cols-[minmax(0,1fr)_104px] sm:grid-cols-[minmax(0,1fr)_84px_112px_84px] xl:grid-cols-[minmax(0,1fr)_130px_150px_110px] items-center gap-4 border-b border-wds-border px-4 py-3', changed && 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]')}>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{line.itemName}</span>
+        <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line.itemName}</span>
         {changed ? (
-          <span className="font-wds-sans text-[14px] leading-[18px] text-wds-warning-fg">
+          <span className="font-wds-sans text-[13px] leading-4 text-wds-warning-fg">
             You changed {line.requestedQty} to {line.approvedQty}. The {section.departmentName} head will be told.
           </span>
         ) : stock ? (
-          <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{stock}</span>
+          <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{stock}</span>
         ) : null}
-        {line.additionId ? <span className="font-wds-sans text-[13px] text-wds-warning-fg">Added after approval</span> : null}
+        {line.additionId ? <span className="font-wds-sans text-[13px] leading-4 text-wds-warning-fg">Added after approval</span> : null}
+        <span className="font-wds-mono text-[13px] leading-4 text-wds-text-secondary sm:hidden">Requested {line.requestedQty} {line.unit}</span>
       </div>
-      <span className="text-right font-wds-mono text-[15px] text-wds-text-ink">
+      <span className="hidden text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink sm:block">
         {line.requestedQty} {line.unit}
       </span>
       <div className="relative">
@@ -146,14 +151,14 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
               if (event.key === 'Enter') commit();
               if (event.key === 'Escape') revert();
             }}
-            className={cn('h-[34px] text-right font-wds-mono text-[15px]', asking && 'border-wds-primary shadow-wds-ring')}
+            className={cn('h-[34px] text-right font-wds-mono text-[14px]', asking && 'border-wds-primary shadow-wds-ring')}
           />
         ) : (
-          <span className="block text-right font-wds-mono text-[15px] text-wds-text-ink">{line.approvedQty ?? '—'}</span>
+          <span className="block text-right font-wds-mono text-[14px] text-wds-text-ink">{line.approvedQty ?? '—'}</span>
         )}
         {asking ? <ChangePopover line={line} from={current} to={String(Number(draft))} reasonRequired={afterApproval} saving={save.saving} failure={failure} onSave={(reason) => void doSave(reason)} onCancel={revert} /> : null}
       </div>
-      <span className="text-right font-wds-mono text-[15px] text-wds-text-ink">{line.valueKes === undefined ? '' : kes(line.valueKes)}</span>
+      <span className="hidden text-right font-wds-mono text-[14px] text-wds-text-ink sm:block">{line.valueKes === undefined ? '' : kes(line.valueKes)}</span>
       <p role="status" aria-live="polite" className="sr-only">{message}</p>
     </li>
   );
@@ -165,7 +170,7 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
   selected: string;
   onSelect: (departmentId: string) => void;
   onChanged: () => void;
-  onFillMyself: (departmentId: string) => void;
+  onFillMyself: (departmentId: string, trigger: HTMLElement) => void;
 }) {
   const section = file.sections.find((s) => s.departmentId === selected) ?? file.sections[0];
   const money = file.valueKes !== undefined;
@@ -175,8 +180,8 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
   const mainLines = section.lines.filter((l) => l.additionId === null);
   const empty = mainLines.length === 0;
   return (
-    <div className="grid min-h-[420px] grid-cols-[300px_1fr] border-t border-wds-border">
-      <nav aria-label="Departments" className="flex flex-col border-r border-wds-neutral-950 bg-wds-neutral-50">
+    <div className="grid min-h-[420px] grid-cols-1 border-t border-wds-border lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+      <nav aria-label="Departments" className="flex flex-col border-b border-wds-neutral-950 bg-wds-neutral-50 lg:border-b-0 lg:border-r">
         <MonoLabel className="px-4 py-3.5">{railTitle}</MonoLabel>
         <ul className="border-t border-wds-neutral-950">
           {file.sections.map((s) => {
@@ -192,13 +197,13 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
                   className={cn('flex w-full flex-col gap-0.5 border-b border-wds-border px-4 py-3 text-left outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]', on ? 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]' : 'hover:bg-wds-neutral-100')}
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2.5 font-wds-sans text-[16px] text-wds-text-ink">
+                    <span className="flex items-center gap-2.5 font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink">
                       <span aria-hidden className={cn('size-2 rounded-full', done ? 'bg-wds-success-fg' : 'border border-wds-text-secondary')} />
                       {s.departmentName}
                     </span>
-                    {s.valueKes !== undefined && done ? <span className="font-wds-mono text-[15px] text-wds-text-ink">{kes(s.valueKes)}</span> : null}
+                    {s.valueKes !== undefined && s.status === 'SUBMITTED' ? <span className="font-wds-mono text-[14px] text-wds-text-ink">{kes(s.valueKes)}</span> : null}
                   </span>
-                  <span className="flex items-center justify-between pl-[18px] font-wds-sans text-[14px] text-wds-text-secondary">
+                  <span className="flex items-center justify-between pl-[18px] font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
                     <span className={file.status === 'APPROVED' && s.status === 'SUBMITTED' ? 'text-wds-info-fg' : undefined}>{words.line}</span>
                     {words.changed ? <span className="text-wds-warning-fg">{words.changed}</span> : null}
                   </span>
@@ -218,8 +223,8 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
       <section aria-label={`${section.departmentName} lines`} className="flex min-w-0 flex-col px-5 pb-4 pt-3">
         <div className="flex items-start justify-between gap-4 pb-3">
           <div className="flex flex-col gap-0.5">
-            <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-tight text-wds-text-ink">{section.departmentName}</h2>
-            <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
+            <h2 className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-wds-text-ink">{section.departmentName}</h2>
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
               {section.status === 'SUBMITTED' && section.sentAt
                 ? `${mainLines.length} lines · sent at ${clock(section.sentAt)} by the ${section.sentBy?.roleLabel ?? `${section.departmentName} head`}`
                 : section.status === 'SKIPPED' && section.skippedAt
@@ -229,7 +234,7 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
           </div>
           <div className="flex items-center gap-4">
             {section.can.fillMyself && (section.status === 'NOT_STARTED' || section.status === 'DRAFT') ? (
-              <Button variant="secondary" onClick={() => onFillMyself(section.departmentId)}>
+              <Button variant="secondary" onClick={(event) => onFillMyself(section.departmentId, event.currentTarget)}>
                 Fill it myself
               </Button>
             ) : null}
@@ -242,11 +247,11 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_130px_150px_110px] gap-4 border-y border-wds-border px-4 py-2.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_104px] sm:grid-cols-[minmax(0,1fr)_84px_112px_84px] xl:grid-cols-[minmax(0,1fr)_130px_150px_110px] gap-4 border-y border-wds-border px-4 py-2.5">
               <MonoLabel>Item</MonoLabel>
-              <MonoLabel className="text-right">Requested</MonoLabel>
+              <MonoLabel className="hidden text-right sm:block">Requested</MonoLabel>
               <MonoLabel className="text-right">Approved</MonoLabel>
-              <MonoLabel className="text-right">{money ? 'Value (KES)' : ''}</MonoLabel>
+              <MonoLabel className="hidden text-right sm:block">{money ? 'Value (KES)' : ''}</MonoLabel>
             </div>
             <ul className="border-b border-wds-neutral-950">
               {mainLines.map((line) => (
