@@ -24,7 +24,7 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Prep | Approved | **Rebuilt** (PR #89, #90) |
 | Stock, Counting, Waste | Approved (Paper chapters 1 to 10) | **Rebuilt on branch `feat/stock-count-waste`** (8 Oct 2026) |
 | Requisitions | Approved (8 Oct 2026, Paper chapters 1 to 4, 24 screens) | Old flow, rebuild pending |
-| Dispatch | **Not approved** | Old flow. Needs Paper design first (final design pass: Dispatch next) |
+| Dispatch | Approved (owner, 8 Oct 2026) | Old flow, rebuild pending (build planning session next: `sessions/final-pass-build-planning-session.md`) |
 | Branch day, Branch waste | Approved (8 Oct 2026, Paper pages "Inventory · Counting and closing" and "Inventory · Branch waste": 28 and 9 screens) | Old flow, rebuild pending. Summary: [features/inventory/final-pass-design-summary.md](features/inventory/final-pass-design-summary.md) |
 
 **Next, in the owner's order:**

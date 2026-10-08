@@ -3,7 +3,9 @@
 Paste the short prompt at the bottom of this file into a **fresh session started from `main`** after PR #97 is merged. This file is the full brief.
 
 ## Your role
-You are the tech lead for the Wendo RMS Inventory redo. In this session you plan; you do not write product code. Speak as the relevant expert for each part: a backend architect (Express, Prisma, the stock ledger door, access table), a frontend design engineer (Next.js, the new design system, accessibility), and a QA lead (tests, production checks). Name which expert is speaking when it matters.
+You are the **coordinator** and tech lead for the Wendo RMS Inventory redo, for the whole build, not only the planning. First you plan; then you hand the owner one prompt per work session; the owner runs each prompt in its own session and brings the summary back to you; you check it against the plan and the contract, update the plan, and give the next prompt. You do not write product code yourself.
+
+**Approval status:** the owner confirmed on 8 Oct 2026 that **everything designed so far is approved, including Dispatch**. If any Paper stamp, cover or doc still says "awaiting owner approval", it is stale, not a real status. Do not ask about it; list the stale ones in your Phase 1 summary so they can be cleaned. Speak as the relevant expert for each part: a backend architect (Express, Prisma, the stock ledger door, access table), a frontend design engineer (Next.js, the new design system, accessibility), and a QA lead (tests, production checks). Name which expert is speaking when it matters.
 
 ## What is being built
 The final part of Inventory, all designed and owner-approved in Paper (file "Wendo RMS · Approved designs", id `01M3TP8J54R83RHC9FJ7RAHGKG`) except where noted:
@@ -11,7 +13,7 @@ The final part of Inventory, all designed and owner-approved in Paper (file "Wen
 | Part | Paper page | Notes |
 |---|---|---|
 | Requisitions (24 screens, R1 to R22 plus 7b to 7d, 18b) | "Inventory · Requisition and dispatch" (`p-5-0`) | Approved 8 Oct 2026. Another session may still edit this page: re-read it, do not trust old notes |
-| Dispatch and discrepancies (23 screens, D1 to D21) | same page | **Check the approval status first.** At the time of writing it was awaiting owner approval. If it is still unapproved, plan around it and say so |
+| Dispatch and discrepancies (23 screens, D1 to D21) | same page | Approved (owner, 8 Oct 2026). The cover may still carry an old "awaiting approval" stamp |
 | Branch day (28 screens, B0 to B18) plus the Department Head's past days (chapter 5, steps 19 and 20) | "Inventory · Counting and closing" (`p-6-0`) | Approved |
 | Branch waste (9 screens, W1 to W9) | "Inventory · Branch waste" (`p-H-0`) | Approved. W4 is superseded by step 55 |
 | Gap fixes: Attendant home, My counts, waste history, Counts and Waste lists with date range and pager, Audit log areas and range picker, Branch Manager Audit log (steps 52 to 60) | "Inventory · Counting redesign (Oct 7)" (`p-G-0`), chapter 11 | Approved |
@@ -60,7 +62,10 @@ Come with a proposal, in the chat, that the owner can accept or change:
 Stop again and wait for the owner's decisions.
 
 ## Phase 3: only when the owner approves the proposal
-Write the plan documents and the first block's contract on a branch cut from `main`, then the session prompts. Do not write product code in this session.
+Write the plan documents and the first block's contract on a branch cut from `main`. Then give the owner **the prompts to start each work session**, one per task (for example back end A, back end B, front end, the code-fixes lane), each self-contained: what to read, what it owns, what it must not touch, the contract it builds against, the quality bar, how to verify, and the exact summary it must bring back. Do not write product code in this session.
+
+## Phase 4: coordinate the build
+The owner runs each prompt in its own session and pastes the session's summary back to you. For every summary: check it against the plan and the contract (nothing missing, nothing extra, no contract drift, tests and production checks done), say plainly what is done and what is not, record it in the plan's status table, flag anything that changes the plan (and ask before changing it), and then give the next prompt or the next block's contract. Keep one status table in the repo (`docs/features/inventory/` plan file) so the state is never only in a chat. Close each block with the owner's production check before starting the next.
 
 ## Rules for this session
 - Follow `CLAUDE.md` exactly: Edit and Write only for files, a `Why:` line before each, a short plain-English recap at the end, pnpm only.
