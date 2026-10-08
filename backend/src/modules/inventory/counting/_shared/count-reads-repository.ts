@@ -106,6 +106,11 @@ export const countReadsRepository = {
     return rows.map((r) => ({ itemId: r.inventoryItemId, name: r.section.name }));
   },
 
+  itemIdsInSection: async (siteId: string, sectionId: string, client: Client = prisma): Promise<string[]> => {
+    const rows = await client.countSectionItem.findMany({ where: { siteId, sectionId }, select: { inventoryItemId: true } });
+    return rows.map((r) => r.inventoryItemId);
+  },
+
   /**
    * Live items in no section that are not about to be adopted: an item whose preferred supplier already has a SUPPLIER section is
    * placed there by the next `adoptNewItems`, so it is not "Not in any section" for anyone's purposes.

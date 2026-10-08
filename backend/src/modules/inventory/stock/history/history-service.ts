@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { locationRepository } from '../../../../repositories/location-repository';
 import { AppError, NotFoundError, ValidationError } from '../../../../utils/errors';
 import { requireHubReader } from '../../_shared/central-store-access';
-import { lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
+import { itemIdsInSection, lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
 import { addDays, clockText, dayEndInstant, dayStartInstant, daysAgoText, fullDayText, nairobiDay } from '../_shared/nairobi-time';
 import { movementReference } from '../_shared/movement-reference';
 import { itemStockStatus, stockStatusText } from '../_shared/stock-status';
@@ -53,13 +53,13 @@ export const resolveRange = (query: { from?: string; to?: string }, now: Date): 
   return { from, to };
 };
 
-const filterOf = (siteId: string, locationId: string, range: { from: string; to: string }, query: Pick<LedgerQuery, 'search' | 'sectionId'>): LedgerFilter => ({
+const filterOf = async (siteId: string, locationId: string, range: { from: string; to: string }, query: Pick<LedgerQuery, 'search' | 'sectionId'>): Promise<LedgerFilter> => ({
   siteId,
   locationId,
   start: dayStartInstant(range.from),
   end: dayEndInstant(range.to),
   ...(query.search ? { search: query.search } : {}),
-  ...(query.sectionId ? { sectionId: query.sectionId } : {}),
+  ...(query.sectionId ? { sectionItemIds: await itemIdsInSection(siteId, query.sectionId) } : {}),
 });
 
 const rowView = (row: LedgerSummaryRow): LedgerRow => ({
@@ -119,7 +119,7 @@ export const historyService = {
     const siteId = await requireHubReader(actor);
     const location = await centralStoreOf(siteId);
     const range = resolveRange(query, now);
-    const filter = filterOf(siteId, location.id, range, query);
+    const filter = await filterOf(siteId, location.id, range, query);
 
     const [rows, chips, totals] = await Promise.all([
       historyRepository.findSummaryPage(filter, query.chip, query.page, query.pageSize),
@@ -143,7 +143,7 @@ export const historyService = {
     const siteId = await requireHubReader(actor);
     const location = await centralStoreOf(siteId);
     const range = resolveRange(query, now);
-    const rows = await historyRepository.findSummaryAll(filterOf(siteId, location.id, range, query), query.chip, EXPORT_MAX_ROWS + 1);
+    const rows = await historyRepository.findSummaryAll(await filterOf(siteId, location.id, range, query), query.chip, EXPORT_MAX_ROWS + 1);
     if (rows.length > EXPORT_MAX_ROWS) {
       throw new AppError(413, 'EXPORT_TOO_LARGE', `That is more than ${EXPORT_MAX_ROWS.toLocaleString('en-US')} rows. Narrow the dates or search and export again`);
     }

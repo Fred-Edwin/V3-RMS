@@ -8,7 +8,8 @@ export type ItemsFilter = {
   categoryId?: string;
   type?: InventoryItemType;
   departmentTag?: DepartmentTag;
-  sectionId?: string;
+  /** The items of the chosen section, resolved by the service through Counting's reads. */
+  sectionItemIds?: string[];
 };
 
 export type ItemsStatusChip = 'all' | 'low' | 'negative';
@@ -31,9 +32,8 @@ const baseCte = (f: ItemsFilter): Prisma.Sql => {
   if (f.type) clauses.push(Prisma.sql`i.type = ${f.type}::"InventoryItemType"`);
   if (f.categoryId) clauses.push(Prisma.sql`(i.category_id = ${f.categoryId} OR c.parent_category_id = ${f.categoryId})`);
   if (f.departmentTag) clauses.push(Prisma.sql`${f.departmentTag}::"DepartmentTag" = ANY(i.department_tags)`);
-  // The section tables are Counting's; this is a read of "which items sit in this section" (see the README, Coupling).
-  if (f.sectionId) {
-    clauses.push(Prisma.sql`EXISTS (SELECT 1 FROM count_section_items csi WHERE csi.organization_id = ${f.siteId} AND csi.inventory_item_id = i.id AND csi.section_id = ${f.sectionId})`);
+  if (f.sectionItemIds) {
+    clauses.push(f.sectionItemIds.length > 0 ? Prisma.sql`i.id IN (${Prisma.join(f.sectionItemIds)})` : Prisma.sql`FALSE`);
   }
   return Prisma.sql`
     WITH oh AS (

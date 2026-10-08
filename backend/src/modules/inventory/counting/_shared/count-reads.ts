@@ -86,5 +86,8 @@ export const sectionNamesByItem = async (siteId: string, itemIds: string[]): Pro
   return new Map(rows.map((r) => [r.itemId, r.name]));
 };
 
+/** The ids of the items that sit in one section (Stock's "Section" filter on All items and the ledger). */
+export const itemIdsInSection = (siteId: string, sectionId: string): Promise<string[]> => countReadsRepository.itemIdsInSection(siteId, sectionId);
+
 /** Live items in no section ("Not in any section"). */
 export const unsectionedCount = (siteId: string): Promise<number> => countReadsRepository.unsectionedCount(siteId);

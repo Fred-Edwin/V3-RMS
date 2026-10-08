@@ -2,14 +2,14 @@ import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { branchRepository } from '../../../../repositories/branch-repository';
 import { locationRepository } from '../../../../repositories/location-repository';
-import { lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
+import { itemIdsInSection, lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
 import { ledgerListSchema, stockCardSchema } from '../_shared/stock-contract';
 import { historyRepository, type CardEntryRow, type LedgerSummaryRow } from './history-repository';
 import { EXPORT_MAX_ROWS, historyService, resolveRange } from './history-service';
 
 vi.mock('../../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('../../../../repositories/location-repository', () => ({ locationRepository: { findCentralStore: vi.fn() } }));
-vi.mock('../../counting/_shared/count-reads', () => ({ lastCountedByItem: vi.fn(), sectionNamesByItem: vi.fn() }));
+vi.mock('../../counting/_shared/count-reads', () => ({ lastCountedByItem: vi.fn(), sectionNamesByItem: vi.fn(), itemIdsInSection: vi.fn() }));
 vi.mock('./history-repository', () => ({
   historyRepository: {
     findSummaryPage: vi.fn(),
@@ -94,8 +94,10 @@ describe('historyService.list (S3)', () => {
   });
 
   it('passes search and section on to the filter', async () => {
+    vi.mocked(itemIdsInSection).mockResolvedValue([ITEM]);
     await historyService.list(manager, { ...query, search: 'ADJ-3402', sectionId: '5e000000-0000-4000-8000-000000000001' }, NOW);
-    expect(vi.mocked(historyRepository.findSummaryPage).mock.calls[0]![0]).toMatchObject({ search: 'ADJ-3402', sectionId: '5e000000-0000-4000-8000-000000000001' });
+    expect(itemIdsInSection).toHaveBeenCalledWith(HUB, '5e000000-0000-4000-8000-000000000001');
+    expect(vi.mocked(historyRepository.findSummaryPage).mock.calls[0]![0]).toMatchObject({ search: 'ADJ-3402', sectionItemIds: [ITEM] });
   });
 
   it('lets the Director read from outside the hub', async () => {

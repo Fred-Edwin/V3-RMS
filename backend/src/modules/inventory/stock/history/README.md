@@ -24,6 +24,5 @@ Built and tested: pure calculations, service (mocked repository), the six-role g
 | S5 | `GET /inventory/stock/ledger/:itemId` | `stock.read` |
 
 ## Coupling
-- `counting/_shared/count-reads` (`lastCountedByItem`, `sectionNamesByItem`) for the card.
-- **One exception, flagged:** the `sectionId` filter needs "which items sit in this section", which none of Counting's five read functions gives. `history-repository.ts` therefore reads `count_section_items` directly in an `EXISTS`. It imports nothing from Counting. If Counting adds an `itemsInSection` read function, switch to it.
+- `counting/_shared/count-reads` (`lastCountedByItem`, `sectionNamesByItem`) for the card, and `itemIdsInSection` for the `sectionId` filter: the service turns the section into item ids and the repository filters `i.id IN (…)`. Stock reads no Counting table.
 - `stock/_shared/{nairobi-time,movement-reference,stock-text,stock-status,stock-view,stock-contract}`, `_shared/central-store-access`.

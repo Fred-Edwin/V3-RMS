@@ -4,7 +4,7 @@ import { locationRepository } from '../../../../repositories/location-repository
 import { NotFoundError, ValidationError } from '../../../../utils/errors';
 import { blindnessOf } from '../../_shared/blind-rule';
 import { requireHubReader } from '../../_shared/central-store-access';
-import { lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
+import { itemIdsInSection, lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
 import { nairobiDay, weekdayDayText } from '../_shared/nairobi-time';
 import { itemStockStatus } from '../_shared/stock-status';
 import { compactKesText, money2, qty } from '../_shared/stock-text';
@@ -41,7 +41,7 @@ export const itemsService = {
       locationId: location.id,
       ...(query.search ? { search: query.search } : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.sectionId ? { sectionId: query.sectionId } : {}),
+      ...(query.sectionId ? { sectionItemIds: await itemIdsInSection(siteId, query.sectionId) } : {}),
     };
     const type = oneOf(InventoryItemType, query.type, 'item type');
     const departmentTag = oneOf(DepartmentTag, query.departmentTag, 'department');

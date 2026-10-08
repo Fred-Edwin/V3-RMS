@@ -109,7 +109,7 @@ describe.skipIf(!enabled)('the ledger summary against the real database', () => 
     const section = await prisma.countSection.findFirst({ where: { siteId: filter.siteId, items: { some: {} } }, include: { items: true } });
     if (!section) return;
     const ids = new Set(section.items.map((i) => i.inventoryItemId));
-    const rows = await historyRepository.findSummaryAll({ ...filter, sectionId: section.id }, 'all', 10_000);
+    const rows = await historyRepository.findSummaryAll({ ...filter, sectionItemIds: [...ids] }, 'all', 10_000);
     for (const row of rows) expect(ids.has(row.itemId), row.name).toBe(true);
   });
 

@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { branchRepository } from '../../../../repositories/branch-repository';
 import { locationRepository } from '../../../../repositories/location-repository';
-import { lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
+import { itemIdsInSection, lastCountedByItem, sectionNamesByItem } from '../../counting/_shared/count-reads';
 import { stockItemsListSchema } from '../_shared/stock-contract';
 import { stockRepository } from '../_shared/stock-repository';
 import { itemsRepository } from './items-repository';
@@ -10,7 +10,7 @@ import { itemsService } from './items-service';
 
 vi.mock('../../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('../../../../repositories/location-repository', () => ({ locationRepository: { findCentralStore: vi.fn() } }));
-vi.mock('../../counting/_shared/count-reads', () => ({ lastCountedByItem: vi.fn(), sectionNamesByItem: vi.fn() }));
+vi.mock('../../counting/_shared/count-reads', () => ({ lastCountedByItem: vi.fn(), sectionNamesByItem: vi.fn(), itemIdsInSection: vi.fn() }));
 vi.mock('../_shared/stock-repository', () => ({ stockRepository: { storeTotals: vi.fn(), liveItemIds: vi.fn() } }));
 vi.mock('./items-repository', () => ({ itemsRepository: { findPage: vi.fn(), chipCounts: vi.fn() } }));
 
@@ -62,8 +62,10 @@ describe('itemsService.list (S2)', () => {
   });
 
   it('passes category, type, department and section on, and refuses unknown type or department', async () => {
+    vi.mocked(itemIdsInSection).mockResolvedValue([A]);
     await itemsService.list(manager, { ...query, categoryId: A, type: 'PREPPED', departmentTag: 'BARISTA', sectionId: B });
-    expect(vi.mocked(itemsRepository.findPage).mock.calls[0]![0]).toMatchObject({ siteId: HUB, categoryId: A, type: 'PREPPED', departmentTag: 'BARISTA', sectionId: B });
+    expect(itemIdsInSection).toHaveBeenCalledWith(HUB, B);
+    expect(vi.mocked(itemsRepository.findPage).mock.calls[0]![0]).toMatchObject({ siteId: HUB, categoryId: A, type: 'PREPPED', departmentTag: 'BARISTA', sectionItemIds: [A] });
     await expect(itemsService.list(manager, { ...query, type: 'NOPE' })).rejects.toMatchObject({ statusCode: 400 });
     await expect(itemsService.list(manager, { ...query, departmentTag: 'NOPE' })).rejects.toMatchObject({ statusCode: 400 });
   });

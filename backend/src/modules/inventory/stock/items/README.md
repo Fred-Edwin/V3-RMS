@@ -20,4 +20,4 @@ Built and tested: service, the six-role grid, query validation, and the SQL agai
 | S2 | `GET /inventory/stock/items` | `stock.read` |
 
 ## Coupling
-`counting/_shared/count-reads` (`lastCountedByItem`, `sectionNamesByItem`). The `sectionId` filter reads `count_section_items` directly in an `EXISTS` (Counting has no read function for "items in a section"; flagged in `stock/history/README.md`). `stock/_shared/*`.
+`counting/_shared/count-reads` (`lastCountedByItem`, `sectionNamesByItem`, `itemIdsInSection`). The `sectionId` filter is resolved by the service into item ids through `itemIdsInSection`, and the repository filters `i.id IN (…)`; Stock reads no Counting table. `stock/_shared/*`.

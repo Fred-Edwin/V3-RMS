@@ -10,7 +10,8 @@ export type LedgerFilter = {
   start: Date;
   end: Date;
   search?: string;
-  sectionId?: string;
+  /** The items of the chosen section, resolved by the service through Counting's reads. */
+  sectionItemIds?: string[];
 };
 
 /** One item's summary over the period, quantities signed (out columns negative). */
@@ -87,10 +88,7 @@ const baseCte = (f: LedgerFilter): Prisma.Sql => {
           AND (x.reference ILIKE ${pattern} OR c.reference ILIKE ${pattern} OR pd.reference ILIKE ${pattern}
             OR pr.reference ILIKE ${pattern} OR d.sequence_label ILIKE ${pattern})))`
     : Prisma.empty;
-  // The section tables are Counting's; this is a read of "which items sit in this section" (see the README, Coupling).
-  const section = f.sectionId
-    ? Prisma.sql`AND EXISTS (SELECT 1 FROM count_section_items csi WHERE csi.organization_id = ${f.siteId} AND csi.inventory_item_id = i.id AND csi.section_id = ${f.sectionId})`
-    : Prisma.empty;
+  const section = f.sectionItemIds ? (f.sectionItemIds.length > 0 ? Prisma.sql`AND i.id IN (${Prisma.join(f.sectionItemIds)})` : Prisma.sql`AND FALSE`) : Prisma.empty;
 
   return Prisma.sql`
     WITH agg AS (
