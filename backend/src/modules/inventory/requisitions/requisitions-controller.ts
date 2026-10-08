@@ -1,133 +1,112 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../../utils/errors';
-import { requisitionService } from './requisitions-service';
+import { requisitionsService } from './requisitions-service';
 import {
-  ApproveRequisitionSchema,
-  ListNeedsApprovalQuerySchema,
-  ListRequisitionHistoryQuerySchema,
-  ListRequisitionsQuerySchema,
-  OpenRequisitionSchema,
-  RequisitionSectionParamsSchema,
-  ReturnSectionSchema,
-  UpsertApprovalLinesSchema,
-  UpsertRequisitionLinesSchema,
+  addAdditionInputSchema,
+  additionParamsSchema,
+  approveAdditionInputSchema,
+  approveInputSchema,
+  cancelInputSchema,
+  changeQuantityInputSchema,
+  lineParamsSchema,
+  readIdempotencyKey,
+  requisitionParamsSchema,
+  saveLinesInputSchema,
+  sectionParamsSchema,
+  sendSectionInputSchema,
+  setUrgentInputSchema,
+  startRequisitionInputSchema,
 } from './requisitions-validators';
-import { z } from 'zod';
-
-const RequisitionIdParamSchema = z.object({ id: z.string().uuid() });
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
   return req.user;
 };
 
+/** 200 for a repeated key (the first result), the given status otherwise. */
+const created = (res: Response, data: { replayed: boolean }, status = 201): void => {
+  res.status(data.replayed ? 200 : status).json({ success: true, data });
+};
+
 export const requisitionsController = {
-  openRequisition: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const input = OpenRequisitionSchema.parse(req.body);
-    const data = await requisitionService.openRequisition(actor, input);
-    res.status(201).json({ success: true, data, message: 'Requisition opened' });
-  },
-
-  cancelRequisition: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = RequisitionIdParamSchema.parse(req.params);
-    await requisitionService.cancelRequisition(actor, id);
-    res.status(200).json({ success: true, message: 'Requisition cancelled' });
-  },
-
-  listRequisitions: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListRequisitionsQuerySchema.parse(req.query);
-    const data = await requisitionService.listRequisitions(actor, query);
-    res.status(200).json({ success: true, data });
+  // Reads owned by back end A
+  getFile: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.getFile(requireActor(req), id) });
   },
 
   getSection: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const data = await requisitionService.getSection(actor, id, departmentTag);
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.getSection(requireActor(req), id, departmentId) });
+  },
+
+  getApproveSummary: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.getApproveSummary(requireActor(req), id) });
+  },
+
+  // Writes
+  start: async (req: Request, res: Response): Promise<void> => {
+    created(res, await requisitionsService.start(requireActor(req), startRequisitionInputSchema.parse(req.body)));
+  },
+
+  saveLines: async (req: Request, res: Response): Promise<void> => {
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.saveLines(requireActor(req), id, departmentId, saveLinesInputSchema.parse(req.body)) });
+  },
+
+  sendSection: async (req: Request, res: Response): Promise<void> => {
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    const { pin } = sendSectionInputSchema.parse(req.body);
+    const data = await requisitionsService.sendSection(requireActor(req), id, departmentId, pin, readIdempotencyKey(req.headers));
     res.status(200).json({ success: true, data });
-  },
-
-  upsertLines: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const input = UpsertRequisitionLinesSchema.parse(req.body);
-    const data = await requisitionService.upsertLines(actor, id, departmentTag, input);
-    res.status(200).json({ success: true, data, message: 'Saved' });
-  },
-
-  submitSection: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const data = await requisitionService.submitSection(actor, id, departmentTag);
-    res.status(200).json({ success: true, data, message: 'Section submitted' });
   },
 
   recallSection: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const data = await requisitionService.recallSection(actor, id, departmentTag);
-    res.status(200).json({ success: true, data, message: 'Section recalled' });
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.recallSection(requireActor(req), id, departmentId) });
   },
 
-  // ── Session B — Branch Manager approval ──────────────────────────────────
+  setUrgent: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.setUrgent(requireActor(req), id, setUrgentInputSchema.parse(req.body)) });
+  },
 
-  listForManagerApproval: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListNeedsApprovalQuerySchema.parse(req.query);
-    const data = await requisitionService.listForManagerApproval(actor, query);
+  changeQuantity: async (req: Request, res: Response): Promise<void> => {
+    const { id, lineId } = lineParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.changeQuantity(requireActor(req), id, lineId, changeQuantityInputSchema.parse(req.body)) });
+  },
+
+  nudge: async (req: Request, res: Response): Promise<void> => {
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.nudge(requireActor(req), id, departmentId) });
+  },
+
+  skip: async (req: Request, res: Response): Promise<void> => {
+    const { id, departmentId } = sectionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await requisitionsService.skip(requireActor(req), id, departmentId) });
+  },
+
+  approve: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    const data = await requisitionsService.approve(requireActor(req), id, approveInputSchema.parse(req.body), readIdempotencyKey(req.headers));
     res.status(200).json({ success: true, data });
   },
 
-  listHistory: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListRequisitionHistoryQuerySchema.parse(req.query);
-    if (query.page !== undefined) {
-      const { rows, pagination } = await requisitionService.listHistoryPage(actor, query);
-      res.status(200).json({ success: true, data: rows, pagination });
-      return;
-    }
-    const data = await requisitionService.listHistory(actor, query);
+  cancel: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    const data = await requisitionsService.cancel(requireActor(req), id, cancelInputSchema.parse(req.body), readIdempotencyKey(req.headers));
     res.status(200).json({ success: true, data });
   },
 
-  getRequisitionForApproval: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = RequisitionIdParamSchema.parse(req.params);
-    const data = await requisitionService.getRequisitionForApproval(actor, id);
+  addAddition: async (req: Request, res: Response): Promise<void> => {
+    const { id } = requisitionParamsSchema.parse(req.params);
+    created(res, await requisitionsService.addAddition(requireActor(req), id, addAdditionInputSchema.parse(req.body), readIdempotencyKey(req.headers)));
+  },
+
+  approveAddition: async (req: Request, res: Response): Promise<void> => {
+    const { id, additionId } = additionParamsSchema.parse(req.params);
+    const data = await requisitionsService.approveAddition(requireActor(req), id, additionId, approveAdditionInputSchema.parse(req.body), readIdempotencyKey(req.headers));
     res.status(200).json({ success: true, data });
-  },
-
-  approveRequisition: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = RequisitionIdParamSchema.parse(req.params);
-    const input = ApproveRequisitionSchema.parse(req.body);
-    const data = await requisitionService.approveRequisition(actor, id, input);
-    res.status(200).json({ success: true, data, message: 'Requisition approved' });
-  },
-
-  upsertApprovalLines: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const input = UpsertApprovalLinesSchema.parse(req.body);
-    const data = await requisitionService.upsertApprovalLines(actor, id, departmentTag, input);
-    res.status(200).json({ success: true, data, message: 'Saved' });
-  },
-
-  returnSection: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    const input = ReturnSectionSchema.parse(req.body);
-    const data = await requisitionService.returnSection(actor, id, departmentTag, input);
-    res.status(200).json({ success: true, data, message: 'Section returned' });
-  },
-
-  nudgeHead: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id, departmentTag } = RequisitionSectionParamsSchema.parse(req.params);
-    await requisitionService.nudgeHead(actor, id, departmentTag);
-    res.status(200).json({ success: true, message: 'Nudge sent' });
   },
 };

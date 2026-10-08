@@ -1,47 +1,64 @@
 # requisitions
 
-> **Block 1 status (8 Oct 2026):** the new API contract is frozen in code for the owner to read: `_shared/requisitions-contract.ts` (R1 to R22, Zod), `requisitions-contract.fixtures.json`, `requisitions-contract.test.ts`; the access rows are in `_shared/central-store-access.ts` (`requisitions.*`); `requisitions-rebuild-routes.ts` is a placeholder router mounted at `/inventory/requisitions`. **No service, repository or migration exists yet** (back end A). The text below describes the OLD Milestone Four code, which still runs at `/requisitions` until back end A deletes it in the same PR that lands R1 to R22. Spec: `docs/features/inventory/requisitions-contract.md`.
+**Design:** *Requisition and dispatch* page in Paper, approved by the owner (8 Oct 2026) · **Contract:** `docs/features/inventory/requisitions-contract.md` (+ amendment 1), frozen in code at `_shared/requisitions-contract.ts` · **Code (Block 1, back end A):** R3, R6 (data builder), R8, R10 to R22 built; R1, R2, R4, R5, R7, R9 and the print route are **back end B's** (see "Handover").
 
-**Design:** *Requisition and dispatch* page in Paper, **approved by the owner (8 Oct 2026)**; flow in `docs/features/inventory/requisitions-flow.md` · **Code:** built to the old flow (Milestone Four), **pending redo** (Block 1 of `docs/features/inventory/final-pass-build-plan.md`).
+A branch asks the Central Store for stock. Heads (phone) fill and send their department's section; the Branch Manager approves once; the Director and the System Admin may approve any requisition with their own PIN. Requisitions never write the stock ledger.
 
-A branch asks the Central Store for stock. Where the rules below disagree with Paper or `requisitions-flow.md`, Paper wins: there is no "Return a section", cycles are Morning, Afternoon and Extra, the Director may approve any requisition, and a head's send needs a PIN.
+## Rules (all in the service; the state table is `requisitions-state.ts`, table-tested)
+- Cycles: Morning, Afternoon, Extra. **One open requisition (Collecting or Ready to approve) per branch per cycle**; a Postgres advisory lock on (branch, cycle) serialises two parallel starts.
+- Section: Not started → Draft → **Sent** (the database name is `SUBMITTED`) or **Skipped**. Editing a Sent section reopens it as a Draft (and the requisition leaves Ready to approve). A Sent section can be recalled **until the requisition is signed**. A section with no lines cannot be sent. A department with no tagged items starts Skipped by rule.
+- Requisition: Collecting (`OPEN`) becomes Ready to approve (`PENDING_APPROVAL`) when every section that counts is Sent or Skipped and at least one is Sent. Then Approved, or Cancelled (before approval only). `CLOSED` is set only by Block 2 through `closeIfComplete`.
+- **PIN-signed:** send, approve, cancel, add (R21), approve an addition. The PIN is the caller's own, checked by the existing signing helper (`counting/_shared/count-pin.ts`, `INVALID_PIN`). Every signing write takes an `Idempotency-Key` header; the key is stored on the `RequisitionEvent` it produced (unique per requisition and person), and a repeat returns the current result with `replayed: true` without asking for the PIN again. R11 carries its key in the body (`Requisition.idempotencyKey`).
+- **Approval** freezes `unitCostAtApproval` on every line of every Sent section, sets `approvedQty = requestedQty` where the manager set none (the old dispatch reads `approvedQty`), marks never-sent sections Skipped, sets `APPROVED`. `approvedById` is the signer; `approvedAsId` is also set when the signer is not the Branch Manager (Director or System Admin).
+- **Additions** (R21/R22): a head, after approval, while the department's dispatch is not signed (an old `Dispatch` row for the department). The addition is `PENDING`; its lines sit on the department's section marked by `additionId`, with no Approved quantity, and the old dispatch hides them until the addition is approved. Approving freezes their cost and sets the Approved quantity.
+- **Quantity change** (R16): the Branch Manager (or System Admin) at that branch. Optional reason before approval, required after; locked once the department has been dispatched (`DEPARTMENT_PACKED`).
+- **Money:** `value = approvedQty (requested before the manager sets one) × unit cost`, the frozen cost once approved. Only `requisitions.see_value` holders get any `valueKes` key; a head sees their own department only, never money; the Attendant reads with no money and no stock figures. The print data has no money key (a test pins it). Decided once, in `requisitions-view.ts`.
+- **Dual-write** for the old dispatch: sections carry `departmentTag` and `departmentId`; a department added in Block 1 has a null tag and is invisible to the old dispatch (`dispatch-repository.ts`, two reads).
+- Access: capabilities from `_shared/central-store-access.ts` (`requisitions.*`) or the department rule (a head holds no row): `requisitions-rebuild-routes.ts` lets a signed-in head through the gate and the service applies the real rule (own department, own branch). The service trusts the person's **stored** branch and department, never the token's.
 
-## Who can do what
-- **Department Head** (phone): fills their own department's section only; sees only their slice of the catalog; opening count at start of day lives with branch-day.
-- **Branch Manager**: reviews all five sections in one view, may change a quantity, delete a line, add a line; signs once (PIN). Hard gate: nothing reaches the store unapproved.
-- **Store Manager/Attendant**: see approved requisitions in the dispatch queue.
+## Endpoints built here
+Base `/api/v1/inventory/requisitions` (routes in `requisitions-rebuild-routes.ts`).
 
-## Rules
-- One requisition per branch per cycle (typically morning/afternoon/evening, not fixed), with a section per department.
-- Quantities are pre-suggested from restock level − on hand and freely editable (target under 5 minutes per department).
-- A slow or skipping department never blocks the others; the manager can send with some sections empty.
-- Any manager modification notifies the affected head with what changed.
-- Urgent: notifies the Branch Manager and, if still unapproved after a period, the Director; never bypasses the signature.
-- Lines are grouped by category (two levels for Kitchen); market items are a category, not a separate requisition.
-- A started requisition can be cancelled. Terminology: "requisition", "Opening count"/"Closing count".
-
-## Endpoints
-14 endpoints (generated from the route files; re-run if routes change).
-
-| Method | Path | Roles |
+| # | Method and path | Who |
 |---|---|---|
-| GET | `/requisitions/history` | MANAGER |
-| GET | `/requisitions/needs-approval` | MANAGER |
-| POST | `/requisitions` | — |
-| GET | `/requisitions` | — |
-| DELETE | `/requisitions/:id` | — |
-| GET | `/requisitions/:id` | MANAGER |
-| POST | `/requisitions/:id/approve` | MANAGER |
-| PATCH | `/requisitions/:id/sections/:departmentTag/approval` | MANAGER |
-| POST | `/requisitions/:id/sections/:departmentTag/return` | MANAGER |
-| POST | `/requisitions/:id/sections/:departmentTag/nudge` | MANAGER |
-| GET | `/requisitions/:id/sections/:departmentTag` | — |
-| PATCH | `/requisitions/:id/sections/:departmentTag/lines` | — |
-| POST | `/requisitions/:id/sections/:departmentTag/submit` | — |
-| POST | `/requisitions/:id/sections/:departmentTag/recall` | — |
+| R3 | `GET /:id` | `requisitions.read` or a head of a department in it |
+| R8 | `GET /:id/sections/:departmentId` | head (own department), `requisitions.start`, `requisitions.read` |
+| R10 | `GET /:id/approve-summary` | `requisitions.approve` |
+| R11 | `POST /` | head, `requisitions.start` |
+| R12 | `PUT /:id/sections/:departmentId/lines` | head (own), `requisitions.start` |
+| R13 | `POST /:id/sections/:departmentId/send` | head (own), `requisitions.start`; PIN |
+| R14 | `POST /:id/sections/:departmentId/recall` | head (own) |
+| R15 | `PUT /:id/urgent` | `requisitions.set_urgent`; a head whose department is in it |
+| R16 | `PATCH /:id/lines/:lineId` | `requisitions.change_quantity` |
+| R17 | `POST /:id/sections/:departmentId/nudge` | `requisitions.nudge` |
+| R18 | `POST /:id/sections/:departmentId/skip` | `requisitions.nudge` |
+| R19 | `POST /:id/approve` | `requisitions.approve`; PIN |
+| R20 | `POST /:id/cancel` | `requisitions.cancel`; PIN |
+| R21 | `POST /:id/additions` | head (own); PIN |
+| R22 | `POST /:id/additions/:additionId/approve` | `requisitions.approve`; PIN |
+
+`:id` is a uuid; `router.param` sends anything else to the next route, so back end B's literal paths (`/badges`, `/home`, `/history/mine`) cannot be mistaken for an id.
+
+## Handover
+**For back end B** (exported from `requisitions-service.ts` / `requisitions-print.ts`; add its routes to `requisitions-rebuild-routes.ts`):
+- `requisitionsService.getFile / getPrintData`, `buildPrint(record)`, the views in `requisitions-view.ts` (`fileWire`, `sectionSummaryWire`, `Viewer`), and the repository's `findFile(id, scope)` / `listHeads`.
+- **Notifications:** every write publishes ONE typed notice after commit through `requisitions-events.ts` (`requisitionNotices.publish`). Back end B calls `requisitionNotices.subscribe(listener)` once at start-up and maps `SECTION_SENT` (map row 1), `QUANTITY_CHANGED` (2), `URGENT_SET` (3 starts here; the 1-hour escalation job is B's), `APPROVED` (4), `CANCELLED` (13), plus `NUDGED`, `ADDITION_ADDED`, `ADDITION_APPROVED`. A throwing subscriber never fails a write. Nothing is delivered until B subscribes.
+- **Audit:** every write appends a `RequisitionEvent` (types in `EVENT_TYPES`). Nothing edits or deletes them. `fromValue/toValue/reason/lineId` carry the details; `idempotencyKey` is internal.
+
+**For Block 2** (named no-op exports in `requisitions-handoff.ts`): `closeIfComplete(requisitionId)` and `attachAdditionToDispatch(additionId)`. In Block 1 the old dispatch builds its lines from the requisition when the store signs, so an approved addition's lines are already there and nothing needs attaching. "Dispatch signed" is `requisitionsRepository.hasDispatch` (an old `Dispatch` row for the department); Block 2 replaces it with the packing/signing state.
+
+## Contract drift and questions (reported to the owner)
+1. **Idempotency storage:** the frozen schema only keys R11. Signing writes store their key on `RequisitionEvent.idempotencyKey` (added to the migration; unique on requisition, person, key).
+2. **Extra error codes** for states the contract's list does not name (plain 409s): `SECTION_NOT_SENT`, `SECTION_ALREADY_SENT`, `NOT_APPROVED`, `SECTION_NOT_OPEN`, `ADDITION_NOT_PENDING`; and `BRANCH_CODE_MISSING` (400). Screens may switch on them or show the message.
+3. **The System Admin cannot start a requisition**: R11 has no branch in its body and the System Admin has none of their own (400 "Branch context missing").
+4. **No endpoint sets `Site.code`** (the contract says the owner corrects NYR/KRT "in Settings"). Until one exists the owner corrects it in the database.
+5. The **Next step card wording** and the tracker labels in `requisitions-state.ts` are a draft; the front end confirms them against the Paper step 22 table.
+6. `changeQuantity`'s `valueKes` is the requisition's total; the line's own value is on `line.valueKes`.
+7. Recall and addition are **head-only**; `requisitions.start` ("Fill it myself") covers edit and send, not recall or addition.
 
 ## Code map
-`requisitions-controller.ts`, `requisitions-repository.ts`, `requisitions-routes.ts`, `requisitions-service.ts`, `requisitions-validators.ts`, `requisitions.types.ts`. 2 test files beside the code.
+`requisitions-rebuild-routes.ts` (the router; `requisitions-routes.ts` is an empty shim until the orchestrator removes its import from `routes/index.ts`), `-controller.ts`, `-service.ts`, `-repository.ts`, `-validators.ts`, `requisitions-state.ts` (pure rules), `requisitions-view.ts` (wire builders; money and blind rules), `requisitions-print.ts` (R6 data), `requisitions-errors.ts`, `requisitions-events.ts` (notice seam), `requisitions-handoff.ts` (Block 2 no-ops), `requisitions-fixtures.ts` (test records), `_shared/requisitions-contract.ts` + fixtures + test.
+Tests: state (table-driven), service (mocked data layer), wire (output parses against the contract), routes (role by endpoint), `requisitions.db.test.ts` (opt-in: `RUN_DB_TESTS=1` with the lane's `DATABASE_URL`).
 
 ## Coupling
-Uses `catalog/inventory-repository`.
+`departments/` (sections per active department, `ItemDepartment`), `counting/_shared` (PIN helper, `toPerson`), `_shared/reference-counter` (`REQ`), `_shared/central-store-access`, the old `dispatch/` (reads the same tables; two reads were adjusted).

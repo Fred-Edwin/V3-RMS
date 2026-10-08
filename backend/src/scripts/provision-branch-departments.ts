@@ -17,6 +17,7 @@
 import 'dotenv/config';
 import { DepartmentTag } from '@prisma/client';
 import { prisma } from '../config/database';
+import { departmentLinks } from '../modules/inventory/departments/department-links';
 
 const DEPARTMENTS: { tag: DepartmentTag; name: string }[] = [
   { tag: 'KITCHEN', name: 'Kitchen' },
@@ -58,11 +59,13 @@ const run = async (): Promise<void> => {
         continue;
       }
 
+      await departmentLinks.provisionBranch({ id: branch.id, name: branch.name }); // the Department rows (idempotent)
       await prisma.location.create({
         data: {
           siteId: branch.id,
           type: 'BRANCH_DEPARTMENT',
           departmentTag: dept.tag,
+          departmentId: await departmentLinks.idForKey(branch.id, dept.tag), // dual-write (Block 1 expand phase)
           name: `${branch.name} — ${dept.name}`,
         },
       });

@@ -1,819 +1,755 @@
 import type { Request } from 'express';
-import { Prisma, type DepartmentTag, type RequisitionSectionStatus } from '@prisma/client';
-import {
-  requisitionRepository,
-  type RequisitionHistoryRowData,
-  type RequisitionForManagerList,
-  type RequisitionSectionForApproval,
-  type RequisitionSectionWithLines,
-  type RequisitionWithAllSections,
-  type RequisitionWithMySection,
-} from './requisitions-repository';
-import { inventoryItemRepository, restockLevelRepository } from '../catalog/inventory-repository';
-import { branchRepository } from '../../../repositories/branch-repository';
-import { locationRepository } from '../../../repositories/location-repository';
-import { authRepository } from '../../../repositories/auth-repository';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
-import { socketService } from '../../../sockets/socket-service';
-import { fcmService } from '../../../services/fcm-service';
-import { comparePin } from '../../../utils/password';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
-import type {
-  ApproveRequisitionInput,
-  ListNeedsApprovalQuery,
-  ListRequisitionHistoryQuery,
-  ListRequisitionsQuery,
-  OpenRequisitionInput,
-  RequisitionApprovalDetail,
-  RequisitionApprovalLine,
-  RequisitionApprovalSection,
-  RequisitionHistoryRow,
-  RequisitionListRow,
-  RequisitionManagerListRow,
-  RequisitionSectionDetail,
-  RequisitionSectionLine,
-  ReturnSectionInput,
-  UpsertApprovalLinesInput,
-  UpsertRequisitionLinesInput,
-} from './requisitions.types';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
+import { actorCan } from '../_shared/central-store-access';
+import { countPin } from '../counting/_shared/count-pin';
+import { roleLabelOf, toPerson } from '../counting/_shared/count-people';
+import { referenceCounterRepository } from '../_shared/reference-counter';
+import {
+  REQUISITION_STATUS_TEXT,
+  type AddAdditionInput,
+  type AddAdditionResult,
+  type ApproveAdditionInput,
+  type ApproveAdditionResult,
+  type ApproveInput,
+  type ApproveResult,
+  type ApproveSummary,
+  type CancelInput,
+  type CancelResult,
+  type ChangeQuantityInput,
+  type ChangeQuantityResult,
+  type MutationResult,
+  type NudgeResult,
+  type Print,
+  type RecallSectionResult,
+  type RequisitionFile,
+  type SaveLinesInput,
+  type SectionDetail,
+  type SectionEdit,
+  type SendSectionResult,
+  type SetUrgentInput,
+  type SetUrgentResult,
+  type SkipSectionResult,
+  type StartRequisitionInput,
+  type SectionStatus,
+  type RequisitionStatus,
+} from './_shared/requisitions-contract';
+import { requisitionError, stateConflict } from './requisitions-errors';
+import { requisitionNotices } from './requisitions-events';
+import { attachAdditionToDispatch } from './requisitions-handoff';
+import { buildPrint } from './requisitions-print';
+import {
+  requisitionsRepository as repo,
+  type RequisitionRecord,
+  type Scope,
+  type SectionRecord,
+  type StaffRecord,
+  type TaggedItem,
+} from './requisitions-repository';
+import {
+  canRecall,
+  canSkip,
+  checkSend,
+  guardAfterApproval,
+  guardApprove,
+  guardBeforeApproval,
+  sectionStatusAfterSave,
+  statusAfterSectionChange,
+} from './requisitions-state';
+import { additionWire, cycleLabelOf, fileWire, lineWire, sectionDetailWire, sectionSummaryWire, type Viewer } from './requisitions-view';
 
 type Actor = NonNullable<Request['user']>;
 
-const toDecimalString = (value: Prisma.Decimal | null): string | null => (value === null ? null : value.toString());
-
-/**
- * Every section-scoped method asserts this — the single highest-priority
- * check in this session. The route's `requireDepartmentHead` middleware only
- * confirms *a* department head, not *which* department; without this check a
- * Kitchen head could read/write another department's section by changing
- * the URL param.
- */
-const assertOwnDepartment = (actor: Actor, departmentTag: DepartmentTag): void => {
-  if (actor.departmentTag !== departmentTag) {
-    throw new ForbiddenError('You may only access your own department');
-  }
-};
-
-/**
- * Belt-and-braces alongside the route's `requireRole('MANAGER')` guard —
- * matches how this module already double-checks department ownership in
- * `assertOwnDepartment`. Bare `requireRole('MANAGER')` at the route layer,
- * never `allowDepartmentHead(requireRole('MANAGER'))` — the latter would let
- * a Kitchen head approve the whole branch requisition.
- */
-const requireManager = (actor: Actor): void => {
-  if (actor.role !== 'MANAGER') {
-    throw new ForbiddenError('Only a Branch Manager may perform this action');
-  }
-};
-
-const requireBranchOrg = (actor: Actor): string => {
-  if (!actor.siteId) {
-    throw new ValidationError('Branch context missing for this user');
-  }
-  return actor.siteId;
-};
-
-/**
- * The item catalog lives on the hub organization only (D-15), never on a
- * branch org — a requisition line's `inventoryItemId` must be validated
- * against the hub, not the branch the requisition itself belongs to. Same
- * hub resolution `inventory-service.ts`'s `requireHubActor`/
- * `requireHubOrgForCatalogRead` use, duplicated locally per this module's
- * own-repository convention (prep/receiving precedent).
- */
-const requireHubSite = async (): Promise<string> => {
-  const hub = await branchRepository.findHub();
-  if (!hub) {
-    throw new ValidationError('No hub organization is configured');
-  }
-  return hub.id;
-};
-
-const serializeListRow = (row: RequisitionWithMySection, departmentTag: DepartmentTag): RequisitionListRow => {
-  const mySection = row.sections.find((s) => s.departmentTag === departmentTag);
-  return {
-    id: row.id,
-    type: row.type,
-    note: row.note,
-    status: row.status,
-    openedAt: row.openedAt.toISOString(),
-    // A section is always created for every DepartmentTag at open time
-    // (requisitionRepository.create), so this is only missing on corrupt
-    // data — fall back to NOT_STARTED rather than throwing on a list read.
-    mySectionStatus: mySection?.status ?? 'NOT_STARTED',
-  };
-};
-
-const serializeLine = (line: RequisitionSectionWithLines['lines'][number]): RequisitionSectionLine => ({
-  id: line.id,
-  inventoryItemId: line.inventoryItemId,
-  itemName: line.item.name,
-  usageUnit: line.item.usageUnit,
-  categoryName: line.item.category?.name ?? null,
-  parentCategoryName: null, // resolved below when a parent exists — see getSection
-  parAtRequest: toDecimalString(line.parAtRequest),
-  requestedQty: toDecimalString(line.requestedQty),
-});
-
-const serializeSectionDetail = (
-  section: RequisitionSectionWithLines,
-  parentNamesByCategoryId: Map<string, string>,
-): RequisitionSectionDetail => ({
-  requisitionId: section.requisition.id,
-  departmentTag: section.departmentTag,
-  status: section.status,
-  managerNote: section.managerNote,
-  returnedNote: section.returnedNote,
-  submittedAt: section.submittedAt ? section.submittedAt.toISOString() : null,
-  lines: section.lines.map((line) => {
-    const parentCategoryId = line.item.category?.parentCategoryId ?? null;
-    return {
-      ...serializeLine(line),
-      parentCategoryName: parentCategoryId ? (parentNamesByCategoryId.get(parentCategoryId) ?? null) : null,
-    };
-  }),
-});
-
-/**
- * Second lookup for parent-category names — Category.parentCategoryId is a
- * bare column (no self-relation), matching this milestone's schema (session-
- * a-plan.md §1). Reads name + parent name via a straightforward extra query
- * rather than a relation Session A's query pattern doesn't need.
- */
-const resolveParentCategoryNames = async (
-  section: RequisitionSectionWithLines,
-): Promise<Map<string, string>> => {
-  const parentIds = [
-    ...new Set(section.lines.map((l) => l.item.category?.parentCategoryId).filter((id): id is string => Boolean(id))),
-  ];
-  if (parentIds.length === 0) return new Map();
-  const parents = await prisma.category.findMany({ where: { id: { in: parentIds } }, select: { id: true, name: true } });
-  return new Map(parents.map((p) => [p.id, p.name]));
-};
-
-/**
- * `parAtRequest` sourcing: look up RestockLevel for (branch-department
- * location for this org+departmentTag, item); if none exists, snapshot
- * null — no fallback, no zero (session-a-plan.md §2).
- */
-const resolveParAtRequest = async (
-  siteId: string,
-  departmentTag: DepartmentTag,
-  inventoryItemId: string,
-): Promise<Prisma.Decimal | null> => {
-  const location = await locationRepository.findBySiteTypeDepartment(siteId, 'BRANCH_DEPARTMENT', departmentTag);
-  if (!location) return null;
-  const levels = await restockLevelRepository.findByItemIdsForLocation(siteId, location.id, [inventoryItemId]);
-  return levels.get(inventoryItemId) ?? null;
-};
-
-// ---------------------------------------------------------------------------
-// Session B — Branch Manager approval.
-// ---------------------------------------------------------------------------
-
-/**
- * `'14' !== Decimal('14.0000')` compared as strings — the highest-risk bug
- * in this session. Compared naively, every line looks "edited" and demands a
- * reason, making the feature unusable. Used by both the edit-reason guard and
- * the `isAsRequested`/`isEdited` serializers so the two can never disagree.
- */
-const decimalsEqual = (a: string | null, b: string | null): boolean => {
-  if (a === null || b === null) return a === b;
-  return new Prisma.Decimal(a).equals(new Prisma.Decimal(b));
-};
-
-/** `approvedQty ?? requestedQty` — drives `isAsRequested`, `totalUnits`, and the approve-time freeze. Defined once. */
-const effectiveQty = (line: { approvedQty: Prisma.Decimal | null; requestedQty: Prisma.Decimal | null }): Prisma.Decimal =>
-  line.approvedQty ?? line.requestedQty ?? new Prisma.Decimal(0);
-
-const sumUnits = (lines: { approvedQty: Prisma.Decimal | null; requestedQty: Prisma.Decimal | null }[]): string =>
-  lines.reduce((sum, l) => sum.add(effectiveQty(l)), new Prisma.Decimal(0)).toString();
-
-/**
- * Widened from Session A's single-section `resolveParentCategoryNames` to
- * take a flat line array so it works across all 5 sections in one query.
- */
-const resolveParentCategoryNamesForLines = async (
-  lines: { item: { category: { parentCategoryId: string | null } | null } }[],
-): Promise<Map<string, string>> => {
-  const parentIds = [
-    ...new Set(lines.map((l) => l.item.category?.parentCategoryId).filter((id): id is string => Boolean(id))),
-  ];
-  if (parentIds.length === 0) return new Map();
-  const parents = await prisma.category.findMany({ where: { id: { in: parentIds } }, select: { id: true, name: true } });
-  return new Map(parents.map((p) => [p.id, p.name]));
-};
-
-const serializeApprovalLine = (
-  line: RequisitionSectionForApproval['lines'][number],
-  parentNamesByCategoryId: Map<string, string>,
-): RequisitionApprovalLine => {
-  const parentCategoryId = line.item.category?.parentCategoryId ?? null;
-  const requestedQty = toDecimalString(line.requestedQty);
-  const approvedQty = toDecimalString(line.approvedQty);
-  return {
-    id: line.id,
-    inventoryItemId: line.inventoryItemId,
-    itemName: line.item.name,
-    usageUnit: line.item.usageUnit,
-    categoryName: line.item.category?.name ?? null,
-    parentCategoryName: parentCategoryId ? (parentNamesByCategoryId.get(parentCategoryId) ?? null) : null,
-    onHand: null, // no branch-department ledger exists until Milestone Five — always null this milestone
-    parAtRequest: toDecimalString(line.parAtRequest),
-    requestedQty,
-    approvedQty,
-    editReason: line.editReason,
-    // Before the manager reviews a line, approvedQty is null — that is "not
-    // yet reviewed", not "edited". Only a line the manager has actually set
-    // a differing value on counts as edited; a manager-added line
-    // (requestedQty null, approvedQty set) is also edited by definition.
-    isEdited: approvedQty !== null && !decimalsEqual(approvedQty, requestedQty),
-  };
-};
-
-const serializeApprovalSection = (
-  section: RequisitionSectionForApproval,
-  parentNamesByCategoryId: Map<string, string>,
-): RequisitionApprovalSection => {
-  const lines = section.lines.map((l) => serializeApprovalLine(l, parentNamesByCategoryId));
-  const changedLineCount = lines.filter((l) => l.isEdited).length;
-  return {
-    departmentTag: section.departmentTag,
-    status: section.status,
-    managerNote: section.managerNote,
-    returnedNote: section.returnedNote,
-    submittedAt: section.submittedAt ? section.submittedAt.toISOString() : null,
-    submittedByName: section.submittedBy?.name ?? null,
-    isAsRequested: changedLineCount === 0,
-    changedLineCount,
-    totalUnits: sumUnits(section.lines),
-    lines,
-  };
-};
-
-const serializeApprovalDetail = (
-  requisition: RequisitionWithAllSections,
-  parentNamesByCategoryId: Map<string, string>,
-): RequisitionApprovalDetail => ({
-  id: requisition.id,
-  type: requisition.type,
-  note: requisition.note,
-  status: requisition.status,
-  openedAt: requisition.openedAt.toISOString(),
-  approvedAt: requisition.approvedAt ? requisition.approvedAt.toISOString() : null,
-  approvedByName: requisition.approvedBy?.name ?? null,
-  sections: requisition.sections.map((s) => serializeApprovalSection(s, parentNamesByCategoryId)),
-});
-
-const serializeManagerListRow = (row: RequisitionForManagerList): RequisitionManagerListRow => {
-  const allLines = row.sections.flatMap((s) => s.lines);
-  return {
-    id: row.id,
-    type: row.type,
-    note: row.note,
-    status: row.status,
-    openedAt: row.openedAt.toISOString(),
-    totalUnits: sumUnits(allLines),
-    sectionsSubmitted: row.sections.filter((s) => s.status === 'SUBMITTED').length,
-    sectionsTotal: row.sections.length,
-  };
-};
-
-/** Most requisitions `listHistoryPage` reads for one branch and date range before filtering by the derived status. */
-const HISTORY_PAGE_SCAN_CAP = 2000;
-
-export interface RequisitionHistoryPage {
-  rows: RequisitionHistoryRow[];
-  pagination: { total: number; page: number; perPage: number; totalPages: number };
+interface Caller {
+  actor: Actor;
+  staff: StaffRecord;
+  /** The department this person heads at their branch, or null. */
+  headDepartmentId: string | null;
 }
 
-const deriveDisplayStatus = (row: RequisitionHistoryRowData): 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED' => {
-  if (row.status === 'APPROVED') return 'APPROVED';
-  if (row.sections.some((s) => s.status === 'RETURNED')) return 'RETURNED';
-  return 'PENDING_APPROVAL';
+type SignedAs = 'BRANCH_MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN';
+
+const SIGNED_AS: Record<string, SignedAs> = { MANAGER: 'BRANCH_MANAGER', DIRECTOR: 'DIRECTOR', SYSTEM_ADMIN: 'SYSTEM_ADMIN' };
+
+const isUniqueViolation = (error: unknown): boolean => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+const pad4 = (n: number): string => String(n).padStart(4, '0');
+
+// --- Who is calling and what they may do ---------------------------------------------------------------------------------
+
+const loadCaller = async (actor: Actor): Promise<Caller> => {
+  const staff = await repo.findStaff(actor.id);
+  if (!staff) throw new UnauthorizedError('Authentication required');
+  const headDepartmentId = staff.isDepartmentHead && staff.departmentId && staff.siteId ? staff.departmentId : null;
+  return { actor, staff, headDepartmentId };
 };
 
-const serializeHistoryRow = (row: RequisitionHistoryRowData): RequisitionHistoryRow => ({
-  id: row.id,
-  type: row.type,
-  note: row.note,
-  openedAt: row.openedAt.toISOString(),
-  approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
-  displayStatus: deriveDisplayStatus(row),
-  // From `approvedBy` only, never `submittedBy` — a Paper mock shows a
-  // Department Head signing in History; that is mock-data drift, not spec.
-  signedByName: row.approvedBy?.name ?? null,
-  totalUnits: sumUnits(row.sections.flatMap((s) => s.lines)),
-  dispatchSummary: row.dispatches.map((d) => ({
-    dispatchId: d.id,
-    departmentTag: d.departmentTag,
-    status: d.status as RequisitionHistoryRow['dispatchSummary'][number]['status'],
-    sequenceLabel: d.sequenceLabel,
-  })),
-});
+/** The Branch Manager and a head work in their own branch; the System Admin acts anywhere. */
+const mayActAt = (c: Caller, siteId: string): boolean => c.actor.role === 'SYSTEM_ADMIN' || c.staff.siteId === siteId;
 
-const NOT_SUBMITTED_STATUSES: RequisitionSectionStatus[] = ['NOT_STARTED', 'DRAFT'];
+/** Approval: the Branch Manager at their branch; the Director and the System Admin at any branch. */
+const mayApproveAt = (c: Caller, siteId: string): boolean =>
+  actorCan(c.actor, 'requisitions.approve') && (c.actor.role === 'DIRECTOR' || c.actor.role === 'SYSTEM_ADMIN' || c.staff.siteId === siteId);
+
+/** A head is restricted to their own department when they hold no read capability of their own. */
+const restrictedHead = (c: Caller): string | null => (actorCan(c.actor, 'requisitions.read') ? null : c.headDepartmentId);
+
+const readScope = (c: Caller): Scope => {
+  if (actorCan(c.actor, 'requisitions.read')) {
+    // The Branch Manager reads their own branch; the hub roles read any branch (contract §3).
+    if (c.actor.role === 'MANAGER') {
+      if (!c.staff.siteId) throw new ValidationError('Branch context missing for this user');
+      return { siteId: c.staff.siteId };
+    }
+    return { anyBranch: true };
+  }
+  if (c.headDepartmentId && c.staff.siteId) return { siteId: c.staff.siteId };
+  throw new ForbiddenError('You do not have permission to view requisitions');
+};
+
+const loadFile = async (c: Caller, id: string): Promise<RequisitionRecord> => {
+  const rec = await repo.findFile(id, readScope(c));
+  if (!rec) throw new NotFoundError('Requisition not found');
+  const dept = restrictedHead(c);
+  if (dept && !rec.sections.some((s) => s.departmentId === dept)) throw requisitionError('NOT_YOUR_DEPARTMENT', 'This requisition has no section for your department.');
+  return rec;
+};
+
+const findSection = (rec: RequisitionRecord, departmentId: string): SectionRecord => {
+  const section = rec.sections.find((s) => s.departmentId === departmentId);
+  if (!section) throw new NotFoundError('That department has no section in this requisition');
+  return section;
+};
 
 /**
- * Composed inline, fire-and-forget, after commit — the `receiving-service.ts`
- * `notifyHubStoreManagersOfSignedReceipt` shape. Never awaited by the caller;
- * a rejected promise here must never fail the write that triggered it.
+ * Who may edit or send a section: the head of THAT department at this branch, or a holder of `requisitions.start` at this branch
+ * ("Fill it myself"). A head of another department is told so; anyone else is refused.
  */
-const notifyManagersOfSubmission = async (siteId: string, requisitionId: string, departmentTag: DepartmentTag, actorId: string): Promise<void> => {
-  const managers = await requisitionRepository.findBranchManagers(siteId);
-  const recipientIds = managers.map((m) => m.id).filter((id) => id !== actorId);
-  if (recipientIds.length === 0) return;
-  const payload = { requisitionId, departmentTag };
-  recipientIds.forEach((id) => socketService.emitRequisitionSubmitted(id, payload));
-  await fcmService.sendRequisitionSubmittedPush(siteId, payload);
+const requireSectionEditor = (c: Caller, rec: RequisitionRecord, departmentId: string): void => {
+  if (c.headDepartmentId === departmentId && c.staff.siteId === rec.siteId) return;
+  if (actorCan(c.actor, 'requisitions.start') && mayActAt(c, rec.siteId)) return;
+  if (c.headDepartmentId) throw requisitionError('NOT_YOUR_DEPARTMENT', 'You can only work on your own department.');
+  throw new ForbiddenError('You do not have permission to change this section');
 };
 
-const notifyHeadsOfApproval = async (
-  siteId: string,
-  requisition: RequisitionWithAllSections,
-  actorId: string,
-): Promise<void> => {
-  const seen = new Set<string>();
-  for (const section of requisition.sections) {
-    if (section.status !== 'SUBMITTED') continue; // unsubmitted sections were never part of this decision
-    const heads = await requisitionRepository.findSectionHeads(siteId, section.departmentTag, section.submittedBy?.id ?? null);
-    for (const head of heads) {
-      if (head.id === actorId || seen.has(head.id)) continue;
-      seen.add(head.id);
-      const payload = { requisitionId: requisition.id, decision: 'APPROVED' as const };
-      socketService.emitRequisitionDecision(head.id, payload);
-      await fcmService.sendRequisitionDecisionPush(head.id, payload);
-    }
-  }
+const requireCapAt = (c: Caller, capability: 'requisitions.nudge' | 'requisitions.cancel' | 'requisitions.change_quantity' | 'requisitions.set_urgent', siteId: string): void => {
+  if (!actorCan(c.actor, capability) || !mayActAt(c, siteId)) throw new ForbiddenError('You do not have permission to perform this action');
 };
 
-const notifyHeadOfReturn = async (
-  headId: string | null,
-  departmentTag: DepartmentTag,
-  requisitionId: string,
-  actorId: string,
-  returnedNote: string,
-): Promise<void> => {
-  if (!headId || headId === actorId) return;
-  const payload = { requisitionId, departmentTag, returnedNote };
-  socketService.emitRequisitionSectionReturned(headId, payload);
-  await fcmService.sendRequisitionSectionReturnedPush(headId, payload);
+const assertBeforeApproval = (rec: RequisitionRecord): void => {
+  const guard = guardBeforeApproval(rec.status as RequisitionStatus);
+  if (guard === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+  if (guard === 'ALREADY_APPROVED') throw requisitionError('ALREADY_APPROVED', 'This requisition has been signed.');
 };
 
-const notifyHeadOfNudge = async (siteId: string, departmentTag: DepartmentTag, requisitionId: string, actorId: string): Promise<void> => {
-  const heads = await requisitionRepository.findSectionHeads(siteId, departmentTag, null);
-  for (const head of heads) {
-    if (head.id === actorId) continue;
-    const payload = { requisitionId, departmentTag };
-    socketService.emitRequisitionNudge(head.id, payload);
-    await fcmService.sendRequisitionNudgePush(head.id, payload);
-  }
+// --- The view ----------------------------------------------------------------------------------------------------------------
+
+const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): Promise<Viewer> => {
+  const deptIds = rec.sections.flatMap((s) => (s.departmentId ? [s.departmentId] : []));
+  const parentIds = [...new Set(rec.sections.flatMap((s) => s.lines.map((l) => l.item.category?.parentCategoryId)).filter((id): id is string => Boolean(id)))];
+  const [heads, parentNames, locked] = await Promise.all([
+    repo.listHeads(rec.siteId, deptIds),
+    repo.findCategoryNames(parentIds),
+    rec.status === 'APPROVED'
+      ? Promise.all(rec.sections.map(async (s) => ((await repo.hasDispatch(rec.id, rec.siteId, s.department?.key ?? null)) && s.departmentId ? s.departmentId : null)))
+      : Promise.resolve([]),
+  ]);
+  const headOf = new Map(heads.map((h) => [h.departmentId, { id: h.id, name: h.name, role: h.role as string }]));
+  return {
+    now,
+    seeValue: actorCan(c.actor, 'requisitions.see_value'),
+    seeStock: actorCan(c.actor, 'restock.read'),
+    headDepartmentId: restrictedHead(c),
+    branchOk: mayActAt(c, rec.siteId),
+    can: {
+      start: actorCan(c.actor, 'requisitions.start'),
+      changeQuantity: actorCan(c.actor, 'requisitions.change_quantity'),
+      approve: mayApproveAt(c, rec.siteId),
+      cancel: actorCan(c.actor, 'requisitions.cancel'),
+      nudge: actorCan(c.actor, 'requisitions.nudge'),
+      setUrgent: actorCan(c.actor, 'requisitions.set_urgent'),
+      read: actorCan(c.actor, 'requisitions.read'),
+    },
+    lockedDepartmentIds: new Set(locked.filter((id): id is string => id !== null)),
+    parentCategoryNames: parentNames,
+    heads: headOf,
+  };
 };
 
-export const requisitionService = {
-  openRequisition: async (actor: Actor, input: OpenRequisitionInput): Promise<RequisitionListRow> => {
-    const siteId = requireBranchOrg(actor);
-    if (!actor.departmentTag) {
-      throw new ValidationError('This user has no department assigned');
-    }
+const mutation = (rec: RequisitionRecord, replayed: boolean): MutationResult => ({
+  requisitionId: rec.id,
+  reference: rec.reference,
+  status: rec.status as RequisitionStatus,
+  statusText: REQUISITION_STATUS_TEXT[rec.status as RequisitionStatus],
+  replayed,
+});
 
-    const created = await requisitionRepository.create({
-      siteId,
-      type: input.type,
-      note: input.note,
-      openedById: actor.id,
-    });
+const reload = async (c: Caller, rec: RequisitionRecord): Promise<RequisitionRecord> => {
+  const fresh = await repo.findFile(rec.id, { siteId: rec.siteId });
+  if (!fresh) throw new NotFoundError('Requisition not found');
+  return fresh;
+};
 
-    const withSections = await requisitionRepository.findAllBySite(siteId, 1);
-    const row = withSections.find((r) => r.id === created.id);
-    if (!row) throw new NotFoundError('Requisition not found');
-    return serializeListRow(row, actor.departmentTag as DepartmentTag);
+const totalValue = (file: RequisitionFile): string | undefined => file.valueKes;
+
+/** Recomputes Collecting / Ready to approve after a section changed, inside the same transaction. Returns the new status. */
+const syncStatus = async (tx: Prisma.TransactionClient, siteId: string, requisitionId: string): Promise<RequisitionStatus> => {
+  const facts = await repo.readSectionFacts(tx, siteId, requisitionId);
+  if (!facts) throw new NotFoundError('Requisition not found');
+  const next = statusAfterSectionChange(facts.status as RequisitionStatus, facts.sections.map((s) => ({ status: s.status as SectionStatus, departmentActive: s.departmentActive })));
+  if (next !== facts.status) await repo.setStatus(tx, siteId, requisitionId, next);
+  return next;
+};
+
+const event = (c: Caller) => ({ actorId: c.actor.id, actorRoleLabel: roleLabelOf(c.staff.role) });
+
+const decimalOf = (v: string): Prisma.Decimal => new Prisma.Decimal(v);
+
+/** Restock level minus on hand for the items of one department, floored at zero, with the snapshots a line keeps. */
+const stockFor = async (siteId: string, departmentId: string, items: TaggedItem[], db: Prisma.TransactionClient | typeof prisma = prisma) => {
+  const location = await repo.findDepartmentLocation(siteId, departmentId, db);
+  if (!location) return new Map<string, { level: Prisma.Decimal | null; onHand: Prisma.Decimal | null; suggested: Prisma.Decimal }>();
+  const stock = await repo.readStock(siteId, location.id, items.map((i) => i.id), db);
+  return new Map(
+    items.map((i) => {
+      const level = stock.level.get(i.id) ?? null;
+      const onHand = stock.onHand.get(i.id) ?? (level ? new Prisma.Decimal(0) : null);
+      const gap = level && onHand ? level.minus(onHand) : new Prisma.Decimal(0);
+      return [i.id, { level, onHand, suggested: gap.greaterThan(0) ? gap : new Prisma.Decimal(0) }] as const;
+    }),
+  );
+};
+
+const currentValue = (file: RequisitionFile): { valueKes?: string } => {
+  const v = totalValue(file);
+  return v === undefined ? {} : { valueKes: v };
+};
+
+export const requisitionsService = {
+  // ========================================================================================================================
+  // Reads owned by back end A
+  // ========================================================================================================================
+
+  /** R3. */
+  getFile: async (actor: Actor, id: string): Promise<RequisitionFile> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    const now = new Date();
+    const allInAt = rec.status === 'OPEN' ? null : await repo.findAllInAt(rec.id, rec.siteId);
+    return fileWire(rec, await viewerFor(c, rec, now), allInAt);
   },
 
-  /**
-   * Cancel a started requisition — no way to back out and start fresh
-   * existed before this (session-1-quick-wins-prompt #17). Only the
-   * requisition's own department head, only while zero sections have ever
-   * been SUBMITTED — once a section is submitted there is a real record to
-   * preserve (the branch manager may already be reviewing it), so recall +
-   * resubmit is the only path from there, not cancel.
-   */
-  cancelRequisition: async (actor: Actor, requisitionId: string): Promise<void> => {
-    const siteId = requireBranchOrg(actor);
-    if (!actor.departmentTag) {
-      throw new ValidationError('This user has no department assigned');
-    }
-
-    const requisition = await requisitionRepository.findById(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-    if (requisition.openedById !== actor.id) {
-      throw new ForbiddenError('You may only cancel a requisition you opened');
-    }
-
-    const cancelled = await requisitionRepository.cancel(requisitionId, siteId);
-    if (!cancelled) {
-      throw new ConflictError('This requisition can no longer be cancelled — a section has already been submitted');
-    }
+  /** R6, the data only: the route that serves it is back end B's. No money anywhere. */
+  getPrintData: async (actor: Actor, id: string): Promise<Print> => {
+    const c = await loadCaller(actor);
+    if (!actorCan(actor, 'requisitions.read')) throw new ForbiddenError('You do not have permission to print requisitions');
+    const rec = await loadFile(c, id);
+    return buildPrint(rec);
   },
 
-  listRequisitions: async (actor: Actor, query: ListRequisitionsQuery): Promise<RequisitionListRow[]> => {
-    const siteId = requireBranchOrg(actor);
-    if (!actor.departmentTag) {
-      throw new ValidationError('This user has no department assigned');
-    }
-    const rows = await requisitionRepository.findAllBySite(siteId, query.limit);
-    return rows.map((row) => serializeListRow(row, actor.departmentTag as DepartmentTag));
-  },
-
-  getSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
-    assertOwnDepartment(actor, departmentTag);
-    const siteId = requireBranchOrg(actor);
-
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-
-    const parentNames = await resolveParentCategoryNames(section);
-    return serializeSectionDetail(section, parentNames);
-  },
-
-  /**
-   * Bulk upsert: existing line qty edits (incl. "0", zero-not-delete) + new
-   * lines (add-item, snapshots parAtRequest from RestockLevel at creation
-   * time) + managerNote. Rejected when the section is SUBMITTED/RETURNED —
-   * a section awaiting approval or bounced back for a specific reason is not
-   * silently editable outside the submit/recall/resubmit flow.
-   */
-  upsertLines: async (
-    actor: Actor,
-    requisitionId: string,
-    departmentTag: DepartmentTag,
-    input: UpsertRequisitionLinesInput,
-  ): Promise<RequisitionSectionDetail> => {
-    assertOwnDepartment(actor, departmentTag);
-    const siteId = requireBranchOrg(actor);
-
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-    if (section.status === 'SUBMITTED' || section.status === 'RETURNED') {
-      throw new ConflictError('This section cannot be edited in its current state');
-    }
-
-    const newItemIds = input.lines.filter((l) => !l.id && l.inventoryItemId).map((l) => l.inventoryItemId!);
-    if (newItemIds.length > 0) {
-      // The catalog lives on the hub org (D-15), not this branch — validate
-      // against the hub, never `organizationId` (the branch).
-      const hubOrgId = await requireHubSite();
-      const liveItems = await inventoryItemRepository.findLiveByIds(newItemIds, hubOrgId);
-      if (liveItems.length !== new Set(newItemIds).size) {
-        throw new NotFoundError('One or more items were not found');
-      }
-    }
-
-    await prisma.$transaction(async (tx) => {
-      for (const line of input.lines) {
-        const requestedQty = line.requestedQty === null ? null : new Prisma.Decimal(line.requestedQty);
-        if (line.id) {
-          // Zero-not-delete: "0" is a real value, the row stays.
-          await requisitionRepository.updateLineQty(line.id, requestedQty, tx);
-        } else if (line.inventoryItemId) {
-          const parAtRequest = await resolveParAtRequest(siteId, departmentTag, line.inventoryItemId);
-          await requisitionRepository.createLine(
-            section.id,
-            { inventoryItemId: line.inventoryItemId, requestedQty, parAtRequest },
-            tx,
-          );
-        }
-      }
-
-      if (input.managerNote !== undefined) {
-        await requisitionRepository.updateManagerNote(section.id, input.managerNote || null, tx);
-      }
-
-      // DRAFT once the head has any unsaved/in-progress edits (session-a-plan
-      // §1.2 RequisitionSectionStatus). NOT_STARTED -> DRAFT on first save;
-      // an already-DRAFT section stays DRAFT.
-      if (section.status === 'NOT_STARTED') {
-        await requisitionRepository.setSectionStatus(section.id, ['NOT_STARTED'], { status: 'DRAFT' }, tx);
-      }
-    });
-
-    return requisitionService.getSection(actor, requisitionId, departmentTag);
-  },
-
-  /** NOT_STARTED/DRAFT -> SUBMITTED; flips parent Requisition.status OPEN -> PENDING_APPROVAL only on the first section submitted. */
-  submitSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
-    assertOwnDepartment(actor, departmentTag);
-    const siteId = requireBranchOrg(actor);
-
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-
-    await prisma.$transaction(async (tx) => {
-      // RETURNED -> SUBMITTED is a real transition (resubmit after a branch
-      // manager bounce-back) — returnedNote is cleared server-side here, not
-      // just hidden client-side, so a stale bounce-back reason never lingers
-      // on a resubmitted section.
-      const count = await requisitionRepository.setSectionStatus(
-        section.id,
-        ['NOT_STARTED', 'DRAFT', 'RETURNED'],
-        { status: 'SUBMITTED', submittedById: actor.id, submittedAt: new Date(), returnedNote: null },
-        tx,
-      );
-      if (count === 0) {
-        throw new ConflictError('This section has already been submitted or is no longer editable');
-      }
-      // Flips only on the first section submitted — the where-status check
-      // makes this a no-op (count: 0, ignored) on every subsequent submit.
-      await requisitionRepository.markPendingApprovalIfOpen(requisitionId, tx);
-    });
-
-    // Session A shipped this endpoint with no notification at all — the
-    // manager's "Awaiting your approval" badge never lit up. Fire-and-forget,
-    // after commit, actor filtered out.
-    void notifyManagersOfSubmission(siteId, requisitionId, departmentTag, actor.id);
-
-    return requisitionService.getSection(actor, requisitionId, departmentTag);
-  },
-
-  /** SUBMITTED -> DRAFT; rejected if Requisition.status === 'APPROVED'. */
-  recallSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
-    assertOwnDepartment(actor, departmentTag);
-    const siteId = requireBranchOrg(actor);
-
-    const requisition = await requisitionRepository.findById(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-    if (requisition.status === 'APPROVED') {
-      throw new ConflictError('This requisition has already been approved and can no longer be recalled');
-    }
-
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-
-    const count = await prisma.$transaction((tx) =>
-      requisitionRepository.setSectionStatus(section.id, ['SUBMITTED'], { status: 'DRAFT' }, tx),
-    );
-    if (count === 0) {
-      throw new ConflictError('This section is not currently submitted');
-    }
-
-    return requisitionService.getSection(actor, requisitionId, departmentTag);
-  },
-
-  // -------------------------------------------------------------------------
-  // Session B — Branch Manager approval.
-  // -------------------------------------------------------------------------
-
-  /** Manager's needs-approval list. Deliberately a new literal path (decision #9) — Session A's list contract stays untouched. */
-  listForManagerApproval: async (actor: Actor, query: ListNeedsApprovalQuery): Promise<RequisitionManagerListRow[]> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-    const rows = await requisitionRepository.findAllBySiteForManager(siteId, query.limit);
-    return rows.map(serializeManagerListRow);
-  },
-
-  getRequisitionForApproval: async (actor: Actor, requisitionId: string): Promise<RequisitionApprovalDetail> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-
-    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-
-    const parentNames = await resolveParentCategoryNamesForLines(requisition.sections.flatMap((s) => s.lines));
-    return serializeApprovalDetail(requisition, parentNames);
-  },
-
-  listHistory: async (actor: Actor, query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryRow[]> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-
-    const rows = await requisitionRepository.findHistoryRows(siteId, {
-      from: query.from ? new Date(query.from) : undefined,
-      to: query.to ? new Date(query.to) : undefined,
-      status: query.status,
-      limit: query.limit,
-      cursor: query.cursor,
-    });
-    const serialized = rows.map(serializeHistoryRow);
-    // status is derived, not stored — filter after serializing so a single
-    // derivation function is the only place displayStatus is computed.
-    return query.status ? serialized.filter((r) => r.displayStatus === query.status) : serialized;
-  },
-
-  /**
-   * History as pages (the shared table). The display status is derived, not stored, so a correct status filter and total need
-   * every row in range: this loads the branch's requisitions in the date range (capped, newest first), filters by the derived
-   * status, then slices. A branch raises a handful a day, so the cap is far above real use.
-   */
-  listHistoryPage: async (actor: Actor, query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryPage> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-    const page = query.page ?? 1;
-    const perPage = query.perPage ?? 50;
-
-    const rows = await requisitionRepository.findHistoryRows(siteId, {
-      from: query.from ? new Date(query.from) : undefined,
-      to: query.to ? new Date(query.to) : undefined,
-      limit: HISTORY_PAGE_SCAN_CAP,
-    });
-    const serialized = rows.map(serializeHistoryRow);
-    const matching = query.status ? serialized.filter((r) => r.displayStatus === query.status) : serialized;
-    const start = (page - 1) * perPage;
+  /** R8: the head's editing screen, with the items the department may add. */
+  getSection: async (actor: Actor, id: string, departmentId: string): Promise<SectionEdit> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    const restricted = restrictedHead(c);
+    if (restricted && restricted !== departmentId) throw requisitionError('NOT_YOUR_DEPARTMENT', 'You can only open your own department.');
+    const section = findSection(rec, departmentId);
+    const viewer = await viewerFor(c, rec, new Date());
+    const items = await repo.listTaggedItems(rec.siteId, departmentId);
+    const stock = await stockFor(rec.siteId, departmentId, items);
+    const inSection = new Set(section.lines.filter((l) => !l.additionId).map((l) => l.inventoryItemId));
+    const stockVisible = viewer.seeStock || viewer.headDepartmentId === departmentId;
+    const parentNames = await repo.findCategoryNames([...new Set(items.map((i) => i.category?.parentCategoryId).filter((p): p is string => Boolean(p)))]);
     return {
-      rows: matching.slice(start, start + perPage),
-      pagination: { total: matching.length, page, perPage, totalPages: Math.max(1, Math.ceil(matching.length / perPage)) },
+      requisitionId: rec.id,
+      reference: rec.reference,
+      cycleLabel: cycleLabelOf(rec.type, rec.openedAt),
+      requisitionStatus: rec.status as RequisitionStatus,
+      urgent: rec.urgent,
+      section: sectionDetailWire(section, rec, viewer),
+      addable: items.map((i) => {
+        const s = stock.get(i.id);
+        const parent = i.category?.parentCategoryId ? parentNames.get(i.category.parentCategoryId) : undefined;
+        return {
+          itemId: i.id,
+          itemName: i.name,
+          unit: i.usageUnit,
+          categoryPath: [...(parent ? [parent] : []), ...(i.category ? [i.category.name] : [])],
+          suggestedQty: (s?.suggested ?? new Prisma.Decimal(0)).toString(),
+          ...(stockVisible && s?.onHand ? { onHand: s.onHand.toString() } : {}),
+          ...(stockVisible && s?.level ? { level: s.level.toString() } : {}),
+          inSection: inSection.has(i.id),
+        };
+      }),
     };
   },
 
-  /**
-   * Bulk line edit for the manager's review screen: qty edits (with the
-   * server-enforced edit-reason rule — Zod can't see `requestedQty`, it's
-   * server state), manager-added lines (`requestedQty` stays null, decision
-   * #5), soft-deletes, and the `fillMyself` section-level transition.
-   * Rejected once the requisition is APPROVED.
-   */
-  upsertApprovalLines: async (
-    actor: Actor,
-    requisitionId: string,
-    departmentTag: DepartmentTag,
-    input: UpsertApprovalLinesInput,
-  ): Promise<RequisitionApprovalDetail> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
+  /** R10: the approve drawer's summary. */
+  getApproveSummary: async (actor: Actor, id: string): Promise<ApproveSummary> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    if (!mayApproveAt(c, rec.siteId)) throw new ForbiddenError('You do not have permission to approve this requisition');
+    const file = fileWire(rec, await viewerFor(c, rec, new Date()), null);
+    const changes = file.sections.flatMap((s) =>
+      s.lines
+        .filter((l) => l.changedByManager && l.approvedQty !== null)
+        .map((l) => ({ departmentName: s.departmentName, itemName: l.itemName, from: l.requestedQty, to: l.approvedQty as string, reason: l.changeReason })),
+    );
+    return {
+      requisitionId: rec.id,
+      reference: rec.reference,
+      lineCount: file.lineCount,
+      ...currentValue(file),
+      departments: file.sections.map((s) => ({
+        departmentId: s.departmentId,
+        departmentName: s.departmentName,
+        status: s.status,
+        lineCount: s.lineCount,
+        ...(s.valueKes !== undefined ? { valueKes: s.valueKes } : {}),
+      })),
+      changes,
+      signatureLine: 'One signature covers the whole requisition.',
+      signingAs: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER',
+    };
+  },
 
-    const requisition = await requisitionRepository.findById(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-    if (requisition.status === 'APPROVED') {
-      throw new ConflictError('This requisition has already been approved');
-    }
+  // ========================================================================================================================
+  // Writes
+  // ========================================================================================================================
 
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-    const existingById = new Map(section.lines.map((l) => [l.id, l]));
+  /** R11: start the requisition for a cycle. A head (own branch) or a holder of `requisitions.start`. */
+  start: async (actor: Actor, input: StartRequisitionInput): Promise<MutationResult> => {
+    const c = await loadCaller(actor);
+    if (!c.headDepartmentId && !actorCan(actor, 'requisitions.start')) throw new ForbiddenError('You do not have permission to start a requisition');
+    const siteId = c.staff.siteId;
+    if (!siteId) throw new ValidationError('Branch context missing for this user');
+    const site = await repo.findSite(siteId);
+    if (!site || site.type !== 'BRANCH') throw new ValidationError('Requisitions belong to a branch');
+    if (!site.code) throw new ValidationError('This branch has no code yet. Set it in Settings before starting a requisition.', 'BRANCH_CODE_MISSING');
 
-    const newItemIds = input.lines.filter((l) => !l.id && l.inventoryItemId).map((l) => l.inventoryItemId!);
-    if (newItemIds.length > 0) {
-      const hubOrgId = await requireHubSite();
-      const liveItems = await inventoryItemRepository.findLiveByIds(newItemIds, hubOrgId);
-      if (liveItems.length !== new Set(newItemIds).size) {
-        throw new NotFoundError('One or more items were not found');
+    const replay = async (): Promise<MutationResult | null> => {
+      const prior = await repo.findByStartKey(siteId, actor.id, input.idempotencyKey);
+      if (!prior) return null;
+      const rec = await repo.findFile(prior.id, { siteId });
+      return rec ? mutation(rec, true) : null;
+    };
+    const earlier = await replay();
+    if (earlier) return earlier;
+
+    try {
+      const createdId = await prisma.$transaction(async (tx) => {
+        await repo.lockCycle(tx, siteId, input.cycle);
+        const open = await repo.findOpenForCycle(siteId, input.cycle, tx);
+        if (open) throw requisitionError('REQUISITION_ALREADY_OPEN', `The ${input.cycle.toLowerCase()} requisition is already open (${open.reference}).`, { requisitionId: open.id });
+        const reference = `REQ-${site.code}-${pad4(await referenceCounterRepository.nextNumber(tx, siteId, 'REQ'))}`;
+        const created = await repo.createRequisition(tx, { siteId, type: input.cycle, reference, openedById: actor.id, urgent: input.urgent === true, idempotencyKey: input.idempotencyKey });
+        const departments = await repo.listActiveDepartments(siteId, tx);
+        const now = new Date();
+        for (const d of departments) {
+          // A department with no tagged items counts as done: it is Skipped by rule (nobody signed that).
+          const section = await repo.createSection(tx, {
+            requisitionId: created.id,
+            departmentId: d.id,
+            departmentTag: d.key,
+            status: d.itemCount === 0 ? 'SKIPPED' : 'NOT_STARTED',
+            ...(d.itemCount === 0 ? { skippedAt: now } : {}),
+          });
+          if (d.id === c.headDepartmentId && d.itemCount > 0) {
+            // The starter's own section is pre-filled with restock level minus on hand.
+            const items = await repo.listTaggedItems(siteId, d.id, tx);
+            const stock = await stockFor(siteId, d.id, items, tx);
+            const lines = items.flatMap((i) => {
+              const s = stock.get(i.id);
+              return s && s.suggested.greaterThan(0)
+                ? [{ inventoryItemId: i.id, requestedQty: s.suggested, suggestedQty: s.suggested, parAtRequest: s.level, onHandAtRequest: s.onHand }]
+                : [];
+            });
+            if (lines.length > 0) {
+              await repo.createLines(tx, section.id, lines);
+              await repo.updateSection(tx, siteId, section.id, { status: 'DRAFT' });
+            }
+          }
+        }
+        await repo.appendEvent(tx, { requisitionId: created.id, type: 'STARTED', toValue: input.cycle, ...event(c) });
+        if (input.urgent) await repo.appendEvent(tx, { requisitionId: created.id, type: 'URGENT_SET', ...event(c) });
+        await syncStatus(tx, siteId, created.id);
+        return created.id;
+      });
+      const rec = await repo.findFile(createdId, { siteId });
+      if (!rec) throw new NotFoundError('Requisition not found');
+      if (rec.urgent) requisitionNotices.publish({ type: 'URGENT_SET', requisitionId: rec.id, reference: rec.reference, siteId, actorId: actor.id });
+      return mutation(rec, false);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const again = await replay();
+        if (again) return again;
       }
+      throw error;
     }
+  },
 
-    if (input.fillMyself && !NOT_SUBMITTED_STATUSES.includes(section.status)) {
-      throw new ConflictError('This section has already been submitted');
-    }
+  /** R12: save the whole draft of a section. A Sent section reopens as a Draft. */
+  saveLines: async (actor: Actor, id: string, departmentId: string, input: SaveLinesInput): Promise<SectionDetail> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireSectionEditor(c, rec, departmentId);
+    assertBeforeApproval(rec);
+    const section = findSection(rec, departmentId);
+    const saved = sectionStatusAfterSave(section.status as SectionStatus, input.lines.length);
+    if (!saved.allowed) throw stateConflict('SECTION_NOT_OPEN', 'This section can no longer be changed.');
 
-    for (const line of input.lines) {
-      if (line.deleted || !line.id) continue;
-      const existing = existingById.get(line.id);
-      if (!existing) throw new NotFoundError('Requisition line not found');
-      const existingRequestedQty = toDecimalString(existing.requestedQty);
-      if (!decimalsEqual(line.approvedQty, existingRequestedQty) && !line.editReason) {
-        throw new ValidationError('An edit reason is required when the approved quantity differs from what was requested');
-      }
-    }
+    const tagged = await repo.findTaggedItemIds(rec.siteId, departmentId, input.lines.map((l) => l.itemId));
+    const stray = input.lines.filter((l) => !tagged.has(l.itemId));
+    if (stray.length > 0) throw requisitionError('ITEM_NOT_IN_DEPARTMENT', 'Some items are not tagged to this department.', { itemIds: stray.map((l) => l.itemId) });
+
+    const existing = new Map(section.lines.filter((l) => !l.additionId).map((l) => [l.inventoryItemId, l]));
+    const wanted = new Set(input.lines.map((l) => l.itemId));
+    const addedItems = input.lines.filter((l) => !existing.has(l.itemId)).map((l) => l.itemId);
+    const items = addedItems.length > 0 ? (await repo.listTaggedItems(rec.siteId, departmentId)).filter((i) => addedItems.includes(i.id)) : [];
+    const stock = await stockFor(rec.siteId, departmentId, items);
 
     await prisma.$transaction(async (tx) => {
       for (const line of input.lines) {
-        if (line.id && line.deleted) {
-          await requisitionRepository.softDeleteLine(line.id, tx);
-        } else if (line.id) {
-          const approvedQty = line.approvedQty === null ? null : new Prisma.Decimal(line.approvedQty);
-          await requisitionRepository.updateLineApproval(line.id, { approvedQty, editReason: line.editReason ?? null, editedById: actor.id }, tx);
-        } else if (line.inventoryItemId && line.approvedQty !== null) {
-          await requisitionRepository.createManagerLine(
-            section.id,
-            { inventoryItemId: line.inventoryItemId, approvedQty: new Prisma.Decimal(line.approvedQty), editedById: actor.id, editReason: line.editReason ?? null },
-            tx,
-          );
+        const have = existing.get(line.itemId);
+        const qty = decimalOf(line.requestedQty);
+        if (have) {
+          if (!have.requestedQty || !have.requestedQty.equals(qty)) await repo.updateLine(tx, rec.siteId, have.id, { requestedQty: qty });
         }
       }
-
-      if (input.fillMyself) {
-        // A manager-filled section counts as settled (decision #6) —
-        // SUBMITTED, attributed to the manager, no new enum value.
-        const count = await requisitionRepository.setSectionStatus(
-          section.id,
-          NOT_SUBMITTED_STATUSES,
-          { status: 'SUBMITTED', submittedById: actor.id, submittedAt: new Date() },
-          tx,
-        );
-        if (count === 0) throw new ConflictError('This section has already been submitted');
-        // Easy to miss: without this the requisition stays at OPEN and
-        // approve then refuses with "nothing to approve".
-        await requisitionRepository.markPendingApprovalIfOpen(requisitionId, tx);
-      }
+      await repo.createLines(
+        tx,
+        section.id,
+        input.lines
+          .filter((l) => !existing.has(l.itemId))
+          .map((l) => {
+            const s = stock.get(l.itemId);
+            // A line the head added has no pre-filled number to compare with (`suggestedQty` stays null).
+            return { inventoryItemId: l.itemId, requestedQty: decimalOf(l.requestedQty), suggestedQty: null, parAtRequest: s?.level ?? null, onHandAtRequest: s?.onHand ?? null };
+          }),
+      );
+      await repo.removeLines(tx, rec.siteId, [...existing.values()].filter((l) => !wanted.has(l.inventoryItemId)).map((l) => l.id));
+      await repo.updateSection(tx, rec.siteId, section.id, {
+        status: saved.status,
+        ...(section.status === 'SUBMITTED' ? { submittedAt: null, submittedById: null } : {}),
+        ...(input.noteForManager !== undefined ? { managerNote: input.noteForManager } : {}),
+      });
+      await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'LINE_CHANGED', toValue: `${input.lines.length} lines`, ...event(c) });
+      await syncStatus(tx, rec.siteId, rec.id);
     });
 
-    return requisitionService.getRequisitionForApproval(actor, requisitionId);
+    const fresh = await reload(c, rec);
+    return sectionDetailWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date()));
   },
 
-  /** SUBMITTED -> RETURNED with the manager's note. Rejected on an already-approved requisition. */
-  returnSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag, input: ReturnSectionInput): Promise<RequisitionApprovalDetail> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
+  /** R13: send a section, signed with the sender's PIN. */
+  sendSection: async (actor: Actor, id: string, departmentId: string, pin: string, idempotencyKey: string): Promise<SendSectionResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireSectionEditor(c, rec, departmentId);
+    const done = async (replayed: boolean): Promise<SendSectionResult> => {
+      const fresh = await reload(c, rec);
+      const viewer = await viewerFor(c, fresh, new Date());
+      return { ...mutation(fresh, replayed), section: sectionSummaryWire(findSection(fresh, departmentId), fresh, viewer), readyToApprove: fresh.status === 'PENDING_APPROVAL' };
+    };
+    if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    assertBeforeApproval(rec);
+    const section = findSection(rec, departmentId);
+    const check = checkSend(section.status as SectionStatus, section.lines.filter((l) => !l.additionId).length);
+    if (check === 'EMPTY') throw requisitionError('SECTION_EMPTY', 'A section with no lines cannot be sent.');
+    if (check === 'NOT_SENDABLE') throw stateConflict('SECTION_ALREADY_SENT', 'This section has already been sent.');
+    await countPin.verifyOwn(actor, pin);
 
-    const requisition = await requisitionRepository.findById(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-    if (requisition.status === 'APPROVED') {
-      throw new ConflictError('This requisition has already been approved');
+    try {
+      const status = await prisma.$transaction(async (tx) => {
+        await repo.updateSection(tx, rec.siteId, section.id, { status: 'SUBMITTED', submittedAt: new Date(), submittedById: actor.id });
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SENT', idempotencyKey, ...event(c) });
+        return syncStatus(tx, rec.siteId, rec.id);
+      });
+      requisitionNotices.publish({
+        type: 'SECTION_SENT', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id,
+        departmentId, departmentName: section.department?.name ?? '', readyToApprove: status === 'PENDING_APPROVAL',
+      });
+      return await done(false);
+    } catch (error) {
+      if (isUniqueViolation(error)) return done(true);
+      throw error;
     }
-
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-
-    const count = await prisma.$transaction((tx) =>
-      requisitionRepository.setSectionStatus(section.id, ['SUBMITTED'], { status: 'RETURNED', returnedNote: input.note }, tx),
-    );
-    if (count === 0) throw new ConflictError('This section is not currently submitted');
-
-    void notifyHeadOfReturn(section.submittedById, departmentTag, requisitionId, actor.id, input.note);
-
-    return requisitionService.getRequisitionForApproval(actor, requisitionId);
   },
 
-  /** Pure notification — no state change. Section must be NOT_STARTED/DRAFT (a submitted section needs no nudge). */
-  nudgeHead: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<void> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
-    if (!section) throw new NotFoundError('Requisition section not found');
-    if (!NOT_SUBMITTED_STATUSES.includes(section.status)) {
-      throw new ConflictError('This section has already been submitted');
+  /** R14: take a Sent section back to Draft, until the requisition is signed. */
+  recallSection: async (actor: Actor, id: string, departmentId: string): Promise<RecallSectionResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    if (c.headDepartmentId !== departmentId || c.staff.siteId !== rec.siteId) {
+      throw requisitionError('NOT_YOUR_DEPARTMENT', 'You can only recall your own department.');
     }
-
-    void notifyHeadOfNudge(siteId, departmentTag, requisitionId, actor.id);
-  },
-
-  /**
-   * The hard gate: sign once with a PIN to approve the whole requisition
-   * (decision #7 — one signature, not per-department; per-department signing
-   * is Milestone Five's dispatch pattern).
-   */
-  approveRequisition: async (actor: Actor, requisitionId: string, input: ApproveRequisitionInput): Promise<RequisitionApprovalDetail> => {
-    requireManager(actor);
-    const siteId = requireBranchOrg(actor);
-
-    const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
-    if (!actorWithPin || !actorWithPin.pinHash) {
-      throw new UnauthorizedError('No PIN is set for this account');
-    }
-    const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
-    if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
-
-    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
-    if (!requisition) throw new NotFoundError('Requisition not found');
-    if (requisition.status === 'APPROVED') {
-      throw new ConflictError('This requisition has already been approved');
-    }
-    if (!requisition.sections.some((s) => s.status === 'SUBMITTED')) {
-      throw new ConflictError('Nothing in this requisition is ready for approval yet');
-    }
-
+    assertBeforeApproval(rec);
+    const section = findSection(rec, departmentId);
+    if (!canRecall(section.status as SectionStatus)) throw stateConflict('SECTION_NOT_SENT', 'This section has not been sent.');
     await prisma.$transaction(async (tx) => {
-      // Recall race guard: re-assert every currently-SUBMITTED section is
-      // *still* SUBMITTED via the guarded updateMany — it takes row locks, a
-      // count() under READ COMMITTED does not. Writing a value to itself
-      // looks pointless; it is the only way to detect a concurrent recall
-      // between the pre-load above and this transaction. Don't "simplify"
-      // this to a plain count() — the two claims below (§3, §4) tests catch it.
-      const submittedSectionIds = requisition.sections.filter((s) => s.status === 'SUBMITTED').map((s) => s.id);
-      for (const sectionId of submittedSectionIds) {
-        const count = await requisitionRepository.setSectionStatus(sectionId, ['SUBMITTED'], { status: 'SUBMITTED' }, tx);
-        if (count === 0) {
-          throw new ConflictError('A department recalled their section while you were reviewing.');
-        }
-      }
-
-      // Freeze: any line still at approvedQty === null on a submitted
-      // section is written to requestedQty. Without this an approved
-      // requisition has null approvedQty rows and Milestone Five's dispatch
-      // has nothing to pick, with no way to tell "approved as requested"
-      // from "never reviewed". One UPDATE per line — fine at this scale
-      // (a 60-line requisition = 60 writes in one transaction); don't optimise.
-      for (const section of requisition.sections) {
-        if (section.status !== 'SUBMITTED') continue; // unsubmitted sections are silently ignored — decision #3's derived "Send without"
-        for (const line of section.lines) {
-          if (line.approvedQty === null) {
-            await requisitionRepository.updateLineApproval(line.id, { approvedQty: line.requestedQty, editReason: null, editedById: actor.id }, tx);
-          }
-        }
-      }
-
-      const approvedCount = await requisitionRepository.markApprovedIfPendingApproval(requisitionId, actor.id, tx);
-      if (approvedCount === 0) {
-        throw new ConflictError('This requisition was already approved by another manager.');
-      }
+      await repo.updateSection(tx, rec.siteId, section.id, { status: 'DRAFT', submittedAt: null, submittedById: null });
+      await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'RECALLED', ...event(c) });
+      await syncStatus(tx, rec.siteId, rec.id);
     });
+    const fresh = await reload(c, rec);
+    return { ...mutation(fresh, false), section: sectionSummaryWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date())) };
+  },
 
-    const approved = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
-    if (!approved) throw new NotFoundError('Requisition not found');
+  /** R15: set or clear Urgent before approval. The manager, or a head for a requisition their department is part of. */
+  setUrgent: async (actor: Actor, id: string, input: SetUrgentInput): Promise<SetUrgentResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    const headHere = c.headDepartmentId !== null && c.staff.siteId === rec.siteId && rec.sections.some((s) => s.departmentId === c.headDepartmentId);
+    if (!headHere) requireCapAt(c, 'requisitions.set_urgent', rec.siteId);
+    assertBeforeApproval(rec);
+    if (rec.urgent !== input.urgent) {
+      const urgentAt = input.urgent ? new Date() : null;
+      await prisma.$transaction(async (tx) => {
+        await repo.setUrgent(tx, rec.siteId, rec.id, { urgent: input.urgent, urgentAt });
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: input.urgent ? 'URGENT_SET' : 'URGENT_CLEARED', ...event(c) });
+      });
+      if (input.urgent) requisitionNotices.publish({ type: 'URGENT_SET', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id });
+    }
+    const fresh = await reload(c, rec);
+    return { ...mutation(fresh, false), urgent: fresh.urgent, urgentAt: fresh.urgentAt ? fresh.urgentAt.toISOString() : null };
+  },
 
-    void notifyHeadsOfApproval(siteId, approved, actor.id);
+  /** R16: the manager changes an Approved quantity (a reason is required once the requisition is signed). */
+  changeQuantity: async (actor: Actor, id: string, lineId: string, input: ChangeQuantityInput): Promise<ChangeQuantityResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireCapAt(c, 'requisitions.change_quantity', rec.siteId);
+    if (rec.status === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+    if (rec.status === 'CLOSED') throw requisitionError('ALREADY_APPROVED', 'This requisition is closed.');
+    const section = rec.sections.find((s) => s.lines.some((l) => l.id === lineId));
+    const line = section?.lines.find((l) => l.id === lineId);
+    if (!section || !line) throw new NotFoundError('Line not found');
+    if (section.status !== 'SUBMITTED') throw stateConflict('SECTION_NOT_SENT', 'Only a sent section can be changed here.');
+    if (rec.status === 'APPROVED') {
+      if (!input.reason) throw requisitionError('REASON_REQUIRED', 'Say why the quantity changed.');
+      if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+        throw requisitionError('DEPARTMENT_PACKED', 'This department has been packed, so its quantities are locked.');
+      }
+    }
+    const from = (line.approvedQty ?? line.requestedQty ?? new Prisma.Decimal(0)).toString();
+    const to = decimalOf(input.approvedQty);
+    await prisma.$transaction(async (tx) => {
+      await repo.updateLine(tx, rec.siteId, line.id, { approvedQty: to, editedById: actor.id, editReason: input.reason ?? null });
+      await repo.appendEvent(tx, {
+        requisitionId: rec.id, sectionId: section.id, type: 'QUANTITY_CHANGED', fromValue: from, toValue: to.toString(), reason: input.reason ?? null, lineId: line.id, ...event(c),
+      });
+    });
+    requisitionNotices.publish({
+      type: 'QUANTITY_CHANGED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id,
+      departmentId: section.departmentId ?? '', departmentName: section.department?.name ?? '', itemName: line.item.name, from, to: to.toString(), reason: input.reason ?? null,
+    });
+    const fresh = await reload(c, rec);
+    const viewer = await viewerFor(c, fresh, new Date());
+    const freshSection = fresh.sections.find((s) => s.id === section.id) ?? section;
+    const freshLine = freshSection.lines.find((l) => l.id === line.id) ?? line;
+    return {
+      ...mutation(fresh, false),
+      line: lineWire(freshLine, freshSection, viewer),
+      section: sectionSummaryWire(freshSection, fresh, viewer),
+      ...currentValue(fileWire(fresh, viewer, null)),
+    };
+  },
 
-    const parentNames = await resolveParentCategoryNamesForLines(approved.sections.flatMap((s) => s.lines));
-    return serializeApprovalDetail(approved, parentNames);
+  /** R17: remind a department's head. */
+  nudge: async (actor: Actor, id: string, departmentId: string): Promise<NudgeResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireCapAt(c, 'requisitions.nudge', rec.siteId);
+    assertBeforeApproval(rec);
+    const section = findSection(rec, departmentId);
+    if (!canSkip(section.status as SectionStatus)) throw stateConflict('SECTION_ALREADY_SENT', 'This department has already sent.');
+    const at = new Date();
+    await prisma.$transaction((tx) => repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'NUDGED', ...event(c) }));
+    requisitionNotices.publish({
+      type: 'NUDGED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, departmentId, departmentName: section.department?.name ?? '',
+    });
+    return { ...mutation(rec, false), nudgedAt: at.toISOString() };
+  },
+
+  /** R18: "Send without this section". */
+  skip: async (actor: Actor, id: string, departmentId: string): Promise<SkipSectionResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireCapAt(c, 'requisitions.nudge', rec.siteId);
+    assertBeforeApproval(rec);
+    const section = findSection(rec, departmentId);
+    if (!canSkip(section.status as SectionStatus)) throw stateConflict('SECTION_ALREADY_SENT', 'This department has already sent.');
+    await prisma.$transaction(async (tx) => {
+      await repo.removeSectionLines(tx, rec.siteId, section.id);
+      await repo.updateSection(tx, rec.siteId, section.id, { status: 'SKIPPED', skippedAt: new Date(), skippedById: actor.id });
+      await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SKIPPED', ...event(c) });
+      await syncStatus(tx, rec.siteId, rec.id);
+    });
+    const fresh = await reload(c, rec);
+    return {
+      ...mutation(fresh, false),
+      section: sectionSummaryWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date())),
+      readyToApprove: fresh.status === 'PENDING_APPROVAL',
+    };
+  },
+
+  /** R19: approve and sign. The Branch Manager, or the Director and the System Admin with their own PIN. */
+  approve: async (actor: Actor, id: string, input: ApproveInput, idempotencyKey: string): Promise<ApproveResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    if (!mayApproveAt(c, rec.siteId)) throw new ForbiddenError('You do not have permission to approve this requisition');
+    const done = async (replayed: boolean): Promise<ApproveResult> => {
+      const fresh = await reload(c, rec);
+      const viewer = await viewerFor(c, fresh, new Date());
+      return {
+        ...mutation(fresh, replayed),
+        approvedAt: (fresh.approvedAt ?? new Date()).toISOString(),
+        approvedBy: toPerson(fresh.approvedBy ?? { id: actor.id, name: c.staff.name, role: c.staff.role }),
+        ...currentValue(fileWire(fresh, viewer, null)),
+      };
+    };
+    if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    const guard = guardApprove(rec.status as RequisitionStatus);
+    if (guard === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+    if (guard === 'ALREADY_APPROVED') throw requisitionError('ALREADY_APPROVED', 'This requisition has already been signed.');
+    if (guard === 'NOT_READY') throw requisitionError('NOT_READY_TO_APPROVE', 'Some departments have not sent yet.');
+    await countPin.verifyOwn(actor, input.pin);
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await repo.freezeForApproval(tx, rec.siteId, rec.id);
+        // The signer is recorded as the approver; when it is not the Branch Manager the record also says who signed as (contract §2.3).
+        await repo.setStatus(tx, rec.siteId, rec.id, 'APPROVED', {
+          approvedById: actor.id,
+          approvedAt: new Date(),
+          approvedAsId: c.actor.role === 'MANAGER' ? null : actor.id,
+        });
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: 'APPROVED', toValue: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER', idempotencyKey, ...event(c) });
+      });
+      requisitionNotices.publish({
+        type: 'APPROVED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, signedAs: SIGNED_AS[c.actor.role] ?? 'BRANCH_MANAGER',
+      });
+      return await done(false);
+    } catch (error) {
+      if (isUniqueViolation(error)) return done(true);
+      throw error;
+    }
+  },
+
+  /** R20: cancel before approval; the file stays, marked Cancelled. */
+  cancel: async (actor: Actor, id: string, input: CancelInput, idempotencyKey: string): Promise<CancelResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    requireCapAt(c, 'requisitions.cancel', rec.siteId);
+    const done = async (replayed: boolean): Promise<CancelResult> => {
+      const fresh = await reload(c, rec);
+      return { ...mutation(fresh, replayed), cancelledAt: (fresh.cancelledAt ?? new Date()).toISOString() };
+    };
+    if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    assertBeforeApproval(rec);
+    await countPin.verifyOwn(actor, input.pin);
+    try {
+      await prisma.$transaction(async (tx) => {
+        await repo.setStatus(tx, rec.siteId, rec.id, 'CANCELLED', { cancelledAt: new Date(), cancelledById: actor.id, cancelReason: input.reason });
+        await repo.appendEvent(tx, { requisitionId: rec.id, type: 'CANCELLED', reason: input.reason, idempotencyKey, ...event(c) });
+      });
+      requisitionNotices.publish({ type: 'CANCELLED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, reason: input.reason });
+      return await done(false);
+    } catch (error) {
+      if (isUniqueViolation(error)) return done(true);
+      throw error;
+    }
+  },
+
+  /** R21: a head adds lines after approval, while their department's dispatch is not signed. */
+  addAddition: async (actor: Actor, id: string, input: AddAdditionInput, idempotencyKey: string): Promise<AddAdditionResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    const departmentId = c.headDepartmentId;
+    if (!departmentId || c.staff.siteId !== rec.siteId) throw requisitionError('NOT_YOUR_DEPARTMENT', 'Only a department head can add to a requisition.');
+    const section = findSection(rec, departmentId);
+    const done = async (replayed: boolean): Promise<AddAdditionResult> => {
+      const fresh = await reload(c, rec);
+      const mine = [...fresh.additions].reverse().find((a) => a.addedById === actor.id && a.departmentId === departmentId);
+      if (!mine) throw new NotFoundError('Addition not found');
+      return { ...mutation(fresh, replayed), addition: additionWire(mine, fresh, await viewerFor(c, fresh, new Date())) };
+    };
+    if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    const guard = guardAfterApproval(rec.status as RequisitionStatus);
+    if (guard === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+    if (guard === 'CLOSED') throw requisitionError('ADDITION_LOCKED', 'This requisition is closed. Start an Extra requisition.');
+    if (guard === 'NOT_APPROVED') throw stateConflict('NOT_APPROVED', 'This requisition is not signed yet, so edit your section instead.');
+    if (section.status !== 'SUBMITTED') throw stateConflict('SECTION_NOT_SENT', 'Your department did not send this requisition.');
+    if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+      throw requisitionError('ADDITION_LOCKED', 'Your department has been dispatched. Start an Extra requisition.');
+    }
+    const tagged = await repo.findTaggedItemIds(rec.siteId, departmentId, input.lines.map((l) => l.itemId));
+    const stray = input.lines.filter((l) => !tagged.has(l.itemId));
+    if (stray.length > 0) throw requisitionError('ITEM_NOT_IN_DEPARTMENT', 'Some items are not tagged to this department.', { itemIds: stray.map((l) => l.itemId) });
+    await countPin.verifyOwn(actor, input.pin);
+
+    const items = (await repo.listTaggedItems(rec.siteId, departmentId)).filter((i) => input.lines.some((l) => l.itemId === i.id));
+    const stock = await stockFor(rec.siteId, departmentId, items);
+    try {
+      const additionId = await prisma.$transaction(async (tx) => {
+        const addition = await repo.createAddition(tx, { requisitionId: rec.id, departmentId, addedById: actor.id, sentPinSignedAt: new Date() });
+        await repo.createLines(
+          tx,
+          section.id,
+          input.lines.map((l) => {
+            const s = stock.get(l.itemId);
+            return { inventoryItemId: l.itemId, requestedQty: decimalOf(l.requestedQty), suggestedQty: null, parAtRequest: s?.level ?? null, onHandAtRequest: s?.onHand ?? null, additionId: addition.id };
+          }),
+        );
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'ADDITION_ADDED', toValue: `${input.lines.length} lines`, idempotencyKey, ...event(c) });
+        return addition.id;
+      });
+      requisitionNotices.publish({
+        type: 'ADDITION_ADDED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, additionId, departmentId, departmentName: section.department?.name ?? '',
+      });
+      return await done(false);
+    } catch (error) {
+      if (isUniqueViolation(error)) return done(true);
+      throw error;
+    }
+  },
+
+  /** R22: approve an addition. Its lines join the department's unsigned dispatch (the hand-off is Block 2's). */
+  approveAddition: async (actor: Actor, id: string, additionId: string, input: ApproveAdditionInput, idempotencyKey: string): Promise<ApproveAdditionResult> => {
+    const c = await loadCaller(actor);
+    const rec = await loadFile(c, id);
+    if (!mayApproveAt(c, rec.siteId)) throw new ForbiddenError('You do not have permission to approve this addition');
+    const addition = rec.additions.find((a) => a.id === additionId);
+    if (!addition) throw new NotFoundError('Addition not found');
+    const done = async (replayed: boolean): Promise<ApproveAdditionResult> => {
+      const fresh = await reload(c, rec);
+      const mine = fresh.additions.find((a) => a.id === additionId);
+      if (!mine) throw new NotFoundError('Addition not found');
+      return { ...mutation(fresh, replayed), addition: additionWire(mine, fresh, await viewerFor(c, fresh, new Date())) };
+    };
+    if (await repo.findEventByKey(rec.id, rec.siteId, actor.id, idempotencyKey)) return done(true);
+    if (rec.status === 'CANCELLED') throw requisitionError('CANCELLED', 'This requisition was cancelled.');
+    if (addition.status !== 'PENDING') throw stateConflict('ADDITION_NOT_PENDING', 'This addition has already been decided.');
+    const section = findSection(rec, addition.departmentId);
+    if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+      throw requisitionError('ADDITION_LOCKED', "This department has been dispatched. The head should start an Extra requisition.");
+    }
+    await countPin.verifyOwn(actor, input.pin);
+    try {
+      await prisma.$transaction(async (tx) => {
+        await repo.setAdditionStatus(tx, rec.siteId, addition.id, { status: 'APPROVED', approvedById: actor.id, approvedAt: new Date() });
+        await repo.freezeAdditionLines(tx, rec.siteId, addition.id);
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'ADDITION_APPROVED', idempotencyKey, ...event(c) });
+      });
+      await attachAdditionToDispatch(addition.id);
+      requisitionNotices.publish({
+        type: 'ADDITION_APPROVED', requisitionId: rec.id, reference: rec.reference, siteId: rec.siteId, actorId: actor.id, additionId, departmentId: addition.departmentId,
+        departmentName: addition.department.name,
+      });
+      return await done(false);
+    } catch (error) {
+      if (isUniqueViolation(error)) return done(true);
+      throw error;
+    }
   },
 };

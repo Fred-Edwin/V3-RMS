@@ -64,7 +64,7 @@ export const dispatchRepository = {
         sections: {
           select: {
             departmentTag: true,
-            lines: { where: { deletedAt: null }, select: { requestedQty: true, approvedQty: true } },
+            lines: { where: { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' } }] }, select: { requestedQty: true, approvedQty: true } },
           },
         },
         dispatches: { select: { departmentTag: true, status: true } },
@@ -109,7 +109,8 @@ export const dispatchRepository = {
         sections: {
           include: {
             lines: {
-              where: { deletedAt: null },
+              // Lines of an addition still waiting for approval are not packed yet (Block 1 contract §10).
+              where: { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' } }] },
               include: { item: { select: { id: true, name: true, usageUnit: true, currentCost: true } } },
               orderBy: { id: 'asc' },
             },
