@@ -306,13 +306,12 @@ export const NAV_ROWS: readonly NavRow[] = [
     hub: true,
     // A parent shows when one of its sub-links does and opens the first of them. "Overview" is the default for any stock page without a link of its own.
     subItems: [
-      { key: 'overview', label: 'Overview', oldHref: '/app/inventory/stock', framed: true, roles: OLD_FLOW },
-      { key: 'items', label: 'All items', oldHref: '/app/inventory/stock/items', framed: true, roles: [STORE_MANAGER] },
-      { key: 'daily-count', label: 'Daily count', oldHref: '/app/inventory/stock/counts', framed: true, roles: [STORE_MANAGER] },
-      // The Attendant's Daily count is the blind count sheet, a different page from the manager's verify screen.
-      { key: 'daily-count-blind', label: 'Daily count', oldHref: '/app/inventory/stock/daily-count', framed: true, roles: [STORE_ATTENDANT] },
-      { key: 'spot-count', label: 'Spot count', oldHref: '/app/inventory/stock/spot-count', framed: true, roles: [STORE_MANAGER] },
-      { key: 'ledger', label: 'Stock ledger', oldHref: '/app/inventory/stock/ledger', framed: true, roles: [STORE_MANAGER] },
+      { key: 'overview', label: 'Overview', newHref: '/app/inventory/stock', roles: DESKTOP_HUB, capability: 'stock.read' },
+      { key: 'items', label: 'All items', newHref: '/app/inventory/stock/items', roles: DESKTOP_HUB, capability: 'stock.read' },
+      // One Counts link for everyone: a reader gets the Counts list, a counter without read access gets Pick a section (the page decides from the server's data).
+      { key: 'counts', label: 'Counts', newHref: '/app/inventory/stock/counts', roles: HUB_ALL, anyCapability: ['counts.read', 'counts.record'] },
+      { key: 'waste', label: 'Waste', newHref: '/app/inventory/stock/waste', roles: HUB_ALL, capability: 'waste.read' },
+      { key: 'ledger', label: 'Stock ledger', newHref: '/app/inventory/stock/ledger', roles: DESKTOP_HUB, capability: 'stock.read' },
       { key: 'restock-levels', label: 'Restock levels', newHref: '/app/inventory/stock/restock-levels', roles: DESKTOP_HUB, capability: 'restock.read' },
     ],
   },

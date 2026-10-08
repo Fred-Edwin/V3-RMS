@@ -29,7 +29,7 @@ describe('route gate: Stock, Counting and Waste', () => {
     for (const path of ['/app/inventory/stock/counts', '/app/inventory/stock/counts/abc/count', '/app/inventory/stock/waste', '/app/inventory/stock/waste/new', '/app/inventory/count-print/blank']) {
       expect(ok(path, 'STORE_ATTENDANT'), path).toBe(true);
     }
-    for (const path of ['/app/inventory/stock/items', '/app/inventory/stock/ledger', '/app/inventory/stock/ledger/abc', '/app/inventory/count-print/abc', '/app/inventory/stock/countsfoo']) {
+    for (const path of ['/app/inventory/stock', '/app/inventory/stock/daily-count', '/app/inventory/stock/items', '/app/inventory/stock/ledger', '/app/inventory/stock/ledger/abc', '/app/inventory/count-print/abc', '/app/inventory/stock/countsfoo']) {
       expect(ok(path, 'STORE_ATTENDANT'), path).toBe(false);
     }
   });

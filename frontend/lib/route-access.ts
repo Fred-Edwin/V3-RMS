@@ -149,9 +149,8 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
       return pathname.startsWith('/app/inventory/count-print/blank') ? isHubReader || role === 'STORE_ATTENDANT' : isHubReader;
     }
     if (pathname.startsWith('/app/inventory/stock')) {
-      // `/stock` itself and `daily-count` are the Attendant's two links in the navigation table until the orchestrator switches the rows
-      // at release (contract §13); remove that part of the pattern with the old rows. The new Overview shows them a permission card.
-      const attendantArea = /^\/app\/inventory\/stock\/(counts|waste|daily-count)(\/|$)|^\/app\/inventory\/stock\/?$/.test(pathname);
+      // The Attendant's two links in the navigation table are Counts and Waste (contract §13, switched at release).
+      const attendantArea = /^\/app\/inventory\/stock\/(counts|waste)(\/|$)/.test(pathname);
       return isHubReader || (role === 'STORE_ATTENDANT' && attendantArea);
     }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';

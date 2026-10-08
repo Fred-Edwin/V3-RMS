@@ -50,8 +50,6 @@ export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScre
 export { WasteScreen, LogWastePhoneScreen } from './waste';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
 export { DepartmentLogWasteScreen } from './waste/department/components/department-log-waste-screen';
-export { DailyCountScreen } from './counting/components/screens/daily-count-screen';
-export { SpotCountScreen } from './counting/components/screens/spot-count-screen';
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
 export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
