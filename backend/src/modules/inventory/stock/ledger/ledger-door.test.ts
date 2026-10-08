@@ -40,7 +40,7 @@ const LINK_FOR: Record<string, LedgerLink> = {
   WASTE: 'wasteLogId',
   DISPATCH_OUT: 'dispatchLineId',
   DISPATCH_IN: 'dispatchLineId',
-  ADJUSTMENT: 'stockCountLineId',
+  ADJUSTMENT: 'countLineId',
 };
 
 const base = (overrides: Partial<PostStockMovementInput> = {}): PostStockMovementInput => ({
@@ -92,18 +92,18 @@ describe('postStockMovement — sign, link, cost and reference per type', () => 
   }
 
   it('ADJUSTMENT keeps the caller’s sign (both ways) and gets an ADJ reference from the location’s site', async () => {
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('-2.5'), links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('-2.5'), links: { countLineId: 'cl-1' } }));
     expect(created().quantity.toString()).toBe('-2.5');
     expect(created().reference).toBe('ADJ-0007');
     expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(tx, hubSite, 'ADJ');
 
     vi.mocked(ledgerRepository.create).mockClear();
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('4'), links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', quantity: D('4'), links: { countLineId: 'cl-1' } }));
     expect(created().quantity.toString()).toBe('4');
   });
 
-  it('ADJUSTMENT accepts each of its five source links', async () => {
-    expect(LEDGER_RULES.ADJUSTMENT!.links).toHaveLength(5);
+  it('ADJUSTMENT accepts each of its four source links', async () => {
+    expect(LEDGER_RULES.ADJUSTMENT!.links).toHaveLength(4);
     for (const link of LEDGER_RULES.ADJUSTMENT!.links) {
       await expect(postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { [link]: 'doc-1' } }))).resolves.toBeDefined();
     }
@@ -132,7 +132,7 @@ describe('postStockMovement — sign, link, cost and reference per type', () => 
 
   it('refuses a movement that carries a count-line link and another link', async () => {
     await expect(
-      postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'count-line-1', stockCountLineId: 'old-1' } })),
+      postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'count-line-1', branchDayLineId: 'old-1' } })),
     ).rejects.toThrow(/exactly one of/);
   });
 
@@ -151,7 +151,7 @@ describe('postStockMovement — sign, link, cost and reference per type', () => 
   });
 
   it('joins the caller’s transaction: every repository call receives the same tx', async () => {
-    await postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { stockCountLineId: 'cl-1' } }));
+    await postStockMovement(tx, base({ type: 'ADJUSTMENT', links: { countLineId: 'cl-1' } }));
     expect(vi.mocked(ledgerRepository.findLocationOwner).mock.calls[0]![0]).toBe(tx);
     expect(vi.mocked(ledgerRepository.findLinkOwnerSites).mock.calls[0]![0]).toBe(tx);
     expect(vi.mocked(ledgerRepository.create).mock.calls[0]![0]).toBe(tx);
@@ -180,7 +180,7 @@ describe('postStockMovement — rejections', () => {
   it('rejects a zero quantity, and a negative quantity on any type but ADJUSTMENT', async () => {
     await rejects(base({ quantity: D(0) }), ValidationError, /above zero/);
     await rejects(base({ quantity: D(-3) }), ValidationError, /positive number/);
-    await rejects(base({ type: 'ADJUSTMENT', quantity: D(0), links: { stockCountLineId: 'cl-1' } }), ValidationError, /above zero/);
+    await rejects(base({ type: 'ADJUSTMENT', quantity: D(0), links: { countLineId: 'cl-1' } }), ValidationError, /above zero/);
   });
 
   it('rejects a negative unit cost', async () => {
@@ -234,7 +234,7 @@ describe('postStockMovement — reversals', () => {
     alreadyReversed: false,
   };
   const reversal = (overrides: Partial<PostStockMovementInput> = {}) =>
-    base({ type: 'ADJUSTMENT', quantity: D(-5), links: { stockCountLineId: 'cl-1' }, reversesTransactionId: 'orig-1', ...overrides });
+    base({ type: 'ADJUSTMENT', quantity: D(-5), links: { countLineId: 'cl-1' }, reversesTransactionId: 'orig-1', ...overrides });
 
   beforeEach(() => {
     vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(original);

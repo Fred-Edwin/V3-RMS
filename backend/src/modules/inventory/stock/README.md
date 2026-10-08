@@ -62,7 +62,7 @@ postStockMovement(tx, {
 | `WASTE` | − | `wasteLogId` |
 | `DISPATCH_IN` | + | `dispatchLineId` |
 | `DISPATCH_OUT` | − | `dispatchLineId` |
-| `ADJUSTMENT` | as given | one of `countLineId` (the Counting rebuild), `stockCountLineId` (old; dropped at release), `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+| `ADJUSTMENT` | as given | one of `countLineId` (the Counting rebuild), `branchDayLineId`, `openingLineId`, `dispatchLineId` |
 
 A **waste row can be reversed** (Waste W4, no PIN): `reversal: 'WASTE'`, the same rule as Prep: the caller sends the same positive quantity with `reversesTransactionId`; the door stores it positive and the original must be a WASTE row at the same site, location and item with the exact opposite quantity (one reversal per row, a reversal is never reversed).
 

@@ -14,10 +14,12 @@ enum InventoryTransactionType {
   SALE
 }
 
-// stockCountLineId/marketPurchaseLineId are retained as unlinked
-// nullable columns: the models they referenced were dropped by Milestone One
-// (plan §1.3/§4), and those ledger paths are still out of scope. Each is
-// restored as a real FK when the milestone that rebuilds that flow lands.
+// marketPurchaseLineId is retained as an unlinked nullable column: the model it
+// referenced was dropped by Milestone One (plan §1.3/§4), and that ledger path
+// is still out of scope. The old `stockCountLineId` link was dropped with the
+// old count tables (stock_count_waste_contract, 8 Oct 2026); `countLineId`
+// (Counting rebuild) replaces it. Each other link was restored as a real FK
+// when the milestone that rebuilds that flow landed.
 // goodsReceiptLineId (formerly purchaseOrderLineId) was the first of these
 // restored — Milestone Two (Receiving & Supplier AP) is the first writer to
 // this ledger; see milestone-2-plan.md §1.6. prepRecordId is the second —
@@ -42,7 +44,6 @@ model InventoryTransaction {
   purchaseDeliveryLineId String?                  @map("purchase_delivery_line_id") // Purchasing: a received delivery line
   prepRecordId           String?                  @map("prep_record_id")
   wasteLogId             String?                  @map("waste_log_id")
-  stockCountLineId       String?                  @map("stock_count_line_id")
   countLineId            String?                  @map("count_line_id") // Counting rebuild: the adjustment a count line posted
   branchDayLineId        String?                  @map("branch_day_line_id")
   openingLineId          String?                  @map("opening_line_id")
@@ -61,7 +62,6 @@ model InventoryTransaction {
   prepRun              PrepRun?               @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
   dispatchLine         DispatchLine?          @relation(fields: [dispatchLineId], references: [id])
   wasteLog             WasteLog?              @relation(fields: [wasteLogId], references: [id])
-  stockCountLine       StockCountLine?        @relation(fields: [stockCountLineId], references: [id])
   countLine            CountLine?             @relation(fields: [countLineId], references: [id], onDelete: SetNull)
   branchDayLine        BranchDayLine?         @relation(fields: [branchDayLineId], references: [id])
   openingLine          DepartmentOpeningLine? @relation(fields: [openingLineId], references: [id])
@@ -76,7 +76,6 @@ model InventoryTransaction {
   @@index([prepRecordId])
   @@index([dispatchLineId])
   @@index([wasteLogId])
-  @@index([stockCountLineId])
   @@index([countLineId])
   @@index([branchDayLineId])
   @@index([openingLineId])

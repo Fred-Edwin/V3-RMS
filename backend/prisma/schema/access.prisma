@@ -90,7 +90,6 @@ model Site {
   dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
   wasteLogs                    WasteLog[]
   wasteBatches                 WasteBatch[]
-  stockCounts                  StockCount[]
   counts                       Count[]
   countSections                CountSection[]
   countingThresholds           CountingThresholds?
@@ -195,9 +194,6 @@ model User {
   countLinesDecided                  CountLine[]                   @relation("CountLineDecidedBy")
   countLinesSeen                     CountLine[]                   @relation("CountLineDirectorSeenBy")
   countItemMoves                     CountItemMove[]               @relation("CountItemMoveMovedBy")
-  stockCountsCounted                 StockCount[]                  @relation("StockCountCounter")
-  stockCountsVerified                StockCount[]                  @relation("StockCountVerifier")
-  stockCountsReturned                StockCount[]                  @relation("StockCountReturnedBy")
   countingThresholdsUpdated          CountingThresholds[]          @relation("CountingThresholdsUpdatedBy")
   branchDaysClosed                   BranchDay[]                   @relation("BranchDayClosedBy")
   branchDayDepartmentsCounted        BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")

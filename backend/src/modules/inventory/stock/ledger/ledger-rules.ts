@@ -12,7 +12,6 @@ export const LEDGER_LINKS = [
   'purchaseDeliveryLineId', // Purchasing: one received delivery line
   'prepRecordId',
   'wasteLogId',
-  'stockCountLineId',
   'countLineId', // the Counting rebuild: one line of a signed count
   'branchDayLineId',
   'openingLineId',
@@ -55,7 +54,7 @@ export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>>
   // (transit loss / receiving miscount) each write adjustments.
   ADJUSTMENT: {
     direction: 'SIGNED',
-    links: ['stockCountLineId', 'countLineId', 'branchDayLineId', 'openingLineId', 'dispatchLineId'],
+    links: ['countLineId', 'branchDayLineId', 'openingLineId', 'dispatchLineId'],
     numbered: true,
     reversal: 'ADJUSTMENT',
   },
