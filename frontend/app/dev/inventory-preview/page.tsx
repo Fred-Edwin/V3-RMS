@@ -93,7 +93,7 @@ const SCREENS = [
   { label: 'Item catalog', href: '/app/inventory/catalog' },
   { label: 'Suppliers', href: '/app/inventory/suppliers' },
   { label: 'Restock levels (department)', href: '/app/inventory/restock-levels' },
-  { label: 'Requisitions (head, mock)', href: '/app/requisitions' },
+  { label: 'Requisitions (head)', href: '/app/requisitions' },
 ];
 
 function fakeAccessToken(user: AuthUser, isDepartmentHead: boolean): string {

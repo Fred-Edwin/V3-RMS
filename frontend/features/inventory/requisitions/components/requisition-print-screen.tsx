@@ -36,7 +36,7 @@ function Sheet({ children, page, pages, reference, generatedAt }: { children: Re
 
 function Masthead({ print, label, extra }: { print: Print; label: string; extra: React.ReactNode }) {
   return (
-    <header className={`flex items-start justify-between border-b pb-[22px] pt-9 ${RULE}`}>
+    <header className={`flex items-start justify-between border-b pb-[22px] pt-10 ${RULE}`}>
       <div className="flex items-center gap-3">
         <div className="size-[46px] rounded-full bg-cover bg-center" style={{ backgroundImage: 'url(/images/wendo-logo.jpg)' }} aria-hidden />
         <div className="flex flex-col">
@@ -53,11 +53,20 @@ function Masthead({ print, label, extra }: { print: Print; label: string; extra:
   );
 }
 
+/** How many of a page's added lines are approved (they are already inside the department's `lineCount`). */
+const approvedAddedLines = (additions: ReadonlyArray<{ approvedAt: string | null; lines: readonly unknown[] }>): number =>
+  additions.filter((a) => a.approvedAt !== null).reduce((n, a) => n + a.lines.length, 0);
+
+/** The script signature is one line in a 300px column: a long name steps down instead of wrapping over the labels. */
+const signatureSize = (name: string): string => (name.length <= 16 ? 'text-[36px] leading-10' : name.length <= 24 ? 'text-[28px] leading-10' : 'text-[20px] leading-10');
+
 function Signature({ label, who, at }: { label: string; who: Person | null; at: string | null }) {
   return (
-    <div className="flex w-[300px] flex-col gap-1">
+    <div className="flex w-[262px] flex-col gap-1">
       <span className={`font-wds-mono text-[10px] tracking-[0.1em] ${MUTED}`}>{label}</span>
-      <div className="flex h-[50px] items-end border-b border-[#111111] pb-0.5">{who ? <span className="font-wds-signature text-[36px] leading-10">{who.name}</span> : null}</div>
+      <div className="flex h-[50px] items-end overflow-hidden border-b border-[#111111] pb-0.5">
+        {who ? <span className={`max-w-full truncate whitespace-nowrap font-wds-signature ${signatureSize(who.name)}`}>{who.name}</span> : null}
+      </div>
       <span className="text-[12px] leading-4">{who ? `${who.name} · ${who.roleLabel}` : 'Waiting for approval'}</span>
       {who && at ? <span className={`text-[10px] leading-3 ${MUTED}`}>Signed with PIN · {stamp(at)}</span> : null}
     </div>
@@ -67,7 +76,7 @@ function Signature({ label, who, at }: { label: string; who: Person | null; at: 
 function Qr({ print, caption }: { print: Print; caption: string }) {
   return (
     <div className="ml-auto flex flex-col items-center gap-1">
-      <QRCodeSVG value={print.qrPayload} size={64} marginSize={0} aria-label={`QR code for ${print.reference}`} />
+      <QRCodeSVG value={print.qrPayload} size={76} marginSize={0} aria-label={`QR code for ${print.reference}`} />
       <span className={`text-[10px] leading-3 ${MUTED}`}>{caption}</span>
     </div>
   );
@@ -109,6 +118,7 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
   const cycle = p.cycleLabel.split(' · ')[0] ?? p.cycleLabel;
   const added = p.cover.additionsCount;
   const totalLines = p.cover.departments.reduce((n, d) => n + d.lineCount, 0);
+  const addedLines = p.pages.reduce((n, pg) => n + approvedAddedLines(pg.additions), 0);
   const additionSigner = p.pages.flatMap((pg) => pg.additions).find((a) => a.approvedBy);
 
   return (
@@ -121,7 +131,7 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
 
       <Sheet page={1} pages={pageCount} reference={p.reference} generatedAt={p.generatedAt}>
         <Masthead print={p} label="REQUISITION" extra={<span className={`text-[12px] leading-4 ${MUTED}`}>{fullDate(p.startedAt)}</span>} />
-        <section className={`flex gap-8 border-b py-5 ${RULE}`}>
+        <section className={`flex gap-8 border-b py-[22px] ${RULE}`}>
           <div className="flex w-1/2 flex-col gap-1">
             <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.1em] ${MUTED}`}>FROM</span>
             <span className="text-[18px] font-semibold leading-6">{p.branch.name} branch</span>
@@ -133,7 +143,7 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
             <dt className={MUTED}>Cycle</dt><dd className="text-right">{cycle}</dd>
             <dt className={MUTED}>Started</dt><dd className="text-right">{clock(p.startedAt)}</dd>
             <dt className={MUTED}>Approved</dt><dd className="text-right">{p.approvedAt ? stamp(p.approvedAt) : 'Not yet'}</dd>
-            <dt className={MUTED}>Departments</dt><dd className="text-right">{p.cover.departments.length} · {totalLines} lines{added ? ` + ${added} added` : ''}</dd>
+            <dt className={MUTED}>Departments</dt><dd className="text-right">{p.cover.departments.length} · {totalLines - addedLines} lines{addedLines ? ` + ${addedLines} added` : ''}</dd>
           </dl>
         </section>
         <section className="flex flex-col py-4">
@@ -146,15 +156,16 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
           </div>
           {p.cover.departments.map((d, i) => {
             const page = p.pages.find((pg) => pg.departmentId === d.departmentId);
-            const pageAdded = page?.additions.reduce((n, a) => n + a.lines.length, 0) ?? 0;
+            // `lineCount` already holds the approved additions' lines; the "+ n" shows how many of them came after approval.
+            const pageAdded = approvedAddedLines(page?.additions ?? []);
             return (
-              <div key={d.departmentId} className={`flex min-h-[54px] items-center border-b px-2 ${RULE}`}>
+              <div key={d.departmentId} className={`flex h-12 items-center border-b px-2.5 ${RULE}`}>
                 <span className={`w-8 font-wds-mono text-[11px] ${MUTED}`}>{i + 1}</span>
                 <div className="flex grow flex-col">
                   <span className="text-[15px]">{d.departmentName}</span>
                   {page?.askedBy && page.askedAt ? <span className={`text-[11px] ${MUTED}`}>Asked by the {page.askedBy.roleLabel} at {clock(page.askedAt)}</span> : null}
                 </div>
-                <span className="w-16 text-right font-wds-mono text-[14px]">{pageAdded ? `${d.lineCount} + ${pageAdded}` : d.lineCount}</span>
+                <span className="w-16 text-right font-wds-mono text-[14px]">{pageAdded ? `${d.lineCount - pageAdded} + ${pageAdded}` : d.lineCount}</span>
                 <span className="w-40 pl-8 font-wds-mono text-[12px]">{d.dispatchReference ?? ''}</span>
                 <span className="w-12 text-right font-wds-mono text-[14px]">{d.page}</span>
               </div>

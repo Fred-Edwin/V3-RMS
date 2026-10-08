@@ -62,7 +62,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
     <Sheet open={open} onOpenChange={(next) => (approve.saving ? undefined : onOpenChange(next))}>
       <SheetContent
         side="right"
-        className="w-[540px]"
+        className="w-[540px] max-w-full border-l border-wds-border-strong shadow-[-16px_0_48px_rgba(23,21,18,0.2)]"
         onOpenAutoFocus={(event) => { event.preventDefault(); pinRef.current?.focus(); }}
         onCloseAutoFocus={(event) => {
           // Opened from the list or a link there is no opener to return to: land on the Next step button, where signing starts.
@@ -73,11 +73,11 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
           }
         }}
       >
-        <SheetHeader>
+        <SheetHeader className="!px-7 !pb-5 !pt-6">
           <SheetTitle className="text-[22px] font-semibold leading-7 tracking-[-0.01em]">Approve and sign</SheetTitle>
           <SheetDescription className="font-wds-mono">{data ? `${data.reference} · ${data.departments.length} departments` : 'Loading the summary'}</SheetDescription>
         </SheetHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-7 py-6">
           {summary.status === 'error' ? (
             <ErrorState title="Couldn't load the summary" description="Check your connection and try again." onRetry={() => void summary.reload()} />
           ) : !data ? (
@@ -85,7 +85,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
           ) : (
             <>
               <section aria-label="What you are sending" className="border border-wds-border-strong bg-wds-surface">
-                <div className="flex items-end justify-between border-b border-wds-neutral-950 px-4 pb-3 pt-3.5">
+                <div className="flex items-end justify-between border-b border-wds-neutral-950 px-5 pb-4 pt-[18px]">
                   <div className="flex flex-col gap-1">
                     <MonoLabel>What you are sending</MonoLabel>
                     <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} lines</span>
@@ -94,12 +94,10 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 </div>
                 <ul>
                   {data.departments.map((d) => (
-                    <li key={d.departmentId} className="flex items-center justify-between border-b border-wds-neutral-100 px-4 py-3 last:border-b-0">
-                      <span className="font-wds-sans text-[16px] text-wds-text-ink">{d.departmentName}</span>
-                      <span className="flex items-center gap-8 font-wds-mono text-[14px]">
-                        <span className="text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
-                        {d.valueKes !== undefined ? <span className="w-20 text-right text-wds-text-ink">{kes(d.valueKes)}</span> : null}
-                      </span>
+                    <li key={d.departmentId} className="flex items-center gap-3 border-b border-wds-border px-5 py-3 last:border-b-0">
+                      <span className="grow font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{d.departmentName}</span>
+                      <span className="w-[70px] shrink-0 text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
+                      {d.valueKes !== undefined ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kes(d.valueKes)}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -124,11 +122,11 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
             </>
           )}
         </div>
-        <SheetFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={approve.saving} className="h-[42px] px-6 text-[15px]">
+        <SheetFooter className="!gap-2.5 !px-7 !py-[18px]">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={approve.saving} className="h-11 min-w-[88px] px-6 text-[15px]">
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={!data || pin.length !== 4 || approve.saving} className="h-[42px] px-6 text-[15px]">
+          <Button onClick={() => void submit()} disabled={!data || pin.length !== 4 || approve.saving} className="h-11 min-w-[162px] px-6 text-[15px]">
             {approve.saving ? 'Signing…' : 'Approve and sign'}
           </Button>
         </SheetFooter>

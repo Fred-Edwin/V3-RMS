@@ -116,5 +116,7 @@ export function recordHref(record: AuditRecordLink): string {
       return `${ledger}/${record.id}${day ? `?${day}` : ''}`;
     case 'LEDGER_SEARCH':
       return `${ledger}?search=${encodeURIComponent(record.id)}${day ? `&${day}` : ''}`;
+    case 'REQUISITION':
+      return `/app/inventory/requisitions/${record.id}`;
   }
 }

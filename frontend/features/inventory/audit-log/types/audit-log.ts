@@ -27,10 +27,11 @@ export interface PurchasingAuditFields {
 
 /**
  * The record a Stock counts, Waste or Stock adjustments row points at: a count (`id` is its id), one item's stock card (`id` is
- * the item's id) or the ledger searched for an `ADJ-####`. `day` is the Nairobi day it happened, the ledger links' date range.
+ * the item's id), the ledger searched for an `ADJ-####`, or a requisition's file (`id` is the requisition's id, `label` its
+ * `REQ-NYR-0112`). `day` is the Nairobi day it happened, the ledger links' date range.
  */
 export interface AuditRecordLink {
-  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH';
+  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION';
   id: string;
   label: string;
   day?: string;

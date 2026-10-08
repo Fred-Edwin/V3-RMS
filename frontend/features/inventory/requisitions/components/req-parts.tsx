@@ -9,7 +9,7 @@ import type { Chip } from '../_shared/lib/requisitions-words';
 
 /** A document number: Geist Mono, #1F5BAE, underlined where it is a link (owner rule for every document number). */
 export function DocLink({ href, children, className }: { href?: string; children: React.ReactNode; className?: string }) {
-  const style = 'font-wds-mono text-[14px] leading-[18px] text-[#1F5BAE] underline underline-offset-2';
+  const style = 'whitespace-nowrap font-wds-mono text-[14px] leading-[18px] text-[#1F5BAE] underline underline-offset-2';
   if (!href) return <span className={cn(style, 'no-underline', className)}>{children}</span>;
   return (
     <Link href={href} className={cn(style, 'outline-none focus-visible:shadow-wds-ring', className)}>
@@ -141,7 +141,7 @@ export const PinField = React.forwardRef<HTMLInputElement, { value: string; onCh
           if (event.key === 'Enter' && value.length === 4) onSubmit?.();
         }}
         className={cn(
-          'h-[46px] w-[140px] border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
+          'h-12 w-[200px] border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
           invalid ? 'border-wds-error-fg' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-wds-ring',
         )}
       />

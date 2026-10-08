@@ -46,6 +46,7 @@ describe('recordHref', () => {
     expect(recordHref({ kind: 'COUNT', id: 'c1', label: 'CNT-2026-1013' })).toBe('/app/inventory/stock/counts/c1');
     expect(recordHref({ kind: 'STOCK_CARD', id: 'i1', label: 'Stock ledger entry', day: '2026-10-08' })).toBe('/app/inventory/stock/ledger/i1?from=2026-10-08&to=2026-10-08');
     expect(recordHref({ kind: 'LEDGER_SEARCH', id: 'ADJ-0042', label: 'ADJ-0042', day: '2026-10-08' })).toBe('/app/inventory/stock/ledger?search=ADJ-0042&from=2026-10-08&to=2026-10-08');
+    expect(recordHref({ kind: 'REQUISITION', id: 'r1', label: 'REQ-NYR-0112' })).toBe('/app/inventory/requisitions/r1');
   });
 });
 

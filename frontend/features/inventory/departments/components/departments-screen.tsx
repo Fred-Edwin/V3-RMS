@@ -118,7 +118,7 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
                 </SelectContent>
               </Select>
             ) : null}
-            {data?.canAdd ? <Button ref={addButton} size="lg" onClick={() => open({ kind: 'add' })}>Add a department</Button> : null}
+            {data?.canAdd ? <Button ref={addButton} size="lg" className="h-10 px-[18px] text-[14px]" onClick={() => open({ kind: 'add' })}>Add a department</Button> : null}
           </div>
         </div>
 
@@ -146,14 +146,14 @@ export function DepartmentsScreen({ breadcrumb }: { breadcrumb: TopbarBreadcrumb
                   <TableRow key={row.id} className={cn(retired && 'text-wds-text-faint')}>
                     <TableCell className="py-3.5">
                       <div className="flex flex-col">
-                        <span className={cn('font-wds-sans text-[14px] leading-[18px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</span>
+                        <span className={cn('font-wds-sans text-[14px] font-medium leading-[18px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</span>
                         {retired && row.retiredAt ? <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">Retired {retiredOn(row.retiredAt)}. Its past requisitions are kept.</span> : null}
                       </div>
                     </TableCell>
                     <TableCell className="font-wds-sans text-[14px] leading-[18px]">{shortName(row.head)}</TableCell>
                     <TableCell className="text-right font-wds-mono text-[14px]">{retired ? '' : row.itemsTagged}</TableCell>
                     <TableCell className="pl-8">
-                      <span className={cn('inline-flex h-[26px] items-center gap-1.5 border px-2.5 font-wds-sans text-[14px]', retired ? 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary' : 'border-wds-success-border bg-wds-success-bg text-wds-success-fg')}>
+                      <span className={cn('inline-flex h-5 items-center gap-1.5 border px-2 font-wds-sans text-[12px] leading-[14px]', retired ? 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary' : 'border-wds-success-border bg-wds-success-bg text-wds-success-fg')}>
                         {retired ? null : <span aria-hidden className="size-1.5 rounded-full bg-wds-success-fg" />}
                         {retired ? 'Retired' : 'Active'}
                       </span>
