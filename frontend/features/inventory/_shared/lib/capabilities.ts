@@ -53,6 +53,8 @@ export const CAPABILITIES = [
   'requisitions.cancel',
   'requisitions.nudge',
   'requisitions.set_urgent',
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
   'departments.read',
   'departments.write',
   'audit.read',

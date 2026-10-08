@@ -35,11 +35,15 @@ export const buildPrint = (rec: RequisitionRecord): Print => {
         addedAt: a.addedAt.toISOString(),
         addedBy: toPerson(a.addedBy),
         approvedBy: a.approvedBy ? toPerson(a.approvedBy) : null,
+        approvedAt: null, // back end B: the addition approver's time (Amendment 2, R6)
         lines: section.lines.filter((l) => l.additionId === a.id).map((l, i) => printLine(l, i + 1)),
       }));
     return {
       departmentId: section.departmentId ?? '',
       departmentName: section.department?.name ?? '',
+      askedBy: null, // back end B: who asked, role label and name as recorded (Amendment 2, R6)
+      askedAt: null, // back end B: when the section was sent (Amendment 2, R6)
+      deliverTo: null, // back end B: the "Deliver to" line (Amendment 2, R6)
       lines: base.map((l, i) => printLine(l, i + 1)),
       additions,
     };
@@ -54,6 +58,8 @@ export const buildPrint = (rec: RequisitionRecord): Print => {
     branch: { id: rec.site.id, name: rec.site.name, code: rec.site.code },
     cycleLabel: cycleLabelOf(rec.type, rec.openedAt),
     urgent: rec.urgent,
+    startedAt: rec.openedAt.toISOString(), // back end B: confirm against Paper step 17 (Amendment 2, R6)
+    generatedAt: new Date().toISOString(), // back end B: take the time from the caller's clock (Amendment 2, R6)
     approvedAt: rec.approvedAt ? rec.approvedAt.toISOString() : null,
     approvedBy: rec.approvedBy ? toPerson(rec.approvedBy) : null,
     cover: {

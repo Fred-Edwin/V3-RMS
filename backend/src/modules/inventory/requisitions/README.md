@@ -31,7 +31,7 @@ Base `/api/v1/inventory/requisitions` (routes in `requisitions-rebuild-routes.ts
 | R15 | `PUT /:id/urgent` | `requisitions.set_urgent`; a head whose department is in it |
 | R16 | `PATCH /:id/lines/:lineId` | `requisitions.change_quantity` |
 | R17 | `POST /:id/sections/:departmentId/nudge` | `requisitions.nudge` |
-| R18 | `POST /:id/sections/:departmentId/skip` | `requisitions.nudge` |
+| R18 | `POST /:id/sections/:departmentId/skip` (Amendment 2: becomes `POST /:id/skip` with `{ departmentIds }`, back end B) | `requisitions.nudge` |
 | R19 | `POST /:id/approve` | `requisitions.approve`; PIN |
 | R20 | `POST /:id/cancel` | `requisitions.cancel`; PIN |
 | R21 | `POST /:id/additions` | head (own); PIN |
@@ -49,12 +49,16 @@ Base `/api/v1/inventory/requisitions` (routes in `requisitions-rebuild-routes.ts
 
 ## Contract drift and questions (reported to the owner)
 1. **Idempotency storage:** the frozen schema only keys R11. Signing writes store their key on `RequisitionEvent.idempotencyKey` (added to the migration; unique on requisition, person, key).
-2. **Extra error codes** for states the contract's list does not name (plain 409s): `SECTION_NOT_SENT`, `SECTION_ALREADY_SENT`, `NOT_APPROVED`, `SECTION_NOT_OPEN`, `ADDITION_NOT_PENDING`; and `BRANCH_CODE_MISSING` (400). Screens may switch on them or show the message.
+2. **Extra error codes** for states the first contract did not name: `SECTION_NOT_SENT`, `SECTION_ALREADY_SENT`, `NOT_APPROVED`, `SECTION_NOT_OPEN`, `ADDITION_NOT_PENDING` (409) and `BRANCH_CODE_MISSING` (400). **Amendment 2 put all six into the contract** (`REQUISITION_ERROR_CODES`) and both mirrors; the wording by audience is the front ends'.
 3. **The System Admin cannot start a requisition**: R11 has no branch in its body and the System Admin has none of their own (400 "Branch context missing").
 4. **No endpoint sets `Site.code`** (the contract says the owner corrects NYR/KRT "in Settings"). Until one exists the owner corrects it in the database.
-5. The **Next step card wording** and the tracker labels in `requisitions-state.ts` are a draft; the front end confirms them against the Paper step 22 table.
+5. **Next step card and tracker are facts only** (Amendment 2): `nextStepOf` returns `{ action, departmentId, facts }` and `trackerOf` returns `{ key, state, at, by, count }`. The titles, bodies and labels are the front ends', from Paper step 22.
 6. `changeQuantity`'s `valueKes` is the requisition's total; the line's own value is on `line.valueKes`.
 7. Recall and addition are **head-only**; `requisitions.start` ("Fill it myself") covers edit and send, not recall or addition.
+
+## Amendment 2 (owner approved 8 Oct 2026): contract in code, behaviour is back end B's
+The wire shapes are in `_shared/requisitions-contract.ts` (list `cycle` / `departmentId` / `urgent` filters; seven row moments on R1 and R9 rows; Home `suggestedLineCount`, `openedAt`, `openByCycle`, `sentAt`; SectionEdit `openedAt`; `urgentNote` on R11 and R15; R18 `{ departmentIds }`; R20 "preset — note"; the R6 print fields; the facts-only Next step and tracker; six error codes). Two access rows, `requisitions.edit_on_behalf` and `requisitions.send_on_behalf`, are held by the Branch Manager **alone** (owner, 8 Oct 2026): not the System Admin, and not the Director, who approves but does not fill a section. **`sentAt`:** on an R9 history row it is when the head's section was sent; on an R1 row it stays null for now (back end B decides later).
+**Back end B owes** (each place is marked `// back end B` in code where a placeholder stands): the R1 filters and row moments; Home `suggestedLineCount` / `openedAt` / `openByCycle` / `sentAt`; storing and returning `urgentNote` (needs a column); on-behalf open, edit and send (service rules, the head is told, audit event); the R18 list route (`POST /:id/skip`, one transaction, one audit event per section; the current route skips one department and returns it as a one-item list); validating the cancel reason through `cancelInputSchema` is already live, the note format is the front end's; the R6 print fields (`askedBy`, `askedAt`, `deliverTo`, addition `approvedAt`, real `generatedAt`); the retire check in `departments/`; the branch-code endpoint; `inventory:badges`; audit scope; the routes shim swap in `routes/index.ts`; branch codes fixed by name in production.
 
 ## Code map
 `requisitions-rebuild-routes.ts` (the router; `requisitions-routes.ts` is an empty shim until the orchestrator removes its import from `routes/index.ts`), `-controller.ts`, `-service.ts`, `-repository.ts`, `-validators.ts`, `requisitions-state.ts` (pure rules), `requisitions-view.ts` (wire builders; money and blind rules), `requisitions-print.ts` (R6 data), `requisitions-errors.ts`, `requisitions-events.ts` (notice seam), `requisitions-handoff.ts` (Block 2 no-ops), `requisitions-fixtures.ts` (test records), `_shared/requisitions-contract.ts` + fixtures + test.

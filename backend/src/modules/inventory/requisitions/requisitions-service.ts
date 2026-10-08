@@ -266,6 +266,7 @@ export const requisitionsService = {
       cycleLabel: cycleLabelOf(rec.type, rec.openedAt),
       requisitionStatus: rec.status as RequisitionStatus,
       urgent: rec.urgent,
+      openedAt: rec.openedAt.toISOString(),
       section: sectionDetailWire(section, rec, viewer),
       addable: items.map((i) => {
         const s = stock.get(i.id);
@@ -571,7 +572,7 @@ export const requisitionsService = {
     return { ...mutation(rec, false), nudgedAt: at.toISOString() };
   },
 
-  /** R18: "Send without this section". */
+  /** R18: "Send without this section". back end B: Amendment 2 makes this `POST /:id/skip` with `{ departmentIds }`, one transaction, one audit event per section; until then it skips the one department and returns it as a one-item list. */
   skip: async (actor: Actor, id: string, departmentId: string): Promise<SkipSectionResult> => {
     const c = await loadCaller(actor);
     const rec = await loadFile(c, id);
@@ -588,7 +589,7 @@ export const requisitionsService = {
     const fresh = await reload(c, rec);
     return {
       ...mutation(fresh, false),
-      section: sectionSummaryWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date())),
+      sections: [sectionSummaryWire(findSection(fresh, departmentId), fresh, await viewerFor(c, fresh, new Date()))],
       readyToApprove: fresh.status === 'PENDING_APPROVAL',
     };
   },

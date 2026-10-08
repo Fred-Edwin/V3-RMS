@@ -198,6 +198,8 @@ export const fileWire = (rec: RequisitionRecord, v: Viewer, allInAt: Date | null
     print: v.can.read && rec.status !== 'CANCELLED',
     startNew: (v.can.start && v.branchOk) || v.headDepartmentId !== null,
   };
+  const counting = visibleSections.filter((s) => s.department?.status === 'ACTIVE' || s.status === 'SUBMITTED' || s.status === 'SKIPPED');
+  const sectionCounts = { sectionsIn: counting.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length, sectionsTotal: counting.length };
   const allLines = visibleSections.flatMap((s) => sectionLines(s, additionStatus));
   const value = visibleSections.reduce((sum, s) => sum + sectionValue(s, additionStatus), 0);
   return {
@@ -218,7 +220,7 @@ export const fileWire = (rec: RequisitionRecord, v: Viewer, allInAt: Date | null
     cancelled: rec.cancelledAt && rec.cancelledBy ? { at: rec.cancelledAt.toISOString(), by: toPerson(rec.cancelledBy), reason: rec.cancelReason ?? '' } : null,
     closedAt: rec.closedAt ? rec.closedAt.toISOString() : null,
     tracker: trackerOf(
-      { status: rec.status as RequisitionStatus, openedAt: rec.openedAt, openedBy: rec.openedBy, allInAt, approvedAt: rec.approvedAt, approvedBy: signer, closedAt: rec.closedAt },
+      { status: rec.status as RequisitionStatus, openedAt: rec.openedAt, openedBy: rec.openedBy, allInAt, approvedAt: rec.approvedAt, approvedBy: signer, closedAt: rec.closedAt, ...sectionCounts },
       (u) => toPerson(u),
     ),
     nextStep: nextStepOf({
@@ -229,7 +231,7 @@ export const fileWire = (rec: RequisitionRecord, v: Viewer, allInAt: Date | null
         status: s.status as SectionStatus,
         departmentActive: s.department?.status === 'ACTIVE',
       })),
-      additionWaiting,
+      additionsWaiting: visibleAdditions.filter((a) => a.status === 'PENDING').length,
       can: { nudge: can.nudge, approve: can.approve || (v.can.approve && additionWaiting), addToIt: can.addToIt, print: can.print },
     }),
     sections: visibleSections.map((s) => sectionDetailWire(s, rec, v)),

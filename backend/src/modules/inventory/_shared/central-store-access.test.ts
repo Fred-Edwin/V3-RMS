@@ -101,8 +101,10 @@ describe('the Central Store permissions table', () => {
     }
   });
 
-  it('gives the System Admin everything and an unknown role nothing', () => {
-    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length);
+  it('gives the System Admin everything except the Branch Manager\'s "on behalf" rows, and an unknown role nothing', () => {
+    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 2);
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.edit_on_behalf');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.send_on_behalf');
     expect(capabilitiesOf('WAITER')).toEqual([]);
     expect(actorCan({ role: 'CHEF' } as never, 'catalog.read')).toBe(false);
   });

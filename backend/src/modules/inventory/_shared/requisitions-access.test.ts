@@ -17,16 +17,20 @@ const ALL: Capability[] = [
   'requisitions.cancel',
   'requisitions.nudge',
   'requisitions.set_urgent',
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
   'departments.read',
   'departments.write',
 ];
 const READS: Capability[] = ['requisitions.read', 'requisitions.see_value', 'departments.read'];
-const BRANCH_JOBS: Capability[] = ALL.filter((c) => !READS.includes(c));
+const ON_BEHALF: Capability[] = ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf'];
+const BRANCH_JOBS: Capability[] = ALL.filter((c) => !READS.includes(c) && !ON_BEHALF.includes(c));
 
 const grid: Record<string, Capability[]> = {
   // The Store Manager reads everything here; the branch's jobs are not theirs.
   STORE_MANAGER: READS,
-  SYSTEM_ADMIN: ALL,
+  // Everything except "on behalf", which is the Branch Manager's alone.
+  SYSTEM_ADMIN: ALL.filter((c) => !ON_BEHALF.includes(c)),
   ACCOUNTANT: READS,
   // The Director reads everything and may approve any requisition or addition; no other write.
   DIRECTOR: [...READS, 'requisitions.approve'],
@@ -42,7 +46,7 @@ const roleOf = (key: string): string => (key === 'BRANCH_MANAGER_AS_MANAGER' ? '
 const mine = (c: string): boolean => /^(requisitions|departments)\./.test(c);
 
 describe('Requisitions and Departments capability grid', () => {
-  it('declares exactly the ten capabilities', () => {
+  it('declares exactly the twelve capabilities', () => {
     expect(CAPABILITIES.filter(mine).sort()).toEqual([...ALL].sort());
   });
 
@@ -67,6 +71,15 @@ describe('Requisitions and Departments capability grid', () => {
       expect(actorCan({ role: 'STORE_MANAGER' } as never, cap), `STORE_MANAGER ${cap}`).toBe(false);
       expect(actorCan({ role: 'ACCOUNTANT' } as never, cap), `ACCOUNTANT ${cap}`).toBe(false);
       expect(actorCan({ role: 'DIRECTOR' } as never, cap), `DIRECTOR ${cap}`).toBe(cap === 'requisitions.approve');
+    }
+  });
+
+  it('"on behalf" (Amendment 2) is the Branch Manager alone: not the System Admin, not the Director (who approves)', () => {
+    for (const cap of ON_BEHALF) {
+      expect(actorCan({ role: 'MANAGER' } as never, cap), `MANAGER ${cap}`).toBe(true);
+      for (const role of ['SYSTEM_ADMIN', 'DIRECTOR', 'STORE_MANAGER', 'ACCOUNTANT', 'STORE_ATTENDANT', 'CHEF', 'WAITER']) {
+        expect(actorCan({ role } as never, cap), `${role} ${cap}`).toBe(false);
+      }
     }
   });
 
