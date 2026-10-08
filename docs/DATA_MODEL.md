@@ -1962,7 +1962,7 @@ model InventoryTransaction {
   purchaseDeliveryLineId String?                @map("purchase_delivery_line_id") -- FK → PurchaseDeliveryLine (§4.84); replaced goodsReceiptLineId on 6 Oct 2026
   prepRecordId         String?                  @map("prep_record_id")          -- FK → PrepRun (Milestone Three)
   wasteLogId           String?                  @map("waste_log_id")            -- FK → WasteLog (Milestone Six S1, §4.69)
-  stockCountLineId     String?                  @map("stock_count_line_id")     -- real FK (Milestone Six S2)
+  stockCountLineId     String?                  @map("stock_count_line_id")     -- DROPPED 8 Oct 2026; `countLineId` (count_line_id, §4.85) replaces it
   branchDayLineId      String?                  @map("branch_day_line_id")      -- real FK (Milestone Six S3): a branch day close adjustment or its reversal
   dispatchLineId       String?                  @map("dispatch_line_id")        -- FK → DispatchLine (Milestone Five, §4.67)
   marketPurchaseLineId String?                  @map("market_purchase_line_id") -- unlinked; not yet redone
@@ -2585,7 +2585,9 @@ enum WasteReason { SPOILAGE EXPIRY DAMAGE_IN_STORE PREP_ERROR }
 - `organizationId` is not in the plan's §1.3 sketch; it was added so every
   query stays org-scoped (Non-Negotiable #3).
 
-### 4.70 StockCount
+### 4.70 StockCount (DROPPED 8 Oct 2026, replaced by `Count`, §4.85)
+
+> **Dropped** by migration `20261008120000_stock_count_waste_contract` (the old tables were empty in production; the migration refuses to run if any old row exists). Kept below for history only.
 
 Milestone Six Session 2, 2026-09-29 (migration
 `20260929090000_milestone6_session2_counting`). One row per Central Store
@@ -2620,7 +2622,7 @@ model StockCount {
 }
 ```
 
-### 4.71 StockCountLine
+### 4.71 StockCountLine (DROPPED 8 Oct 2026, replaced by `CountLine`, §4.85)
 
 ```prisma
 model StockCountLine {
@@ -3028,6 +3030,26 @@ Schema: `backend/prisma/schema/inventory/purchase-orders.prisma`. One **purchase
 - **`PurchasePayment`** (`purchase_payments`): `reference` (`PAY-nnnn`; a reversal line is `<original>-R`), `kind` (`PurchasePaymentKind`: `ADVANCE | INVOICE | REVERSAL`), `status` (`RECORDED | REVERSED`), `amount` (negative on a reversal), `paidOn`, `method` (`SupplierPayMethodType`), `methodRef`, `chequeNo`, `proofFileId`, `reversesId` (unique: reversed at most once), `reverseReason`, `approvedById` (the Store Manager or System Admin who approved a reversal).
 - **`PurchaseDocument`** (extra named documents on the file), **`PurchaseFile`** (an uploaded photo or PDF; bytes in object storage, `objectKey` unique), **`PurchasingAuditEntry`** (`purchasing_audit`: `area` `PURCHASING | PAYMENTS`, `action`, `document`, `detail`, `what`, `at`, actor, order, supplier; written in the same transaction as each action; read by the Audit log).
 - `SupplierDocument.goodsReceiptId` and `.supplierInvoiceId` keep their column names (`goods_receipt_id`, `supplier_invoice_id`) and now point at `PurchaseDelivery` and `PurchaseInvoice`.
+
+### 4.85 Stock, Counting and Waste rebuild (8 Oct 2026, migrations `20261008100000_stock_count_waste_expand` and `20261008120000_stock_count_waste_contract`)
+
+Schema: `backend/prisma/schema/inventory/counts.prisma` (new), additive columns in `waste.prisma`, `counting.prisma` and `stock.prisma`. Contract and rules: `API_CONTRACT.md` §34. Every table carries `organization_id` (the hub site, D-15).
+
+| Table | What it is |
+|---|---|
+| `counts` (`Count`) | One count, any scope (sections or items). `reference` `CNT-{year}-{nnnn}`; `status` OPEN, SUBMITTED, APPROVED; counter, `signedAt`, `expectedAsOf` (= `signedAt`), `selfSigned`, approver and `approvedAt`; the settings in force frozen at the sign (`range_kes`, `range_percent`, `director_alert_kes`, `flag_repeat`); `idempotency_key` (unique per site and counter; the start, sign and approve keys are stored joined by `\|` in this one column, a known compromise to split into columns later); `recount_of_line_id` (the line a recount replaces). **Two partial unique indexes** in the migration SQL: `count_open_per_counter_key` (one OPEN count per counter) and `count_line_open_item_key` (an item in only one OPEN count, through `count_lines.is_open`). |
+| `count_scope_sections` | The sections a count was started on (name frozen) |
+| `count_lines` (`CountLine`) | One per item in scope, in shelf order: `countedQty` or `skipped`; `recheck` NONE/RECOUNTED/KEPT; frozen at the sign: `expectedQty`, `unitCost`, `result` MATCHES/WITHIN_RANGE/EXCEEDS/NOT_COUNTED, `shortStreak`; `cause` (PREP_NOT_LOGGED, SPOILAGE, MISCOUNT, LOSS, OTHER) and note; `decision` PENDING/ACCEPTED/WRITE_OFF/MOVEMENT_LOGGED/RECOUNT_ASKED with `movementKind`; `director_flagged`, `director_alert` and who and when it was seen; `is_open` (denormalised, true while the count is OPEN); `recheck_offered`. A line cannot be deleted once a ledger row points at it. |
+| `count_sections`, `count_section_items` | The Manager's sections and shelf order: `SUPPLIER` sections (name and supplier fixed) and `MANUAL` ones; seeded by the migration from suppliers, the rest in "Others", an empty "Packaging". The layout "version" the screens send back is derived in code from the saved layout (`setup-version.ts`), not stored; a stale one is 409 `LAYOUT_CHANGED`. "Not in any section" is computed at read time. |
+| `count_item_moves` | Every item move (Attendant or Manager) with who and when, and whether undone |
+| `count_day_orders` | The Attendant's section order for one Nairobi day |
+| `count_setup_visits` | When a person last opened Count setup ("moved since your last visit") |
+| `waste_batches` (`WasteBatch`) | One batch per `idempotencyKey` (unique), the shared note |
+| `waste_logs` (existing, extended) | + `batch_id`, `reversed_at`, `reversed_by_id`, `reversal_reason`, `reversal_note`. A reversal never deletes the entry. |
+| `counting_thresholds` (existing, extended) | + `range_percent`, `flag_repeat_shortfalls`, range stamp (the Director's save writes `director_updated_at`, not `updated_at`) |
+| `inventory_transactions` (existing, extended) | + `count_line_id` (the adjustment a count line posted). `reversal: 'WASTE'` joins the door's reversal types. The old `stock_count_line_id` is dropped. |
+
+Dropped: `stock_counts`, `stock_count_lines` and the enums `StockCountKind`, `StockCountStatus`, `CountLineDecision`, `CountReason`.
 
 ### Supplier enums
 
