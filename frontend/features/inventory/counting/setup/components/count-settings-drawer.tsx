@@ -127,7 +127,7 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
               <div className={cn('flex flex-col gap-2', directorOnly && 'pt-1')}>
                 <h3 className={labelCls}>{editRange ? 'A difference is within range when both are true' : 'Within range · set by the Store Manager'}</h3>
                 <div className="flex gap-3">
-                  <div className="flex grow basis-0 flex-col gap-1.5">
+                  <div className="flex min-w-0 grow basis-0 flex-col gap-1.5">
                     <label htmlFor="range-kes" className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">
                       Worth up to
                     </label>
@@ -145,7 +145,7 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
                       <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">KES</span>
                     </div>
                   </div>
-                  <div className="flex grow basis-0 flex-col gap-1.5">
+                  <div className="flex min-w-0 grow basis-0 flex-col gap-1.5">
                     <label htmlFor="range-pct" className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">
                       And at most
                     </label>
