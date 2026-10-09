@@ -46,15 +46,34 @@ export interface ToastProps {
   onClose: (id: string) => void
 }
 
+/** Success and info go away on their own; errors stay until dismissed or the next toast replaces them. */
+export const TOAST_AUTO_DISMISS_MS = 4000
+
 export function Toast({ id, variant, title, description, onClose }: ToastProps) {
   const config = variantConfig[variant]
+  const [paused, setPaused] = React.useState(false)
+  const remaining = React.useRef(TOAST_AUTO_DISMISS_MS)
+
+  // The timer runs only while the pointer and keyboard focus are away; the time left is kept across pauses.
+  React.useEffect(() => {
+    if (variant === 'error' || paused) return
+    const startedAt = Date.now()
+    const timer = window.setTimeout(() => onClose(id), remaining.current)
+    return () => {
+      window.clearTimeout(timer)
+      remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt))
+    }
+  }, [id, variant, paused, onClose])
 
   return (
     <div
-      role="alert"
-      aria-live="polite"
+      role={variant === 'error' ? 'alert' : 'status'}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
       className={cn(
-        'flex w-[340px] max-w-[calc(100vw-32px)] animate-in gap-3 rounded-wds-md border border-wds-border border-l-4 bg-wds-surface p-3 fade-in-0 slide-in-from-top-2 shadow-wds-sm motion-reduce:animate-none',
+        'pointer-events-auto flex w-[340px] max-w-[calc(100vw-32px)] animate-in gap-3 rounded-wds-md border border-wds-border border-l-4 bg-wds-surface p-3 fade-in-0 slide-in-from-bottom-2 shadow-wds-sm motion-reduce:animate-none',
         config.classes
       )}
     >
@@ -93,10 +112,10 @@ export function WdsToastContainer() {
   if (!mounted) return null
 
   return createPortal(
+    // Bottom centre: the top right belongs to a drawer's close button and its "…" menu.
     <div
-      aria-live="polite"
       aria-label="Notifications"
-      className="fixed top-4 left-1/2 z-[60] -translate-x-1/2 items-center md:left-auto md:right-4 md:translate-x-0 md:items-end"
+      className="pointer-events-none fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 pb-[env(safe-area-inset-bottom)]"
     >
       {toast && (
         <Toast
