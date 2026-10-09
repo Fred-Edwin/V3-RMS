@@ -19,6 +19,7 @@ import {
   countDetailSchema,
   countRecordPrintSchema,
   countSettingsSchema,
+  countsHomeSchema,
   countsListQuerySchema,
   countsListSchema,
   countsSummarySchema,
@@ -26,6 +27,8 @@ import {
   flaggedListSchema,
   layoutInputSchema,
   moveItemInputSchema,
+  myCountsListSchema,
+  myCountsQuerySchema,
   repeatShortfallListSchema,
   saveLinesInputSchema,
   saveLinesResultSchema,
@@ -50,6 +53,8 @@ describe('counting contract fixtures', () => {
     ['managerCountDetail', countDetailSchema],
     ['countsSummaryManager', countsSummarySchema],
     ['countsList', countsListSchema],
+    ['countsHome', countsHomeSchema],
+    ['myCountsList', myCountsListSchema],
     ['flaggedList', flaggedListSchema],
     ['repeatShortfallList', repeatShortfallListSchema],
     ['countRecordPrint', countRecordPrintSchema],
@@ -112,6 +117,11 @@ describe('the blind rule in the Attendant payloads', () => {
     expect(leaks(fixtures.signPreviewAttendant)).toEqual([]);
   });
 
+  it('the home and My counts payloads carry no stock-figure key', () => {
+    const home = fixtures.countsHome;
+    for (const o of [home, home.sections, fixtures.myCountsList, ...fixtures.myCountsList.rows]) expect(leaks(o)).toEqual([]);
+  });
+
   it('the Manager detail carries the figures the Attendant must never get', () => {
     expect(leaks(fixtures.managerCountDetail).length).toBeGreaterThan(0);
     expect(leaks(fixtures.managerCountDetail.lines[0]!)).toEqual(expect.arrayContaining(['expectedQty', 'difference', 'result', 'story']));
@@ -155,6 +165,14 @@ describe('inputs that must be refused', () => {
     expect(countsListQuerySchema.safeParse({ pageSize: '50' }).success).toBe(true);
     expect(countsListQuerySchema.safeParse({ pageSize: '30' }).success).toBe(false);
     expect(countsListQuerySchema.parse({}).pageSize).toBe(50);
+  });
+
+  it('My counts takes waiting, approved or all, Nairobi days, and the numbered pager', () => {
+    expect(myCountsQuerySchema.parse({}).status).toBe('all');
+    expect(myCountsQuerySchema.safeParse({ status: 'inProgress' }).success).toBe(false);
+    expect(myCountsQuerySchema.safeParse({ from: '2026-10-01', to: '2026-10-09', pageSize: '25' }).success).toBe(true);
+    expect(myCountsQuerySchema.safeParse({ from: '9 Oct' }).success).toBe(false);
+    expect(myCountsQuerySchema.safeParse({ pageSize: '30' }).success).toBe(false);
   });
 
   it('the range percent stays between 0 and 100', () => {
