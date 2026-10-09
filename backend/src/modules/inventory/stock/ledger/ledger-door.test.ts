@@ -309,6 +309,19 @@ describe('postStockMovement — reversing a waste row', () => {
     expect(created().reference).toBeNull();
   });
 
+  it('a cancelled dispatch reverses its DISPATCH_OUT row the same way: positive, linked, and only by a row of the same type', async () => {
+    const out = { ...waste, id: 'orig-d', type: 'DISPATCH_OUT' as const, quantity: D(-4) };
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(out);
+    await postStockMovement(tx, base({ type: 'DISPATCH_OUT', quantity: D(4), links: { dispatchLineId: 'dl-1' }, reversesTransactionId: 'orig-d' }));
+    expect(created().type).toBe('DISPATCH_OUT');
+    expect(created().quantity.toString()).toBe('4');
+    expect(created().reversesTransactionId).toBe('orig-d');
+    vi.mocked(ledgerRepository.findForReversal).mockResolvedValue({ ...out, type: 'DISPATCH_IN' as const });
+    await expect(postStockMovement(tx, base({ type: 'DISPATCH_OUT', quantity: D(4), links: { dispatchLineId: 'dl-1' }, reversesTransactionId: 'orig-d' }))).rejects.toThrow(/dispatch row can only be reversed/);
+    // DISPATCH_IN is not reversible through the door.
+    await expect(postStockMovement(tx, base({ type: 'DISPATCH_IN', quantity: D(4), links: { dispatchLineId: 'dl-1' }, reversesTransactionId: 'orig-d' }))).rejects.toThrow(/Only an adjustment/);
+  });
+
   it('refuses a wrong quantity, another item, another location, a row of another type, a second reversal and a reversal of a reversal', async () => {
     vi.mocked(ledgerRepository.findForReversal).mockResolvedValue(waste);
     await expect(postStockMovement(tx, reverse(2))).rejects.toThrow(/undo the original quantity/);

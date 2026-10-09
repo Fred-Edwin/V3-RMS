@@ -499,6 +499,7 @@ export const dispatchService = {
    */
   cancel: async (actor: Actor, id: string, input: CancelDispatchInput, now: Date = new Date()): Promise<CancelDispatchResult> => {
     const c = await loadCaller(actor);
+    if (!actorCan(actor, 'dispatch.cancel')) throw new ForbiddenError('You do not have permission to cancel a dispatch');
     const done = (rec: { id: string; reference: string | null; cancelledAt: Date | null; cancelledBy: { id: string; name: string; role: string } | null; lines: unknown[] }, replayed: boolean): CancelDispatchResult => {
       if (!rec.cancelledAt || !rec.cancelledBy) throw dispatchError('DISPATCH_CANCELLED', 'This dispatch was cancelled.');
       return { id: rec.id, reference: rec.reference ?? '', status: 'CANCELLED', cancelledAt: rec.cancelledAt.toISOString(), cancelledBy: toPerson(rec.cancelledBy), linesReturnedToQueue: rec.lines.length, replayed };

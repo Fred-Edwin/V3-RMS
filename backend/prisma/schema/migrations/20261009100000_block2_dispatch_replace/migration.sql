@@ -149,12 +149,14 @@ ADD COLUMN     "packed_tick" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "sent_qty" DECIMAL(12,4),
 ADD COLUMN     "unit_cost_at_dispatch" DECIMAL(12,4);
 
-UPDATE "public"."dispatch_lines" SET
-  "sent_qty" = "dispatched_qty",
-  "unit_cost_at_dispatch" = "cost_at_dispatch",
-  "counted_qty" = "confirmed_qty",
-  "requested_qty" = COALESCE("requested_qty", "dispatched_qty"),
-  "packed_tick" = true;
+-- Only a line of a dispatch the store had signed is ticked and has its cost frozen; an AWAITING one is still being packed.
+UPDATE "public"."dispatch_lines" l SET
+  "sent_qty" = l."dispatched_qty",
+  "unit_cost_at_dispatch" = CASE WHEN d."signed_at" IS NULL THEN NULL ELSE l."cost_at_dispatch" END,
+  "counted_qty" = l."confirmed_qty",
+  "requested_qty" = COALESCE(l."requested_qty", l."dispatched_qty"),
+  "packed_tick" = d."signed_at" IS NOT NULL
+FROM "public"."dispatches" d WHERE d."id" = l."dispatch_id";
 
 ALTER TABLE "public"."dispatch_lines" ALTER COLUMN "sent_qty" SET NOT NULL;
 ALTER TABLE "public"."dispatch_lines" ALTER COLUMN "requested_qty" SET NOT NULL;

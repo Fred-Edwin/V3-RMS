@@ -30,4 +30,6 @@ What the migration did, for the record:
 - New: `carriers`, `dispatch_photos`, `dispatch_events`, `discrepancy_events`, and a partial unique index `dispatches_one_live_per_department` (one non-cancelled dispatch per department per requisition) that Prisma cannot express.
 - `departmentTag` became `department_id`; `sequence_label` is gone (the `DSP-` reference replaces it).
 
+Tested (9 Oct 2026) on a scratch copy of the lane database rebuilt at the previous migration: (A) with one signed and one awaiting old dispatch, both convert in place (the signed one numbered `DSP-NYR-0001`, the `DSP` counter moved to 1, the awaiting one left unticked with no frozen cost); (B) with a discrepancy row, the migration refuses (P0001) and changes nothing; (C) on an empty copy (the production shape) it applies cleanly; and `prisma migrate diff` against the schema is empty afterwards.
+
 Test on a restored copy of the production database before release (the owner does the production steps): `pnpm exec prisma migrate deploy` against the copy, then `RUN_DB_TESTS=1 pnpm test`.

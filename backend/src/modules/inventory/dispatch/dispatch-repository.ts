@@ -158,7 +158,7 @@ export const dispatchRepository = {
   /** The other dispatches of the same requisition (the file's roll-up), cancelled ones left out. */
   listSiblings: (hubId: string, requisitionId: string, excludeId: string, db: Db = prisma) =>
     db.dispatch.findMany({
-      where: { siteId: hubId, requisitionId, id: { not: excludeId }, status: { not: 'CANCELLED' } },
+      where: { siteId: hubId, requisitionId, id: { not: excludeId }, status: { not: 'CANCELLED' }, signedAt: { not: null } },
       select: { id: true, reference: true, status: true, signedAt: true, department: { select: { name: true, position: true } }, lines: { select: { packedTick: true } }, discrepancies: { select: { status: true } } },
       orderBy: { department: { position: 'asc' } },
     }),
