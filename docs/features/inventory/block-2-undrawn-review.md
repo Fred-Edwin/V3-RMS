@@ -72,13 +72,24 @@ Wherever Paper and this list disagree, Paper wins.
 - **What:** a recorded finding can be reversed with a reason preset and a PIN. Both entries stay on the file and in the audit log, and the missing items are held as unaccounted again. Paper drew the dialog; the file wording after a reversal ("The earlier finding was reversed at … both entries stay on file") is built.
 - **Open it:** `store.manager@wendo.test` › Requisitions › Discrepancies › a recorded one › Reverse this finding.
 
-## 14. Where Paper disagrees with itself (for you to decide)
+## 14. Where Paper disagrees with itself (owner decided 9 Oct: keep chapter 5's final review sizes and the 32 px pager)
 
 - **Final review, chapter 5 (D5) against chapter 10.** Same screen, two sizes: D5 draws the "You are sending" label at 11/14 and the count at 30/36 with department names at 15/500; chapter 10 (the leave-out screens, drawn later) draws 10/12, 28/34 and 14/400, and a 40 px carrier select (the build has 46 px so a thumb can hit it). The build follows D5. If chapter 10 is the newer truth, it is a size change on one screen.
 - **Phone pager.** Paper draws the page buttons 32 px square (G2, G3). The shared pager had 44 px touch targets; the Block 2 lists now use Paper's 32 px.
 - **Header place line.** G3 says "WENDO RMS · HUB", N2b and the rest say "CENTRAL STORE". The build says "CENTRAL STORE".
 
-## 15. Loading, empty and error states on every list and file
+## 15. Smaller choices from the finish pass (9 Oct 2026)
+
+- **Tracker circles** (the green circle with a white tick): now Paper's exact tick (bold, rounded ends), on phone and desktop. Paper's phone tracker draws **no line between the circles**, so the phone has none; the empty circle has a 1.5 px edge. The desktop tracker keeps its line between steps, as in D13.
+- **Printed delivery notes** match Paper D17, D17b and D17c (including page 2). Two things Paper does not settle: the **signature** shrinks (36, 28 or 20 px) so "Name (Title)" stays on one line (Paper shows only "Store Attendant"), and the **VOID band** has no artboard in Paper; it is built from the D21 wording (a 26 px red band with white mono capitals).
+- **Discrepancies list (7c)** is built on the shared table kit that every list uses, so its filter row (32 px, 12/16 text), header colour, pager (26 px) and rows per page (50) follow the kit, not Paper's 36 px, 14/18, 32 px and 25. Only the row button (170 by 36) and the heading were set to Paper. Changing the kit is a decision for all lists, not this block.
+- **Phone Retry button** is drawn 32 px as in Paper; its tap area is 44 px.
+- **Focus after a write.** After a finding is recorded or reversed the button that opened the drawer is gone, so focus moves to the file's heading. Error panels (list, file, Carriers) are announced to screen readers (`role="alert"`).
+- **"· at once"** on the last step of a file shows when the delivery closed within a minute of the count (it needed the same millisecond before).
+- **Local development only:** photos are kept in memory, so restarting the API loses them and the thumbnail shows "No preview" with a 404 in the console. Production stores photos in R2.
+- **Not Block 2:** the old Manager dashboard chart logs a duplicate-key warning (`ytick-0`). It is in the legacy dashboard, untouched here.
+
+## 16. Loading, empty and error states on every list and file
 
 - **What:** a spinner-free skeleton while loading, a short sentence when a list is empty, and "Could not load …" with a Retry button when a request fails (one shared kit, not one per screen). Copy is in `_shared/lib/block2-words.ts`.
 - **Open it:** stop the API container and open any Block 2 screen; start it and press Retry.

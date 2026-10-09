@@ -28,6 +28,13 @@ P9 rows carry the `REQ-` reference, the cycle and the carrier (N2 draws all thre
 
 Routes: `/app/{inventory|branch}/requisitions/dispatch/:id`, `/app/branch/dispatch-print/:id?copy=store|branch`, `/app/inventory/carriers` (the Procurement group for the hub roles, the Manage group for the Branch Manager, read only).
 
+## Paper details that are easy to undo (finish pass, 9 Oct 2026)
+- **Tracker circles:** the tick is Paper's own path (`M5 12.5l4.5 4.5L19 7.5`, 3 px stroke, round caps) on a 24-unit grid, on phone (`B2Tracker`) and desktop (`progress-tracker.tsx`); do not swap in an icon-library check. The phone tracker has **no line** between circles (Paper draws none); the empty circle is 1.5 px.
+- **Printed notes:** page 2 and later use the smaller header (32 px logo, 14/18 name, 16/20 reference, 11/14 lines), a 20 px gap and a "Page n of m" in `#5B6670`; the signature block sits 10 px under the table (18 px on page 1 of the store copy). The signature shrinks to fit one line. The VOID band is built from the D21 wording (Paper has no artboard for it).
+- **Drawers and dialogs:** `DrawerShell` has a `paper` variant (520 px, 540 for D19: eyebrow above a 22/28 title, 28 px padding, 44 px buttons); `DecisionDialog` with `eyebrow` is the 580 px D16/D20 shape. `PinField wide` is Paper's 46 px PIN box.
+- **Shared sizes:** phone file tables use `ItemsTable` (10/12 heads, 14/18 rows, 11 px by 16 px padding, 48/68/44 px columns); `B2Header` has `small`/`tall` for the two subtitle sizes Paper uses; `B2Empty` is the plain empty card of N2b.
+- **After a write:** the discrepancy file moves focus to its heading once a finding is recorded or reversed.
+
 ## Wording and services (desktop)
 - `lib/dispatch-words.ts` is the one wording table of the desktop screens (chips, tracker, next-step cards, the finding descriptions, errors, empty copy), written from Paper D22.
 - `services/dispatch-desktop-api.ts`: real calls for P6, P7, P8 and carriers. `services/branch-side-api.ts`: Q1 to Q5 and the drawer's V2 to V6, real calls only. `hooks/use-record-nudge.ts` refetches on `dispatch:changed`, `discrepancy:changed`, `inventory:badges` and when the tab regains focus.

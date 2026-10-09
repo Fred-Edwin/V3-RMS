@@ -80,6 +80,18 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
   const reverseRef = React.useRef<HTMLButtonElement>(null);
   const data = file.data;
   const reload = file.reload;
+  // After a finding is recorded or reversed, the button that opened the drawer or dialog is gone: put focus on the file's heading
+  // once the new state has loaded, so a keyboard user does not lose their place.
+  const refocus = React.useRef(false);
+  React.useEffect(() => {
+    if (!refocus.current || !data) return;
+    refocus.current = false;
+    const heading = document.querySelector<HTMLElement>('main h1');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    }
+  }, [data]);
   const drawer = params.get('drawer') === 'finding';
   const reversing = params.get('dialog') === 'reverse';
 
@@ -135,7 +147,7 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
               chip={discrepancyChip(data)}
               subline={
                 <>
-                  <DocLink className="text-[13px]">{data.reference}</DocLink>
+                  <DocLink className="text-[13px] !underline">{data.reference}</DocLink>
                   <span>on</span>
                   <DocLink className="text-[13px]" href={`${base}/dispatch/${data.dispatch.id}`}>{data.dispatch.reference}</DocLink>
                   <span>
@@ -151,30 +163,30 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
               <section aria-label="The finding" className="flex items-start justify-between gap-6 border border-wds-border-strong border-l-[3px] border-l-wds-success-fg bg-wds-surface py-5 pl-6 pr-6">
                 <div className="flex min-w-0 flex-1 flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <MonoLabel>The finding</MonoLabel>
-                    <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.01em] text-wds-text-ink">{FINDING_TEXT[data.finding.finding]}</h2>
-                    <p className="max-w-[860px] font-wds-sans text-[15px] leading-6 text-wds-text-secondary">{recordedBody(data.finding.finding, { sent: data.sentQty, counted: data.countedQty, gap: Math.abs(Number(data.gapQty)), item: data.item.name })}</p>
+                    <MonoLabel className="text-[11px] leading-[14px]">The finding</MonoLabel>
+                    <h2 className="font-wds-sans text-[18px] font-semibold leading-6 tracking-[-0.01em] text-wds-text-ink">{FINDING_TEXT[data.finding.finding]}</h2>
+                    <p className="max-w-[760px] font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{recordedBody(data.finding.finding, { sent: data.sentQty, counted: data.countedQty, gap: Math.abs(Number(data.gapQty)), item: data.item.name })}</p>
                   </div>
                   <dl className="grid grid-cols-2 gap-x-8 gap-y-4 lg:grid-cols-4">
-                    <div className="flex flex-col gap-1"><dt><MonoLabel>Recorded by</MonoLabel></dt><dd className="font-wds-sans text-[15px] text-wds-text-ink">{nameAndTitle(data.finding.recorded.by)}</dd></div>
-                    <div className="flex flex-col gap-1"><dt><MonoLabel>When</MonoLabel></dt><dd className="font-wds-sans text-[15px] text-wds-text-ink">{dayAndClock(data.finding.recorded.at)}</dd></div>
+                    <div className="flex flex-col gap-1"><dt><MonoLabel>Recorded by</MonoLabel></dt><dd className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{nameAndTitle(data.finding.recorded.by)}</dd></div>
+                    <div className="flex flex-col gap-1"><dt><MonoLabel>When</MonoLabel></dt><dd className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{dayAndClock(data.finding.recorded.at)}</dd></div>
                     <div className="flex flex-col gap-1">
                       <dt><MonoLabel>Recorded against</MonoLabel></dt>
-                      <dd className="font-wds-sans text-[15px] text-wds-text-ink">
+                      <dd className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">
                         {FINDING_PROFILE[data.finding.finding].against === 'STORE' ? `The store · ${data.packed.by.name} packed and signed` : FINDING_PROFILE[data.finding.finding].against === 'CARRIER' ? `The carrier · ${data.carrier.name}` : FINDING_PROFILE[data.finding.finding].against === 'RECEIVER' ? `The receiver · ${nameAndTitle(data.counted.by)}` : 'Unexplained, its own bucket'}
                       </dd>
                     </div>
-                    <div className="flex flex-col gap-1"><dt><MonoLabel>Stock effect</MonoLabel></dt><dd className="font-wds-sans text-[15px] text-wds-text-ink">{effectText(data.finding.finding, data, false).replace(' · ledger entry', '')}</dd></div>
-                    {data.finding.note ? <div className="col-span-2 flex flex-col gap-1"><dt><MonoLabel>Note</MonoLabel></dt><dd className="font-wds-sans text-[15px] text-wds-text-ink">{data.finding.note}</dd></div> : null}
+                    <div className="flex flex-col gap-1"><dt><MonoLabel>Stock effect</MonoLabel></dt><dd className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{effectText(data.finding.finding, data, false).replace(' · ledger entry', '')}</dd></div>
+                    {data.finding.note ? <div className="col-span-2 flex flex-col gap-1"><dt><MonoLabel>Note</MonoLabel></dt><dd className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{data.finding.note}</dd></div> : null}
                     <div className="col-span-2 flex flex-col gap-1">
                       <dt><MonoLabel>Stock ledger</MonoLabel></dt>
-                      <dd className="font-wds-mono text-[14px] text-wds-text-ink">Entry carrying {data.reference} · {effectText(data.finding.finding, data, false).replace(' · ledger entry', '')}</dd>
+                      <dd className="font-wds-mono text-[13px] leading-[18px] text-[#1F5BAE] underline underline-offset-2">Entry carrying {data.reference} · {effectText(data.finding.finding, data, false).replace(' · ledger entry', '')}</dd>
                     </div>
                     {data.finding.lossValueKes !== undefined ? <div className="flex flex-col gap-1"><dt><MonoLabel>Written off at cost</MonoLabel></dt><dd className="font-wds-mono text-[15px] text-wds-text-ink">KES {kes(data.finding.lossValueKes)}</dd></div> : null}
                   </dl>
                 </div>
                 {data.can.reverse ? (
-                  <Button ref={reverseRef} variant="secondary" size="lg" className="h-10 shrink-0 px-5" onClick={() => setParam({ dialog: 'reverse' })}>
+                  <Button ref={reverseRef} variant="secondary" size="lg" className="h-10 shrink-0 px-[18px] text-[14px] leading-[18px]" onClick={() => setParam({ dialog: 'reverse' })}>
                     Reverse this finding
                   </Button>
                 ) : null}
@@ -191,15 +203,15 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
             {data.reversal || entries.length > 1 ? (
               <RuledBlock label="Every entry on this gap">
                 <div role="table" aria-label="Every entry on this gap">
-                  <div role="row" className="grid grid-cols-[1.1fr_1.1fr_1fr_1.6fr] gap-4 px-1 py-3">
+                  <div role="row" className="grid h-[34px] grid-cols-[300px_240px_200px_1fr] items-center border-b border-wds-border">
                     <MonoLabel>Entry</MonoLabel><MonoLabel>By</MonoLabel><MonoLabel>When</MonoLabel><MonoLabel>Stock effect</MonoLabel>
                   </div>
                   {entries.map(({ event, reversed, finding }) => (
-                    <div key={event.id} role="row" className={cn('grid grid-cols-[1.1fr_1.1fr_1fr_1.6fr] items-center gap-4 border-t border-wds-border px-1 py-4', reversed && 'bg-wds-neutral-50')}>
-                      <div role="cell" className="flex flex-col"><span className="font-wds-sans text-[16px] font-medium text-wds-text-ink">{reversed ? 'Finding reversed' : 'Finding recorded'}</span><span className="font-wds-sans text-[14px] text-wds-text-secondary">{reversed ? (event.reason ?? data.reversal?.reason ?? '') : finding ? FINDING_TEXT[finding] : ''}</span></div>
-                      <span role="cell" className="font-wds-sans text-[15px] text-wds-text-ink">{nameAndTitle(event.actor)}</span>
-                      <span role="cell" className="font-wds-sans text-[15px] text-wds-text-ink">{dayAndClock(event.at)}</span>
-                      <span role="cell" className="font-wds-sans text-[15px] text-wds-text-ink">{finding ? effectText(finding, data, reversed) : '—'}</span>
+                    <div key={event.id} role="row" className={cn('grid grid-cols-[300px_240px_200px_1fr] items-center border-b border-wds-border py-[11px]', reversed && 'bg-wds-neutral-50')}>
+                      <div role="cell" className="flex flex-col gap-0.5"><span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{reversed ? 'Finding reversed' : 'Finding recorded'}</span><span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{reversed ? (event.reason ?? data.reversal?.reason ?? '') : finding ? FINDING_TEXT[finding] : ''}</span></div>
+                      <span role="cell" className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{nameAndTitle(event.actor)}</span>
+                      <span role="cell" className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{dayAndClock(event.at)}</span>
+                      <span role="cell" className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{finding ? effectText(finding, data, reversed) : '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -228,9 +240,9 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
                 <RuledBlock label="Activity">
                   <ol aria-label="Activity">
                     {data.events.map((event) => (
-                      <li key={event.id} className="flex flex-col gap-0.5 border-b border-wds-border px-1 py-3.5">
-                        <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-ink">{event.sentence}</p>
-                        <p className="font-wds-sans text-[13px] text-wds-text-secondary">
+                      <li key={event.id} className="flex flex-col gap-0.5 border-b border-wds-border py-3">
+                        <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{event.sentence}</p>
+                        <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                           {dayAndClock(event.at)}
                           {event.type === 'FINDING_RECORDED' || event.type === 'FINDING_REVERSED' ? ' · stock ledger entry written' : ''}
                           {event.reason && event.type !== 'FINDING_REVERSED' ? ` · ${event.reason}` : ''}
@@ -258,6 +270,7 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
           open={drawer && data.can.recordFinding && data.allowedFindings.length > 0}
           onOpenChange={(open) => setParam({ drawer: open ? 'finding' : null })}
           onRecorded={(result) => {
+            refocus.current = true;
             setParam({ drawer: null });
             toast(`Finding recorded: ${FINDING_TEXT[result.finding.finding].toLowerCase()}`, 'A new entry linked to this number is in the stock ledger.');
             void reload();
@@ -271,6 +284,7 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
           onOpenChange={(open) => setParam({ dialog: open ? 'reverse' : null })}
           returnFocus={() => reverseRef.current}
           onReversed={() => {
+            refocus.current = true;
             setParam({ dialog: null });
             toast('Finding reversed', 'The gap is held as unaccounted again. Both entries stay on file.');
             void reload();

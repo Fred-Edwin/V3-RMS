@@ -4,7 +4,6 @@ import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
-import { cn } from '@/lib/cn';
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { DrawerShell } from '../../../_shared/components/drawer-shell';
 import { useAction, useLoader } from '../../../_shared/hooks/use-async';
@@ -230,10 +229,10 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                 </div>
                 <ul>
                   {lines.map((l) => (
-                    <li key={l.lineId} className={cn('flex items-center justify-between gap-4 border-b border-wds-border px-4 py-2.5 last:border-b-0', !(values[l.lineId] ?? '').trim() && 'bg-wds-neutral-50')}>
+                    <li key={l.lineId} className="flex items-center justify-between gap-3 border-b border-wds-border px-3.5 py-[9px] last:border-b-0 focus-within:bg-wds-caramel-100 focus-within:shadow-[inset_3px_0_0_0_var(--wds-primary-btn-start)]">
                       <div className="flex flex-col">
-                        <label htmlFor={`count-${l.lineId}`} className="font-wds-sans text-[15px] font-medium text-wds-text-ink">{l.itemName}</label>
-                        <span className="font-wds-sans text-[13px] text-wds-text-secondary">Count in {l.unit}</span>
+                        <label htmlFor={`count-${l.lineId}`} className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{l.itemName}</label>
+                        <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Count in {l.unit}</span>
                       </div>
                       <input
                         id={`count-${l.lineId}`}
@@ -243,7 +242,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                         placeholder="—"
                         onChange={(event) => setValue(l.lineId, event.target.value)}
                         onBlur={() => void persist([l.lineId])}
-                        className="h-[46px] w-20 border border-wds-border-strong bg-wds-surface text-center font-wds-mono text-[18px] text-wds-text-ink outline-none placeholder:text-wds-text-faint focus:border-wds-primary focus:shadow-wds-ring"
+                        className="h-9 w-[60px] border border-wds-border-strong bg-wds-surface text-center font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink outline-none placeholder:font-normal placeholder:text-wds-text-faint focus:border-wds-primary focus:shadow-wds-ring"
                       />
                     </li>
                   ))}

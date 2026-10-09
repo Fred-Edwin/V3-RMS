@@ -17,6 +17,9 @@ Routes: `/app/inventory/requisitions/discrepancies[/:id]` and `/app/branch/requi
 
 Amendment 1 (9 Oct 2026) is applied: a reversal returns the discrepancy to OPEN (status goes REVERSED then back to OPEN; `finding` is null, the `reversal` and every event stay), the list tabs carry `counts`, Record and Reverse carry an `idempotencyKey`, photos are `{ id, url }`, and `FINDING_NOT_REVERSIBLE` replaces the two old reversal codes. The desktop lane owns this folder.
 
+## Where the list follows the table kit, not Paper
+The list (7c) is built on the shared `DataTable`, so its filter row (32 px, 12/16), header colour, pager (26 px) and rows per page (50) are the kit's. Paper draws 36 px, 14/18, 32 px and 25. Only the heading, the 170 by 36 row button and the row text were set to Paper. Change the kit, not this screen, if the owner wants it different for every list.
+
 ## Several differing lines
 The dispatch file (Store Manager, desktop) shows one card "N lines differ: record what happened to each"; its button opens the oldest open finding, and each differing row has its own Record a finding link and DSC- number. The file lists its discrepancies oldest first.
 

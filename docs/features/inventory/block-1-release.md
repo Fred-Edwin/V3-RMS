@@ -165,7 +165,9 @@ Do these in order, with real logins, on a quiet evening requisition (use a test 
 
 **Everyone:** the browser console shows no red errors on the list, a file, History, the delivery count screens and the print pages.
 
-**Look closely at these (not measured against Paper before release):** the printed delivery notes (store and branch copy, and a long one on a second page), Carriers (Store Manager), the Discrepancies list and a settled or reopened discrepancy file, and every drawer and dialog by keyboard (Tab stays inside, Escape closes, focus returns to the button). Also try one screen on a tablet width.
+**Measured against Paper and checked (finish pass, 9 Oct):** the printed notes (store copy, branch copy, page 2), Carriers, the Discrepancies list, the discrepancy file open, settled and reopened, the dispatch file, the confirm drawer, the finding drawer, the reverse and cancel dialogs. Spot-checked at 768 and 1024 wide with no sideways scrolling. Keyboard (Tab stays inside, Escape closes, focus returns) tested on the confirm and finding drawers, the reverse dialog and the phone quantity sheet. Every list and file screen shows "Couldn't load" with Retry when the server cannot be reached, and recovers. Every write was tried with bad input at the API and returns a plain error.
+
+**Still look closely at these by eye:** the **VOID band** on a cancelled note (Paper has no drawing of it), the **Discrepancies list's filter row and pager** (they follow the app's shared table, not Paper's sizes; see the undrawn review §15), and the phone **reason sheet** (D10) once with a real photo. Production keeps photos in R2 (local development loses them when the API restarts).
 
 ## 7. If something is wrong
 
