@@ -336,6 +336,7 @@ describe('where the shell applies', () => {
       const groups = navFor(ctxFor(role, { isDepartmentMember: true }));
       expect(item(groups, 'member-deliveries')?.href, role).toBe('/app/deliveries');
       expect(item(groups, 'member-history')?.href, role).toBe('/app/deliveries/history');
+      expect(item(groups, 'member-waste')?.href, role).toBe('/app/waste');
       // one History for a member (the deliveries one), not two
       expect(links(groups).filter((i) => i.label === 'History').map((i) => i.key), role).toEqual(['member-history']);
       // a member is not a head: no requisitions, no department shifts
@@ -344,6 +345,8 @@ describe('where the shell applies', () => {
     // a head never gets the member rows (their own Deliveries row serves them)
     const head = navFor(ctxFor('CHEF', { isDepartmentHead: true, isDepartmentMember: true }));
     expect(keys(head)).not.toContain('member-deliveries');
+    expect(keys(head)).not.toContain('member-waste');
+    expect(item(head, 'department-waste')?.href).toBe('/app/waste');
     expect(keys(head)).toContain('department-deliveries');
   });
 

@@ -27,10 +27,16 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
+  // Block 3 — the department's Branch waste phone screens (log, the department's list, reverse): a head, or a floor member of a
+  // department. Which department a person may log for is decided by the API (the department rule), not here.
+  if (pathname.startsWith('/app/waste')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+  }
+
   // Milestone Six, Session 1 — a Department Head's own-department stock
-  // ledger and Log waste (`1BPY-0`/`1FDY-0`, `1ACM-0`). Department-scoped
-  // server-side (location resolved from the actor); no Manager screen yet.
-  if (pathname.startsWith('/app/branch/ledger') || pathname.startsWith('/app/branch/waste')) {
+  // ledger (`1BPY-0`/`1FDY-0`). Department-scoped server-side (location
+  // resolved from the actor); no Manager screen yet.
+  if (pathname.startsWith('/app/branch/ledger')) {
     return isDepartmentHead;
   }
 

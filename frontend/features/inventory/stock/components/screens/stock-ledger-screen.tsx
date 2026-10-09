@@ -16,7 +16,6 @@ import { useDebouncedValue, useStockLedger, useStockList, useStockSummary } from
 import { listItems } from '../../../services';
 import type { InventoryTransactionTypeValue, LedgerQuery, LedgerRow, LedgerSummary, StockSummary } from '../../types/stock';
 import { StockTopbar } from '../stock-topbar';
-import { LogWasteDrawer } from '../../../waste/department/components/log-waste-drawer';
 import { DropdownFilter } from '../stock-table';
 import {
   KpiValueSkeleton,
@@ -396,7 +395,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
   const rows = ledger?.rows ?? [];
   const highlightRow = state.highlight ? rows.find((r) => r.id === state.highlight) : undefined;
   const highlightRef = useHighlightScroll(highlightRow?.id);
-  const [wasteOpen, setWasteOpen] = React.useState(false);
 
   // Recently viewed (per viewer, per scope) — written when a ledger opens.
   const recentStorageKey = recentKey(scope, dept.user?.id);
@@ -533,8 +531,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
       <StockTopbar
         screen={summary ? `${itemName} · ledger` : 'Stock ledger'}
         showHubCrumb
-       
-        onLogWaste={() => setWasteOpen(true)}
       />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-10 [&>*]:shrink-0">
         <div className="flex flex-col gap-1 px-8 pb-4 pt-6">
@@ -685,8 +681,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
           />
         ) : null}
       </main>
-
-      <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={() => void reload()} />
     </div>
   );
 }
@@ -783,7 +777,6 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
   const { summary: rawSummary } = useStockSummary(scope === 'store');
   const storeSummary = scope === 'store' && rawSummary && 'onHandValue' in rawSummary ? (rawSummary as StockSummary) : null;
   const [recent, setRecent] = React.useState<RecentItem[] | null>(null);
-  const [wasteOpen, setWasteOpen] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const recentStorageKey = recentKey(scope, dept.user?.id);
 
@@ -881,7 +874,7 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Stock ledger" showHubCrumb onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Stock ledger" showHubCrumb />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0">
         <div className="flex flex-col gap-1 px-8 pb-4 pt-6">
           <h1 className="font-wds-sans text-[24px]/[30px] font-semibold text-wds-text-ink">Stock ledger</h1>
@@ -896,7 +889,6 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
           </div>
         </div>
       </main>
-      <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" />
     </div>
   );
 }

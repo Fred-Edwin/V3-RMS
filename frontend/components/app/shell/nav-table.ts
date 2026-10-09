@@ -381,10 +381,12 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
   { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true },
   // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
-  // Count tonight and Waste (also on the map) have no old page a member can use: the API refuses a member there. They arrive with Blocks 3 and 4.
+  // Count tonight (also on the map) has no page a member can use yet; it arrives with Block 4. Waste is the row below (Block 3).
   { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true },
   { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/branch/waste/new', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
+  // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
+  { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
   { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
