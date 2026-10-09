@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 
-import { DispatchFileScreen } from '@/features/inventory/dispatch';
+import { ConfirmScreen } from '@/features/inventory/deliveries';
 
-export default function DispatchFilePage() {
+export default function ConfirmPage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
-  return <DispatchFileScreen id={id} />;
+  return <ConfirmScreen key={id} id={id} />;
 }

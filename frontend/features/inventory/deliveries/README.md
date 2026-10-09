@@ -1,6 +1,20 @@
 # deliveries (front end)
 
-**Design:** approved (Paper chapter 6 D7 to D12, D19, gap fix G2) · **Code:** contract mirror only (Block 2). No screens yet.
+**Design:** approved (Paper chapter 6 D7 to D12, D19, gap fix G2, Block 2 gaps N3a and N3b) · **Code:** the phone screens are built against a hand-written mock (`services/dispatch-mock-phone.ts`); back end D has not merged. `NEXT_PUBLIC_DISPATCH_MOCK=off` calls the real V1 to V6; at integration the owner flips that default and deletes the mock.
+
+## Phone screens (`components/phone/`)
+| Screen | Route |
+|---|---|
+| Deliveries waiting, with Earlier today (D7) | `/app/deliveries` |
+| Count what arrived (D8), count again (D9), reason and photo sheet (D10) | `/app/deliveries/[id]/count` |
+| Confirm with your PIN (D11) | `/app/deliveries/[id]/confirm` |
+| Delivery confirmed (D12) | `/app/deliveries/[id]/done` |
+| My delivery file (N3a gap open, N3b after a reversal) | `/app/deliveries/[id]` |
+| My deliveries (G2): a member's History, and the head's Deliveries tab | `/app/deliveries/history`, `/app/requisitions/history?tab=deliveries` |
+
+The count autosaves about 600 ms after the last key; "Check and sign" runs the check; the second count is final. A photo is shrunk to 1600 px before upload (`lib/shrink-image.ts`). The sent figure appears only on the confirm summary and the file after the count.
+
+**Open for back end D / the owner:** a member holds no `dispatch.read`, so the file (N3) calls a proposed `GET /inventory/deliveries/:id` that returns the same file shape; members are not on the one shell yet (the nav table has their Deliveries and History rows, but `usesAppShell` still keeps floor staff on the legacy bottom tabs).
 
 The branch side: My deliveries (waiting and past), the blind count, check, reasons and photos, the summary and the PIN; the Branch Manager's "confirm for the department".
 

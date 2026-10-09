@@ -21,6 +21,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead;
   }
 
+  // Block 2 — the department's Deliveries (count, confirm, file, history): a head, or a floor member of a department. Which
+  // department a person may count is decided by the API (`deliveries.count` rule), not here.
+  if (pathname.startsWith('/app/deliveries')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+  }
+
   // Milestone Five, Session B — branch-side Deliveries is shared between the
   // Branch Manager (all departments, confirm-on-behalf) and a Department
   // Head (own department only, enforced server-side) — both reuse
