@@ -146,7 +146,7 @@ export function MyWasteScreen() {
         <p role="status" aria-live="polite" className="sr-only">{notice}</p>
       </div>
       <div className="shrink-0 px-4 pb-5 pt-3">
-        <Link href={`${WASTE}/new`} className={cn(PHONE_PRIMARY_BUTTON, 'h-[52px] text-[16px] leading-5')}>Log more waste</Link>
+        <Link href={`${WASTE}/new`} className={cn(PHONE_PRIMARY_BUTTON, 'h-[50px] text-[16px] leading-5')}>Log more waste</Link>
       </div>
       <ReversePhoneSheet
         entry={reversing}
