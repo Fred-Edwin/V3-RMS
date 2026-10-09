@@ -2,6 +2,12 @@
 
 Governs: `branch-waste-flow.md` (design log), Paper page "Inventory · Branch waste" (W1 to W9) and step 55 on "Inventory · Counting redesign (Oct 7)" (chapter 11, "Kitchen waste, today and earlier"). **Paper wins.** Models followed: `stock-count-waste-contract.md` (the Central Store waste, W1 to W4) and `dispatch-contract.md` (department rule, own branch). Not frozen until the owner says so; the contract is written in Zod, fixtures and mirrors in the same change (the second half of `waste/_shared/waste-contract.ts`, "BRANCH WASTE (Block 3)", with the same fixtures file and test as the Central Store waste).
 
+## 0. Owner decisions (9 Oct 2026)
+
+1. **No photo on a waste entry.** Dropped from Block 3 and from the flow; no column, no storage, no screen.
+2. **Reverse is one endpoint, BW7**, for own and any (the capability decides), as the Central Store W4.
+3. **The defaults in this document are accepted:** a retired department's members cannot log; the System Admin reads and reverses any entry and cannot log (no PIN); step 55 shows the whole department's entries; BW6 (entry detail) stays, built from the flow text.
+
 ## 1. What was checked first (real schema and code, 9 Oct 2026)
 
 | Question | Answer |
@@ -14,7 +20,7 @@ Governs: `branch-waste-flow.md` (design log), Paper page "Inventory · Branch wa
 
 ### Differences between the flow document and Paper or the code (Paper wins; none breaks a rule)
 
-1. **Photo.** The flow says "an optional photo" and "photo" on the entry detail. No Paper screen (W1 to W7, 55) draws a photo, the Central Store waste has none, and there is no column or storage for one. **Left out.** Adding it needs a migration and an owner decision (stop point, see §12).
+1. **Photo.** The flow says "an optional photo" and "photo" on the entry detail. No Paper screen (W1 to W7, 55) draws a photo, the Central Store waste has none, and there is no column or storage for one. **Left out, and dropped by the owner (§0).**
 2. **Who sees the department's entries.** The flow says a member "sees their own entries for today". Step 55 shows the whole department's entries, today and earlier, with "you" on the caller's own rows. **Step 55 followed.**
 3. **Who may log.** Today only heads can. The flow and W1 say "department head or member". **Members may log** (the department rule, by `departmentId`, §3).
 4. **"Items it holds".** Today's rule is "items tagged to the department" (legacy tag). New rule: the item is live and linked to the caller's department in `item_departments`. A department never holds raw ingredients (`RAW_INGREDIENT` items are Central Store only), which this link already guarantees. Not "has stock": stock may be zero or negative and waste is never blocked.
@@ -134,9 +140,9 @@ State table for `reverseCheck`; every error code; blind view builders (no money,
 
 ## 12. Gaps this contract could not close from Paper alone
 
-1. **Photo** (flow text, not drawn, no storage): needs the owner's decision and a migration; not in this contract.
-2. **Entry detail** (BW6) is not drawn: its shape is the entry plus the ledger rows, and the screen must be drawn or the endpoint left unused.
-3. **Retired department**: may a member of a retired department still log? Not stated. Default until told: the department rule requires an **active** department, so logging is refused with a plain 403.
+1. ~~Photo~~: dropped by the owner (§0).
+2. **Entry detail** (BW6) is not drawn: its shape is the entry plus the ledger rows (kept by the owner, §0), and the screen must be drawn or the endpoint left unused.
+3. **Retired department**: not stated in Paper. Accepted default (§0): the department rule requires an **active** department, so logging is refused with a plain 403.
 4. **A branch with no location for the department yet**: BW2 creates it through `ensureDepartmentLocation`, as Deliveries does (no owner decision needed).
 5. **The Department filter for a head or member** is not drawn (step 55 has a date only); BW3 takes `from` and `to` only.
 6. **Reversed figure caption** "Both by their own department" is Paper's sample text; the server phrases it from the data ("Each by its own department", "1 by Grace W.").
