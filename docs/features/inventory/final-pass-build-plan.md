@@ -16,6 +16,19 @@ This file is temporary working state (playbook §11). Extract anything still in 
 | Block 5 | Gap fixes: Attendant home (52), My counts (53), My waste today and earlier (54). Step 55 (department waste, today and earlier) proposed to move to Block 3 | amendment approved by the owner 9 Oct 2026 (`stock-count-waste-amendment-2.md`; step 55 moved to Block 3). **Back end built on `feat/block5-be-counts` (9 Oct), not pushed:** C31 `GET /counts/home` and C32 `GET /counts/mine` (own, blind), schemas and fixtures in both copies, mirror types, contract test, unit and database tests; contract committed first. **Front end (steps 52 to 54, nav rows) is the next session** | frozen, Amendment 2 in code | pending |
 | Paper session 4 | Stale stamps; the design for items, head and staff of an added department; catch-up for Block 1's undrawn pieces | prompt written (`docs/sessions/final-pass-paper-session-4-catch-up.md`) | none | n/a |
 
+## Deferred, to run later (logged 9 Oct 2026, owner decision)
+
+Block 5 back end (#121) and the Block 2 integration (#122) are merged into `feat/final-pass-block-1`. The Block 5 front end (steps 52 to 54) is next.
+
+**Block 2 integration follow-up: not started, run before the Blocks 1 and 2 release.** One session in a spare lane, branch `feat/dispatch-integration-2` from the integration branch. Scope:
+1. Numeric `get_computed_styles` comparison to Paper for the printed delivery notes (page 2 and the VOID band), Carriers, the Discrepancies list, D19 and the settled-file states.
+2. 768 and 1024 spot-checks on the desktop and phone screens.
+3. The full keyboard sweep (focus traps and return on every drawer, dialog and sheet), error-with-Retry, and real write errors for every write; zero console errors.
+4. The database test files one at a time on a database migrated to head (deliveries, dispatch, requisitions-list, audit-log failed on lane 4 only because it lacked the Block 2 migration).
+5. Owner decisions already made: keep chapter 5's final review sizes and the 32 px pager; Block 5 home badge is the all-time signed count.
+
+Also open: the `wendo-progress-hub` Vercel check fails on every PR (Root Directory points at a folder with no `package.json`). A Vercel project setting, not code; owner to set Root Directory to `progress-hub` or disconnect the project.
+
 Sessions per block and their prompts: `docs/sessions/final-pass-*.md`. Common rules every prompt repeats: `docs/sessions/final-pass-session-common.md`.
 
 ## Order
