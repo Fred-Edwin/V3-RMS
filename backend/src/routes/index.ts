@@ -38,7 +38,6 @@ import prepRunsRoutes from '../modules/inventory/prep/runs/runs-routes';
 import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
 import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
-import wasteRoutes from '../modules/inventory/waste/department/waste-routes';
 import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
 import countingRoutes from '../modules/inventory/counting/counting-routes';
 import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';
@@ -94,15 +93,14 @@ apiRouter.use(prepReviewRoutes); // before prepRunsRoutes: `/runs/export` must w
 apiRouter.use(prepRunsRoutes);
 apiRouter.use(prepFixRoutes);
 apiRouter.use('/inventory/prep', prepRecipesRoutes);
-apiRouter.use(wasteRoutes);
 apiRouter.use(thresholdsRoutes);
 // The Stock, Counting and Waste rebuild (feat/stock-count-waste): new paths under /inventory/stock, none shared with the old
 // routers above, which are deleted at release. Each aggregator lists its folders; the build sessions fill the folder routers.
 apiRouter.use(countingRoutes);
 apiRouter.use(stockHubRoutes);
 apiRouter.use(wasteHubRoutes);
-// Final pass, Block 3 (docs/features/inventory/branch-waste-contract.md): the rebuilt Branch waste. A placeholder until the build fills it;
-// the Department Head's three old endpoints (`wasteRoutes` above) keep running until it replaces them.
+// Final pass, Block 3 (docs/features/inventory/branch-waste-contract.md): the rebuilt Branch waste, BW1 to BW7. It replaces the Department
+// Head's three old endpoints under /inventory/waste, which are gone.
 apiRouter.use('/inventory/branch-waste', branchWasteRoutes);
 apiRouter.use(branchDayRoutes);
 // Final pass, Block 1 (docs/features/inventory/requisitions-contract.md): the rebuilt Requisitions and Departments, new paths

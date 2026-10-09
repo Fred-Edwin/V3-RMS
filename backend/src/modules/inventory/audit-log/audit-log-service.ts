@@ -15,6 +15,7 @@ import { dispatchSource } from './sources/dispatch-source';
 import { discrepanciesSource } from './sources/discrepancies-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
+import { branchWasteSource } from './sources/branch-waste-source';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -35,7 +36,7 @@ const idOf = (after: Record<string, unknown> | null, before: Record<string, unkn
 };
 
 /** The areas read from rows other features keep, each its own small module (`sources/`). */
-const DERIVED_SOURCES: readonly AuditSource[] = [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource];
+const DERIVED_SOURCES: readonly AuditSource[] = [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource, branchWasteSource];
 
 /** The areas a branch can have entries in. With the Branch filter on, the hub's own areas answer nothing. */
 const BRANCH_AREAS: readonly AuditArea[] = ['RESTOCK_LEVELS', 'REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
