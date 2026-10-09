@@ -10,6 +10,19 @@ Extracted 9 Oct 2026 on branch `docs/block3-paper-spec`. Read this before buildi
 
 **Spacing tokens.** The 4px scale is `wds-1`=4, `wds-1.5`=6, `wds-2`=8, `wds-2.5`=10, `wds-3`=12, `wds-3.5`=14, `wds-4`=16, `wds-4.5`=18, `wds-5`=20, `wds-6`=24, `wds-8`=32, `wds-10`=40, `wds-12`=48. A px value with no token above (2, 3, 9, 28, 34, 38, 44, 46, 50, 56, 60, 62, 64 and so on) is "no token: use exact value" for spacing and sizes.
 
+## Owner rulings (9 Oct 2026, "accept my recommendations"): these override the "default" columns below
+
+- **D1:** one gradient, the token start `#B0610F`, on every primary button (W1 to W5 too).
+- **D2, D3, D5, D5b, D6, D7, D8, D13, D14, D15:** Paper wins, built as options (props, size or tone variants) on the kit pieces. The default look of every other screen does not change. D14: keep the drawn look and give each control a 44px hit area.
+- **D4:** scrim 60%, W7 only; phone sheets keep `scrim={52}`.
+- **D9:** the kit's toolbar layout wins (§4a); Paper's labels and sizes still apply.
+- **D10:** keep the kit's date range picker.
+- **D11:** the kit's header rule, Paper's header text colour (`#635E57`), rows 46px on both W6 and W8.
+- **D12:** do NOT change the type tokens globally. Use Paper's exact values for these screens only; a global token change is a separate owner decision.
+- **D16:** the shell's call; leave it alone.
+- **Conflicts inside Paper:** the reversed chip reads "Reversed 09:12" on the phone and "Reversed 09:12 · wrong item" on desktop, each as drawn. "Other, add a note" gets a note field (gap, built in the same style and reported). The reverse reason starts with none chosen and a choice is required. W6 and W8 both use 46px rows and one set of column widths. The final phone button reads "Confirm and log waste".
+- **Gaps (section 6):** all built in the same style and reported, none omitted. Photo is dropped from Block 3 (contract §0).
+
 ---
 
 ## 0. Contents and what is drawn
