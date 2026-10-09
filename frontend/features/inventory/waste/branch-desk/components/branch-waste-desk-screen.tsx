@@ -158,7 +158,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
                 ev.stopPropagation();
                 setReversing(e);
               }}
-              className="relative -mr-2 h-8 px-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none transition-colors hover:bg-wds-surface-sunken hover:text-wds-text-ink focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98]"
+              className="relative -mr-2 h-8 px-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none transition-[background-color,color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-surface-sunken [@media(hover:hover)]:hover:text-wds-text-ink"
             >
               Reverse<span className="sr-only"> {e.itemName}, {quantityLabel(e.quantity, e.unit)}</span>
             </button>

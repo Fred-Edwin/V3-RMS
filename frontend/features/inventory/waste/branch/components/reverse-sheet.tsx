@@ -52,7 +52,7 @@ export function ReverseSheet({ entry, onClose, onDone }: { entry: BranchWasteEnt
                 tabIndex={radioTabIndex(i, chosen, f.reason !== null)}
                 disabled={f.busy}
                 onClick={() => f.setReason(r)}
-                className={cn('flex h-12 items-center gap-3 px-3.5 text-left font-wds-sans text-[14px] leading-[18px] text-wds-text-ink outline-none transition-colors duration-100 focus-visible:shadow-wds-ring', chosen ? 'border-[1.5px] border-wds-selected-edge bg-wds-espresso-50' : 'border border-wds-border-strong bg-wds-surface')}
+                className={cn('flex h-12 items-center gap-3 px-3.5 text-left font-wds-sans text-[14px] leading-[18px] text-wds-text-ink outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring enabled:motion-safe:active:scale-[0.99]', chosen ? 'border-[1.5px] border-wds-selected-edge bg-wds-espresso-50' : 'border border-wds-border-strong bg-wds-surface enabled:active:bg-wds-neutral-100 enabled:[@media(hover:hover)]:hover:bg-wds-neutral-50')}
               >
                 <span className={cn('box-border size-4 shrink-0 rounded-full', chosen ? 'border-4 border-wds-selected-edge' : 'border-[1.5px] border-wds-neutral-400')} aria-hidden />
                 {reasonLabel(r)}

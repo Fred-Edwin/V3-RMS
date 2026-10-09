@@ -40,7 +40,7 @@ function EntryRow({ entry, meId, onReverse, onShowReversed }: { entry: BranchWas
           data-reversed-chip
           onClick={() => onShowReversed(entry)}
           aria-label={`Reversed ${clockLabel(entry.reversal.at)}. Show why for ${entry.itemName}`}
-          className="relative shrink-0 border border-wds-border-strong bg-wds-neutral-100 px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none before:absolute before:-inset-x-1 before:-inset-y-[11px] before:content-[''] focus-visible:shadow-wds-ring"
+          className="relative shrink-0 border border-wds-border-strong bg-wds-neutral-100 px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none before:absolute before:-inset-x-1 before:-inset-y-[11px] before:content-[''] transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-200 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-neutral-200"
         >
           Reversed {clockLabel(entry.reversal.at)}
         </button>

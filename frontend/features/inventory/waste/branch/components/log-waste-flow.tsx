@@ -119,7 +119,7 @@ export function LogWasteFlow() {
                   <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{WASTE_REASON_TEXT[l.reason]}</span>
                 </span>
                 <span className="font-wds-mono text-[16px] leading-5 text-wds-text-ink">{quantityLabel(l.quantity, l.item.unit)}</span>
-                <button type="button" disabled={cart.busy} onClick={() => open(l.item)} className="relative font-wds-sans text-[12px] font-medium leading-4 text-wds-selected-edge outline-none before:absolute before:-inset-x-3 before:-inset-y-[14px] before:content-[''] focus-visible:shadow-wds-ring">
+                <button type="button" disabled={cart.busy} onClick={() => open(l.item)} className="relative font-wds-sans text-[12px] font-medium leading-4 text-wds-selected-edge underline-offset-4 outline-none transition-[opacity,transform] duration-100 before:absolute before:-inset-x-3 before:-inset-y-[14px] before:content-[''] focus-visible:shadow-wds-ring enabled:motion-safe:active:scale-[0.97] enabled:[@media(hover:hover)]:hover:underline enabled:active:opacity-70">
                   Edit<span className="sr-only"> {l.item.name}</span>
                 </button>
               </li>
@@ -184,7 +184,7 @@ export function LogWasteFlow() {
           <ul className="flex flex-col border border-wds-border bg-wds-surface" aria-label="Matching items">
             {results.map((i) => (
               <li key={i.itemId} className="border-b border-wds-neutral-100 last:border-b-0">
-                <button type="button" onClick={() => open(i)} className="flex h-14 w-full items-center justify-between gap-3 px-3.5 text-left outline-none focus-visible:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100">
+                <button type="button" onClick={() => open(i)} className="flex h-14 w-full items-center justify-between gap-3 px-3.5 text-left outline-none transition-colors duration-100 focus-visible:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 [@media(hover:hover)]:hover:bg-wds-neutral-50">
                   <span className="font-wds-sans text-[15px] leading-[18px] text-wds-text-ink">
                     <HighlightMatch text={i.name} term={q} />
                   </span>
@@ -201,7 +201,7 @@ export function LogWasteFlow() {
             <ul className="flex flex-col gap-2">
               {cart.lines.map((l) => (
                 <li key={l.item.itemId}>
-                  <button type="button" data-line-id={l.item.itemId} onClick={() => open(l.item)} aria-label={`Edit ${l.item.name}, ${quantityLabel(l.quantity, l.item.unit)}, ${WASTE_REASON_TEXT[l.reason]}`} className="flex h-14 w-full items-center gap-3 border border-wds-border bg-wds-surface px-3.5 text-left outline-none focus-visible:shadow-wds-ring active:bg-wds-neutral-50">
+                  <button type="button" data-line-id={l.item.itemId} onClick={() => open(l.item)} aria-label={`Edit ${l.item.name}, ${quantityLabel(l.quantity, l.item.unit)}, ${WASTE_REASON_TEXT[l.reason]}`} className="flex h-14 w-full items-center gap-3 border border-wds-border bg-wds-surface px-3.5 text-left outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.99] [@media(hover:hover)]:hover:bg-wds-neutral-50">
                     <span className="flex min-w-0 grow flex-col">
                       <span className="truncate font-wds-sans text-[15px] leading-[18px] text-wds-text-ink">{l.item.name}</span>
                       <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{WASTE_REASON_TEXT[l.reason]}</span>

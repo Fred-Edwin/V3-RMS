@@ -113,7 +113,7 @@ export function AmountSheet({ target, onChange, onClose, onAdd, onRemove }: { ta
             <button
               type="button"
               onClick={() => onRemove(target.item.itemId)}
-              className="-my-1 self-center px-3 py-3.5 font-wds-sans text-[12px] font-medium leading-4 text-wds-selected-edge outline-none focus-visible:shadow-wds-ring"
+              className="-my-1 self-center px-3 py-3.5 font-wds-sans text-[12px] font-medium leading-4 text-wds-selected-edge underline-offset-4 outline-none transition-[opacity,transform] duration-100 focus-visible:shadow-wds-ring motion-safe:active:scale-[0.97] active:opacity-70 [@media(hover:hover)]:hover:underline"
             >
               Remove {target.item.name}
             </button>
