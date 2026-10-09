@@ -99,18 +99,18 @@ export function ReasonSheet({ deliveryId, line, position, firstCount, onClose, o
   return (
     <BottomSheet open={open} onOpenChange={(next) => (next ? undefined : onClose())} label={line ? `${line.itemName}: why is it different?` : 'Why is it different?'} scrim={45}>
       {line ? (
-        <div className="flex flex-col gap-4 px-5 pb-5 pt-3">
+        <div className="flex flex-col gap-4 px-5 pb-6 pt-3">
           <SheetGrabber />
-          <div className="flex flex-col gap-1.5">
-            {position && position.total > 1 ? <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">Line {position.index} of {position.total}</p> : null}
-            <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.01em] text-wds-text-ink">{line.itemName}: why is it different?</h2>
-            <p className="font-wds-sans text-[16px] leading-6 text-wds-text-muted">
+          <div className="flex flex-col gap-1">
+            {position && position.total > 1 ? <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">Line {position.index} of {position.total}</p> : null}
+            <h2 className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-wds-text-ink">{line.itemName}: why is it different?</h2>
+            <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
               {countLine} This line will be marked {direction}.
             </p>
           </div>
-          <div role="radiogroup" aria-label="What do you think happened" className="flex flex-col gap-2.5">
-            <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">What do you think happened</span>
-            <div className="flex flex-wrap gap-2.5">
+          <div role="radiogroup" aria-label="What do you think happened" className="flex flex-col gap-2">
+            <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">What do you think happened</span>
+            <div className="flex flex-wrap gap-2">
               {COUNT_REASONS.map((r) => (
                 <button
                   key={r}
@@ -118,8 +118,9 @@ export function ReasonSheet({ deliveryId, line, position, firstCount, onClose, o
                   role="radio"
                   aria-checked={reason === r}
                   onClick={() => setReason(r)}
+                  // Paper D10: 14/18 chips with 10/14 padding (38 px tall); the touch target stays 44 px through the transparent extension.
                   className={cn(
-                    'h-11 min-w-11 border px-4 font-wds-sans text-[16px] leading-5 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring',
+                    'relative border px-3.5 py-[9px] font-wds-sans text-[14px] leading-[18px] outline-none transition-colors duration-100 before:absolute before:inset-x-0 before:-inset-y-[3px] before:content-[\'\'] focus-visible:shadow-wds-ring',
                     reason === r ? 'border-wds-sidebar-top bg-wds-sidebar-top text-wds-neutral-0' : 'border-wds-border-strong bg-white text-wds-text-ink hover:bg-wds-neutral-50',
                   )}
                 >
@@ -155,14 +156,15 @@ export function ReasonSheet({ deliveryId, line, position, firstCount, onClose, o
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   disabled={busy !== null}
-                  className="flex min-h-[64px] items-center gap-3.5 border border-dashed border-wds-border-strong px-4 py-3.5 text-left outline-none transition-colors duration-100 hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-60"
+                  className="flex items-center gap-3 border-[1.5px] border-dashed border-wds-border-strong px-4 py-3.5 text-left outline-none transition-colors duration-100 hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-60"
                 >
-                  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-wds-text-muted">
-                    <path d="M4 8h3l1.5-2h7L17 8h3v11H4zM12 17a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                  <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-wds-text-secondary">
+                    <path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                    <circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
                   </svg>
-                  <span className="flex flex-col">
-                    <span className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">{busy === 'photo' ? 'Adding the photo…' : photos.length === 0 ? 'Add a photo (optional)' : `Add another photo (${photos.length} of ${PHOTO_MAX_PER_LINE})`}</span>
-                    <span className="font-wds-sans text-[14px] leading-5 text-wds-text-muted">Helpful for damaged or wrong items</span>
+                  <span className="flex flex-col gap-px">
+                    <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{busy === 'photo' ? 'Adding the photo…' : photos.length === 0 ? 'Add a photo (optional)' : `Add another photo (${photos.length} of ${PHOTO_MAX_PER_LINE})`}</span>
+                    <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Helpful for damaged or wrong items</span>
                   </span>
                 </button>
               </>

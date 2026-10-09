@@ -30,7 +30,8 @@ export interface SignedBatch {
   dispatches: Array<{ id: string; reference: string; departmentId: string; departmentName: string }>;
 }
 
-const linkOf = (dispatchId: string): string => `/app/branch/deliveries/${dispatchId}`;
+/** A tap on the push opens the department's count screen for that delivery. */
+const linkOf = (dispatchId: string): string => `/app/deliveries/${dispatchId}/count`;
 
 export const createDispatchNotices = (deps: DispatchNoticeDeps = defaultDeps) => {
   const changed = (hubId: string, branchId: string, rows: Array<{ id: string; reference: string | null }>, reason: string): void => {

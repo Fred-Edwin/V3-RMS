@@ -126,7 +126,7 @@ export function UrgentTag() {
 export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean }>(
   ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false }, ref) => (
     <div className="flex flex-col gap-1.5">
-      <MonoLabel htmlFor={id}>Your PIN</MonoLabel>
+      <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>Your PIN</MonoLabel>
       <input
         ref={ref}
         id={id}
@@ -142,7 +142,7 @@ export const PinField = React.forwardRef<HTMLInputElement, { value: string; onCh
         }}
         className={cn(
           wide ? 'w-full' : 'w-[200px]',
-          'h-12 border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
+          wide ? 'h-[46px] border bg-wds-surface px-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em] text-wds-text-ink outline-none' : 'h-12 border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
           invalid ? 'border-wds-error-fg' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-wds-ring',
         )}
       />

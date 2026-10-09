@@ -135,9 +135,9 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
               chip={discrepancyChip(data)}
               subline={
                 <>
-                  <DocLink>{data.reference}</DocLink>
+                  <DocLink className="text-[13px]">{data.reference}</DocLink>
                   <span>on</span>
-                  <DocLink href={`${base}/dispatch/${data.dispatch.id}`}>{data.dispatch.reference}</DocLink>
+                  <DocLink className="text-[13px]" href={`${base}/dispatch/${data.dispatch.id}`}>{data.dispatch.reference}</DocLink>
                   <span>
                     · {data.department.name}, {data.branch.name} · opened {clock(data.openedAt)}
                     {data.reversal && data.status === 'OPEN' ? ` · reopened ${clock(data.reversal.reversed.at)}` : ''}
@@ -184,7 +184,7 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
                 title={words.title}
                 body={words.body}
                 tone="amber"
-                action={data.can.recordFinding && data.allowedFindings.length > 0 ? <Button size="lg" className="h-[46px] px-6 text-[16px]" onClick={() => setParam({ drawer: 'finding' })}>Record a finding</Button> : null}
+                action={data.can.recordFinding && data.allowedFindings.length > 0 ? <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => setParam({ drawer: 'finding' })}>Record a finding</Button> : null}
               />
             )}
 
@@ -244,8 +244,8 @@ export function DiscrepancyFileScreen({ id, base, section: crumb }: { id: string
 
             {showWho ? (
               <section aria-label="Once a finding is recorded" className="flex flex-col gap-2">
-                <MonoLabel>Once a finding is recorded</MonoLabel>
-                <p className="max-w-[1100px] font-wds-sans text-[15px] leading-6 text-wds-text-secondary">The finding moves the stock and is written to the stock ledger as a new linked entry carrying this number. Nothing is edited or deleted; a wrong finding is reversed with a reason and a PIN.</p>
+                <MonoLabel className="text-[11px] leading-[14px]">Once a finding is recorded</MonoLabel>
+                <p className="max-w-[900px] font-wds-sans text-[14px] leading-5 text-wds-text-secondary">The finding moves the stock and is written to the stock ledger as a new linked entry carrying this number. Nothing is edited or deleted; a wrong finding is reversed with a reason and a PIN.</p>
               </section>
             ) : null}
           </>

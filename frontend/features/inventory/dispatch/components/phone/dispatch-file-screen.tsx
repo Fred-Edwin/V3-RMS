@@ -17,7 +17,7 @@ import { useDispatchFile } from '../../hooks/use-phone-dispatch';
 import { attendantFileChip, dispatchTrackerRows, firstDiscrepancy, gapText, recordedFinding, whenText } from '../../lib/file-logic';
 import { DISPATCH_HOME } from '../../lib/phone-routes';
 
-const printHref = (id: string, copy: 'store' | 'branch'): string => `/app/inventory/dispatch-print/${id}?copy=${copy}`;
+const printHref = (id: string, copy: 'store' | 'branch'): string => `/app/branch/dispatch-print/${id}?copy=${copy}`;
 
 /** The dispatch file on the phone (Block 2 gaps N1 and N1b): read only, no money. Opens from the DSP- links on D6, the On the way tab and Done. */
 export function DispatchFileScreen({ id }: { id: string }) {
@@ -86,19 +86,19 @@ function FileBody({ file, onBack }: { file: DispatchFile; onBack: () => void }) 
   return (
     <PhoneColumn>
       <B2Header title={`${file.department.name} · ${file.branch.name}`} subtitle={`${file.reference} · ${file.lineCount} ${file.lineCount === 1 ? 'line' : 'lines'}`} mono leading="back" onBack={onBack} place="CENTRAL STORE" />
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto bg-wds-canvas px-5 pb-8 pt-4">
-        <div className="flex flex-col gap-2.5">
-          <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto bg-wds-canvas p-5">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Chip spec={chip} />
-            <span className="font-wds-sans text-[15px] leading-5 text-wds-text-muted">{cancelled ? `was ${file.carrier.name}` : file.carrier.name}</span>
+            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{cancelled ? `was ${file.carrier.name}` : file.carrier.name}</span>
           </div>
-          <p className="font-wds-sans text-[15px] leading-5 text-wds-text-muted">
-            from <RefLink reference={file.requisition.reference} className="text-[14px]" /> · {shortDateText(file.packedAt)}
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+            from <RefLink reference={file.requisition.reference} className="text-[13px] leading-[18px]" /> · {shortDateText(file.packedAt)}
           </p>
         </div>
 
         {file.cancelled ? (
-          <B2Banner tone="error" title={`Cancelled at ${timeText(file.cancelled.at)}`} footnote={`${personDot(file.cancelled.by)} · the stock came back to the Central Store as a linked entry, and the lines are back in To pack.`} role="alert">
+          <B2Banner tone="error" title={`Cancelled at ${timeText(file.cancelled.at)}`} smallFootnote footnote={`${personDot(file.cancelled.by)} · the stock came back to the Central Store as a linked entry, and the lines are back in To pack.`} role="alert">
             {file.cancelled.reason}
           </B2Banner>
         ) : null}
@@ -113,15 +113,15 @@ function FileBody({ file, onBack }: { file: DispatchFile; onBack: () => void }) 
         </dl>
 
         <ItemsTable heading="Items" labelId="dispatch-items" columns={cancelled ? ['Sent'] : ['Sent', 'Counted']} rows={rows} />
-        {cancelled ? <p className="-mt-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">Not counted: the branch never received this delivery.</p> : null}
+        {cancelled ? <p className="-mt-2.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Not counted: the branch never received this delivery.</p> : null}
 
         {discrepancy && !cancelled ? (
-          <section aria-label="What happened to the gap" className="flex flex-col gap-1.5 border border-wds-warning-border bg-wds-warning-bg p-4">
-            <h2 className="font-wds-sans text-[16px] font-semibold leading-5 text-wds-warning-fg">{finding && discrepancy.status !== 'OPEN' ? finding.text : `${discrepancy.itemName} is short by ${formatQty(Math.abs(Number(discrepancy.gapQty ?? 0)))}`}</h2>
-            <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
+          <section aria-label="What happened to the gap" className="flex flex-col gap-1.5 border border-wds-warning-border bg-wds-warning-bg px-4 py-3.5">
+            <h2 className="font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-warning-fg">{finding && discrepancy.status !== 'OPEN' ? finding.text : `${discrepancy.itemName} is short by ${formatQty(Math.abs(Number(discrepancy.gapQty ?? 0)))}`}</h2>
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
               {discrepancy.status === 'OPEN' ? 'Still open. The Store Manager has been told and will say what happened.' : 'The Store Manager recorded what happened to the gap.'}
             </p>
-            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">
+            <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
               Opened as <span className="font-wds-mono text-[#1F5BAE] underline underline-offset-2">{discrepancy.reference}</span>
               {finding && discrepancy.status !== 'OPEN' ? (
                 <>
@@ -134,9 +134,9 @@ function FileBody({ file, onBack }: { file: DispatchFile; onBack: () => void }) 
         ) : null}
 
         <section aria-labelledby="dispatch-documents" className="flex flex-col gap-2">
-          <SectionLabel id="dispatch-documents">Documents</SectionLabel>
+          <SectionLabel id="dispatch-documents" className="text-[10px] leading-3">Documents</SectionLabel>
           <ul className="border border-wds-border bg-wds-surface">
-            {file.documents.length === 0 ? <li className="px-3.5 py-3 font-wds-sans text-[14px] leading-5 text-wds-text-muted">The delivery notes appear when it is signed.</li> : null}
+            {file.documents.length === 0 ? <li className="px-4 py-[11px] font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">The delivery notes appear when it is signed.</li> : null}
             {file.documents.map((doc) => (
               <DocumentRow key={doc.id} doc={doc} fileId={file.id} canPrint={file.can.print} />
             ))}
@@ -144,12 +144,12 @@ function FileBody({ file, onBack }: { file: DispatchFile; onBack: () => void }) 
         </section>
 
         <section aria-labelledby="dispatch-activity" className="flex flex-col gap-2">
-          <SectionLabel id="dispatch-activity">Activity</SectionLabel>
+          <SectionLabel id="dispatch-activity" className="text-[10px] leading-3">Activity</SectionLabel>
           <ol className="border border-wds-border bg-wds-surface">
             {file.activity.map((event) => (
-              <li key={event.id} className="flex flex-col gap-0.5 border-b border-wds-border px-3.5 py-3 last:border-b-0">
-                <p className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{event.sentence}</p>
-                <p className="font-wds-sans text-[13px] leading-4 text-wds-text-muted">{dateTimeText(event.at)}</p>
+              <li key={event.id} className="flex flex-col gap-0.5 border-b border-wds-border px-4 py-2.5 last:border-b-0">
+                <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{event.sentence}</p>
+                <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{dateTimeText(event.at)}</p>
               </li>
             ))}
           </ol>
@@ -161,9 +161,9 @@ function FileBody({ file, onBack }: { file: DispatchFile; onBack: () => void }) 
 
 function FactRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-wds-border px-3.5 py-3 last:border-b-0">
-      <dt className="shrink-0 whitespace-nowrap font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">{label}</dt>
-      <dd className="text-right font-wds-sans text-[15px] leading-5 text-wds-text-ink">{value}</dd>
+    <div className="flex items-center justify-between gap-3 border-b border-wds-border px-4 py-2.5 last:border-b-0">
+      <dt className="shrink-0 whitespace-nowrap font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{label}</dt>
+      <dd className="text-right font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{value}</dd>
     </div>
   );
 }
@@ -172,13 +172,13 @@ function DocumentRow({ doc, fileId, canPrint }: { doc: DispatchDocument; fileId:
   const store = doc.kind === 'DELIVERY_NOTE_STORE';
   const title = store ? 'Delivery note · store copy' : 'Delivery note · branch copy';
   return (
-    <li className="flex items-center justify-between gap-3 border-b border-wds-border px-3.5 py-3 last:border-b-0">
+    <li className="flex items-center justify-between gap-3 border-b border-wds-border px-4 py-[11px] last:border-b-0">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className={cn('font-wds-sans text-[15px] leading-5', doc.voided ? 'text-wds-text-muted line-through' : 'text-wds-text-ink')}>{title}</span>
+        <span className={cn('font-wds-sans text-[14px] leading-[18px]', doc.voided ? 'text-wds-text-secondary line-through' : 'text-wds-text-ink')}>{title}</span>
         {doc.voided ? (
-          <span className="font-wds-sans text-[13px] leading-4 text-wds-error-fg">Void · cancelled {shortDateText(doc.at).split(' ').slice(1).join(' ')}</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-error-fg">Void · cancelled {shortDateText(doc.at).split(' ').slice(1).join(' ')}</span>
         ) : (
-          <span className="font-wds-sans text-[13px] leading-4 text-wds-text-muted">{store ? 'With the quantities sent' : 'With a blank count column'}</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{store ? 'With the quantities sent' : 'With a blank count column'}</span>
         )}
       </div>
       {canPrint ? (
@@ -187,7 +187,7 @@ function DocumentRow({ doc, fileId, canPrint }: { doc: DispatchDocument; fileId:
           target="_blank"
           rel="noopener"
           aria-label={`Print ${title}`}
-          className="-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[14px] font-medium leading-[18px] text-wds-primary outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring"
+          className="-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring"
         >
           Print
         </a>

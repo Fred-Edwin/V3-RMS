@@ -1,3 +1,4 @@
+import { itemWord } from '../../_shared/lib/block2-words';
 import type { CountLine } from '../_shared/types/deliveries-contract';
 
 /** A typed count the server accepts: digits and at most one point. 0 is a count; an empty box is not. */
@@ -12,8 +13,7 @@ export const isFlagged = (line: Pick<CountLine, 'state' | 'lineId'>, touched: Re
 /** The line under "Check and sign": what is still to do. */
 export function countFooterNote(left: number, flaggedNames: readonly string[]): string | undefined {
   if (flaggedNames.length > 0) {
-    const first = flaggedNames[0] ?? '';
-    const word = first.split(' ')[0]?.toLowerCase() ?? first.toLowerCase();
+    const word = itemWord(flaggedNames[0] ?? '');
     return flaggedNames.length === 1 ? `Count the ${word} again to go on.` : `Count the ${flaggedNames.length} flagged lines again to go on.`;
   }
   if (left > 0) return `${left} ${left === 1 ? 'line' : 'lines'} still to count.`;

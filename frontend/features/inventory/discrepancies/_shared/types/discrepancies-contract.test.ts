@@ -67,7 +67,7 @@ describe('discrepancies contract mirror', () => {
 
   it('every error fixture uses a listed code', () => {
     for (const name of Object.keys(fixtures).filter((n) => n.startsWith('error'))) {
-      const code = (fixtures as Record<string, { error: { code: string } }>)[name]!.error.code;
+      const code = (fixtures as unknown as Record<string, { error: { code: string } }>)[name]?.error.code ?? '';
       expect(DISCREPANCY_ERROR_CODES as readonly string[]).toContain(code);
     }
   });

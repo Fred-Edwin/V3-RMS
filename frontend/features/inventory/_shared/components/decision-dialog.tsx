@@ -46,20 +46,21 @@ export function DecisionDialog({ open, onOpenChange, title, description, eyebrow
             }
           }}
           className={cn(
-            'fixed left-1/2 top-1/2 z-[60] flex max-h-[calc(100dvh-32px)] w-[600px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col',
-            'border border-wds-border-strong bg-wds-surface outline-none',
+            'fixed left-1/2 top-1/2 z-[60] flex max-h-[calc(100dvh-32px)] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col',
+            eyebrow ? 'w-[580px] border border-wds-text-ink' : 'w-[600px] border border-wds-border-strong',
+            'bg-wds-surface outline-none',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=open]:duration-200 data-[state=closed]:duration-150'
           )}
         >
-          <div className={cn('flex shrink-0 flex-col gap-1 px-6 pb-4 pt-[22px]', eyebrow ? 'pb-3' : 'border-b border-wds-border')}>
-            {eyebrow ? <DialogPrimitive.Description className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.08em] text-wds-text-copy-muted">{description}</DialogPrimitive.Description> : null}
+          <div className={cn('flex shrink-0 flex-col', eyebrow ? 'gap-1.5 px-7 pt-7' : 'gap-1 border-b border-wds-border px-6 pb-4 pt-[22px]')}>
+            {eyebrow ? <DialogPrimitive.Description className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{description}</DialogPrimitive.Description> : null}
             <div className="flex items-center gap-2">
               {tone ? <span aria-hidden className={cn('size-2 shrink-0 rounded-[4px]', tone === 'error' ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} /> : null}
-              <DialogPrimitive.Title className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-tight text-wds-text-ink">{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Title className={cn('font-wds-sans font-semibold text-wds-text-ink', eyebrow ? 'text-[22px] leading-7 tracking-[-0.01em]' : 'text-[20px] leading-[26px] tracking-tight')}>{title}</DialogPrimitive.Title>
             </div>
             {eyebrow ? null : <DialogPrimitive.Description className="font-wds-sans text-[13px] leading-[18px] text-wds-text-copy-muted">{description}</DialogPrimitive.Description>}
           </div>
-          <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto px-6 py-5">
+          <div className={cn('flex min-h-0 flex-col gap-[18px] overflow-y-auto', eyebrow ? 'px-7 pb-0 pt-[18px]' : 'px-6 py-5')}>
             {error ? (
               <div role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
                 {error}
@@ -67,9 +68,9 @@ export function DecisionDialog({ open, onOpenChange, title, description, eyebrow
             ) : null}
             {children}
           </div>
-          <div className="flex shrink-0 items-center justify-between gap-4 border-t border-wds-border px-6 py-4">
+          <div className={cn('flex shrink-0 items-center justify-between gap-4', eyebrow ? 'px-7 pb-7 pt-[18px]' : 'border-t border-wds-border px-6 py-4')}>
             <div className="font-wds-sans text-[12px] leading-4 text-wds-text-copy-muted">{footerNote}</div>
-            <div className="flex shrink-0 gap-2.5 max-sm:[&_button]:min-h-11">{actions}</div>
+            <div className={cn('flex shrink-0 gap-2.5 max-sm:[&_button]:min-h-11', eyebrow && '[&_button]:h-11 [&_button]:px-5 [&_button]:text-[14px] [&_button]:leading-[18px]')}>{actions}</div>
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -78,10 +79,10 @@ export function DecisionDialog({ open, onOpenChange, title, description, eyebrow
 }
 
 /** "WHAT THIS TOUCHES", "WHY?": mono, tracked, with an optional "required" / "optional" hint. */
-export function DialogLabel({ children, hint, htmlFor }: { children: React.ReactNode; hint?: string; htmlFor?: string }) {
+export function DialogLabel({ children, hint, htmlFor, className }: { children: React.ReactNode; hint?: string; htmlFor?: string; className?: string }) {
   return (
     <div className="flex items-baseline gap-2">
-      <label htmlFor={htmlFor} className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-ink">
+      <label htmlFor={htmlFor} className={cn('font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-ink', className)}>
         {children}
       </label>
       {hint ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-faint">{hint}</span> : null}

@@ -569,6 +569,10 @@ export const dispatchMineRowSchema = z.object({
   reference: z.string(),
   branch: branchRefSchema,
   department: departmentRefSchema,
+  /** The requisition this department belongs to: N2 draws "REQ-NYR-0112 · Afternoon" above the rows sent together. */
+  requisition: z.object({ id: uuid, reference: z.string(), cycle: requisitionCycleSchema, cycleLabel: z.string() }),
+  /** Who carries it (N2 draws it on the group card); null on a row that was never signed. */
+  carrier: carrierRefSchema.nullable(),
   lineCount: z.number().int().nonnegative(),
   signedAt: isoDateTime,
   stage: dispatchStageSchema,

@@ -29,6 +29,10 @@ export interface B2HeaderProps {
   subtitle: string;
   /** A reference line ("REQ-NYR-0112 · Afternoon · 40 lines") is drawn in Geist Mono. */
   mono?: boolean;
+  /** A plain subtitle drawn 12/16 instead of 13/16 (Paper N3a, the member's delivery file). */
+  small?: boolean;
+  /** A plain subtitle drawn 13/18 instead of 13/16 (Paper D5b, the every-line review). */
+  tall?: boolean;
   leading: 'back' | 'menu';
   onBack?: () => void;
   /** The line after "WENDO RMS ·" ("CENTRAL STORE", "NYERI TOWN"). */
@@ -36,12 +40,15 @@ export interface B2HeaderProps {
   tabs?: { items: readonly B2Tab[]; active: string; onChange: (key: string) => void; label: string };
 }
 
-export function B2Header({ title, subtitle, mono = false, leading, onBack, place, tabs }: B2HeaderProps) {
+export function B2Header({ title, subtitle, mono = false, small = false, tall = false, leading, onBack, place, tabs }: B2HeaderProps) {
   const initials = useAuthStore((s) => initialsOf(s.user?.name));
   const { open } = useMobileNavDrawer();
+  // Paper N2, G3 and G2 (the headers with tabs) are the Counting-style band: 20 px above, a mono 11/14 eyebrow, a 30 px badge, a 22/28
+  // title with no tracking, a 13/18 line and the tab row inside; the other screens use the 12 px sans eyebrow of D1 to D12.
+  const tabbed = Boolean(tabs);
   return (
-    <header className="flex shrink-0 flex-col bg-wds-sidebar-top">
-      <div className="flex flex-col gap-2.5 p-4">
+    <header className={cn('flex shrink-0 flex-col bg-wds-sidebar-top', tabbed && 'pt-5')}>
+      <div className={cn('flex flex-col gap-2.5', tabbed ? 'px-4 pt-1' : 'p-4')}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -60,18 +67,22 @@ export function B2Header({ title, subtitle, mono = false, leading, onBack, place
                 </svg>
               )}
             </button>
-            <span className="font-wds-sans text-[12px] uppercase leading-4 tracking-[0.06em] text-wds-espresso-400">WENDO RMS · {place}</span>
+            <span className={cn('uppercase text-wds-espresso-400', tabbed ? 'font-wds-mono text-[11px] leading-[14px] tracking-[0.08em]' : 'font-wds-sans text-[12px] leading-4 tracking-[0.06em]')}>WENDO RMS · {place}</span>
           </div>
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-[14px] bg-wds-espresso-800 font-wds-sans text-[11px] leading-[14px] text-wds-espresso-100" aria-hidden="true">
+          <span className={cn('flex shrink-0 items-center justify-center bg-wds-espresso-800 text-[11px] leading-[14px] text-wds-espresso-100', tabbed ? 'size-[30px] rounded-[15px] font-wds-mono' : 'size-7 rounded-[14px] font-wds-sans')} aria-hidden="true">
             {initials}
           </span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <h1 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.01em] text-wds-neutral-0">{title}</h1>
-          <p className={cn('text-[#B5AEA5]', mono ? 'font-wds-mono text-[12px] leading-4 tracking-[0.02em]' : 'font-wds-sans text-[13px] leading-4')}>{subtitle}</p>
+          <h1 className={cn('font-wds-sans text-[22px] font-semibold leading-7 text-wds-neutral-0', !tabbed && 'tracking-[-0.01em]')}>{title}</h1>
+          <p className={cn('text-[#B5AEA5]', mono ? 'font-wds-mono text-[12px] leading-4 tracking-[0.02em]' : tabbed || tall ? 'font-wds-sans text-[13px] leading-[18px]' : small ? 'font-wds-sans text-[12px] leading-4' : 'font-wds-sans text-[13px] leading-4')}>{subtitle}</p>
         </div>
+        {tabs ? (
+          <div className="mt-1.5">
+            <B2TabBar {...tabs} />
+          </div>
+        ) : null}
       </div>
-      {tabs ? <B2TabBar {...tabs} /> : null}
     </header>
   );
 }
@@ -112,7 +123,7 @@ export function B2TabBar({ items, active, onChange, label }: { items: readonly B
               }
             }}
             className={cn(
-              'flex h-12 flex-1 items-center justify-center gap-1.5 border-b-2 font-wds-sans text-[16px] leading-5 outline-none transition-colors duration-150 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-caramel-500)]',
+              'flex h-10 flex-1 items-center justify-center gap-1.5 border-b-2 font-wds-sans text-[14px] leading-[18px] outline-none transition-colors duration-150 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-caramel-500)]',
               on ? 'border-wds-caramel-500 font-semibold text-white' : 'border-transparent text-[#B5AEA5] hover:text-white',
             )}
           >
@@ -137,7 +148,7 @@ export function B2TabPanel({ active, children, className }: { active: string; ch
 // --- Chips, links, labels ---------------------------------------------------------------------------------------------------------
 
 const CHIP_TONE: Record<ChipTone, string> = {
-  neutral: 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-muted',
+  neutral: 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary',
   success: 'border-wds-success-border bg-wds-success-bg text-wds-success-fg',
   warning: 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
   info: 'border-wds-info-border bg-wds-info-bg text-wds-info-fg',
@@ -157,8 +168,8 @@ export function Chip({ spec, className }: { spec: ChipSpec; className?: string }
 /** The plain white chip of a department row ("To pack", "Waiting 13 min"). */
 export function OutlineChip({ children, tone = 'plain', className }: { children: React.ReactNode; tone?: 'plain' | 'warning' | 'success' | 'muted'; className?: string }) {
   const toneClass = {
-    plain: 'border-wds-border-strong bg-white text-wds-text-muted',
-    muted: 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-muted',
+    plain: 'border-wds-border-strong bg-white text-wds-text-secondary',
+    muted: 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary',
     warning: 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
     success: 'border-wds-success-border bg-wds-success-bg text-wds-success-fg',
   }[tone];
@@ -173,14 +184,24 @@ export function RefLink({ reference, href, className }: { reference: string; hre
       {reference}
     </Link>
   ) : (
-    <span className={cn(cls, 'no-underline text-wds-text-muted')}>{reference}</span>
+    <span className={cn(cls, 'no-underline text-wds-text-secondary')}>{reference}</span>
+  );
+}
+
+/** The empty list card (Paper N2b): a bordered card, a 15/20 title and a 13/18 line 260px wide; no icon. */
+export function B2Empty({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 border border-wds-border bg-wds-surface px-6 py-14">
+      <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">{title}</p>
+      <p className="w-[260px] max-w-full text-center font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{description}</p>
+    </div>
   );
 }
 
 /** The small mono caps label over a block ("WHERE IT IS", "ITEMS"). */
 export function SectionLabel({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <h2 id={id} className={cn('font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted', className)}>
+    <h2 id={id} className={cn('font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary', className)}>
       {children}
     </h2>
   );
@@ -206,7 +227,7 @@ export function B2Footer({ children, note, noteId }: { children: React.ReactNode
     <footer className="flex shrink-0 flex-col gap-2 border-t border-wds-border bg-wds-surface px-5 pb-5 pt-3.5">
       {children}
       {note ? (
-        <p id={noteId} aria-live="polite" className="text-center font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">
+        <p id={noteId} aria-live="polite" className="text-center font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
           {note}
         </p>
       ) : null}
@@ -222,7 +243,7 @@ export function TextAction({ children, onClick, disabled, className, ...rest }: 
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        '-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-wds-primary outline-none transition-[background-color,opacity] duration-100 hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring active:opacity-70 disabled:opacity-50',
+        '-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none transition-[background-color,opacity] duration-100 hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring active:opacity-70 disabled:opacity-50',
         className,
       )}
       {...rest}
@@ -242,16 +263,18 @@ const BANNER_TONE = {
 } as const;
 
 /** "Signed and sent", "4 of 5 departments sent", "Cancelled at 3:12 pm": a coloured card with a title and a line. */
-export function B2Banner({ tone, title, children, dot = true, role = 'status', footnote }: { tone: keyof typeof BANNER_TONE; title: string; children?: React.ReactNode; dot?: boolean; role?: 'status' | 'alert'; footnote?: React.ReactNode }) {
+export function B2Banner({ tone, title, children, dot = true, compact = false, role = 'status', footnote, smallFootnote = false }: { tone: keyof typeof BANNER_TONE; /** The footnote drawn 12/16 (Paper N1b) instead of 13/18 (Paper D12). */ smallFootnote?: boolean; title: string; children?: React.ReactNode; dot?: boolean; /** The slim card of D6 ("4 of 5 departments sent"): 12/16, a 14/18 title, 13/18 text. */ compact?: boolean; role?: 'status' | 'alert'; footnote?: React.ReactNode }) {
   const t = BANNER_TONE[tone];
+  // Paper D6 and D12: a card is 14/16 with gap 6; with a dot the title is 15/20 and the text 14/20, without one the title is
+  // 14/20 and the text 13/20 (D12's gap card); the compact card of D6 is 12/16 with gap 3.
   return (
-    <section role={role} className={cn('flex flex-col gap-1.5 border p-4', t.box)}>
-      <h2 className={cn('flex items-center gap-2 font-wds-sans text-[15px] font-semibold leading-5', t.title)}>
+    <section role={role} className={cn('flex flex-col border px-4', compact ? 'gap-[3px] py-3' : 'gap-1.5 py-3.5', t.box)}>
+      <h2 className={cn('flex items-center gap-2 font-wds-sans font-semibold', compact ? 'text-[14px] leading-[18px]' : dot ? 'text-[15px] leading-5' : 'text-[14px] leading-5', t.title)}>
         {dot ? <span className={cn('size-2 shrink-0 rounded-full', t.dot)} aria-hidden="true" /> : null}
         {title}
       </h2>
-      {children ? <div className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">{children}</div> : null}
-      {footnote ? <div className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{footnote}</div> : null}
+      {children ? <div className={cn('font-wds-sans text-wds-text-ink', compact ? 'text-[13px] leading-[18px]' : dot ? 'text-[14px] leading-5' : 'text-[13px] leading-5')}>{children}</div> : null}
+      {footnote ? <div className={cn('font-wds-sans text-wds-text-secondary', smallFootnote ? 'text-[12px] leading-4' : 'text-[13px] leading-[18px]')}>{footnote}</div> : null}
     </section>
   );
 }
@@ -271,7 +294,7 @@ export function B2ErrorNote({ children, id }: { children: React.ReactNode; id?: 
 export function ReadField({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">{label}</span>
+      <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{label}</span>
       <div className="border border-wds-border-strong bg-wds-neutral-50 px-3 py-2.5 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{value}</div>
     </div>
   );
@@ -296,7 +319,7 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
   }, [error, disabled, id]);
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">
+      <label htmlFor={id} className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
         {label}
       </label>
       <input
@@ -345,7 +368,7 @@ export interface TrackerRow {
 export function B2Tracker({ rows, heading, currentTone = 'success' }: { rows: readonly TrackerRow[]; heading: string; currentTone?: 'success' | 'warning' }) {
   return (
     <section aria-label={heading} className="flex flex-col">
-      <SectionLabel className="pb-3">{heading}</SectionLabel>
+      <SectionLabel className="pb-3 text-[10px] leading-3">{heading}</SectionLabel>
       <ol className="flex flex-col">
         {rows.map((row, i) => {
           const last = i === rows.length - 1;
@@ -358,8 +381,8 @@ export function B2Tracker({ rows, heading, currentTone = 'success' }: { rows: re
               <div className={cn('flex min-w-0 flex-col gap-px', last ? 'pb-0' : 'pb-3')}>
                 <p
                   className={cn(
-                    'font-wds-sans text-[15px] leading-5',
-                    row.state === 'TODO' && 'text-wds-text-muted',
+                    'font-wds-sans text-[14px] leading-[18px]',
+                    row.state === 'TODO' && 'text-wds-text-secondary',
                     row.state === 'CANCELLED' && 'text-wds-error-fg',
                     (row.state === 'DONE' || row.state === 'CURRENT') && 'text-wds-text-ink',
                     row.state === 'CURRENT' && 'font-semibold',
@@ -370,7 +393,7 @@ export function B2Tracker({ rows, heading, currentTone = 'success' }: { rows: re
                     {row.state === 'DONE' ? ', done' : row.state === 'CURRENT' ? ', now' : row.state === 'CANCELLED' ? ', cancelled' : ', to come'}
                   </span>
                 </p>
-                {row.line ? <p className="font-wds-sans text-[13px] leading-4 text-wds-text-muted">{row.line}</p> : null}
+                {row.line ? <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{row.line}</p> : null}
               </div>
             </li>
           );
@@ -425,21 +448,21 @@ export function ItemsTable({ heading, columns, rows, previewCount = 4, labelId }
   const hasGap = rows.some((r) => r.gap !== undefined);
   return (
     <section aria-labelledby={labelId} className="flex flex-col gap-2">
-      <SectionLabel id={labelId}>{heading}</SectionLabel>
+      <SectionLabel id={labelId} className="text-[10px] leading-3">{heading}</SectionLabel>
       <div className="border border-wds-border bg-wds-surface">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-wds-border bg-wds-neutral-50">
-              <th scope="col" className="px-3.5 py-2 text-left font-wds-mono text-[11px] font-normal uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">
+              <th scope="col" className="px-4 py-2 text-left font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">
                 Item
               </th>
-              {columns.map((c) => (
-                <th key={c} scope="col" className="w-[58px] py-2 pr-3.5 text-right font-wds-mono text-[11px] font-normal uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted last:pr-3.5">
+              {columns.map((c, i) => (
+                <th key={c} scope="col" className={cn('py-2 text-right font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-secondary', columns.length === 1 ? 'w-[60px]' : c === 'Sent' ? 'w-12' : 'w-[68px]', i === columns.length - 1 && !hasGap ? 'pr-4' : '')}>
                   {c}
                 </th>
               ))}
               {hasGap ? (
-                <th scope="col" className="w-[44px] py-2 pr-3.5 text-right font-wds-mono text-[11px] font-normal uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">
+                <th scope="col" className="w-11 py-2 pr-4 text-right font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">
                   Gap
                 </th>
               ) : null}
@@ -448,25 +471,25 @@ export function ItemsTable({ heading, columns, rows, previewCount = 4, labelId }
           <tbody>
             {shown.map((row) => (
               <tr key={row.key} className={cn('border-b border-wds-border last:border-b-0', row.flagged && 'bg-wds-warning-bg')}>
-                <th scope="row" className="px-3.5 py-2.5 text-left align-middle font-wds-sans text-[15px] font-normal leading-5 text-wds-text-ink">
+                <th scope="row" className="px-4 py-[11px] text-left align-middle font-wds-sans text-[14px] font-normal leading-[18px] text-wds-text-ink">
                   {row.name}
-                  {row.note ? <span className="block font-wds-sans text-[12px] leading-4 text-wds-warning-fg">{row.note}</span> : null}
+                  {row.note ? <span className="mt-0.5 block font-wds-sans text-[12px] leading-4 text-wds-warning-fg">{row.note}</span> : null}
                 </th>
                 {row.cells.map((cell, i) => (
-                  <td key={i} className="py-2.5 pr-3.5 text-right align-middle font-wds-sans text-[15px] leading-5 text-wds-text-ink">
+                  <td key={i} className={cn('py-[11px] text-right align-middle font-wds-sans text-[14px] leading-[18px] text-wds-text-ink', i === row.cells.length - 1 && !hasGap ? 'pr-4' : '')}>
                     {cell ?? '–'}
                   </td>
                 ))}
                 {hasGap ? (
-                  <td className={cn('py-2.5 pr-3.5 text-right align-middle font-wds-mono text-[14px] leading-5', row.flagged ? 'text-wds-warning-fg' : 'text-wds-text-faint')}>{row.gap ?? '–'}</td>
+                  <td className={cn('py-[11px] pr-4 text-right align-middle text-[13px] leading-[18px]', row.flagged ? 'font-wds-sans font-medium text-wds-warning-fg' : 'font-wds-mono text-wds-text-faint')}>{row.gap ?? '–'}</td>
                 ) : null}
               </tr>
             ))}
           </tbody>
         </table>
         {rows.length > previewCount ? (
-          <div className="border-t border-wds-border px-3.5 py-0.5">
-            <TextAction onClick={() => setAll((v) => !v)} aria-expanded={all} className="-my-0 text-[14px]">
+          <div className="border-t border-wds-border px-4 py-0.5">
+            <TextAction onClick={() => setAll((v) => !v)} aria-expanded={all} className="-my-0 text-[13px]">
               {all ? 'Show fewer lines' : `Show the other ${hidden} ${hidden === 1 ? 'line' : 'lines'}`}
             </TextAction>
           </div>
@@ -484,10 +507,10 @@ export function PagerBar({ page, pageSize, total, shown, onPage, noun }: { page:
   const first = (page - 1) * pageSize + 1;
   const numbers = Array.from({ length: Math.min(pages, 5) }, (_, i) => Math.min(Math.max(1, page - 2), Math.max(1, pages - 4)) + i);
   const box =
-    'flex size-11 shrink-0 items-center justify-center border font-wds-sans text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed';
+    'flex size-8 shrink-0 items-center justify-center border font-wds-sans text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed';
   return (
     <nav aria-label="Pagination" className="flex items-center justify-between gap-3 pb-5 pt-3">
-      <p className="font-wds-sans text-[12px] leading-4 text-wds-text-muted" aria-live="polite">
+      <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">
         Showing {first} to {first + shown - 1} of {total} {noun}
       </p>
       {pages > 1 ? (

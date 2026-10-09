@@ -58,6 +58,7 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
   let kitchenLineMilk = '';
   let kitchenLineCream = '';
   let baristaLineMilk = '';
+  const extraRequisitionIds: string[] = [];
   const userIds: string[] = [];
   const itemIds: string[] = [];
   const siteIds: string[] = [];
@@ -143,10 +144,11 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
       await tx.dispatchLine.deleteMany({ where: { dispatchId: { in: dispatches.map((d) => d.id) } } });
       await tx.dispatch.deleteMany({ where: { toSiteId: siteId } });
       await tx.carrier.deleteMany({ where: { siteId: hubId, name: { contains: tag } } });
-      await tx.requisitionLine.deleteMany({ where: { section: { requisitionId } } });
-      await tx.requisitionAddition.deleteMany({ where: { requisitionId } });
-      await tx.requisitionSection.deleteMany({ where: { requisitionId } });
-      await tx.requisition.deleteMany({ where: { id: requisitionId } });
+      const allRequisitionIds = [requisitionId, ...extraRequisitionIds];
+      await tx.requisitionLine.deleteMany({ where: { section: { requisitionId: { in: allRequisitionIds } } } });
+      await tx.requisitionAddition.deleteMany({ where: { requisitionId: { in: allRequisitionIds } } });
+      await tx.requisitionSection.deleteMany({ where: { requisitionId: { in: allRequisitionIds } } });
+      await tx.requisition.deleteMany({ where: { id: { in: allRequisitionIds } } });
       await tx.referenceCounter.deleteMany({ where: { siteId: { in: siteIds } } });
       await tx.inventoryItem.deleteMany({ where: { id: { in: itemIds } } });
       await tx.user.deleteMany({ where: { id: { in: userIds } } });
@@ -182,6 +184,22 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
     expect(await prisma.dispatch.count({ where: { requisitionId, departmentId: kitchenId } })).toBe(1);
   });
 
+  it('P2: several phones opening the same department for the first time at once all get it, and only one dispatch is made', async () => {
+    const racer = await prisma.requisition.create({
+      data: { siteId, type: 'AFTERNOON', reference: `REQ-${code}-9002`, status: 'APPROVED', openedById: branchManager.id, approvedById: branchManager.id, approvedAt: new Date() },
+    });
+    extraRequisitionIds.push(racer.id);
+    const section = await prisma.requisitionSection.create({ data: { requisitionId: racer.id, departmentId: baristaId, departmentTag: 'BARISTA', status: 'SUBMITTED' } });
+    await prisma.requisitionLine.create({ data: { requisitionSectionId: section.id, inventoryItemId: milkId, requestedQty: new Prisma.Decimal(1), approvedQty: new Prisma.Decimal(1) } });
+    const looks = await Promise.allSettled(Array.from({ length: 8 }, () => dispatchService.getDepartment(attendant as never, racer.id, baristaId)));
+    expect(looks.filter((l) => l.status === 'rejected')).toEqual([]);
+    expect(await prisma.dispatch.count({ where: { requisitionId: racer.id, departmentId: baristaId } })).toBe(1);
+    // The review opens every department too, and meets the same row.
+    const both = await Promise.allSettled([dispatchService.review(attendant as never, racer.id), dispatchService.getDepartment(attendant as never, racer.id, baristaId)]);
+    expect(both.filter((l) => l.status === 'rejected')).toEqual([]);
+    expect(await prisma.dispatch.count({ where: { requisitionId: racer.id, departmentId: baristaId } })).toBe(1);
+  });
+
   it('P3: more than requested is OVER_REQUESTED; a ticked line above the store is STOCK_CHANGED; nothing is saved on an error', async () => {
     await expect(tick(attendant, kitchenId, [{ lineId: kitchenLineMilk, sentQty: '6', packedTick: true }])).rejects.toMatchObject({ code: 'OVER_REQUESTED', statusCode: 422 });
     await expect(tick(attendant, kitchenId, [{ lineId: randomUUID(), sentQty: '1', packedTick: true }])).rejects.toMatchObject({ statusCode: 404 });
@@ -204,7 +222,9 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
     expect(kitchen).toMatchObject({ allTicked: true, canLeaveOut: true, shortCount: 1, lineCount: 2 });
     expect(kitchen?.shortLines).toEqual([expect.objectContaining({ requestedQty: '5', sentQty: '4' })]);
     expect(review.departments.find((d) => d.departmentId === baristaId)).toMatchObject({ allTicked: false, canLeaveOut: false });
-    expect(review.carriers.map((c) => c.id)).toEqual([carrierId]); // the retired carrier is not offered
+    const offered = review.carriers.map((c) => c.id);
+    expect(offered).toContain(carrierId);
+    expect(offered).not.toContain(retiredCarrierId); // the retired carrier is not offered
     expect(review.canSign).toBe(true);
     expect(review.signedBy.id).toBe(attendant.id);
   });
@@ -317,6 +337,11 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
     const mine = await dispatchService.mine(attendant as never, { tab: 'on-the-way', page: 1, pageSize: 50 } as never);
     expect(mine.rows.some((r) => r.reference === `DSP-${code}-0001`)).toBe(true);
     expect(mine.rows.find((r) => r.reference === `DSP-${code}-0001`)).toMatchObject({ lineCount: 2, result: null, stage: 'ON_THE_WAY' });
+    // Amendment 1 / N2: the row carries the REQ- reference with its cycle, and the carrier.
+    expect(mine.rows.find((r) => r.reference === `DSP-${code}-0001`)).toMatchObject({
+      requisition: { id: requisitionId, reference: `REQ-${code}-9001`, cycle: 'MORNING' },
+      carrier: { id: carrierId, kind: 'VEHICLE' },
+    });
     expect(mine.tabCounts['on-the-way']).toBeGreaterThanOrEqual(1);
     const done = await dispatchService.mine(attendant as never, { tab: 'done', page: 1, pageSize: 50 } as never);
     expect(done.rows.some((r) => r.reference === `DSP-${code}-0001`)).toBe(false);

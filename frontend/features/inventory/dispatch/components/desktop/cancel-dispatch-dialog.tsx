@@ -20,9 +20,9 @@ export const composeDispatchCancelReason = (preset: DispatchCancelPreset, note: 
 };
 
 const Row = ({ left, right }: { left: string; right: string }) => (
-  <div className="flex items-center justify-between gap-4 border-t border-wds-border px-4 py-3 first:border-t-0">
-    <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{left}</span>
-    <span className="text-right font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{right}</span>
+  <div className="flex items-center justify-between gap-4 border-t border-wds-border px-3.5 py-2.5 first:border-t-0">
+    <span className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">{left}</span>
+    <span className="text-right font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{right}</span>
   </div>
 );
 
@@ -105,16 +105,16 @@ export function CancelDispatchDialog({ dispatchId, reference, departmentName, si
       }
     >
       <div className="border border-wds-neutral-950">
-        <p className="px-4 py-3 font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">What cancelling does</p>
+        <p className="px-3.5 py-3 font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">What cancelling does</p>
         <div className="border-t border-wds-neutral-950">
           <Row left="Stock goes back to the Central Store" right={`${lineCount} lines, by a linked entry`} />
           <Row left={`${departmentName}'s lines return to the queue`} right="Status: To pack" />
           <Row left="The delivery note is voided" right="Kept on file, marked Cancelled" />
         </div>
       </div>
-      <p className="border border-wds-warning-border bg-wds-warning-bg px-4 py-3 font-wds-sans text-[14px] leading-5 text-wds-text-ink">{CANCEL_WARNING(departmentName)}</p>
+      <p className="border border-wds-warning-border bg-wds-warning-bg px-3.5 py-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{CANCEL_WARNING(departmentName)}</p>
       <div className="flex flex-col gap-2">
-        <DialogLabel hint="required">Why</DialogLabel>
+        <DialogLabel hint="required" className="text-[11px] leading-[14px]">Why</DialogLabel>
         <ChoiceChips label="Why cancel" value={preset} options={DISPATCH_CANCEL_PRESETS.map((p) => ({ value: p, label: p }))} onChange={(next) => { setPreset(next); setNoteHint(false); }} disabled={cancel.saving} />
       </div>
       {preset !== '' ? (

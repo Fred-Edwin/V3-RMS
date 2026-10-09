@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixtures from './deliveries-contract.fixtures.json';
 import { DELIVERY_ERROR_CODES } from './deliveries-contract';
-import type { CheckCountResult, ConfirmDeliveryResult, ConfirmPreview, CountView, ListDeliveries } from './deliveries-contract';
+import type { CheckCountResult, ConfirmDeliveryResult, ConfirmPreview, CountView, DeliveryFile, ListDeliveries } from './deliveries-contract';
 
 /** Drift guard for the hand-written mirror: the shared samples are typed with the mirror types, key sets are pinned, and the blind rule holds. */
 const keysOf = (o: object): string[] => Object.keys(o).sort();
@@ -68,9 +68,22 @@ describe('deliveries contract mirror', () => {
     expect((fixtures.confirmResultAllMatched as ConfirmDeliveryResult).onBehalfOfDepartment).not.toBeNull();
   });
 
+  it('V7: the department file, typed with the dispatch mirror, shows no sent figure, gap or money before the count is signed', () => {
+    const blind: DeliveryFile = fixtures.fileMemberBlind as DeliveryFile;
+    expect(blind.sentVisible).toBe(false);
+    expect(blind.shortCount).toBe(0);
+    expect(blind.items.every((i) => i.sentQty === undefined && i.gapQty === undefined)).toBe(true);
+    expect(allKeys(blind).filter((k) => MONEY.test(k))).toEqual([]);
+    const counted: DeliveryFile = fixtures.fileMemberCounted as DeliveryFile;
+    expect(counted.sentVisible).toBe(true);
+    expect(counted.items.map((i) => i.gapQty)).toEqual(['0', '-1']);
+    expect(allKeys(counted).filter((k) => MONEY.test(k))).toEqual([]);
+    expect(blind.can.print || counted.can.print).toBe(false);
+  });
+
   it('every error fixture uses a listed code', () => {
     for (const name of Object.keys(fixtures).filter((n) => n.startsWith('error'))) {
-      const code = (fixtures as Record<string, { error: { code: string } }>)[name]!.error.code;
+      const code = (fixtures as unknown as Record<string, { error: { code: string } }>)[name]?.error.code ?? '';
       expect(DELIVERY_ERROR_CODES as readonly string[]).toContain(code);
     }
   });

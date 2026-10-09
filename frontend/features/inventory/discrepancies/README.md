@@ -1,6 +1,6 @@
 # discrepancies (front end)
 
-**Design:** approved (Paper 7c, D14 to D16, E1, E2, D21, D22) · **Code:** desktop screens built (Block 2, 9 Oct 2026); on a per-lane **mock** for Q1 to Q5 until back end D merges.
+**Design:** approved (Paper 7c, D14 to D16, E1, E2, D21, D22) · **Code:** desktop screens built and running on the real Q1 to Q5 (integrated 9 Oct 2026 on `feat/dispatch-integration`); the mock is deleted. The old `/app/inventory/discrepancies` pages are gone.
 
 The Discrepancies list (Open and Settled), the discrepancy file, the Record a finding drawer with its live "what this does", and the Reverse a finding dialog.
 
@@ -17,7 +17,7 @@ Routes: `/app/inventory/requisitions/discrepancies[/:id]` and `/app/branch/requi
 
 Amendment 1 (9 Oct 2026) is applied: a reversal returns the discrepancy to OPEN (status goes REVERSED then back to OPEN; `finding` is null, the `reversal` and every event stay), the list tabs carry `counts`, Record and Reverse carry an `idempotencyKey`, photos are `{ id, url }`, and `FINDING_NOT_REVERSIBLE` replaces the two old reversal codes. The desktop lane owns this folder.
 
-## The mock
-`dispatch/services/dispatch-mock-desktop.ts` answers Q1 to Q5 (and the deliveries V2 to V6 the Branch Manager's drawer walks) in memory, seeded from the fixtures, and follows the contract: the PIN is `1234`, a repeated idempotency key returns the first result, the Branch Manager reads their own branch only and records nothing. `dispatch/services/mock-mode.ts` holds the switch (`NEXT_PUBLIC_DISPATCH_MOCK=off` calls the real API); at integration the default flips and the mock file is deleted.
+## Several differing lines
+The dispatch file (Store Manager, desktop) shows one card "N lines differ: record what happened to each"; its button opens the oldest open finding, and each differing row has its own Record a finding link and DSC- number. The file lists its discrepancies oldest first.
 
 The Extra-line finding wording is the owner's (D22 "The Extra-line wording").

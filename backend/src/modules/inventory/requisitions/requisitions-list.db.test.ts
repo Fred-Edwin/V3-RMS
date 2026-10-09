@@ -156,6 +156,25 @@ describe.skipIf(!enabled)('back end B against the real database', () => {
       expect(result.rows[0]?.valueKes).toBe('1000.00'); // 10 x 100: the Store Manager holds requisitions.see_value
     });
 
+    it('the On the way and To confirm rows say when the delivery left (the earliest final signature); other tabs leave it null', async () => {
+      const signedAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const dispatch = await prisma.dispatch.create({ data: { siteId: hubId, toSiteId: siteA, requisitionId: r3, departmentId: kitchenId, status: 'ON_THE_WAY', reference: `DSP-T${tag}`, signedAt } });
+      try {
+        const store = who(storeMgr, 'STORE_MANAGER', hubId);
+        const waiting = await requisitionsListService.list(store, q({ tab: 'to-confirm', branchId: siteA }));
+        expect(waiting.rows.find((r) => r.id === r3)?.sentAt).toBe(signedAt.toISOString());
+        // a fresh signature is On the way, not yet To confirm
+        const fresh = new Date(Date.now() - 10 * 60 * 1000);
+        await prisma.dispatch.update({ where: { id: dispatch.id }, data: { signedAt: fresh } });
+        const onTheWay = await requisitionsListService.list(store, q({ tab: 'on-the-way', branchId: siteA }));
+        expect(onTheWay.rows.find((r) => r.id === r3)?.sentAt).toBe(fresh.toISOString());
+        const collecting = await requisitionsListService.list(store, q({ tab: 'collecting', branchId: siteA }));
+        expect(collecting.rows.every((r) => r.sentAt === null)).toBe(true);
+      } finally {
+        await prisma.dispatch.delete({ where: { id: dispatch.id } });
+      }
+    });
+
     it('search, cycle, department, urgent and date filters work on real data', async () => {
       const bm = who(mgrA, 'MANAGER', siteA);
       const ids = async (over: Record<string, unknown>) => (await requisitionsListService.list(bm, q({ tab: undefined, ...over }))).page.total;
@@ -195,9 +214,10 @@ describe.skipIf(!enabled)('back end B against the real database', () => {
 
   describe('R2 badges', () => {
     it('counts what waits, scoped to the branch', async () => {
-      expect(await requisitionsListService.badges(who(mgrA, 'MANAGER', siteA))).toEqual({ requisitions: 1, toApprove: 1 });
-      expect(await requisitionsListService.badges(who(mgrB, 'MANAGER', siteB))).toEqual({ requisitions: 0, toApprove: 0 });
-      expect(await requisitionsListService.badges(who(headK, 'CHEF', siteA, true))).toEqual({ requisitions: 1 }); // r1: Kitchen is a Draft
+      // Block 2 added `deliveries` (what the branch has still to confirm) to the same payload, so these are matched, not equalled.
+      expect(await requisitionsListService.badges(who(mgrA, 'MANAGER', siteA))).toMatchObject({ requisitions: 1, toApprove: 1 });
+      expect(await requisitionsListService.badges(who(mgrB, 'MANAGER', siteB))).toMatchObject({ requisitions: 0, toApprove: 0 });
+      expect(await requisitionsListService.badges(who(headK, 'CHEF', siteA, true))).toMatchObject({ requisitions: 1 }); // r1: Kitchen is a Draft
     });
   });
 

@@ -1,10 +1,7 @@
 /**
- * The department's phone calls (contract V1 to V6, plus the member's read-only delivery file). Back end D has not merged, so these
- * answer from the hand-written mock (`dispatch-mock-phone.ts`) unless `NEXT_PUBLIC_DISPATCH_MOCK=off`. Components never call `fetch`.
- *
- * Contract drift to report: a department member holds no `dispatch.read`, so P6 cannot serve the delivery file (N3). The file call
- * below is the proposed `GET /inventory/deliveries/:id`, which returns the same `DispatchFile` shape (sent figure only after the
- * department has counted).
+ * The department's phone calls (contract V1 to V6, plus V7, the member's read-only delivery file). Components never call `fetch`.
+ * A department member holds no `dispatch.read`, so the file (N3) comes from `GET /inventory/deliveries/:id` (V7), which returns the
+ * same `DispatchFile` shape; the sent figure is only there after the department has counted.
  */
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
@@ -12,7 +9,6 @@ import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 import { makeCallApi, queryString } from '../../_shared/services/scw-call';
 import { apiClient } from '@/lib/apiClient';
 import type { DispatchFile } from '../../dispatch/_shared/types/dispatch-contract';
-import { MOCK_BRANCH_SIDE } from '../../dispatch/services/mock-mode';
 import type {
   CheckCountResult,
   ConfirmDeliveryInput,
@@ -27,7 +23,6 @@ import type {
   SetReasonInput,
   UploadPhotoResult,
 } from '../_shared/types/deliveries-contract';
-import { mockDeliveriesApi } from './dispatch-mock-phone';
 
 const call = makeCallApi('/inventory/deliveries');
 
@@ -73,7 +68,7 @@ async function upload(id: string, lineId: string, file: File): Promise<UploadPho
   return payload.data as UploadPhotoResult;
 }
 
-const realApi: DeliveriesPhoneApi = {
+export const deliveriesApi: DeliveriesPhoneApi = {
   list: (query) => call<ListDeliveries>('GET', `/mine${queryString(query)}`),
   countView: (id) => call<CountView>('GET', `/${id}/count`),
   saveCount: (id, input) => call<CountView>('PUT', `/${id}/count`, input),
@@ -85,5 +80,3 @@ const realApi: DeliveriesPhoneApi = {
   confirm: (id, input) => call<ConfirmDeliveryResult>('POST', `/${id}/confirm`, input),
   file: (id) => call<DispatchFile>('GET', `/${id}`),
 };
-
-export const deliveriesApi: DeliveriesPhoneApi = MOCK_BRANCH_SIDE ? mockDeliveriesApi : realApi;

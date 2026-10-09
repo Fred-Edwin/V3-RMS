@@ -64,6 +64,7 @@ No new `requireRole` list on any route.
 | V3 | `PUT /deliveries/:id/count` and `POST /deliveries/:id/check` | save counts; check returns the lines that differ by name and typed number only; the second count is final (D9) |
 | V4 | `PUT /deliveries/:id/lines/:lineId/reason` and `POST /deliveries/:id/photos` | reason chips (Not in the box, Damaged, Wrong item, Other) and up to 3 photos of 5 MB (D10) |
 | V5 | `GET /deliveries/:id/confirm-preview` | the summary; the sent figure is revealed only here (D11) |
+| V7 | `GET /deliveries/:id` | Added in integration (9 Oct 2026). The delivery file for the people who count (a department head or member of the receiving department, or the Branch Manager); same shape as Q4/P6 `file`. Same blind rule (no sent figure, gap or stand-in before the count is signed) and the same money rule (`requisitions.see_value` only). `NOT_YOUR_DEPARTMENT`, `NOT_ON_THE_WAY` (unsigned). `can.print` false, `siblings` empty. |
 | V6 | `POST /deliveries/:id/confirm` | `{ pin, onBehalf?: boolean, idempotencyKey }`; writes `DISPATCH_IN` for the counted quantity, holds the gap as unaccounted, opens one `DSC-` per differing line (D12, D19) |
 
 **Discrepancies (`discrepancies/`)**

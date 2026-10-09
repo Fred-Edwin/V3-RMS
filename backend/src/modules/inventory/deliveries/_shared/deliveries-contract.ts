@@ -1,6 +1,6 @@
 /**
  * Inventory: Dispatch, deliveries and discrepancies (Block 2), the DELIVERIES half (the branch).
- * FROZEN API CONTRACT: request and response schemas for V1 to V6.
+ * FROZEN API CONTRACT: request and response schemas for V1 to V7 (V7, the department's own delivery file, was added at integration).
  *
  * Source of truth: docs/features/inventory/dispatch-contract.md (§4), discrepancies.md ("At the branch: count blind, flag,
  * recount, sign") and Paper chapter 6 (D7 to D12), D19 and the gap fix G2. Mirrored by hand in
@@ -33,6 +33,7 @@ import {
   countReasonSchema,
   deliveryResultSchema,
   departmentRefSchema,
+  dispatchFileSchema,
   dispatchStageSchema,
   idempotencyKeySchema,
   photoRefSchema,
@@ -260,6 +261,19 @@ export const confirmDeliveryResultSchema = z.object({
   replayed: z.boolean(),
 });
 export type ConfirmDeliveryResult = z.infer<typeof confirmDeliveryResultSchema>;
+
+// --- V7 GET /deliveries/:id (the department's own delivery file, Paper N3a and N3b) -------------------
+
+/**
+ * A department head or member holds no `dispatch.read`, so P6 cannot serve the file they open from My deliveries. V7 returns the same
+ * `DispatchFile`, built by the same function, with the same rules: a department caller is always branch side, so `sentVisible` is
+ * false and `sentQty`, `gapQty`, `shortCount`, `gapLineCount` and every money field are ABSENT or 0 until their department has signed
+ * its count; money only for a holder of `requisitions.see_value`; `siblings` is empty and `can.print` false. A member reads their
+ * own department (`NOT_YOUR_DEPARTMENT` otherwise); the Branch Manager any department of the branch. An unsigned dispatch is
+ * `NOT_ON_THE_WAY`.
+ */
+export const deliveryFileSchema = dispatchFileSchema;
+export type DeliveryFile = z.infer<typeof deliveryFileSchema>;
 
 // --- Errors ----------------------------------------------------------------------------------------
 

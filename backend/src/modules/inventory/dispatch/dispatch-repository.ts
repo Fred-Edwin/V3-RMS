@@ -95,7 +95,8 @@ export const fileInclude = {
     orderBy: [{ item: { name: 'asc' as const } }, { id: 'asc' as const }],
   },
   events: { include: { actor: { select: personSelect } }, orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
-  discrepancies: { select: { id: true, reference: true, status: true, lossValue: true } },
+  // Oldest first: the file's main button (several lines differ) opens the oldest open one.
+  discrepancies: { select: { id: true, reference: true, status: true, lossValue: true }, orderBy: [{ createdAt: 'asc' as const }, { reference: 'asc' as const }] },
 } satisfies Prisma.DispatchInclude;
 
 export type DispatchRecord = Prisma.DispatchGetPayload<{ include: typeof fileInclude }>;
@@ -107,6 +108,8 @@ const mineSelect = {
   signedAt: true,
   toSite: { select: { id: true, name: true, code: true } },
   department: { select: { id: true, name: true } },
+  requisition: { select: { id: true, reference: true, type: true } },
+  carrier: { select: { id: true, name: true, kind: true } },
   lines: { select: { id: true } },
   discrepancies: { select: { status: true } },
 } satisfies Prisma.DispatchSelect;
@@ -246,6 +249,14 @@ export const dispatchRepository = {
   },
 
   // --- Writes: the final sign (P5) -----------------------------------------------------------------------------------------
+
+  /**
+   * Serialises the first look at a department: two phones opening it at once take turns, so the second finds the first one's row.
+   * (A unique violation cannot be caught inside a transaction: Postgres aborts it.) Released at commit.
+   */
+  lockDepartment: async (tx: Db, requisitionId: string, departmentId: string): Promise<void> => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dispatch-department:${requisitionId}:${departmentId}`}))`;
+  },
 
   /** Serialises signs and cancels at one hub, so two Attendants cannot both send the last unit. Released at commit. */
   lockHub: async (tx: Db, hubId: string): Promise<void> => {

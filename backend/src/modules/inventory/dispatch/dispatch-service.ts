@@ -84,23 +84,17 @@ const ensureDispatch = async (tx: Tx, c: Pick<Caller, 'hubId'>, rec: PackRequisi
   if (!section.departmentId) throw new NotFoundError('Department not found');
   const desired = desiredLinesOf(section);
   const prefill = (l: { inventoryItemId: string; requestedQty: Prisma.Decimal }): Prisma.Decimal => minOf(l.requestedQty, (onHand.get(l.inventoryItemId) ?? ZERO).isNegative() ? ZERO : (onHand.get(l.inventoryItemId) ?? ZERO));
+  // Two first looks racing take turns here; the second reads the first one's row (the partial unique index stays as the backstop).
+  await repo.lockDepartment(tx, rec.id, section.departmentId);
   const existing = await repo.findLiveDispatch(c.hubId, rec.id, section.departmentId, tx);
   if (!existing) {
-    try {
-      return await repo.createDispatch(tx, {
-        hubId: c.hubId,
-        toSiteId: rec.siteId,
-        requisitionId: rec.id,
-        departmentId: section.departmentId,
-        lines: desired.map((l) => ({ requisitionLineId: l.requisitionLineId, inventoryItemId: l.inventoryItemId, requestedQty: l.requestedQty, sentQty: prefill(l) })),
-      });
-    } catch (error) {
-      // Two first looks racing: the partial unique index decides, the loser reads the winner's row.
-      if (!isUniqueViolation(error)) throw error;
-      const winner = await repo.findLiveDispatch(c.hubId, rec.id, section.departmentId, tx);
-      if (!winner) throw error;
-      return winner;
-    }
+    return repo.createDispatch(tx, {
+      hubId: c.hubId,
+      toSiteId: rec.siteId,
+      requisitionId: rec.id,
+      departmentId: section.departmentId,
+      lines: desired.map((l) => ({ requisitionLineId: l.requisitionLineId, inventoryItemId: l.inventoryItemId, requestedQty: l.requestedQty, sentQty: prefill(l) })),
+    });
   }
   if (!isUnsigned(existing.status)) return existing;
   const byRequisitionLine = new Map(existing.lines.flatMap((l) => (l.requisitionLineId ? [[l.requisitionLineId, l] as const] : [])));
@@ -466,6 +460,7 @@ export const dispatchService = {
       seeValue: actorCan(actor, 'requisitions.see_value'),
       branchSide: isBranchSide(c),
       canPack: actorCan(actor, 'dispatch.pack'),
+      canPrint: true,
       canCancel: actorCan(actor, 'dispatch.cancel'),
       canRecordFinding: actorCan(actor, 'discrepancies.record'),
       canConfirmForDepartment: actorCan(actor, 'deliveries.confirm_on_behalf'),
@@ -626,6 +621,8 @@ export const dispatchService = {
                 reference: r.reference ?? '',
                 branch: { id: r.toSite.id, name: r.toSite.name, code: r.toSite.code },
                 department: { id: r.department.id, name: r.department.name },
+                requisition: { id: r.requisition.id, reference: r.requisition.reference, cycle: cycleOf(r.requisition.type), cycleLabel: CYCLE_TEXT[cycleOf(r.requisition.type)] },
+                carrier: r.carrier ? { id: r.carrier.id, name: r.carrier.name, kind: r.carrier.kind } : null,
                 lineCount: r.lines.length,
                 signedAt: (r.signedAt ?? now).toISOString(),
                 stage: stageOf({ status: r.status, signedAt: r.signedAt, allTicked: true, gapHeld: gapHeldOf(r.discrepancies) }, now),

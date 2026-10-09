@@ -24,7 +24,10 @@ A department counts what arrived **blind**: the sent figure is never in a respon
 | V4 | `PUT /:id/lines/:lineId/reason`, `POST /:id/photos` (multipart `lineId` + `file`), `DELETE /:id/photos/:photoId` |
 | V5 | `GET /:id/confirm-preview` |
 | V6 | `POST /:id/confirm` |
+| V7 | `GET /:id` (the delivery file, same shape as the dispatch file) |
 | | `GET /photos/:photoId` (the photo link) |
+
+**V7** is for the people who count, who hold no `dispatch.read`. Same blind rule as everywhere on the branch side: no sent figure, gap or stand-in before the count is signed (`fileWire` with `branchSide: true`); money only for a holder of `requisitions.see_value` (so the Branch Manager, never a member). `NOT_YOUR_DEPARTMENT` for another department, `NOT_ON_THE_WAY` while the dispatch is unsigned. `can.print` is false and `siblings` is empty on this side. Contract: `deliveryFileSchema` (= `dispatchFileSchema`), fixtures `fileMemberBlind` and `fileMemberCounted` in both copies.
 
 Error codes are `DELIVERY_ERROR_CODES` in the contract; the statuses are in `deliveries-errors.ts`.
 

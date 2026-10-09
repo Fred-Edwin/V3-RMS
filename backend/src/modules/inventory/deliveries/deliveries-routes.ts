@@ -11,6 +11,7 @@ import { deliveriesController, uploadPhotoFile } from './deliveries-controller';
  *   V1 GET /mine   V2 GET /:id/count   V3 PUT /:id/count and POST /:id/check
  *   V4 PUT /:id/lines/:lineId/reason, POST /:id/photos and DELETE /:id/photos/:photoId (Amendment 1 row 6)
  *   V5 GET /:id/confirm-preview   V6 POST /:id/confirm
+ *   V7 GET /:id: the department's own delivery file (the P6 file, same blind and money rules; a member holds no `dispatch.read`)
  *   GET /photos/:photoId: the authenticated link a photo's `url` points at (bytes, not the envelope)
  * `/mine` and `/photos/...` sit BEFORE `/:id`, and `:id` only matches a uuid, so a literal path is never taken for an id.
  */
@@ -24,6 +25,7 @@ router.param('id', (_req, _res, next, value: string) => (UUID.test(value) ? next
 router.get('/mine', deliveriesController.list); // V1
 router.get('/photos/:photoId', deliveriesController.readPhoto);
 
+router.get('/:id', deliveriesController.file); // V7
 router.get('/:id/count', deliveriesController.getCount); // V2
 router.put('/:id/count', deliveriesController.saveCount); // V3
 router.post('/:id/check', deliveriesController.check); // V3

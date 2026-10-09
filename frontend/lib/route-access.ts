@@ -27,16 +27,6 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
-  // Milestone Five, Session B — branch-side Deliveries is shared between the
-  // Branch Manager (all departments, confirm-on-behalf) and a Department
-  // Head (own department only, enforced server-side) — both reuse
-  // BranchDesktopShell's sidebar, so this path alone widens past
-  // MANAGER-only. Every other /app/branch/* path (requisitions approval,
-  // etc.) below stays Manager-only.
-  if (pathname.startsWith('/app/branch/deliveries')) {
-    return role === 'MANAGER' || isDepartmentHead;
-  }
-
   // Milestone Six, Session 1 — a Department Head's own-department stock
   // ledger and Log waste (`1BPY-0`/`1FDY-0`, `1ACM-0`). Department-scoped
   // server-side (location resolved from the actor); no Manager screen yet.
@@ -148,6 +138,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     // Requisitions (rebuilt, Block 1): every desktop role reads the list and the file; the API's access table decides what each may do.
     if (pathname.startsWith('/app/inventory/requisitions')) {
       return isDesktopCentralStoreRole;
+    }
+    // Dispatch (Block 2): packing screens, the Attendant's tabs and the printed notes. The Store Manager and System Admin may also
+    // pack (`dispatch.pack`); the API's table decides every action.
+    if (pathname.startsWith('/app/inventory/dispatch')) {
+      return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT' || role === 'SYSTEM_ADMIN';
     }
     // Carriers (Block 2): the Store Manager and System Admin manage it, the other desktop roles read it; the API's table decides.
     if (pathname.startsWith('/app/inventory/carriers')) {

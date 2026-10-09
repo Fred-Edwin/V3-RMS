@@ -30,10 +30,10 @@ const item = (groups: NavGroup[], key: string) => links(groups).find((i) => i.ke
 describe('the navigation table never widens access', () => {
   // The route gate (middleware) is the authority. If a row ever shows a link the gate would bounce, this fails.
   for (const role of ROLES) {
-    for (const isDepartmentHead of [false, true]) {
+    for (const [isDepartmentHead, isDepartmentMember] of [[false, false], [true, false], [false, true]] as const) {
       for (const [capsName, can] of [['no capabilities', holds()], ['read-all', READ_ALL], ['every capability', EVERYTHING]] as const) {
-        it(`${role}${isDepartmentHead ? ' (department head)' : ''} with ${capsName}: every link opens`, () => {
-          const groups = navFor(ctxFor(role, { isDepartmentHead, can }));
+        it(`${role}${isDepartmentHead ? ' (department head)' : ''}${isDepartmentMember ? ' (department member)' : ''} with ${capsName}: every link opens`, () => {
+          const groups = navFor(ctxFor(role, { isDepartmentHead, isDepartmentMember, can }));
           for (const href of hrefs(groups)) {
             expect(isAllowedPath(href, role, isDepartmentHead), `${role} sees ${href} but the route gate would bounce them`).toBe(true);
           }
@@ -273,9 +273,10 @@ describe('which row the current page lights', () => {
     expect(activeFor(storeManager, '/app/inventory/stock/restock-levels')).toMatchObject({ activeSubKey: 'restock-levels', framed: true });
   });
 
-  it('lights Dispatch for a discrepancy on the Attendant, which is resolved from the dispatch queue', () => {
+  it('lights Dispatch for the Attendant on the pack screens and the dispatch file', () => {
     const attendant = navFor(ctxFor('STORE_ATTENDANT', { can: EVERYTHING }));
-    expect(activeFor(attendant, '/app/inventory/discrepancies/42').activeKey).toBe('dispatch');
+    expect(activeFor(attendant, '/app/inventory/dispatch/pack/42/review').activeKey).toBe('dispatch');
+    expect(activeFor(attendant, '/app/inventory/dispatch/42').activeKey).toBe('dispatch');
   });
 
   it('gives the Branch Manager one Requisitions row (Queue, Discrepancies, History) and no Deliveries row', () => {
@@ -328,7 +329,25 @@ describe('where the shell applies', () => {
     }
   });
 
-  it('leaves the floor staff on the bottom tabs, with the sidebar only in the desktop preview', () => {
+  it('puts a department member in the one shell whatever their floor role, and gives them Deliveries and History', () => {
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
+      expect(usesAppShell(role, false, true), role).toBe(true);
+      expect(usesDesktopShell(role, false, false, true), role).toBe(true);
+      const groups = navFor(ctxFor(role, { isDepartmentMember: true }));
+      expect(item(groups, 'member-deliveries')?.href, role).toBe('/app/deliveries');
+      expect(item(groups, 'member-history')?.href, role).toBe('/app/deliveries/history');
+      // one History for a member (the deliveries one), not two
+      expect(links(groups).filter((i) => i.label === 'History').map((i) => i.key), role).toEqual(['member-history']);
+      // a member is not a head: no requisitions, no department shifts
+      expect(keys(groups), role).not.toEqual(expect.arrayContaining(['department-requisitions']));
+    }
+    // a head never gets the member rows (their own Deliveries row serves them)
+    const head = navFor(ctxFor('CHEF', { isDepartmentHead: true, isDepartmentMember: true }));
+    expect(keys(head)).not.toContain('member-deliveries');
+    expect(keys(head)).toContain('department-deliveries');
+  });
+
+  it('leaves floor staff who belong to no department on the bottom tabs, with the sidebar only in the desktop preview', () => {
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) expect(usesAppShell(role), role).toBe(false);
     expect(usesDesktopShell('WAITER', false)).toBe(false);
     expect(usesDesktopShell('WAITER', true)).toBe(true);

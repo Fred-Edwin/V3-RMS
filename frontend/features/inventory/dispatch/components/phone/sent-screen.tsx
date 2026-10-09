@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2Banner, B2Footer, B2Header, B2PrimaryButton, B2SecondaryButton, RefLink } from '../../../_shared/components/block2-phone-parts';
+import { B2Banner, B2Header, B2PrimaryButton, B2SecondaryButton, RefLink } from '../../../_shared/components/block2-phone-parts';
 import { SectionLabel } from '../../../_shared/components/block2-phone-parts';
 import { timeText } from '../../../requisitions/lib/time';
 import type { SignDispatchResult } from '../../_shared/types/dispatch-contract';
@@ -39,44 +39,45 @@ export function SentScreen({ requisitionId }: { requisitionId: string }) {
   return (
     <PhoneColumn>
       <B2Header title={`${result.branch.name} is on the way`} subtitle={result.reference} mono leading="menu" place="CENTRAL STORE" />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-wds-canvas p-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto bg-wds-canvas p-5">
         <B2Banner tone="success" title="Signed and sent">
           {wentOutText(result.lineCount, result.shortCount, timeText(result.signedAt))} The stock has left the Central Store.
         </B2Banner>
         {partial && still ? (
-          <B2Banner tone="warning" title={`${result.sentDepartments} of ${result.totalDepartments} departments sent`} dot={false}>
+          <B2Banner tone="warning" title={`${result.sentDepartments} of ${result.totalDepartments} departments sent`} dot={false} compact>
             {still.line}
           </B2Banner>
         ) : null}
         <section aria-label="Who signed and carried it" className="border border-wds-border bg-wds-surface">
           <div className="grid grid-cols-2 border-b border-wds-border">
-            <div className="flex flex-col gap-1 border-r border-wds-border px-4 py-3">
-              <SectionLabel>Signed by</SectionLabel>
-              <p className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{result.signedBy.roleLabel}</p>
+            <div className="flex flex-col gap-[3px] border-r border-wds-border px-4 py-2.5">
+              <SectionLabel className="text-[10px] leading-3">Signed by</SectionLabel>
+              <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{result.signedBy.roleLabel}</p>
             </div>
-            <div className="flex flex-col gap-1 px-4 py-3">
-              <SectionLabel>Carried by</SectionLabel>
-              <p className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{result.carrier.name}</p>
+            <div className="flex flex-col gap-[3px] px-4 py-2.5">
+              <SectionLabel className="text-[10px] leading-3">Carried by</SectionLabel>
+              <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{result.carrier.name}</p>
             </div>
           </div>
           <ul>
             {rows.map((row) => (
-              <li key={row.key} className={row.pending ? 'flex items-center gap-3 border-b border-wds-border bg-wds-neutral-50 px-4 py-3 last:border-b-0' : 'flex items-center gap-3 border-b border-wds-border px-4 py-3 last:border-b-0'}>
-                {row.reference && row.id ? <RefLink reference={row.reference} href={dispatchFile(row.id)} className="shrink-0" /> : <span className="shrink-0 font-wds-mono text-[13px] leading-[18px] text-wds-text-muted">Not numbered yet</span>}
-                <span className={row.pending ? 'grow font-wds-sans text-[15px] leading-5 text-wds-text-muted' : 'grow font-wds-sans text-[15px] leading-5 text-wds-text-ink'}>{row.name}</span>
-                <span className={row.pending ? 'font-wds-sans text-[14px] leading-5 text-wds-warning-fg' : 'font-wds-sans text-[14px] leading-5 text-wds-text-muted'}>{row.right}</span>
+              <li key={row.key} className={row.pending ? 'flex items-center gap-2.5 border-b border-wds-border bg-wds-neutral-50 px-4 py-[11px] last:border-b-0' : 'flex items-center gap-2.5 border-b border-wds-border px-4 py-[11px] last:border-b-0'}>
+                {row.reference && row.id ? <RefLink reference={row.reference} href={dispatchFile(row.id)} className="shrink-0" /> : <span className="shrink-0 font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">Not numbered yet</span>}
+                <span className={row.pending ? 'grow font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary' : 'grow font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary'}>{row.name}</span>
+                <span className={row.pending ? 'font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg' : 'font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary'}>{row.right}</span>
               </li>
             ))}
           </ul>
         </section>
-        <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-muted">Each department counts its own delivery when it arrives.</p>
-        <B2SecondaryButton onClick={() => window.open(dispatchPrintBatch(result.dispatches.map((d) => d.id)), '_blank', 'noopener')}>
+        <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Each department counts its own delivery when it arrives.</p>
+        <B2SecondaryButton onClick={() => window.open(dispatchPrintBatch(result.dispatches.map((d) => d.id)), '_blank', 'noopener')} className="h-11 text-[14px] font-medium leading-[18px]">
           {printLabel}
         </B2SecondaryButton>
+        {/* Paper D6: the main button sits at the foot of the content (no bordered footer bar). */}
+        <div className="mt-auto">
+          <B2PrimaryButton onClick={() => router.push(dispatchTab('to-pack'))}>Back to To pack</B2PrimaryButton>
+        </div>
       </div>
-      <B2Footer>
-        <B2PrimaryButton onClick={() => router.push(dispatchTab('to-pack'))}>Back to To pack</B2PrimaryButton>
-      </B2Footer>
     </PhoneColumn>
   );
 }

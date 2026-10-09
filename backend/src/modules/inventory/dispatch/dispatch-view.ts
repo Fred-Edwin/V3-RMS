@@ -75,6 +75,8 @@ export interface FileViewer {
   /** The Branch Manager reading a branch's dispatch. */
   branchSide: boolean;
   canPack: boolean;
+  /** The caller may open the delivery note (P7 needs `dispatch.read`; a department member reading V7 does not hold it). */
+  canPrint: boolean;
   canCancel: boolean;
   canRecordFinding: boolean;
   canConfirmForDepartment: boolean;
@@ -218,7 +220,7 @@ export const fileWire = (rec: DispatchRecord, v: FileViewer): DispatchFile => {
     activity: activityOf(rec),
     ...(v.seeValue && visible ? { valueKes: kes(value) } : {}),
     can: {
-      print: rec.signedAt !== null,
+      print: v.canPrint && rec.signedAt !== null,
       cancel: v.canCancel && canCancelDispatch(rec),
       recordFinding: v.canRecordFinding && openDiscrepancy !== null,
       confirmForDepartment: v.canConfirmForDepartment && rec.status === 'ON_THE_WAY' && rec.countedAt === null,

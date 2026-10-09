@@ -89,16 +89,18 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
   const hiddenCount = data ? Math.max(0, data.items.length - SHOWN_AT_FIRST) : 0;
   const money = data?.items.some((i) => i.valueKes !== undefined) ?? false;
   const sentVisible = data?.sentVisible ?? false;
+  // Several lines differ: the card's button opens the oldest open one (the file lists them oldest first) and each row has its own link.
+  const severalOpen = (data?.items.filter((i) => i.discrepancy && i.discrepancy.status !== 'RECORDED').length ?? 0) > 1;
 
   const mainAction = (): React.ReactNode => {
     if (!data || !words?.actionLabel) return null;
     if (data.stage === 'GAP_HELD' && data.can.recordFinding) {
       const target = data.nextStep.facts.discrepancyId;
-      return target ? <Button size="lg" className="h-[46px] px-6 text-[16px]" onClick={() => router.push(`${base}/discrepancies/${target}?drawer=finding`)}>{words.actionLabel}</Button> : null;
+      return target ? <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => router.push(`${base}/discrepancies/${target}?drawer=finding`)}>{words.actionLabel}</Button> : null;
     }
-    if (data.stage === 'WAITING_FOR_BRANCH' && data.can.confirmForDepartment) return <Button size="lg" className="h-[46px] px-6 text-[16px]" onClick={() => setParam({ drawer: 'confirm' })}>{words.actionLabel}</Button>;
-    if (data.stage === 'CANCELLED') return <Button size="lg" className="h-[46px] px-6 text-[16px]" onClick={() => router.push(packHref)}>{words.actionLabel}</Button>;
-    if ((data.stage === 'TO_PACK' || data.stage === 'PACKING' || data.stage === 'READY_TO_SEND') && data.nextStep.action) return <Button size="lg" className="h-[46px] px-6 text-[16px]" onClick={() => router.push(packHref)}>{words.actionLabel}</Button>;
+    if (data.stage === 'WAITING_FOR_BRANCH' && data.can.confirmForDepartment) return <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => setParam({ drawer: 'confirm' })}>{words.actionLabel}</Button>;
+    if (data.stage === 'CANCELLED') return <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => router.push(`${packHref}/pack/${data.requisition.id}`)}>{words.actionLabel}</Button>;
+    if ((data.stage === 'TO_PACK' || data.stage === 'PACKING' || data.stage === 'READY_TO_SEND') && data.nextStep.action) return <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => router.push(`${packHref}/pack/${data.requisition.id}`)}>{words.actionLabel}</Button>;
     return null;
   };
 
@@ -125,9 +127,9 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
               chip={stageChip(data.stage)}
               subline={
                 <>
-                  <DocLink>{data.reference}</DocLink>
+                  <DocLink className="text-[13px]">{data.reference}</DocLink>
                   <span>from</span>
-                  <DocLink href={`${base}/${data.requisition.id}`}>{data.requisition.reference}</DocLink>
+                  <DocLink href={`${base}/${data.requisition.id}`} className="text-[13px]">{data.requisition.reference}</DocLink>
                   <span>
                     · {data.lineCount} lines · {data.carrier.name}
                   </span>
@@ -139,7 +141,7 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                   {data.can.print ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button ref={printRef} variant="secondary" size="lg" className="h-9 px-4 text-[14px]">
+                        <Button ref={printRef} variant="secondary" size="lg" className="h-9 px-4 text-[14px] leading-[18px]">
                           Print delivery note
                         </Button>
                       </DropdownMenuTrigger>
@@ -220,6 +222,14 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                                   <Link href={`${base}/discrepancies/${item.discrepancy.id}`} className="underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
                                     {item.discrepancy.reference}
                                   </Link>
+                                  {severalOpen && data.can.recordFinding && item.discrepancy.status !== 'RECORDED' ? (
+                                    <>
+                                      {' · '}
+                                      <Link href={`${base}/discrepancies/${item.discrepancy.id}?drawer=finding`} className="font-medium underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
+                                        Record a finding<span className="sr-only"> for {item.itemName}, {item.discrepancy.reference}</span>
+                                      </Link>
+                                    </>
+                                  ) : null}
                                 </span>
                               ) : null}
                               {item.photos.length > 0 ? <PhotoStrip photos={item.photos} /> : null}

@@ -38,6 +38,12 @@ export const deliveriesController = {
     res.status(200).json({ success: true, data: await deliveriesService.list(requireActor(req), listDeliveriesQuerySchema.parse(req.query)) });
   },
 
+  /** V7: the department's own delivery file. */
+  file: async (req: Request, res: Response): Promise<void> => {
+    const { id } = deliveryParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await deliveriesService.file(requireActor(req), id) });
+  },
+
   getCount: async (req: Request, res: Response): Promise<void> => {
     const { id } = deliveryParamsSchema.parse(req.params);
     res.status(200).json({ success: true, data: await deliveriesService.getCount(requireActor(req), id) });

@@ -4,10 +4,10 @@ import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { DateRangePicker, type DateRange } from '@/components/ui2/date-range-picker';
-import { MobileEmptyState, MobileErrorState } from '@/components/app/shell/mobile-states';
+import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { useAuthStore } from '@/store/authStore';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2Header, Chip, ListSkeleton, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
+import { B2Empty, B2Header, Chip, ListSkeleton, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { couldNotLoad, EMPTY_COPY, resultChip } from '../../../_shared/lib/block2-words';
 import { DELIVERY_RESULTS, type DeliveryResult } from '../../../dispatch/_shared/types/dispatch-contract';
@@ -65,7 +65,7 @@ export function MyDeliveriesList({ withTabs = false }: { withTabs?: boolean }) {
       </>
     );
   } else if (data.rows.length === 0) {
-    body = <MobileEmptyState title={EMPTY_COPY.myDeliveries.title} description={EMPTY_COPY.myDeliveries.line} />;
+    body = <B2Empty title={EMPTY_COPY.myDeliveries.title} description={EMPTY_COPY.myDeliveries.line} />;
   } else {
     body = (
       <>
@@ -73,20 +73,20 @@ export function MyDeliveriesList({ withTabs = false }: { withTabs?: boolean }) {
           {data.rows.map((row) => {
             const chip = resultChip(row.result, row.gapCount);
             return (
-              <li key={row.id} className="flex items-center gap-2.5 border-b border-wds-border px-3.5 py-3 last:border-b-0">
+              <li key={row.id} className="flex items-center gap-2.5 border-b border-wds-neutral-100 px-3.5 py-3 last:border-b-0">
                 <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
-                  <RefLink reference={row.reference} href={deliveryFile(row.id)} />
-                  <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">
+                  <RefLink reference={row.reference} href={deliveryFile(row.id)} className="text-[13px] leading-4" />
+                  <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">
                     {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'} · from the Central Store
                   </span>
-                  <span className="font-wds-sans text-[13px] leading-4 text-wds-text-muted">{row.confirmedAt ? `Confirmed ${dateTimeText(row.confirmedAt)}` : 'Not confirmed'}</span>
+                  <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{row.confirmedAt ? `Confirmed ${dateTimeText(row.confirmedAt)}` : 'Not confirmed'}</span>
                 </div>
                 {chip ? <Chip spec={chip} /> : null}
               </li>
             );
           })}
         </ul>
-        <p className="mt-3 border border-wds-info-border bg-wds-info-bg px-3.5 py-3 font-wds-sans text-[15px] leading-[22px] text-wds-info-fg">Open a delivery to see what you counted, what was sent, and how a gap ended.</p>
+        <p className="mt-3 border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">Open a delivery to see what you counted, what was sent, and how a gap ended.</p>
       </>
     );
   }
@@ -110,10 +110,10 @@ export function MyDeliveriesList({ withTabs = false }: { withTabs?: boolean }) {
       <B2Header title="History" subtitle={department ? `${fullDateText(new Date().toISOString())} · ${department.charAt(0)}${department.slice(1).toLowerCase()}` : fullDateText(new Date().toISOString())} leading="back" onBack={() => router.push(withTabs ? '/app/requisitions' : DELIVERIES_HOME)} place={orgName} tabs={tabs} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-11 rounded-none px-3 font-wds-sans text-[13px]" />
-          <label className="relative flex h-11 items-center border border-wds-border-strong bg-wds-surface">
+          <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-[34px] max-sm:h-[34px] rounded-none px-3 font-wds-sans text-[13px] leading-4" />
+          <label className="relative flex h-[34px] items-center border border-wds-border-strong bg-wds-surface">
             <span className="sr-only">Result</span>
-            <select aria-label="Result" value={result ?? ''} onChange={(e) => setQuery({ result: e.target.value || null, page: null })} className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
+            <select aria-label="Result" value={result ?? ''} onChange={(e) => setQuery({ result: e.target.value || null, page: null })} className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
               <option value="">Result: All</option>
               {DELIVERY_RESULTS.map((r) => (
                 <option key={r} value={r}>
@@ -124,7 +124,7 @@ export function MyDeliveriesList({ withTabs = false }: { withTabs?: boolean }) {
             <span aria-hidden="true" className="pointer-events-none absolute right-3 text-[9px] text-wds-text-ink">▾</span>
           </label>
         </div>
-        <div className="mt-4 flex flex-col">{body}</div>
+        <div className="mt-3 flex flex-col">{body}</div>
         <div className="grow" />
         {data && data.page.total > 0 ? <PagerBar page={page} pageSize={PAGE_SIZE} total={data.page.total} shown={data.rows.length} onPage={(p) => setQuery({ page: p === 1 ? null : String(p) })} noun="" /> : null}
       </div>

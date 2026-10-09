@@ -41,6 +41,10 @@ export interface DrawerShellProps {
   footerExtra?: React.ReactNode;
   /** `bottom` = phone sheet (Paper "Pre-Demo · Phone screens" 4). */
   side?: 'right' | 'bottom';
+  /** Block 2 drawers (Paper D15, D19): 520 wide, 28px padding, the context line above a 22/28 title, 44px buttons. */
+  paper?: boolean;
+  /** Width of a `paper` drawer in px: 520 for D15, 540 for D19. */
+  paperWidth?: number;
   children: React.ReactNode;
 }
 
@@ -56,9 +60,33 @@ export function DrawerShell({
   onCancel,
   footerExtra,
   side = 'right',
+  paper = false,
+  paperWidth = 520,
   children,
 }: DrawerShellProps) {
   const bottom = side === 'bottom';
+  if (paper && !bottom) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" style={{ width: paperWidth }} className="gap-[18px] overflow-y-auto border-l border-wds-text-ink p-7 shadow-none">
+          <div className="flex flex-col gap-1.5">
+            <SheetDescription className="!font-wds-mono !text-[11px] uppercase !leading-[14px] tracking-[0.06em] text-wds-text-secondary">{description}</SheetDescription>
+            <SheetTitle className="!text-[22px] font-semibold !leading-7 tracking-[-0.01em] text-wds-text-ink">{title}</SheetTitle>
+          </div>
+          {children}
+          {footerExtra}
+          <div className="mt-auto flex gap-2.5">
+            <Button variant="secondary" className="h-11 bg-white px-5 text-[14px] leading-[18px]" onClick={onCancel ?? (() => onOpenChange(false))}>
+              {cancelLabel}
+            </Button>
+            <Button className="h-11 grow basis-0 text-[14px] leading-[18px]" onClick={onPrimaryAction} disabled={primaryDisabled}>
+              {primaryLabel}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side={side} className={bottom ? 'max-h-[92vh] rounded-t-wds-md' : undefined}>

@@ -6,13 +6,13 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { DateRangePicker, type DateRange } from '@/components/ui2/date-range-picker';
-import { MobileEmptyState, MobileErrorState } from '@/components/app/shell/mobile-states';
+import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2Header, B2TabPanel, Chip, ListSkeleton, OutlineChip, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
+import { B2Empty, B2Header, B2TabPanel, Chip, ListSkeleton, OutlineChip, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { couldNotLoad, doneRowChip, EMPTY_COPY, onTheWayRowChip } from '../../../_shared/lib/block2-words';
 import { dateTimeText, fullDateText, timeText } from '../../../requisitions/lib/time';
-import type { CarrierRef, DispatchMineRow, Queue, QueueCard } from '../../_shared/types/dispatch-contract';
+import type { DispatchMineRow, Queue, QueueCard } from '../../_shared/types/dispatch-contract';
 import { useDispatchMine, useDispatchQueue } from '../../hooks/use-phone-dispatch';
 import { dispatchFile, packDepartment, packOverview } from '../../lib/phone-routes';
 import { waitChip } from '../../lib/pack-logic';
@@ -102,7 +102,7 @@ function ToPackTab({ queue }: { queue: ReturnType<typeof useDispatchQueue> }) {
   if (data.cards.length === 0) {
     return (
       <div className="p-5">
-        <MobileEmptyState title={EMPTY_COPY.toPack.title} description={EMPTY_COPY.toPack.line} />
+        <B2Empty title={EMPTY_COPY.toPack.title} description={EMPTY_COPY.toPack.line} />
       </div>
     );
   }
@@ -128,7 +128,8 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
   const cycle = card.cycleLabel.split(' · ')[0] ?? card.cycleLabel;
   const startHere = card.departments.find((d) => d.state !== 'PACKED')?.departmentId ?? null;
   const packed = card.departments.filter((d) => d.state === 'PACKED').length;
-  const waitChipEl = <OutlineChip tone={wait.amber ? 'warning' : 'plain'}>{wait.text}</OutlineChip>;
+  // Paper D1: the wait chip on the card header is 3 px tall above and below (the row pills are 2 px).
+  const waitChipEl = <OutlineChip tone={wait.amber ? 'warning' : 'plain'} className="py-[3px]">{wait.text}</OutlineChip>;
   const headId = `branch-${card.requisitionId}`;
   if (!expanded) {
     return (
@@ -144,8 +145,8 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
             </span>
           </span>
           <span className="flex items-center gap-2">
-            <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-muted">{card.reference}</span>
-            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">
+            <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">{card.reference}</span>
+            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
               {cycle} · {card.departments.length} {card.departments.length === 1 ? 'department' : 'departments'} · {card.lineCount} lines
             </span>
           </span>
@@ -170,8 +171,8 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-muted">{card.reference}</span>
-          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">
+          <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">{card.reference}</span>
+          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
             {cycle} · approved {timeText(card.approvedAt)}
           </span>
         </div>
@@ -187,7 +188,7 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
               >
                 <span className="flex min-w-0 grow basis-0 flex-col gap-0.5">
                   <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{d.departmentName}</span>
-                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{d.lineCount} {d.lineCount === 1 ? 'line' : 'lines'}</span>
+                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} {d.lineCount === 1 ? 'line' : 'lines'}</span>
                 </span>
                 {d.state === 'PACKED' ? (
                   <Chip spec={{ text: 'Packed', tone: 'success' }} />
@@ -208,10 +209,10 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
       </ul>
       {packed > 0 ? (
         <div className="flex items-center justify-between gap-3 border-t border-wds-border bg-wds-neutral-50 px-4 py-2.5">
-          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
             {packed} of {card.departments.length} departments packed
           </p>
-          <Link href={packOverview(card.requisitionId)} className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-wds-primary outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring">
+          <Link href={packOverview(card.requisitionId)} className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring">
             Go to the final review
           </Link>
         </div>
@@ -221,13 +222,6 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
 }
 
 // --- On the way (N2, N2b) and Done (G3) -----------------------------------------------------------------------------------------------
-
-/** P9 rows may carry the requisition and carrier (asked of back end C: see the gaps report); the screen draws them when they are there. */
-interface RowExtras {
-  requisition?: { id: string; reference: string; cycleLabel?: string };
-  carrier?: CarrierRef;
-}
-const extrasOf = (row: DispatchMineRow): RowExtras => row as DispatchMineRow & RowExtras;
 
 function MineTab({ tab, params, setQuery }: { tab: 'on-the-way' | 'done'; params: URLSearchParams; setQuery: (patch: Record<string, string | null>) => void }) {
   const [today] = React.useState(() => nairobiDay(new Date()));
@@ -245,15 +239,15 @@ function MineTab({ tab, params, setQuery }: { tab: 'on-the-way' | 'done'; params
   const filters = (
     <div className="flex flex-wrap items-center gap-2">
       {tab === 'done' ? (
-        <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-11 rounded-none px-3 font-wds-sans text-[13px]" />
+        <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-[34px] max-sm:h-[34px] rounded-none px-3 font-wds-sans text-[13px] leading-4" />
       ) : null}
-      <label className="relative flex h-11 items-center border border-wds-border-strong bg-wds-surface">
+      <label className="relative flex h-[34px] items-center border border-wds-border-strong bg-wds-surface">
         <span className="sr-only">Branch</span>
         <select
           aria-label="Branch"
           value={branchId ?? ''}
           onChange={(e) => setQuery({ branch: e.target.value || null, page: null })}
-          className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
+          className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
         >
           <option value="">Branch: All</option>
           {Array.from(known.current.entries()).map(([id, name]) => (
@@ -287,7 +281,7 @@ function MineTab({ tab, params, setQuery }: { tab: 'on-the-way' | 'done'; params
     );
   } else if (data.rows.length === 0) {
     const copy = tab === 'done' ? EMPTY_COPY.done : EMPTY_COPY.onTheWay;
-    body = <MobileEmptyState title={copy.title} description={copy.line} />;
+    body = <B2Empty title={copy.title} description={copy.line} />;
   } else if (tab === 'done') {
     body = (
       <ul className="border border-wds-border bg-wds-surface">
@@ -303,13 +297,13 @@ function MineTab({ tab, params, setQuery }: { tab: 'on-the-way' | 'done'; params
   return (
     <div className="flex min-h-0 flex-1 flex-col p-4">
       {filters}
-      <div className="mt-4 flex flex-col gap-4">{body}</div>
+      <div className="mt-3 flex flex-col gap-3">{body}</div>
       <div className="grow" />
       {data && data.page.total > 0 ? (
         tab === 'done' ? (
           <PagerBar page={page} pageSize={PAGE_SIZE} total={data.page.total} shown={data.rows.length} onPage={(p) => setQuery({ page: p === 1 ? null : String(p) })} noun="" />
         ) : (
-          <p className="pb-5 pt-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-muted" aria-live="polite">
+          <p className="pb-5 pt-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary" aria-live="polite">
             Showing {groupCount(data.rows)} of {groupCount(data.rows)} {noun}
           </p>
         )
@@ -323,14 +317,14 @@ const groupCount = (rows: readonly DispatchMineRow[]): number => new Set(rows.ma
 
 function DoneRow({ row }: { row: DispatchMineRow }) {
   return (
-    <li className="border-b border-wds-border last:border-b-0">
+    <li className="border-b border-wds-neutral-100 last:border-b-0">
       <div className="flex items-center gap-2.5 px-3.5 py-3">
         <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
-          <RefLink reference={row.reference} href={dispatchFile(row.id)} />
-          <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">
+          <RefLink reference={row.reference} href={dispatchFile(row.id)} className="text-[13px] leading-4" />
+          <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">
             {row.branch.name} · {row.department.name} · {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'}
           </span>
-          <span className="font-wds-sans text-[13px] leading-4 text-wds-text-muted">Signed and sent {dateTimeText(row.signedAt)}</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Signed and sent {dateTimeText(row.signedAt)}</span>
         </div>
         <Chip spec={doneRowChip(row.result)} />
       </div>
@@ -350,30 +344,27 @@ function OnTheWayGroups({ rows }: { rows: readonly DispatchMineRow[] }) {
       {groups.map(([key, group]) => {
         const head = group[0];
         if (!head) return null;
-        const extra = extrasOf(head);
         return (
           <section key={key} aria-label={`${head.branch.name}, left ${timeText(head.signedAt)}`} className="border border-wds-border bg-wds-surface">
-            <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-3.5">
-              <div className="flex min-w-0 flex-col gap-1">
-                <h2 className="font-wds-sans text-[17px] font-semibold leading-6 tracking-[-0.01em] text-wds-text-ink">{head.branch.name}</h2>
-                {extra.requisition ? (
-                  <span className="flex items-center gap-2">
-                    <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-muted">{extra.requisition.reference}</span>
-                    {extra.requisition.cycleLabel ? <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">· {extra.requisition.cycleLabel.split(' · ')[0]}</span> : null}
-                  </span>
-                ) : null}
+            <div className="flex items-start justify-between gap-3 px-3.5 py-3">
+              <div className="flex min-w-0 flex-col gap-[3px]">
+                <h2 className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">{head.branch.name}</h2>
+                <span className="flex items-center gap-1.5">
+                  <span className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{head.requisition.reference}</span>
+                  <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">· {head.requisition.cycleLabel.split(' · ')[0]}</span>
+                </span>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">Left {timeText(head.signedAt)}</span>
-                {extra.carrier ? <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{extra.carrier.name}</span> : null}
+              <div className="flex shrink-0 flex-col items-end gap-[3px] text-right">
+                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-ink">Left {timeText(head.signedAt)}</span>
+                {head.carrier ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{head.carrier.name}</span> : null}
               </div>
             </div>
             <ul className="border-t border-wds-border">
               {group.map((row) => (
-                <li key={row.id} className="flex items-center gap-2.5 border-b border-wds-border px-4 py-3 last:border-b-0">
-                  <div className="flex min-w-0 grow basis-0 flex-col gap-[3px]">
-                    <RefLink reference={row.reference} href={dispatchFile(row.id)} />
-                    <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">
+                <li key={row.id} className="flex items-center gap-2.5 border-b border-wds-neutral-100 px-3.5 py-[11px] last:border-b-0">
+                  <div className="flex min-w-0 grow basis-0 flex-col gap-0.5">
+                    <RefLink reference={row.reference} href={dispatchFile(row.id)} className="text-[12px] leading-4" />
+                    <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
                       {row.department.name} · {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'}
                     </span>
                   </div>

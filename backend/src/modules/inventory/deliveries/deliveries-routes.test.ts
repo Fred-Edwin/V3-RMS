@@ -7,7 +7,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '../../../utils/errors';
 
-const svc = vi.hoisted(() => ({ list: vi.fn(), getCount: vi.fn(), saveCount: vi.fn(), check: vi.fn(), setReason: vi.fn(), uploadPhoto: vi.fn(), deletePhoto: vi.fn(), readPhoto: vi.fn(), confirmPreview: vi.fn(), confirm: vi.fn() }));
+const svc = vi.hoisted(() => ({ list: vi.fn(), file: vi.fn(), getCount: vi.fn(), saveCount: vi.fn(), check: vi.fn(), setReason: vi.fn(), uploadPhoto: vi.fn(), deletePhoto: vi.fn(), readPhoto: vi.fn(), confirmPreview: vi.fn(), confirm: vi.fn() }));
 vi.mock('./deliveries-service', () => ({ deliveriesService: svc }));
 vi.mock('../../../middleware/authenticate', () => ({
   authenticate: (req: Request, _res: Response, next: NextFunction) => {
@@ -40,6 +40,7 @@ beforeEach(() => {
 describe('every route needs a signed-in caller', () => {
   it.each([
     ['get', '/inventory/deliveries/mine'],
+    ['get', base],
     ['get', `${base}/count`],
     ['put', `${base}/count`],
     ['post', `${base}/check`],
@@ -83,6 +84,12 @@ describe('Zod at the edge', () => {
     expect((await request(app).get('/inventory/deliveries/mine?tab=past&result=GAP_OPEN&pageSize=25').set('x-test-user', user)).status).toBe(200);
     expect((await request(app).get('/inventory/deliveries/mine?tab=nope').set('x-test-user', user)).status).toBeGreaterThanOrEqual(400);
     expect((await request(app).get('/inventory/deliveries/mine?result=NOPE').set('x-test-user', user)).status).toBeGreaterThanOrEqual(400);
+  });
+  it('V7: the delivery file is read by id, and only by a uuid', async () => {
+    expect((await request(app).get(base).set('x-test-user', user)).status).toBe(200);
+    expect(svc.file).toHaveBeenCalledTimes(1);
+    expect((await request(app).get('/inventory/deliveries/not-a-uuid').set('x-test-user', user)).status).toBe(404);
+    expect(svc.file).toHaveBeenCalledTimes(1);
   });
   it('an id that is not a uuid is not a delivery, and /mine is not taken for one', async () => {
     expect((await request(app).get('/inventory/deliveries/not-a-uuid/count').set('x-test-user', user)).status).toBe(404);

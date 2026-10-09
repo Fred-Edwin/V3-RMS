@@ -45,7 +45,7 @@ export { useRequisitionBadges } from './requisitions/hooks/use-requisition-badge
 
 // Dispatch, deliveries and discrepancies (Block 2, desktop): the dispatch file, delivery notes, Carriers, the discrepancy list and file.
 export { DispatchFileScreen } from './dispatch/components/desktop/dispatch-file-screen';
-export { DeliveryNotePrintScreen } from './dispatch/components/desktop/delivery-note-print-screen';
+export { DeliveryNotePrintScreen, DeliveryNoteBatchPrintScreen } from './dispatch/components/desktop/delivery-note-print-screen';
 export { CarriersScreen } from './dispatch/components/desktop/carriers-screen';
 export { DiscrepanciesListScreen } from './discrepancies/components/discrepancies-list-screen';
 export { DiscrepancyFileScreen } from './discrepancies/components/discrepancy-file-screen';

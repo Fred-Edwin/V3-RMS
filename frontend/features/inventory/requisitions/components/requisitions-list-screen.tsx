@@ -109,7 +109,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       // The Block 2 tabs: the store packs from To pack; everyone else opens the requisition, which follows its dispatches.
       const packs = stage === 'to-pack' && can('dispatch.pack');
       return (
-        <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(packs ? '/app/inventory/dispatch' : href(row.id)); }} className="h-10 px-5 text-[14px] max-sm:h-11">
+        <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(packs ? `/app/inventory/dispatch/pack/${row.id}` : href(row.id)); }} className="h-10 px-5 text-[14px] max-sm:h-11">
           {packs ? 'Pack' : 'Open'}
           <span className="sr-only"> {row.reference}</span>
         </Button>
@@ -278,7 +278,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
           refreshToken={refresh * TAB_SLOTS + tabSlot(forcedTab)}
           searchPlaceholder={mode === 'history' ? 'Search by number or branch' : hub ? 'Search by number or branch' : 'Search by number or department'}
           onRowActivate={(r) => router.push(href(r.id))}
-          fetchRows={async (q, { signal: _signal }) => {
+          fetchRows={async (q) => {
             const range = mode === 'history' ? effectiveRange(q.filters, DATE_FILTER, DATE_FILTER.defaultPreset, nairobiToday()) : undefined;
             const res = await requisitionsApi.list({
               tab: forcedTab,

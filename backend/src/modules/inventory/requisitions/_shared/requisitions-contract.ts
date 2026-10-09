@@ -294,7 +294,7 @@ export const rowMomentsSchema = z.object({
   /** The moment the last section went in (Collecting became Ready to approve). */
   allInAt: isoDateTime.nullable(),
   urgentAt: isoDateTime.nullable(),
-  /** R9 history rows: when the head's section was sent. R1 rows: null for now. */
+  /** R9 history rows: when the head's section was sent. R1 rows on the On the way and To confirm tabs: when the delivery left the store (the earliest final signature); null elsewhere. */
   sentAt: isoDateTime.nullable(),
   closedAt: isoDateTime.nullable(),
   cancelledAt: isoDateTime.nullable(),

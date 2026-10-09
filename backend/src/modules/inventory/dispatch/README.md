@@ -6,6 +6,7 @@ Pack the departments of an approved requisition at the Central Store, give one f
 
 ## Rules (what the code does)
 - **A dispatch row exists from the first look** at a department (status `TO_PACK`, no reference). Opening a department (P2/P3/P4/P5) builds or reconciles its lines from the requisition: the approved quantity (else the requested one), an addition still waiting for approval is left out, an approved one joins, a changed quantity follows while the department is unsigned. Sent quantity pre-fills with the requested quantity, or what the store holds when that is less. Any tick makes it `PACKING`.
+- **First look is serialised** per department with a transaction-scoped advisory lock (`lockDepartment`), so several phones opening the same department at once all get the one row (a unique violation cannot be caught inside a Postgres transaction, so the code never relies on one). Tested with parallel reads in `dispatch.db.test.ts`.
 - **P3 save** (last write wins): `OVER_REQUESTED` (422) above the requested quantity; `STOCK_CHANGED` (409, `details.lineIds`) when a ticked line sends more than the store holds; `ALREADY_SIGNED` on a signed department. Nothing is saved on an error.
 - **P5 sign**: one transaction, serialised per hub by an advisory lock. Departments in `leaveOut` (and any not ready) stay in To pack. Errors `INVALID_PIN` (own PIN, through `countPin`), `CARRIER_INACTIVE`, `NOTHING_TO_SEND`, `NOT_ALL_PACKED` (`details.departmentIds`), `STOCK_CHANGED` (stock is checked per item across every department shipping now). Each shipped department gets `DSP-` from `ReferenceCounter` (prefix `DSP`, branch site), its line costs are frozen, `DISPATCH_OUT` is posted through `postStockMovement` (never `inventoryTransaction.create`), a `SIGNED_AND_SENT` event is written, and after commit the department's members are pushed and `dispatch:changed` is emitted. A repeated `idempotencyKey` by the same person returns the first result with `replayed: true`.
 - **P8 cancel**: PIN-signed, `dispatch.cancel` (Store Manager, System Admin), only while `ON_THE_WAY` and not counted (`DISPATCH_ALREADY_COUNTED`, `NOT_SIGNED`, `DISPATCH_CANCELLED`). Locks that dispatch only. Stock goes back by a **linked reversing `DISPATCH_OUT` row** per line (the door's `DISPATCH` reversal: positive, `reversesTransactionId` set; the original stays). The note is voided and kept. The department's lines return to the queue as a fresh dispatch with ticks reset the next time it is opened (the partial unique index allows one live dispatch per department).
@@ -26,7 +27,7 @@ The append-only ledger gets no new column. A finding's entries, its reversal and
 | P6 | `GET /dispatch/:id` | `dispatch.read` |
 | P7 | `GET /dispatch/:id/print?copy=store\|branch` | `dispatch.read` |
 | P8 | `POST /dispatch/:id/cancel` | `dispatch.cancel` |
-| P9 | `GET /dispatch/mine?tab=&from=&to=&branchId=&page=&pageSize=` | `dispatch.pack` |
+| P9 | `GET /dispatch/mine?tab=&from=&to=&branchId=&page=&pageSize=` | `dispatch.pack` (rows carry `requisition` {id, reference, cycle, cycleLabel} and the `carrier`) |
 | P10 | `GET /carriers`, `POST /carriers`, `PATCH /carriers/:id` | `carriers.read` / `carriers.manage` |
 
 ## Hand-offs and roll-ups it fills

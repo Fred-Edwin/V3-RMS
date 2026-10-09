@@ -273,6 +273,112 @@
     "discrepancies": [],
     "replayed": false
   },
+  "fileMemberBlind": {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "reference": "DSP-NYR-0231",
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "status": "ON_THE_WAY",
+    "stage": "ON_THE_WAY",
+    "packedAt": "2026-10-08T12:01:00.000Z",
+    "arrivedAt": "2026-10-08T12:28:00.000Z",
+    "countedById": null,
+    "countedAt": null,
+    "onBehalf": false,
+    "lineCount": 2,
+    "shortCount": 0,
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "counted": null,
+    "onBehalfOfDepartment": null,
+    "cancelled": null,
+    "closedAt": null,
+    "siblings": [],
+    "tracker": [
+      { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "ON_THE_WAY", "state": "CURRENT", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
+      { "key": "COUNTED", "state": "TODO", "at": null, "by": null, "carrier": null },
+      { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "carrier": null }
+    ],
+    "nextStep": { "action": null, "facts": { "gapLineCount": 0, "discrepancyId": null, "waitingSince": "2026-10-08T12:05:00.000Z" } },
+    "sentVisible": false,
+    "items": [
+      { "lineId": "70000000-0000-4000-8000-000000000001", "itemId": "10000000-0000-4000-8000-000000000001", "itemName": "Pishori rice 25kg", "unit": "bag", "categoryPath": ["Dry items"], "requestedQty": "2", "countedQty": null, "countedTwice": false, "countReason": null, "countReasonNote": null, "photos": [], "discrepancy": null },
+      { "lineId": "70000000-0000-4000-8000-000000000002", "itemId": "10000000-0000-4000-8000-000000000002", "itemName": "Cooking oil 10L", "unit": "can", "categoryPath": ["Dry items"], "requestedQty": "2", "countedQty": null, "countedTwice": false, "countReason": null, "countReasonNote": null, "photos": [], "discrepancy": null }
+    ],
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000004", "kind": "DELIVERY_NOTE_BRANCH", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false }
+    ],
+    "activity": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000004",
+        "type": "SIGNED_AND_SENT",
+        "at": "2026-10-08T12:05:00.000Z",
+        "actor": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+        "sentence": "Signed and sent DSP-NYR-0231 · 2 lines · carried by Wendo van KCB 214K",
+        "link": { "kind": "DISPATCH", "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231" },
+        "reason": null
+      }
+    ],
+    "can": { "print": false, "cancel": false, "recordFinding": false, "confirmForDepartment": false }
+  },
+  "fileMemberCounted": {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "reference": "DSP-NYR-0231",
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "status": "CONFIRMED",
+    "stage": "GAP_HELD",
+    "packedAt": "2026-10-08T12:01:00.000Z",
+    "arrivedAt": "2026-10-08T12:28:00.000Z",
+    "countedById": "u-kitchen",
+    "countedAt": "2026-10-08T12:41:00.000Z",
+    "onBehalf": false,
+    "lineCount": 2,
+    "shortCount": 1,
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "counted": { "by": { "id": "u-kitchen", "name": "Mercy Wanjiru", "initials": "MW", "roleLabel": "Kitchen Head" }, "at": "2026-10-08T12:41:00.000Z" },
+    "onBehalfOfDepartment": null,
+    "cancelled": null,
+    "closedAt": null,
+    "siblings": [],
+    "tracker": [
+      { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "ON_THE_WAY", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
+      { "key": "COUNTED", "state": "DONE", "at": "2026-10-08T12:41:00.000Z", "by": { "id": "u-kitchen", "name": "Mercy Wanjiru", "initials": "MW", "roleLabel": "Kitchen Head" }, "carrier": null },
+      { "key": "CLOSED", "state": "CURRENT", "at": null, "by": null, "carrier": null }
+    ],
+    "nextStep": { "action": null, "facts": { "gapLineCount": 1, "discrepancyId": "80000000-0000-4000-8000-000000000001", "waitingSince": null } },
+    "sentVisible": true,
+    "items": [
+      { "lineId": "70000000-0000-4000-8000-000000000001", "itemId": "10000000-0000-4000-8000-000000000001", "itemName": "Pishori rice 25kg", "unit": "bag", "categoryPath": ["Dry items"], "requestedQty": "2", "sentQty": "2", "countedQty": "2", "gapQty": "0", "countedTwice": false, "countReason": null, "countReasonNote": null, "photos": [], "discrepancy": null },
+      { "lineId": "70000000-0000-4000-8000-000000000002", "itemId": "10000000-0000-4000-8000-000000000002", "itemName": "Cooking oil 10L", "unit": "can", "categoryPath": ["Dry items"], "requestedQty": "2", "sentQty": "2", "countedQty": "1", "gapQty": "-1", "countedTwice": true, "countReason": "NOT_IN_THE_BOX", "countReasonNote": null, "photos": [], "discrepancy": { "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007", "status": "OPEN" } }
+    ],
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000004", "kind": "DELIVERY_NOTE_BRANCH", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false }
+    ],
+    "activity": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000004",
+        "type": "SIGNED_AND_SENT",
+        "at": "2026-10-08T12:05:00.000Z",
+        "actor": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+        "sentence": "Signed and sent DSP-NYR-0231 · 2 lines · carried by Wendo van KCB 214K",
+        "link": { "kind": "DISPATCH", "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231" },
+        "reason": null
+      }
+    ],
+    "can": { "print": false, "cancel": false, "recordFinding": false, "confirmForDepartment": false }
+  },
   "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
   "errorAlreadyConfirmed": { "success": false, "error": { "code": "ALREADY_CONFIRMED", "message": "Another member of the department has already signed this delivery." } },
   "errorRecountUsed": { "success": false, "error": { "code": "RECOUNT_USED", "message": "This line was counted twice and cannot be changed." } },

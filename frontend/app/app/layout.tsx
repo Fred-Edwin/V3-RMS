@@ -2,11 +2,13 @@
 
 import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/app/shell/app-shell';
-import { isBareRoute, usesAppShell, usesDesktopShell } from '@/components/app/shell/nav-table';
+import { FLOOR_ROLES, isBareRoute, usesAppShell, usesDesktopShell } from '@/components/app/shell/nav-table';
+import { usePermissions } from '@/features/inventory';
 import { PourReveal } from '@/components/app/shell/pour-reveal';
 import { env } from '@/lib/env';
 import { ShellProvider } from '@/lib/shell-context';
 import { useAuthStore } from '@/store/authStore';
+import type { AppRole } from '@/types/auth';
 import { useCommsSocket } from '@/hooks/useCommsSocket';
 import { useMessageToast } from '@/hooks/useMessageToast';
 import { LegacyPhoneShell } from './_legacy-phone/legacy-phone-shell';
@@ -21,13 +23,18 @@ interface AppShellLayoutProps {
  *   - no role yet, the kitchen/barista display screens, and print documents: the page bare;
  *   - the migrated roles (desktop roles and the Store Attendant): the one shell at every width, a sidebar on desktop and a menu
  *     drawer on phones;
- *   - the floor staff: the legacy bottom-tab phone layout, until their screens are rebuilt.
+ *   - a department head, or a floor-staff member of a department: the same shell (Paper "Phone menus by role", no bottom tabs);
+ *   - floor staff who belong to no department: the legacy bottom-tab phone layout, until their screens are rebuilt.
  */
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.role);
   const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
   const isHydrated = useAuthStore((state) => state.isHydrated);
+  // A floor-staff person who is not a head may still belong to a department; only the server knows (the token marks heads only).
+  const asksMembership = Boolean(role) && FLOOR_ROLES.includes(role as AppRole) && !isDepartmentHead;
+  const membership = usePermissions(asksMembership);
+  const isDepartmentMember = asksMembership && membership.isMember;
 
   // Attach comms socket listeners for real-time inbox updates
   useCommsSocket();
@@ -55,11 +62,20 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     return <>{children}</>;
   }
 
-  if (usesAppShell(role, isDepartmentHead)) {
+  // Until the server says whether this floor-staff person belongs to a department, hold the loading mark (no flash of the old tabs).
+  if (asksMembership && !membership.ready && !membership.failed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-wds-canvas">
+        <PourReveal />
+      </div>
+    );
+  }
+
+  if (usesAppShell(role, isDepartmentHead, isDepartmentMember)) {
     return <AppShell mode="responsive">{children}</AppShell>;
   }
 
-  if (usesDesktopShell(role, isDesktopPreviewEnabled, isDepartmentHead)) {
+  if (usesDesktopShell(role, isDesktopPreviewEnabled, isDepartmentHead, isDepartmentMember)) {
     return (
       <>
         {/* Floor staff in the desktop preview: the shell from lg up, the legacy bottom-tab layout below it. */}
