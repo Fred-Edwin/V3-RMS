@@ -57,6 +57,8 @@ describe('the Central Store permissions table', () => {
       'catalog.read',
       'catalog.see_costs',
       'counts.record',
+      'dispatch.pack',
+      'dispatch.read',
       'orders.read',
       'orders.receive',
       'orders.request',
@@ -101,10 +103,12 @@ describe('the Central Store permissions table', () => {
     }
   });
 
-  it('gives the System Admin everything except the Branch Manager\'s "on behalf" rows, and an unknown role nothing', () => {
-    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 2);
+  it('gives the System Admin everything except the "on behalf" rows and the department\'s own delivery count, and an unknown role nothing', () => {
+    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 4);
     expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.edit_on_behalf');
     expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.send_on_behalf');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('deliveries.count');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('deliveries.confirm_on_behalf');
     expect(capabilitiesOf('WAITER')).toEqual([]);
     expect(actorCan({ role: 'CHEF' } as never, 'catalog.read')).toBe(false);
   });

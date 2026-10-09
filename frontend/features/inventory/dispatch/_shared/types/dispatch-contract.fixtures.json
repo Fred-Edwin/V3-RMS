@@ -1,0 +1,514 @@
+{
+  "queue": {
+    "cards": [
+      {
+        "requisitionId": "40000000-0000-4000-8000-000000000001",
+        "reference": "REQ-NYR-0112",
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "cycle": "AFTERNOON",
+        "cycleLabel": "Afternoon",
+        "approvedAt": "2026-10-08T11:11:00.000Z",
+        "lineCount": 40,
+        "departments": [
+          { "departmentId": "30000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "lineCount": 12, "packedCount": 0, "state": "TO_PACK" },
+          { "departmentId": "30000000-0000-4000-8000-000000000002", "departmentName": "Barista", "lineCount": 8, "packedCount": 3, "state": "PACKING" },
+          { "departmentId": "30000000-0000-4000-8000-000000000003", "departmentName": "Pastry", "lineCount": 9, "packedCount": 9, "state": "PACKED" },
+          { "departmentId": "30000000-0000-4000-8000-000000000004", "departmentName": "Service", "lineCount": 6, "packedCount": 0, "state": "TO_PACK" },
+          { "departmentId": "30000000-0000-4000-8000-000000000005", "departmentName": "Housekeeping", "lineCount": 5, "packedCount": 0, "state": "TO_PACK" }
+        ]
+      }
+    ],
+    "branchesToPack": 1
+  },
+  "packDepartment": {
+    "requisitionId": "40000000-0000-4000-8000-000000000001",
+    "reference": "REQ-NYR-0112",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "position": { "index": 1, "total": 5 },
+    "lineCount": 2,
+    "packedCount": 1,
+    "state": "PACKING",
+    "lines": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000001",
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "itemName": "Pishori rice 25kg",
+        "unit": "bag",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "onHand": "9",
+        "sentQty": "2",
+        "packedTick": true,
+        "short": false,
+        "addedAfterApproval": false
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000002",
+        "itemId": "10000000-0000-4000-8000-000000000002",
+        "itemName": "Cooking oil 10L",
+        "unit": "can",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "onHand": "1",
+        "sentQty": "1",
+        "packedTick": false,
+        "short": true,
+        "addedAfterApproval": false
+      }
+    ],
+    "nextDepartmentId": "30000000-0000-4000-8000-000000000002",
+    "allPacked": false
+  },
+  "savePackLinesInput": {
+    "lines": [
+      { "lineId": "70000000-0000-4000-8000-000000000001", "sentQty": "2", "packedTick": true },
+      { "lineId": "70000000-0000-4000-8000-000000000002", "sentQty": "1", "packedTick": true }
+    ]
+  },
+  "review": {
+    "requisitionId": "40000000-0000-4000-8000-000000000001",
+    "reference": "REQ-NYR-0112",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "cycleLabel": "Afternoon",
+    "lineCount": 3,
+    "shortCount": 1,
+    "departments": [
+      {
+        "departmentId": "30000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "lineCount": 2,
+        "allTicked": true,
+        "shortCount": 1,
+        "shortLines": [{ "itemName": "Cooking oil 10L", "unit": "can", "requestedQty": "2", "sentQty": "1" }]
+      },
+      { "departmentId": "30000000-0000-4000-8000-000000000002", "departmentName": "Barista", "lineCount": 1, "allTicked": true, "shortCount": 0, "shortLines": [] }
+    ],
+    "lines": [
+      { "departmentId": "30000000-0000-4000-8000-000000000001", "lineId": "70000000-0000-4000-8000-000000000001", "itemName": "Pishori rice 25kg", "unit": "bag", "requestedQty": "2", "sentQty": "2", "short": false },
+      { "departmentId": "30000000-0000-4000-8000-000000000001", "lineId": "70000000-0000-4000-8000-000000000002", "itemName": "Cooking oil 10L", "unit": "can", "requestedQty": "2", "sentQty": "1", "short": true },
+      { "departmentId": "30000000-0000-4000-8000-000000000002", "lineId": "70000000-0000-4000-8000-000000000003", "itemName": "Milk 1L", "unit": "packet", "requestedQty": "24", "sentQty": "24", "short": false }
+    ],
+    "packedBy": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+    "signedBy": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+    "carriers": [
+      { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+      { "id": "60000000-0000-4000-8000-000000000002", "name": "Daniel Otieno", "kind": "PERSON" }
+    ],
+    "canSign": true
+  },
+  "signInput": {
+    "carrierId": "60000000-0000-4000-8000-000000000001",
+    "pin": "4821",
+    "idempotencyKey": "sign-req-nyr-0112-a1"
+  },
+  "signInputLeaveOut": {
+    "carrierId": "60000000-0000-4000-8000-000000000001",
+    "pin": "4821",
+    "idempotencyKey": "sign-req-nyr-0112-a2",
+    "leaveOut": ["30000000-0000-4000-8000-000000000003"]
+  },
+  "signResult": {
+    "requisitionId": "40000000-0000-4000-8000-000000000001",
+    "reference": "REQ-NYR-0112",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "signedAt": "2026-10-08T12:05:00.000Z",
+    "packedBy": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+    "signedBy": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "dispatches": [
+      { "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231", "departmentId": "30000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "lineCount": 12, "shortCount": 1 },
+      { "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232", "departmentId": "30000000-0000-4000-8000-000000000002", "departmentName": "Barista", "lineCount": 8, "shortCount": 0 }
+    ],
+    "leftOut": [{ "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" }],
+    "lineCount": 20,
+    "shortCount": 1,
+    "replayed": false
+  },
+  "fileHub": {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "reference": "DSP-NYR-0232",
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "status": "CONFIRMED",
+    "stage": "GAP_HELD",
+    "lineCount": 4,
+    "shortCount": 0,
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
+    "onBehalfOfDepartment": null,
+    "cancelled": null,
+    "closedAt": null,
+    "siblings": [
+      { "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231", "departmentName": "Kitchen", "stage": "ON_THE_WAY" }
+    ],
+    "tracker": [
+      { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "ON_THE_WAY", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
+      { "key": "COUNTED", "state": "DONE", "at": "2026-10-08T12:35:00.000Z", "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "carrier": null },
+      { "key": "CLOSED", "state": "CURRENT", "at": null, "by": null, "carrier": null }
+    ],
+    "nextStep": {
+      "action": "RECORD_A_FINDING",
+      "facts": { "gapLineCount": 1, "discrepancyId": "80000000-0000-4000-8000-000000000001", "waitingSince": null }
+    },
+    "sentVisible": true,
+    "items": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000011",
+        "itemId": "10000000-0000-4000-8000-000000000011",
+        "itemName": "Coffee beans 1kg",
+        "unit": "bag",
+        "categoryPath": ["Coffee"],
+        "requestedQty": "12",
+        "sentQty": "12",
+        "countedQty": "12",
+        "gapQty": "0",
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null,
+        "unitCostKes": "1450.0000",
+        "valueKes": "17400.0000"
+      },
+      {
+        "itemId": "10000000-0000-4000-8000-000000000012",
+        "lineId": "70000000-0000-4000-8000-000000000012",
+        "itemName": "Milk 1L",
+        "unit": "packet",
+        "categoryPath": ["Dairy"],
+        "requestedQty": "24",
+        "sentQty": "24",
+        "countedQty": "22",
+        "gapQty": "-2",
+        "countedTwice": true,
+        "countReason": "NOT_IN_THE_BOX",
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": { "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007", "status": "OPEN" },
+        "unitCostKes": "120.0000",
+        "valueKes": "2880.0000"
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000013",
+        "itemId": "10000000-0000-4000-8000-000000000013",
+        "itemName": "Sugar 2kg",
+        "unit": "pack",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "6",
+        "sentQty": "6",
+        "countedQty": "6",
+        "gapQty": "0",
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null,
+        "unitCostKes": "310.0000",
+        "valueKes": "1860.0000"
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000014",
+        "itemId": "10000000-0000-4000-8000-000000000014",
+        "itemName": "Cocoa powder 1kg",
+        "unit": "tin",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "3",
+        "sentQty": "3",
+        "countedQty": "3",
+        "gapQty": "0",
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null,
+        "unitCostKes": "950.0000",
+        "valueKes": "2850.0000"
+      }
+    ],
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000001", "kind": "DELIVERY_NOTE_STORE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false },
+      { "id": "c0000000-0000-4000-8000-000000000002", "kind": "DELIVERY_NOTE_BRANCH", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false }
+    ],
+    "activity": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "type": "SIGNED_AND_SENT",
+        "at": "2026-10-08T12:05:00.000Z",
+        "actor": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+        "sentence": "Signed and sent DSP-NYR-0232 · 4 lines · carried by Wendo van KCB 214K",
+        "link": { "kind": "DISPATCH", "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232" },
+        "reason": null
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000002",
+        "type": "DISCREPANCY_OPENED",
+        "at": "2026-10-08T12:35:00.000Z",
+        "actor": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" },
+        "sentence": "Counted DSP-NYR-0232 · Milk 1L short by 2 · opened DSC-NYR-0007",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007" },
+        "reason": "Not in the box"
+      }
+    ],
+    "valueKes": "24990.0000",
+    "can": { "print": true, "cancel": false, "recordFinding": true, "confirmForDepartment": false }
+  },
+  "fileAttendantOnTheWay": {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "reference": "DSP-NYR-0231",
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "status": "ON_THE_WAY",
+    "stage": "ON_THE_WAY",
+    "lineCount": 2,
+    "shortCount": 1,
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "counted": null,
+    "onBehalfOfDepartment": null,
+    "cancelled": null,
+    "closedAt": null,
+    "siblings": [
+      { "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232", "departmentName": "Barista", "stage": "GAP_HELD" }
+    ],
+    "tracker": [
+      { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "ON_THE_WAY", "state": "CURRENT", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
+      { "key": "COUNTED", "state": "TODO", "at": null, "by": null, "carrier": null },
+      { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "carrier": null }
+    ],
+    "nextStep": { "action": "PRINT", "facts": { "gapLineCount": 0, "discrepancyId": null, "waitingSince": "2026-10-08T12:05:00.000Z" } },
+    "sentVisible": true,
+    "items": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000001",
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "itemName": "Pishori rice 25kg",
+        "unit": "bag",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "sentQty": "2",
+        "countedQty": null,
+        "gapQty": null,
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000002",
+        "itemId": "10000000-0000-4000-8000-000000000002",
+        "itemName": "Cooking oil 10L",
+        "unit": "can",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "sentQty": "1",
+        "countedQty": null,
+        "gapQty": null,
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null
+      }
+    ],
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000003", "kind": "DELIVERY_NOTE_STORE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false }
+    ],
+    "activity": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000003",
+        "type": "SIGNED_AND_SENT",
+        "at": "2026-10-08T12:05:00.000Z",
+        "actor": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+        "sentence": "Signed and sent DSP-NYR-0231 · 2 lines · carried by Wendo van KCB 214K",
+        "link": { "kind": "DISPATCH", "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231" },
+        "reason": null
+      }
+    ],
+    "can": { "print": true, "cancel": false, "recordFinding": false, "confirmForDepartment": false }
+  },
+  "fileBranchManagerBlind": {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "reference": "DSP-NYR-0231",
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "status": "ON_THE_WAY",
+    "stage": "WAITING_FOR_BRANCH",
+    "lineCount": 2,
+    "shortCount": 0,
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "sendBatchId": "b0000000-0000-4000-8000-000000000001",
+    "counted": null,
+    "onBehalfOfDepartment": null,
+    "cancelled": null,
+    "closedAt": null,
+    "siblings": [],
+    "tracker": [
+      { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "ON_THE_WAY", "state": "CURRENT", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
+      { "key": "COUNTED", "state": "TODO", "at": null, "by": null, "carrier": null },
+      { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "carrier": null }
+    ],
+    "nextStep": { "action": "CONFIRM_FOR_DEPARTMENT", "facts": { "gapLineCount": 0, "discrepancyId": null, "waitingSince": "2026-10-08T12:05:00.000Z" } },
+    "sentVisible": false,
+    "items": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000001",
+        "itemId": "10000000-0000-4000-8000-000000000001",
+        "itemName": "Pishori rice 25kg",
+        "unit": "bag",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "countedQty": null,
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null,
+        "unitCostKes": "2600.0000"
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000002",
+        "itemId": "10000000-0000-4000-8000-000000000002",
+        "itemName": "Cooking oil 10L",
+        "unit": "can",
+        "categoryPath": ["Dry items"],
+        "requestedQty": "2",
+        "countedQty": null,
+        "countedTwice": false,
+        "countReason": null,
+        "countReasonNote": null,
+        "photos": [],
+        "discrepancy": null,
+        "unitCostKes": "3100.0000"
+      }
+    ],
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000004", "kind": "DELIVERY_NOTE_BRANCH", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "voided": false }
+    ],
+    "activity": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000004",
+        "type": "SIGNED_AND_SENT",
+        "at": "2026-10-08T12:05:00.000Z",
+        "actor": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" },
+        "sentence": "Signed and sent DSP-NYR-0231 · 2 lines · carried by Wendo van KCB 214K",
+        "link": { "kind": "DISPATCH", "id": "50000000-0000-4000-8000-000000000001", "reference": "DSP-NYR-0231" },
+        "reason": null
+      }
+    ],
+    "can": { "print": true, "cancel": false, "recordFinding": false, "confirmForDepartment": true }
+  },
+  "printStore": {
+    "copy": "store",
+    "reference": "DSP-NYR-0232",
+    "voided": false,
+    "requisitionReference": "REQ-NYR-0112",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "date": "2026-10-08",
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "generatedAt": "2026-10-08T12:06:00.000Z",
+    "qrPayload": "https://app.wendo-rms.co.ke/app/inventory/requisitions/dispatch/50000000-0000-4000-8000-000000000002",
+    "lines": [
+      { "n": 1, "itemName": "Coffee beans 1kg", "unit": "bag", "requestedQty": "12", "sentQty": "12" },
+      { "n": 2, "itemName": "Milk 1L", "unit": "packet", "requestedQty": "24", "sentQty": "24" }
+    ]
+  },
+  "printBranch": {
+    "copy": "branch",
+    "reference": "DSP-NYR-0232",
+    "voided": false,
+    "requisitionReference": "REQ-NYR-0112",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "date": "2026-10-08",
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "generatedAt": "2026-10-08T12:06:00.000Z",
+    "qrPayload": "https://app.wendo-rms.co.ke/app/inventory/requisitions/dispatch/50000000-0000-4000-8000-000000000002",
+    "lines": [
+      { "n": 1, "itemName": "Coffee beans 1kg", "unit": "bag" },
+      { "n": 2, "itemName": "Milk 1L", "unit": "packet" }
+    ]
+  },
+  "printQuery": { "copy": "branch" },
+  "cancelInput": { "reason": "Wrong carrier chosen; the van was not available", "pin": "4821" },
+  "cancelResult": {
+    "id": "50000000-0000-4000-8000-000000000003",
+    "reference": "DSP-NYR-0233",
+    "status": "CANCELLED",
+    "cancelledAt": "2026-10-08T12:20:00.000Z",
+    "cancelledBy": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" },
+    "linesReturnedToQueue": 9
+  },
+  "mineQuery": { "tab": "done", "from": "2026-10-02", "to": "2026-10-08", "branchId": "20000000-0000-4000-8000-000000000001", "page": "1", "pageSize": "25" },
+  "mine": {
+    "tab": "done",
+    "rows": [
+      {
+        "id": "50000000-0000-4000-8000-000000000010",
+        "reference": "DSP-NYR-0231",
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "lineCount": 12,
+        "signedAt": "2026-10-07T11:55:00.000Z",
+        "stage": "GAP_HELD",
+        "result": "GAP_OPEN"
+      },
+      {
+        "id": "50000000-0000-4000-8000-000000000011",
+        "reference": "DSP-NYR-0230",
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+        "lineCount": 7,
+        "signedAt": "2026-10-07T11:50:00.000Z",
+        "stage": "CLOSED",
+        "result": "ALL_MATCHED"
+      }
+    ],
+    "tabCounts": { "on-the-way": 2, "done": 18 },
+    "page": { "page": 1, "pageSize": 25, "total": 18 }
+  },
+  "listCarriersQuery": { "status": "all" },
+  "listCarriers": {
+    "carriers": [
+      { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE", "active": true, "retiredAt": null, "deliveriesThisMonth": 14 },
+      { "id": "60000000-0000-4000-8000-000000000002", "name": "Daniel Otieno", "kind": "PERSON", "active": true, "retiredAt": null, "deliveriesThisMonth": 6 },
+      { "id": "60000000-0000-4000-8000-000000000003", "name": "Pickup KBX 118Q", "kind": "VEHICLE", "active": false, "retiredAt": "2026-09-20T07:00:00.000Z", "deliveriesThisMonth": 0 }
+    ],
+    "can": { "manage": true }
+  },
+  "addCarrierInput": { "name": "Motorbike KMFC 402B", "kind": "VEHICLE" },
+  "addCarrierResult": { "id": "60000000-0000-4000-8000-000000000004", "name": "Motorbike KMFC 402B", "kind": "VEHICLE", "active": true, "retiredAt": null, "deliveriesThisMonth": 0 },
+  "renameCarrierInput": { "name": "Wendo van KCB 214K (white)" },
+  "retireCarrierInput": { "active": false },
+  "errorNotAllPacked": {
+    "success": false,
+    "error": { "code": "NOT_ALL_PACKED", "message": "Pastry still has lines that are not ticked.", "details": { "departmentIds": ["30000000-0000-4000-8000-000000000003"] } }
+  },
+  "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
+  "errorCarrierInactive": { "success": false, "error": { "code": "CARRIER_INACTIVE", "message": "That carrier has been retired. Pick another." } },
+  "errorNothingToSend": { "success": false, "error": { "code": "NOTHING_TO_SEND", "message": "Every department was left out, so there is nothing to send." } },
+  "errorAlreadyCounted": { "success": false, "error": { "code": "ALREADY_COUNTED", "message": "A member of the department has already counted this delivery, so it can no longer be cancelled." } }
+}

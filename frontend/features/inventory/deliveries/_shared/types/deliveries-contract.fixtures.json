@@ -1,0 +1,266 @@
+{
+  "listQuery": { "tab": "past", "from": "2026-09-08", "to": "2026-10-08", "result": "GAP_OPEN", "page": "1", "pageSize": "25" },
+  "listWaiting": {
+    "tab": "waiting",
+    "rows": [
+      {
+        "id": "50000000-0000-4000-8000-000000000002",
+        "reference": "DSP-NYR-0232",
+        "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+        "lineCount": 8,
+        "signedAt": "2026-10-08T12:05:00.000Z",
+        "stage": "ON_THE_WAY",
+        "countStarted": false,
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "result": null,
+        "can": { "count": true, "confirmOnBehalf": false }
+      }
+    ],
+    "tabCounts": { "waiting": 1, "past": 31 },
+    "page": { "page": 1, "pageSize": 50, "total": 1 }
+  },
+  "listPastBranchManager": {
+    "tab": "past",
+    "rows": [
+      {
+        "id": "50000000-0000-4000-8000-000000000010",
+        "reference": "DSP-NYR-0231",
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "lineCount": 12,
+        "signedAt": "2026-10-07T11:55:00.000Z",
+        "stage": "GAP_HELD",
+        "countStarted": true,
+        "confirmedAt": "2026-10-07T13:10:00.000Z",
+        "confirmedBy": { "id": "u-kitchen-head", "name": "Mary Wambui", "initials": "MW", "roleLabel": "Kitchen Department Head" },
+        "result": "GAP_OPEN",
+        "can": { "count": false, "confirmOnBehalf": false }
+      },
+      {
+        "id": "50000000-0000-4000-8000-000000000012",
+        "reference": "DSP-NYR-0224",
+        "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+        "lineCount": 9,
+        "signedAt": "2026-10-06T11:20:00.000Z",
+        "stage": "CLOSED",
+        "countStarted": true,
+        "confirmedAt": "2026-10-06T11:40:00.000Z",
+        "confirmedBy": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" },
+        "result": "ALL_MATCHED",
+        "can": { "count": false, "confirmOnBehalf": false }
+      }
+    ],
+    "tabCounts": { "waiting": 0, "past": 31 },
+    "page": { "page": 1, "pageSize": 25, "total": 31 }
+  },
+  "countView": {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "reference": "DSP-NYR-0232",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "signedAt": "2026-10-08T12:05:00.000Z",
+    "lineCount": 3,
+    "countedCount": 3,
+    "countAgainCount": 1,
+    "lines": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000011",
+        "itemName": "Coffee beans 1kg",
+        "unit": "bag",
+        "categoryPath": ["Coffee"],
+        "countedQty": "12",
+        "state": "COUNTED",
+        "attempt": 1,
+        "reason": null,
+        "reasonNote": null,
+        "photos": []
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000012",
+        "itemName": "Milk 1L",
+        "unit": "packet",
+        "categoryPath": ["Dairy"],
+        "countedQty": "22",
+        "state": "COUNT_AGAIN",
+        "attempt": 1,
+        "reason": null,
+        "reasonNote": null,
+        "photos": []
+      },
+      {
+        "lineId": "70000000-0000-4000-8000-000000000013",
+        "itemName": "Sugar 2kg",
+        "unit": "pack",
+        "categoryPath": ["Dry items"],
+        "countedQty": "6",
+        "state": "COUNTED",
+        "attempt": 1,
+        "reason": null,
+        "reasonNote": null,
+        "photos": []
+      }
+    ],
+    "canCheck": true,
+    "onBehalfOfDepartment": null
+  },
+  "countViewNothingCounted": {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "reference": "DSP-NYR-0232",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "signedAt": "2026-10-08T12:05:00.000Z",
+    "lineCount": 2,
+    "countedCount": 0,
+    "countAgainCount": 0,
+    "lines": [
+      { "lineId": "70000000-0000-4000-8000-000000000011", "itemName": "Coffee beans 1kg", "unit": "bag", "categoryPath": ["Coffee"], "countedQty": null, "state": "NOT_COUNTED", "attempt": 0, "reason": null, "reasonNote": null, "photos": [] },
+      { "lineId": "70000000-0000-4000-8000-000000000012", "itemName": "Milk 1L", "unit": "packet", "categoryPath": ["Dairy"], "countedQty": null, "state": "NOT_COUNTED", "attempt": 0, "reason": null, "reasonNote": null, "photos": [] }
+    ],
+    "canCheck": false,
+    "onBehalfOfDepartment": null
+  },
+  "saveCountInput": {
+    "counts": [
+      { "lineId": "70000000-0000-4000-8000-000000000011", "countedQty": "12" },
+      { "lineId": "70000000-0000-4000-8000-000000000012", "countedQty": "22" },
+      { "lineId": "70000000-0000-4000-8000-000000000013", "countedQty": "6" }
+    ]
+  },
+  "checkCountFirst": {
+    "differing": [{ "lineId": "70000000-0000-4000-8000-000000000012", "itemName": "Milk 1L", "countedQty": "22", "state": "COUNT_AGAIN" }],
+    "final": false,
+    "reasonsComplete": true,
+    "view": {
+      "id": "50000000-0000-4000-8000-000000000002",
+      "reference": "DSP-NYR-0232",
+      "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "signedAt": "2026-10-08T12:05:00.000Z",
+      "lineCount": 1,
+      "countedCount": 1,
+      "countAgainCount": 1,
+      "lines": [
+        { "lineId": "70000000-0000-4000-8000-000000000012", "itemName": "Milk 1L", "unit": "packet", "categoryPath": ["Dairy"], "countedQty": "22", "state": "COUNT_AGAIN", "attempt": 1, "reason": null, "reasonNote": null, "photos": [] }
+      ],
+      "canCheck": true,
+      "onBehalfOfDepartment": null
+    }
+  },
+  "checkCountFinal": {
+    "differing": [{ "lineId": "70000000-0000-4000-8000-000000000012", "itemName": "Milk 1L", "countedQty": "22", "state": "SHORT" }],
+    "final": true,
+    "reasonsComplete": false,
+    "view": {
+      "id": "50000000-0000-4000-8000-000000000002",
+      "reference": "DSP-NYR-0232",
+      "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "signedAt": "2026-10-08T12:05:00.000Z",
+      "lineCount": 1,
+      "countedCount": 1,
+      "countAgainCount": 0,
+      "lines": [
+        { "lineId": "70000000-0000-4000-8000-000000000012", "itemName": "Milk 1L", "unit": "packet", "categoryPath": ["Dairy"], "countedQty": "22", "state": "SHORT", "attempt": 2, "reason": null, "reasonNote": null, "photos": [] }
+      ],
+      "canCheck": true,
+      "onBehalfOfDepartment": null
+    }
+  },
+  "setReasonInput": { "reason": "NOT_IN_THE_BOX" },
+  "setReasonInputOther": { "reason": "OTHER", "note": "The cold box was open when it arrived" },
+  "countLineWithReason": {
+    "lineId": "70000000-0000-4000-8000-000000000012",
+    "itemName": "Milk 1L",
+    "unit": "packet",
+    "categoryPath": ["Dairy"],
+    "countedQty": "22",
+    "state": "SHORT",
+    "attempt": 2,
+    "reason": "NOT_IN_THE_BOX",
+    "reasonNote": null,
+    "photos": []
+  },
+  "uploadPhotoFields": { "lineId": "70000000-0000-4000-8000-000000000012" },
+  "uploadPhotoResult": {
+    "lineId": "70000000-0000-4000-8000-000000000012",
+    "photo": {
+      "id": "90000000-0000-4000-8000-000000000001",
+      "fileName": "milk-box.jpg",
+      "size": 1843200,
+      "mimeType": "image/jpeg",
+      "at": "2026-10-08T12:34:00.000Z",
+      "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }
+    },
+    "photos": [
+      {
+        "id": "90000000-0000-4000-8000-000000000001",
+        "fileName": "milk-box.jpg",
+        "size": 1843200,
+        "mimeType": "image/jpeg",
+        "at": "2026-10-08T12:34:00.000Z",
+        "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }
+      }
+    ]
+  },
+  "confirmPreview": {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "reference": "DSP-NYR-0232",
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "lineCount": 3,
+    "matchingLines": [
+      { "lineId": "70000000-0000-4000-8000-000000000011", "itemName": "Coffee beans 1kg" },
+      { "lineId": "70000000-0000-4000-8000-000000000013", "itemName": "Sugar 2kg" }
+    ],
+    "differingLines": [
+      {
+        "lineId": "70000000-0000-4000-8000-000000000012",
+        "itemName": "Milk 1L",
+        "unit": "packet",
+        "countedQty": "22",
+        "sentQty": "24",
+        "gapQty": "-2",
+        "direction": "SHORT",
+        "reason": "NOT_IN_THE_BOX",
+        "reasonNote": null,
+        "photoCount": 0
+      }
+    ],
+    "signedBy": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" },
+    "onBehalfOfDepartment": null,
+    "canConfirm": true
+  },
+  "confirmInput": { "pin": "3318", "idempotencyKey": "confirm-dsp-nyr-0232-a1" },
+  "confirmInputOnBehalf": { "pin": "7742", "onBehalf": true, "idempotencyKey": "confirm-dsp-nyr-0233-bm1" },
+  "confirmResult": {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "reference": "DSP-NYR-0232",
+    "status": "CONFIRMED",
+    "confirmedAt": "2026-10-08T12:35:00.000Z",
+    "confirmedBy": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" },
+    "onBehalfOfDepartment": null,
+    "lineCount": 3,
+    "matchedCount": 2,
+    "discrepancies": [{ "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007", "itemName": "Milk 1L", "gapQty": "-2" }],
+    "replayed": false
+  },
+  "confirmResultAllMatched": {
+    "id": "50000000-0000-4000-8000-000000000012",
+    "reference": "DSP-NYR-0224",
+    "status": "CLOSED",
+    "confirmedAt": "2026-10-06T11:40:00.000Z",
+    "confirmedBy": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" },
+    "onBehalfOfDepartment": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+    "lineCount": 9,
+    "matchedCount": 9,
+    "discrepancies": [],
+    "replayed": false
+  },
+  "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
+  "errorAlreadyConfirmed": { "success": false, "error": { "code": "ALREADY_CONFIRMED", "message": "Another member of the department has already signed this delivery." } },
+  "errorCountFinal": { "success": false, "error": { "code": "COUNT_FINAL", "message": "This line was counted twice and cannot be changed." } },
+  "errorNotAllCounted": { "success": false, "error": { "code": "NOT_ALL_COUNTED", "message": "Every line needs a count first.", "details": { "lineIds": ["70000000-0000-4000-8000-000000000013"] } } },
+  "errorCountAgainPending": { "success": false, "error": { "code": "COUNT_AGAIN_PENDING", "message": "One line still needs to be counted again." } },
+  "errorReasonMissing": { "success": false, "error": { "code": "REASON_MISSING", "message": "Pick a reason for each line that is different.", "details": { "lineIds": ["70000000-0000-4000-8000-000000000012"] } } },
+  "errorTooManyPhotos": { "success": false, "error": { "code": "TOO_MANY_PHOTOS", "message": "A line can have 3 photos." } },
+  "errorPhotoTooLarge": { "success": false, "error": { "code": "PHOTO_TOO_LARGE", "message": "That photo is too large. The limit is 5 MB." } }
+}

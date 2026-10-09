@@ -4,6 +4,11 @@
 
 Fulfil approved requisitions at the Central Store, deliver, confirm at the branch, and record findings on gaps. Where the rules below disagree with Paper or `discrepancies.md`, Paper wins: the branch counts blind, a gap is held as unaccounted until the Store Manager records one of four findings, and the old outcomes (found and re-delivered, transit loss, miscount corrected) are gone.
 
+## Block 2 contract in code (read this first; the rest of this file describes the OLD code until back end C replaces it)
+The frozen contract for the rebuild is `_shared/dispatch-contract.ts` (Zod, P1 to P10, carriers included), with `dispatch-contract.fixtures.json` (byte-identical to `frontend/features/inventory/dispatch/_shared/types/`) and `dispatch-contract.test.ts`. The rebuilt routes will live under `/inventory/dispatch` (`dispatch-rebuild-routes.ts`, a placeholder that only authenticates) and `/inventory/carriers` (`carriers-routes.ts`, placeholder); the old router `dispatch-routes.ts` (paths `/dispatch`, `/deliveries`, `/discrepancies`) keeps running until back end C deletes it, together with the old services. Deliveries are in `../deliveries/`, discrepancies in `../discrepancies/`. Access rows: `dispatch.read`, `dispatch.pack`, `dispatch.cancel`, `carriers.read`, `carriers.manage` in `_shared/central-store-access.ts`.
+
+Endpoints: P1 `GET /queue` · P2 `GET /pack/:requisitionId/departments/:departmentId` · P3 `PUT .../lines` · P4 `GET /pack/:requisitionId/review` · P5 `POST /pack/:requisitionId/sign` (`{ carrierId, pin, idempotencyKey, leaveOut? }`) · P6 `GET /:id` · P7 `GET /:id/print?copy=store|branch` · P8 `POST /:id/cancel` · P9 `GET /mine` · P10 `/carriers`. The sent figure is never shown to a branch-side caller before the department signs its count (`sentVisible`), and the branch copy of the delivery note has no quantities.
+
 ## Who can do what
 - **Store Manager/Attendant**: fulfil per department, sign and dispatch; Store Manager resolves discrepancies.
 - **Department Head** (phone): confirms and signs only their own lines.
