@@ -5,6 +5,7 @@ import {
   REQUISITION_STATUS_TEXT,
   SECTION_STATUS_TEXT,
   type Addition,
+  type DispatchRef,
   type RequisitionCycle,
   type RequisitionFile,
   type RequisitionLine,
@@ -14,7 +15,7 @@ import {
   type SectionSummary,
 } from './_shared/requisitions-contract';
 import type { AdditionRecord, LineRecord, RequisitionRecord, SectionRecord } from './requisitions-repository';
-import { canRecall, canSkip, lineValueKes, nextStepOf, SECTION_EDITABLE, trackerOf, urgentOverHour } from './requisitions-state';
+import { canRecall, canSkip, lineValueKes, nextStepOf, SECTION_EDITABLE, trackerOf, urgentOverHour, type DispatchTrackerFacts } from './requisitions-state';
 
 /**
  * Builds the wire shapes of the file (contract §4 and §6) from the records. The money and the stock figures are decided HERE, once:
@@ -48,6 +49,9 @@ export interface Viewer {
   parentCategoryNames: ReadonlyMap<string, string>;
   /** Heads of the departments, by department id. */
   heads: ReadonlyMap<string, { id: string; name: string; role: string }>;
+  /** Block 2: the dispatches of this requisition (`dispatch/dispatch-roll-up.ts`) and the tracker facts they give. Absent = none yet. */
+  dispatches?: readonly DispatchRef[];
+  dispatchTracker?: DispatchTrackerFacts;
 }
 
 const OPENISH: readonly RequisitionStatus[] = ['OPEN', 'PENDING_APPROVAL'];
@@ -232,7 +236,17 @@ export const fileWire = (rec: RequisitionRecord, v: Viewer, allInAt: Date | null
     cancelled: rec.cancelledAt && rec.cancelledBy ? { at: rec.cancelledAt.toISOString(), by: toPerson(rec.cancelledBy), reason: rec.cancelReason ?? '' } : null,
     closedAt: rec.closedAt ? rec.closedAt.toISOString() : null,
     tracker: trackerOf(
-      { status: rec.status as RequisitionStatus, openedAt: rec.openedAt, openedBy: rec.openedBy, allInAt, approvedAt: rec.approvedAt, approvedBy: signer, closedAt: rec.closedAt, ...sectionCounts },
+      {
+        status: rec.status as RequisitionStatus,
+        openedAt: rec.openedAt,
+        openedBy: rec.openedBy,
+        allInAt,
+        approvedAt: rec.approvedAt,
+        approvedBy: signer,
+        closedAt: rec.closedAt,
+        ...sectionCounts,
+        ...(v.dispatchTracker ? { dispatch: v.dispatchTracker } : {}),
+      },
       (u) => toPerson(u),
     ),
     nextStep: nextStepOf({
@@ -248,7 +262,8 @@ export const fileWire = (rec: RequisitionRecord, v: Viewer, allInAt: Date | null
     }),
     sections: visibleSections.map((s) => sectionDetailWire(s, rec, v)),
     additions: visibleAdditions.map((a) => additionWire(a, rec, v)),
-    dispatches: [],
+    // A head sees their own department's dispatch only, like their section.
+    dispatches: (v.dispatches ?? []).filter((d) => !v.headDepartmentId || d.departmentId === v.headDepartmentId),
     lineCount: allLines.length,
     ...(v.seeValue ? { valueKes: kes(value) } : {}),
     can,

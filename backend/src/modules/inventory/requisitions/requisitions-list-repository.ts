@@ -58,6 +58,7 @@ const whereOf = (scope: Scope, f: ListFilters): Prisma.RequisitionWhereInput => 
 
 const factsSelect = {
   id: true,
+  siteId: true,
   status: true,
   openedAt: true,
   urgent: true,

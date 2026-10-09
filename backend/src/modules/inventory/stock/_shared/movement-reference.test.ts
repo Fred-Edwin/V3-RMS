@@ -20,7 +20,17 @@ describe('movementReference', () => {
     expect(movementReference({ ...none, type: 'RECEIVE', deliveryReference: 'GRN-0412' }).reference).toBe('GRN-0412');
     expect(movementReference({ ...none, type: 'PREP_PRODUCE', prepReference: 'PREP-0021' }).reference).toBe('PREP-0021');
     expect(movementReference({ ...none, type: 'PREP_CONSUME', prepReference: 'PREP-0021' }).reference).toBe('PREP-0021');
-    expect(movementReference({ ...none, type: 'DISPATCH_OUT', dispatchLabel: 'Dispatch 4 · Nyeri Town · 17 Sep' }).reference).toBe('Dispatch 4 · Nyeri Town · 17 Sep');
+    expect(movementReference({ ...none, type: 'DISPATCH_OUT', dispatchLabel: 'DSP-NYR-0232' }).reference).toBe('DSP-NYR-0232');
+    expect(movementReference({ ...none, type: 'DISPATCH_IN', dispatchLabel: 'DSP-NYR-0232' }).reference).toBe('DSP-NYR-0232');
+  });
+
+  it('a dispatch finding reads ADJ-nnnn with the DSC- number as its source, and is found by either, or by the DSP- number', () => {
+    const finding = movementReference({ ...none, type: 'ADJUSTMENT', adjustmentReference: 'ADJ-0031', dispatchLabel: 'DSP-NYR-0232', discrepancyReference: 'DSC-NYR-0007' });
+    expect(finding).toEqual({ reference: 'ADJ-0031', source: 'DSC-NYR-0007', all: ['ADJ-0031', 'DSP-NYR-0232', 'DSC-NYR-0007'] });
+  });
+
+  it('a count adjustment keeps the count as its source even when a discrepancy is absent', () => {
+    expect(movementReference({ ...none, type: 'ADJUSTMENT', adjustmentReference: 'ADJ-0007', countReference: 'CNT-2026-0007' })).toMatchObject({ reference: 'ADJ-0007', source: 'CNT-2026-0007' });
   });
 
   it('gives waste no reference', () => {

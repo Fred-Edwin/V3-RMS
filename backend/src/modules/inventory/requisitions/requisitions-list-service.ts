@@ -150,7 +150,11 @@ export const requisitionsListService = {
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
     if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve') };
-    if (family === 'STORE') return { requisitions: count('to-pack'), toPack: count('to-pack') };
+    if (family === 'STORE') {
+      // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
+      const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));
+      return { requisitions: count('to-pack'), toPack: count('to-pack'), dispatch: branches.size };
+    }
     if (family === 'HEAD') {
       const mine = facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
       return { requisitions: mine };

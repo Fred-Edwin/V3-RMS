@@ -59,7 +59,10 @@ const BRANCH_UUID = 'b0000000-0000-4000-8000-000000000002';
 const DEPT_UUID = 'd0000000-0000-4000-8000-000000000001';
 const query = (over: Record<string, unknown> = {}): ListRequisitionsQuery => listRequisitionsQuerySchema.parse(over);
 
-/** A facts record for the tab derivation: the sections' statuses and the old dispatch rows. */
+/** Which branch a fixture requisition belongs to (default Nyeri): the Attendant's Dispatch badge counts branches, not requisitions. */
+const SITE_OF = new Map<string, string>([['r-pack-2', 'branch-karatina']]);
+
+/** A facts record for the tab derivation: the sections' statuses and the live dispatch rows. */
 const facts = (
   id: string,
   status: FactsRecord['status'],
@@ -68,6 +71,7 @@ const facts = (
   extra: Partial<FactsRecord> = {},
 ): FactsRecord => ({
   id,
+  siteId: SITE_OF.get(id) ?? 'branch-nyeri',
   status,
   openedAt: new Date('2026-10-08T06:00:00Z'),
   urgent: false,
@@ -304,8 +308,18 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
 
   it('the store waits on To pack: the Store Manager and the Attendant', async () => {
     expect((await requisitionsListService.list(storeManager, query())).waitingForYou).toBe(1);
-    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1 });
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1 });
+    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+  });
+
+  it('the Attendant\'s Dispatch badge counts branches to pack, not requisitions', async () => {
+    mocks.list['listFacts']!.mockResolvedValue([
+      facts('r-pack', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
+      facts('r-pack-b', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // same branch, a second requisition
+      facts('r-pack-2', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // another branch
+      facts('r-sent', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]), // nothing left to pack
+    ]);
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, dispatch: 2 });
   });
 
   it('a head waits on their own unsent list while the requisition collects', async () => {

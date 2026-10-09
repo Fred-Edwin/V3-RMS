@@ -5,8 +5,11 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { permissionsMeSchema } from './permissions-contract';
+import { permissionsRepository } from './permissions-repository';
 import router from './permissions-routes';
 
+vi.mock('./permissions-repository', () => ({ permissionsRepository: { findDepartmentsOf: vi.fn().mockResolvedValue([]) } }));
 vi.mock('../../../middleware/authenticate', () => ({
   authenticate: (req: Request, _res: Response, next: NextFunction) => {
     const raw = req.header('x-test-user');
@@ -41,6 +44,26 @@ describe('GET /inventory/permissions/me', () => {
     const data = await caps('ACCOUNTANT');
     expect(data.capabilities).toEqual(expect.arrayContaining(['prep.read', 'prep.see_costs', 'prep.read_flags']));
     expect(data.capabilities).not.toContain('prep.record');
+  });
+
+  it('returns the caller’s department and whether they head it or belong to it, in the contract shape', async () => {
+    const find = vi.mocked(permissionsRepository.findDepartmentsOf);
+    find.mockResolvedValueOnce([{ id: '30000000-0000-4000-8000-000000000002', name: 'Barista', role: 'HEAD' }]);
+    const head = await request(app).get('/inventory/permissions/me').set('x-test-user', as('BARISTA'));
+    expect(permissionsMeSchema.parse(head.body.data).departments).toEqual([{ id: '30000000-0000-4000-8000-000000000002', name: 'Barista', role: 'HEAD' }]);
+    find.mockResolvedValueOnce([{ id: '30000000-0000-4000-8000-000000000002', name: 'Barista', role: 'MEMBER' }]);
+    const member = await request(app).get('/inventory/permissions/me').set('x-test-user', as('BARISTA'));
+    expect(member.body.data.departments[0].role).toBe('MEMBER');
+    expect(find).toHaveBeenCalledWith('u1');
+  });
+
+  it('gives a person with no department (the hub and desktop roles) an empty list, and a previewed role none', async () => {
+    const find = vi.mocked(permissionsRepository.findDepartmentsOf);
+    find.mockClear();
+    expect(permissionsMeSchema.parse((await request(app).get('/inventory/permissions/me').set('x-test-user', as('STORE_MANAGER'))).body.data).departments).toEqual([]);
+    const preview = await request(app).get('/inventory/permissions/me?asRole=MANAGER').set('x-test-user', as('SYSTEM_ADMIN'));
+    expect(preview.body.data.departments).toEqual([]);
+    expect(find).toHaveBeenCalledTimes(1); // the preview never looks up a department
   });
 
   it('ignores asRole for anyone who is not the System Admin, and for unknown roles', async () => {

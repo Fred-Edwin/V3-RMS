@@ -328,6 +328,14 @@ export const requisitionsRepository = {
     data: { status: RequisitionAdditionStatus; approvedById: string; approvedAt: Date },
   ): Promise<boolean> => (await tx.requisitionAddition.updateMany({ where: { id: additionId, requisition: { siteId } }, data })).count > 0,
 
+  /** An addition's requisition and department (the Block 2 hand-off that joins its lines to the unsigned dispatch). */
+  findAdditionRef: (additionId: string, db: Db = prisma) =>
+    db.requisitionAddition.findFirst({ where: { id: additionId }, select: { id: true, requisitionId: true, departmentId: true, requisition: { select: { siteId: true } } } }),
+
+  /** Sets an APPROVED requisition to CLOSED (the Block 2 hand-off `closeIfComplete`); the row count says whether it closed now. */
+  closeRequisition: async (requisitionId: string, closedAt: Date, db: Db = prisma): Promise<boolean> =>
+    (await db.requisition.updateMany({ where: { id: requisitionId, status: 'APPROVED' }, data: { status: 'CLOSED', closedAt } })).count > 0,
+
   /** Approval of an addition freezes the cost and sets the Approved quantity on its lines. */
   freezeAdditionLines: async (tx: Prisma.TransactionClient, siteId: string, additionId: string): Promise<void> => {
     const lines = await tx.requisitionLine.findMany({

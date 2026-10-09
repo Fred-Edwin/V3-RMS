@@ -63,6 +63,14 @@ export const emitInventoryBadgesLocal = (payload: InventoryBadgesPayload): void 
   getSocketServer().to([branchRoomName(payload.siteId), inventoryAllSitesRoom]).emit('inventory:badges', payload);
 };
 
+/** `dispatch:changed` (Block 2, Dispatch Amendment 1 row 16): one dispatch changed; open screens refetch that record. `siteId` is the receiving branch. */
+export interface DispatchChangedSocketPayload {
+  id: string;
+  reference: string | null;
+  siteId: string;
+  reason: string;
+}
+
 export interface RequisitionSubmittedPayload {
   requisitionId: string;
   departmentTag: string;
@@ -168,6 +176,11 @@ export const socketService = {
     emitInventoryBadgesLocal({ ...payload, siteId });
     // The worker has no browsers of its own: tell the other processes too (a no-op for the one that hears itself).
     void inventoryBadgesBridge.publish({ ...payload, siteId });
+  },
+
+  /** A dispatch changed (signed, cancelled, counted, closed): the branch's room, the hub's room and everyone who reads every site hear it. */
+  emitDispatchChanged: (hubSiteId: string, payload: DispatchChangedSocketPayload): void => {
+    getSocketServer().to([branchRoomName(payload.siteId), branchRoomName(hubSiteId), inventoryAllSitesRoom]).emit('dispatch:changed', payload);
   },
 
   emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

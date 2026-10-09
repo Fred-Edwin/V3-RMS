@@ -17,6 +17,14 @@ vi.mock('../../../config/database', () => ({ prisma: { $transaction: mocks.trans
 vi.mock('../counting/_shared/count-pin', () => ({ countPin: { verifyOwn: mocks.verifyOwn } }));
 vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextNumber: mocks.nextNumber } }));
 vi.mock('./requisitions-events', () => ({ requisitionNotices: { publish: mocks.publish, subscribe: vi.fn() } }));
+// Block 2: the file reads its dispatches through the roll-up; none yet in these tests (`dispatch-roll-up.test.ts` covers it).
+vi.mock('../dispatch/dispatch-roll-up', () => ({
+  dispatchRollUp: {
+    forRequisition: vi.fn().mockResolvedValue({ dispatches: [], tracker: { total: 0, sent: 0, counted: 0, sentAt: null, countedAt: null } }),
+    referencesOf: vi.fn().mockResolvedValue(new Map()),
+  },
+}));
+vi.mock('./requisitions-handoff', () => ({ attachAdditionToDispatch: vi.fn().mockResolvedValue(undefined), closeIfComplete: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('./requisitions-repository', () => {
   const names = [
     'findStaff', 'listHeads', 'findFile', 'findByStartKey', 'findEventByKey', 'findOpenForCycle', 'findSite', 'listActiveDepartments', 'listTaggedItems',

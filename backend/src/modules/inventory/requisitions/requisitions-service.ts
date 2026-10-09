@@ -38,6 +38,7 @@ import {
 import { ON_BEHALF_REASON } from './_shared/requisitions-sentences';
 import { requisitionError, stateConflict } from './requisitions-errors';
 import { requisitionNotices } from './requisitions-events';
+import { dispatchRollUp } from '../dispatch/dispatch-roll-up';
 import { attachAdditionToDispatch } from './requisitions-handoff';
 import { buildPrint } from './requisitions-print';
 import {
@@ -165,8 +166,11 @@ export const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): P
       : Promise.resolve([]),
   ]);
   const headOf = new Map(heads.map((h) => [h.departmentId, { id: h.id, name: h.name, role: h.role as string }]));
+  // Block 2: an approved (or closed) requisition shows its dispatches and the tracker's "n of m sent" and "n counted".
+  const rollUp = rec.status === 'APPROVED' || rec.status === 'CLOSED' ? await dispatchRollUp.forRequisition(rec.id, now) : null;
   return {
     now,
+    ...(rollUp ? { dispatches: rollUp.dispatches, dispatchTracker: rollUp.tracker } : {}),
     seeValue: actorCan(c.actor, 'requisitions.see_value'),
     seeStock: actorCan(c.actor, 'restock.read'),
     headDepartmentId: restrictedHead(c),
@@ -256,7 +260,7 @@ export const requisitionsService = {
     const c = await loadCaller(actor);
     if (!actorCan(actor, 'requisitions.read')) throw new ForbiddenError('You do not have permission to print requisitions');
     const rec = await loadFile(c, id);
-    return buildPrint(rec);
+    return buildPrint(rec, new Date(), await dispatchRollUp.referencesOf(rec.id));
   },
 
   /** R8: the head's editing screen, with the items the department may add. */

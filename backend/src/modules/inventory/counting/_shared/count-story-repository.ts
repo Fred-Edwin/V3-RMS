@@ -13,7 +13,16 @@ export const countStoryRepository = {
   /** Dispatches that took the item out of the Central Store in the window, one fact per ledger row. */
   dispatches: async (w: StoryWindow, client: Client = prisma): Promise<DispatchFact[]> => {
     const rows = await client.inventoryTransaction.findMany({
-      where: { siteId: w.siteId, locationId: w.locationId, inventoryItemId: w.itemId, type: 'DISPATCH_OUT', createdAt: { gt: w.from, lte: w.to } },
+      // A cancelled dispatch put its stock back by a reversing row, so neither the row nor its reversal is a dispatch in the story.
+      where: {
+        siteId: w.siteId,
+        locationId: w.locationId,
+        inventoryItemId: w.itemId,
+        type: 'DISPATCH_OUT',
+        reversesTransactionId: null,
+        dispatchLine: { dispatch: { status: { not: 'CANCELLED' } } },
+        createdAt: { gt: w.from, lte: w.to },
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         quantity: true,
