@@ -6,8 +6,9 @@
  * this file by hand in `frontend/features/inventory/waste/_shared/types/waste-contract.ts`; the shared sample payloads are
  * in `waste-contract.fixtures.json` (parsed by `waste-contract.test.ts`).
  *
- * Scope: the Central Store only. A Department Head's branch waste keeps its three old endpoints untouched (they move,
- * unchanged, into `waste/department/` at release). Waste is never signed with a PIN (owner, 8 Oct 2026). The Store
+ * Scope: the first half (W1 to W4) is the Central Store. The second half, "BRANCH WASTE (Block 3)" at the end of this file
+ * (BW1 to BW7, docs/features/inventory/branch-waste-contract.md), is a branch's departments; until the build replaces them a
+ * Department Head's three old endpoints keep running from `waste/department/`. Waste is never signed with a PIN (owner, 8 Oct 2026). The Store
  * Attendant reads and reverses only their own entries (a service rule on top of the capability) and receives no stock
  * figure from any endpoint; item cost reaches them (owner rule, 6 Oct 2026) though the drawn phone screens show none.
  *
@@ -16,6 +17,7 @@
  */
 import { z } from 'zod';
 import { decimalString, isoDateTime, kpiCellSchema, nairobiDate, pageInfoSchema, pageQuerySchema, personSchema, positiveDecimal, uuid } from '../../_shared/wire';
+import { branchRefSchema } from '../../requisitions/_shared/requisitions-contract';
 
 /** The four reason chips (Paper steps 17 and 22). Same values as the database enum `WasteReason`. */
 export const WASTE_REASONS = ['EXPIRY', 'SPOILAGE', 'DAMAGE_IN_STORE', 'PREP_ERROR'] as const;
@@ -165,3 +167,116 @@ export const WASTE_ERROR_CODES = [
   'REVERSAL_WINDOW_PASSED', // 403: an Attendant reversing an entry from an earlier day
   'ALREADY_REVERSED', // 409
 ] as const;
+
+// ═══ BRANCH WASTE (Block 3) ═══════════════════════════════════════════════════════════════════════════════════════════
+// Source of truth: docs/features/inventory/branch-waste-contract.md, Paper page "Inventory · Branch waste" (W1 to W9) and step 55.
+// Base path `/inventory/branch-waste`. Seven endpoints, BW1 to BW7. A department head or member logs for their own department and
+// reads the department's whole list (step 55); the Branch Manager reads their branch with values and reverses any entry; Director,
+// Accountant, Store Manager and System Admin read any branch (W8). No PIN anywhere. Heads and members are blind to money and stock:
+// `valueKes`, `unitCost`, `totalValueKes`, `kpis`, `onHand`, `wentNegative` and `ledger` are ABSENT unless the caller holds the matching
+// capability (`catalog.see_costs`, `restock.read`), never null. The reasons and reversal reasons are the Central Store ones above.
+
+/** A department as a response names it. */
+export const branchWasteDepartmentSchema = z.object({ id: uuid, name: z.string() });
+export type BranchWasteDepartment = z.infer<typeof branchWasteDepartmentSchema>;
+
+/** One entry: the Central Store entry plus where it was thrown away. `valueKes` is "0.00" once reversed (Paper W6, W9). */
+export const branchWasteEntrySchema = wasteEntrySchema.extend({
+  department: branchWasteDepartmentSchema,
+  branch: branchRefSchema,
+});
+export type BranchWasteEntry = z.infer<typeof branchWasteEntrySchema>;
+
+// --- BW1 GET /items (Paper W1, W2): department rule ------------------------------
+
+export const branchWasteItemsQuerySchema = wasteItemsQuerySchema;
+/** Live items linked to the caller's department; `often` is this person's most logged (at most 6). `unitCost` and `onHand` are absent for a head or member. */
+export const branchWasteItemsSchema = wasteItemsSchema;
+export type BranchWasteItems = z.infer<typeof branchWasteItemsSchema>;
+
+// --- BW2 POST / (Paper W2, W3): department rule ----------------------------------
+
+/** Strict: a `locationId`, `departmentId` or `pin` is refused; the department comes from the caller and waste is never signed. */
+export const logBranchWasteInputSchema = logWasteInputSchema;
+export type LogBranchWasteInput = z.infer<typeof logBranchWasteInputSchema>;
+export const logBranchWasteResultSchema = z.object({
+  entries: z.array(branchWasteEntrySchema),
+  /** cap catalog.see_costs */
+  totalValueKes: decimalString.optional(),
+  /** cap restock.read: stock went below zero (allowed and flagged, never blocked). */
+  wentNegative: z.boolean().optional(),
+  replayed: z.boolean(),
+});
+export type LogBranchWasteResult = z.infer<typeof logBranchWasteResultSchema>;
+
+// --- BW3 GET /mine (step 55): department rule -------------------------------------
+
+/** Nairobi days, both included. Default window: the last 7 days, to today ("Date: Last 7 days"). */
+export const myBranchWasteQuerySchema = pageQuerySchema.extend({ from: nairobiDate.optional(), to: nairobiDate.optional() });
+export type MyBranchWasteQuery = z.infer<typeof myBranchWasteQuerySchema>;
+export const myBranchWasteListSchema = z.object({
+  department: branchWasteDepartmentSchema,
+  /** The whole department's entries, newest first. No money, no stock. `can.reverse` is true on the caller's own entries logged today. */
+  rows: z.array(branchWasteEntrySchema),
+  /** "2 items logged at 14:20. You can reverse your own entries today." when the caller logged a batch today, else null. */
+  bannerText: z.string().nullable(),
+  page: pageInfoSchema,
+});
+export type MyBranchWasteList = z.infer<typeof myBranchWasteListSchema>;
+
+// --- BW4 GET /branch (W6) and BW5 GET /branches (W8) -------------------------------
+
+const branchWasteFiltersSchema = pageQuerySchema.extend({
+  search: z.string().trim().min(1).optional(),
+  departmentId: uuid.optional(),
+  reason: wasteReasonSchema.optional(),
+  status: z.enum(['logged', 'reversed']).optional(),
+  /** Nairobi days, both included; either may be given alone. Default window: today ("Date: Today"). */
+  from: nairobiDate.optional(),
+  to: nairobiDate.optional(),
+});
+/** cap branch_waste.read: the caller's own branch. */
+export const branchWasteListQuerySchema = branchWasteFiltersSchema;
+export type BranchWasteListQuery = z.infer<typeof branchWasteListQuerySchema>;
+/** cap branch_waste.read_any_branch: `branchId` absent means all branches. */
+export const allBranchesWasteQuerySchema = branchWasteFiltersSchema.extend({ branchId: uuid.optional() });
+export type AllBranchesWasteQuery = z.infer<typeof allBranchesWasteQuerySchema>;
+export const branchWasteListSchema = z.object({
+  /** cap catalog.see_costs. Today, Last 7 days, Most wasted, Reversed 7 days; the server phrases the captions. */
+  kpis: z.array(kpiCellSchema).optional(),
+  rows: z.array(branchWasteEntrySchema),
+  /** The Department filter's options. */
+  departments: z.array(branchWasteDepartmentSchema),
+  /** BW5 only: the "Branch: All branches" picker. */
+  branches: z.array(z.object({ id: uuid, name: z.string() })).optional(),
+  page: pageInfoSchema,
+});
+export type BranchWasteList = z.infer<typeof branchWasteListSchema>;
+
+// --- BW6 GET /:id ------------------------------------------------------------------
+
+export const branchWasteDetailSchema = z.object({
+  entry: branchWasteEntrySchema,
+  /** cap restock.read: the ledger rows this entry wrote, signed as stored (the log, then a reversal). Absent for a head or member. */
+  ledger: z.array(z.object({ kind: z.enum(['LOGGED', 'REVERSAL']), at: isoDateTime, quantity: decimalString })).optional(),
+});
+export type BranchWasteDetail = z.infer<typeof branchWasteDetailSchema>;
+
+// --- BW7 POST /:id/reverse (W5, W7) ---------------------------------------------------
+
+/** No PIN. `branch_waste.reverse_any`, or `branch_waste.reverse_own` for an own entry of today. The response is the updated `BranchWasteEntry`. */
+export const reverseBranchWasteInputSchema = reverseWasteInputSchema;
+export type ReverseBranchWasteInput = z.infer<typeof reverseBranchWasteInputSchema>;
+
+export const BRANCH_WASTE_ERROR_CODES = [
+  'ITEM_RETIRED', // 409: the item was retired
+  'ITEM_NOT_IN_DEPARTMENT', // 422: the item is not linked to the caller's department
+  'NOT_YOUR_DEPARTMENT', // 403: not an active head or member of a department of this branch
+  'NOT_YOUR_ENTRY', // 403: reversing someone else's entry without `branch_waste.reverse_any`
+  'REVERSAL_WINDOW_PASSED', // 403: reversing an own entry from an earlier day
+  'ALREADY_REVERSED', // 409
+] as const;
+export type BranchWasteErrorCode = (typeof BRANCH_WASTE_ERROR_CODES)[number];
+
+/** Keys a head or member must never receive from any branch waste endpoint (money and stock). A test pins the fixtures against it. */
+export const BRANCH_WASTE_BLIND_KEYS = ['valueKes', 'unitCost', 'totalValueKes', 'kpis', 'onHand', 'wentNegative', 'ledger'] as const;

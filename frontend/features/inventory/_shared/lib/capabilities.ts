@@ -68,6 +68,11 @@ export const CAPABILITIES = [
   'discrepancies.read',
   'discrepancies.record',
   'discrepancies.reverse',
+  'branch_waste.log',
+  'branch_waste.reverse_own',
+  'branch_waste.read',
+  'branch_waste.read_any_branch',
+  'branch_waste.reverse_any',
   'audit.read',
   'central_store.read_any_org',
 ] as const;

@@ -119,5 +119,257 @@
     "page": { "page": 1, "pageSize": 50, "total": 3 }
   },
   "reverseWasteInput": { "reason": "WRONG_ITEM" },
-  "reverseWasteInputOther": { "reason": "OTHER", "note": "Counted twice by mistake" }
+  "reverseWasteInputOther": { "reason": "OTHER", "note": "Counted twice by mistake" },
+
+  "branchWasteItemsMember": {
+    "often": [
+      { "itemId": "10000000-0000-4000-8000-000000000071", "name": "Beef stew", "unit": "kg" },
+      { "itemId": "10000000-0000-4000-8000-000000000072", "name": "Pilau", "unit": "kg" }
+    ],
+    "items": [
+      { "itemId": "10000000-0000-4000-8000-000000000073", "name": "Bread rolls", "unit": "pcs" },
+      { "itemId": "10000000-0000-4000-8000-000000000074", "name": "Marinated chicken", "unit": "kg" }
+    ]
+  },
+  "logBranchWasteInput": {
+    "entries": [
+      { "inventoryItemId": "10000000-0000-4000-8000-000000000074", "quantity": "3", "reason": "EXPIRY" },
+      { "inventoryItemId": "10000000-0000-4000-8000-000000000075", "quantity": "2", "reason": "SPOILAGE" }
+    ],
+    "note": "Fridge 2 was off overnight",
+    "idempotencyKey": "7a1b2c3d-4e5f-4a6b-8c7d"
+  },
+  "logBranchWasteResultMember": {
+    "entries": [
+      {
+        "id": "e0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-07T11:20:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000074",
+        "itemName": "Marinated chicken",
+        "quantity": "3",
+        "unit": "kg",
+        "reason": "EXPIRY",
+        "reasonText": "Expired",
+        "note": "Fridge 2 was off overnight",
+        "loggedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen head" },
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      }
+    ],
+    "replayed": false
+  },
+  "myBranchWasteList": {
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "rows": [
+      {
+        "id": "e0000000-0000-4000-8000-000000000002",
+        "at": "2026-10-07T11:20:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000075",
+        "itemName": "Kachumbari mix",
+        "quantity": "2",
+        "unit": "kg",
+        "reason": "SPOILAGE",
+        "reasonText": "Spoiled",
+        "note": null,
+        "loggedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen head" },
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      },
+      {
+        "id": "e0000000-0000-4000-8000-000000000003",
+        "at": "2026-10-07T10:05:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000071",
+        "itemName": "Beef stew",
+        "quantity": "2",
+        "unit": "kg",
+        "reason": "EXPIRY",
+        "reasonText": "Expired",
+        "note": null,
+        "loggedBy": { "id": "u-joseph", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Kitchen member" },
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": false },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      },
+      {
+        "id": "e0000000-0000-4000-8000-000000000004",
+        "at": "2026-10-07T06:05:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000073",
+        "itemName": "Bread rolls",
+        "quantity": "6",
+        "unit": "pcs",
+        "reason": "PREP_ERROR",
+        "reasonText": "Prep error",
+        "note": null,
+        "loggedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen head" },
+        "status": "REVERSED",
+        "reversal": {
+          "at": "2026-10-07T06:12:00.000Z",
+          "by": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen head" },
+          "reason": "WRONG_ITEM",
+          "reasonText": "Logged the wrong item",
+          "note": null
+        },
+        "can": { "reverse": false },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      }
+    ],
+    "bannerText": "2 items logged at 14:20. You can reverse your own entries today.",
+    "page": { "page": 1, "pageSize": 50, "total": 3 }
+  },
+  "branchWasteListManager": {
+    "kpis": [
+      { "key": "today", "label": "TODAY", "value": "4,080", "caption": "KES · 9 entries", "tone": "NEUTRAL" },
+      { "key": "last7", "label": "LAST 7 DAYS", "value": "21,480", "caption": "KES · 41 entries", "tone": "NEUTRAL" },
+      { "key": "most", "label": "MOST WASTED · 7 DAYS", "value": "Marinated chicken", "caption": "KES 3,600 · Kitchen · mostly expired", "tone": "WARN" },
+      { "key": "reversed", "label": "REVERSED · 7 DAYS", "value": "2", "caption": "Both by their own department", "tone": "NEUTRAL" }
+    ],
+    "rows": [
+      {
+        "id": "e0000000-0000-4000-8000-000000000005",
+        "at": "2026-10-07T14:40:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000071",
+        "itemName": "Beef stew",
+        "quantity": "2",
+        "unit": "kg",
+        "reason": "EXPIRY",
+        "reasonText": "Expired",
+        "note": null,
+        "loggedBy": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen head" },
+        "valueKes": "640.00",
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": true },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      },
+      {
+        "id": "e0000000-0000-4000-8000-000000000006",
+        "at": "2026-10-07T06:05:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000076",
+        "itemName": "Milk",
+        "quantity": "6",
+        "unit": "L",
+        "reason": "SPOILAGE",
+        "reasonText": "Spoiled",
+        "note": null,
+        "loggedBy": { "id": "u-david", "name": "David Mutua", "initials": "DM", "roleLabel": "Barista member" },
+        "valueKes": "0.00",
+        "status": "REVERSED",
+        "reversal": {
+          "at": "2026-10-07T06:12:00.000Z",
+          "by": { "id": "u-david", "name": "David Mutua", "initials": "DM", "roleLabel": "Barista member" },
+          "reason": "WRONG_ITEM",
+          "reasonText": "Logged the wrong item",
+          "note": null
+        },
+        "can": { "reverse": false },
+        "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+      }
+    ],
+    "departments": [
+      { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+      { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 9 }
+  },
+  "allBranchesWasteDirector": {
+    "kpis": [
+      { "key": "today", "label": "TODAY", "value": "6,520", "caption": "KES · 14 entries · 2 branches", "tone": "NEUTRAL" },
+      { "key": "last7", "label": "LAST 7 DAYS", "value": "34,960", "caption": "KES · 68 entries", "tone": "NEUTRAL" },
+      { "key": "most", "label": "MOST WASTED · 7 DAYS", "value": "Marinated chicken", "caption": "KES 5,200 · mostly expired", "tone": "WARN" },
+      { "key": "reversed", "label": "REVERSED · 7 DAYS", "value": "3", "caption": "Each by its own department", "tone": "NEUTRAL" }
+    ],
+    "rows": [
+      {
+        "id": "e0000000-0000-4000-8000-000000000007",
+        "at": "2026-10-07T14:05:00.000Z",
+        "itemId": "10000000-0000-4000-8000-000000000077",
+        "itemName": "Samosas",
+        "quantity": "12",
+        "unit": "pcs",
+        "reason": "EXPIRY",
+        "reasonText": "Expired",
+        "note": null,
+        "loggedBy": { "id": "u-joyce", "name": "Joyce Mwende", "initials": "JM", "roleLabel": "Kitchen member" },
+        "valueKes": "600.00",
+        "status": "LOGGED",
+        "reversal": null,
+        "can": { "reverse": false },
+        "department": { "id": "30000000-0000-4000-8000-000000000011", "name": "Kitchen" },
+        "branch": { "id": "20000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" }
+      }
+    ],
+    "departments": [{ "id": "30000000-0000-4000-8000-000000000011", "name": "Kitchen" }],
+    "branches": [
+      { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town" },
+      { "id": "20000000-0000-4000-8000-000000000002", "name": "Karatina" }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 14 }
+  },
+  "branchWasteDetailManager": {
+    "entry": {
+      "id": "e0000000-0000-4000-8000-000000000006",
+      "at": "2026-10-07T06:05:00.000Z",
+      "itemId": "10000000-0000-4000-8000-000000000076",
+      "itemName": "Milk",
+      "quantity": "6",
+      "unit": "L",
+      "reason": "SPOILAGE",
+      "reasonText": "Spoiled",
+      "note": null,
+      "loggedBy": { "id": "u-david", "name": "David Mutua", "initials": "DM", "roleLabel": "Barista member" },
+      "valueKes": "0.00",
+      "status": "REVERSED",
+      "reversal": {
+        "at": "2026-10-07T06:12:00.000Z",
+        "by": { "id": "u-david", "name": "David Mutua", "initials": "DM", "roleLabel": "Barista member" },
+        "reason": "WRONG_ITEM",
+        "reasonText": "Logged the wrong item",
+        "note": null
+      },
+      "can": { "reverse": false },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+    },
+    "ledger": [
+      { "kind": "LOGGED", "at": "2026-10-07T06:05:00.000Z", "quantity": "-6" },
+      { "kind": "REVERSAL", "at": "2026-10-07T06:12:00.000Z", "quantity": "6" }
+    ]
+  },
+  "branchWasteDetailMember": {
+    "entry": {
+      "id": "e0000000-0000-4000-8000-000000000003",
+      "at": "2026-10-07T10:05:00.000Z",
+      "itemId": "10000000-0000-4000-8000-000000000071",
+      "itemName": "Beef stew",
+      "quantity": "2",
+      "unit": "kg",
+      "reason": "EXPIRY",
+      "reasonText": "Expired",
+      "note": null,
+      "loggedBy": { "id": "u-joseph", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Kitchen member" },
+      "status": "LOGGED",
+      "reversal": null,
+      "can": { "reverse": false },
+      "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+      "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+    }
+  },
+
+  "errorItemNotInDepartment": { "success": false, "error": { "code": "ITEM_NOT_IN_DEPARTMENT", "message": "Pilau is not an item of your department." } },
+  "errorBranchItemRetired": { "success": false, "error": { "code": "ITEM_RETIRED", "message": "That item has been retired, so waste cannot be logged for it." } },
+  "errorNotYourDepartment": { "success": false, "error": { "code": "NOT_YOUR_DEPARTMENT", "message": "You are not a member of a department of this branch." } },
+  "errorBranchNotYourEntry": { "success": false, "error": { "code": "NOT_YOUR_ENTRY", "message": "You can only reverse your own entries." } },
+  "errorBranchWindowPassed": { "success": false, "error": { "code": "REVERSAL_WINDOW_PASSED", "message": "You can reverse an entry only on the day you logged it. Ask the Branch Manager." } },
+  "errorBranchAlreadyReversed": { "success": false, "error": { "code": "ALREADY_REVERSED", "message": "That entry was already reversed." } }
 }

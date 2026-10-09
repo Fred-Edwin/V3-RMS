@@ -99,6 +99,13 @@ export const CAPABILITIES = [
   'discrepancies.read', // every discrepancy (a Branch Manager's own branch; department heads their own department by the department rule)
   'discrepancies.record', // record one finding with the caller's own PIN
   'discrepancies.reverse', // reverse a recorded finding with a reason and PIN
+  // Branch waste (docs/features/inventory/branch-waste-contract.md §3). The client has not approved these mappings; each is a one-row
+  // edit below. Heads and members hold none: logging and reversing your own entry is the department rule in the service. No PIN anywhere.
+  'branch_waste.log', // log waste for the caller's own department: held by no role here (an active head or member)
+  'branch_waste.reverse_own', // reverse an entry the caller logged earlier the same Nairobi day: held by no role here (department rule)
+  'branch_waste.read', // the branch's waste with values, own branch (Branch Manager)
+  'branch_waste.read_any_branch', // every branch's waste, read only, with a Branch column
+  'branch_waste.reverse_any', // reverse any entry of the branch with a reason (Branch Manager: own branch)
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -151,10 +158,22 @@ const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
   // A branch department's delivery is counted by its own members or confirmed for them by the Branch Manager.
   'deliveries.count',
   'deliveries.confirm_on_behalf',
+  // Branch waste is read through `branch_waste.read_any_branch`; the Branch Manager's own-branch rows and the department's rows are not the store's.
+  'branch_waste.log',
+  'branch_waste.reverse_own',
+  'branch_waste.read',
+  'branch_waste.reverse_any',
 ];
 
-/** Held by no one through "everything": filling or signing FOR a department is the Branch Manager's alone, and counting a delivery is the department's (owner, 8 Oct 2026). */
-const DEPARTMENT_ONLY: readonly Capability[] = ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf', 'deliveries.count', 'deliveries.confirm_on_behalf'];
+/** Held by no one through "everything": filling or signing FOR a department is the Branch Manager's alone, and counting a delivery or logging branch waste is the department's (owner, 8 Oct 2026). */
+const DEPARTMENT_ONLY: readonly Capability[] = [
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
+  'deliveries.count',
+  'deliveries.confirm_on_behalf',
+  'branch_waste.log',
+  'branch_waste.reverse_own',
+];
 
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {
   STORE_MANAGER: CAPABILITIES.filter((c) => !NOT_THE_STORE_MANAGERS.includes(c)),
@@ -169,9 +188,10 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'payables.record_invoice',
     'payables.record_payment',
     'payables.record_deposit',
+    'branch_waste.read_any_branch',
   ],
   // The Director's only writes in Counting: "Mark seen" and the alert amount; in Requisitions, approving any requisition or addition.
-  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert', 'requisitions.approve'],
+  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert', 'requisitions.approve', 'branch_waste.read_any_branch'],
   // The Branch Manager reads everything except supplier payment details, and runs the branch's requisitions and departments.
   MANAGER: [
     ...READ_EVERYTHING,
@@ -186,6 +206,9 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'departments.write',
     // Confirms any department's delivery of the branch, recorded as the real signer "on behalf of the department".
     'deliveries.confirm_on_behalf',
+    // Reads the branch's waste with values and reverses any entry of it with a reason (no PIN); own branch is a service rule.
+    'branch_waste.read',
+    'branch_waste.reverse_any',
   ],
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
   // payments, supplier balances and payment details, reports): see `_shared/blind-rule.ts`. Raises order requests and
