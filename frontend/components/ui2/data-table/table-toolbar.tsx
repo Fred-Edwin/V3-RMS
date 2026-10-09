@@ -202,7 +202,7 @@ export function TableToolbar({
             const chosen = f.options.find((o) => o.value === current);
             return (
               <Select key={f.key} value={current === '' ? ALL : current} onValueChange={(v) => onFilterChange(f.key, v === ALL ? '' : v)}>
-                <SelectTrigger aria-label={f.label} className={cn('h-8 w-auto gap-1.5 rounded-none border-wds-border-strong text-[12px] leading-4 max-sm:h-11', paper ? 'px-2.5' : 'px-3')}>
+                <SelectTrigger aria-label={f.label} className={cn('h-8 w-auto gap-1.5 rounded-none border-wds-border-strong text-[12px] leading-4 max-sm:h-11', paper ? 'px-2.5 !rounded-none' : 'px-3')}>
                   <span>
                     {f.label} · {chosen && chosen.value !== '' ? chosen.label : 'All'}
                   </span>

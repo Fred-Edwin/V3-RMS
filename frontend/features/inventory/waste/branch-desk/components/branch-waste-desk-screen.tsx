@@ -25,8 +25,8 @@ import { branchWasteDeskApi } from '../services/branch-waste-desk-api';
 import { EntryDrawer } from './entry-drawer';
 import { ReverseEntryDialog } from './reverse-entry-dialog';
 
-/** Paper's `--color-text-faint` for the reversed row: no token carries it (decision D12), so the exact value is used. */
-const FAINT = 'text-[#8D8982]';
+/** Reversed-row text: `#635E57` (owner ruling, 9 Oct 2026: contrast), with the strike-through kept. This is `wds-text-secondary`. */
+const FAINT = 'text-wds-text-secondary';
 const DATE_FILTER = {
   kind: 'dateRange',
   fromKey: 'from',
@@ -192,7 +192,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
           </div>
           {everyBranch ? (
             <Select value={branchId ?? ALL_BRANCHES} onValueChange={setBranch}>
-              <SelectTrigger aria-label="Branch" className="h-8 w-auto gap-1.5 rounded-none border-wds-text-ink px-3 text-[13px] leading-4">
+              <SelectTrigger aria-label="Branch" className="h-8 w-auto gap-1.5 !rounded-none border-wds-text-ink px-3 text-[13px] leading-4">
                 <span>Branch: {pickedBranch ? pickedBranch.name : 'All branches'}</span>
               </SelectTrigger>
               <SelectContent>

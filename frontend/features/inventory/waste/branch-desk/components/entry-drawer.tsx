@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
@@ -11,6 +12,9 @@ import { clockLabel, signedKes } from '../../../counting/_shared/lib/count-forma
 import { BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import { dayClock, qtyLabel, reversalReasonShort, shortName } from '../lib/branch-waste-desk-format';
 import { branchWasteDeskApi } from '../services/branch-waste-desk-api';
+
+/** Rows whose value can wrap, as W7's Effect row (13/18); the others are 13/16. */
+const WRAPS = new Set(['Note', 'Reversal reason']);
 
 /**
  * One waste entry in a right drawer (Block 3 gap G10, built from the flow text "who logged it, when, reason and its ledger entry"; no
@@ -69,8 +73,8 @@ export function EntryDrawer({ entryId, onClose }: { entryId: string | null; onCl
             <dl className="m-0 flex flex-col border-t border-wds-text-ink">
               {rows.map(([label, value]) => (
                 <div key={label} className="flex items-start justify-between gap-6 border-b border-wds-border py-2.5">
-                  <dt className="shrink-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{label}</dt>
-                  <dd className="m-0 text-right font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{value}</dd>
+                  <dt className={cn('shrink-0 font-wds-sans text-[13px] text-wds-text-secondary', WRAPS.has(label) ? 'leading-[18px]' : 'leading-4')}>{label}</dt>
+                  <dd className={cn('m-0 text-right font-wds-sans text-[13px] text-wds-text-ink', WRAPS.has(label) ? 'leading-[18px]' : 'leading-4')}>{value}</dd>
                 </div>
               ))}
             </dl>

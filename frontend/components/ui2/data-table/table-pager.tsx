@@ -61,7 +61,7 @@ export function TablePager({ page, perPage, shown, total, onPageChange, onPerPag
               aria-labelledby="rows-per-page-label"
               className={cn(
                 'h-auto w-auto gap-1.5 rounded-none border-wds-border-strong text-[12px] leading-4',
-                paper ? 'h-7 bg-wds-surface px-2 py-0 font-wds-sans' : 'py-[3px] pl-2 pr-2 font-wds-mono'
+                paper ? 'h-7 !rounded-none bg-wds-surface px-2 py-0 font-wds-sans' : 'py-[3px] pl-2 pr-2 font-wds-mono'
               )}
             >
               <span>{perPage}</span>
