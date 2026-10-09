@@ -10,13 +10,12 @@ import { Button } from '@/components/ui2/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import { cn } from '@/lib/cn';
 import { formatApiErrorMessage } from '@/types/api';
 import { LoadingAnnouncer } from '../../_shared/components/scw-states';
 import { useLoader } from '../../_shared/hooks/use-async';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import type { ApproveResult, Addition, RequisitionFile } from '../_shared/types/requisitions-contract';
-import { clock, dayLabel, errorWords, fileChip, kes, nextStepWords, trackerWords } from '../_shared/lib/requisitions-words';
+import { clock, dayLabel, errorWords, fileChip, kes, nextStepWords } from '../_shared/lib/requisitions-words';
 import { AdditionsPanel, ApproveAdditionDialog } from './additions-panel';
 import { ApproveDrawer } from './approve-drawer';
 import { CancelDialog } from './cancel-dialog';
@@ -25,6 +24,9 @@ import { FileItems } from './file-items';
 import { FillForHeadSheet } from './fill-for-head-sheet';
 import { MonoLabel, ReqTabs, StatusChip, UrgentTag } from './req-parts';
 import { useBadgesNudge } from '../hooks/use-badges-nudge';
+import { requisitionProgress } from '../_shared/lib/requisition-progress';
+import { ProgressTracker } from '../../dispatch/components/desktop/progress-tracker';
+import { RequisitionDispatchesPanel } from '../../dispatch/components/desktop/requisition-dispatches-panel';
 
 type View = 'items' | 'documents' | 'activity';
 
@@ -202,16 +204,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
               </div>
             </header>
 
-            <ol aria-label="Progress" className="grid grid-cols-3 gap-x-4 gap-y-5 lg:grid-cols-6">
-              {trackerWords(data.tracker, data.can.approve).map((step, index, all) => (
-                <li key={step.key} aria-current={step.state === 'CURRENT' ? 'step' : undefined} className="relative flex flex-col gap-1 pt-6 max-lg:[&:nth-child(3n)>span:nth-child(2)]:hidden">
-                  <span aria-hidden className={cn('absolute left-0 top-0 z-10 size-3.5 rounded-full border-2', step.state === 'DONE' ? 'border-wds-success-fg bg-wds-success-fg' : step.state === 'CURRENT' ? 'border-wds-caramel-700 bg-wds-surface' : 'border-wds-border-strong bg-wds-surface')} />
-                  {index < all.length - 1 ? <span aria-hidden className={cn('absolute left-3.5 right-[-16px] top-[6px] h-[2px]', step.state === 'DONE' ? 'bg-wds-success-fg' : 'bg-wds-border')} /> : null}
-                  <span className={cn('font-wds-sans text-[14px] leading-[18px]', step.state === 'TODO' ? 'text-wds-text-secondary' : 'font-semibold text-wds-text-ink')}>{step.label}</span>
-                  <span className={cn('font-wds-sans text-[13px] leading-4', step.state === 'TODO' ? 'text-wds-text-faint' : 'text-wds-text-secondary')}>{step.second}</span>
-                </li>
-              ))}
-            </ol>
+            <ProgressTracker steps={requisitionProgress(data.tracker, data.can.approve)} />
 
             <section aria-label="Next step" className="flex flex-col items-stretch justify-between gap-5 border border-wds-border border-l-[3px] sm:flex-row sm:items-center sm:gap-8 border-l-wds-caramel-500 bg-wds-surface px-6 py-5">
               <div className="flex max-w-[860px] flex-col gap-1.5">
@@ -271,7 +264,9 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 ]}
               />
               <div role="tabpanel" aria-labelledby={`req-tab-${view}`}>
-              {view === 'items' ? (
+              {view === 'items' && data.dispatches.length > 0 ? (
+                <RequisitionDispatchesPanel file={data} selected={params.get('department') ?? data.dispatches[0]?.departmentId ?? ''} onSelect={(departmentId) => setParam({ department: departmentId })} base={base} onChanged={() => void reload()} />
+              ) : view === 'items' ? (
                 <FileItems file={data} selected={selected} onSelect={(departmentId) => setParam({ department: departmentId })} onChanged={() => void reload()} onFillMyself={(departmentId, trigger) => { fillTrigger.current = trigger; setFillFor(departmentId); }} />
               ) : view === 'documents' ? (
                 <DocumentsTab requisitionId={id} printHref={printHref} canPrint={data.can.print} />

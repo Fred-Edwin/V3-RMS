@@ -1,0 +1,306 @@
+'use client';
+
+import * as React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+
+import { useLoader } from '../../../_shared/hooks/use-async';
+import type { Person } from '../../../_shared/types/wire';
+import { clock } from '../../../requisitions/_shared/lib/requisitions-words';
+import type { DeliveryNoteCopy, PrintBranch, PrintDispatch, PrintStore } from '../../_shared/types/dispatch-contract';
+import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
+
+const TZ = 'Africa/Nairobi';
+const NAVY = 'text-[#0B2A4A]';
+const MUTED = 'text-[#5B6670]';
+const RULE = 'bg-[#D5DCE4]';
+
+const longDate = (ymd: string): string => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${ymd}T12:00:00+03:00`));
+const stampDate = (iso: string): string => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
+const signedStamp = (iso: string): string => `${stampDate(iso)}, ${clock(iso)}`;
+const printedStamp = (iso: string): string => `${stampDate(iso).toUpperCase()} ${clock(iso).toUpperCase()}`;
+const shortDay = (iso: string): string => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso)).toUpperCase();
+const who = (p: Person, at: string): string => `${p.name} · ${p.roleLabel} · ${clock(at)}`;
+
+// ── Pagination by fixed row height (a line is never split; every page repeats the header and column headings) ───────────────
+//
+// A4 is 794 x 1123 px. The numbers below are the heights of the Paper blocks (D17, D17b, D17c) in px; a row is 39 (10 + 18 + 10 padding
+// and a 1px rule). The closing block (signature, received-by line, and for the store copy the QR) goes on the LAST page only; when it
+// does not fit under the last row it takes a page of its own.
+const PAGE = 1123;
+const BAR = 10;
+const TOP = 30;
+const FOOTER = 66;
+const ROW = 39;
+const VOID_BAND = 26;
+const FIRST_HEAD = 224;
+const CONT_HEAD = 150;
+const CLOSING_STORE = 219;
+const CLOSING_BRANCH = 168;
+
+export interface NotePage {
+  rows: number[];
+  first: boolean;
+  last: boolean;
+}
+
+/** Splits `lineCount` rows into pages. Pure, so the unit test pins the rule. */
+export function paginateNote(lineCount: number, closing: number, voided = false): NotePage[] {
+  const room = PAGE - BAR - TOP - FOOTER - (voided ? VOID_BAND : 0);
+  const fits = (head: number, withClosing: boolean): number => Math.max(0, Math.floor((room - head - (withClosing ? closing : 0)) / ROW));
+  const indexes = Array.from({ length: lineCount }, (_, i) => i);
+  if (lineCount <= fits(FIRST_HEAD, true)) return [{ rows: indexes, first: true, last: true }];
+  const pages: NotePage[] = [];
+  let at = 0;
+  let first = true;
+  while (at < lineCount) {
+    const head = first ? FIRST_HEAD : CONT_HEAD;
+    const left = lineCount - at;
+    const withClosing = fits(head, true);
+    if (left <= withClosing) {
+      pages.push({ rows: indexes.slice(at, at + left), first, last: true });
+      at += left;
+    } else {
+      const take = Math.min(left, fits(head, false));
+      pages.push({ rows: indexes.slice(at, at + take), first, last: false });
+      at += take;
+    }
+    first = false;
+  }
+  // Rows ended exactly on a full page: the closing block takes a page of its own (no rows, header only).
+  const tail = pages[pages.length - 1];
+  if (tail && !tail.last) pages.push({ rows: [], first: false, last: true });
+  return pages;
+}
+
+const signatureSize = (name: string): string => (name.length <= 16 ? 'text-[36px] leading-[42px]' : name.length <= 24 ? 'text-[28px] leading-[42px]' : 'text-[20px] leading-[42px]');
+
+function Band({ note }: { note: PrintDispatch }) {
+  if (!note.voided) return null;
+  return (
+    <div role="note" className="flex h-[26px] shrink-0 items-center justify-center bg-[#8F2D22] font-wds-mono text-[11px] font-semibold tracking-[0.14em] text-white">
+      VOID · CANCELLED {note.cancelledAt ? shortDay(note.cancelledAt) : ''}
+    </div>
+  );
+}
+
+function PageShell({ note, copy, page, pages, children }: { note: PrintDispatch; copy: DeliveryNoteCopy; page: number; pages: number; children: React.ReactNode }) {
+  return (
+    <article className="relative mx-auto mb-4 flex h-[1123px] w-[794px] max-w-full shrink-0 flex-col overflow-hidden break-after-page border border-[#E3E8EE] bg-white font-wds-sans text-[12px] leading-4 text-[#171512] print:mb-0 print:border-0">
+      <Band note={note} />
+      <div aria-hidden className="h-[10px] shrink-0 bg-[#0B2A4A]" />
+      <div className="flex min-h-0 flex-1 flex-col gap-[22px] px-12 pt-[30px]">{children}</div>
+      <footer className="mx-12 flex shrink-0 items-end justify-between gap-6 border-t border-[#D5DCE4] pb-[22px] pt-[14px]">
+        <div className="flex flex-col gap-[3px]">
+          <span className={`text-[10px] leading-[14px] ${MUTED}`}>Generated by Wendo RMS · Designed and developed by Lobster Technologies</span>
+          <span className="font-wds-mono text-[9px] leading-3 tracking-[0.04em] text-[#8D8982]">
+            {note.reference} · {copy === 'store' ? 'STORE COPY' : 'BRANCH COPY'} · PRINTED {printedStamp(note.generatedAt)}
+          </span>
+        </div>
+        {pages > 1 ? <span className="font-wds-mono text-[9px] leading-3 tracking-[0.08em] text-[#8D8982]">PAGE {page} OF {pages}</span> : null}
+      </footer>
+    </article>
+  );
+}
+
+function Logo({ size }: { size: number }) {
+  return <div aria-hidden className="shrink-0 rounded-full bg-cover bg-center" style={{ width: size, height: size, backgroundImage: 'url(/images/wendo-logo.jpg)' }} />;
+}
+
+function FirstHead({ note, copy }: { note: PrintDispatch; copy: DeliveryNoteCopy }) {
+  return (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3.5">
+          <Logo size={56} />
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[20px] font-semibold leading-[26px] tracking-[-0.01em] ${NAVY}`}>Wendo Coffee Bistro</span>
+            <span className={`text-[12px] leading-4 ${MUTED}`}>Central Store · Nyeri</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-[3px]">
+          <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>DELIVERY NOTE · {copy === 'store' ? 'STORE COPY' : 'BRANCH COPY'}</span>
+          <span className={`font-wds-mono text-[24px] font-semibold leading-[30px] ${NAVY}`}>{note.reference}</span>
+          <span className={`text-[12px] leading-4 ${MUTED}`}>{longDate(note.date)}</span>
+        </div>
+      </div>
+      <div aria-hidden className={`h-px shrink-0 ${RULE}`} />
+      <div className="flex gap-10">
+        <div className="flex flex-1 flex-col gap-1">
+          <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>DELIVER TO</span>
+          <span className={`text-[15px] font-semibold leading-5 ${NAVY}`}>{note.department.name}, {note.branch.name} branch</span>
+          <span className={`text-[12px] leading-[18px] ${MUTED}`}>Requisition {note.requisitionReference}</span>
+        </div>
+        <dl className="flex flex-1 flex-col gap-[5px]">
+          {copy === 'store' ? (
+            <>
+              <Meta label="Packed by" value={who(note.packed.by, note.packed.at)} />
+              <Meta label="Signed by" value={who(note.signed.by, note.signed.at)} />
+            </>
+          ) : (
+            <Meta label="Packed and signed by" value={who(note.signed.by, note.signed.at)} />
+          )}
+          <Meta label="Carried by" value={note.carrier.name} />
+          <Meta label="Lines" value={String(note.lines.length)} />
+        </dl>
+      </div>
+    </>
+  );
+}
+
+const Meta = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex justify-between gap-3">
+    <dt className={`shrink-0 whitespace-nowrap text-[12px] leading-4 ${MUTED}`}>{label}</dt>
+    <dd className="text-right text-[12px] leading-4 text-[#171512]">{value}</dd>
+  </div>
+);
+
+function ContinuedHead({ note, copy, from, to, total }: { note: PrintDispatch; copy: DeliveryNoteCopy; from: number; to: number; total: number }) {
+  return (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3.5">
+          <Logo size={44} />
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[17px] font-semibold leading-[22px] tracking-[-0.01em] ${NAVY}`}>Wendo Coffee Bistro</span>
+            <span className={`text-[12px] leading-4 ${MUTED}`}>Delivery note · {copy === 'store' ? 'store copy' : 'branch copy'}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className={`font-wds-mono text-[20px] font-semibold leading-[26px] ${NAVY}`}>{note.reference}</span>
+          <span className={`text-[12px] leading-4 ${MUTED}`}>{note.department.name}, {note.branch.name} branch · {longDate(note.date)}</span>
+        </div>
+      </div>
+      <div aria-hidden className={`h-px shrink-0 ${RULE}`} />
+      <p className={`text-[13px] leading-[18px] ${MUTED}`}>{to >= from ? `Continued from page 1 · lines ${from} to ${to} of ${total}` : `Continued · ${total} lines`}</p>
+    </>
+  );
+}
+
+function Heading({ copy }: { copy: DeliveryNoteCopy }) {
+  const cell = `font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`;
+  return (
+    <div className="flex items-center gap-3 border-b-2 border-[#0B2A4A] pb-2">
+      <span className={`w-7 shrink-0 ${cell}`}>#</span>
+      <span className={`flex-1 ${cell}`}>ITEM</span>
+      <span className={`w-[90px] shrink-0 ${cell}`}>UNIT</span>
+      {copy === 'store' ? (
+        <>
+          <span className={`w-[70px] shrink-0 text-right ${cell}`}>ASKED</span>
+          <span className={`w-[70px] shrink-0 text-right ${cell}`}>SENT</span>
+        </>
+      ) : (
+        <span className={`w-[110px] shrink-0 text-right ${cell}`}>YOUR COUNT</span>
+      )}
+    </div>
+  );
+}
+
+function Row({ n, name, unit, store, branch }: { n: number; name: string; unit: string; store?: { asked: string; sent: string }; branch?: boolean }) {
+  return (
+    <div className="flex h-[39px] shrink-0 items-center gap-3 border-b border-[#E3E8EE]">
+      <span className={`w-7 shrink-0 font-wds-mono text-[11px] leading-[14px] ${MUTED}`}>{n}</span>
+      <span title={name} className="flex-1 truncate text-[13px] leading-[18px] text-[#171512]">{name}</span>
+      <span className={`w-[90px] shrink-0 truncate text-[12px] leading-4 ${MUTED}`}>{unit}</span>
+      {store ? (
+        <>
+          <span className="w-[70px] shrink-0 text-right font-wds-mono text-[12px] leading-4 text-[#171512]">{store.asked}</span>
+          <span className="w-[70px] shrink-0 text-right font-wds-mono text-[12px] leading-4 text-[#171512]">{store.sent}</span>
+        </>
+      ) : branch ? (
+        <span className="flex w-[110px] shrink-0 justify-end self-stretch">
+          <span aria-hidden className="mb-2 h-px w-[84px] self-end bg-[#171512]" />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function Closing({ note, copy }: { note: PrintDispatch; copy: DeliveryNoteCopy }) {
+  const signer = note.signed.by;
+  return (
+    <>
+      {copy === 'branch' ? <p className={`mt-1 text-[13px] leading-5 ${MUTED}`}>Count each item as you unpack it, then confirm in Wendo RMS with your PIN. The number sent is kept on the store copy.</p> : null}
+      <div className="mt-[18px] flex gap-10">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>PACKED AND SIGNED BY</span>
+          <span className={`overflow-hidden whitespace-nowrap font-wds-signature ${NAVY} ${signatureSize(signer.name)}`}>{signer.name}</span>
+          <div aria-hidden className={`h-px w-full ${RULE}`} />
+          <span className={`text-[11px] leading-[14px] ${MUTED}`}>Signed with PIN · {signedStamp(note.signed.at)}</span>
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>RECEIVED BY (BRANCH)</span>
+          <div className="h-[42px] shrink-0" />
+          <div aria-hidden className={`h-px w-full ${RULE}`} />
+          <span className={`text-[11px] leading-[14px] ${MUTED}`}>Name, signature and time</span>
+        </div>
+      </div>
+      {copy === 'store' ? (
+        <div className="mt-1.5 flex items-center gap-3.5">
+          <QRCodeSVG value={note.qrPayload} size={64} marginSize={0} fgColor="#0B2A4A" aria-label={`QR code for ${note.reference}`} />
+          <p className={`w-[300px] text-[11px] leading-4 ${MUTED}`}>Scan to open {note.reference} in Wendo RMS and follow the delivery.</p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+const asStore = (note: PrintDispatch): PrintStore | null => (note.copy === 'store' ? note : null);
+const asBranch = (note: PrintDispatch): PrintBranch | null => (note.copy === 'branch' ? note : null);
+
+/**
+ * The printed delivery note (Paper D17 store copy, D17b branch copy, D17c page 2, and the voided band). A4, no sidebar. The store copy
+ * shows asked and sent; the branch copy has a blank "Your count" column so the count stays blind. A long table continues on the next
+ * page: every page repeats the header and the column headings and carries "Page n of m"; the signature block, the received-by line
+ * and the QR are on the last page only; a line is never split. A cancelled dispatch prints the same note under a red VOID band.
+ */
+export function DeliveryNotePrintScreen({ dispatchId, copy }: { dispatchId: string; copy: DeliveryNoteCopy }) {
+  const { data, status, reload } = useLoader<PrintDispatch>(`delivery-note:${dispatchId}:${copy}`, () => dispatchDesktopApi.print(dispatchId, copy), 'We could not load this delivery note.');
+  const pages = React.useMemo(() => (data ? paginateNote(data.lines.length, copy === 'store' ? CLOSING_STORE : CLOSING_BRANCH, data.voided) : []), [data, copy]);
+
+  if (status === 'error')
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">
+        <p>We could not load this delivery note.</p>
+        <button type="button" onClick={() => void reload()} className="h-8 rounded-wds-sm border border-wds-border-strong px-4 font-medium text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
+          Retry
+        </button>
+      </div>
+    );
+  if (!data) return <p role="status" className="flex min-h-screen items-center justify-center bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">Getting the delivery note…</p>;
+
+  const store = asStore(data);
+  const branch = asBranch(data);
+  const total = data.lines.length;
+
+  return (
+    <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
+      <style>{'@page { size: A4; margin: 0; }'}</style>
+      <div className="mx-auto mb-4 flex w-[794px] max-w-full items-center justify-end px-1 print:hidden">
+        <button type="button" onClick={() => window.print()} className="h-8 rounded-wds-sm bg-wds-primary px-4 font-wds-sans text-wds-body-sm font-medium text-white outline-none focus-visible:shadow-wds-ring">
+          Print
+        </button>
+      </div>
+      {pages.map((page, index) => {
+        const first = page.rows[0];
+        const last = page.rows[page.rows.length - 1];
+        return (
+          <PageShell key={index} note={data} copy={copy} page={index + 1} pages={pages.length}>
+            {page.first ? <FirstHead note={data} copy={copy} /> : <ContinuedHead note={data} copy={copy} from={first === undefined ? 0 : first + 1} to={last === undefined ? 0 : last + 1} total={total} />}
+            {page.rows.length > 0 || page.first ? (
+              <div className="flex flex-col">
+                <Heading copy={copy} />
+                {page.rows.map((i) => {
+                  const line = data.lines[i];
+                  if (!line) return null;
+                  const l = store?.lines[i];
+                  return <Row key={line.n} n={line.n} name={line.itemName} unit={line.unit} store={l ? { asked: l.requestedQty, sent: l.sentQty } : undefined} branch={Boolean(branch)} />;
+                })}
+              </div>
+            ) : null}
+            {page.last ? <Closing note={data} copy={copy} /> : null}
+          </PageShell>
+        );
+      })}
+    </div>
+  );
+}

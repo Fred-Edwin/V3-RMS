@@ -15,6 +15,8 @@ export interface DecisionDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
+  /** Block 2 dialogs (Paper D16, D20): the description is a small mono line ABOVE the title and there is no rule under the header. */
+  eyebrow?: boolean;
   /** The small dot before the title: amber for "may already exist", red for "cannot be archived yet". */
   tone?: 'warning' | 'error';
   /** Left of the buttons in the footer ("Restore any time from Show retired."). */
@@ -30,7 +32,7 @@ export interface DecisionDialogProps {
   children: React.ReactNode;
 }
 
-export function DecisionDialog({ open, onOpenChange, title, description, tone, footerNote, actions, error, busy = false, returnFocus, children }: DecisionDialogProps) {
+export function DecisionDialog({ open, onOpenChange, title, description, eyebrow = false, tone, footerNote, actions, error, busy = false, returnFocus, children }: DecisionDialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(next) => (busy ? undefined : onOpenChange(next))}>
       <DialogPrimitive.Portal>
@@ -49,12 +51,13 @@ export function DecisionDialog({ open, onOpenChange, title, description, tone, f
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=open]:duration-200 data-[state=closed]:duration-150'
           )}
         >
-          <div className="flex shrink-0 flex-col gap-1 border-b border-wds-border px-6 pb-4 pt-[22px]">
+          <div className={cn('flex shrink-0 flex-col gap-1 px-6 pb-4 pt-[22px]', eyebrow ? 'pb-3' : 'border-b border-wds-border')}>
+            {eyebrow ? <DialogPrimitive.Description className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.08em] text-wds-text-copy-muted">{description}</DialogPrimitive.Description> : null}
             <div className="flex items-center gap-2">
               {tone ? <span aria-hidden className={cn('size-2 shrink-0 rounded-[4px]', tone === 'error' ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} /> : null}
               <DialogPrimitive.Title className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-tight text-wds-text-ink">{title}</DialogPrimitive.Title>
             </div>
-            <DialogPrimitive.Description className="font-wds-sans text-[13px] leading-[18px] text-wds-text-copy-muted">{description}</DialogPrimitive.Description>
+            {eyebrow ? null : <DialogPrimitive.Description className="font-wds-sans text-[13px] leading-[18px] text-wds-text-copy-muted">{description}</DialogPrimitive.Description>}
           </div>
           <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto px-6 py-5">
             {error ? (
