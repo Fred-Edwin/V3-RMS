@@ -20,7 +20,7 @@ const MONEY = /value|kes|cost|price/i;
 describe('discrepancies contract mirror', () => {
   it('list keys', () => {
     const list = fixtures.listOpen as ListDiscrepancies;
-    expect(keysOf(list)).toEqual(['branches', 'page', 'rows', 'tab', 'tabCounts']);
+    expect(keysOf(list)).toEqual(['branches', 'counts', 'page', 'rows', 'tab']);
     expect(keysOf(list.rows[0]!)).toEqual(['branch', 'branchReason', 'can', 'department', 'direction', 'dispatch', 'finding', 'gapQty', 'id', 'itemName', 'openedAt', 'reference', 'reminderSentAt', 'status', 'unit']);
     expect(keysOf(fixtures.listSettledBranchManager as ListDiscrepancies)).not.toContain('branches');
   });
@@ -50,6 +50,19 @@ describe('discrepancies contract mirror', () => {
     expect(FINDING_PROFILE.PACKED_SHORT).toEqual({ against: 'STORE', lossKind: 'PACKING_ERROR' });
     expect(FINDING_TEXT.CANT_TELL).toBe("Can't tell");
     expect((fixtures.fileOpen as DiscrepancyFile).allowedFindings).toEqual([...FINDINGS_FOR.SHORT]);
+  });
+
+  it('Amendment 1: a reversal puts the gap back to Open; the finding is null and the reversal and events stay', () => {
+    const file = fixtures.fileReversedBackToOpen as DiscrepancyFile;
+    expect(file.status).toBe('OPEN');
+    expect(file.finding).toBeNull();
+    expect(file.reversal).not.toBeNull();
+    expect(file.allowedFindings).toEqual([...FINDINGS_FOR.SHORT]);
+    expect(file.events.map((e) => e.type)).toEqual(['DISCREPANCY_OPENED', 'FINDING_RECORDED', 'FINDING_REVERSED']);
+    expect((fixtures.reverseFindingResult as { status: string }).status).toBe('OPEN');
+    expect(keysOf(fixtures.recordFindingInput)).toEqual(['finding', 'idempotencyKey', 'note', 'pin']);
+    expect(keysOf(fixtures.reverseFindingInput)).toEqual(['idempotencyKey', 'pin', 'reason']);
+    expect((DISCREPANCY_ERROR_CODES as readonly string[])).toContain('FINDING_NOT_REVERSIBLE');
   });
 
   it('every error fixture uses a listed code', () => {

@@ -18,6 +18,7 @@ import {
   listDeliveriesSchema,
   saveCountInputSchema,
   setReasonInputSchema,
+  deletePhotoResultSchema,
   uploadPhotoFieldsSchema,
   uploadPhotoResultSchema,
 } from './deliveries-contract';
@@ -40,6 +41,7 @@ describe('deliveries contract fixtures', () => {
     ['countLineWithReason', countLineSchema],
     ['uploadPhotoFields', uploadPhotoFieldsSchema],
     ['uploadPhotoResult', uploadPhotoResultSchema],
+    ['deletePhotoResult', deletePhotoResultSchema],
     ['confirmPreview', confirmPreviewSchema],
     ['confirmInput', confirmDeliveryInputSchema],
     ['confirmInputOnBehalf', confirmDeliveryInputSchema],
@@ -47,12 +49,14 @@ describe('deliveries contract fixtures', () => {
     ['confirmResultAllMatched', confirmDeliveryResultSchema],
     ['errorInvalidPin', errorBodySchema],
     ['errorAlreadyConfirmed', errorBodySchema],
-    ['errorCountFinal', errorBodySchema],
-    ['errorNotAllCounted', errorBodySchema],
+    ['errorRecountUsed', errorBodySchema],
+    ['errorNotCounted', errorBodySchema],
     ['errorCountAgainPending', errorBodySchema],
-    ['errorReasonMissing', errorBodySchema],
+    ['errorReasonRequired', errorBodySchema],
     ['errorTooManyPhotos', errorBodySchema],
     ['errorPhotoTooLarge', errorBodySchema],
+    ['errorNotYourDepartment', errorBodySchema],
+    ['errorDispatchCancelled', errorBodySchema],
   ] as const)('%s parses', (name, schema) => {
     const result = schema.safeParse(F[name]);
     expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
@@ -60,7 +64,7 @@ describe('deliveries contract fixtures', () => {
 
   it('every error fixture uses a code the contract lists', () => {
     const errorFixtures = Object.keys(F).filter((name) => name.startsWith('error'));
-    expect(errorFixtures).toHaveLength(8);
+    expect(errorFixtures).toHaveLength(10);
     for (const name of errorFixtures) {
       const code = (F[name] as { error: { code: string } }).error.code;
       expect(DELIVERY_ERROR_CODES as readonly string[]).toContain(code);
@@ -86,8 +90,11 @@ const allKeys = (value: unknown, out: string[] = []): string[] => {
   return out;
 };
 const MONEY = /value|kes|cost|price/i;
-/** Names that carry, or could stand in for, what was sent. */
-const SENT_FIGURE = /sent|expected|gap|requested|dispatched/i;
+/**
+ * Names that carry, or could stand in for, what was sent. `gapCount` (the number of differing lines on a confirmed history row, G2)
+ * is allowed: it only appears after the counts are final and the summary has revealed the figures; the waiting row holds null.
+ */
+const SENT_FIGURE = /sentQty|expected|gapQty|requested|dispatched/i;
 /** The responses a person sees BEFORE the confirm preview: none may carry the sent figure. */
 const BLIND = [
   'listWaiting',
@@ -127,8 +134,14 @@ describe('blind rule: no sent figure before the summary', () => {
     expect(fixtures.checkCountFinal.final).toBe(true);
   });
 
-  it('a check lists the differing lines by name and typed number only', () => {
-    expect(Object.keys(fixtures.checkCountFirst.differing[0]!).sort()).toEqual(['countedQty', 'itemName', 'lineId', 'state']);
+  it('a check lists the differing lines by name and typed number, with the direction (never the size)', () => {
+    expect(Object.keys(fixtures.checkCountFirst.differing[0]!).sort()).toEqual(['countedQty', 'direction', 'itemName', 'lineId', 'state']);
+    expect(fixtures.checkCountFirst.differing[0]!.direction).toBe('SHORT');
+  });
+
+  it('a waiting row has no gap count yet; only a confirmed history row does', () => {
+    expect(fixtures.listWaiting.rows[0]!.gapCount).toBeNull();
+    expect(fixtures.listPastBranchManager.rows.every((r) => typeof r.gapCount === 'number')).toBe(true);
   });
 
   it('nothing is pre-filled: an uncounted line has no number', () => {
@@ -173,7 +186,46 @@ describe('inputs that must be refused', () => {
     expect(PHOTO_MAX_PER_LINE).toBe(3);
     expect(PHOTO_MAX_BYTES).toBe(5 * 1024 * 1024);
     expect(uploadPhotoFieldsSchema.safeParse({}).success).toBe(false);
-    expect(uploadPhotoResultSchema.safeParse({ ...fixtures.uploadPhotoResult, photo: { ...fixtures.uploadPhotoResult.photo, mimeType: 'application/pdf' } }).success).toBe(false);
+    expect(uploadPhotoResultSchema.safeParse({ ...fixtures.uploadPhotoResult, photo: { id: 'not-a-uuid', url: '/x' } }).success).toBe(false);
+    expect(uploadPhotoResultSchema.safeParse({ ...fixtures.uploadPhotoResult, photo: { id: fixtures.uploadPhotoResult.photo.id } }).success).toBe(false);
+  });
+});
+
+/** Dispatch Amendment 1 (docs/features/inventory/dispatch-amendment-1.md), the branch side. */
+describe('Amendment 1', () => {
+  it('row 1: arrivedAt is information on the row, the count view and the result; null before anyone opens the delivery', () => {
+    expect(fixtures.listWaiting.rows[0]!.arrivedAt).toBeNull();
+    expect(Object.keys(fixtures.countView)).toContain('arrivedAt');
+    expect(Object.keys(fixtures.confirmResult)).toEqual(expect.arrayContaining(['signedAt', 'arrivedAt', 'confirmedAt']));
+  });
+
+  it('row 5: V2 reports each line\'s saved count, the direction and whether the recount was used', () => {
+    for (const line of fixtures.countView.lines) expect(Object.keys(line)).toEqual(expect.arrayContaining(['countedQty', 'recountUsed', 'direction', 'attempt']));
+    expect(fixtures.countView.lines.find((l) => l.state === 'COUNT_AGAIN')!.recountUsed).toBe(false);
+    expect(fixtures.checkCountFinal.view.lines[0]!.recountUsed).toBe(true);
+  });
+
+  it('row 6: a photo is { id, url }, and there is a delete result', () => {
+    expect(Object.keys(fixtures.uploadPhotoResult.photo).sort()).toEqual(['id', 'url']);
+    expect(fixtures.deletePhotoResult.photos).toEqual([]);
+  });
+
+  it('row 10: V1 rows carry the cycle, carrier, arrivedAt, the confirmer\'s title, the result and the gap count', () => {
+    for (const row of [...fixtures.listWaiting.rows, ...fixtures.listPastBranchManager.rows]) {
+      expect(Object.keys(row)).toEqual(
+        expect.arrayContaining(['reference', 'department', 'cycle', 'lineCount', 'signedAt', 'carrier', 'arrivedAt', 'confirmedAt', 'confirmedByTitle', 'result', 'gapCount']),
+      );
+    }
+    expect(listDeliveriesQuerySchema.parse({ result: 'MATCHED' }).result).toBe('MATCHED');
+    expect(listDeliveriesQuerySchema.safeParse({ result: 'ALL_MATCHED' }).success).toBe(false);
+    expect(fixtures.listPastBranchManager.rows.map((r) => r.result)).toEqual(['GAP_OPEN', 'MATCHED']);
+  });
+
+  it('row 11: the renamed codes are the amendment names', () => {
+    for (const code of ['ALREADY_CONFIRMED', 'NOT_COUNTED', 'RECOUNT_USED', 'REASON_REQUIRED', 'NOT_YOUR_DEPARTMENT', 'DISPATCH_CANCELLED', 'TOO_MANY_PHOTOS', 'PHOTO_TOO_LARGE']) {
+      expect(DELIVERY_ERROR_CODES as readonly string[]).toContain(code);
+    }
+    for (const gone of ['COUNT_FINAL', 'NOT_ALL_COUNTED', 'REASON_MISSING']) expect(DELIVERY_ERROR_CODES as readonly string[]).not.toContain(gone);
   });
 });
 

@@ -58,7 +58,8 @@
       }
     ],
     "nextDepartmentId": "30000000-0000-4000-8000-000000000002",
-    "allPacked": false
+    "allPacked": false,
+    "canReview": false
   },
   "savePackLinesInput": {
     "lines": [
@@ -78,11 +79,11 @@
         "departmentId": "30000000-0000-4000-8000-000000000001",
         "departmentName": "Kitchen",
         "lineCount": 2,
-        "allTicked": true,
+        "allTicked": true, "canLeaveOut": true,
         "shortCount": 1,
         "shortLines": [{ "itemName": "Cooking oil 10L", "unit": "can", "requestedQty": "2", "sentQty": "1" }]
       },
-      { "departmentId": "30000000-0000-4000-8000-000000000002", "departmentName": "Barista", "lineCount": 1, "allTicked": true, "shortCount": 0, "shortLines": [] }
+      { "departmentId": "30000000-0000-4000-8000-000000000002", "departmentName": "Barista", "lineCount": 1, "allTicked": true, "canLeaveOut": true, "shortCount": 0, "shortLines": [] }
     ],
     "lines": [
       { "departmentId": "30000000-0000-4000-8000-000000000001", "lineId": "70000000-0000-4000-8000-000000000001", "itemName": "Pishori rice 25kg", "unit": "bag", "requestedQty": "2", "sentQty": "2", "short": false },
@@ -124,6 +125,8 @@
     "leftOut": [{ "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" }],
     "lineCount": 20,
     "shortCount": 1,
+    "sentDepartments": 2,
+    "totalDepartments": 3,
     "replayed": false
   },
   "fileHub": {
@@ -134,11 +137,17 @@
     "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
     "status": "CONFIRMED",
     "stage": "GAP_HELD",
+    "packedAt": "2026-10-08T12:01:00.000Z",
+    "arrivedAt": "2026-10-08T12:28:00.000Z",
+    "countedById": "u-barista-head",
+    "countedAt": "2026-10-08T12:35:00.000Z",
+    "onBehalf": false,
+    "lossValueKes": "0.0000",
     "lineCount": 4,
     "shortCount": 0,
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "sendBatchId": "b0000000-0000-4000-8000-000000000001",
     "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
     "onBehalfOfDepartment": null,
@@ -149,7 +158,7 @@
     ],
     "tracker": [
       { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
-      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
       { "key": "ON_THE_WAY", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
       { "key": "COUNTED", "state": "DONE", "at": "2026-10-08T12:35:00.000Z", "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "carrier": null },
       { "key": "CLOSED", "state": "CURRENT", "at": null, "by": null, "carrier": null }
@@ -268,11 +277,16 @@
     "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
     "status": "ON_THE_WAY",
     "stage": "ON_THE_WAY",
+    "packedAt": "2026-10-08T12:01:00.000Z",
+    "arrivedAt": null,
+    "countedById": null,
+    "countedAt": null,
+    "onBehalf": false,
     "lineCount": 2,
     "shortCount": 1,
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "sendBatchId": "b0000000-0000-4000-8000-000000000001",
     "counted": null,
     "onBehalfOfDepartment": null,
@@ -283,7 +297,7 @@
     ],
     "tracker": [
       { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
-      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
       { "key": "ON_THE_WAY", "state": "CURRENT", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
       { "key": "COUNTED", "state": "TODO", "at": null, "by": null, "carrier": null },
       { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "carrier": null }
@@ -348,11 +362,16 @@
     "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
     "status": "ON_THE_WAY",
     "stage": "WAITING_FOR_BRANCH",
+    "packedAt": "2026-10-08T12:01:00.000Z",
+    "arrivedAt": null,
+    "countedById": null,
+    "countedAt": null,
+    "onBehalf": false,
     "lineCount": 2,
     "shortCount": 0,
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "sendBatchId": "b0000000-0000-4000-8000-000000000001",
     "counted": null,
     "onBehalfOfDepartment": null,
@@ -361,7 +380,7 @@
     "siblings": [],
     "tracker": [
       { "key": "APPROVED", "state": "DONE", "at": "2026-10-08T11:11:00.000Z", "by": { "id": "u-bm", "name": "Samuel Njoroge", "initials": "SN", "roleLabel": "Branch Manager" }, "carrier": null },
-      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:03:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
+      { "key": "PACKED", "state": "DONE", "at": "2026-10-08T12:05:00.000Z", "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "carrier": null },
       { "key": "ON_THE_WAY", "state": "CURRENT", "at": "2026-10-08T12:05:00.000Z", "by": null, "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" } },
       { "key": "COUNTED", "state": "TODO", "at": null, "by": null, "carrier": null },
       { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "carrier": null }
@@ -420,13 +439,14 @@
     "copy": "store",
     "reference": "DSP-NYR-0232",
     "voided": false,
+    "cancelledAt": null,
     "requisitionReference": "REQ-NYR-0112",
     "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
     "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
     "date": "2026-10-08",
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "generatedAt": "2026-10-08T12:06:00.000Z",
     "qrPayload": "https://app.wendo-rms.co.ke/app/inventory/requisitions/dispatch/50000000-0000-4000-8000-000000000002",
     "lines": [
@@ -438,13 +458,14 @@
     "copy": "branch",
     "reference": "DSP-NYR-0232",
     "voided": false,
+    "cancelledAt": null,
     "requisitionReference": "REQ-NYR-0112",
     "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
     "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
     "date": "2026-10-08",
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE" },
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "generatedAt": "2026-10-08T12:06:00.000Z",
     "qrPayload": "https://app.wendo-rms.co.ke/app/inventory/requisitions/dispatch/50000000-0000-4000-8000-000000000002",
     "lines": [
@@ -453,14 +474,16 @@
     ]
   },
   "printQuery": { "copy": "branch" },
-  "cancelInput": { "reason": "Wrong carrier chosen; the van was not available", "pin": "4821" },
+  "cancelInput": { "reason": "Vehicle did not leave — the van would not start", "pin": "4821", "idempotencyKey": "cancel-dsp-nyr-0233-a1" },
+  "cancelInputBarePreset": { "reason": "Packed the wrong lines", "pin": "4821", "idempotencyKey": "cancel-dsp-nyr-0233-a2" },
   "cancelResult": {
     "id": "50000000-0000-4000-8000-000000000003",
     "reference": "DSP-NYR-0233",
     "status": "CANCELLED",
     "cancelledAt": "2026-10-08T12:20:00.000Z",
     "cancelledBy": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" },
-    "linesReturnedToQueue": 9
+    "linesReturnedToQueue": 9,
+    "replayed": false
   },
   "mineQuery": { "tab": "done", "from": "2026-10-02", "to": "2026-10-08", "branchId": "20000000-0000-4000-8000-000000000001", "page": "1", "pageSize": "25" },
   "mine": {
@@ -474,7 +497,7 @@
         "lineCount": 12,
         "signedAt": "2026-10-07T11:55:00.000Z",
         "stage": "GAP_HELD",
-        "result": "GAP_OPEN"
+        "result": "GAP_FOUND"
       },
       {
         "id": "50000000-0000-4000-8000-000000000011",
@@ -484,7 +507,7 @@
         "lineCount": 7,
         "signedAt": "2026-10-07T11:50:00.000Z",
         "stage": "CLOSED",
-        "result": "ALL_MATCHED"
+        "result": "CONFIRMED"
       }
     ],
     "tabCounts": { "on-the-way": 2, "done": 18 },
@@ -495,7 +518,8 @@
     "carriers": [
       { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K", "kind": "VEHICLE", "active": true, "retiredAt": null, "deliveriesThisMonth": 14 },
       { "id": "60000000-0000-4000-8000-000000000002", "name": "Daniel Otieno", "kind": "PERSON", "active": true, "retiredAt": null, "deliveriesThisMonth": 6 },
-      { "id": "60000000-0000-4000-8000-000000000003", "name": "Pickup KBX 118Q", "kind": "VEHICLE", "active": false, "retiredAt": "2026-09-20T07:00:00.000Z", "deliveriesThisMonth": 0 }
+      { "id": "60000000-0000-4000-8000-000000000003", "name": "Pickup KBX 118Q", "kind": "VEHICLE", "active": false, "retiredAt": "2026-09-20T07:00:00.000Z", "deliveriesThisMonth": 0 },
+      { "id": "60000000-0000-4000-8000-000000000005", "name": "Kenya Couriers Ltd", "kind": "COMPANY", "active": true, "retiredAt": null, "deliveriesThisMonth": 3 }
     ],
     "can": { "manage": true }
   },
@@ -510,5 +534,11 @@
   "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
   "errorCarrierInactive": { "success": false, "error": { "code": "CARRIER_INACTIVE", "message": "That carrier has been retired. Pick another." } },
   "errorNothingToSend": { "success": false, "error": { "code": "NOTHING_TO_SEND", "message": "Every department was left out, so there is nothing to send." } },
-  "errorAlreadyCounted": { "success": false, "error": { "code": "ALREADY_COUNTED", "message": "A member of the department has already counted this delivery, so it can no longer be cancelled." } }
+  "errorDispatchAlreadyCounted": { "success": false, "error": { "code": "DISPATCH_ALREADY_COUNTED", "message": "A member of the department has already counted this delivery, so it can no longer be cancelled." } },
+  "errorAlreadySigned": { "success": false, "error": { "code": "ALREADY_SIGNED", "message": "This department has already been signed and sent." } },
+  "errorStockChanged": {
+    "success": false,
+    "error": { "code": "STOCK_CHANGED", "message": "Stock changed while you were packing. Check the marked lines.", "details": { "lineIds": ["70000000-0000-4000-8000-000000000002"] } }
+  },
+  "errorDispatchCancelled": { "success": false, "error": { "code": "DISPATCH_CANCELLED", "message": "The store cancelled this dispatch." } }
 }

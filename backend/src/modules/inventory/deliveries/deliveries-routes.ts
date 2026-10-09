@@ -11,7 +11,9 @@ import { authenticate } from '../../../middleware/authenticate';
  * for any department of the branch with `deliveries.confirm_on_behalf`; never a new `requireRole` list. NOTHING on V1 to V4 carries
  * the sent figure. The photo upload is multipart (5 MB, 3 per line).
  *   V1 GET /mine   V2 GET /:id/count   V3 PUT /:id/count and POST /:id/check
- *   V4 PUT /:id/lines/:lineId/reason and POST /:id/photos   V5 GET /:id/confirm-preview   V6 POST /:id/confirm
+ *   V4 PUT /:id/lines/:lineId/reason, POST /:id/photos and DELETE /:id/photos/:photoId (Amendment 1 row 6)
+ *   V5 GET /:id/confirm-preview   V6 POST /:id/confirm
+ * V2 stamps `arrivedAt` the first time anyone from the department opens the delivery (Amendment 1 row 1).
  */
 const router = Router();
 

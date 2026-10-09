@@ -78,9 +78,26 @@ export const DISPATCH_ACTIONS: readonly DispatchAction[] = [
   'PACK_AGAIN',
 ];
 
-/** G2 and G3 chips. */
-export type DeliveryResult = 'ALL_MATCHED' | 'GAP_OPEN' | 'GAP_RESOLVED';
-export const DELIVERY_RESULTS: readonly DeliveryResult[] = ['ALL_MATCHED', 'GAP_OPEN', 'GAP_RESOLVED'];
+/** G2 chips and the `result` filter (Amendment 1 row 10). */
+export type DeliveryResult = 'MATCHED' | 'GAP_OPEN' | 'GAP_RESOLVED';
+export const DELIVERY_RESULTS: readonly DeliveryResult[] = ['MATCHED', 'GAP_OPEN', 'GAP_RESOLVED'];
+
+/** The result chip of a row on the Attendant's Done tab (G3). Null on the On the way tab. */
+export type DispatchDoneResult = 'CONFIRMED' | 'GAP_FOUND' | 'GAP_SETTLED' | 'CANCELLED';
+export const DISPATCH_DONE_RESULTS: readonly DispatchDoneResult[] = ['CONFIRMED', 'GAP_FOUND', 'GAP_SETTLED', 'CANCELLED'];
+
+/** Fixed constants, not settings: the 2-hour wait runs from `signedAt`; the amber "Waiting" chip on D1 starts at 20 minutes. */
+export const WAITING_FOR_BRANCH_AFTER_HOURS = 2;
+export const PACK_WAITING_CHIP_AFTER_MINUTES = 20;
+
+/** Socket event per record (Amendment 1 row 16); `inventory:badges` also carries `dispatch` and `deliveries` counts. */
+export const DISPATCH_CHANGED_EVENT = 'dispatch:changed';
+export interface DispatchChangedPayload {
+  id: string;
+  reference: string | null;
+  siteId: string;
+  reason: string;
+}
 
 export type DispatchEventType =
   | 'SIGNED_AND_SENT'
@@ -115,8 +132,9 @@ export interface Stamp {
   at: string;
 }
 
-export type CarrierKind = 'PERSON' | 'VEHICLE';
-export const CARRIER_KINDS: readonly CarrierKind[] = ['PERSON', 'VEHICLE'];
+/** `COMPANY` is "Courier company" (Amendment 1 row 4). */
+export type CarrierKind = 'PERSON' | 'VEHICLE' | 'COMPANY';
+export const CARRIER_KINDS: readonly CarrierKind[] = ['PERSON', 'VEHICLE', 'COMPANY'];
 export interface CarrierRef {
   id: string;
   name: string;
@@ -130,18 +148,15 @@ export interface Carrier extends CarrierRef {
   deliveriesThisMonth: number;
 }
 
-/** Up to 3 photos per line, 5 MB each (owner default, 8 Oct). */
+/** Up to 3 photos per line, 5 MB each, JPEG, PNG or WebP, kept in the new `DispatchPhoto` table (Amendment 1 row 6). */
 export const PHOTO_MAX_PER_LINE = 3;
 export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export type PhotoMimeType = (typeof PHOTO_MIME_TYPES)[number];
+/** `url` is an AUTHENTICATED link: load it with the caller's token. */
 export interface PhotoRef {
   id: string;
-  fileName: string;
-  size: number;
-  mimeType: PhotoMimeType;
-  at: string;
-  by: Person;
+  url: string;
 }
 
 /** D10 chips. */
@@ -225,6 +240,8 @@ export interface PackDepartment {
   lines: PackLine[];
   nextDepartmentId: string | null;
   allPacked: boolean;
+  /** "Go to the final review" works once at least one department is fully ticked (Amendment 1 row 2). */
+  canReview: boolean;
 }
 
 /** P3. Last write wins. The response is the updated `PackDepartment`. */
@@ -238,7 +255,10 @@ export interface ReviewDepartment {
   departmentId: string;
   departmentName: string;
   lineCount: number;
+  /** Not every line ticked: "Not ready · stays in To pack", no action. */
   allTicked: boolean;
+  /** A fully ticked department has "Leave out" (undo until signed). */
+  canLeaveOut: boolean;
   shortCount: number;
   shortLines: { itemName: string; unit: string; requestedQty: string; sentQty: string }[];
 }
@@ -288,6 +308,9 @@ export interface SignDispatchResult {
   leftOut: DepartmentRef[];
   lineCount: number;
   shortCount: number;
+  /** D6 "4 of 5 departments sent. Pastry is still to pack." */
+  sentDepartments: number;
+  totalDepartments: number;
   replayed: boolean;
 }
 
@@ -346,6 +369,16 @@ export interface DispatchFile {
   packed: Stamp;
   signed: Stamp;
   sendBatchId: string;
+  /** Amendment 1 row 10: the flat moments and people the file also carries (the stamps hold the same as objects). */
+  packedAt: string;
+  /** Stamped the first time anyone from the department opens the delivery; information only. Null: the card reads "On the way". */
+  arrivedAt: string | null;
+  countedById: string | null;
+  countedAt: string | null;
+  /** The Branch Manager signed for the department. */
+  onBehalf: boolean;
+  /** cap requisitions.see_value: value written off by a recorded finding at the cost frozen at dispatch; absent while `sentVisible` is false. */
+  lossValueKes?: string;
   counted: Stamp | null;
   onBehalfOfDepartment: DepartmentRef | null;
   cancelled: { at: string; by: Person; reason: string } | null;
@@ -376,6 +409,8 @@ export interface PrintDispatchQuery {
 interface PrintHeader {
   reference: string;
   voided: boolean;
+  /** The "VOID · cancelled {date}" band. Null unless voided. */
+  cancelledAt: string | null;
   requisitionReference: string;
   branch: BranchRef;
   department: DepartmentRef;
@@ -402,9 +437,23 @@ export type PrintDispatch = PrintStore | PrintBranch;
 // --- P8 POST /dispatch/:id/cancel (D20) ----------------------------------------------------------------
 
 export const DISPATCH_CANCEL_REASON_MAX = 300;
+/** The reason is "preset — note" (Amendment 1 row 8). `Other` needs a note; the others may carry one. */
+export const DISPATCH_CANCEL_PRESETS = ['Packed the wrong lines', 'Branch asked us to stop', 'Vehicle did not leave', 'Other'] as const;
+export type DispatchCancelPreset = (typeof DISPATCH_CANCEL_PRESETS)[number];
+export const DISPATCH_CANCEL_REASON_SEPARATOR = ' — ';
+/** Splits a reason into its preset and note; null when it does not start with a preset. */
+export const parseDispatchCancelReason = (reason: string): { preset: DispatchCancelPreset; note: string } | null => {
+  for (const preset of DISPATCH_CANCEL_PRESETS) {
+    if (reason === preset) return { preset, note: '' };
+    if (reason.startsWith(preset + DISPATCH_CANCEL_REASON_SEPARATOR)) return { preset, note: reason.slice(preset.length + DISPATCH_CANCEL_REASON_SEPARATOR.length).trim() };
+  }
+  return null;
+};
 export interface CancelDispatchInput {
   reason: string;
   pin: string;
+  /** A repeated key returns the first result. */
+  idempotencyKey: string;
 }
 export interface CancelDispatchResult {
   id: string;
@@ -413,6 +462,7 @@ export interface CancelDispatchResult {
   cancelledAt: string;
   cancelledBy: Person;
   linesReturnedToQueue: number;
+  replayed: boolean;
 }
 
 // --- P9 GET /dispatch/mine (G3) -------------------------------------------------------------------------
@@ -432,7 +482,7 @@ export interface DispatchMineRow {
   lineCount: number;
   signedAt: string;
   stage: DispatchStage;
-  result: DeliveryResult | null;
+  result: DispatchDoneResult | null;
 }
 export interface DispatchMine {
   tab: DispatchMineTab;
@@ -470,11 +520,14 @@ export const DISPATCH_ERROR_CODES = [
   'CARRIER_INACTIVE',
   'NOTHING_TO_SEND',
   'REQUISITION_NOT_APPROVED',
-  'ALREADY_SENT',
   'OVER_REQUESTED',
-  'ALREADY_COUNTED',
-  'ALREADY_CANCELLED',
   'NOT_SIGNED',
+  // Amendment 1 row 11
+  'ALREADY_SIGNED',
+  'STOCK_CHANGED',
+  'DISPATCH_ALREADY_COUNTED',
+  'DISPATCH_CANCELLED',
   'CARRIER_NAME_TAKEN',
+  'NOT_YOUR_DEPARTMENT',
 ] as const;
 export type DispatchErrorCode = (typeof DISPATCH_ERROR_CODES)[number];

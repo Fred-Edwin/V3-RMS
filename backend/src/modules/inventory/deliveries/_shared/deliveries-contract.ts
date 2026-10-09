@@ -18,6 +18,10 @@
  * Who counts: an active member or the head of the receiving department (`deliveries.count`, a department rule, held by no role in
  * the capability table) or the Branch Manager for any department (`deliveries.confirm_on_behalf`). Rows carry `can` flags.
  *
+ * Amendment 1 (docs/features/inventory/dispatch-amendment-1.md) is applied: the check also says which way a differing line differs
+ * (`direction`, never the size), V2 reports the saved count and whether the recount was used, `arrivedAt` is stamped by V2, photos
+ * are `{ id, url }` with a delete endpoint, V1 and V6 carry the fields of row 10, and the error codes are the row 11 names.
+ *
  * Do not change a shape here without changing the contract document, the mirror and the fixtures in the same commit, and only with
  * the owner's approval.
  */
@@ -25,6 +29,7 @@ import { z } from 'zod';
 import { decimalString, isoDateTime, nairobiDate, nonNegativeDecimal, pageInfoSchema, pageQuerySchema, personSchema, uuid } from '../../_shared/wire';
 import {
   branchRefSchema,
+  carrierRefSchema,
   countReasonSchema,
   deliveryResultSchema,
   departmentRefSchema,
@@ -32,6 +37,7 @@ import {
   idempotencyKeySchema,
   photoRefSchema,
   pinSchema,
+  requisitionCycleSchema,
 } from '../../dispatch/_shared/dispatch-contract';
 
 // --- Words and enums -----------------------------------------------------------
@@ -64,9 +70,14 @@ export const deliveryRowSchema = z.object({
   /** "DSP-NYR-0232" */
   reference: z.string(),
   department: departmentRefSchema,
+  /** Amendment 1 row 10: the requisition's cycle ("Afternoon") and the carrier. */
+  cycle: requisitionCycleSchema,
+  carrier: carrierRefSchema,
   lineCount: z.number().int().nonnegative(),
-  /** When the Central Store signed it ("left 3:05 pm"). The 2-hour wait runs from here (see the contract summary question). */
+  /** When the Central Store signed it ("left 3:05 pm"). The 2-hour wait runs from here (Amendment 1 row 1). */
   signedAt: isoDateTime,
+  /** Stamped the first time anyone from the department opens the delivery (V2); information only. Null before that: the card reads "On the way". // back end D */
+  arrivedAt: isoDateTime.nullable(),
   /** ON_THE_WAY or WAITING_FOR_BRANCH while waiting; CONFIRMED, GAP_HELD or CLOSED on the past tab. */
   stage: dispatchStageSchema,
   /** Someone has started counting: the button reads "Continue counting". */
@@ -74,7 +85,11 @@ export const deliveryRowSchema = z.object({
   /** Past tab: when it was confirmed, who counted for the department, and the chip (G2). Null while waiting. */
   confirmedAt: isoDateTime.nullable(),
   confirmedBy: personSchema.nullable(),
+  /** The confirmer's title ("Barista Department Head"). */
+  confirmedByTitle: z.string().nullable(),
+  /** History (G2): MATCHED, GAP_OPEN or GAP_RESOLVED, with the number of lines whose count differed. Null while waiting. */
   result: deliveryResultSchema.nullable(),
+  gapCount: z.number().int().nonnegative().nullable(),
   can: z.object({ count: z.boolean(), confirmOnBehalf: z.boolean() }),
 });
 export type DeliveryRow = z.infer<typeof deliveryRowSchema>;
@@ -100,6 +115,10 @@ export const countLineSchema = z.object({
   state: lineCountStateSchema,
   /** Checks this line has been through: 0, 1 (flagged once), 2 (final). */
   attempt: z.number().int().min(0).max(2),
+  /** Amendment 1 row 5: the one recount has been used (the second count is final). */
+  recountUsed: z.boolean(),
+  /** Which way a checked line differs, as Paper D10 draws it ("This line will be marked short"); never the size. Null until the first check flags it. */
+  direction: z.enum(['SHORT', 'EXTRA']).nullable(),
   reason: countReasonSchema.nullable(),
   reasonNote: z.string().nullable(),
   photos: z.array(photoRefSchema),
@@ -112,6 +131,8 @@ export const countViewSchema = z.object({
   branch: branchRefSchema,
   department: departmentRefSchema,
   signedAt: isoDateTime,
+  /** Stamped by this very read the first time anyone from the department opens the delivery (Amendment 1 row 1). // back end D */
+  arrivedAt: isoDateTime.nullable(),
   lineCount: z.number().int().nonnegative(),
   /** Lines with a saved count ("8 of 8 counted"). */
   countedCount: z.number().int().nonnegative(),
@@ -127,7 +148,10 @@ export type CountView = z.infer<typeof countViewSchema>;
 
 // --- V3 PUT /deliveries/:id/count and POST /deliveries/:id/check (Paper D8, D9) ------------
 
-/** Saves what was typed; never says whether it matches. A line already SHORT or EXTRA is final and is refused (`COUNT_FINAL`). Last write wins. */
+/**
+ * Saves what was typed; never says whether it matches. Counts autosave; 0 is a valid count, an empty box is not (a line is sent only
+ * with a number); one shared draft per delivery, last write wins. A line already SHORT or EXTRA is final and is refused (`RECOUNT_USED`).
+ */
 export const saveCountInputSchema = z
   .object({ counts: z.array(z.object({ lineId: uuid, countedQty: nonNegativeDecimal }).strict()).min(1).max(300) })
   .strict()
@@ -136,11 +160,20 @@ export type SaveCountInput = z.infer<typeof saveCountInputSchema>;
 /** The response is the updated `CountView`. */
 
 /**
- * The check (no body): every line is compared; the response lists ONLY the lines that differ, by name and typed number. A line
- * differing for the first time is COUNT_AGAIN; one that still differs is SHORT or EXTRA (final). No sent figure, no size of gap.
+ * The check (no body), run on "Check and sign": every line is compared; the response lists ONLY the lines that differ, by name and
+ * typed number, with the `direction` they differ in (Paper D10). A line differing for the first time is COUNT_AGAIN; one that still
+ * differs is SHORT or EXTRA (final). No sent figure, no size of gap.
  */
 export const checkCountResultSchema = z.object({
-  differing: z.array(z.object({ lineId: uuid, itemName: z.string(), countedQty: nonNegativeDecimal, state: z.enum(['COUNT_AGAIN', 'SHORT', 'EXTRA']) })),
+  differing: z.array(
+    z.object({
+      lineId: uuid,
+      itemName: z.string(),
+      countedQty: nonNegativeDecimal,
+      direction: z.enum(['SHORT', 'EXTRA']),
+      state: z.enum(['COUNT_AGAIN', 'SHORT', 'EXTRA']),
+    }),
+  ),
   /** No line is COUNT_AGAIN: the counts are final and the next screens are reasons, the summary and the PIN. */
   final: z.boolean(),
   /** Every line that is SHORT or EXTRA has a reason (V4). */
@@ -163,6 +196,10 @@ export const uploadPhotoFieldsSchema = z.object({ lineId: uuid }).strict();
 export type UploadPhotoFields = z.infer<typeof uploadPhotoFieldsSchema>;
 export const uploadPhotoResultSchema = z.object({ lineId: uuid, photo: photoRefSchema, photos: z.array(photoRefSchema) });
 export type UploadPhotoResult = z.infer<typeof uploadPhotoResultSchema>;
+
+/** `DELETE /deliveries/:id/photos/:photoId` (Amendment 1 row 6), no body: removes a mistaken photo before the confirm; the response is the line's photos that remain. */
+export const deletePhotoResultSchema = z.object({ lineId: uuid, photos: z.array(photoRefSchema) });
+export type DeletePhotoResult = z.infer<typeof deletePhotoResultSchema>;
 
 // --- V5 GET /deliveries/:id/confirm-preview (Paper D11) --------------------------------------
 
@@ -208,6 +245,9 @@ export const confirmDeliveryResultSchema = z.object({
   id: uuid,
   reference: z.string(),
   status: z.enum(['CONFIRMED', 'CLOSED']),
+  /** The three times of D12 (Amendment 1 row 10): left, arrived (null if nobody opened it first, as on-behalf), confirmed. */
+  signedAt: isoDateTime,
+  arrivedAt: isoDateTime.nullable(),
   confirmedAt: isoDateTime,
   /** The real signer. */
   confirmedBy: personSchema,
@@ -226,16 +266,18 @@ export type ConfirmDeliveryResult = z.infer<typeof confirmDeliveryResultSchema>;
 export const DELIVERY_ERROR_CODES = [
   'INVALID_PIN', // 401: V6
   'NOT_YOUR_DEPARTMENT', // 403: V1 to V6, a member of another department
-  'NOT_ON_THE_WAY', // 409: V2 to V6, the dispatch is cancelled, not signed, or already confirmed
-  'ALREADY_CONFIRMED', // 409: V3 to V6, another member signed first (the two-signature race)
-  'COUNT_FINAL', // 409: V3 PUT, the line was already checked twice
-  'NOT_ALL_COUNTED', // 409: V3 check, V5, V6, a line has no count
+  'NOT_ON_THE_WAY', // 409: V2 to V6, the dispatch is not signed yet, or already confirmed
   'COUNT_AGAIN_PENDING', // 409: V5, V6, a flagged line has not been counted again and checked
   'LINE_NOT_DIFFERENT', // 409: V4, a reason or photo on a line that matches or is not final
-  'REASON_MISSING', // 409: V5 (canConfirm false), V6, a differing line without a reason
-  'TOO_MANY_PHOTOS', // 409: V4, more than 3 on a line
-  'PHOTO_TOO_LARGE', // 413: V4, over 5 MB
   'PHOTO_TYPE_NOT_ALLOWED', // 415: V4, not a JPEG, PNG or WebP
   'ON_BEHALF_NOT_ALLOWED', // 403: V6, `onBehalf` by someone without `deliveries.confirm_on_behalf`
+  // Amendment 1 row 11 (renamed from my first pass where they overlap: COUNT_FINAL, NOT_ALL_COUNTED, REASON_MISSING)
+  'ALREADY_CONFIRMED', // 409: V3 to V6, another member signed first (the two-signature race)
+  'NOT_COUNTED', // 409: V3 check, V5, V6, a line has no count
+  'RECOUNT_USED', // 409: V3 PUT, the line was already checked twice: the second count is final
+  'REASON_REQUIRED', // 422: V5 (canConfirm false), V6, a differing line without a reason
+  'DISPATCH_CANCELLED', // 409: V2 to V6, the dispatch was cancelled by the store (the department learns on its next write; no push)
+  'TOO_MANY_PHOTOS', // 409: V4, more than 3 on a line
+  'PHOTO_TOO_LARGE', // 413: V4, over 5 MB
 ] as const;
 export type DeliveryErrorCode = (typeof DELIVERY_ERROR_CODES)[number];

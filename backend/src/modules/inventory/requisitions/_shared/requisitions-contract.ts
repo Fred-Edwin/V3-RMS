@@ -211,7 +211,11 @@ export const trackerStepSchema = z.object({
   state: z.enum(['DONE', 'CURRENT', 'TODO']),
   at: isoDateTime.nullable(),
   by: personSchema.nullable(),
-  /** The step's count where it has one (ALL_IN: sections in of sections counted); null otherwise. */
+  /**
+   * The step's count where it has one: ALL_IN sections in of sections counted; PACKED "n of m sent" (departments whose dispatch is
+   * signed of the departments that count); DELIVERED "n counted" (departments whose delivery is counted, of the same total; Dispatch
+   * Amendment 1 row 10). Null otherwise. // back end C and D fill PACKED and DELIVERED
+   */
   count: z.object({ done: z.number().int().nonnegative(), total: z.number().int().nonnegative() }).nullable(),
 });
 export type TrackerStep = z.infer<typeof trackerStepSchema>;
@@ -233,14 +237,35 @@ export const nextStepSchema = z.object({
 });
 export type NextStep = z.infer<typeof nextStepSchema>;
 
-/** A dispatch of this requisition. Empty until Block 2 fills it; the shape is fixed now so the file page need not change. */
+/** The database dispatch statuses and the derived states, repeated here because this contract cannot import the Dispatch contract (it imports this one); `dispatch-contract.test.ts` pins that the lists are identical. */
+export const DISPATCH_STATUS_VALUES = ['TO_PACK', 'PACKING', 'ON_THE_WAY', 'CONFIRMED', 'CLOSED', 'CANCELLED'] as const;
+export const DISPATCH_DERIVED_STATE_VALUES = [
+  'TO_PACK',
+  'PACKING',
+  'READY_TO_SEND',
+  'ON_THE_WAY',
+  'WAITING_FOR_BRANCH',
+  'CONFIRMED',
+  'GAP_HELD',
+  'CLOSED',
+  'CANCELLED',
+] as const;
+
+/**
+ * A dispatch of this requisition (Block 2, Dispatch Amendment 1 row 10). One per department: the rows of departments still to pack
+ * have no number, no signing time and no carrier yet. The front end writes the words from `derivedState`. // back end C
+ */
 export const dispatchRefSchema = z.object({
   id: uuid,
-  /** "DSP-NYR-0112" */
-  reference: z.string(),
+  /** "DSP-NYR-0112"; null until the department's dispatch is signed. */
+  reference: z.string().nullable(),
   departmentId: uuid,
-  status: z.string(),
-  statusText: z.string(),
+  departmentName: z.string(),
+  status: z.enum(DISPATCH_STATUS_VALUES),
+  derivedState: z.enum(DISPATCH_DERIVED_STATE_VALUES),
+  lineCount: z.number().int().nonnegative(),
+  signedAt: isoDateTime.nullable(),
+  carrierName: z.string().nullable(),
 });
 export type DispatchRef = z.infer<typeof dispatchRefSchema>;
 
@@ -329,6 +354,8 @@ export const badgesSchema = z.object({
   toPack: z.number().int().nonnegative().optional(),
   /** Block 2: a head's deliveries to confirm. */
   deliveries: z.number().int().nonnegative().optional(),
+  /** Dispatch Amendment 1 row 16: the Attendant's Dispatch row (branches to pack). The `inventory:badges` event also carries `dispatch` and `deliveries`. // back end C */
+  dispatch: z.number().int().nonnegative().optional(),
 });
 export type Badges = z.infer<typeof badgesSchema>;
 

@@ -108,4 +108,25 @@ export const DISPATCH_WORDING_ROWS: readonly DispatchWordingRow[] = [
     whoSeesIt: 'Store Manager',
     words: ['Reverse this finding?', 'Both entries stay on the file and in the audit log.', 'Keep the finding'],
   },
+  // Approved as written in Dispatch Amendment 1 (9 Oct 2026); the rest is written by the front-end sessions.
+  {
+    moment: 'An extra line on the summary (row 15)',
+    whoSeesIt: 'Department member',
+    words: ['You counted 26, 24 were sent. The Store Manager will say what happened to the 2 extra.'],
+  },
+  {
+    moment: 'Confirm for a department that has not counted (D19, row 1)',
+    whoSeesIt: 'Branch Manager',
+    words: ['It left at 3:05 pm. Nobody in Pastry has counted it yet.'],
+  },
+  {
+    moment: 'Some departments left out at the final review (D6, row 2)',
+    whoSeesIt: 'Store Attendant',
+    words: ['4 of 5 departments sent. Pastry is still to pack.', 'Not ready · stays in To pack'],
+  },
+  {
+    moment: 'No carrier is set up (row 3)',
+    whoSeesIt: 'Store Attendant',
+    words: ['No carrier is set up. Ask the Store Manager to add one in Settings.'],
+  },
 ];

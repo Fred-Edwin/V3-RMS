@@ -6,8 +6,22 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import fixtures from './dispatch-contract.fixtures.json';
+import { DISPATCH_DERIVED_STATE_VALUES, DISPATCH_STATUS_VALUES } from '../../requisitions/_shared/requisitions-contract';
+import { DELIVERY_ERROR_CODES } from '../../deliveries/_shared/deliveries-contract';
+import { DISCREPANCY_CHANGED_EVENT, DISCREPANCY_ERROR_CODES } from '../../discrepancies/_shared/discrepancies-contract';
 import {
   addCarrierInputSchema,
+  CARRIER_KINDS,
+  DELIVERY_RESULTS,
+  DISPATCH_CANCEL_PRESETS,
+  DISPATCH_CHANGED_EVENT,
+  DISPATCH_DONE_RESULTS,
+  DISPATCH_STATUSES,
+  PACK_WAITING_CHIP_AFTER_MINUTES,
+  WAITING_FOR_BRANCH_AFTER_HOURS,
+  dispatchChangedPayloadSchema,
+  parseDispatchCancelReason,
+  photoRefSchema,
   cancelDispatchInputSchema,
   cancelDispatchResultSchema,
   carrierSchema,
@@ -49,6 +63,7 @@ describe('dispatch contract fixtures', () => {
     ['printBranch', printDispatchSchema],
     ['printQuery', printDispatchQuerySchema],
     ['cancelInput', cancelDispatchInputSchema],
+    ['cancelInputBarePreset', cancelDispatchInputSchema],
     ['cancelResult', cancelDispatchResultSchema],
     ['mineQuery', dispatchMineQuerySchema],
     ['mine', dispatchMineSchema],
@@ -62,7 +77,10 @@ describe('dispatch contract fixtures', () => {
     ['errorInvalidPin', errorBodySchema],
     ['errorCarrierInactive', errorBodySchema],
     ['errorNothingToSend', errorBodySchema],
-    ['errorAlreadyCounted', errorBodySchema],
+    ['errorDispatchAlreadyCounted', errorBodySchema],
+    ['errorAlreadySigned', errorBodySchema],
+    ['errorStockChanged', errorBodySchema],
+    ['errorDispatchCancelled', errorBodySchema],
   ] as const)('%s parses', (name, schema) => {
     const result = schema.safeParse(F[name]);
     expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
@@ -70,7 +88,7 @@ describe('dispatch contract fixtures', () => {
 
   it('every error fixture uses a code the contract lists', () => {
     const errorFixtures = Object.keys(F).filter((name) => name.startsWith('error'));
-    expect(errorFixtures).toHaveLength(5);
+    expect(errorFixtures).toHaveLength(8);
     for (const name of errorFixtures) {
       const code = (F[name] as { error: { code: string } }).error.code;
       expect(DISPATCH_ERROR_CODES as readonly string[]).toContain(code);
@@ -170,10 +188,12 @@ describe('inputs that must be refused', () => {
     expect(savePackLinesInputSchema.safeParse({ lines: [] }).success).toBe(false);
   });
 
-  it('a cancel needs a reason and a PIN', () => {
-    expect(cancelDispatchInputSchema.safeParse({ pin: '4821' }).success).toBe(false);
-    expect(cancelDispatchInputSchema.safeParse({ reason: 'no', pin: '4821' }).success).toBe(false);
-    expect(cancelDispatchInputSchema.safeParse({ reason: 'Wrong carrier', pin: 'abcd' }).success).toBe(false);
+  it('a cancel needs a reason, a PIN and an idempotency key', () => {
+    const key = 'cancel-dsp-nyr-0233-a9';
+    expect(cancelDispatchInputSchema.safeParse({ pin: '4821', idempotencyKey: key }).success).toBe(false);
+    expect(cancelDispatchInputSchema.safeParse({ reason: 'no', pin: '4821', idempotencyKey: key }).success).toBe(false);
+    expect(cancelDispatchInputSchema.safeParse({ reason: 'Packed the wrong lines', pin: 'abcd', idempotencyKey: key }).success).toBe(false);
+    expect(cancelDispatchInputSchema.safeParse({ reason: 'Packed the wrong lines', pin: '4821' }).success).toBe(false);
   });
 
   it('a carrier update is a rename or a retire or restore, never both and never neither', () => {
@@ -192,6 +212,96 @@ describe('inputs that must be refused', () => {
   it('the delivery note copy is store or branch', () => {
     expect(printDispatchQuerySchema.safeParse({ copy: 'both' }).success).toBe(false);
     expect(printDispatchQuerySchema.safeParse({}).success).toBe(false);
+  });
+});
+
+/** Dispatch Amendment 1 (docs/features/inventory/dispatch-amendment-1.md): every new field and rule is pinned. */
+describe('Amendment 1', () => {
+  it('row 1: the clock runs from signedAt; arrivedAt is separate and nullable', () => {
+    for (const file of [fixtures.fileHub, fixtures.fileAttendantOnTheWay, fixtures.fileBranchManagerBlind]) {
+      expect(Object.keys(file)).toEqual(expect.arrayContaining(['arrivedAt', 'packedAt', 'countedById', 'countedAt', 'onBehalf']));
+    }
+    expect(fixtures.fileBranchManagerBlind.arrivedAt).toBeNull();
+    expect(fixtures.fileBranchManagerBlind.nextStep.facts.waitingSince).toBe(fixtures.fileBranchManagerBlind.signed.at);
+    expect(WAITING_FOR_BRANCH_AFTER_HOURS).toBe(2);
+    expect(PACK_WAITING_CHIP_AFTER_MINUTES).toBe(20);
+  });
+
+  it('row 2: go to the review once one department is ticked; a ticked department can be left out; the sign result counts departments', () => {
+    expect(Object.keys(fixtures.packDepartment)).toContain('canReview');
+    for (const d of fixtures.review.departments) expect(Object.keys(d)).toEqual(expect.arrayContaining(['allTicked', 'canLeaveOut']));
+    expect(fixtures.signResult.sentDepartments).toBeLessThanOrEqual(fixtures.signResult.totalDepartments);
+    expect(fixtures.signResult.sentDepartments + fixtures.signResult.leftOut.length).toBe(fixtures.signResult.totalDepartments);
+  });
+
+  it('row 4: carrier kinds are Person, Vehicle and Courier company', () => {
+    expect(CARRIER_KINDS).toEqual(['PERSON', 'VEHICLE', 'COMPANY']);
+    expect(addCarrierInputSchema.safeParse({ name: 'Kenya Couriers Ltd', kind: 'COMPANY' }).success).toBe(true);
+    expect(fixtures.listCarriers.carriers.some((c) => c.kind === 'COMPANY')).toBe(true);
+  });
+
+  it('row 6: a photo is { id, url } and nothing else', () => {
+    expect(photoRefSchema.safeParse({ id: '90000000-0000-4000-8000-000000000001', url: '/x' }).success).toBe(true);
+    expect(photoRefSchema.parse({ id: '90000000-0000-4000-8000-000000000001', url: '/x', fileName: 'a.jpg' })).toEqual({ id: '90000000-0000-4000-8000-000000000001', url: '/x' });
+  });
+
+  it('row 8: the cancel reason is "preset — note"; Other needs a note; a bare preset is allowed', () => {
+    expect(DISPATCH_CANCEL_PRESETS).toEqual(['Packed the wrong lines', 'Branch asked us to stop', 'Vehicle did not leave', 'Other']);
+    const base = { pin: '4821', idempotencyKey: 'cancel-dsp-nyr-0233-b1' };
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Branch asked us to stop' }).success).toBe(true);
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Branch asked us to stop — the Kitchen closed early' }).success).toBe(true);
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Other' }).success).toBe(false);
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Other — ' }).success).toBe(false);
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Other — the carrier fell ill' }).success).toBe(true);
+    expect(cancelDispatchInputSchema.safeParse({ ...base, reason: 'Changed my mind' }).success).toBe(false);
+    expect(parseDispatchCancelReason('Vehicle did not leave — flat tyre')).toEqual({ preset: 'Vehicle did not leave', note: 'flat tyre' });
+  });
+
+  it('row 10: the Done chips and the delivery results are the amendment words', () => {
+    expect(DISPATCH_DONE_RESULTS).toEqual(['CONFIRMED', 'GAP_FOUND', 'GAP_SETTLED', 'CANCELLED']);
+    expect(DELIVERY_RESULTS).toEqual(['MATCHED', 'GAP_OPEN', 'GAP_RESOLVED']);
+    expect(fixtures.mine.rows.map((r) => r.result)).toEqual(['GAP_FOUND', 'CONFIRMED']);
+  });
+
+  it('row 10: a delivery note carries the VOID band date, null unless voided', () => {
+    expect(fixtures.printStore.cancelledAt).toBeNull();
+    expect(printDispatchSchema.safeParse({ ...fixtures.printStore, voided: true, cancelledAt: '2026-10-08T12:20:00.000Z' }).success).toBe(true);
+  });
+
+  it('row 10: the requisition contract repeats the status and derived-state lists exactly', () => {
+    expect([...DISPATCH_STATUS_VALUES]).toEqual([...DISPATCH_STATUSES]);
+    expect([...DISPATCH_DERIVED_STATE_VALUES]).toEqual([...DISPATCH_STAGES]);
+  });
+
+  it('row 11: the three contracts together list all thirteen codes of the amendment', () => {
+    const all = new Set<string>([...DISPATCH_ERROR_CODES, ...DELIVERY_ERROR_CODES, ...DISCREPANCY_ERROR_CODES]);
+    for (const code of [
+      'ALREADY_CONFIRMED',
+      'NOT_COUNTED',
+      'RECOUNT_USED',
+      'REASON_REQUIRED',
+      'NOT_YOUR_DEPARTMENT',
+      'DISPATCH_CANCELLED',
+      'PHOTO_TOO_LARGE',
+      'TOO_MANY_PHOTOS',
+      'ALREADY_SIGNED',
+      'STOCK_CHANGED',
+      'DISPATCH_ALREADY_COUNTED',
+      'CARRIER_NAME_TAKEN',
+      'FINDING_NOT_REVERSIBLE',
+    ]) {
+      expect(all.has(code), code).toBe(true);
+    }
+  });
+
+  it('row 11: STOCK_CHANGED names the affected lines', () => {
+    expect(fixtures.errorStockChanged.error.details.lineIds.length).toBeGreaterThan(0);
+  });
+
+  it('row 16: the socket event names and the payload', () => {
+    expect(DISPATCH_CHANGED_EVENT).toBe('dispatch:changed');
+    expect(DISCREPANCY_CHANGED_EVENT).toBe('discrepancy:changed');
+    expect(dispatchChangedPayloadSchema.safeParse({ id: '50000000-0000-4000-8000-000000000001', reference: 'DSP-NYR-0231', siteId: 'hub', reason: 'dispatch.signed' }).success).toBe(true);
   });
 });
 

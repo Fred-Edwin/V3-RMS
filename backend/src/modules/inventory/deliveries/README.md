@@ -7,6 +7,9 @@ The branch side of a dispatch: a department member counts the delivery **blind**
 ## Contract (frozen when the owner says so)
 `_shared/deliveries-contract.ts` (Zod, V1 to V6), `deliveries-contract.fixtures.json` (one example per endpoint and the error cases, byte-identical to `frontend/features/inventory/deliveries/_shared/types/`), `deliveries-contract.test.ts` (parses every fixture, pins the blind rule). Shared pieces (photos, reasons, stages, error envelope) come from `dispatch/_shared/dispatch-contract.ts`.
 
+## Amendment 1 (owner approved 9 Oct 2026, `docs/features/inventory/dispatch-amendment-1.md`)
+In the contract: `arrivedAt` (stamped by V2; the 2-hour clock runs from `signedAt`), the check gives `direction` per differing line, V2 lines carry `recountUsed` and `direction`, photos are `{ id, url }` (authenticated link, `DispatchPhoto` table) with a new `DELETE /:id/photos/:photoId`, V1 rows carry cycle, carrier, arrivedAt, the confirmer's title, `result` (`MATCHED`, `GAP_OPEN`, `GAP_RESOLVED`) and `gapCount`, V6 returns the three times, and the codes are `ALREADY_CONFIRMED`, `NOT_COUNTED`, `RECOUNT_USED`, `REASON_REQUIRED`, `NOT_YOUR_DEPARTMENT`, `DISPATCH_CANCELLED`, `PHOTO_TOO_LARGE`, `TOO_MANY_PHOTOS`. Behaviour (stamping, autosave, photos, the jobs, sockets `inventory:badges` and `dispatch:changed`) is back end D's.
+
 ## The blind rule, in the shape
 Nothing in V1 to V4 carries the sent quantity, the gap, or any stand-in (a test pins the key names). A save stores what was typed and never says whether it matches; the check (`POST /check`) is the comparison: a differing line is `COUNT_AGAIN` once, then `SHORT` or `EXTRA` (direction only) and final. The sent figure first appears in V5 (the confirm preview). The branch never sees money.
 

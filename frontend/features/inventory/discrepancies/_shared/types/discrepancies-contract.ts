@@ -11,7 +11,19 @@ import type { BranchRef, CountReason, DepartmentRef, DispatchActivityEvent, Phot
 
 // --- Words and enums -----------------------------------------------------------
 
-/** OPEN = held as unaccounted, waiting for a finding. */
+/** Socket event per record (Amendment 1 row 16). */
+export const DISCREPANCY_CHANGED_EVENT = 'discrepancy:changed';
+export interface DiscrepancyChangedPayload {
+  id: string;
+  reference: string;
+  siteId: string;
+  reason: string;
+}
+
+/**
+ * OPEN = held as unaccounted, waiting for a finding, and again after a reversal. REVERSED is the instant a reversal is posted: the
+ * status goes REVERSED and straight back to OPEN (Amendment 1 row 7), so a response never shows it as the settled state.
+ */
 export type DiscrepancyStatus = 'OPEN' | 'RECORDED' | 'REVERSED';
 export const DISCREPANCY_STATUSES: readonly DiscrepancyStatus[] = ['OPEN', 'RECORDED', 'REVERSED'];
 
@@ -104,7 +116,8 @@ export interface DiscrepancyRow {
 export interface ListDiscrepancies {
   tab: DiscrepancyTab;
   rows: DiscrepancyRow[];
-  tabCounts: { open: number; settled: number };
+  /** A discrepancy whose finding was reversed counts as Open. */
+  counts: { open: number; settled: number };
   /** Hub roles only. */
   branches?: BranchRef[];
   page: PageInfo;
@@ -136,9 +149,11 @@ export interface DiscrepancyFile {
   assignedTo: string;
   openedAt: string;
   reminderSentAt: string | null;
+  /** The CURRENT finding: null while OPEN, including after a reversal (history in `events` and `reversal`). */
   finding: RecordedFinding | null;
+  /** The latest reversal. */
   reversal: Reversal | null;
-  /** The findings that may be recorded; empty unless the status is OPEN. */
+  /** The findings that may be recorded; empty unless the status is OPEN (full again after a reversal). */
   allowedFindings: Finding[];
   events: DispatchActivityEvent[];
   nextStep: { action: 'RECORD_A_FINDING' | null; facts: { reminderAfterHours: number } };
@@ -173,6 +188,8 @@ export interface RecordFindingInput {
   finding: Finding;
   note?: string;
   pin: string;
+  /** A repeated key returns the first result. */
+  idempotencyKey: string;
 }
 export interface RecordFindingResult {
   id: string;
@@ -180,6 +197,7 @@ export interface RecordFindingResult {
   status: 'RECORDED';
   finding: RecordedFinding;
   ledgerEntries: number;
+  replayed: boolean;
 }
 
 // --- Q5 POST /discrepancies/:id/reverse (D16) ----------------------------------------------------------
@@ -187,13 +205,17 @@ export interface RecordFindingResult {
 export interface ReverseFindingInput {
   reason: string;
   pin: string;
+  /** A repeated key returns the first result. */
+  idempotencyKey: string;
 }
+/** After a reversal the gap is held as unaccounted again: `status` is OPEN and a new finding may be recorded. */
 export interface ReverseFindingResult {
   id: string;
   reference: string;
-  status: 'REVERSED';
+  status: 'OPEN';
   reversal: Reversal;
   ledgerEntries: number;
+  replayed: boolean;
 }
 
 // --- Errors ------------------------------------------------------------------------------------------------
@@ -202,7 +224,7 @@ export const DISCREPANCY_ERROR_CODES = [
   'FINDING_ALREADY_RECORDED',
   'INVALID_PIN',
   'FINDING_NOT_ALLOWED',
-  'NO_FINDING_TO_REVERSE',
-  'ALREADY_REVERSED',
+  // Amendment 1 rows 7 and 11: replaces NO_FINDING_TO_REVERSE and ALREADY_REVERSED
+  'FINDING_NOT_REVERSIBLE',
 ] as const;
 export type DiscrepancyErrorCode = (typeof DISCREPANCY_ERROR_CODES)[number];

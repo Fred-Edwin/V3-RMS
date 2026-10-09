@@ -15,8 +15,8 @@ describe('dispatch wording skeleton (Paper D21)', () => {
     expect(DISPATCH_STATE_ROWS.map((r) => r.stage)).not.toContain('CONFIRMED');
   });
 
-  it('seven wording moments, no person names, every moment has words', () => {
-    expect(DISPATCH_WORDING_ROWS).toHaveLength(7);
+  it('seven wording moments from D21 plus the four texts Amendment 1 approves as written, no person names, every moment has words', () => {
+    expect(DISPATCH_WORDING_ROWS).toHaveLength(11);
     for (const row of DISPATCH_WORDING_ROWS) {
       expect(row.words.length).toBeGreaterThan(0);
       expect(row.whoSeesIt).not.toMatch(/Peter|Joseph|Grace|Samuel/);

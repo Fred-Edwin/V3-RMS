@@ -24,6 +24,10 @@
  * Words: the back end returns facts and keys (status, stage, action key, tracker facts). Titles, bodies and labels are the front
  * ends', written from Paper (D21 and the States kit); `DISPATCH_STAGE_TEXT` below is only the eight state names D21 draws.
  *
+ * Amendment 1 (owner approved 9 Oct 2026, docs/features/inventory/dispatch-amendment-1.md) is applied. The 2-hour clock runs from
+ * `signedAt`; `arrivedAt` is only information (stamped by V2 the first time the department opens the delivery). Fields marked
+ * `// back end C` or `// back end D` cannot be produced yet: the shape is fixed, the behaviour is that session's.
+ *
  * Do not change a shape here without changing the contract document, the mirror and the fixtures in the same commit, and only with
  * the owner's approval.
  */
@@ -95,10 +99,24 @@ export const DISPATCH_ACTIONS = [
 export const dispatchActionSchema = z.enum(DISPATCH_ACTIONS);
 export type DispatchAction = z.infer<typeof dispatchActionSchema>;
 
-/** The delivery's result for a department, shown on the branch history (G2) and the Attendant's Done tab (G3). */
-export const DELIVERY_RESULTS = ['ALL_MATCHED', 'GAP_OPEN', 'GAP_RESOLVED'] as const;
+/** The delivery's result for a department, shown on the branch history (G2) and filtered by `result` (Amendment 1, row 10). */
+export const DELIVERY_RESULTS = ['MATCHED', 'GAP_OPEN', 'GAP_RESOLVED'] as const;
 export const deliveryResultSchema = z.enum(DELIVERY_RESULTS);
 export type DeliveryResult = z.infer<typeof deliveryResultSchema>;
+
+/** The result chip of a row on the Attendant's Done tab (G3, Amendment 1 row 10). Null on the On the way tab. */
+export const DISPATCH_DONE_RESULTS = ['CONFIRMED', 'GAP_FOUND', 'GAP_SETTLED', 'CANCELLED'] as const;
+export const dispatchDoneResultSchema = z.enum(DISPATCH_DONE_RESULTS);
+export type DispatchDoneResult = z.infer<typeof dispatchDoneResultSchema>;
+
+/** Fixed constants, not settings (owner, 8 and 9 Oct): the 2-hour wait runs from `signedAt`; the amber "Waiting" chip on D1 starts at 20 minutes. */
+export const WAITING_FOR_BRANCH_AFTER_HOURS = 2;
+export const PACK_WAITING_CHIP_AFTER_MINUTES = 20;
+
+/** Socket events (Amendment 1 row 16), per record; `inventory:badges` also carries `dispatch` and `deliveries` counts. Emitted by back end C and D. */
+export const DISPATCH_CHANGED_EVENT = 'dispatch:changed';
+export const dispatchChangedPayloadSchema = z.object({ id: uuid, reference: z.string().nullable(), siteId: z.string(), reason: z.string() });
+export type DispatchChangedPayload = z.infer<typeof dispatchChangedPayloadSchema>;
 
 /** Append-only activity of a dispatch (the file's Activity tab, the Audit log source DISPATCH). Packing saves are not events. */
 export const DISPATCH_EVENT_TYPES = [
@@ -123,7 +141,8 @@ export type DepartmentRef = z.infer<typeof departmentRefSchema>;
 export const stampSchema = z.object({ by: personSchema, at: isoDateTime });
 export type Stamp = z.infer<typeof stampSchema>;
 
-export const CARRIER_KINDS = ['PERSON', 'VEHICLE'] as const;
+/** `COMPANY` is "Courier company" (Amendment 1 row 4). */
+export const CARRIER_KINDS = ['PERSON', 'VEHICLE', 'COMPANY'] as const;
 export const carrierKindSchema = z.enum(CARRIER_KINDS);
 export type CarrierKind = z.infer<typeof carrierKindSchema>;
 
@@ -140,18 +159,15 @@ export const carrierSchema = carrierRefSchema.extend({
 });
 export type Carrier = z.infer<typeof carrierSchema>;
 
-/** A photo on a delivery line: up to 3 per line, 5 MB each (owner default, 8 Oct). The picture comes from a short-lived link. */
+/**
+ * A photo on a delivery line: up to 3 per line, 5 MB each, JPEG, PNG or WebP (owner default, 8 Oct), kept in the new `DispatchPhoto`
+ * table (not Purchasing's file table; Amendment 1 row 6). The wire is `{ id, url }`: the url is an AUTHENTICATED link, so the screen
+ * loads it with the caller's token. // back end D
+ */
 export const PHOTO_MAX_PER_LINE = 3;
 export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-export const photoRefSchema = z.object({
-  id: uuid,
-  fileName: z.string(),
-  size: z.number().int().nonnegative(),
-  mimeType: z.enum(PHOTO_MIME_TYPES),
-  at: isoDateTime,
-  by: personSchema,
-});
+export const photoRefSchema = z.object({ id: uuid, url: z.string() });
 export type PhotoRef = z.infer<typeof photoRefSchema>;
 
 /** Why the branch says a line is different (Paper D10 chips). */
@@ -253,6 +269,8 @@ export const packDepartmentSchema = z.object({
   nextDepartmentId: uuid.nullable(),
   /** Every department of the requisition is ticked: the next screen is the list leading to the final review (D4). */
   allPacked: z.boolean(),
+  /** Amendment 1 row 2: "Go to the final review" works once at least one department is fully ticked. */
+  canReview: z.boolean(),
 });
 export type PackDepartment = z.infer<typeof packDepartmentSchema>;
 
@@ -272,8 +290,10 @@ export const reviewDepartmentSchema = z.object({
   departmentId: uuid,
   departmentName: z.string(),
   lineCount: z.number().int().nonnegative(),
-  /** Every line ticked. A department that is not may be left out at signing (P5 `leaveOut`). */
+  /** Every line ticked. A department that is not shows "Not ready · stays in To pack" with no action (Amendment 1 row 2). */
   allTicked: z.boolean(),
+  /** A fully ticked department has "Leave out" (undo until signed): it stays in To pack with its ticks and ships later with its own short review and signature (P5 `leaveOut`). */
+  canLeaveOut: z.boolean(),
   shortCount: z.number().int().nonnegative(),
   /** What is short ("oil 1 of 2"): the screen words it from these facts. */
   shortLines: z.array(z.object({ itemName: z.string(), unit: z.string(), requestedQty: nonNegativeDecimal, sentQty: nonNegativeDecimal })),
@@ -340,6 +360,9 @@ export const signDispatchResultSchema = z.object({
   leftOut: z.array(departmentRefSchema),
   lineCount: z.number().int().nonnegative(),
   shortCount: z.number().int().nonnegative(),
+  /** D6 "4 of 5 departments sent. Pastry is still to pack.": departments of the requisition sent so far (earlier batches included) and the total. */
+  sentDepartments: z.number().int().nonnegative(),
+  totalDepartments: z.number().int().positive(),
   /** A repeated idempotencyKey returned the first result. */
   replayed: z.boolean(),
 });
@@ -407,6 +430,16 @@ export const dispatchFileSchema = z.object({
   packed: stampSchema,
   signed: stampSchema,
   sendBatchId: uuid,
+  /** Amendment 1 row 10, the flat moments and people the file also carries (the stamps above hold the same as objects). */
+  packedAt: isoDateTime,
+  /** Stamped by V2 the first time anyone from the department opens the delivery; information only ("Arrived 3:28 pm"). Null before that: the card reads "On the way". // back end D */
+  arrivedAt: isoDateTime.nullable(),
+  countedById: z.string().nullable(),
+  countedAt: isoDateTime.nullable(),
+  /** The Branch Manager signed for the department. */
+  onBehalf: z.boolean(),
+  /** cap requisitions.see_value: the value written off by a recorded finding, at the cost frozen at dispatch, KES. Absent without the capability and while `sentVisible` is false. // back end C */
+  lossValueKes: decimalString.optional(),
   /** Who counted for the department and when; the real signer even when "on behalf". Null until counted. */
   counted: stampSchema.nullable(),
   /** The department the Branch Manager signed for ("on behalf of Pastry"); null when a department member counted. */
@@ -424,7 +457,7 @@ export const dispatchFileSchema = z.object({
       gapLineCount: z.number().int().nonnegative(),
       /** The open discrepancy a Record a finding button leads to. */
       discrepancyId: uuid.nullable(),
-      /** ON_THE_WAY: when the 2-hour wait started (the signing time; see the contract summary question). */
+      /** ON_THE_WAY: when the 2-hour wait started: the final-sign time `signedAt` (Amendment 1 row 1). */
       waitingSince: isoDateTime.nullable(),
     }),
   }),
@@ -449,6 +482,8 @@ const printHeaderShape = {
   reference: z.string(),
   /** A cancelled dispatch's note is voided and kept. */
   voided: z.boolean(),
+  /** Amendment 1 row 14: the "VOID · cancelled {date}" band. Null unless voided. */
+  cancelledAt: isoDateTime.nullable(),
   requisitionReference: z.string(),
   branch: branchRefSchema,
   department: departmentRefSchema,
@@ -479,8 +514,32 @@ export type PrintDispatch = z.infer<typeof printDispatchSchema>;
 // --- P8 POST /dispatch/:id/cancel (Paper D20) ------------------------------------------------
 
 export const DISPATCH_CANCEL_REASON_MAX = 300;
-/** Only before any department member has signed. The reason chips are a screen convention: the wire holds the words. */
-export const cancelDispatchInputSchema = z.object({ reason: z.string().trim().min(3).max(DISPATCH_CANCEL_REASON_MAX), pin: pinSchema }).strict();
+/** Amendment 1 row 8: the reason is "preset — note" (the Requisitions R20 pattern). `Other` needs a note; the others may carry one. */
+export const DISPATCH_CANCEL_PRESETS = ['Packed the wrong lines', 'Branch asked us to stop', 'Vehicle did not leave', 'Other'] as const;
+export type DispatchCancelPreset = (typeof DISPATCH_CANCEL_PRESETS)[number];
+export const DISPATCH_CANCEL_REASON_SEPARATOR = ' — ';
+/** Splits a reason into its preset and note; null when it does not start with a preset. */
+export const parseDispatchCancelReason = (reason: string): { preset: DispatchCancelPreset; note: string } | null => {
+  for (const preset of DISPATCH_CANCEL_PRESETS) {
+    if (reason === preset) return { preset, note: '' };
+    if (reason.startsWith(preset + DISPATCH_CANCEL_REASON_SEPARATOR)) return { preset, note: reason.slice(preset.length + DISPATCH_CANCEL_REASON_SEPARATOR.length).trim() };
+  }
+  return null;
+};
+export const dispatchCancelReasonSchema = z
+  .string()
+  .trim()
+  .max(DISPATCH_CANCEL_REASON_MAX)
+  .refine((v) => {
+    const parsed = parseDispatchCancelReason(v);
+    return parsed !== null && (parsed.preset !== 'Other' || parsed.note.length > 0);
+  }, 'Pick a reason; "Other" needs a note');
+/**
+ * Only before any department member has signed that department's count, and only while the dispatch is On the way. It locks THAT
+ * dispatch only; the others are untouched. Entry: the "…" menu beside Print (holders of `dispatch.cancel`). PIN-signed, so it carries
+ * an idempotencyKey (Amendment 1 row 11): a repeated key returns the first result.
+ */
+export const cancelDispatchInputSchema = z.object({ reason: dispatchCancelReasonSchema, pin: pinSchema, idempotencyKey: idempotencyKeySchema }).strict();
 export type CancelDispatchInput = z.infer<typeof cancelDispatchInputSchema>;
 export const cancelDispatchResultSchema = z.object({
   id: uuid,
@@ -490,6 +549,8 @@ export const cancelDispatchResultSchema = z.object({
   cancelledBy: personSchema,
   /** Lines returned to the queue and stock put back by a linked entry. */
   linesReturnedToQueue: z.number().int().nonnegative(),
+  /** A repeated idempotencyKey returned the first result. */
+  replayed: z.boolean(),
 });
 export type CancelDispatchResult = z.infer<typeof cancelDispatchResultSchema>;
 
@@ -511,8 +572,8 @@ export const dispatchMineRowSchema = z.object({
   lineCount: z.number().int().nonnegative(),
   signedAt: isoDateTime,
   stage: dispatchStageSchema,
-  /** The Done chip: "Gap found" is a count that differed; null while it is on the way. */
-  result: deliveryResultSchema.nullable(),
+  /** The Done chip (Amendment 1 row 10): CONFIRMED, GAP_FOUND ("Gap found"), GAP_SETTLED or CANCELLED; null while it is on the way. */
+  result: dispatchDoneResultSchema.nullable(),
 });
 export const dispatchMineSchema = z.object({
   tab: z.enum(['on-the-way', 'done']),
@@ -554,13 +615,17 @@ export const DISPATCH_ERROR_CODES = [
   'INVALID_PIN', // 401: wrong PIN or none set (nothing is said about which); same code as Counting and Requisitions
   'CARRIER_INACTIVE', // 409: P5, the carrier was retired
   'NOTHING_TO_SEND', // 409: P5, every department was left out, or none is packed
-  // Added for the writes the contract lists without codes (reported)
+  // Added for the writes the contract lists without codes (reported); renamed to the Amendment 1 row 11 names where they overlap
   'REQUISITION_NOT_APPROVED', // 409: P1 to P5 on a requisition that is not approved (or was cancelled)
-  'ALREADY_SENT', // 409: P3 and P5 on a department whose dispatch is already signed
   'OVER_REQUESTED', // 422: P3, a sent quantity above the requested one
-  'ALREADY_COUNTED', // 409: P8, a department member has signed its count: no cancel (D20)
-  'ALREADY_CANCELLED', // 409: P8
   'NOT_SIGNED', // 409: P6, P7, P8 on a dispatch that is not signed yet
+  // Amendment 1 row 11
+  'ALREADY_SIGNED', // 409: P3 and P5 on a department whose dispatch is already signed (was ALREADY_SENT)
+  'STOCK_CHANGED', // 409: P3 and P5, stock changed under the Attendant; `details.lineIds` are the affected lines, flagged
+  'DISPATCH_ALREADY_COUNTED', // 409: P8, a department member has signed its count: no cancel (D20; was ALREADY_COUNTED)
+  'DISPATCH_CANCELLED', // 409: any write on a cancelled dispatch, including the department's next one (no push); a second P8
   'CARRIER_NAME_TAKEN', // 409: P10
+  // The rest of row 11 is in `deliveries-contract.ts` (ALREADY_CONFIRMED, NOT_COUNTED, RECOUNT_USED, REASON_REQUIRED, NOT_YOUR_DEPARTMENT,
+  // PHOTO_TOO_LARGE, TOO_MANY_PHOTOS) and `discrepancies-contract.ts` (FINDING_NOT_REVERSIBLE); a test checks the three lists together cover all 13.
 ] as const;
 export type DispatchErrorCode = (typeof DISPATCH_ERROR_CODES)[number];

@@ -47,7 +47,7 @@
         "can": { "recordFinding": true }
       }
     ],
-    "tabCounts": { "open": 2, "settled": 14 },
+    "counts": { "open": 2, "settled": 14 },
     "branches": [
       { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
       { "id": "20000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" }
@@ -82,7 +82,7 @@
         "can": { "recordFinding": false }
       }
     ],
-    "tabCounts": { "open": 0, "settled": 14 },
+    "counts": { "open": 0, "settled": 14 },
     "page": { "page": 1, "pageSize": 50, "total": 14 }
   },
   "fileOpen": {
@@ -103,7 +103,7 @@
     "branchReasonNote": null,
     "photos": [],
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K" },
     "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
     "assignedTo": "Store Manager",
@@ -127,10 +127,10 @@
     "valueKes": "240.0000",
     "can": { "recordFinding": true, "reverse": false }
   },
-  "fileRecordedAndReversed": {
+  "fileReversedBackToOpen": {
     "id": "80000000-0000-4000-8000-000000000003",
     "reference": "DSC-NYR-0005",
-    "status": "REVERSED",
+    "status": "OPEN",
     "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
     "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
     "dispatch": { "id": "50000000-0000-4000-8000-000000000010", "reference": "DSP-NYR-0219" },
@@ -143,16 +143,7 @@
     "countedTwice": true,
     "branchReason": "DAMAGED",
     "branchReasonNote": null,
-    "photos": [
-      {
-        "id": "90000000-0000-4000-8000-000000000002",
-        "fileName": "crate.jpg",
-        "size": 920000,
-        "mimeType": "image/jpeg",
-        "at": "2026-10-04T05:05:00.000Z",
-        "by": { "id": "u-kitchen-head", "name": "Mary Wambui", "initials": "MW", "roleLabel": "Kitchen Department Head" }
-      }
-    ],
+    "photos": [{ "id": "90000000-0000-4000-8000-000000000002", "url": "/api/v1/inventory/deliveries/50000000-0000-4000-8000-000000000010/photos/90000000-0000-4000-8000-000000000002" }],
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-03T12:00:00.000Z" },
     "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-03T12:03:00.000Z" },
     "carrier": { "id": "60000000-0000-4000-8000-000000000002", "name": "Daniel Otieno" },
@@ -160,19 +151,12 @@
     "assignedTo": "Store Manager",
     "openedAt": "2026-10-04T05:10:00.000Z",
     "reminderSentAt": null,
-    "finding": {
-      "finding": "LOST_OR_DAMAGED",
-      "note": "The crate was split on the road",
-      "recorded": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-04T08:00:00.000Z" },
-      "against": "CARRIER",
-      "lossKind": "LOSS",
-      "lossValueKes": "1350.0000"
-    },
+    "finding": null,
     "reversal": {
       "reason": "The wings turned up in the Karatina delivery",
       "reversed": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-06T07:00:00.000Z" }
     },
-    "allowedFindings": [],
+    "allowedFindings": ["PACKED_SHORT", "LOST_OR_DAMAGED", "BRANCH_COUNTED_WRONG", "CANT_TELL"],
     "events": [
       {
         "id": "a0000000-0000-4000-8000-000000000011",
@@ -202,9 +186,9 @@
         "reason": "The wings turned up in the Karatina delivery"
       }
     ],
-    "nextStep": { "action": null, "facts": { "reminderAfterHours": 24 } },
+    "nextStep": { "action": "RECORD_A_FINDING", "facts": { "reminderAfterHours": 24 } },
     "valueKes": "1350.0000",
-    "can": { "recordFinding": false, "reverse": false }
+    "can": { "recordFinding": true, "reverse": false }
   },
   "fileDepartmentHead": {
     "id": "80000000-0000-4000-8000-000000000001",
@@ -224,7 +208,7 @@
     "branchReasonNote": null,
     "photos": [],
     "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
-    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:03:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
     "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K" },
     "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
     "assignedTo": "Store Manager",
@@ -271,7 +255,7 @@
     "lossKind": "LOSS",
     "lossValueKes": "240.0000"
   },
-  "recordFindingInput": { "finding": "PACKED_SHORT", "note": "Checked the pack list with the attendant.", "pin": "4821" },
+  "recordFindingInput": { "finding": "PACKED_SHORT", "note": "Checked the pack list with the attendant.", "pin": "4821", "idempotencyKey": "finding-dsc-nyr-0007-a1" },
   "recordFindingResult": {
     "id": "80000000-0000-4000-8000-000000000001",
     "reference": "DSC-NYR-0007",
@@ -283,22 +267,23 @@
       "against": "STORE",
       "lossKind": "PACKING_ERROR"
     },
-    "ledgerEntries": 1
+    "ledgerEntries": 1,
+    "replayed": false
   },
-  "reverseFindingInput": { "reason": "The milk was found in the Barista cold room", "pin": "4821" },
+  "reverseFindingInput": { "reason": "The milk was found in the Barista cold room", "pin": "4821", "idempotencyKey": "reverse-dsc-nyr-0007-a1" },
   "reverseFindingResult": {
     "id": "80000000-0000-4000-8000-000000000001",
     "reference": "DSC-NYR-0007",
-    "status": "REVERSED",
+    "status": "OPEN",
     "reversal": {
       "reason": "The milk was found in the Barista cold room",
       "reversed": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-09T07:15:00.000Z" }
     },
-    "ledgerEntries": 1
+    "ledgerEntries": 1,
+    "replayed": false
   },
   "errorFindingAlreadyRecorded": { "success": false, "error": { "code": "FINDING_ALREADY_RECORDED", "message": "A finding has already been recorded for this discrepancy." } },
   "errorFindingNotAllowed": { "success": false, "error": { "code": "FINDING_NOT_ALLOWED", "message": "That finding does not fit a gap in this direction." } },
   "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
-  "errorNoFindingToReverse": { "success": false, "error": { "code": "NO_FINDING_TO_REVERSE", "message": "There is no recorded finding to reverse." } },
-  "errorAlreadyReversed": { "success": false, "error": { "code": "ALREADY_REVERSED", "message": "This finding has already been reversed." } }
+  "errorFindingNotReversible": { "success": false, "error": { "code": "FINDING_NOT_REVERSIBLE", "message": "There is no recorded finding to reverse." } }
 }

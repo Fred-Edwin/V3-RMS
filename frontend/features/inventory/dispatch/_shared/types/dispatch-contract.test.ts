@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import fixtures from './dispatch-contract.fixtures.json';
-import { DISPATCH_ERROR_CODES, DISPATCH_STAGES, DISPATCH_STAGE_TEXT, PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE } from './dispatch-contract';
+import {
+  CARRIER_KINDS,
+  DELIVERY_RESULTS,
+  DISPATCH_CANCEL_PRESETS,
+  DISPATCH_DONE_RESULTS,
+  DISPATCH_ERROR_CODES,
+  DISPATCH_STAGES,
+  DISPATCH_STAGE_TEXT,
+  DISPATCH_STATUSES,
+  PHOTO_MAX_BYTES,
+  PHOTO_MAX_PER_LINE,
+  parseDispatchCancelReason,
+} from './dispatch-contract';
+import { DISPATCH_DERIVED_STATE_VALUES, DISPATCH_STATUS_VALUES } from '../../../requisitions/_shared/types/requisitions-contract';
 import type { CarrierRef, DispatchFile, DispatchMine, PrintDispatch, Queue, Review, SignDispatchResult } from './dispatch-contract';
 
 /** Drift guard for the hand-written mirror: the shared samples are typed with the mirror types and their key sets are pinned. */
@@ -29,15 +42,19 @@ describe('dispatch contract mirror', () => {
 
   it('the sign result reports what shipped and what was left out', () => {
     const result = fixtures.signResult as SignDispatchResult;
-    expect(keysOf(result)).toEqual(['branch', 'carrier', 'dispatches', 'leftOut', 'lineCount', 'packedBy', 'reference', 'replayed', 'requisitionId', 'sendBatchId', 'shortCount', 'signedAt', 'signedBy']);
+    expect(keysOf(result)).toEqual([
+      'branch', 'carrier', 'dispatches', 'leftOut', 'lineCount', 'packedBy', 'reference', 'replayed', 'requisitionId', 'sendBatchId', 'sentDepartments', 'shortCount', 'signedAt', 'signedBy', 'totalDepartments',
+    ]);
+    expect(result.sentDepartments + result.leftOut.length).toBe(result.totalDepartments);
     expect(result.dispatches.map((d) => d.departmentId)).not.toContain(result.leftOut[0]!.id);
   });
 
   it('file keys, and the Next step card carries one action and facts only', () => {
     const file = fixtures.fileHub as DispatchFile;
     expect(keysOf(file)).toEqual([
-      'activity', 'branch', 'can', 'cancelled', 'carrier', 'closedAt', 'counted', 'department', 'documents', 'id', 'items', 'lineCount', 'nextStep', 'onBehalfOfDepartment', 'packed', 'reference',
-      'requisition', 'sendBatchId', 'sentVisible', 'shortCount', 'siblings', 'signed', 'stage', 'status', 'tracker', 'valueKes',
+      'activity', 'arrivedAt', 'branch', 'can', 'cancelled', 'carrier', 'closedAt', 'counted', 'countedAt', 'countedById', 'department', 'documents', 'id', 'items', 'lineCount', 'lossValueKes',
+      'nextStep', 'onBehalf', 'onBehalfOfDepartment', 'packed', 'packedAt', 'reference', 'requisition', 'sendBatchId', 'sentVisible', 'shortCount', 'siblings', 'signed', 'stage', 'status', 'tracker',
+      'valueKes',
     ]);
     expect(keysOf(file.nextStep)).toEqual(['action', 'facts']);
     expect(keysOf(file.nextStep.facts)).toEqual(['discrepancyId', 'gapLineCount', 'waitingSince']);
@@ -68,6 +85,26 @@ describe('dispatch contract mirror', () => {
     const mine = fixtures.mine as DispatchMine;
     expect(keysOf(mine)).toEqual(['page', 'rows', 'tab', 'tabCounts']);
     expect(keysOf(mine.rows[0]!)).toEqual(['branch', 'department', 'id', 'lineCount', 'reference', 'result', 'signedAt', 'stage']);
+  });
+
+  it('Amendment 1: the cancel reason is "preset — note", the chips, the carrier kinds and the result words', () => {
+    expect(DISPATCH_CANCEL_PRESETS).toEqual(['Packed the wrong lines', 'Branch asked us to stop', 'Vehicle did not leave', 'Other']);
+    expect(parseDispatchCancelReason('Vehicle did not leave — flat tyre')).toEqual({ preset: 'Vehicle did not leave', note: 'flat tyre' });
+    expect(parseDispatchCancelReason('Changed my mind')).toBeNull();
+    expect(CARRIER_KINDS).toEqual(['PERSON', 'VEHICLE', 'COMPANY']);
+    expect(DISPATCH_DONE_RESULTS).toEqual(['CONFIRMED', 'GAP_FOUND', 'GAP_SETTLED', 'CANCELLED']);
+    expect(DELIVERY_RESULTS).toEqual(['MATCHED', 'GAP_OPEN', 'GAP_RESOLVED']);
+    expect(keysOf(fixtures.cancelInput)).toEqual(['idempotencyKey', 'pin', 'reason']);
+    expect(fixtures.packDepartment.canReview).toBe(false);
+    expect([...DISPATCH_STATUS_VALUES]).toEqual([...DISPATCH_STATUSES]);
+    expect([...DISPATCH_DERIVED_STATE_VALUES]).toEqual([...DISPATCH_STAGES]);
+  });
+
+  it('Amendment 1: the file carries the flat moments, and a branch-side file has no arrival yet', () => {
+    const blind = fixtures.fileBranchManagerBlind as DispatchFile;
+    expect(blind.arrivedAt).toBeNull();
+    expect(blind.nextStep.facts.waitingSince).toBe(blind.signed.at);
+    expect((fixtures.fileHub as DispatchFile).arrivedAt).not.toBeNull();
   });
 
   it('stages, error codes and limits', () => {

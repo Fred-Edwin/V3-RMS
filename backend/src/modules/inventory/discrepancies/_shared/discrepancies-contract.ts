@@ -15,6 +15,10 @@
  * System Admin hold it; the Branch Manager does not see supplier payment details, which is unrelated). Absent, never null, without it.
  * The sent figure is shown here because a discrepancy exists only after the department has signed its count.
  *
+ * Amendment 1 (docs/features/inventory/dispatch-amendment-1.md) is applied: a reversal puts the gap back to unaccounted (status goes
+ * REVERSED, then back to OPEN, and a new finding may be recorded; the events keep the history), Q1 tabs carry `counts`, Q4 and Q5
+ * carry an idempotencyKey, and the new code is FINDING_NOT_REVERSIBLE.
+ *
  * Do not change a shape here without changing the contract document, the mirror and the fixtures in the same commit, and only with
  * the owner's approval.
  */
@@ -25,6 +29,7 @@ import {
   countReasonSchema,
   departmentRefSchema,
   dispatchActivityEventSchema,
+  idempotencyKeySchema,
   photoRefSchema,
   pinSchema,
   stampSchema,
@@ -32,7 +37,15 @@ import {
 
 // --- Words and enums -----------------------------------------------------------
 
-/** Database names. OPEN = held as unaccounted, waiting for a finding. */
+/** Socket event (Amendment 1 row 16), per record. Emitted by back end D. */
+export const DISCREPANCY_CHANGED_EVENT = 'discrepancy:changed';
+export const discrepancyChangedPayloadSchema = z.object({ id: uuid, reference: z.string(), siteId: z.string(), reason: z.string() });
+export type DiscrepancyChangedPayload = z.infer<typeof discrepancyChangedPayloadSchema>;
+
+/**
+ * Database names. OPEN = held as unaccounted, waiting for a finding, and again after a reversal. REVERSED is the instant a reversal is
+ * posted: the status goes REVERSED and straight back to OPEN (Amendment 1 row 7), so a response never shows it as the settled state.
+ */
 export const DISCREPANCY_STATUSES = ['OPEN', 'RECORDED', 'REVERSED'] as const;
 export const discrepancyStatusSchema = z.enum(DISCREPANCY_STATUSES);
 export type DiscrepancyStatus = z.infer<typeof discrepancyStatusSchema>;
@@ -101,6 +114,7 @@ export const recordedFindingSchema = z.object({
 });
 export type RecordedFinding = z.infer<typeof recordedFindingSchema>;
 
+/** The latest reversal, for the file's history line; the events hold every one. */
 export const reversalSchema = z.object({ reason: z.string(), reversed: stampSchema });
 export type Reversal = z.infer<typeof reversalSchema>;
 
@@ -144,7 +158,8 @@ export type DiscrepancyRow = z.infer<typeof discrepancyRowSchema>;
 export const listDiscrepanciesSchema = z.object({
   tab: discrepancyTabSchema,
   rows: z.array(discrepancyRowSchema),
-  tabCounts: z.object({ open: z.number().int().nonnegative(), settled: z.number().int().nonnegative() }),
+  /** Amendment 1 row 9. A discrepancy whose finding was reversed counts as Open. */
+  counts: z.object({ open: z.number().int().nonnegative(), settled: z.number().int().nonnegative() }),
   /** Hub roles only: the branch picker. */
   branches: z.array(branchRefSchema).optional(),
   page: pageInfoSchema,
@@ -180,9 +195,10 @@ export const discrepancyFileSchema = z.object({
   assignedTo: z.string(),
   openedAt: isoDateTime,
   reminderSentAt: isoDateTime.nullable(),
+  /** The CURRENT finding: null while OPEN, including after a reversal (the history is in `events` and `reversal`). */
   finding: recordedFindingSchema.nullable(),
   reversal: reversalSchema.nullable(),
-  /** The findings that may be recorded for this direction (`FINDINGS_FOR`); empty unless the status is OPEN. */
+  /** The findings that may be recorded for this direction (`FINDINGS_FOR`); empty unless the status is OPEN (after a reversal it is full again). */
   allowedFindings: z.array(findingSchema),
   /** Append-only: opened, finding, reversal (the dispatch activity events DISCREPANCY_OPENED, FINDING_RECORDED, FINDING_REVERSED). */
   events: z.array(dispatchActivityEventSchema),
@@ -223,7 +239,9 @@ export type FindingPreview = z.infer<typeof findingPreviewSchema>;
 // --- Q4 POST /discrepancies/:id/findings (Paper D15) ------------------------------------------
 
 /** `discrepancies.record`: the Store Manager or System Admin, with their own PIN. Posts through the ledger door as a new linked entry carrying the `DSC-` number. */
-export const recordFindingInputSchema = z.object({ finding: findingSchema, note: z.string().trim().min(1).max(FINDING_NOTE_MAX).optional(), pin: pinSchema }).strict();
+export const recordFindingInputSchema = z
+  .object({ finding: findingSchema, note: z.string().trim().min(1).max(FINDING_NOTE_MAX).optional(), pin: pinSchema, idempotencyKey: idempotencyKeySchema })
+  .strict();
 export type RecordFindingInput = z.infer<typeof recordFindingInputSchema>;
 export const recordFindingResultSchema = z.object({
   id: uuid,
@@ -232,20 +250,27 @@ export const recordFindingResultSchema = z.object({
   finding: recordedFindingSchema,
   /** Ledger entries posted (balanced, linked to the `DSC-` number). */
   ledgerEntries: z.number().int().nonnegative(),
+  /** A repeated idempotencyKey returned the first result. */
+  replayed: z.boolean(),
 });
 export type RecordFindingResult = z.infer<typeof recordFindingResultSchema>;
 
 // --- Q5 POST /discrepancies/:id/reverse (Paper D16) -----------------------------------------------
 
 /** `discrepancies.reverse`. A new linked entry with the opposite effect; the finding and the reversal both stay on the file and in the audit log. The reason chips are a screen convention: the wire holds the words. */
-export const reverseFindingInputSchema = z.object({ reason: z.string().trim().min(3).max(REVERSE_REASON_MAX), pin: pinSchema }).strict();
+export const reverseFindingInputSchema = z
+  .object({ reason: z.string().trim().min(3).max(REVERSE_REASON_MAX), pin: pinSchema, idempotencyKey: idempotencyKeySchema })
+  .strict();
 export type ReverseFindingInput = z.infer<typeof reverseFindingInputSchema>;
+/** After a reversal the gap is held as unaccounted again: `status` is OPEN and a new finding may be recorded. */
 export const reverseFindingResultSchema = z.object({
   id: uuid,
   reference: z.string(),
-  status: z.literal('REVERSED'),
+  status: z.literal('OPEN'),
   reversal: reversalSchema,
   ledgerEntries: z.number().int().nonnegative(),
+  /** A repeated idempotencyKey returned the first result. */
+  replayed: z.boolean(),
 });
 export type ReverseFindingResult = z.infer<typeof reverseFindingResultSchema>;
 
@@ -255,7 +280,8 @@ export const DISCREPANCY_ERROR_CODES = [
   'FINDING_ALREADY_RECORDED', // 409: Q4 on a discrepancy that is not OPEN (from the contract)
   'INVALID_PIN', // 401: Q4, Q5
   'FINDING_NOT_ALLOWED', // 422: Q3, Q4, a finding that does not fit the gap's direction (`FINDINGS_FOR`)
-  'NO_FINDING_TO_REVERSE', // 409: Q5 on a discrepancy that is not RECORDED
-  'ALREADY_REVERSED', // 409: Q5
+  // Amendment 1 row 7 and 11. Replaces my first pass's NO_FINDING_TO_REVERSE and ALREADY_REVERSED: after a reversal the status is OPEN
+  // again, so "nothing to reverse" and "already reversed" are the same refusal.
+  'FINDING_NOT_REVERSIBLE', // 409: Q5 on a discrepancy that has no recorded finding to reverse
 ] as const;
 export type DiscrepancyErrorCode = (typeof DISCREPANCY_ERROR_CODES)[number];

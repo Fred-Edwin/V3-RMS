@@ -33,7 +33,7 @@ describe('discrepancies contract fixtures', () => {
     ['listOpen', listDiscrepanciesSchema],
     ['listSettledBranchManager', listDiscrepanciesSchema],
     ['fileOpen', discrepancyFileSchema],
-    ['fileRecordedAndReversed', discrepancyFileSchema],
+    ['fileReversedBackToOpen', discrepancyFileSchema],
     ['fileDepartmentHead', discrepancyFileSchema],
     ['findingPreviewQuery', findingPreviewQuerySchema],
     ['findingPreviewPackedShort', findingPreviewSchema],
@@ -45,8 +45,7 @@ describe('discrepancies contract fixtures', () => {
     ['errorFindingAlreadyRecorded', errorBodySchema],
     ['errorFindingNotAllowed', errorBodySchema],
     ['errorInvalidPin', errorBodySchema],
-    ['errorNoFindingToReverse', errorBodySchema],
-    ['errorAlreadyReversed', errorBodySchema],
+    ['errorFindingNotReversible', errorBodySchema],
   ] as const)('%s parses', (name, schema) => {
     const result = schema.safeParse(F[name]);
     expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
@@ -54,7 +53,7 @@ describe('discrepancies contract fixtures', () => {
 
   it('every error fixture uses a code the contract lists, and the contract lists every code a fixture uses', () => {
     const errorFixtures = Object.keys(F).filter((name) => name.startsWith('error'));
-    expect(errorFixtures).toHaveLength(5);
+    expect(errorFixtures).toHaveLength(4);
     for (const name of errorFixtures) {
       const code = (F[name] as { error: { code: string } }).error.code;
       expect(DISCREPANCY_ERROR_CODES as readonly string[]).toContain(code);
@@ -92,7 +91,7 @@ describe('money is capability-gated and absent, not null, without it', () => {
     expect(Object.keys(fixtures.findingPreviewLost)).toContain('lossValueKes');
     expect(Object.keys(fixtures.findingPreviewPackedShort)).not.toContain('lossValueKes');
     expect(Object.keys(fixtures.recordFindingResult.finding)).not.toContain('lossValueKes');
-    expect(Object.keys(fixtures.fileRecordedAndReversed.finding!)).toContain('lossValueKes');
+    expect(Object.keys(fixtures.listSettledBranchManager.rows[0]!.finding!)).toContain('lossValueKes');
   });
 
   it('the open list rows carry no money (only a settled finding can)', () => {
@@ -128,20 +127,41 @@ describe('the findings (discrepancies.md)', () => {
   it('an open file lists the findings its direction allows; a settled or head file lists none', () => {
     expect(fixtures.fileOpen.direction).toBe('SHORT');
     expect(fixtures.fileOpen.allowedFindings).toEqual([...FINDINGS_FOR.SHORT]);
-    expect(fixtures.fileRecordedAndReversed.allowedFindings).toEqual([]);
+    expect(fixtures.fileReversedBackToOpen.allowedFindings).toEqual([...FINDINGS_FOR.SHORT]);
     expect(fixtures.fileDepartmentHead.allowedFindings).toEqual([]);
   });
 
-  it('a reversed file keeps both the finding and the reversal, and the events say so', () => {
-    const file = fixtures.fileRecordedAndReversed;
-    expect(file.status).toBe('REVERSED');
-    expect(file.finding).not.toBeNull();
+  it('row 7: a reversed file is Open again with no current finding; the reversal and every event stay on file; a new finding may be recorded', () => {
+    const file = fixtures.fileReversedBackToOpen;
+    expect(file.status).toBe('OPEN');
+    expect(file.finding).toBeNull();
     expect(file.reversal).not.toBeNull();
     expect(file.events.map((e) => e.type)).toEqual(['DISCREPANCY_OPENED', 'FINDING_RECORDED', 'FINDING_REVERSED']);
+    expect(file.can.recordFinding).toBe(true);
+    expect(file.nextStep.action).toBe('RECORD_A_FINDING');
+  });
+
+  it('row 7: a reversal answers OPEN, not REVERSED', () => {
+    expect(fixtures.reverseFindingResult.status).toBe('OPEN');
+    expect(reverseFindingResultSchema.safeParse({ ...fixtures.reverseFindingResult, status: 'REVERSED' }).success).toBe(false);
+  });
+
+  it('row 9: the tabs carry `counts`', () => {
+    expect(Object.keys(fixtures.listOpen)).toContain('counts');
+    expect(Object.keys(fixtures.listOpen)).not.toContain('tabCounts');
+    expect(fixtures.listOpen.counts).toEqual({ open: 2, settled: 14 });
+  });
+
+  it('row 11: recording and reversing are idempotent writes and the reversal refusal is FINDING_NOT_REVERSIBLE', () => {
+    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '4821' }).success).toBe(false);
+    expect(reverseFindingInputSchema.safeParse({ reason: 'Found in the cold room', pin: '4821' }).success).toBe(false);
+    expect(fixtures.recordFindingResult.replayed).toBe(false);
+    expect(DISCREPANCY_ERROR_CODES as readonly string[]).toContain('FINDING_NOT_REVERSIBLE');
+    for (const gone of ['NO_FINDING_TO_REVERSE', 'ALREADY_REVERSED']) expect(DISCREPANCY_ERROR_CODES as readonly string[]).not.toContain(gone);
   });
 
   it('the gap is signed and its direction agrees with the sign', () => {
-    for (const file of [fixtures.fileOpen, fixtures.fileRecordedAndReversed, fixtures.fileDepartmentHead]) {
+    for (const file of [fixtures.fileOpen, fixtures.fileReversedBackToOpen, fixtures.fileDepartmentHead]) {
       expect(Number(file.gapQty) < 0).toBe(file.direction === 'SHORT');
       expect(Number(file.countedQty) - Number(file.sentQty)).toBe(Number(file.gapQty));
     }
@@ -149,19 +169,21 @@ describe('the findings (discrepancies.md)', () => {
 });
 
 describe('inputs that must be refused', () => {
-  it('a finding is one of the five, with an optional note and a four digit PIN', () => {
-    expect(recordFindingInputSchema.safeParse({ finding: 'STOLEN', pin: '4821' }).success).toBe(false);
-    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '48' }).success).toBe(false);
-    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL' }).success).toBe(false);
-    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '4821' }).success).toBe(true);
-    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '4821', note: 'x'.repeat(301) }).success).toBe(false);
+  it('a finding is one of the five, with an optional note, a four digit PIN and an idempotency key', () => {
+    const key = 'finding-dsc-nyr-0007-z9';
+    expect(recordFindingInputSchema.safeParse({ finding: 'STOLEN', pin: '4821', idempotencyKey: key }).success).toBe(false);
+    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '48', idempotencyKey: key }).success).toBe(false);
+    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', idempotencyKey: key }).success).toBe(false);
+    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '4821', idempotencyKey: key }).success).toBe(true);
+    expect(recordFindingInputSchema.safeParse({ finding: 'CANT_TELL', pin: '4821', idempotencyKey: key, note: 'x'.repeat(301) }).success).toBe(false);
     expect(recordFindingInputSchema.safeParse({ ...fixtures.recordFindingInput, extra: 1 }).success).toBe(false);
   });
 
-  it('a reversal needs a reason and a PIN', () => {
-    expect(reverseFindingInputSchema.safeParse({ pin: '4821' }).success).toBe(false);
-    expect(reverseFindingInputSchema.safeParse({ reason: 'ok', pin: '4821' }).success).toBe(false);
-    expect(reverseFindingInputSchema.safeParse({ reason: 'Found in the cold room', pin: 'abcd' }).success).toBe(false);
+  it('a reversal needs a reason, a PIN and an idempotency key', () => {
+    const key = 'reverse-dsc-nyr-0007-z9';
+    expect(reverseFindingInputSchema.safeParse({ pin: '4821', idempotencyKey: key }).success).toBe(false);
+    expect(reverseFindingInputSchema.safeParse({ reason: 'ok', pin: '4821', idempotencyKey: key }).success).toBe(false);
+    expect(reverseFindingInputSchema.safeParse({ reason: 'Found in the cold room', pin: 'abcd', idempotencyKey: key }).success).toBe(false);
   });
 
   it('the list opens on Open, takes only Open or Settled, and pages by 25, 50 or 100', () => {

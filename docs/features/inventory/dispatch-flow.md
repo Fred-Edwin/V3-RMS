@@ -50,7 +50,7 @@ Approved → Packed → On the way → Confirmed → Closed, each with a date an
 | Store Manager | Same as the Attendant, plus cancels a dispatch, records and reverses discrepancy findings, keeps the carrier list |
 | Department member / head | Counts and signs the delivery for their department |
 | Branch Manager | Confirms for a department; reads their branch's discrepancies |
-| Director, Accountant, System Admin | Read everything; System Admin can do every action with their own PIN. Director and Accountant get the alerts in `discrepancies.md` |
+| Director, Accountant, System Admin | Read everything; the System Admin can do every store action (pack, sign, cancel, carriers, findings) with their own PIN, but confirming a department's delivery for it ("on behalf") is the Branch Manager alone, because the System Admin has no branch (Amendment 1 row 13, 9 Oct 2026). Director and Accountant get the alerts in `discrepancies.md` |
 
 ## Every state of a dispatch
 

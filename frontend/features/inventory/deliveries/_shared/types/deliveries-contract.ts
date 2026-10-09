@@ -8,7 +8,7 @@
  * sees money. A save only stores what was typed; a check is the moment of comparison (COUNT_AGAIN once, then SHORT or EXTRA, final).
  */
 import type { PageInfo, PageQuery, Person } from '../../../_shared/types/wire';
-import type { BranchRef, CountReason, DeliveryResult, DepartmentRef, DispatchStage, PhotoRef } from '../../../dispatch/_shared/types/dispatch-contract';
+import type { BranchRef, CarrierRef, CountReason, DeliveryResult, DepartmentRef, DispatchStage, PhotoRef, RequisitionCycle } from '../../../dispatch/_shared/types/dispatch-contract';
 
 // --- Words and enums -----------------------------------------------------------
 
@@ -33,15 +33,24 @@ export interface DeliveryRow {
   id: string;
   reference: string;
   department: DepartmentRef;
+  /** Amendment 1 row 10: the requisition's cycle and the carrier. */
+  cycle: RequisitionCycle;
+  carrier: CarrierRef;
   lineCount: number;
-  /** When the Central Store signed it ("left 3:05 pm"). */
+  /** When the Central Store signed it ("left 3:05 pm"). The 2-hour wait runs from here. */
   signedAt: string;
+  /** Stamped the first time anyone from the department opens the delivery; information only. Null: the card reads "On the way". */
+  arrivedAt: string | null;
   stage: DispatchStage;
   /** Someone has started counting: the button reads "Continue counting". */
   countStarted: boolean;
   confirmedAt: string | null;
   confirmedBy: Person | null;
+  /** The confirmer's title. */
+  confirmedByTitle: string | null;
+  /** History: MATCHED, GAP_OPEN or GAP_RESOLVED, with the number of lines whose count differed. Null while waiting. */
   result: DeliveryResult | null;
+  gapCount: number | null;
   can: { count: boolean; confirmOnBehalf: boolean };
 }
 export interface ListDeliveries {
@@ -63,6 +72,10 @@ export interface CountLine {
   state: LineCountState;
   /** Checks this line has been through: 0, 1, or 2 (final). */
   attempt: 0 | 1 | 2;
+  /** The one recount has been used (the second count is final). */
+  recountUsed: boolean;
+  /** Which way a checked line differs (never the size); null until the first check flags it. */
+  direction: 'SHORT' | 'EXTRA' | null;
   reason: CountReason | null;
   reasonNote: string | null;
   photos: PhotoRef[];
@@ -73,6 +86,8 @@ export interface CountView {
   branch: BranchRef;
   department: DepartmentRef;
   signedAt: string;
+  /** Stamped by this very read the first time anyone from the department opens the delivery. */
+  arrivedAt: string | null;
   lineCount: number;
   countedCount: number;
   countAgainCount: number;
@@ -87,9 +102,9 @@ export interface CountView {
 export interface SaveCountInput {
   counts: { lineId: string; countedQty: string }[];
 }
-/** The check: only the lines that differ, by name and typed number. */
+/** The check, run on "Check and sign": only the lines that differ, by name and typed number, with the direction they differ in (never the size). */
 export interface CheckCountResult {
-  differing: { lineId: string; itemName: string; countedQty: string; state: 'COUNT_AGAIN' | 'SHORT' | 'EXTRA' }[];
+  differing: { lineId: string; itemName: string; countedQty: string; direction: 'SHORT' | 'EXTRA'; state: 'COUNT_AGAIN' | 'SHORT' | 'EXTRA' }[];
   /** No line is COUNT_AGAIN. */
   final: boolean;
   /** Every SHORT or EXTRA line has a reason. */
@@ -111,6 +126,11 @@ export interface UploadPhotoFields {
 export interface UploadPhotoResult {
   lineId: string;
   photo: PhotoRef;
+  photos: PhotoRef[];
+}
+/** `DELETE /deliveries/:id/photos/:photoId`, no body: the line's photos that remain. */
+export interface DeletePhotoResult {
+  lineId: string;
   photos: PhotoRef[];
 }
 
@@ -152,6 +172,9 @@ export interface ConfirmDeliveryResult {
   id: string;
   reference: string;
   status: 'CONFIRMED' | 'CLOSED';
+  /** The three times of D12: left, arrived (null if nobody opened it first), confirmed. */
+  signedAt: string;
+  arrivedAt: string | null;
   confirmedAt: string;
   confirmedBy: Person;
   onBehalfOfDepartment: DepartmentRef | null;
@@ -167,15 +190,17 @@ export const DELIVERY_ERROR_CODES = [
   'INVALID_PIN',
   'NOT_YOUR_DEPARTMENT',
   'NOT_ON_THE_WAY',
-  'ALREADY_CONFIRMED',
-  'COUNT_FINAL',
-  'NOT_ALL_COUNTED',
   'COUNT_AGAIN_PENDING',
   'LINE_NOT_DIFFERENT',
-  'REASON_MISSING',
-  'TOO_MANY_PHOTOS',
-  'PHOTO_TOO_LARGE',
   'PHOTO_TYPE_NOT_ALLOWED',
   'ON_BEHALF_NOT_ALLOWED',
+  // Amendment 1 row 11
+  'ALREADY_CONFIRMED',
+  'NOT_COUNTED',
+  'RECOUNT_USED',
+  'REASON_REQUIRED',
+  'DISPATCH_CANCELLED',
+  'TOO_MANY_PHOTOS',
+  'PHOTO_TOO_LARGE',
 ] as const;
 export type DeliveryErrorCode = (typeof DELIVERY_ERROR_CODES)[number];

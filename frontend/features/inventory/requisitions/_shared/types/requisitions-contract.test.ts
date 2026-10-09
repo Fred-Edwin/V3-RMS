@@ -103,7 +103,7 @@ describe('requisitions contract mirror', () => {
 
   it('badges differ by role', () => {
     expect(keysOf(fixtures.badgesManager as Badges)).toEqual(['requisitions', 'toApprove']);
-    expect(keysOf(fixtures.badgesStore as Badges)).toEqual(['requisitions', 'toPack']);
+    expect(keysOf(fixtures.badgesStore as Badges)).toEqual(['dispatch', 'requisitions', 'toPack']);
   });
 
   it('write results carry the common part', () => {
