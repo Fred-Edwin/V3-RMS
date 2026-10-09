@@ -64,7 +64,7 @@ export function PickSectionScreen() {
     return (data?.sections ?? []).filter((s) => !term || s.name.toLowerCase().includes(term) || (s.supplierName ?? '').toLowerCase().includes(term));
   }, [data, query]);
 
-  const header = <ScwPhoneHeader leading="menu" title="Stock & counts" subtitle={`${todayLabel()} · Central Store`} />;
+  const header = <ScwPhoneHeader leading="back" onBack={() => router.push(COUNTS)} title="Stock & counts" subtitle={`${todayLabel()} · Central Store`} />;
 
   if (ready && !can('counts.record')) {
     return (

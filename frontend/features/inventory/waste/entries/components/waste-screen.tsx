@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
@@ -17,14 +16,13 @@ import { ScwKpiStrip, ScwKpiStripSkeleton } from '../../../_shared/components/sc
 import { ScwTopbar } from '../../../_shared/components/scw-topbar';
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { usePermissions } from '../../../_shared/hooks/use-permissions';
-import { PHONE_PRIMARY_BUTTON } from '../../../_shared/lib/phone-styles';
-import { clockLabel, signedMoney, todayLabel } from '../../../counting/_shared/lib/count-format';
+import { clockLabel, signedMoney } from '../../../counting/_shared/lib/count-format';
 import { LogWasteDrawer } from '../../log/components/log-waste-drawer';
-import { ReverseDesktopDialog, ReversePhoneSheet } from '../../reverse/components/reverse-dialogs';
+import { ReverseDesktopDialog } from '../../reverse/components/reverse-dialogs';
+import { MyWasteScreen } from './my-waste-screen';
 import { WASTE_STATES_COPY } from '../../_shared/lib/states-copy';
 import { wasteApi } from '../../_shared/services/waste-api';
 import { WASTE_REASONS, WASTE_REASON_TEXT, type WasteEntry, type WasteList, type WasteReason } from '../../_shared/types/waste-contract';
-import { useAuthStore } from '@/store/authStore';
 
 const WASTE = '/app/inventory/stock/waste';
 /** Paper step 57: "Date: Today" is the starting range; the date is the day the entry was logged. */
@@ -50,7 +48,7 @@ const COPY = {
 
 /**
  * `/stock/waste`. The response decides the screen, not a role: a list that carries no `kpis` (the person sees only their own
- * entries and no stock figures) is the phone column "My waste today" (Paper step 19, `1ZGW-0`); one that carries `kpis` is the
+ * entries and no stock figures) is the phone column "My waste, today and earlier" (Paper step 54, `my-waste-screen.tsx`); one that carries `kpis` is the
  * desktop Waste (step 21, `1ZLU-0`). Both read every entry the server sends and show Reverse only where the entry says
  * `can.reverse`. `?drawer=log` opens the desktop Log waste drawer (step 22).
  */
@@ -76,64 +74,7 @@ export function WasteScreen() {
       </div>
     );
   }
-  return probe.data.kpis ? <DesktopWaste /> : <PhoneWaste first={probe.data} />;
-}
-
-function PhoneWaste({ first }: { first: WasteList }) {
-  const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const [list, setList] = React.useState(first);
-  const [reversing, setReversing] = React.useState<WasteEntry | null>(null);
-  const [notice, setNotice] = React.useState('');
-  const todays = list.rows;
-  return (
-    <PhoneColumn>
-      <ScwPhoneHeader leading="back" onBack={() => router.push('/app/inventory/stock/counts')} title="My waste today" subtitle={`${todayLabel()} · ${user?.name ?? ''}`} />
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
-        {list.bannerText ? (
-          <div role="status" className="flex items-start gap-2.5 border border-wds-success-border bg-wds-success-bg px-3.5 py-3">
-            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 shrink-0 text-wds-success-fg"><path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-success-fg">{list.bannerText}</p>
-          </div>
-        ) : null}
-        <h2 className="pb-2.5 pt-4 font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">Waste today · {todays.length} {todays.length === 1 ? 'entry' : 'entries'}</h2>
-        {todays.length === 0 ? (
-          <ScwStatePanel kind="empty" phone text={WASTE_STATES_COPY.myWasteToday.empty} />
-        ) : (
-          <ul className="border border-wds-border bg-wds-surface">
-            {todays.map((e) => (
-              <li key={e.id} className="flex min-h-16 items-center justify-between gap-3 border-b border-wds-neutral-100 px-3.5 py-2.5 last:border-b-0">
-                <span className="flex min-w-0 flex-col">
-                  <span className={cn('truncate font-wds-sans text-[16px] leading-5', e.status === 'REVERSED' ? 'text-wds-text-faint line-through' : 'text-wds-text-ink')}>{e.itemName}</span>
-                  <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{e.quantity} {e.unit} · {e.reasonText} · {clockLabel(e.at)}</span>
-                </span>
-                {e.status === 'REVERSED' && e.reversal ? (
-                  <span className="shrink-0 border border-wds-border-strong bg-wds-neutral-100 px-2.5 py-1.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Reversed {clockLabel(e.reversal.at)}</span>
-                ) : e.can.reverse ? (
-                  <button type="button" onClick={() => setReversing(e)} className="h-11 shrink-0 border border-wds-border-strong bg-wds-surface px-5 font-wds-sans text-[14px] text-wds-text-ink outline-none transition-[background-color,transform] hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring motion-safe:active:scale-[0.97]">
-                    Reverse<span className="sr-only"> {e.itemName}</span>
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p role="status" aria-live="polite" className="sr-only">{notice}</p>
-      </div>
-      <div className="shrink-0 px-4 pb-5 pt-3">
-        <Link href={`${WASTE}/new`} className={cn(PHONE_PRIMARY_BUTTON, 'h-[52px] text-[16px] leading-5')}>Log more waste</Link>
-      </div>
-      <ReversePhoneSheet
-        entry={reversing}
-        onClose={() => setReversing(null)}
-        onDone={(updated) => {
-          setList((l) => ({ ...l, rows: l.rows.map((r) => (r.id === updated.id ? updated : r)) }));
-          setReversing(null);
-          setNotice(`${updated.itemName} reversed. The stock went back.`);
-        }}
-      />
-    </PhoneColumn>
-  );
+  return probe.data.kpis ? <DesktopWaste /> : <MyWasteScreen />;
 }
 
 function DesktopWaste() {
