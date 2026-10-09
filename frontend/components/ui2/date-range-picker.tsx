@@ -155,12 +155,14 @@ export interface DateRangePickerProps {
   note?: string;
   /** The name read out for the button and the dialog, e.g. "Date". */
   label?: string;
+  /** Draw "Date: " in front of the range and a small ▾ after it, as the phone lists do (Paper steps 53 and 54). Off, the label is read out only. */
+  showLabel?: boolean;
   className?: string;
   /** Extra classes for the button that opens the panel (a form row that wants 34px fields, say). */
   buttonClassName?: string;
 }
 
-export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', className, buttonClassName }: DateRangePickerProps) {
+export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', showLabel = false, className, buttonClassName }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   // Two months side by side from 1024px; one below it (the second would be hidden and could still hold the focus).
   const { matches: wide } = useMediaQuery('(min-width: 1024px)');
@@ -318,9 +320,17 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
         onClick={() => (open ? close(true) : setOpen(true))}
         className={cn('flex h-8 items-center gap-2 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring max-sm:h-11', buttonClassName)}
       >
-        <span className="sr-only">{label}: </span>
-        {value === null ? 'Any time' : presetLabel(value, today)}
-        <span aria-hidden className="text-wds-text-faint">⌄</span>
+        {showLabel ? (
+          <span>
+            {label}: {value === null ? 'Any time' : presetLabel(value, today)}
+          </span>
+        ) : (
+          <>
+            <span className="sr-only">{label}: </span>
+            {value === null ? 'Any time' : presetLabel(value, today)}
+          </>
+        )}
+        {showLabel ? <span aria-hidden className="text-[9px] text-wds-text-ink">▾</span> : <span aria-hidden className="text-wds-text-faint">⌄</span>}
       </button>
       {open ? (
         <div

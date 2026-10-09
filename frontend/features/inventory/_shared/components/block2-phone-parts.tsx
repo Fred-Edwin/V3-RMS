@@ -376,7 +376,6 @@ export function B2Tracker({ rows, heading, currentTone = 'success' }: { rows: re
             <li key={row.key} className="flex gap-3" aria-current={row.state === 'CURRENT' ? 'step' : undefined}>
               <div className="flex w-5 shrink-0 flex-col items-center">
                 <TrackerDot state={row.state} tone={currentTone} />
-                {!last ? <span aria-hidden="true" className="min-h-[14px] w-px grow bg-wds-border-strong" /> : null}
               </div>
               <div className={cn('flex min-w-0 flex-col gap-px', last ? 'pb-0' : 'pb-3')}>
                 <p
@@ -407,8 +406,8 @@ function TrackerDot({ state, tone }: { state: TrackerRow['state']; tone: 'succes
   if (state === 'DONE')
     return (
       <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-wds-success-fg">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <path d="M2 6.5L5 9.5L10 3" fill="none" stroke="#FFFFFF" strokeWidth="1.8" />
+        <svg width="12" height="12" viewBox="0 0 24 24">
+          <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     );
@@ -426,7 +425,7 @@ function TrackerDot({ state, tone }: { state: TrackerRow['state']; tone: 'succes
         <span className={cn('size-2 rounded-full', tone === 'warning' ? 'bg-wds-warning-fg' : 'bg-wds-success-fg')} />
       </span>
     );
-  return <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-2 border-wds-border-strong bg-wds-surface" />;
+  return <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-[1.5px] border-wds-border-strong bg-wds-surface" />;
 }
 
 // --- Items table (N1, N3: ITEM, SENT, COUNTED, GAP) --------------------------------------------------------------------------------------

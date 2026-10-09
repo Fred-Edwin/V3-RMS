@@ -63,7 +63,7 @@ export function SubmittedScreen({ countId }: { countId: string }) {
   return (
     <PhoneColumn>
       {header}
-      <SubmittedBody count={count} onAnother={() => router.push(COUNTS)} onWaste={() => router.push('/app/inventory/stock/waste/new')} />
+      <SubmittedBody count={count} onAnother={() => router.push(`${COUNTS}/sections`)} onWaste={() => router.push('/app/inventory/stock/waste/new')} />
     </PhoneColumn>
   );
 }
