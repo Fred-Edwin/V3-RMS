@@ -149,7 +149,7 @@ function FirstHead({ note, copy }: { note: PrintDispatch; copy: DeliveryNoteCopy
 
 const Meta = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between gap-3">
-    <dt className={`text-[12px] leading-4 ${MUTED}`}>{label}</dt>
+    <dt className={`shrink-0 whitespace-nowrap text-[12px] leading-4 ${MUTED}`}>{label}</dt>
     <dd className="text-right text-[12px] leading-4 text-[#171512]">{value}</dd>
   </div>
 );

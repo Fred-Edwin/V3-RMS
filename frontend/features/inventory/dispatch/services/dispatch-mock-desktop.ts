@@ -5,6 +5,7 @@
  * repeated idempotency key returns the first result, a reversal returns the gap to OPEN and a new finding may follow.
  * Deleted at integration (see `mock-mode.ts`).
  */
+import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import discrepancyFixtures from '../../discrepancies/_shared/types/discrepancies-contract.fixtures.json';
 import type {
@@ -42,6 +43,9 @@ const delay = <T,>(value: T): Promise<T> => new Promise((resolve) => setTimeout(
 const fail = (status: number, code: string, message: string): never => {
   throw new ApiError(message, status, code);
 };
+
+/** The Branch Manager reads their own branch only and records nothing (contract §3). */
+const isBranchManager = (): boolean => useAuthStore.getState().user?.role === 'MANAGER';
 
 const MANAGER: Person = { id: 'u-store-manager', name: 'Joseph Mwangi', initials: 'JM', roleLabel: 'Store Manager' };
 
@@ -131,7 +135,8 @@ export const mockDiscrepancies = {
   async list(query: ListDiscrepanciesQuery = {}): Promise<ListDiscrepancies> {
     seed();
     const tab = query.tab ?? 'open';
-    const all = Array.from(files.values());
+    const own = isBranchManager();
+    const all = Array.from(files.values()).filter((f) => !own || f.branch.code === 'NYR');
     const counts = { open: all.filter((f) => f.status !== 'RECORDED').length, settled: all.filter((f) => f.status === 'RECORDED').length };
     const q = (query.q ?? '').trim().toLowerCase();
     const matching = all
@@ -143,14 +148,15 @@ export const mockDiscrepancies = {
     const pageSize = query.pageSize ?? 25;
     const page = query.page ?? 1;
     const branches = all.filter((f, i) => all.findIndex((g) => g.branch.id === f.branch.id) === i).map((f) => f.branch);
-    return delay({ tab, rows: matching.slice((page - 1) * pageSize, page * pageSize).map(toRow), counts, branches, page: { page, pageSize, total: matching.length } });
+    const rows = matching.slice((page - 1) * pageSize, page * pageSize).map(toRow).map((r) => (own ? { ...r, can: { recordFinding: false } } : r));
+    return delay({ tab, rows, counts, ...(own ? {} : { branches }), page: { page, pageSize, total: matching.length } });
   },
 
   async file(id: string): Promise<DiscrepancyFile> {
     seed();
     const f = files.get(id);
     if (!f) return fail(404, 'NOT_FOUND', 'Discrepancy not found');
-    return delay(f);
+    return delay(isBranchManager() ? { ...f, can: { recordFinding: false, reverse: false } } : f);
   },
 
   async preview(id: string, finding: Finding): Promise<FindingPreview> {

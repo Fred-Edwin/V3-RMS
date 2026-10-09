@@ -19,6 +19,7 @@ import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
 import { nameAndTitle } from '../../lib/dispatch-words';
 import { CancelDispatchDialog } from './cancel-dispatch-dialog';
 import { ConfirmForDepartmentDrawer } from './confirm-for-department-drawer';
+import { ColumnHead } from './file-parts';
 
 const DOT: Record<string, string> = { warning: 'bg-wds-warning-fg', success: 'bg-wds-success-fg', info: 'bg-wds-info-fg', neutral: 'border border-wds-text-secondary', error: 'bg-wds-error-fg' };
 
@@ -43,7 +44,7 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
 
   if (!current) return null;
   const items = data ? (showAll ? data.items : data.items.slice(0, 3)) : [];
-  const money = data?.items.some((i) => i.unitCostKes !== undefined) ?? false;
+  const money = data?.items.some((i) => i.valueKes !== undefined) ?? false;
 
   return (
     <div className="grid min-h-[420px] grid-cols-1 border-t border-wds-border lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -131,10 +132,10 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
             </dl>
             <div role="table" aria-label={`${current.departmentName} lines`} className="mt-1 flex flex-col">
               <div role="row" className="flex items-center gap-6 border-b border-wds-text-ink px-4 py-2.5">
-                <MonoLabel className="flex-1">Item</MonoLabel>
-                <MonoLabel className="w-[90px] shrink-0 text-right">Approved</MonoLabel>
-                {data.sentVisible ? <MonoLabel className="w-[90px] shrink-0 text-right">Sent</MonoLabel> : null}
-                {money ? <MonoLabel className="w-[100px] shrink-0 text-right">Value (KES)</MonoLabel> : null}
+                <ColumnHead className="flex-1">Item</ColumnHead>
+                <ColumnHead className="w-[90px] shrink-0 text-right">Approved</ColumnHead>
+                {data.sentVisible ? <ColumnHead className="w-[90px] shrink-0 text-right">Sent</ColumnHead> : null}
+                {money ? <ColumnHead className="w-[100px] shrink-0 text-right">Value (KES)</ColumnHead> : null}
               </div>
               {items.map((item) => {
                 const short = item.sentQty !== undefined && Number(item.sentQty) < Number(item.requestedQty);
@@ -153,7 +154,7 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
             </div>
             {data.items.length > 3 ? (
               <button type="button" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll} className="border-b border-wds-border px-4 py-[11px] text-left font-wds-sans text-[14px] font-medium text-wds-primary outline-none focus-visible:shadow-wds-ring">
-                {showAll ? 'Show fewer lines' : `Show the other ${data.items.length - 3} lines`}
+                {showAll ? 'Show fewer lines' : `Show the other ${data.items.length - 3} ${data.items.length - 3 === 1 ? 'line' : 'lines'}`}
               </button>
             ) : null}
           </>

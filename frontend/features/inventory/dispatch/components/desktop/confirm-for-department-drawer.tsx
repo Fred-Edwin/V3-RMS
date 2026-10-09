@@ -261,6 +261,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                       inputMode="decimal"
                       autoComplete="off"
                       value={values[l.lineId] ?? ''}
+                      autoFocus={l.lineId === flagged[0]?.lineId}
                       onChange={(event) => setValue(l.lineId, event.target.value)}
                       aria-describedby={`recount-hint-${l.lineId}`}
                       className="h-[46px] w-20 border border-wds-error-fg bg-wds-surface text-center font-wds-mono text-[18px] text-wds-text-ink outline-none focus:shadow-wds-ring"

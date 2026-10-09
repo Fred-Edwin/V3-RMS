@@ -138,7 +138,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
 
   it('gives the Store Manager every destination, with Restock levels as the last branch under Stock & counts', () => {
     const groups = hub(navFor(ctxFor('STORE_MANAGER', { can: EVERYTHING })));
-    expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'requisitions', 'stock-counts', 'suppliers', 'catalog', 'audit-log', 'inventory-settings']);
+    expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'requisitions', 'stock-counts', 'suppliers', 'catalog', 'audit-log', 'carriers', 'inventory-settings']);
     expect(item(groups, 'requisitions')?.subItems?.map((s) => s.key)).toEqual(['queue', 'discrepancies', 'history']);
     expect(item(groups, 'stock-counts')?.subItems?.map((s) => s.key)).toEqual(['overview', 'items', 'counts', 'waste', 'ledger', 'restock-levels']);
   });

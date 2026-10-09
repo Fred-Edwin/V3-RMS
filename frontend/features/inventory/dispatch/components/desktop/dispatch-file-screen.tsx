@@ -14,7 +14,7 @@ import { cn } from '@/lib/cn';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { useLoader } from '../../../_shared/hooks/use-async';
-import { DocLink, MonoLabel, ReqTabs } from '../../../requisitions/components/req-parts';
+import { DocLink, ReqTabs } from '../../../requisitions/components/req-parts';
 import { dayAndClock, dayLabel, clock } from '../../../requisitions/_shared/lib/requisitions-words';
 import type { DispatchDocument, DispatchFile, DispatchItem } from '../../_shared/types/dispatch-contract';
 import { dispatchNextWords, dispatchProgress, fileTitle, nameAndTitle, stageChip } from '../../lib/dispatch-words';
@@ -22,7 +22,7 @@ import { useRecordNudge } from '../../hooks/use-record-nudge';
 import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
 import { CancelDispatchDialog } from './cancel-dispatch-dialog';
 import { ConfirmForDepartmentDrawer } from './confirm-for-department-drawer';
-import { FileHeader, NextStepCard } from './file-parts';
+import { ColumnHead, FileHeader, NextStepCard } from './file-parts';
 import { PhotoStrip } from './photo-strip';
 import { ProgressTracker } from './progress-tracker';
 
@@ -87,7 +87,7 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
   const progress = data ? dispatchProgress(data) : [];
   const visibleItems = data ? (showAll ? data.items : data.items.slice(0, SHOWN_AT_FIRST)) : [];
   const hiddenCount = data ? Math.max(0, data.items.length - SHOWN_AT_FIRST) : 0;
-  const money = data?.items.some((i) => i.unitCostKes !== undefined) ?? false;
+  const money = data?.items.some((i) => i.valueKes !== undefined) ?? false;
   const sentVisible = data?.sentVisible ?? false;
 
   const mainAction = (): React.ReactNode => {
@@ -201,11 +201,11 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                   <div className="flex flex-col">
                     <div role="table" aria-label="Items in this dispatch" className="flex flex-col">
                       <div role="row" className="flex items-center gap-6 border-b border-wds-text-ink px-3 pb-2.5 pt-4">
-                        <MonoLabel className="flex-1">Item</MonoLabel>
-                        {!sentVisible ? <MonoLabel className="w-[110px] shrink-0 text-right">Requested</MonoLabel> : <MonoLabel className="w-[110px] shrink-0 text-right">Sent</MonoLabel>}
-                        <MonoLabel className="w-[110px] shrink-0 text-right">Counted</MonoLabel>
-                        {sentVisible ? <MonoLabel className="w-[110px] shrink-0 text-right">Gap</MonoLabel> : null}
-                        {money ? <MonoLabel className="w-[110px] shrink-0 text-right">Value (KES)</MonoLabel> : null}
+                        <ColumnHead className="flex-1">Item</ColumnHead>
+                        {!sentVisible ? <ColumnHead className="w-[110px] shrink-0 text-right">Requested</ColumnHead> : <ColumnHead className="w-[110px] shrink-0 text-right">Sent</ColumnHead>}
+                        <ColumnHead className="w-[110px] shrink-0 text-right">Counted</ColumnHead>
+                        {sentVisible ? <ColumnHead className="w-[110px] shrink-0 text-right">Gap</ColumnHead> : null}
+                        {money ? <ColumnHead className="w-[110px] shrink-0 text-right">Value (KES)</ColumnHead> : null}
                       </div>
                       {visibleItems.map((item) => {
                         const gap = item.gapQty !== undefined && item.gapQty !== null && Number(item.gapQty) !== 0;
@@ -236,7 +236,7 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                     </div>
                     {hiddenCount > 0 ? (
                       <button type="button" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll} className="border-b border-wds-border px-3 py-[11px] text-left font-wds-sans text-[14px] font-medium text-wds-primary outline-none focus-visible:shadow-wds-ring">
-                        {showAll ? 'Show fewer lines' : `Show the other ${hiddenCount} lines`}
+                        {showAll ? 'Show fewer lines' : `Show the other ${hiddenCount} ${hiddenCount === 1 ? 'line' : 'lines'}`}
                       </button>
                     ) : null}
                   </div>

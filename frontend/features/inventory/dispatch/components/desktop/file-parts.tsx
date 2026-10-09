@@ -41,6 +41,15 @@ export function FileHeader({ title, chip, subline, actions }: { title: string; c
   );
 }
 
+/** A column heading of a div-built table (`role="table"`): the mono label, announced as a column header. */
+export function ColumnHead({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span role="columnheader" className={cn('font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary', className)}>
+      {children}
+    </span>
+  );
+}
+
 /** A mono-labelled block with a heavy top rule, the "THE GAP" and "WHO HANDLED IT" headings of D14. */
 export function RuledBlock({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (

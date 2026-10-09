@@ -170,7 +170,7 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
           refreshToken={refresh * 2 + (tab === 'open' ? 0 : 1)}
           searchPlaceholder="Search by number or item"
           onRowActivate={(r) => router.push(href(r.id))}
-          fetchRows={async (q, { signal: _signal }) => {
+          fetchRows={async (q) => {
             const range = tab === 'settled' ? effectiveRange(q.filters, SETTLED_DATE, SETTLED_DATE.defaultPreset, nairobiToday()) : undefined;
             const res = await discrepanciesApi.list({ tab, q: q.search || undefined, branchId: q.filters.branchId, departmentId: q.filters.departmentId, from: range?.from, to: range?.to, page: q.page, pageSize: q.perPage as 25 | 50 | 100 });
             setCounts(res.counts);
