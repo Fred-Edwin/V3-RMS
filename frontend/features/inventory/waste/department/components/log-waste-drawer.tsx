@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import type { CreateWasteResult } from '../types/waste';
 import { LogWasteFields, useLogWasteForm } from './log-waste-form';
-import { StockMobileHeader } from '../../../_shared/components/stock-mobile-header';
 import { formatKes, formatQty } from '../../../_shared/components/stock-format';
 
 /**
@@ -160,61 +159,3 @@ export function LogWasteDrawer({ open, onOpenChange, locationLabel, onLogged }: 
   );
 }
 
-export interface LogWasteMobileProps {
-  /** e.g. "the Central Store" / "Kitchen, Nyeri Town". */
-  locationLabel: string;
-  onClose: () => void;
-  onLogged?: (result: CreateWasteResult) => void;
-  /** Overlay (opened from the hub) or a routed page (DH `/app/branch/waste/new`). */
-  asOverlay?: boolean;
-}
-
-/** Mobile full-screen — `1BX0-0` (Central Store) / `1ACM-0` (Department). */
-export function LogWasteMobile({ locationLabel, onClose, onLogged, asOverlay = true }: LogWasteMobileProps) {
-  const toast = useWasteLoggedToast();
-  const handleLogged = React.useCallback(
-    (result: CreateWasteResult) => {
-      toast(result);
-      onLogged?.(result);
-      onClose();
-    },
-    [toast, onLogged, onClose],
-  );
-  const form = useLogWasteForm(handleLogged);
-  const { requestClose, dialog } = useGuardedClose(form.dirty, form.submitting, onClose, form.reset);
-
-  React.useEffect(() => {
-    if (!asOverlay) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') requestClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [asOverlay, requestClose]);
-
-  return (
-    <div
-      role={asOverlay ? 'dialog' : undefined}
-      aria-modal={asOverlay || undefined}
-      aria-label={asOverlay ? 'Log waste' : undefined}
-      className={cn(
-        'flex flex-col bg-wds-canvas',
-        asOverlay
-          ? 'fixed inset-0 z-50 overflow-y-auto overscroll-contain motion-safe:animate-in motion-safe:slide-in-from-bottom-4 motion-safe:fade-in-0 motion-safe:duration-[250ms] motion-safe:ease-[cubic-bezier(0.32,0.72,0,1)]'
-          : 'min-h-full',
-      )}
-    >
-      <StockMobileHeader
-        title="Log waste"
-        subtitle={`Writes a waste entry against ${locationLabel}`}
-        onBack={requestClose}
-        trailingLabel="Cancel"
-        onTrailing={requestClose}
-      />
-      <div className="flex flex-1 flex-col">
-        <LogWasteFields form={form} variant="mobile" />
-      </div>
-      {dialog}
-    </div>
-  );
-}

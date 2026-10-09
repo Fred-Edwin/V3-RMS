@@ -61,9 +61,8 @@ export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 // Milestone Six, Session 1 — Stock position & waste.
 // The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
 export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
-export { WasteScreen, LogWastePhoneScreen } from './waste';
+export { WasteScreen, LogWastePhoneScreen, DepartmentWasteScreen, LogWasteFlow } from './waste';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
-export { DepartmentLogWasteScreen } from './waste/department/components/department-log-waste-screen';
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
 export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, MyCountsScreen, PickSectionScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
