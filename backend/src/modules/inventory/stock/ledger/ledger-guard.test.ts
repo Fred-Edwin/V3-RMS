@@ -57,8 +57,12 @@ describe('stock ledger guard', () => {
     expect(stale, 'These files write the ledger less than the allow-list says: lower or remove their entry.').toEqual([]);
   });
 
-  it('the moved writers (Waste, Prep) no longer write the ledger directly', () => {
+  it('the moved writers (Waste, Branch waste, Prep) no longer write the ledger directly', () => {
     expect(found.has('modules/inventory/waste/waste-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/log/log-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/reverse/reverse-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/branch/branch-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/branch/branch-repository.ts')).toBe(false);
     expect(found.has('modules/inventory/prep/prep-service.ts')).toBe(false);
   });
 
