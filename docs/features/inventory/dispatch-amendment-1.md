@@ -27,6 +27,8 @@ Sources: the contract-in-code summary (52c4352), `docs/sessions/block-2-fe-phone
 
 ## 2. To draw in Paper before the front-end build (owner preference)
 
+**Status: all drawn and approved by the owner, 9 Oct 2026** (Paper page "Inventory · Requisition and dispatch", Chapters 9 to 12; detail in the `dispatch-flow.md` design log, "Block 2 gaps"). Front-end Stage 2 may start. The list below is kept as the original brief.
+
 New screens: phone dispatch file (read only); the Attendant's On the way tab; the department's delivery file (what G2's rows open, with the discrepancy and any reversal); the discrepancy file after a finding and after a reversal (desktop); a closed dispatch with no gap (desktop); delivery note page 2 (D17c); the leave-out control and the left-out and not-ready states on D4, D5, D5b and D6. One **Block 2 states and wording sheet** (like D21) covering chips, the status words, empty and error copy per list, the voided note, the Carriers dialogs, the D19 walk-through variants and the Extra wording, so the build has no per-state guessing. Paper fixes: D15 typo ("2milk"), D18 sidebar (Settings under Procurement), the 7c sidebar badge, D19 and D20 drawn over the Store Manager's file, D19 arrival wording.
 
 ## 3. Back end split
