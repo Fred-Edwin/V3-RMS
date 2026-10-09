@@ -244,7 +244,7 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
           <HeadSecondaryButton onClick={() => router.push(reqAddMore(data.id))}>{ADDITION_COPY.button}</HeadSecondaryButton>
           <HeadFooterHint>{ADDITION_COPY.hint}</HeadFooterHint>
         </HeadFooter>
-      ) : cancelled || data.can.startNew ? (
+      ) : cancelled ? (
         <HeadFooter>
           <HeadPrimaryButton onClick={back}>Start a new one</HeadPrimaryButton>
         </HeadFooter>

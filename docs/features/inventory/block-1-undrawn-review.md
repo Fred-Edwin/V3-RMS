@@ -28,7 +28,7 @@ For the owner to review (standing rule: Paper is direction; an undrawn button or
 | 15 | **Mark as urgent** switch on the section screen after the requisition is started (Paper draws Urgent only at start) | Requisitions › open your open requisition |
 | 16 | **See every line** in the send sheet; **See lines** on a sent list (read-only list) | Review and send › See every line; a sent list › See lines |
 | 17 | **Added after approval · Waiting for approval** state and its lines | After sending an addition |
-| 18 | The fallback **Start a new one** button on an approved requisition that has an addition waiting (I flag this: it may not be wanted) | Approved requisition with a pending addition |
+| 18 | RESOLVED 9 Oct 2026 (owner decision): the fallback **Start a new one** button is removed from an approved requisition with an addition waiting. **Start a new one** now shows only on a Cancelled file (head's phone footer limited to Cancelled; the desktop card already did this) | Cancelled file only |
 | 19 | **Approved, with the store** banner and the greyed Block 2 rows in the tracker | Any approved requisition |
 | 20 | The "manager changed a line" notice (asked, approved, reason; nothing to dismiss) | After the Branch Manager changes a quantity |
 | 21 | History row opening the read-only file, cancelled and not-sent labels | Requisitions › History, tap a row |
@@ -45,7 +45,7 @@ For the owner to review (standing rule: Paper is direction; an undrawn button or
 | 27 | Print page: "Asked by", addition approver block, the "n + m" lines wording, signature that steps down for a long name | A file › "…" › Print |
 
 ## Things I want you to look at
-- Item 18 (the "Start a new one" fallback).
-- A toast sits over the top-right of drawers and the "…" button and stays up for a long time; it hid the menu button while I worked.
+- Item 18 (the "Start a new one" fallback): resolved 9 Oct 2026, see the table.
+- A toast sat over the top-right of drawers and the "…" button and stayed up for a long time: fixed 9 Oct 2026. The shared toast (`components/ui2/toast.tsx`) now sits at the bottom centre, success and info go after 4 seconds, errors stay until dismissed or replaced, it pauses on hover and focus, has a Dismiss button, is announced (`status`, or `alert` for errors) and respects reduced motion.
 - The Mark-as-urgent toast tells the Branch Manager "the Branch Manager is told at once" when they marked it themselves.
 - The Radix select option (cancel reason) did not take a mouse click from the test tool but works with the keyboard; please click it once yourself.
