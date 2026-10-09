@@ -95,7 +95,7 @@ describe("the head's rows in the navigation table", () => {
   const ctx = (isDepartmentHead: boolean): NavContext => ({ role: 'CHEF', isDepartmentHead, can: () => false, creditAccounts: false });
   const hrefs = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.href));
   it('gives a head Requisitions, Deliveries, Waste and History on the new pages, and a member none of them', () => {
-    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/branch/waste/new', '/app/requisitions/history']));
+    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/waste', '/app/requisitions/history']));
     expect(hrefs(false)).not.toContain('/app/requisitions');
   });
   it('gives a department member (not a head) Deliveries and its History, and no Requisitions', () => {
