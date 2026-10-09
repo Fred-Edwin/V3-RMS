@@ -87,6 +87,18 @@ export const CAPABILITIES = [
   'departments.read', // Departments settings, read only
   'departments.write', // add, rename, retire, restore (own branch)
   'branches.set_code', // correct a branch's three-letter code, which numbers its requisitions (System Admin only; no screen in Block 1)
+  // Dispatch, deliveries and discrepancies (docs/features/inventory/dispatch-contract.md §3). The client has not approved these
+  // mappings; each is a one-row edit below. Own-branch (Branch Manager), own-history (Attendant) and own-department narrowing are service rules.
+  'dispatch.read', // dispatch files and lists; the Branch Manager's own branch only, the Attendant's own packing history only
+  'dispatch.pack', // pack, review and sign a dispatch with the caller's own PIN
+  'dispatch.cancel', // cancel a signed dispatch before any department member has signed its count
+  'carriers.read', // the carrier list, read only
+  'carriers.manage', // add, rename, retire and restore carriers
+  'deliveries.count', // count and sign a delivery for ONE department: held by no role here, the department rule in the service (an active member or the head)
+  'deliveries.confirm_on_behalf', // confirm a department's delivery, recorded as the real signer "on behalf of the department" (Branch Manager only)
+  'discrepancies.read', // every discrepancy (a Branch Manager's own branch; department heads their own department by the department rule)
+  'discrepancies.record', // record one finding with the caller's own PIN
+  'discrepancies.reverse', // reverse a recorded finding with a reason and PIN
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -113,6 +125,9 @@ const READ_EVERYTHING: readonly Capability[] = [
   'requisitions.read',
   'requisitions.see_value',
   'departments.read',
+  'dispatch.read',
+  'carriers.read',
+  'discrepancies.read',
   'audit.read',
   'central_store.read_any_org',
 ];
@@ -133,12 +148,19 @@ const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
   'requisitions.send_on_behalf',
   'departments.write',
   'branches.set_code',
+  // A branch department's delivery is counted by its own members or confirmed for them by the Branch Manager.
+  'deliveries.count',
+  'deliveries.confirm_on_behalf',
 ];
+
+/** Held by no one through "everything": filling or signing FOR a department is the Branch Manager's alone, and counting a delivery is the department's (owner, 8 Oct 2026). */
+const DEPARTMENT_ONLY: readonly Capability[] = ['requisitions.edit_on_behalf', 'requisitions.send_on_behalf', 'deliveries.count', 'deliveries.confirm_on_behalf'];
 
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {
   STORE_MANAGER: CAPABILITIES.filter((c) => !NOT_THE_STORE_MANAGERS.includes(c)),
-  // Everything except "on behalf": filling and sending a department's section is the Branch Manager's alone (owner, 8 Oct 2026).
-  SYSTEM_ADMIN: CAPABILITIES.filter((c) => c !== 'requisitions.edit_on_behalf' && c !== 'requisitions.send_on_behalf'),
+  // Everything except "on behalf" and the department's own count: filling and sending a department's section, and confirming its
+  // delivery for it, is the Branch Manager's alone (owner, 8 Oct 2026; contract §3 for deliveries).
+  SYSTEM_ADMIN: CAPABILITIES.filter((c) => !DEPARTMENT_ONLY.includes(c)),
   ACCOUNTANT: [
     ...READ_EVERYTHING,
     'suppliers.read_payment_details',
@@ -162,6 +184,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'requisitions.edit_on_behalf',
     'requisitions.send_on_behalf',
     'departments.write',
+    // Confirms any department's delivery of the branch, recorded as the real signer "on behalf of the department".
+    'deliveries.confirm_on_behalf',
   ],
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
   // payments, supplier balances and payment details, reports): see `_shared/blind-rule.ts`. Raises order requests and
@@ -184,6 +208,9 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'waste.reverse_own',
     // Reads every requisition to pack it; no money and no branch values (the `requisitions.see_value` row is not theirs).
     'requisitions.read',
+    // Packs, reviews and signs dispatches with their own PIN; reads their own packing history only (the service narrows `dispatch.read`).
+    'dispatch.read',
+    'dispatch.pack',
   ],
 };
 

@@ -24,6 +24,7 @@ router.get('/inventory/permissions/me', (req: Request, res: Response): void => {
       role: preview ?? req.user.role,
       isDepartmentHead: preview ? false : (req.user.isDepartmentHead ?? false),
       capabilities: capabilitiesOf(preview ?? req.user.role),
+      // back end C: add `departments` (the caller's departments and whether head or member), the shape in `permissions-contract.ts`.
     },
   });
 });

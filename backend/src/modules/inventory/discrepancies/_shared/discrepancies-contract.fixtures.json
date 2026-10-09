@@ -1,0 +1,289 @@
+{
+  "listQuery": {
+    "tab": "open",
+    "branchId": "20000000-0000-4000-8000-000000000001",
+    "departmentId": "30000000-0000-4000-8000-000000000002",
+    "q": "milk",
+    "from": "2026-10-01",
+    "to": "2026-10-08",
+    "page": "1",
+    "pageSize": "25"
+  },
+  "listOpen": {
+    "tab": "open",
+    "rows": [
+      {
+        "id": "80000000-0000-4000-8000-000000000001",
+        "reference": "DSC-NYR-0007",
+        "status": "OPEN",
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+        "itemName": "Milk 1L",
+        "unit": "packet",
+        "gapQty": "-2",
+        "direction": "SHORT",
+        "branchReason": "NOT_IN_THE_BOX",
+        "dispatch": { "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232" },
+        "openedAt": "2026-10-08T12:35:00.000Z",
+        "reminderSentAt": null,
+        "finding": null,
+        "can": { "recordFinding": true }
+      },
+      {
+        "id": "80000000-0000-4000-8000-000000000002",
+        "reference": "DSC-KRT-0003",
+        "status": "OPEN",
+        "branch": { "id": "20000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+        "department": { "id": "30000000-0000-4000-8000-000000000011", "name": "Kitchen" },
+        "itemName": "Cooking oil 10L",
+        "unit": "can",
+        "gapQty": "-1",
+        "direction": "SHORT",
+        "branchReason": null,
+        "dispatch": { "id": "50000000-0000-4000-8000-000000000020", "reference": "DSP-KRT-0118" },
+        "openedAt": "2026-10-07T10:30:00.000Z",
+        "reminderSentAt": "2026-10-08T10:30:00.000Z",
+        "finding": null,
+        "can": { "recordFinding": true }
+      }
+    ],
+    "counts": { "open": 2, "settled": 14 },
+    "branches": [
+      { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+      { "id": "20000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" }
+    ],
+    "page": { "page": 1, "pageSize": 25, "total": 2 }
+  },
+  "listSettledBranchManager": {
+    "tab": "settled",
+    "rows": [
+      {
+        "id": "80000000-0000-4000-8000-000000000003",
+        "reference": "DSC-NYR-0005",
+        "status": "RECORDED",
+        "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+        "itemName": "Chicken wings (kg)",
+        "unit": "kg",
+        "gapQty": "-3",
+        "direction": "SHORT",
+        "branchReason": "DAMAGED",
+        "dispatch": { "id": "50000000-0000-4000-8000-000000000010", "reference": "DSP-NYR-0219" },
+        "openedAt": "2026-10-04T05:10:00.000Z",
+        "reminderSentAt": null,
+        "finding": {
+          "finding": "LOST_OR_DAMAGED",
+          "note": "The crate was split on the road",
+          "recorded": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-04T08:00:00.000Z" },
+          "against": "CARRIER",
+          "lossKind": "LOSS",
+          "lossValueKes": "1350.0000"
+        },
+        "can": { "recordFinding": false }
+      }
+    ],
+    "counts": { "open": 0, "settled": 14 },
+    "page": { "page": 1, "pageSize": 50, "total": 14 }
+  },
+  "fileOpen": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "status": "OPEN",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "dispatch": { "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232" },
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "item": { "id": "10000000-0000-4000-8000-000000000012", "name": "Milk 1L", "unit": "packet" },
+    "sentQty": "24",
+    "countedQty": "22",
+    "gapQty": "-2",
+    "direction": "SHORT",
+    "countedTwice": true,
+    "branchReason": "NOT_IN_THE_BOX",
+    "branchReasonNote": null,
+    "photos": [],
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K" },
+    "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
+    "assignedTo": "Store Manager",
+    "openedAt": "2026-10-08T12:35:00.000Z",
+    "reminderSentAt": null,
+    "finding": null,
+    "reversal": null,
+    "allowedFindings": ["PACKED_SHORT", "LOST_OR_DAMAGED", "BRANCH_COUNTED_WRONG", "CANT_TELL"],
+    "events": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000010",
+        "type": "DISCREPANCY_OPENED",
+        "at": "2026-10-08T12:35:00.000Z",
+        "actor": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" },
+        "sentence": "Opened DSC-NYR-0007 · Milk 1L short by 2 · counted twice",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007" },
+        "reason": "Not in the box"
+      }
+    ],
+    "nextStep": { "action": "RECORD_A_FINDING", "facts": { "reminderAfterHours": 24 } },
+    "valueKes": "240.0000",
+    "can": { "recordFinding": true, "reverse": false }
+  },
+  "fileReversedBackToOpen": {
+    "id": "80000000-0000-4000-8000-000000000003",
+    "reference": "DSC-NYR-0005",
+    "status": "OPEN",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "dispatch": { "id": "50000000-0000-4000-8000-000000000010", "reference": "DSP-NYR-0219" },
+    "requisition": { "id": "40000000-0000-4000-8000-000000000002", "reference": "REQ-NYR-0098" },
+    "item": { "id": "10000000-0000-4000-8000-000000000021", "name": "Chicken wings (kg)", "unit": "kg" },
+    "sentQty": "10",
+    "countedQty": "7",
+    "gapQty": "-3",
+    "direction": "SHORT",
+    "countedTwice": true,
+    "branchReason": "DAMAGED",
+    "branchReasonNote": null,
+    "photos": [{ "id": "90000000-0000-4000-8000-000000000002", "url": "/api/v1/inventory/deliveries/50000000-0000-4000-8000-000000000010/photos/90000000-0000-4000-8000-000000000002" }],
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-03T12:00:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-03T12:03:00.000Z" },
+    "carrier": { "id": "60000000-0000-4000-8000-000000000002", "name": "Daniel Otieno" },
+    "counted": { "by": { "id": "u-kitchen-head", "name": "Mary Wambui", "initials": "MW", "roleLabel": "Kitchen Department Head" }, "at": "2026-10-04T05:10:00.000Z" },
+    "assignedTo": "Store Manager",
+    "openedAt": "2026-10-04T05:10:00.000Z",
+    "reminderSentAt": null,
+    "finding": null,
+    "reversal": {
+      "reason": "The wings turned up in the Karatina delivery",
+      "reversed": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-06T07:00:00.000Z" }
+    },
+    "allowedFindings": ["PACKED_SHORT", "LOST_OR_DAMAGED", "BRANCH_COUNTED_WRONG", "CANT_TELL"],
+    "events": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000011",
+        "type": "DISCREPANCY_OPENED",
+        "at": "2026-10-04T05:10:00.000Z",
+        "actor": { "id": "u-kitchen-head", "name": "Mary Wambui", "initials": "MW", "roleLabel": "Kitchen Department Head" },
+        "sentence": "Opened DSC-NYR-0005 · Chicken wings (kg) short by 3 · counted twice",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000003", "reference": "DSC-NYR-0005" },
+        "reason": "Damaged"
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000012",
+        "type": "FINDING_RECORDED",
+        "at": "2026-10-04T08:00:00.000Z",
+        "actor": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" },
+        "sentence": "Recorded Lost or damaged on the way · DSC-NYR-0005 · signed with PIN",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000003", "reference": "DSC-NYR-0005" },
+        "reason": "The crate was split on the road"
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000013",
+        "type": "FINDING_REVERSED",
+        "at": "2026-10-06T07:00:00.000Z",
+        "actor": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" },
+        "sentence": "Reversed the finding on DSC-NYR-0005 · signed with PIN",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000003", "reference": "DSC-NYR-0005" },
+        "reason": "The wings turned up in the Karatina delivery"
+      }
+    ],
+    "nextStep": { "action": "RECORD_A_FINDING", "facts": { "reminderAfterHours": 24 } },
+    "valueKes": "1350.0000",
+    "can": { "recordFinding": true, "reverse": false }
+  },
+  "fileDepartmentHead": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "status": "OPEN",
+    "branch": { "id": "20000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "dispatch": { "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232" },
+    "requisition": { "id": "40000000-0000-4000-8000-000000000001", "reference": "REQ-NYR-0112" },
+    "item": { "id": "10000000-0000-4000-8000-000000000012", "name": "Milk 1L", "unit": "packet" },
+    "sentQty": "24",
+    "countedQty": "22",
+    "gapQty": "-2",
+    "direction": "SHORT",
+    "countedTwice": true,
+    "branchReason": "NOT_IN_THE_BOX",
+    "branchReasonNote": null,
+    "photos": [],
+    "packed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:01:00.000Z" },
+    "signed": { "by": { "id": "u-attendant", "name": "Peter Kamau", "initials": "PK", "roleLabel": "Store Attendant" }, "at": "2026-10-08T12:05:00.000Z" },
+    "carrier": { "id": "60000000-0000-4000-8000-000000000001", "name": "Wendo van KCB 214K" },
+    "counted": { "by": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" }, "at": "2026-10-08T12:35:00.000Z" },
+    "assignedTo": "Store Manager",
+    "openedAt": "2026-10-08T12:35:00.000Z",
+    "reminderSentAt": null,
+    "finding": null,
+    "reversal": null,
+    "allowedFindings": [],
+    "events": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000010",
+        "type": "DISCREPANCY_OPENED",
+        "at": "2026-10-08T12:35:00.000Z",
+        "actor": { "id": "u-barista-head", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Barista Department Head" },
+        "sentence": "Opened DSC-NYR-0007 · Milk 1L short by 2 · counted twice",
+        "link": { "kind": "DISCREPANCY", "id": "80000000-0000-4000-8000-000000000001", "reference": "DSC-NYR-0007" },
+        "reason": "Not in the box"
+      }
+    ],
+    "nextStep": { "action": null, "facts": { "reminderAfterHours": 24 } },
+    "can": { "recordFinding": false, "reverse": false }
+  },
+  "findingPreviewQuery": { "finding": "PACKED_SHORT" },
+  "findingPreviewPackedShort": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "finding": "PACKED_SHORT",
+    "itemName": "Milk 1L",
+    "unit": "packet",
+    "effects": [{ "place": "CENTRAL_STORE", "placeName": "Central Store", "quantity": "2" }],
+    "against": "STORE",
+    "againstParty": "Packer: Store Attendant",
+    "lossKind": "PACKING_ERROR"
+  },
+  "findingPreviewLost": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "finding": "LOST_OR_DAMAGED",
+    "itemName": "Milk 1L",
+    "unit": "packet",
+    "effects": [{ "place": "WRITTEN_OFF", "placeName": "Written off at frozen cost", "quantity": "-2" }],
+    "against": "CARRIER",
+    "againstParty": "Wendo van KCB 214K",
+    "lossKind": "LOSS",
+    "lossValueKes": "240.0000"
+  },
+  "recordFindingInput": { "finding": "PACKED_SHORT", "note": "Checked the pack list with the attendant.", "pin": "4821", "idempotencyKey": "finding-dsc-nyr-0007-a1" },
+  "recordFindingResult": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "status": "RECORDED",
+    "finding": {
+      "finding": "PACKED_SHORT",
+      "note": "Checked the pack list with the attendant.",
+      "recorded": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-08T12:52:00.000Z" },
+      "against": "STORE",
+      "lossKind": "PACKING_ERROR"
+    },
+    "ledgerEntries": 1,
+    "replayed": false
+  },
+  "reverseFindingInput": { "reason": "The milk was found in the Barista cold room", "pin": "4821", "idempotencyKey": "reverse-dsc-nyr-0007-a1" },
+  "reverseFindingResult": {
+    "id": "80000000-0000-4000-8000-000000000001",
+    "reference": "DSC-NYR-0007",
+    "status": "OPEN",
+    "reversal": {
+      "reason": "The milk was found in the Barista cold room",
+      "reversed": { "by": { "id": "u-storemgr", "name": "Joseph Mwangi", "initials": "JM", "roleLabel": "Store Manager" }, "at": "2026-10-09T07:15:00.000Z" }
+    },
+    "ledgerEntries": 1,
+    "replayed": false
+  },
+  "errorFindingAlreadyRecorded": { "success": false, "error": { "code": "FINDING_ALREADY_RECORDED", "message": "A finding has already been recorded for this discrepancy." } },
+  "errorFindingNotAllowed": { "success": false, "error": { "code": "FINDING_NOT_ALLOWED", "message": "That finding does not fit a gap in this direction." } },
+  "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN did not work." } },
+  "errorFindingNotReversible": { "success": false, "error": { "code": "FINDING_NOT_REVERSIBLE", "message": "There is no recorded finding to reverse." } }
+}

@@ -47,6 +47,10 @@ import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
 import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import departmentsRoutes from '../modules/inventory/departments/departments-routes';
+import dispatchRebuildRoutes from '../modules/inventory/dispatch/dispatch-rebuild-routes';
+import carriersRoutes from '../modules/inventory/dispatch/carriers-routes';
+import deliveriesRoutes from '../modules/inventory/deliveries/deliveries-routes';
+import discrepanciesRoutes from '../modules/inventory/discrepancies/discrepancies-routes';
 import { workforcePermissionsRouter, workforceRulesRouter } from '../modules/workforce';
 
 const apiRouter = Router();
@@ -103,6 +107,12 @@ apiRouter.use(dispatchRoutes);
 // under /inventory/requisitions and /inventory/departments.
 apiRouter.use('/inventory/requisitions', requisitionsRoutes);
 apiRouter.use('/inventory/departments', departmentsRoutes);
+// Final pass, Block 2 (docs/features/inventory/dispatch-contract.md): the rebuilt Dispatch, Carriers, Deliveries and Discrepancies.
+// Placeholders until back ends C and D fill them; the old /dispatch, /deliveries and /discrepancies router above keeps running until C.
+apiRouter.use('/inventory/dispatch', dispatchRebuildRoutes);
+apiRouter.use('/inventory/carriers', carriersRoutes);
+apiRouter.use('/inventory/deliveries', deliveriesRoutes);
+apiRouter.use('/inventory/discrepancies', discrepanciesRoutes);
 apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceRulesRouter);
 

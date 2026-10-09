@@ -108,7 +108,7 @@
     "page": { "page": 1, "pageSize": 50, "total": 1 }
   },
   "badgesManager": { "requisitions": 1, "toApprove": 1 },
-  "badgesStore": { "requisitions": 2, "toPack": 2 },
+  "badgesStore": { "requisitions": 2, "toPack": 2, "dispatch": 2 },
   "fileManager": {
     "id": "a0000000-0000-4000-8000-000000000112",
     "reference": "REQ-NYR-0112",
@@ -237,8 +237,8 @@
       { "key": "STARTED", "state": "DONE", "at": "2026-10-07T05:30:00.000Z", "by": { "id": "u-grace", "name": "Grace Wanjiru", "initials": "GW", "roleLabel": "Kitchen Head" }, "count": null },
       { "key": "ALL_IN", "state": "DONE", "at": "2026-10-07T06:05:00.000Z", "by": null, "count": { "done": 1, "total": 1 } },
       { "key": "APPROVED", "state": "DONE", "at": "2026-10-07T06:20:00.000Z", "by": { "id": "u-peter", "name": "Peter Mwangi", "initials": "PM", "roleLabel": "Branch Manager" }, "count": null },
-      { "key": "PACKED", "state": "CURRENT", "at": null, "by": null, "count": null },
-      { "key": "DELIVERED", "state": "TODO", "at": null, "by": null, "count": null },
+      { "key": "PACKED", "state": "CURRENT", "at": null, "by": null, "count": { "done": 0, "total": 1 } },
+      { "key": "DELIVERED", "state": "TODO", "at": null, "by": null, "count": { "done": 0, "total": 1 } },
       { "key": "CLOSED", "state": "TODO", "at": null, "by": null, "count": null }
     ],
     "nextStep": { "action": "ADD_TO_THIS_REQUISITION", "departmentId": "d0000000-0000-4000-8000-000000000001", "facts": { "sectionsIn": 1, "sectionsTotal": 1, "additionsWaiting": 0 } },
@@ -278,7 +278,19 @@
       }
     ],
     "additions": [],
-    "dispatches": [],
+    "dispatches": [
+      {
+        "id": "50000000-0000-4000-8000-000000000001",
+        "reference": null,
+        "departmentId": "d0000000-0000-4000-8000-000000000001",
+        "departmentName": "Kitchen",
+        "status": "PACKING",
+        "derivedState": "PACKING",
+        "lineCount": 1,
+        "signedAt": null,
+        "carrierName": null
+      }
+    ],
     "lineCount": 1,
     "can": { "nudge": false, "skip": false, "changeQuantity": false, "approve": false, "cancel": false, "setUrgent": false, "addToIt": true, "print": false, "startNew": false }
   },

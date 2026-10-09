@@ -138,7 +138,10 @@ export interface TrackerStep {
   state: 'DONE' | 'CURRENT' | 'TODO';
   at: string | null;
   by: Person | null;
-  /** ALL_IN: sections in of sections counted; null for the other steps. */
+  /**
+   * ALL_IN: sections in of sections counted. PACKED: "n of m sent" (departments whose dispatch is signed of the departments that
+   * count). DELIVERED: "n counted" (departments whose delivery is counted, of the same total). Null for the other steps.
+   */
   count: { done: number; total: number } | null;
 }
 
@@ -149,13 +152,46 @@ export interface NextStep {
   facts: { sectionsIn: number; sectionsTotal: number; additionsWaiting: number };
 }
 
-/** Empty until Block 2. */
+/** The database dispatch statuses and the derived states (mirrors `dispatch/_shared/types/dispatch-contract.ts`; a test pins that they agree). */
+export type DispatchStatusValue = 'TO_PACK' | 'PACKING' | 'ON_THE_WAY' | 'CONFIRMED' | 'CLOSED' | 'CANCELLED';
+export const DISPATCH_STATUS_VALUES: readonly DispatchStatusValue[] = ['TO_PACK', 'PACKING', 'ON_THE_WAY', 'CONFIRMED', 'CLOSED', 'CANCELLED'];
+export type DispatchDerivedState =
+  | 'TO_PACK'
+  | 'PACKING'
+  | 'READY_TO_SEND'
+  | 'ON_THE_WAY'
+  | 'WAITING_FOR_BRANCH'
+  | 'CONFIRMED'
+  | 'GAP_HELD'
+  | 'CLOSED'
+  | 'CANCELLED';
+export const DISPATCH_DERIVED_STATE_VALUES: readonly DispatchDerivedState[] = [
+  'TO_PACK',
+  'PACKING',
+  'READY_TO_SEND',
+  'ON_THE_WAY',
+  'WAITING_FOR_BRANCH',
+  'CONFIRMED',
+  'GAP_HELD',
+  'CLOSED',
+  'CANCELLED',
+];
+
+/**
+ * A dispatch of this requisition (Block 2, Dispatch Amendment 1 row 10), one per department. Rows of departments still to pack have
+ * no number, no signing time and no carrier yet. The front end writes the words from `derivedState`.
+ */
 export interface DispatchRef {
   id: string;
-  reference: string;
+  /** "DSP-NYR-0112"; null until the department's dispatch is signed. */
+  reference: string | null;
   departmentId: string;
-  status: string;
-  statusText: string;
+  departmentName: string;
+  status: DispatchStatusValue;
+  derivedState: DispatchDerivedState;
+  lineCount: number;
+  signedAt: string | null;
+  carrierName: string | null;
 }
 
 // --- R1 list ---------------------------------------------------------------------
@@ -227,6 +263,8 @@ export interface Badges {
   toApprove?: number;
   toPack?: number;
   deliveries?: number;
+  /** Dispatch Amendment 1 row 16: the Attendant's Dispatch row (branches to pack). */
+  dispatch?: number;
 }
 
 // --- R3 file --------------------------------------------------------------------------

@@ -113,6 +113,10 @@ Phone: D1 to D12, G2 My deliveries, G3 the Attendant's Dispatch with a Done tab.
 
 1. Contract in code (Zod, fixtures, mirrors, access rows, placeholder routers). 2. Back end C: migration, dispatch and carriers, ledger. 3. Back end D (starts after C's migration merges): deliveries, discrepancies, jobs, notifications, audit sources. 4. Front end phone and 5. front end desktop (each opens every Paper screen first and reports gaps; Amendment 1 for this block). 6. Integration and the owner's production check.
 
+## 15. Amendment 1 (owner approved 9 Oct 2026)
+
+The list of changes is `dispatch-amendment-1.md` (decisions §1 rows 1 to 18, what to draw in Paper §2, the back end split §3); it applies on top of this document, and Paper still wins. It is in code in `dispatch/_shared/dispatch-contract.ts`, `deliveries/_shared/deliveries-contract.ts`, `discrepancies/_shared/discrepancies-contract.ts`, `requisitions/_shared/requisitions-contract.ts` (the file's `dispatches`, tracker facts and the badges payload), `_shared/permissions-contract.ts` (departments on the permissions call), the three fixtures files, the four front-end mirrors and their tests. Where this document and the amendment disagree, the amendment wins: the 2-hour clock runs from `signedAt` and `arrivedAt` is information only (row 1), the check gives a direction (row 5), a reversal puts the gap back to Open (row 7), the cancel reason is "preset — note" (row 8), the Q1 tabs carry `counts` (row 9), and the error codes are the row 11 names. Access rows are unchanged; `deliveries.confirm_on_behalf` stays the Branch Manager alone and `dispatch-flow.md` is corrected to say so.
+
 ## 14. Test plan
 
 State tables; every error code; blind view builders (no sent figure in any pre-sign response); ledger postings for sign, confirm, finding, reversal and cancel (balanced, linked, idempotent); two-signature race; photo limits; timers (idempotent jobs); `siteId` on every query; contract fixtures; opt-in database tests; the migration on a restored production copy.
