@@ -33,7 +33,7 @@ export interface ScwKpiStripProps {
    * `summary` is the Counts / Stock strip (28 px values, a 4 px cap above them). `compact` is the review strip of step 9
    * (`1XIC-0`: 24 px values coloured by the cell's tone, tighter cells).
    */
-  variant?: 'summary' | 'compact';
+  variant?: 'summary' | 'compact' | 'ink';
   /** Cells (by key) drawn with a green top edge and label: "Applied to stock" on a signed count (step 15). */
   successKeys?: string[];
   className?: string;
@@ -45,20 +45,26 @@ const VALUE_TONE: Record<KpiCell['tone'], string> = {
   ALERT: 'text-wds-error-fg',
 };
 
+// The Branch waste strip (Paper W6, W8): ink values in regular weight with no tracking, a name drawn in Geist 22/34, and
+// a 2 by 2 grid below 1024 (Paper does not draw narrower widths; spec gap G16).
+const NUMERIC_VALUE = /^[\d.,\s+−-]+$/;
+
 export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary', successKeys = [], className }: ScwKpiStripProps) {
   const compact = variant === 'compact';
+  const ink = variant === 'ink';
   return (
-    <div className={cn('flex flex-wrap border border-wds-border bg-wds-surface', className)} role="group" aria-label="Summary">
+    <div className={cn('border border-wds-border bg-wds-surface', ink ? 'grid grid-cols-2 lg:grid-cols-4' : 'flex flex-wrap', className)} role="group" aria-label="Summary">
       {cells.map((cell, i) => {
         const interactive = Boolean(cell.filter && onFilter);
+        const textValue = ink && !NUMERIC_VALUE.test(cell.value);
         const body = (
           <>
             <span className={cn('font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em]', successKeys.includes(cell.key) ? 'text-wds-success-fg' : LABEL[cell.tone])}>{cell.label}</span>
             <span
               className={cn(
-                'font-wds-mono',
-                compact ? 'text-[24px] leading-[30px]' : 'text-wds-kpi',
-                compact ? VALUE_TONE[cell.tone] : cell.filter ? 'text-wds-text-ink' : 'text-wds-text-secondary',
+                ink ? (textValue ? 'font-wds-sans text-[22px] leading-[34px]' : 'font-wds-mono text-[28px] leading-[34px]') : 'font-wds-mono',
+                !ink && (compact ? 'text-[24px] leading-[30px]' : 'text-wds-kpi'),
+                ink ? 'text-wds-text-ink' : compact ? VALUE_TONE[cell.tone] : cell.filter ? 'text-wds-text-ink' : 'text-wds-text-secondary',
               )}
             >
               {cell.value}
@@ -67,10 +73,12 @@ export function ScwKpiStrip({ cells, onFilter, activeFilter, variant = 'summary'
           </>
         );
         const base = cn(
-          'flex min-w-[160px] grow basis-0 flex-col border-t-2 px-4 text-left',
+          'flex grow basis-0 flex-col border-t-2 px-4 text-left',
+          ink ? 'min-w-0' : 'min-w-[160px]',
           compact ? 'gap-0.5 py-3' : 'gap-[3px] py-3.5',
           successKeys.includes(cell.key) ? 'border-t-wds-success-fg' : TOP[cell.tone],
           i < cells.length - 1 && 'border-r border-r-wds-border',
+          ink && 'max-lg:[&:nth-child(2n)]:border-r-0',
         );
         return interactive ? (
           <button

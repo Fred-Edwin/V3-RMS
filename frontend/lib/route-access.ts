@@ -156,6 +156,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     if (pathname.startsWith('/app/inventory/prep')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
+    // Branch waste (Block 3, desktop): the Branch Manager reads their branch and reverses (W6); Director, Accountant, Store Manager and
+    // System Admin read every branch (W8). The API's table decides which screen and what each may do.
+    if (pathname.startsWith('/app/inventory/branch-waste')) {
+      return isDesktopCentralStoreRole;
+    }
     // Stock, Counting and Waste (rebuilt): every desktop role reads every screen; the Attendant counts and logs waste on the phone
     // (Counts, Waste) and may print the blank sheet. The Branch Manager is the `MANAGER` role. The API decides who may write.
     const isHubReader = isDesktopCentralStoreRole;

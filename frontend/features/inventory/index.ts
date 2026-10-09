@@ -62,6 +62,8 @@ export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 // The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
 export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
 export { WasteScreen, LogWastePhoneScreen } from './waste';
+// Block 3, desktop: Branch waste (W6, W8). The phone screens (lane 5) live in `waste/branch/`.
+export { BranchWasteDeskScreen } from './waste/branch-desk/components/branch-waste-desk-screen';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
 export { DepartmentLogWasteScreen } from './waste/department/components/department-log-waste-screen';
 

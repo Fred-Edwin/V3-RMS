@@ -82,6 +82,8 @@ export interface TableToolbarProps {
   onFilterChange: (key: string, value: string) => void;
   /** Sets several filter keys at once (a date range's `from` and `to`), as one change and one history entry. */
   onFiltersChange?: (changes: Record<string, string>) => void;
+  /** `paper` is the Branch waste toolbar (W6, W8): a 300px search with a strong border, filters with 10px padding. The layout is the kit's. */
+  variant?: 'default' | 'paper';
   className?: string;
 }
 
@@ -96,8 +98,10 @@ export function TableToolbar({
   counts,
   onFilterChange,
   onFiltersChange,
+  variant = 'default',
   className,
 }: TableToolbarProps) {
+  const paper = variant === 'paper';
   const chips = filters.filter((f): f is ChipFilter => f.kind === 'chips');
   const toggleGroups = filters.filter((f): f is ToggleChipsFilter => f.kind === 'toggles');
   const dropdowns = filters.filter((f): f is DropdownFilter => f.kind === 'dropdown');
@@ -114,7 +118,7 @@ export function TableToolbar({
 
   return (
     <div role="search" aria-label={searchLabel} className={cn('flex flex-wrap items-center gap-2 px-4 py-3', className)}>
-      <label className="flex h-8 max-sm:h-11 w-full shrink-0 items-center gap-2 border border-wds-border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring sm:w-[240px]">
+      <label className={cn('flex h-8 max-sm:h-11 w-full shrink-0 items-center gap-2 border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring', paper ? 'border-wds-border-strong sm:w-[300px]' : 'border-wds-border sm:w-[240px]')}>
         <Search className="size-[13px] shrink-0 text-wds-text-faint" strokeWidth={1.5} aria-hidden />
         <input
           type="text"
@@ -124,7 +128,7 @@ export function TableToolbar({
           aria-label={searchLabel}
           autoComplete="off"
           spellCheck={false}
-          className="min-w-0 grow bg-transparent font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none placeholder:text-wds-text-faint"
+          className={cn('min-w-0 grow bg-transparent font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none', paper ? 'placeholder:text-[#8D8982]' : 'placeholder:text-wds-text-faint')}
         />
       </label>
 
@@ -198,7 +202,7 @@ export function TableToolbar({
             const chosen = f.options.find((o) => o.value === current);
             return (
               <Select key={f.key} value={current === '' ? ALL : current} onValueChange={(v) => onFilterChange(f.key, v === ALL ? '' : v)}>
-                <SelectTrigger aria-label={f.label} className="h-8 w-auto gap-1.5 rounded-none border-wds-border-strong px-3 text-[12px] leading-4 max-sm:h-11">
+                <SelectTrigger aria-label={f.label} className={cn('h-8 w-auto gap-1.5 rounded-none border-wds-border-strong text-[12px] leading-4 max-sm:h-11', paper ? 'px-2.5' : 'px-3')}>
                   <span>
                     {f.label} · {chosen && chosen.value !== '' ? chosen.label : 'All'}
                   </span>
