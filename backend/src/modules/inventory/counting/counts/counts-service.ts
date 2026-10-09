@@ -1,18 +1,21 @@
 import type { Request } from 'express';
 import { NotFoundError, ValidationError } from '../../../../utils/errors';
-import { actorCan, requireHubReader } from '../../_shared/central-store-access';
-import { dayEndInstant, dayStartInstant } from '../../stock/_shared/nairobi-time';
+import { actorCan, requireHubActor, requireHubReader } from '../../_shared/central-store-access';
+import { addDays, dayEndInstant, dayStartInstant, nairobiDay } from '../../stock/_shared/nairobi-time';
 import { readCountDetail } from '../_shared/count-detail-reader';
 import { longestWithoutCount } from '../_shared/count-reads';
 import { capsOf } from '../_shared/count-state';
-import { countRowView, directorStrip, flaggedRowView, managerStrip, repeatRowView } from './counts-view';
+import { progressView, sectionsText } from '../_shared/count-view';
+import { countRowView, countsHomeView, directorStrip, flaggedRowView, managerStrip, myCountRowView, repeatRowView } from './counts-view';
 import { countsRepository } from './counts-repository';
-import type { CountDetail, CountsList, CountsListQuery, CountsSummary, CountsSummaryQuery, FlaggedList, PagerQuery, RepeatShortfallList } from './counts.types';
+import type { CountDetail, CountsHome, CountsList, CountsListQuery, CountsSummary, CountsSummaryQuery, FlaggedList, MyCountsList, MyCountsQuery, PagerQuery, RepeatShortfallList } from './counts.types';
 
 type Actor = NonNullable<Request['user']>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const SUMMARY_DAYS = 7;
+/** C32's window when no range is given: today and the 29 days before it. */
+export const MINE_DEFAULT_DAYS = 30;
 
 /** The chips the Flagged and Repeat shortfalls tabs share ("Flagged to me 3", "All counts 5", "Repeat shortfalls 2"). */
 const flaggedChips = async (siteId: string): Promise<FlaggedList['chips']> => {
@@ -69,6 +72,46 @@ export const countsService = {
     ]);
     const history = await countsRepository.lastCountsOf(siteId, rows.map((r) => r.itemId));
     return { rows: rows.map((r) => repeatRowView(r, history)), chips, page: { page: query.page, pageSize: query.pageSize, total } };
+  },
+
+  /**
+   * C31: the Attendant's front door. Everything is the caller's own, and nothing is a stock figure: the open count to resume, how
+   * many sections there are and the one counted longest ago (a date), how many counts they have signed, and how many waste entries
+   * they logged on today's Nairobi day. The Store Manager and System Admin get the same answer about their own work.
+   */
+  home: async (actor: Actor, now: Date = new Date()): Promise<CountsHome> => {
+    const siteId = await requireHubActor(actor);
+    const today = nairobiDay(now);
+    const [open, sections, signedCount, wasteToday] = await Promise.all([
+      countsRepository.findOpenOf(siteId, actor.id),
+      longestWithoutCount(siteId, now, Number.MAX_SAFE_INTEGER),
+      countsRepository.signedCountOf(siteId, actor.id),
+      countsRepository.wasteEntriesLogged(siteId, actor.id, dayStartInstant(today), dayEndInstant(today)),
+    ]);
+    const progress = open ? progressView(open.lines) : null;
+    return countsHomeView(
+      {
+        open: open && progress ? { id: open.id, reference: open.reference, sectionsText: sectionsText(open), counted: progress.counted, total: progress.total, progressText: progress.text } : null,
+        sections,
+        signedCount,
+        wasteToday,
+      },
+      now,
+    );
+  },
+
+  /**
+   * C32: the caller's own signed counts, newest signed first, whoever the caller is (another person's count never appears, and a
+   * Manager's `counts.read` does not widen it). With no range the window is the last 30 Nairobi days; a count waiting for review
+   * always shows.
+   */
+  mine: async (actor: Actor, query: MyCountsQuery, now: Date = new Date()): Promise<MyCountsList> => {
+    const siteId = await requireHubActor(actor);
+    if (query.from && query.to && query.from > query.to) throw new ValidationError('"from" must not be after "to"');
+    const from = query.from ?? (query.to ? undefined : addDays(nairobiDay(now), -(MINE_DEFAULT_DAYS - 1)));
+    const range = { ...(from ? { signedFrom: dayStartInstant(from) } : {}), ...(query.to ? { signedBefore: dayEndInstant(query.to) } : {}) };
+    const { rows, total } = await countsRepository.mineList(siteId, actor.id, { status: query.status, ...range }, { page: query.page, pageSize: query.pageSize });
+    return { rows: rows.map((r) => myCountRowView(r, now)), page: { page: query.page, pageSize: query.pageSize, total } };
   },
 
   /**

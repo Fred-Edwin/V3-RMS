@@ -2,10 +2,10 @@ import { Prisma } from '@prisma/client';
 import { countWord, fmtKesSigned } from '../_shared/count-format';
 import { firstNameOf, toPerson } from '../_shared/count-people';
 import { statusTextFor, type CountCaps } from '../_shared/count-state';
-import { clockText, daysBetween, signedText } from '../_shared/count-time';
-import { CAUSE_TEXT, type CountRow, type CountsSummary, type FlaggedList, type RepeatShortfallList } from '../_shared/counting-contract';
+import { clockText, daysBetween, lastCountedText, signedText } from '../_shared/count-time';
+import { CAUSE_TEXT, type CountRow, type CountsHome, type CountsSummary, type FlaggedList, type MyCountRow, type RepeatShortfallList } from '../_shared/counting-contract';
 import type { LongestWithoutCount } from '../_shared/count-reads';
-import type { CountListRow, FlaggedRow, RepeatHistory, RepeatRow, SummaryFacts } from './counts-repository';
+import type { CountListRow, FlaggedRow, MyCountListRow, RepeatHistory, RepeatRow, SummaryFacts } from './counts-repository';
 
 type Cell = CountsSummary['kpis'][number];
 
@@ -142,5 +142,44 @@ export const repeatRowView = (r: RepeatRow, history: readonly RepeatHistory[]): 
     .filter((h) => h.itemId === r.itemId)
     .map((h) => ({ countReference: h.countReference, difference: h.difference.toDecimalPlaces(4).toFixed(), at: h.at.toISOString() })),
 });
+
+/** "Waiting for review" (the Manager has not decided), "Approved", "Signed" (a Manager's own count needs no approval). */
+const myStatusText = (r: Pick<MyCountListRow, 'status' | 'selfSigned'>): string =>
+  r.status === 'SUBMITTED' ? 'Waiting for review' : r.selfSigned ? 'Signed' : 'Approved';
+
+/** C32: one of the caller's own signed counts. A name, a status, an item total and a time: no stock figure, no difference. */
+export const myCountRowView = (r: MyCountListRow, now: Date): MyCountRow => ({
+  id: r.id,
+  reference: r.reference,
+  status: r.status === 'SUBMITTED' ? 'SUBMITTED' : 'APPROVED',
+  statusText: myStatusText(r),
+  sectionsText: sectionsOf(r),
+  itemCount: r.itemCount,
+  signedAt: r.signedAt.toISOString(),
+  signedText: signedText(r.signedAt, now),
+});
+
+export type HomeFacts = {
+  open: { id: string; reference: string; sectionsText: string; counted: number; total: number; progressText: string } | null;
+  sections: LongestWithoutCount[];
+  signedCount: number;
+  wasteToday: number;
+};
+
+/** C31: the Attendant's front door. The longest-ago section is a name and a date, never a figure. */
+export const countsHomeView = (f: HomeFacts, now: Date): CountsHome => {
+  const longest = f.sections.find((s) => s.kind === 'SECTION');
+  return {
+    openCount: f.open,
+    sections: {
+      total: f.sections.filter((s) => s.kind === 'SECTION').length,
+      longestAgo: longest
+        ? { id: longest.refId, name: longest.name, lastCountedAt: longest.lastCountedAt ? longest.lastCountedAt.toISOString() : null, lastCountedText: lastCountedText(longest.lastCountedAt, now) }
+        : null,
+    },
+    signedCount: f.signedCount,
+    wasteToday: f.wasteToday,
+  };
+};
 
 export const ZERO = new Prisma.Decimal(0);

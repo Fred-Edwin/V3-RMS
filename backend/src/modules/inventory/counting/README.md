@@ -7,7 +7,7 @@ Central Store counting: many counts a day, one **open** count per person, a sect
 ## Sub-modules (each has its own README)
 | Folder | Endpoints | What |
 |---|---|---|
-| [`counts/`](counts/README.md) | C1 to C5 | the Counts table, KPI strips, flagged lines, repeat shortfalls, one count |
+| [`counts/`](counts/README.md) | C1 to C5, C31, C32 | the Counts table, KPI strips, flagged lines, repeat shortfalls, one count; the Attendant's home and My counts (own, blind) |
 | [`record/`](record/README.md) | C8 to C14 | start, save numbers, section-end check, sign with PIN, order for today |
 | [`review/`](review/README.md) | C27 to C30 | decide lines, approve preview, approve with PIN, Mark seen |
 | [`setup/`](setup/README.md) | C15 to C22 | sections, order, items, moves, undo, add-items search |
@@ -15,7 +15,7 @@ Central Store counting: many counts a day, one **open** count per person, a sect
 | [`print/`](print/README.md) | C6, C7 | printed count record, blank sheet |
 | `_shared/` | | the contract (frozen), the one view builder, state machine, story, PIN, numbers, notifications, reads |
 
-All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them: print, record, review, counts, then setup and settings, so `GET /counts/:id` is last). `counting-routes.test.ts` pins the §3.1 role grid for all 30 endpoints and the route order.
+All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them: print, record, review, counts, then setup and settings, so `GET /counts/:id` is last). `counting-routes.test.ts` pins the §3.1 role grid for all 32 endpoints and the route order (C31 and C32, the Attendant's home and My counts, were added by Block 5).
 
 ## The rules in one place
 - **Judging** (`../_shared/variance-calc.ts`): within range = `|value| ≤ rangeKes` **and** `percent ≤ rangePercent` (ties within; expected ≤ 0 means any difference exceeds). `NOT_COUNTED` (skipped), `MATCHES`, `WITHIN_RANGE`, `EXCEEDS`.

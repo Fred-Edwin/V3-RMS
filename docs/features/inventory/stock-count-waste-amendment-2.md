@@ -1,4 +1,4 @@
-# Block 5: the Attendant's front door and history, amendment 2 to the Stock, Counting and Waste contract (draft for owner approval, 8 Oct 2026)
+# Block 5: the Attendant's front door and history, amendment 2 to the Stock, Counting and Waste contract (owner-approved 9 Oct 2026; back end built the same day)
 
 Adds to `stock-count-waste-contract.md` (which Lane 0's Amendment 1 already extended). Paper: page "Inventory · Counting redesign (Oct 7)", chapter 11, steps **52** Stock & counts home, **53** My counts, **54** My waste, today and earlier (all Store Attendant, phone). Paper wins. Closes gaps G1, G2 and the Attendant half of G5 in `role-coverage.md`.
 
