@@ -233,6 +233,21 @@ describe.skipIf(!enabled)('Deliveries and Discrepancies against the real databas
       expect(keysOf(first).filter((k) => sentenceKeys.test(k))).toEqual([]);
     });
 
+    it('V7: before the department counts, its member reads the file with no sent figure, gap, total or money; another department is refused', async () => {
+      const file = await deliveriesService.file(baristaMember as never, A.id);
+      expect(file).toMatchObject({ id: A.id, status: 'ON_THE_WAY', sentVisible: false, shortCount: 0, siblings: [], can: { print: false, cancel: false, recordFinding: false, confirmForDepartment: false } });
+      expect(file.nextStep.facts.gapLineCount).toBe(0);
+      const keys = keysOf(file);
+      expect(keys.filter((k) => /^(sentQty|gapQty|valueKes|unitCostKes|lossValueKes)$/.test(k))).toEqual([]);
+      expect(file.items.every((i) => i.countedQty === null)).toBe(true);
+      await failsWith(deliveriesService.file(pastryMember as never, A.id), 'NOT_YOUR_DEPARTMENT');
+      await expect(deliveriesService.file(storeManager as never, A.id)).rejects.toMatchObject({ statusCode: 403 });
+      // the Branch Manager reads any department of the branch, still blind, and may confirm for the department
+      const bm = await deliveriesService.file(branchManager as never, A.id);
+      expect(bm.sentVisible).toBe(false);
+      expect(bm.can.confirmForDepartment).toBe(true);
+    });
+
     it('V3: a save never says whether it matches; the check flags a difference once and says which way, never the size', async () => {
       const saved = await deliveriesService.saveCount(baristaMember as never, A.id, { counts: [{ lineId: milkLine, countedQty: '8' }, { lineId: creamLine, countedQty: '4' }] });
       expect(saved.lines.map((l) => [l.state, l.direction])).toEqual([['COUNTED', null], ['COUNTED', null]]);
@@ -317,6 +332,17 @@ describe.skipIf(!enabled)('Deliveries and Discrepancies against the real databas
       await failsWith(deliveriesService.confirm(baristaHead as never, A.id, { pin: PIN, idempotencyKey: `${KEY}-head` }), 'ALREADY_CONFIRMED');
       await failsWith(deliveriesService.saveCount(baristaMember as never, A.id, { counts: [{ lineId: milkLine, countedQty: '9' }] }), 'ALREADY_CONFIRMED');
       await failsWith(deliveriesService.getCount(baristaMember as never, A.id), 'NOT_ON_THE_WAY');
+    });
+
+    it('V7 after the count: the member now sees the sent figure and the gap, with the DSC- number and still no money', async () => {
+      const file = await deliveriesService.file(baristaMember as never, A.id);
+      expect(file).toMatchObject({ status: 'CONFIRMED', sentVisible: true });
+      expect(file.nextStep.facts.gapLineCount).toBe(1);
+      const milk = file.items.find((i) => i.itemName === `Milk ${tag}`);
+      expect(milk).toMatchObject({ sentQty: '10', countedQty: '8', gapQty: '-2', countReason: 'NOT_IN_THE_BOX', discrepancy: { reference: `DSC-${code}-0001` } });
+      expect(milk?.photos).toHaveLength(2);
+      expect(keysOf(file).filter((k) => /valueKes|unitCostKes|lossValueKes/.test(k))).toEqual([]);
+      await failsWith(deliveriesService.file(pastryMember as never, A.id), 'NOT_YOUR_DEPARTMENT');
     });
 
     it('V1 history: the result chip says the gap is open, with the confirmer\'s title', async () => {

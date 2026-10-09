@@ -13,6 +13,7 @@ import {
   confirmPreviewSchema,
   countLineSchema,
   countViewSchema,
+  deliveryFileSchema,
   DELIVERY_ERROR_CODES,
   listDeliveriesQuerySchema,
   listDeliveriesSchema,
@@ -226,6 +227,35 @@ describe('Amendment 1', () => {
       expect(DELIVERY_ERROR_CODES as readonly string[]).toContain(code);
     }
     for (const gone of ['COUNT_FINAL', 'NOT_ALL_COUNTED', 'REASON_MISSING']) expect(DELIVERY_ERROR_CODES as readonly string[]).not.toContain(gone);
+  });
+});
+
+describe('V7: the department\'s own delivery file', () => {
+  it.each([['fileMemberBlind'], ['fileMemberCounted']] as const)('%s parses as the dispatch file', (name) => {
+    const result = deliveryFileSchema.safeParse(F[name]);
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
+  });
+
+  it('before the department signs its count, no sent figure, gap, short count or total is in the file', () => {
+    const file = fixtures.fileMemberBlind;
+    expect(file.sentVisible).toBe(false);
+    expect(file.shortCount).toBe(0);
+    expect(file.nextStep.facts.gapLineCount).toBe(0);
+    const keys = allKeys(file);
+    expect(keys.filter((k) => /^(sentQty|gapQty)$/.test(k))).toEqual([]);
+    expect(keys.filter((k) => MONEY.test(k))).toEqual([]);
+    for (const item of file.items) expect(item.countedQty).toBeNull();
+  });
+
+  it('after the count the sent figure and the gap are there, still with no money, and nothing is offered to a member', () => {
+    const file = fixtures.fileMemberCounted;
+    expect(file.sentVisible).toBe(true);
+    expect(file.items.map((i) => [i.sentQty, i.countedQty, i.gapQty])).toEqual([['2', '2', '0'], ['2', '1', '-1']]);
+    expect(allKeys(file).filter((k) => MONEY.test(k))).toEqual([]);
+    for (const file2 of [fixtures.fileMemberBlind, fixtures.fileMemberCounted]) {
+      expect(file2.siblings).toEqual([]);
+      expect(file2.can).toEqual({ print: false, cancel: false, recordFinding: false, confirmForDepartment: false });
+    }
   });
 });
 

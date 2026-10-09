@@ -9,6 +9,7 @@ import { useAction } from '../../_shared/hooks/use-async';
 import { useIdempotencyKey } from '../../_shared/hooks/use-idempotency-key';
 import { PinField } from '../../requisitions/components/req-parts';
 import { clock } from '../../requisitions/_shared/lib/requisitions-words';
+import { itemWord } from '../../_shared/lib/block2-words';
 import { REVERSE_PRESETS, errorText, type ReversePreset } from '../../dispatch/lib/dispatch-words';
 import { ChoiceChips } from '../../dispatch/components/desktop/choice-chips';
 import { discrepanciesApi } from '../../dispatch/services/branch-side-api';
@@ -20,8 +21,8 @@ const SEPARATOR = ' — ';
 export const composeReverseReason = (preset: ReversePreset, note: string): string => (note.trim() ? `${preset}${SEPARATOR}${note.trim()}` : preset);
 
 const Box = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-1 border-t border-wds-border px-4 py-3 first:border-t-0">
-    <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{label}</span>
+  <div className="flex flex-col gap-[3px] border-t border-wds-border px-3.5 py-3 first:border-t-0">
+    <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{label}</span>
     {children}
   </div>
 );
@@ -36,7 +37,7 @@ export function ReverseDialog({ file, open, onOpenChange, onReversed, returnFocu
   const reverse = useAction((input: { reason: string; pin: string }) => discrepanciesApi.reverse(file.id, { ...input, idempotencyKey: idem.key() }), 'Could not reverse the finding. Nothing was changed. Try again.');
   const finding = file.finding;
   const n = Math.abs(Number(file.gapQty));
-  const what = (file.item.name.split(' ')[0] ?? file.item.name).toLowerCase();
+  const what = itemWord(file.item.name);
 
   React.useEffect(() => {
     if (open) {
@@ -86,21 +87,21 @@ export function ReverseDialog({ file, open, onOpenChange, onReversed, returnFocu
     >
       <div className="border border-wds-neutral-950">
         <Box label="The finding">
-          <p className="font-wds-sans text-[16px] font-medium text-wds-text-ink">
+          <p className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">
             {FINDING_TEXT[finding.finding]} · {file.item.name} · {n}
           </p>
-          <p className="font-wds-sans text-[14px] text-wds-text-secondary">{profile.lossKind === 'LOSS' ? 'Written off at cost' : profile.lossKind === 'PACKING_ERROR' ? 'A packing error, not a loss' : 'A correction, not a loss'} · {against}</p>
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{profile.lossKind === 'LOSS' ? 'Written off at cost' : profile.lossKind === 'PACKING_ERROR' ? 'A packing error, not a loss' : 'A correction, not a loss'} · {against}</p>
         </Box>
         <div className="bg-wds-neutral-50">
           <Box label="What reversing does">
-            <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-ink">
+            <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
               The {n} {what} are put back as they were by a new entry linked to the original. Both entries stay on the file and in the audit log.
             </p>
           </Box>
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <DialogLabel hint="required">Why</DialogLabel>
+        <DialogLabel hint="required" className="text-[11px] leading-[14px]">Why</DialogLabel>
         <ChoiceChips label="Why reverse" value={preset} options={REVERSE_PRESETS.map((p) => ({ value: p, label: p }))} onChange={(next) => { setPreset(next); setNoteHint(false); }} disabled={reverse.saving} />
       </div>
       {preset !== '' ? (

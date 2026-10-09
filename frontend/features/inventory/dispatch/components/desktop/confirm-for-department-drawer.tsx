@@ -12,6 +12,7 @@ import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { MonoLabel, PinField } from '../../../requisitions/components/req-parts';
 import type { CheckCountResult, ConfirmPreview, CountLine, CountView } from '../../../deliveries/_shared/types/deliveries-contract';
 import { COUNT_REASONS, COUNT_REASON_TEXT, PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE, PHOTO_MIME_TYPES, type CountReason, type PhotoRef } from '../../_shared/types/dispatch-contract';
+import { differenceText, itemWord } from '../../../_shared/lib/block2-words';
 import { errorText } from '../../lib/dispatch-words';
 import { deliveriesDrawerApi } from '../../services/branch-side-api';
 import { ChoiceChips } from './choice-chips';
@@ -197,6 +198,8 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
       primaryDisabled={primary.disabled}
       onPrimaryAction={() => void onPrimary()}
       cancelLabel={step === 'summary' || step === 'pin' ? 'Back' : 'Cancel'}
+      paper
+      paperWidth={540}
       onCancel={() => {
         if (step === 'pin') setStep('summary');
         else if (step === 'summary') setStep(finalDiffs.length > 0 ? 'reason' : 'count');
@@ -216,21 +219,21 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
 
           {step === 'count' ? (
             <>
-              <div className="border border-wds-warning-border bg-wds-warning-bg px-4 py-3.5">
-                <p className="font-wds-sans text-[16px] font-semibold text-wds-warning-fg">Nobody in {departmentName} has counted it yet</p>
-                <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">It left at {leftAtLabel}. {departmentName}&apos;s day cannot close until it is confirmed. Count what is on the shelf; the number sent is not shown.</p>
+              <div className="flex flex-col gap-[3px] border border-wds-warning-border bg-wds-warning-bg px-3.5 py-3">
+                <p className="font-wds-sans text-[14px] font-semibold leading-5 text-wds-warning-fg">Nobody in {departmentName} has counted it yet</p>
+                <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">It left at {leftAtLabel}. {departmentName}&apos;s day cannot close until it is confirmed. Count what is on the shelf; the number sent is not shown.</p>
               </div>
               <div className="border border-wds-neutral-950">
-                <div className="flex items-center justify-between border-b border-wds-neutral-950 px-4 py-3">
-                  <span className="font-wds-sans text-[15px] font-semibold text-wds-text-ink" aria-live="polite">{counted} of {total} counted</span>
-                  <span className="font-wds-sans text-[13px] text-wds-text-secondary">Count each item as you find it</span>
+                <div className="flex items-center justify-between border-b border-wds-neutral-950 px-3.5 py-2.5">
+                  <span className="font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink" aria-live="polite">{counted} of {total} counted</span>
+                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Count each item as you find it</span>
                 </div>
                 <ul>
                   {lines.map((l) => (
                     <li key={l.lineId} className={cn('flex items-center justify-between gap-4 border-b border-wds-border px-4 py-2.5 last:border-b-0', !(values[l.lineId] ?? '').trim() && 'bg-wds-neutral-50')}>
                       <div className="flex flex-col">
                         <label htmlFor={`count-${l.lineId}`} className="font-wds-sans text-[15px] font-medium text-wds-text-ink">{l.itemName}</label>
-                        <span className="font-wds-sans text-[13px] text-wds-text-secondary">Count in {l.unit}s</span>
+                        <span className="font-wds-sans text-[13px] text-wds-text-secondary">Count in {l.unit}</span>
                       </div>
                       <input
                         id={`count-${l.lineId}`}
@@ -270,7 +273,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                   <p id={`recount-hint-${l.lineId}`} role="alert" className="font-wds-sans text-[14px] leading-5 text-wds-error-fg">This doesn&apos;t match what was sent. Count again.</p>
                 </div>
               ))}
-              <p className="font-wds-sans text-[13px] text-wds-text-secondary">The sent figure is never shown here. Count the {flagged.length === 1 ? (flagged[0]?.itemName.split(' ')[0]?.toLowerCase() ?? 'item') : 'items'} again to go on.</p>
+              <p className="font-wds-sans text-[13px] text-wds-text-secondary">The sent figure is never shown here. Count the {flagged.length === 1 ? (flagged[0] ? itemWord(flagged[0].itemName) : 'item') : 'items'} again to go on.</p>
             </>
           ) : null}
 
@@ -296,7 +299,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
           {step === 'summary' && preview ? (
             <>
               <h3 className="font-wds-sans text-[18px] font-semibold text-wds-text-ink">
-                {preview.lineCount} lines · {preview.matchingLines.length} match{preview.differingLines.length > 0 ? ` · ${preview.differingLines.length} ${preview.differingLines.some((l) => l.direction === 'EXTRA') && !preview.differingLines.some((l) => l.direction === 'SHORT') ? 'extra' : 'short'}` : ''}
+                {preview.lineCount} lines · {preview.matchingLines.length} match{preview.differingLines.length > 0 ? ` · ${differenceText(preview.differingLines.map((l) => l.direction))}` : ''}
               </h3>
               {preview.differingLines.map((l) => (
                 <div key={l.lineId} className="flex flex-col gap-0.5 border border-wds-warning-border bg-wds-warning-bg px-4 py-3">

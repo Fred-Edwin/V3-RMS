@@ -15,7 +15,7 @@ export function NextStepCard({ eyebrow = 'Next step', title, body, tone, action,
   return (
     <section aria-label={eyebrow} className={cn('flex flex-col items-stretch justify-between gap-5 border border-wds-border-strong bg-wds-surface py-5 pl-6 pr-6 sm:flex-row sm:items-center sm:gap-8', 'border-l-[3px]', tone === 'green' ? 'border-l-wds-success-fg' : tone === 'amber' ? 'border-l-wds-caramel-500' : 'border-l-wds-border-strong')}>
       <div className="flex max-w-[760px] flex-col gap-1.5">
-        <MonoLabel>{eyebrow}</MonoLabel>
+        <MonoLabel className="text-[11px] leading-[14px]">{eyebrow}</MonoLabel>
         <h2 className="font-wds-sans text-[18px] font-semibold leading-6 tracking-[-0.01em] text-wds-text-ink">{title}</h2>
         <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{body}</p>
         {children}
@@ -54,7 +54,7 @@ export function ColumnHead({ children, className }: { children: React.ReactNode;
 export function RuledBlock({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <section aria-label={label} className={cn('flex min-w-0 flex-col', className)}>
-      <MonoLabel className="pb-3">{label}</MonoLabel>
+      <MonoLabel className="pb-2.5 text-[11px] leading-[14px]">{label}</MonoLabel>
       <div className="border-t border-wds-neutral-950">{children}</div>
     </section>
   );
@@ -62,9 +62,9 @@ export function RuledBlock({ label, children, className }: { label: string; chil
 
 export function RuledRow({ label, children, tone }: { label: string; children: React.ReactNode; tone?: 'amber' | 'green' }) {
   return (
-    <div className={cn('flex items-center justify-between gap-4 border-b border-wds-border px-1 py-[17px]', tone === 'amber' && 'bg-wds-warning-bg px-3', tone === 'green' && 'bg-wds-success-bg px-3')}>
-      <span className={cn('font-wds-sans text-[15px] leading-5', tone ? 'font-medium text-wds-text-ink' : 'text-wds-text-secondary')}>{label}</span>
-      <span className={cn('text-right font-wds-sans text-[15px] leading-5', tone === 'amber' ? 'font-mono font-semibold text-wds-warning-fg' : tone === 'green' ? 'font-semibold text-wds-success-fg' : 'text-wds-text-ink')}>{children}</span>
+    <div className={cn('flex items-center justify-between gap-4 border-b border-wds-border py-3', tone === 'amber' && 'bg-wds-warning-bg px-2', tone === 'green' && 'bg-wds-success-bg px-2')}>
+      <span className={cn('font-wds-sans text-[14px] leading-[18px]', tone ? 'font-medium text-wds-text-ink' : 'text-wds-text-secondary')}>{label}</span>
+      <span className={cn('text-right font-wds-sans text-[14px] leading-[18px]', tone === 'amber' ? 'font-mono font-semibold text-wds-warning-fg' : tone === 'green' ? 'font-semibold text-wds-success-fg' : 'text-wds-text-ink')}>{children}</span>
     </div>
   );
 }

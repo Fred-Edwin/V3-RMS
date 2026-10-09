@@ -192,7 +192,7 @@ export function CountScreen({ id }: { id: string }) {
               {flagged.length} {flagged.length === 1 ? 'line' : 'lines'} to count again
             </p>
           ) : (
-            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">Count each item as you find it</p>
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Count each item as you find it</p>
           )}
         </div>
         <div className="h-1 w-full bg-wds-neutral-100" role="progressbar" aria-label="Lines counted" aria-valuemin={0} aria-valuemax={total} aria-valuenow={counted}>
@@ -239,15 +239,15 @@ function CountRow({ line, value, flagged, onChange, onBlur }: { line: CountLine;
   return (
     <li
       className={cn(
-        'relative flex flex-col gap-1.5 border-b border-wds-border px-5 py-3 transition-colors duration-100',
-        flagged ? 'bg-wds-error-bg' : focused && empty ? 'bg-wds-warning-bg' : 'bg-wds-surface',
+        'relative flex flex-col gap-2 border-b px-5 py-[11px] transition-colors duration-100',
+        flagged ? 'border-wds-error-border bg-wds-error-bg' : focused && empty ? 'border-wds-border bg-wds-caramel-100' : 'border-wds-border bg-wds-surface',
       )}
     >
-      {flagged ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-wds-error-fg" /> : focused && empty ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-wds-primary" /> : null}
+      {flagged ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-wds-error-fg" /> : focused && empty ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-[var(--wds-primary-btn-start)]" /> : null}
       <div className="flex items-center gap-3">
-        <label htmlFor={`count-${line.lineId}`} className="flex min-w-0 grow basis-0 flex-col gap-px">
-          <span className="font-wds-sans text-[16px] leading-5 text-wds-text-ink">{line.itemName}</span>
-          <span className="font-wds-sans text-[14px] leading-5 text-wds-text-muted">Count in {line.unit}</span>
+        <label htmlFor={`count-${line.lineId}`} className="flex min-w-0 grow basis-0 flex-col gap-px py-1">
+          <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{line.itemName}</span>
+          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Count in {line.unit}</span>
         </label>
         <input
           id={`count-${line.lineId}`}
@@ -267,14 +267,15 @@ function CountRow({ line, value, flagged, onChange, onBlur }: { line: CountLine;
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
           className={cn(
-            'h-11 w-16 shrink-0 border bg-white text-center font-wds-sans text-[20px] font-medium leading-5 text-wds-text-ink outline-none transition-shadow duration-100 placeholder:text-wds-text-faint',
-            flagged ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-border)]' : focused ? 'border-wds-primary shadow-[0_0_0_3px_var(--wds-caramel-100)]' : 'border-wds-border-strong',
+            // Paper D8: a 64 x 40 box with a 16/20 number; the whole row is the tap target through its label.
+            'h-10 w-16 shrink-0 border bg-white text-center font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink outline-none transition-shadow duration-100 placeholder:text-[#8D8982]',
+            flagged ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-border)]' : focused ? 'border-[var(--wds-primary-btn-start)] shadow-[0_0_0_3px_var(--wds-caramel-100)]' : 'border-wds-border-strong',
           )}
         />
       </div>
       {flagged ? (
-        <p id={`count-${line.lineId}-flag`} role="alert" className="flex items-center gap-2 font-wds-sans text-[15px] leading-5 text-wds-error-fg">
-          <span className="size-1.5 shrink-0 rounded-full bg-wds-error-fg" aria-hidden="true" />
+        <p id={`count-${line.lineId}-flag`} role="alert" className="flex items-start gap-2 font-wds-sans text-[13px] font-medium leading-5 text-wds-error-fg">
+          <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-wds-error-fg" aria-hidden="true" />
           This doesn&apos;t match what was sent. Count again.
         </p>
       ) : null}

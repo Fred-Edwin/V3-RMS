@@ -84,7 +84,8 @@ describe('dispatch contract mirror', () => {
   it('the Done tab rows', () => {
     const mine = fixtures.mine as DispatchMine;
     expect(keysOf(mine)).toEqual(['page', 'rows', 'tab', 'tabCounts']);
-    expect(keysOf(mine.rows[0]!)).toEqual(['branch', 'department', 'id', 'lineCount', 'reference', 'result', 'signedAt', 'stage']);
+    expect(keysOf(mine.rows[0]!)).toEqual(['branch', 'carrier', 'department', 'id', 'lineCount', 'reference', 'requisition', 'result', 'signedAt', 'stage']);
+    expect(keysOf(mine.rows[0]!.requisition)).toEqual(['cycle', 'cycleLabel', 'id', 'reference']);
   });
 
   it('Amendment 1: the cancel reason is "preset — note", the chips, the carrier kinds and the result words', () => {
@@ -110,7 +111,7 @@ describe('dispatch contract mirror', () => {
   it('stages, error codes and limits', () => {
     expect(Object.keys(DISPATCH_STAGE_TEXT).sort()).toEqual([...DISPATCH_STAGES].sort());
     for (const name of Object.keys(fixtures).filter((n) => n.startsWith('error'))) {
-      const code = (fixtures as Record<string, { error: { code: string } }>)[name]!.error.code;
+      const code = (fixtures as unknown as Record<string, { error: { code: string } }>)[name]?.error.code ?? '';
       expect(DISPATCH_ERROR_CODES as readonly string[]).toContain(code);
     }
     expect(PHOTO_MAX_PER_LINE).toBe(3);

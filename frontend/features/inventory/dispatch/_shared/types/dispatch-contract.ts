@@ -479,6 +479,9 @@ export interface DispatchMineRow {
   reference: string;
   branch: BranchRef;
   department: DepartmentRef;
+  /** N2 draws "REQ-NYR-0112 · Afternoon" above the rows sent together. */
+  requisition: { id: string; reference: string; cycle: RequisitionCycle; cycleLabel: string };
+  carrier: CarrierRef | null;
   lineCount: number;
   signedAt: string;
   stage: DispatchStage;

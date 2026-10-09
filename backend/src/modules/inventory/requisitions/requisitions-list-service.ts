@@ -123,7 +123,11 @@ export const requisitionsListService = {
     const records = await listRepo.findFiles(scope, pageIds);
 
     const seeValue = actorCan(actor, 'requisitions.see_value');
-    const rows = records.map((rec) => rowWire(rec, tabById.get(rec.id) ?? 'collecting', { c, seeValue, head, now }));
+    const factsById = new Map(facts.map((f) => [f.id, f]));
+    const rows = records.map((rec) => {
+      const rowTab = tabById.get(rec.id) ?? 'collecting';
+      return rowWire(rec, rowTab, { c, seeValue, head, now }, leftAtOf(factsById.get(rec.id), rowTab));
+    });
     return { tab, rows, tabCounts, waitingForYou, ...(branches ? { branches } : {}), page: { page: query.page, pageSize: query.pageSize, total: matching.length } };
   },
 
@@ -372,7 +376,17 @@ interface RowContext {
   now: Date;
 }
 
-const rowWire = (rec: RequisitionRecord, tab: RequisitionTab, ctx: RowContext): RequisitionRow => {
+/**
+ * When the delivery left the store, for the On the way and To confirm columns: the earliest final-sign time of the requisition's live
+ * dispatches (To confirm: of the ones nobody has counted yet). Null on every other tab.
+ */
+const leftAtOf = (facts: FactsRecord | undefined, tab: RequisitionTab): Date | null => {
+  if (!facts || (tab !== 'on-the-way' && tab !== 'to-confirm')) return null;
+  const times = facts.dispatches.flatMap((d) => (d.signedAt && (tab === 'on-the-way' || d.status === 'ON_THE_WAY') ? [d.signedAt.getTime()] : []));
+  return times.length === 0 ? null : new Date(Math.min(...times));
+};
+
+const rowWire = (rec: RequisitionRecord, tab: RequisitionTab, ctx: RowContext, sentAt: Date | null = null): RequisitionRow => {
   const { c, head, now } = ctx;
   const additions = additionStatusMap(rec);
   // A head sees their own department only; nobody else's list, count or money.
@@ -390,7 +404,7 @@ const rowWire = (rec: RequisitionRecord, tab: RequisitionTab, ctx: RowContext): 
   else if (waiting && mayNudgeHere) rowAction = { action: 'NUDGE', label: `Nudge ${waiting.department?.name ?? 'department'}`, departmentId: waiting.departmentId };
 
   return {
-    ...momentsOf(rec, null),
+    ...momentsOf(rec, sentAt),
     id: rec.id,
     reference: rec.reference,
     cycle: cycleOf(rec.type),

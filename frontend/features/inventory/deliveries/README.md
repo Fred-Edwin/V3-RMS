@@ -1,6 +1,6 @@
 # deliveries (front end)
 
-**Design:** approved (Paper chapter 6 D7 to D12, D19, gap fix G2, Block 2 gaps N3a and N3b) · **Code:** the phone screens are built against a hand-written mock (`services/dispatch-mock-phone.ts`); back end D has not merged. `NEXT_PUBLIC_DISPATCH_MOCK=off` calls the real V1 to V6; at integration the owner flips that default and deletes the mock.
+**Design:** approved (Paper chapter 6 D7 to D12, D19, gap fix G2, Block 2 gaps N3a and N3b) · **Code:** the phone screens run on the real V1 to V7 (integrated 9 Oct 2026 on `feat/dispatch-integration`); the mock is deleted.
 
 ## Phone screens (`components/phone/`)
 | Screen | Route |
@@ -14,12 +14,12 @@
 
 The count autosaves about 600 ms after the last key; "Check and sign" runs the check; the second count is final. A photo is shrunk to 1600 px before upload (`lib/shrink-image.ts`). The sent figure appears only on the confirm summary and the file after the count.
 
-**Open for back end D / the owner:** a member holds no `dispatch.read`, so the file (N3) calls a proposed `GET /inventory/deliveries/:id` that returns the same file shape; members are not on the one shell yet (the nav table has their Deliveries and History rows, but `usesAppShell` still keeps floor staff on the legacy bottom tabs).
+A member holds no `dispatch.read`, so the file (N3) calls `GET /inventory/deliveries/:id` (V7), which returns the dispatch file shape with the blind and money rules: no sent figure before the count is signed, no money without `requisitions.see_value`, `NOT_YOUR_DEPARTMENT` for another department, `NOT_ON_THE_WAY` for an unsigned dispatch. Department members are on the one shell (`usesAppShell(role, head, member)`): their menu is Deliveries and History. They have no Count tonight or Waste link because those older pages refuse a member at the API (see `block-2-undrawn-review.md`).
 
 The branch side: My deliveries (waiting and past), the blind count, check, reasons and photos, the summary and the PIN; the Branch Manager's "confirm for the department".
 
 ## Contract
-`_shared/types/deliveries-contract.ts` mirrors `backend/src/modules/inventory/deliveries/_shared/deliveries-contract.ts` (V1 to V6). `deliveries-contract.fixtures.json` is byte-identical to the back end's; `deliveries-contract.test.ts` types it and pins the blind rule: no sent figure, gap or stand-in anywhere before the confirm preview, and no money anywhere. Shared pieces come from `features/inventory/dispatch/_shared/types/dispatch-contract.ts`.
+`_shared/types/deliveries-contract.ts` mirrors `backend/src/modules/inventory/deliveries/_shared/deliveries-contract.ts` (V1 to V7). `deliveries-contract.fixtures.json` is byte-identical to the back end's; `deliveries-contract.test.ts` types it and pins the blind rule: no sent figure, gap or stand-in anywhere before the confirm preview, and no money anywhere. Shared pieces come from `features/inventory/dispatch/_shared/types/dispatch-contract.ts`.
 
 Amendment 1 (9 Oct 2026) is applied: `arrivedAt`, `direction` on the check and on each line, `recountUsed`, photos as `{ id, url }` with a delete result, V1 rows with cycle, carrier, the confirmer's title, `result` (`MATCHED`, `GAP_OPEN`, `GAP_RESOLVED`) and `gapCount`, V6's three times, and the row 11 codes. The phone lane owns this folder.
 

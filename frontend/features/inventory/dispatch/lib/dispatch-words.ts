@@ -3,6 +3,7 @@ import { clock, dayLabel } from '../../requisitions/_shared/lib/requisitions-wor
 import type { DiscrepancyFile, Finding, GapDirection } from '../../discrepancies/_shared/types/discrepancies-contract';
 import { FINDING_TEXT } from '../../discrepancies/_shared/types/discrepancies-contract';
 import type { CarrierKind, DispatchFile, DispatchStage, Stamp, TrackerStep } from '../_shared/types/dispatch-contract';
+import { itemWord } from '../../_shared/lib/block2-words';
 import type { Person } from '../../_shared/types/wire';
 
 /**
@@ -186,7 +187,7 @@ export function dispatchNextWords(file: DispatchFile): DispatchNextWords {
 }
 
 /** "milk" from "Milk 1L": the first word, lower-cased, for "the 2 milk are held". */
-const shortName = (itemName: string): string => (itemName.split(' ')[0] ?? itemName).toLowerCase();
+const shortName = (itemName: string): string => itemWord(itemName);
 
 // ── The discrepancy file's cards ─────────────────────────────────────────────────────────────────────────────────────────────
 

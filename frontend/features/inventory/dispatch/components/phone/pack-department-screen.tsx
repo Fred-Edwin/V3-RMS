@@ -166,7 +166,7 @@ export function PackDepartmentScreen({ requisitionId, departmentId }: { requisit
           <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink" aria-live="polite">
             {done} of {total} packed
           </p>
-          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">Tap a number to change it</p>
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Tap a number to change it</p>
         </div>
         <div className="h-1 w-full bg-wds-neutral-100" role="progressbar" aria-label="Lines packed" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
           <div className="h-1 bg-wds-success-fg transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${total === 0 ? 0 : Math.round((done / total) * 100)}%` }} />
@@ -236,13 +236,14 @@ function LineRow({ line, flagged, onToggle, onChange }: { line: EffectiveLine; f
       </button>
       <div className="flex min-w-0 grow basis-0 flex-col gap-px">
         <p className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{line.itemName}</p>
-        <p className={cn('font-wds-sans text-[13px] leading-[18px]', amber ? 'text-wds-warning-fg' : 'text-wds-text-muted')}>{askedLine(line, line.notEnough)}</p>
+        <p className={cn('font-wds-sans text-[13px] leading-[18px]', amber ? 'text-wds-warning-fg' : 'text-wds-text-secondary')}>{askedLine(line, line.notEnough)}</p>
       </div>
       <button
         type="button"
         onClick={onChange}
         aria-label={`Change the quantity of ${line.itemName}, now ${formatQty(line.sentQty)}`}
-        className="flex h-11 w-14 shrink-0 items-center justify-center border border-wds-border-strong bg-white font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink outline-none transition-colors duration-100 hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring"
+        // Paper draws the box 36 px tall (rows are 58 px); the touch target stays 44 px through the transparent extension above and below.
+        className="relative flex h-9 w-14 shrink-0 items-center justify-center border border-wds-border-strong bg-white font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink outline-none transition-colors duration-100 before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring"
       >
         {formatQty(line.sentQty)}
       </button>
@@ -270,24 +271,27 @@ function SendSheet({ line, departmentName, onClose, onSend }: { line: EffectiveL
     const sent = formatQty(value);
     const asked = formatQty(l.requestedQty);
     const short = value < toNumber(l.requestedQty);
-    const btn = 'relative flex h-11 w-11 shrink-0 items-center justify-center bg-transparent font-wds-sans text-[22px] leading-5 text-wds-text-ink outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 active:bg-wds-neutral-100 disabled:text-wds-text-faint';
+    // Paper D3: three separate 44 px cells (a 64 px number between two 44 px steppers), each with its own 1 px border.
+    const btn = 'relative flex h-11 w-11 shrink-0 items-center justify-center border border-wds-border-strong bg-transparent text-wds-text-ink outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 active:bg-wds-neutral-100 disabled:text-wds-text-faint';
     return (
-      <div className="flex flex-col gap-4 px-5 pb-5 pt-3">
+      <div className="flex flex-col gap-[18px] px-5 pb-6 pt-3">
         <SheetGrabber />
         <div className="flex flex-col gap-1">
-          <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.01em] text-wds-text-ink">{l.itemName}</h2>
-          <p className={cn('font-wds-sans text-[17px] leading-6', l.notEnough ? 'text-wds-warning-fg' : 'text-wds-text-muted')}>
+          <h2 className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-wds-text-ink">{l.itemName}</h2>
+          <p className={cn('font-wds-sans text-[14px] leading-5', l.notEnough ? 'text-wds-warning-fg' : 'text-wds-text-secondary')}>
             {l.notEnough ? `Asked ${asked} · only ${formatQty(l.onHand)} in store` : `Asked ${asked} · In store ${formatQty(l.onHand)}`}
           </p>
         </div>
         <div className="flex items-center justify-between gap-3 border border-wds-text-ink px-4 py-3.5">
           <div className="flex flex-col gap-0.5">
-            <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">You send</span>
-            <span className="font-wds-sans text-[15px] leading-5 text-wds-text-muted">of {asked} asked</span>
+            <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">You send</span>
+            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">of {asked} asked</span>
           </div>
-          <div role="group" aria-label={`Quantity to send of ${l.itemName}`} className="flex items-center border border-wds-border-strong bg-wds-surface">
+          <div role="group" aria-label={`Quantity to send of ${l.itemName}`} className="flex items-center bg-wds-surface">
             <button type="button" className={btn} aria-label="Send less" disabled={value <= 0} onClick={() => setDraft(clampSend(l, value - step))}>
-              <span aria-hidden="true">−</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M2 7H12" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
             </button>
             <input
               value={draft}
@@ -301,14 +305,16 @@ function SendSheet({ line, departmentName, onClose, onSend }: { line: EffectiveL
                   onSend(l, clampSend(l, toNumber(draft)));
                 }
               }}
-              className="h-11 w-14 border-x border-wds-border bg-transparent text-center font-wds-mono text-[20px] font-medium leading-5 text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
+              className="h-11 w-16 border-y border-wds-border-strong bg-transparent text-center font-wds-sans text-[20px] font-semibold leading-6 text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
             />
             <button type="button" className={btn} aria-label="Send more" disabled={value >= max} onClick={() => setDraft(clampSend(l, value + step))}>
-              <span aria-hidden="true">+</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M2 7H12M7 2V12" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
             </button>
           </div>
         </div>
-        <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-muted">
+        <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
           {departmentName} will see {asked} asked and {sent} sent.{short ? ' A short line is normal: it is not carried over, and the next requisition suggests it again.' : ''}
         </p>
         <B2PrimaryButton onClick={() => onSend(l, clampSend(l, toNumber(draft)))}>{value === 0 ? 'Send none and tick the line' : `Send ${sent}${short ? ` of ${asked}` : ''} and tick the line`}</B2PrimaryButton>

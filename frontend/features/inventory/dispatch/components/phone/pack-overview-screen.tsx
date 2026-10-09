@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2Footer, B2Header, B2PrimaryButton, SectionLabel } from '../../../_shared/components/block2-phone-parts';
+import { B2Header, B2PrimaryButton, SectionLabel } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { couldNotLoad } from '../../../_shared/lib/block2-words';
 import { useDispatchQueue, usePackReview } from '../../hooks/use-phone-dispatch';
@@ -69,12 +69,12 @@ export function PackOverviewScreen({ requisitionId }: { requisitionId: string })
   return (
     <PhoneColumn>
       <B2Header title={title} subtitle={`${data.reference} · ${data.cycleLabel.split(' · ')[0] ?? data.cycleLabel} · ${data.lineCount} lines`} mono leading="back" onBack={() => router.push(DISPATCH_HOME)} place="CENTRAL STORE" />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-wds-canvas p-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto bg-wds-canvas p-5">
         <div className="flex flex-col gap-2.5">
           <SectionLabel>
             {ready.length} of {total} departments packed
           </SectionLabel>
-          <div className="flex gap-1.5" aria-hidden="true">
+          <div className="flex gap-1" aria-hidden="true">
             {data.departments.map((d) => (
               <span key={d.departmentId} className={cn('h-1 grow basis-0', d.allTicked ? 'bg-wds-success-fg' : 'bg-wds-border-strong')} />
             ))}
@@ -88,7 +88,7 @@ export function PackOverviewScreen({ requisitionId }: { requisitionId: string })
               <li key={d.departmentId} className="border-b border-wds-border last:border-b-0">
                 <Link
                   href={packDepartment(requisitionId, d.departmentId)}
-                  className={cn('flex items-center gap-3.5 px-4 py-3.5 outline-none transition-colors duration-100 hover:bg-wds-neutral-50 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]', !d.allTicked && 'bg-wds-warning-bg hover:bg-wds-warning-bg')}
+                  className={cn('flex items-center gap-3 px-4 py-[13px] outline-none transition-colors duration-100 hover:bg-wds-neutral-50 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]', !d.allTicked && 'bg-wds-warning-bg shadow-[inset_0_0_0_1px_var(--wds-warning-border)] hover:bg-wds-warning-bg')}
                 >
                   <span aria-hidden="true" className={cn('flex size-[22px] shrink-0 items-center justify-center', d.allTicked ? 'bg-wds-success-fg' : 'border-[1.5px] border-wds-border-strong bg-white')}>
                     {d.allTicked ? (
@@ -97,12 +97,12 @@ export function PackOverviewScreen({ requisitionId }: { requisitionId: string })
                       </svg>
                     ) : null}
                   </span>
-                  <span className="flex min-w-0 grow basis-0 flex-col gap-0.5">
-                    <span className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">
+                  <span className="flex min-w-0 grow basis-0 flex-col gap-px">
+                    <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">
                       {d.departmentName}
                       <span className="sr-only">{d.allTicked ? ', packed' : ', not ready'}</span>
                     </span>
-                    <span className={cn('font-wds-sans text-[13px] leading-[18px]', d.allTicked ? (summary.short ? 'text-wds-warning-fg' : 'text-wds-text-muted') : 'text-wds-warning-fg')}>
+                    <span className={cn('font-wds-sans text-[13px] leading-[18px]', d.allTicked ? (summary.short ? 'text-wds-warning-fg' : 'text-wds-text-secondary') : 'text-wds-warning-fg')}>
                       {d.allTicked
                         ? summary.short
                           ? summary.text
@@ -118,19 +118,20 @@ export function PackOverviewScreen({ requisitionId }: { requisitionId: string })
             );
           })}
         </ul>
-        <p className="font-wds-sans text-[15px] leading-[22px] text-wds-text-muted">
+        <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
           {allPacked
             ? 'Tap a department to look at it again. Nothing leaves the store until you sign the final review.'
             : rest > 0
               ? `${nameList} ${names.length === 1 ? 'is' : 'are'} not ready, so ${names.length === 1 ? 'it stays' : 'they stay'} in To pack. You can go to the final review and send the other ${countWord(rest).toLowerCase()} now, or pack ${names.length === 1 ? nameList : 'them'} first. Nothing leaves the store until you sign.`
               : 'Tick every line of one department to open the final review.'}
         </p>
+        {/* Paper D4: the button sits at the foot of the content (no bordered footer bar). */}
+        <div className="mt-auto">
+          <B2PrimaryButton disabled={rest === 0} onClick={() => router.push(packReview(requisitionId))}>
+            Go to the final review
+          </B2PrimaryButton>
+        </div>
       </div>
-      <B2Footer>
-        <B2PrimaryButton disabled={rest === 0} onClick={() => router.push(packReview(requisitionId))}>
-          Go to the final review
-        </B2PrimaryButton>
-      </B2Footer>
     </PhoneColumn>
   );
 }

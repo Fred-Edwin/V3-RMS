@@ -8,9 +8,10 @@ import { referenceCounterRepository } from '../_shared/reference-counter';
 import { countPin } from '../counting/_shared/count-pin';
 import { dayAsDate, nairobiDayEnd } from '../counting/_shared/count-time';
 import { roleLabelOf, toPerson } from '../counting/_shared/count-people';
-import { PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE } from '../dispatch/_shared/dispatch-contract';
+import { PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE, type DispatchFile } from '../dispatch/_shared/dispatch-contract';
 import { dispatchRepository } from '../dispatch/dispatch-repository';
-import { photoUrl as photoUrlOf } from '../dispatch/dispatch-view';
+import { isUnsigned } from '../dispatch/dispatch-state';
+import { fileWire, photoUrl as photoUrlOf } from '../dispatch/dispatch-view';
 import { closeIfComplete } from '../requisitions/requisitions-handoff';
 import { postStockMovement } from '../stock/ledger/ledger-door';
 import { getDocumentStorage } from '../suppliers/supplier-storage';
@@ -114,6 +115,34 @@ const throwBlocker = (blocker: ReturnType<typeof blockerOf>, rec: DeliveryRecord
 // --- The service ---------------------------------------------------------------------------------------------------------------
 
 export const deliveriesService = {
+  /**
+   * V7 GET /:id: the department's own read-only delivery file (what a My deliveries row opens). It is the same file as P6, built by the
+   * same function, so the rules are decided in one place: a department caller is always branch side, so the sent figure, the gap and
+   * every total stay out until the count is signed, and money only reaches a holder of `requisitions.see_value`. A member or head
+   * reads their own department's file; the Branch Manager any department of the branch. The other departments' dispatches are not
+   * listed and the delivery note is not offered (a member holds no `dispatch.read`).
+   */
+  file: async (actor: Actor, id: string, now: Date = new Date()): Promise<DispatchFile> => {
+    const c = await loadCaller(actor);
+    const rec = await dispatchRepository.findFile(id, { hubId: c.hubId, toSiteId: c.branchId });
+    if (!rec) throw new NotFoundError('Delivery not found');
+    if (!c.branchManager && rec.departmentId !== c.departmentId) throw deliveryError('NOT_YOUR_DEPARTMENT', 'This delivery is for another department.');
+    if (isUnsigned(rec.status)) throw deliveryError('NOT_ON_THE_WAY', 'This delivery has not left the Central Store yet.');
+    const parentNames = await repo.findCategoryNames([...new Set(rec.lines.flatMap((l) => (l.item.category?.parentCategoryId ? [l.item.category.parentCategoryId] : [])))]);
+    return fileWire(rec, {
+      now,
+      seeValue: actorCan(actor, 'requisitions.see_value'),
+      branchSide: true,
+      canPack: false,
+      canPrint: false,
+      canCancel: false,
+      canRecordFinding: false,
+      canConfirmForDepartment: c.branchManager && actorCan(actor, 'deliveries.confirm_on_behalf'),
+      parentNames,
+      siblings: [],
+    });
+  },
+
   /** V1 GET /mine: waiting and past deliveries of the caller's department (the Branch Manager: every department of the branch). */
   list: async (actor: Actor, query: ListDeliveriesQuery, now: Date = new Date()): Promise<ListDeliveries> => {
     const c = await loadCaller(actor);

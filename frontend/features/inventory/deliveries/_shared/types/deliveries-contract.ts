@@ -8,7 +8,7 @@
  * sees money. A save only stores what was typed; a check is the moment of comparison (COUNT_AGAIN once, then SHORT or EXTRA, final).
  */
 import type { PageInfo, PageQuery, Person } from '../../../_shared/types/wire';
-import type { BranchRef, CarrierRef, CountReason, DeliveryResult, DepartmentRef, DispatchStage, PhotoRef, RequisitionCycle } from '../../../dispatch/_shared/types/dispatch-contract';
+import type { BranchRef, CarrierRef, CountReason, DeliveryResult, DepartmentRef, DispatchFile, DispatchStage, PhotoRef, RequisitionCycle } from '../../../dispatch/_shared/types/dispatch-contract';
 
 // --- Words and enums -----------------------------------------------------------
 
@@ -183,6 +183,14 @@ export interface ConfirmDeliveryResult {
   discrepancies: { id: string; reference: string; itemName: string; gapQty: string }[];
   replayed: boolean;
 }
+
+// --- V7 GET /deliveries/:id (the department's own delivery file, N3a and N3b) ------------------------
+
+/**
+ * The same `DispatchFile` as P6 with the same rules, for a caller without `dispatch.read`: `sentVisible` is false and the sent
+ * figure, the gap and every money field are absent until the department has signed its count; `siblings` is empty; `can.print` false.
+ */
+export type DeliveryFile = DispatchFile;
 
 // --- Errors ------------------------------------------------------------------------------------------
 

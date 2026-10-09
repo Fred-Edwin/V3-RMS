@@ -30,7 +30,7 @@ describe('map row 17: a delivery gap is opened', () => {
     expect(t.sent[0]?.badgeSites).toEqual(['branch', 'hub']);
     expect(t.sent[0]?.holdInQuietHours).toBeUndefined();
     expect(t.sent[0]?.message.body).toBe('Milk 1L is short by 2 at Nyeri Town (DSC-NYR-0007).');
-    expect(t.sent[0]?.message.link).toBe('/app/inventory/discrepancies/d1');
+    expect(t.sent[0]?.message.link).toBe('/app/inventory/requisitions/discrepancies/d1');
     expect(t.discrepancyEvents).toHaveLength(1);
     expect(t.dispatchEvents).toHaveLength(1);
   });

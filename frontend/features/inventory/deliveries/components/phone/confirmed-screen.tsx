@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { useAuthStore } from '@/store/authStore';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2Banner, B2Footer, B2Header, B2PrimaryButton, B2Tracker, RefLink } from '../../../_shared/components/block2-phone-parts';
+import { B2Banner, B2Header, B2PrimaryButton, B2Tracker, RefLink } from '../../../_shared/components/block2-phone-parts';
 import { formatQty } from '../../../requisitions/lib/qty';
 import { timeText } from '../../../requisitions/lib/time';
 import type { ConfirmDeliveryResult } from '../../_shared/types/deliveries-contract';
@@ -38,7 +38,7 @@ export function ConfirmedScreen({ id }: { id: string }) {
   return (
     <PhoneColumn>
       <B2Header title="Delivery confirmed" subtitle={`${result.reference}`} mono leading="menu" place={orgName} />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-wds-canvas p-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto bg-wds-canvas p-5">
         <B2Banner tone="success" title={`Counted and signed at ${timeText(result.confirmedAt)}`}>
           {result.matchedCount === result.lineCount ? `All ${result.lineCount} lines matched. What you counted is now in your stock.` : `${result.matchedCount} ${result.matchedCount === 1 ? 'line' : 'lines'} matched. What you counted is now in your stock.`}
         </B2Banner>
@@ -48,10 +48,11 @@ export function ConfirmedScreen({ id }: { id: string }) {
           </B2Banner>
         ) : null}
         <B2Tracker heading="Where it is" rows={rows} currentTone="warning" />
+        {/* Paper D12: the main button sits at the foot of the content (no bordered footer bar). */}
+        <div className="mt-auto">
+          <B2PrimaryButton onClick={() => router.push(DELIVERIES_HOME)}>Back to Deliveries</B2PrimaryButton>
+        </div>
       </div>
-      <B2Footer>
-        <B2PrimaryButton onClick={() => router.push(DELIVERIES_HOME)}>Back to Deliveries</B2PrimaryButton>
-      </B2Footer>
     </PhoneColumn>
   );
 }

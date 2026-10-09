@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { requisitionProgress } from '../../requisitions/_shared/lib/requisition-progress';
-import { DISPATCH_STAGES } from '../_shared/types/dispatch-contract';
-import { drawerTitle, errorText, findingDescription, gapSentence, stageChip } from './dispatch-words';
+import fixtures from '../_shared/types/dispatch-contract.fixtures.json';
+import { DISPATCH_STAGES, type DispatchFile } from '../_shared/types/dispatch-contract';
+import { dispatchNextWords, drawerTitle, errorText, findingDescription, gapSentence, stageChip } from './dispatch-words';
 
 describe('dispatch words (Paper D22)', () => {
   it('gives every dispatch stage a chip with the word Paper draws', () => {
@@ -17,6 +18,19 @@ describe('dispatch words (Paper D22)', () => {
     expect(gapSentence('Milk 1L', '2')).toBe('Milk 1L is over by 2');
     expect(drawerTitle('Milk 1L', 2, 'SHORT')).toBe('What happened to the 2 milk?');
     expect(drawerTitle('Milk 1L', 2, 'EXTRA')).toBe('What happened to the 2 extra milk?');
+  });
+
+  it('the Next step card for a held gap: one sentence for one line, "N lines differ" for several', () => {
+    const base = fixtures.fileHub as unknown as DispatchFile;
+    const gapItem = (n: number, gap: string) => ({ ...base.items[0]!, lineId: `l${n}`, itemName: `Item ${n}`, gapQty: gap, countedQty: '1', sentQty: '2', discrepancy: { id: `d${n}`, reference: `DSC-NYR-000${n}`, status: 'OPEN' as const } });
+    const held = (items: DispatchFile['items']): DispatchFile => ({ ...base, stage: 'GAP_HELD', items, nextStep: { action: 'RECORD_A_FINDING', facts: { gapLineCount: items.length, discrepancyId: items[0]?.discrepancy?.id ?? null, waitingSince: null } } });
+    expect(dispatchNextWords(held([gapItem(1, '-1')])).title).toBe('Item 1 is short by 1: record what happened');
+    const several = dispatchNextWords(held([gapItem(1, '-1'), gapItem(2, '-2'), gapItem(3, '1')]));
+    expect(several.title).toBe('3 lines differ: record what happened to each');
+    expect(several.actionLabel).toBe('Record a finding');
+    // a settled finding is not counted among the open ones
+    const settled = { ...gapItem(2, '-2'), discrepancy: { id: 'd2', reference: 'DSC-NYR-0002', status: 'RECORDED' as const } };
+    expect(dispatchNextWords(held([gapItem(1, '-1'), settled])).title).toBe('Item 1 is short by 1: record what happened');
   });
 
   it('describes the extra findings in the D22 wording', () => {

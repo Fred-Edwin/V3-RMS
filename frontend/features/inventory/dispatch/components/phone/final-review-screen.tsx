@@ -9,7 +9,7 @@ import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2ErrorNote, B2Footer, B2Header, B2PrimaryButton, PinField, ReadField, SectionLabel, TextAction } from '../../../_shared/components/block2-phone-parts';
+import { B2ErrorNote, B2Header, B2PrimaryButton, PinField, ReadField, SectionLabel, TextAction } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { block2ErrorMessage, couldNotLoad, errorCodeOf } from '../../../_shared/lib/block2-words';
 import type { ReviewDepartment } from '../../_shared/types/dispatch-contract';
@@ -138,8 +138,8 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
             ))}
           </ul>
           <div className="flex items-center justify-between gap-3 bg-wds-neutral-50 px-3.5 py-2.5">
-            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{totals.shipping.length === 0 ? 'Nothing to send yet' : `${deliveryNotesText(totals.shipping.length)}, one per department`}</p>
-            <Link href={packReviewLines(requisitionId)} className="-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-wds-primary outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring">
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{totals.shipping.length === 0 ? 'Nothing to send yet' : `${deliveryNotesText(totals.shipping.length)}, one per department`}</p>
+            <Link href={packReviewLines(requisitionId)} className="-my-3 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none hover:bg-wds-caramel-100 focus-visible:shadow-wds-ring">
               See every line
             </Link>
           </div>
@@ -151,7 +151,7 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="dispatch-carrier" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-muted">
+          <label htmlFor="dispatch-carrier" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
             Carried by
           </label>
           <div className="relative">
@@ -164,7 +164,7 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
               }}
               disabled={noCarrier || submitting}
               aria-describedby={noCarrier ? 'dispatch-carrier-note' : undefined}
-              className={cn('h-[46px] w-full appearance-none border border-wds-border-strong bg-white pl-3 pr-9 font-wds-sans text-[15px] leading-5 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:bg-wds-neutral-50', carrierId ? 'text-wds-text-ink' : 'text-wds-text-muted')}
+              className={cn('h-[46px] w-full appearance-none border border-wds-border-strong bg-white pl-3 pr-9 font-wds-sans text-[15px] leading-5 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:bg-wds-neutral-50', carrierId ? 'text-wds-text-ink' : 'text-wds-text-secondary')}
             >
               <option value="" disabled>
                 Choose who carries it
@@ -198,12 +198,15 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
             ) : null}
           </div>
         ) : null}
+
+        {/* Paper D5: the button sits at the foot of the content (no bordered footer bar). */}
+        <div className="mt-auto flex flex-col gap-2">
+          <B2PrimaryButton disabled={!canSign} onClick={() => void sign()}>
+            {submitting ? 'Signing…' : signLabel(data.branch.name, totals, allShipping)}
+          </B2PrimaryButton>
+          {totals.canSend ? null : <p className="text-center font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Leave at least one department in.</p>}
+        </div>
       </div>
-      <B2Footer note={totals.canSend ? undefined : 'Leave at least one department in.'}>
-        <B2PrimaryButton disabled={!canSign} onClick={() => void sign()}>
-          {submitting ? 'Signing…' : signLabel(data.branch.name, totals, allShipping)}
-        </B2PrimaryButton>
-      </B2Footer>
     </PhoneColumn>
   );
 }
@@ -214,10 +217,10 @@ function DepartmentRow({ department: d, left, onLeaveOut, onPutBack }: { departm
     return (
       <li className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-neutral-50 px-3.5 py-2.5">
         <div className="flex min-w-0 flex-col gap-px">
-          <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-muted">{d.departmentName}</span>
+          <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-secondary">{d.departmentName}</span>
           <span className="font-wds-sans text-[12px] leading-4 text-wds-warning-fg">Not ready · stays in To pack</span>
         </div>
-        <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{d.lineCount} lines</span>
+        <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} lines</span>
       </li>
     );
   }
@@ -225,11 +228,11 @@ function DepartmentRow({ department: d, left, onLeaveOut, onPutBack }: { departm
     return (
       <li className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-neutral-50 px-3.5 py-2.5">
         <div className="flex min-w-0 flex-col gap-px">
-          <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-muted">{d.departmentName}</span>
-          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-muted">Left out · ships later</span>
+          <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-secondary">{d.departmentName}</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Left out · ships later</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-muted">{d.lineCount} lines</span>
+          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} lines</span>
           <TextAction onClick={onPutBack} aria-label={`Put ${d.departmentName} back`}>
             Put back
           </TextAction>
@@ -241,7 +244,7 @@ function DepartmentRow({ department: d, left, onLeaveOut, onPutBack }: { departm
     <li className="flex items-center justify-between gap-3 border-b border-wds-border px-3.5 py-2.5">
       <span className="shrink-0 font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{d.departmentName}</span>
       <div className="flex min-w-0 items-center gap-3">
-        <span className={cn('min-w-0 truncate font-wds-sans text-[13px] leading-[18px]', summary.short ? 'text-wds-warning-fg' : 'text-wds-text-muted')}>{summary.text}</span>
+        <span className={cn('min-w-0 truncate font-wds-sans text-[13px] leading-[18px]', summary.short ? 'text-wds-warning-fg' : 'text-wds-text-secondary')}>{summary.text}</span>
         {d.canLeaveOut ? (
           <TextAction onClick={onLeaveOut} aria-label={`Leave ${d.departmentName} out`} className="shrink-0">
             Leave out

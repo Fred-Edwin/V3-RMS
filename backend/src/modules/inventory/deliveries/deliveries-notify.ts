@@ -29,8 +29,11 @@ export const defaultBranchNoticeDeps: BranchNoticeDeps = {
 };
 
 /** Where a tap on the push goes: the discrepancy file, the dispatch file (the front end owns these paths). */
-export const discrepancyLink = (id: string): string => `/app/inventory/discrepancies/${id}`;
-export const dispatchLink = (id: string): string => `/app/inventory/dispatch/${id}`;
+export const discrepancyLink = (id: string): string => `/app/inventory/requisitions/discrepancies/${id}`;
+/** The store's view of a dispatch file (Store Manager, Director). */
+export const dispatchLink = (id: string): string => `/app/inventory/requisitions/dispatch/${id}`;
+/** The Branch Manager's view of the same file. */
+export const branchDispatchLink = (id: string): string => `/app/branch/requisitions/dispatch/${id}`;
 
 /** "Milk 1L is short by 2 at Nyeri Town (DSC-NYR-0007)." (map row 17) */
 export const gapSentence = (g: { itemName: string; gapQty: string; reference: string }, branchName: string): string => {
@@ -99,7 +102,7 @@ export const createBranchNotices = (deps: BranchNoticeDeps = defaultBranchNotice
         message: {
           title: 'Waiting for the branch',
           body: `Nobody in ${w.departmentName} has counted ${w.reference} yet. Confirm ${w.departmentName}'s delivery for them.`,
-          link: dispatchLink(w.dispatchId),
+          link: branchDispatchLink(w.dispatchId),
           tag: `dispatch-waiting-${w.dispatchId}`,
           data: { type: 'dispatch_waiting', dispatchId: w.dispatchId },
           urgency: 'high',

@@ -72,6 +72,10 @@ export function paginateNote(lineCount: number, closing: number, voided = false)
   return pages;
 }
 
+/** The line under a continuation header: the rows this page carries, or just the line count when it carries none (the signature page). */
+export const continuedLabel = (from: number, to: number, total: number): string =>
+  from > 0 && to >= from ? `Continued from page 1 · lines ${from} to ${to} of ${total}` : `Continued · ${total} ${total === 1 ? 'line' : 'lines'}`;
+
 const signatureSize = (name: string): string => (name.length <= 16 ? 'text-[36px] leading-[42px]' : name.length <= 24 ? 'text-[28px] leading-[42px]' : 'text-[20px] leading-[42px]');
 
 function Band({ note }: { note: PrintDispatch }) {
@@ -171,7 +175,7 @@ function ContinuedHead({ note, copy, from, to, total }: { note: PrintDispatch; c
         </div>
       </div>
       <div aria-hidden className={`h-px shrink-0 ${RULE}`} />
-      <p className={`text-[13px] leading-[18px] ${MUTED}`}>{to >= from ? `Continued from page 1 · lines ${from} to ${to} of ${total}` : `Continued · ${total} lines`}</p>
+      <p className={`text-[13px] leading-[18px] ${MUTED}`}>{continuedLabel(from, to, total)}</p>
     </>
   );
 }
@@ -253,33 +257,14 @@ const asBranch = (note: PrintDispatch): PrintBranch | null => (note.copy === 'br
  * page: every page repeats the header and the column headings and carries "Page n of m"; the signature block, the received-by line
  * and the QR are on the last page only; a line is never split. A cancelled dispatch prints the same note under a red VOID band.
  */
-export function DeliveryNotePrintScreen({ dispatchId, copy }: { dispatchId: string; copy: DeliveryNoteCopy }) {
-  const { data, status, reload } = useLoader<PrintDispatch>(`delivery-note:${dispatchId}:${copy}`, () => dispatchDesktopApi.print(dispatchId, copy), 'We could not load this delivery note.');
-  const pages = React.useMemo(() => (data ? paginateNote(data.lines.length, copy === 'store' ? CLOSING_STORE : CLOSING_BRANCH, data.voided) : []), [data, copy]);
-
-  if (status === 'error')
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">
-        <p>We could not load this delivery note.</p>
-        <button type="button" onClick={() => void reload()} className="h-8 rounded-wds-sm border border-wds-border-strong px-4 font-medium text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
-          Retry
-        </button>
-      </div>
-    );
-  if (!data) return <p role="status" className="flex min-h-screen items-center justify-center bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">Getting the delivery note…</p>;
-
+function NoteSheets({ data }: { data: PrintDispatch }) {
+  const copy = data.copy;
+  const pages = React.useMemo(() => paginateNote(data.lines.length, copy === 'store' ? CLOSING_STORE : CLOSING_BRANCH, data.voided), [data, copy]);
   const store = asStore(data);
   const branch = asBranch(data);
   const total = data.lines.length;
-
   return (
-    <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
-      <style>{'@page { size: A4; margin: 0; }'}</style>
-      <div className="mx-auto mb-4 flex w-[794px] max-w-full items-center justify-end px-1 print:hidden">
-        <button type="button" onClick={() => window.print()} className="h-8 rounded-wds-sm bg-wds-primary px-4 font-wds-sans text-wds-body-sm font-medium text-white outline-none focus-visible:shadow-wds-ring">
-          Print
-        </button>
-      </div>
+    <>
       {pages.map((page, index) => {
         const first = page.rows[0];
         const last = page.rows[page.rows.length - 1];
@@ -301,6 +286,69 @@ export function DeliveryNotePrintScreen({ dispatchId, copy }: { dispatchId: stri
           </PageShell>
         );
       })}
+    </>
+  );
+}
+
+function PrintFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
+      <style>{'@page { size: A4; margin: 0; }'}</style>
+      <div className="mx-auto mb-4 flex w-[794px] max-w-full items-center justify-end px-1 print:hidden">
+        <button type="button" onClick={() => window.print()} className="h-8 rounded-wds-sm bg-wds-primary px-4 font-wds-sans text-wds-body-sm font-medium text-white outline-none focus-visible:shadow-wds-ring">
+          Print
+        </button>
+      </div>
+      {children}
     </div>
+  );
+}
+
+function PrintError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">
+      <p role="alert">{message}</p>
+      <button type="button" onClick={onRetry} className="h-8 rounded-wds-sm border border-wds-border-strong px-4 font-medium text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
+        Retry
+      </button>
+    </div>
+  );
+}
+
+export function DeliveryNotePrintScreen({ dispatchId, copy }: { dispatchId: string; copy: DeliveryNoteCopy }) {
+  const { data, status, reload } = useLoader<PrintDispatch>(`delivery-note:${dispatchId}:${copy}`, () => dispatchDesktopApi.print(dispatchId, copy), 'We could not load this delivery note.');
+  if (status === 'error') return <PrintError message="We could not load this delivery note." onRetry={() => void reload()} />;
+  if (!data) return <p role="status" className="flex min-h-screen items-center justify-center bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">Getting the delivery note…</p>;
+  return (
+    <PrintFrame>
+      <NoteSheets data={data} />
+    </PrintFrame>
+  );
+}
+
+/**
+ * The phone's "Print the notes" after a send (Amendment 1 row 14): for each dispatch the store copy, then the branch copy, one print
+ * dialog for the lot.
+ */
+export function DeliveryNoteBatchPrintScreen({ ids }: { ids: readonly string[] }) {
+  const key = ids.join(',');
+  const { data, status, reload } = useLoader<PrintDispatch[]>(
+    key ? `delivery-notes:${key}` : null,
+    () => Promise.all(ids.flatMap((id) => (['store', 'branch'] as const).map((copy) => dispatchDesktopApi.print(id, copy)))),
+    'We could not load the delivery notes.',
+  );
+  React.useEffect(() => {
+    if (!data) return;
+    const timer = window.setTimeout(() => window.print(), 400);
+    return () => window.clearTimeout(timer);
+  }, [data]);
+  if (status === 'error') return <PrintError message="We could not load the delivery notes." onRetry={() => void reload()} />;
+  if (!data) return <p role="status" className="flex min-h-screen items-center justify-center bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">Getting the delivery notes…</p>;
+  return (
+    <PrintFrame>
+      {data.map((note) => (
+        <NoteSheets key={`${note.reference}-${note.copy}`} data={note} />
+      ))}
+    </PrintFrame>
   );
 }

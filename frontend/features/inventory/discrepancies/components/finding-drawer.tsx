@@ -86,6 +86,7 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
       primaryLabel={record.saving ? 'Recording…' : 'Record the finding'}
       primaryDisabled={!finding || pin.length !== 4 || record.saving}
       onPrimaryAction={() => void submit()}
+      paper
     >
       {failure ? <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">{failure}</p> : null}
       <div role="radiogroup" aria-label="What happened" className="border border-wds-neutral-950">
@@ -104,14 +105,14 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
               tabIndex={on || (!finding && index === 0) ? 0 : -1}
               onClick={() => setFinding(f)}
               onKeyDown={(event) => onKeyDown(event, index)}
-              className={cn('flex w-full items-start gap-3 border-b border-wds-border px-4 py-3.5 text-left outline-none last:border-b-0 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]', on ? 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]' : 'hover:bg-wds-neutral-50')}
+              className={cn('flex w-full items-start gap-3 border-b border-wds-border px-4 py-3.5 text-left outline-none last:border-b-0 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]', on ? 'bg-wds-caramel-100 shadow-[inset_3px_0_0_0_var(--wds-primary-btn-start)]' : 'hover:bg-wds-neutral-50')}
             >
-              <span aria-hidden className={cn('mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2', on ? 'border-wds-primary' : 'border-wds-border-strong')}>
-                {on ? <span className="size-2 rounded-full bg-wds-primary" /> : null}
+              <span aria-hidden className={cn('mt-px flex size-5 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-[var(--wds-primary-btn-start)]' : 'border-wds-border-strong')}>
+                {on ? <span className="size-2.5 rounded-full bg-[var(--wds-primary-btn-start)]" /> : null}
               </span>
               <span className="flex flex-col gap-0.5">
-                <span className="font-wds-sans text-[16px] leading-5 text-wds-text-ink">{d.title}</span>
-                <span className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{d.body}</span>
+                <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{d.title}</span>
+                <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.body}</span>
               </span>
             </button>
           );
@@ -128,32 +129,32 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
           </div>
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="flex flex-col gap-1">
-                <MonoLabel>What this does</MonoLabel>
-                <p className="font-wds-sans text-[16px] font-semibold text-wds-text-ink">
+            <div className="flex items-start justify-between gap-3 border-b border-wds-neutral-950 px-3.5 py-3">
+              <div className="flex flex-col gap-0.5">
+                <MonoLabel className="text-[11px] leading-[14px]">What this does</MonoLabel>
+                <p className="font-wds-sans text-[16px] font-semibold leading-[22px] text-wds-text-ink">
                   {p.itemName} · {p.effects[0] ? `${Math.abs(Number(p.effects[0].quantity)) || n} ${p.effects[0].place === 'CENTRAL_STORE' && Number(p.effects[0].quantity) > 0 ? 'back in store' : p.effects[0].place === 'WRITTEN_OFF' ? 'written off' : 'corrected'}` : `${n}`}
                 </p>
               </div>
-              <span className={cn('border px-2 py-1 font-wds-sans text-[12px] leading-4', p.lossKind === 'LOSS' ? 'border-wds-error-border bg-wds-error-bg text-wds-error-fg' : 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary')}>
+              <span className={cn('mt-0.5 border px-2 py-[3px] font-wds-sans text-[12px] leading-4', p.lossKind === 'LOSS' ? 'border-wds-error-border bg-wds-error-bg text-wds-error-fg' : 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary')}>
                 {p.lossKind === 'LOSS' ? 'A loss' : p.lossKind === 'PACKING_ERROR' ? 'Not a loss' : 'Not a loss'}
               </span>
             </div>
-            <dl className="border-t border-wds-border">
+            <dl>
               {p.effects.map((e) => (
-                <div key={`${e.place}-${e.placeName}`} className="flex items-center justify-between border-b border-wds-border px-4 py-3 last:border-b-0">
-                  <dt className="font-wds-sans text-[14px] text-wds-text-secondary">{e.placeName}</dt>
-                  <dd className="font-wds-sans text-[14px] text-wds-text-ink">{e.place === 'WRITTEN_OFF' ? Math.abs(Number(e.quantity)) : effectSign(e.quantity)}</dd>
+                <div key={`${e.place}-${e.placeName}`} className="flex items-center justify-between border-b border-wds-border px-3.5 py-2.5 last:border-b-0">
+                  <dt className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{e.placeName}</dt>
+                  <dd className="font-wds-mono text-[13px] leading-[18px] text-wds-text-ink">{e.place === 'WRITTEN_OFF' ? Math.abs(Number(e.quantity)) : effectSign(e.quantity)}</dd>
                 </div>
               ))}
-              <div className="flex items-center justify-between border-t border-wds-border px-4 py-3">
-                <dt className="font-wds-sans text-[14px] text-wds-text-secondary">Recorded against</dt>
-                <dd className="font-wds-sans text-[14px] text-wds-text-ink">{againstLine(p)}</dd>
+              <div className="flex items-center justify-between border-t border-wds-border px-3.5 py-2.5">
+                <dt className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Recorded against</dt>
+                <dd className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{againstLine(p)}</dd>
               </div>
               {p.lossValueKes !== undefined ? (
-                <div className="flex items-center justify-between border-t border-wds-border px-4 py-3">
-                  <dt className="font-wds-sans text-[14px] text-wds-text-secondary">Written off at cost</dt>
-                  <dd className="font-wds-mono text-[14px] text-wds-text-ink">KES {kes(p.lossValueKes)}</dd>
+                <div className="flex items-center justify-between border-t border-wds-border px-3.5 py-2.5">
+                  <dt className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Written off at cost</dt>
+                  <dd className="font-wds-mono text-[13px] leading-[18px] text-wds-text-ink">KES {kes(p.lossValueKes)}</dd>
                 </div>
               ) : null}
             </dl>
@@ -162,7 +163,7 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
       </section>
 
       <div className="flex flex-col gap-1.5">
-        <MonoLabel htmlFor="finding-note">Note (optional)</MonoLabel>
+        <MonoLabel htmlFor="finding-note" className="text-[11px] leading-[14px]">Note (optional)</MonoLabel>
         <Textarea id="finding-note" rows={2} maxLength={FINDING_NOTE_MAX} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Checked the pack list with the attendant." />
       </div>
       <PinField wide value={pin} onChange={setPin} onSubmit={() => void submit()} invalid={record.failure?.code === 'INVALID_PIN'} id="finding-pin" />

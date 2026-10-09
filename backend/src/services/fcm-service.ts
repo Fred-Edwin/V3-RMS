@@ -922,35 +922,6 @@ export const fcmService = {
     }
   },
 
-  /** Notifies a Branch Manager their branch's discrepancy has been resolved. Fire-and-forget. */
-  sendDiscrepancyResolvedPush: async (
-    branchManagerId: string,
-    payload: { discrepancyId: string; referenceNumber: string },
-  ): Promise<void> => {
-    try {
-      const token = await authRepository.findFcmToken(branchManagerId);
-      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
-
-      await firebaseMessaging.send({
-        token,
-        webpush: {
-          headers: { Urgency: 'normal' },
-          notification: {
-            title: 'Discrepancy resolved',
-            body: `${payload.referenceNumber} has been resolved by the Central Store`,
-            icon: '/android-chrome-192x192.png',
-            badge: '/android-chrome-192x192.png',
-            tag: `discrepancy-resolved-${payload.discrepancyId}`,
-          },
-          fcmOptions: { link: '/app/inventory/discrepancies' },
-        },
-        data: { type: 'discrepancy_resolved', discrepancyId: payload.discrepancyId },
-      });
-    } catch (error) {
-      logger.warn({ error, payload }, 'Failed to send discrepancy resolved FCM push');
-    }
-  },
-
   /** Notifies the Central Store's Store Manager(s) a daily count awaits verification. Fire-and-forget. */
   sendCountSubmittedPush: async (
     hubSiteId: string,

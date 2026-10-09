@@ -7,6 +7,16 @@ import type { DeliveryResult, DispatchDoneResult, DispatchStage } from '../../di
  * Titles, not names; a name shows only where a record states who did something ("Name · Title").
  */
 
+/** "bacon" from "Bacon, collar", "milk" from "Milk 1L": the first word, lower-cased, with no trailing comma or full stop, for "the 2 milk are held". */
+export const itemWord = (itemName: string): string => (itemName.trim().split(/\s+/)[0] ?? itemName).replace(/[,.;:]+$/, '').toLowerCase();
+
+/** What the count summary calls the lines that differ: "2 short", "1 extra", or "1 short · 1 extra" when both kinds are there. */
+export const differenceText = (directions: ReadonlyArray<'SHORT' | 'EXTRA'>): string => {
+  const short = directions.filter((d) => d === 'SHORT').length;
+  const extra = directions.length - short;
+  return [short > 0 ? `${short} short` : '', extra > 0 ? `${extra} extra` : ''].filter(Boolean).join(' · ');
+};
+
 // --- Errors (D22, "Print, and cancel when it is allowed", plus the phone report) ----------------------------------------------
 
 export const BLOCK2_ERROR_COPY: Record<string, string> = {

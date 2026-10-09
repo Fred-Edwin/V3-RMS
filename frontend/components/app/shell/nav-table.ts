@@ -79,7 +79,7 @@ interface Visibility {
   departmentHead?: boolean;
   /** Shows only for a department member who is not the head. */
   departmentMemberOnly?: boolean;
-  /** Hidden for a department head, whose own row replaces it (a chef-head sees the head's History, not the floor History). */
+  /** Hidden for a department head or member, whose own row replaces it (a chef-head sees the head's History, a member the deliveries History, not the floor History). */
   hideForDepartmentHead?: boolean;
 }
 
@@ -338,8 +338,8 @@ export const NAV_ROWS: readonly NavRow[] = [
       { key: 'history', label: 'History', newHref: '/app/inventory/requisitions/history', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
     ],
   },
-  // The Attendant keeps Dispatch (Block 2 rebuilds its page). Discrepancies are resolved from the dispatch queue, so they light Dispatch.
-  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, newHref: '/app/inventory/dispatch', match: ['/app/inventory/discrepancies'], roles: [STORE_ATTENDANT], hub: true },
+  // The Attendant has one Dispatch row (To pack, On the way, Done and the pack screens live under it).
+  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, newHref: '/app/inventory/dispatch', roles: [STORE_ATTENDANT], hub: true },
   {
     key: 'stock-counts',
     label: 'Stock & counts',
@@ -373,8 +373,9 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
   { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true },
   // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
-  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentMemberOnly: true },
-  { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: ALL_HUMAN, departmentMemberOnly: true },
+  // Count tonight and Waste (also on the map) have no old page a member can use: the API refuses a member there. They arrive with Blocks 3 and 4.
+  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true },
+  { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: SHIFT_STAFF, departmentMemberOnly: true },
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/branch/waste/new', roles: ALL_HUMAN, departmentHead: true },
   { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
 
@@ -432,7 +433,7 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
   (!rule.departmentHead || ctx.isDepartmentHead) &&
   (!rule.departmentMemberOnly || (ctx.isDepartmentMember === true && !ctx.isDepartmentHead)) &&
-  (!rule.hideForDepartmentHead || !ctx.isDepartmentHead);
+  (!rule.hideForDepartmentHead || !(ctx.isDepartmentHead || ctx.isDepartmentMember === true));
 
 /** The badge a person may see: dropped when the badge needs a capability they do not hold. */
 const badgeFor = (badge: NavBadge | undefined, ctx: NavContext): NavBadge | undefined => {
@@ -538,12 +539,18 @@ export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pa
 const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT];
 const DESKTOP_PREVIEW_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA];
 
-/** A department head uses the shell whatever their base role (Paper "Phone menus by role": no bottom tabs); a member stays on the legacy tabs for now. */
-export const usesAppShell = (role: AppRole | null | undefined, isDepartmentHead = false): boolean =>
-  Boolean(role) && (SHELL_ROLES.includes(role as AppRole) || isDepartmentHead);
+/**
+ * A department head or an active department member uses the shell whatever their base role (Paper "Phone menus by role": no bottom
+ * tabs). Floor staff who belong to no department stay on the legacy tabs until their screens are rebuilt.
+ */
+export const usesAppShell = (role: AppRole | null | undefined, isDepartmentHead = false, isDepartmentMember = false): boolean =>
+  Boolean(role) && (SHELL_ROLES.includes(role as AppRole) || isDepartmentHead || isDepartmentMember);
+
+/** The roles whose department membership the layout has to look up before it can pick a frame (heads carry a marker on the token). */
+export const FLOOR_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
 
 /** The sidebar shows for these roles, and for the floor staff only in the desktop preview (a dev flag), next to their bottom tabs. */
-export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean, isDepartmentHead = false): boolean {
+export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean, isDepartmentHead = false, isDepartmentMember = false): boolean {
   if (!role) return false;
-  return usesAppShell(role, isDepartmentHead) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
+  return usesAppShell(role, isDepartmentHead, isDepartmentMember) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
 }
