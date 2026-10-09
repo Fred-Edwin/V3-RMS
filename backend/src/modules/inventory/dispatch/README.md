@@ -38,8 +38,8 @@ The append-only ledger gets no new column. A finding's entries, its reversal and
 ## Data
 `prisma/schema/inventory/dispatch.prisma`: `Dispatch`, `DispatchLine`, `DispatchPhoto`, `DispatchEvent`, `Carrier`, `Discrepancy`, `DiscrepancyEvent`. Migration `20261009100000_block2_dispatch_replace` (replace, with `ROLLBACK.md`). Production had 0 dispatches and 0 discrepancies on 8 Oct 2026: **re-run those two counts the week of release**; the migration refuses to run if any discrepancy exists.
 
-## Open for back end D / later
-Findings (Q1 to Q5), the branch count (V1 to V6), photo upload and the authenticated photo URL (`/inventory/deliveries/photos/:id`), the 2-hour and 24-hour jobs, the `DISPATCH` and `DISCREPANCIES` audit sources, the `deliveries` badge, and the `DISPATCH_IN` posting. `Discrepancy` status/finding enums and tables already exist.
+## Built in back end D
+Findings (Q1 to Q5) are in `../discrepancies/`; the branch count (V1 to V6), photos with the authenticated URL (`/inventory/deliveries/photos/:id`), the `DISPATCH_IN` posting and the 2-hour job are in `../deliveries/`; the 24-hour reminder is in `src/jobs/inventory-delivery-jobs.ts`; the `DISPATCH` and `DISCREPANCIES` audit sources are in `../audit-log/sources/`; `GET /inventory/requisitions/badges` carries `deliveries`. A finding posts its `ADJUSTMENT` rows linked to the dispatch line exactly as described above.
 
 ## Code map
 `dispatch-routes.ts`, `carriers-routes.ts`, `dispatch-controller.ts`, `dispatch-validators.ts`, `dispatch-service.ts`, `carriers-service.ts`, `dispatch-repository.ts`, `carriers-repository.ts`, `dispatch-state.ts` (pure state rules), `dispatch-view.ts` (wire shapes, blind and money), `dispatch-roll-up.ts`, `dispatch-caller.ts`, `dispatch-errors.ts`, `dispatch-notify.ts`; contract in `_shared/dispatch-contract.ts` (+ fixtures and test). Tests: `dispatch-state.test.ts`, `dispatch-routes.test.ts`, `dispatch-roll-up.test.ts`, and the opt-in `dispatch.db.test.ts` (`RUN_DB_TESTS=1`).

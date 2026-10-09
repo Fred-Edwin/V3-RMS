@@ -336,6 +336,10 @@ export const requisitionsRepository = {
   closeRequisition: async (requisitionId: string, closedAt: Date, db: Db = prisma): Promise<boolean> =>
     (await db.requisition.updateMany({ where: { id: requisitionId, status: 'APPROVED' }, data: { status: 'CLOSED', closedAt } })).count > 0,
 
+  /** A reversed finding holds a gap again: a requisition that had closed on it goes back to APPROVED (Block 2, back end D). */
+  reopenRequisition: async (requisitionId: string, db: Db = prisma): Promise<boolean> =>
+    (await db.requisition.updateMany({ where: { id: requisitionId, status: 'CLOSED' }, data: { status: 'APPROVED', closedAt: null } })).count > 0,
+
   /** Approval of an addition freezes the cost and sets the Approved quantity on its lines. */
   freezeAdditionLines: async (tx: Prisma.TransactionClient, siteId: string, additionId: string): Promise<void> => {
     const lines = await tx.requisitionLine.findMany({

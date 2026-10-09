@@ -6,6 +6,7 @@ import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clo
 import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
 import { URGENT_ESCALATION_JOB, ensureUrgentEscalationSchedule, escalateUrgentRequisitions } from './requisition-urgent-escalation';
+import { ensureInventoryDeliverySchedule, runInventoryDeliveryJob } from './inventory-delivery-jobs';
 import { INVENTORY_NOTICE_JOB, inventoryNotify, type HeldNotice } from '../modules/inventory/_shared/notify';
 import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
 import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
@@ -79,6 +80,9 @@ export const reportWorker = new Worker(
       logger.info({ jobId: job.id, totalFlagged }, 'Stale orders schedule executed');
       return;
     }
+
+    // Block 2: the 2-hour "Waiting for the branch" nudge and the 24-hour then daily discrepancy reminder (idempotent claims).
+    if (await runInventoryDeliveryJob(job.name)) return;
 
     if (job.name === URGENT_ESCALATION_JOB) {
       const escalated = await escalateUrgentRequisitions();
@@ -157,6 +161,9 @@ export const startWorkers = (): void => {
     });
     void ensureUrgentEscalationSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register urgent requisition escalation schedule');
+    });
+    void ensureInventoryDeliverySchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the delivery waiting and discrepancy reminder schedule');
     });
     void ensureReadyOrderReminderSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register ready order reminder schedule');

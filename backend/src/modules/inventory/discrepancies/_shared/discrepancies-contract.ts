@@ -37,7 +37,7 @@ import {
 
 // --- Words and enums -----------------------------------------------------------
 
-/** Socket event (Amendment 1 row 16), per record. Emitted by back end D. */
+/** Socket event (Amendment 1 row 16), per record. Emitted by `discrepancies-notify.ts` and `deliveries-notify.ts` (back end D). */
 export const DISCREPANCY_CHANGED_EVENT = 'discrepancy:changed';
 export const discrepancyChangedPayloadSchema = z.object({ id: uuid, reference: z.string(), siteId: z.string(), reason: z.string() });
 export type DiscrepancyChangedPayload = z.infer<typeof discrepancyChangedPayloadSchema>;

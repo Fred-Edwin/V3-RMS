@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../config/database', () => ({ prisma: {} }));
 vi.mock('../counting/_shared/count-pin', () => ({ countPin: { verifyOwn: vi.fn() } }));
 vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextNumber: vi.fn() } }));
+// The deliveries badge (Block 2): the hub and the count of deliveries waiting come from other modules, not from this one.
+vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(async () => ({ id: 'hub' })) } }));
+vi.mock('../deliveries/deliveries-repository', () => ({ deliveriesRepository: { count: vi.fn(async () => 3) } }));
 vi.mock('./requisitions-events', () => ({ requisitionNotices: { publish: vi.fn(), subscribe: vi.fn() } }));
 vi.mock('./requisitions-repository', () => {
   for (const n of ['findStaff', 'listHeads', 'findFile', 'findCategoryNames', 'hasDispatch', 'findDepartment', 'findDepartmentLocation', 'listTaggedItems', 'readStock']) mocks.repo[n] = vi.fn();
@@ -302,7 +305,8 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
   it('approvers wait on To approve: the Branch Manager and the Director', async () => {
     expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(2);
     expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(2);
-    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2 });
+    // The Branch Manager also gets the branch's deliveries waiting (Block 2); the Director has no branch, so no such key.
+    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2, deliveries: 3 });
     expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 2, toApprove: 2 });
   });
 
@@ -324,7 +328,7 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
 
   it('a head waits on their own unsent list while the requisition collects', async () => {
     expect((await requisitionsListService.list(kitchen, query())).waitingForYou).toBe(1); // w5: Kitchen is a Draft; w6 Kitchen already sent
-    expect(await requisitionsListService.badges(kitchen)).toEqual({ requisitions: 1 });
+    expect(await requisitionsListService.badges(kitchen)).toEqual({ requisitions: 1, deliveries: 3 });
     expect(mocks.list['listFacts']).toHaveBeenCalledWith({ siteId: SITE }, { statuses: ['OPEN', 'PENDING_APPROVAL', 'APPROVED'], headDepartmentId: KITCHEN });
   });
 
@@ -340,8 +344,13 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
     expect(mocks.list['listFacts']).toHaveBeenLastCalledWith({ anyBranch: true }, { statuses: ['OPEN', 'PENDING_APPROVAL', 'APPROVED'] });
   });
 
-  it('someone with no requisitions role at all is refused', async () => {
-    await expect(requisitionsListService.badges(member)).rejects.toMatchObject({ statusCode: 403 });
+  it('a department member holds no requisitions role but has deliveries to count: only that badge', async () => {
+    expect(await requisitionsListService.badges(member)).toEqual({ requisitions: 0, deliveries: 3 });
+  });
+
+  it('someone with no requisitions role and no department is refused', async () => {
+    mocks.repo['findStaff']!.mockResolvedValue(staff('loner', 'WAITER', SITE, null, false));
+    await expect(requisitionsListService.badges(actorOf('loner', 'WAITER', SITE))).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

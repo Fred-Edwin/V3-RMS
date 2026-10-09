@@ -32,7 +32,7 @@ export const derivedUuid = (seed: string): string => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
 
-/** An authenticated link to a delivery photo; the route is served by the Deliveries module (back end D). */
+/** An authenticated link to a delivery photo; the route (`GET /inventory/deliveries/photos/:photoId`) is served by the Deliveries module. */
 export const photoUrl = (photoId: string): string => `/inventory/deliveries/photos/${photoId}`;
 
 /** "Category names from the top": the parent category (when it has one), then the item's own. */

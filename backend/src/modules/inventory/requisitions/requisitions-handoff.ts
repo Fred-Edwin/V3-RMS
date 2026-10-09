@@ -9,7 +9,7 @@ import { requisitionsRepository } from './requisitions-repository';
  */
 
 /**
- * Called after every department count and discrepancy settlement (Block 2, back end D calls it). A CONFIRMED dispatch with no gap held
+ * Called after every department count and discrepancy settlement (Block 2: Deliveries V6 and Discrepancies Q4 call it). A CONFIRMED dispatch with no gap held
  * becomes CLOSED; when every department's dispatch is CLOSED the requisition is set to CLOSED with `closedAt`.
  */
 export const closeIfComplete = async (requisitionId: string): Promise<void> => {
