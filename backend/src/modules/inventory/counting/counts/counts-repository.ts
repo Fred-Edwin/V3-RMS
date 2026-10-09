@@ -28,6 +28,18 @@ export type CountListRow = {
   recountOf: { id: string; reference: string } | null;
 };
 
+/** One row of "My counts": a signed count of the caller's own. */
+export type MyCountListRow = {
+  id: string;
+  reference: string;
+  status: CountStatus;
+  selfSigned: boolean;
+  signedAt: Date;
+  scopeNames: string[];
+  firstItemNames: string[];
+  itemCount: number;
+};
+
 export type SummaryFacts = {
   waiting: { count: number; latest: { sectionsText: string; signedAt: Date } | null };
   inProgress: { count: number; first: { sectionsText: string; counterName: string; counted: number; total: number } | null };
@@ -144,6 +156,76 @@ export const countsRepository = {
       })),
     };
   },
+
+  /**
+   * C32: one person's signed counts (SUBMITTED or APPROVED), newest signed first, one page. `counterId` is always the caller.
+   * A count waiting for review (SUBMITTED) is in the list whatever the range, like C2; the status filter still applies on top.
+   */
+  mineList: async (
+    siteId: string,
+    counterId: string,
+    filter: { status: 'all' | 'waiting' | 'approved'; signedFrom?: Date; signedBefore?: Date },
+    paging: { page: number; pageSize: number },
+    client: Client = prisma,
+  ): Promise<{ rows: MyCountListRow[]; total: number }> => {
+    const inRange: Prisma.CountWhereInput =
+      filter.signedFrom || filter.signedBefore
+        ? { OR: [{ status: 'SUBMITTED' }, { signedAt: { ...(filter.signedFrom ? { gte: filter.signedFrom } : {}), ...(filter.signedBefore ? { lt: filter.signedBefore } : {}) } }] }
+        : {};
+    const where: Prisma.CountWhereInput = {
+      siteId,
+      counterId,
+      status: filter.status === 'waiting' ? 'SUBMITTED' : filter.status === 'approved' ? 'APPROVED' : { in: ['SUBMITTED', 'APPROVED'] },
+      signedAt: { not: null },
+      AND: [inRange],
+    };
+    const [rows, total] = await Promise.all([
+      client.count.findMany({
+        where,
+        orderBy: [{ signedAt: 'desc' }, { id: 'desc' }],
+        skip: (paging.page - 1) * paging.pageSize,
+        take: paging.pageSize,
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          selfSigned: true,
+          signedAt: true,
+          scopeSections: { orderBy: { sectionName: 'asc' }, select: { sectionName: true } },
+          lines: { orderBy: { position: 'asc' }, take: 3, select: { inventoryItem: { select: { name: true } } } },
+          _count: { select: { lines: true } },
+        },
+      }),
+      client.count.count({ where }),
+    ]);
+    return {
+      total,
+      rows: rows.flatMap((r) =>
+        r.signedAt
+          ? [
+              {
+                id: r.id,
+                reference: r.reference,
+                status: r.status,
+                selfSigned: r.selfSigned,
+                signedAt: r.signedAt,
+                scopeNames: r.scopeSections.map((s) => s.sectionName),
+                firstItemNames: r.lines.map((l) => l.inventoryItem.name),
+                itemCount: r._count.lines,
+              },
+            ]
+          : [],
+      ),
+    };
+  },
+
+  /** C31: how many counts one person has signed, all time (the badge on My counts). */
+  signedCountOf: (siteId: string, counterId: string, client: Client = prisma): Promise<number> =>
+    client.count.count({ where: { siteId, counterId, status: { in: ['SUBMITTED', 'APPROVED'] }, signedAt: { not: null } } }),
+
+  /** C31: waste entries one person logged in a window, reversed ones included (Waste's table, read here only to count). */
+  wasteEntriesLogged: (siteId: string, loggedById: string, from: Date, before: Date, client: Client = prisma): Promise<number> =>
+    client.wasteLog.count({ where: { siteId, loggedById, createdAt: { gte: from, lt: before } } }),
 
   /** The numbers on the status chips: they follow the date range, not the search or the chip itself. */
   chipCounts: async (siteId: string, client: Client = prisma, range: StartedRange = {}): Promise<{ all: number; waiting: number; inProgress: number; approved: number }> => {

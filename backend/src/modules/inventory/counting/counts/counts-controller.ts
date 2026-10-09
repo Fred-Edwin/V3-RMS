@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../../../utils/errors';
 import { countsService } from './counts-service';
-import { countDetailParamsSchema, countsListQuerySchema, countsSummaryQuerySchema, pagerQuerySchema } from './counts-validators';
+import { countDetailParamsSchema, countsListQuerySchema, countsSummaryQuerySchema, myCountsQuerySchema, pagerQuerySchema } from './counts-validators';
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
@@ -14,6 +14,12 @@ export const countsController = {
   },
   list: async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({ success: true, data: await countsService.list(requireActor(req), countsListQuerySchema.parse(req.query)) });
+  },
+  home: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await countsService.home(requireActor(req)) });
+  },
+  mine: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await countsService.mine(requireActor(req), myCountsQuerySchema.parse(req.query)) });
   },
   flagged: async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({ success: true, data: await countsService.flagged(requireActor(req), pagerQuerySchema.parse(req.query)) });

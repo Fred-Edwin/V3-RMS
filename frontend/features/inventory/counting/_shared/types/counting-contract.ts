@@ -201,6 +201,51 @@ export interface CountsList {
   page: PageInfo;
 }
 
+// --- C31 home, C32 my counts (Amendment 2, Block 5). The caller's own data, blind: no stock figure, no difference. ---
+
+/** C31 GET /counts/home: the Attendant's front door (Paper step 52). */
+export interface CountsHome {
+  /** The caller's own open count, so the home can say "Resume". `counted` and `total` are lines, not stock. */
+  openCount: { id: string; reference: string; sectionsText: string; counted: number; total: number; progressText: string } | null;
+  sections: {
+    /** "8 sections". */
+    total: number;
+    /** The section counted longest ago: a date and no figure. Null when there is no section. */
+    longestAgo: { id: string; name: string; lastCountedAt: string | null; lastCountedText: string } | null;
+  };
+  /** Counts the caller has signed, all time: the badge on My counts. */
+  signedCount: number;
+  /** Waste entries the caller logged today (Nairobi day), reversed ones included. */
+  wasteToday: number;
+}
+
+/** C32 GET /counts/mine. */
+export interface MyCountsQuery extends PageQuery {
+  status?: 'all' | 'waiting' | 'approved';
+  /** Nairobi days (`YYYY-MM-DD`) on when the count was signed, both included. Neither given: the last 30 days. A count waiting for review always shows. */
+  from?: string;
+  to?: string;
+}
+
+export interface MyCountRow {
+  id: string;
+  reference: string;
+  status: 'SUBMITTED' | 'APPROVED';
+  /** "Waiting for review", "Approved", "Signed". */
+  statusText: string;
+  sectionsText: string;
+  itemCount: number;
+  signedAt: string;
+  /** "Today 07:42", "Yesterday 16:10", "Mon 12 Oct 16:10". */
+  signedText: string;
+}
+
+export interface MyCountsList {
+  rows: MyCountRow[];
+  /** `page.total` is the header's "12 counts". */
+  page: PageInfo;
+}
+
 export interface FlaggedLine {
   countId: string;
   countReference: string;
