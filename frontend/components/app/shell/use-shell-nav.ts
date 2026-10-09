@@ -80,7 +80,8 @@ export function useShellNav(): ShellNav {
   const role = useAuthStore((s) => s.role);
   const user = useAuthStore((s) => s.user);
   const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
-  const { can } = usePermissions(hasHubRows(role));
+  // A floor member also asks (the call is open to any signed-in person) so the shell knows whether they belong to a department.
+  const { can, isMember: isDepartmentMember } = usePermissions(hasHubRows(role) || isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING');
   const branches = useBranches(role === 'DIRECTOR');
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
@@ -93,11 +94,12 @@ export function useShellNav(): ShellNav {
       navFor({
         role: role ?? undefined,
         isDepartmentHead,
+        isDepartmentMember,
         can,
         creditAccounts: env.creditAccounts,
         branches,
       }),
-    [role, isDepartmentHead, can, branches]
+    [role, isDepartmentHead, isDepartmentMember, can, branches]
   );
 
   // The unread count is the only thing added to the table's rows here.

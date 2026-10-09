@@ -16,7 +16,8 @@ import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
 import { cancelReasonText, HISTORY_COPY } from '../../_shared/lib/phone-words';
 import { REQUISITION_STATUSES, REQUISITION_STATUS_TEXT, type HistoryMineRow, type RequisitionStatus } from '../../_shared/types/requisitions-contract';
 import { useHistoryMine } from '../../hooks/use-head-requisitions';
-import { REQ_HOME, reqFile } from '../../lib/routes';
+import { B2TabBar } from '../../../_shared/components/block2-phone-parts';
+import { REQ_HISTORY, REQ_HOME, reqFile } from '../../lib/routes';
 import { dateTimeText, fullDateText, shortDateText } from '../../lib/time';
 import { HeadPhoneHeader } from './head-phone-parts';
 import { StatusChip } from './head-home-screen';
@@ -59,7 +60,21 @@ export function HeadHistoryScreen() {
 
   return (
     <PhoneColumn>
-      <HeadPhoneHeader variant="history" leading="back" onBack={() => router.push(REQ_HOME)} title={HISTORY_COPY.title} subtitle={HISTORY_COPY.subtitle(fullDateText(new Date().toISOString()), department ? titleCase(department) : '')} />
+      <HeadPhoneHeader variant="history" leading="back" onBack={() => router.push(REQ_HOME)} title={HISTORY_COPY.title} subtitle={HISTORY_COPY.subtitle(fullDateText(new Date().toISOString()), department ? titleCase(department) : '')}>
+        <div className="-mx-4 -mb-4 mt-1">
+          <B2TabBar
+            items={[
+              { key: 'requisitions', label: 'Requisitions' },
+              { key: 'deliveries', label: 'Deliveries' },
+            ]}
+            active="requisitions"
+            label="History"
+            onChange={(key) => {
+              if (key === 'deliveries') router.push(`${REQ_HISTORY}?tab=deliveries`);
+            }}
+          />
+        </div>
+      </HeadPhoneHeader>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas p-4">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangePicker

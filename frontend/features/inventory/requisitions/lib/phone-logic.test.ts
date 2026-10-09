@@ -95,8 +95,15 @@ describe("the head's rows in the navigation table", () => {
   const ctx = (isDepartmentHead: boolean): NavContext => ({ role: 'CHEF', isDepartmentHead, can: () => false, creditAccounts: false });
   const hrefs = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.href));
   it('gives a head Requisitions, Deliveries, Waste and History on the new pages, and a member none of them', () => {
-    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/branch/deliveries', '/app/branch/waste/new', '/app/requisitions/history']));
+    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/branch/waste/new', '/app/requisitions/history']));
     expect(hrefs(false)).not.toContain('/app/requisitions');
+  });
+  it('gives a department member (not a head) Deliveries and its History, and no Requisitions', () => {
+    const member = navFor({ role: 'CHEF', isDepartmentHead: false, isDepartmentMember: true, can: () => false, creditAccounts: false }).flatMap((g) => g.items.map((i) => i.href));
+    expect(member).toEqual(expect.arrayContaining(['/app/deliveries', '/app/deliveries/history']));
+    expect(member).not.toContain('/app/requisitions');
+    expect(hrefs(false)).not.toContain('/app/deliveries');
+    expect(hrefs(true)).not.toContain('/app/deliveries/history');
   });
   it('shows a chef-head one History (the head\'s), and a chef without the marker the floor History', () => {
     const labels = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.label));
