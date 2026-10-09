@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { branchWasteApi } from '../services/branch-waste-api';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 
 let cached: string | null = null;
 

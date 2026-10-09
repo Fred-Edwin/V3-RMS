@@ -19,7 +19,7 @@ import { BRANCH_WASTE_BUTTONS, BRANCH_WASTE_MESSAGES, BRANCH_WASTE_STATES_COPY }
 import type { BranchWasteEntry, MyBranchWasteList } from '../../_shared/types/waste-contract';
 import { useDepartmentName } from '../hooks/use-department-name';
 import { entryMeta, groupByDay } from '../lib/branch-waste-format';
-import { branchWasteApi } from '../services/branch-waste-api';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 import { BranchHeader, SectionLabel } from './parts';
 import { ReversedDetailSheet, ReverseSheet } from './reverse-sheet';
 

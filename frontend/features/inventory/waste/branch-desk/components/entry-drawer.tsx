@@ -10,8 +10,9 @@ import { LoadingAnnouncer, ScwStatePanel } from '../../../_shared/components/scw
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { clockLabel, signedKes } from '../../../counting/_shared/lib/count-format';
 import { BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
-import { dayClock, qtyLabel, reversalReasonShort, shortName } from '../lib/branch-waste-desk-format';
-import { branchWasteDeskApi } from '../services/branch-waste-desk-api';
+import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
+import { dayClock, reversalReasonShort } from '../lib/branch-waste-desk-format';
 
 /** Rows whose value can wrap, as W7's Effect row (13/18); the others are 13/16. */
 const WRAPS = new Set(['Note', 'Reversal reason']);
@@ -22,22 +23,22 @@ const WRAPS = new Set(['Note', 'Reversal reason']);
  * server sends them (a caller who may see stock); a reversed entry shows who reversed it and why.
  */
 export function EntryDrawer({ entryId, onClose }: { entryId: string | null; onClose: () => void }) {
-  const loaded = useLoader(entryId, () => (entryId ? branchWasteDeskApi.detail(entryId) : Promise.reject(new Error('no entry'))), BRANCH_WASTE_STATES_COPY.branchList.error);
+  const loaded = useLoader(entryId, () => (entryId ? branchWasteApi.detail(entryId) : Promise.reject(new Error('no entry'))), BRANCH_WASTE_STATES_COPY.branchList.error);
   const entry = loaded.data?.entry ?? null;
   const ledger = loaded.data?.ledger;
   const money = entry?.valueKes !== undefined ? signedKes(entry.valueKes) : null;
 
   const rows: [string, React.ReactNode][] = entry
     ? [
-        ['Entry', `${entry.itemName} · ${qtyLabel(entry.quantity, entry.unit)}`],
+        ['Entry', `${entry.itemName} · ${quantityLabel(entry.quantity, entry.unit)}`],
         ['Department', entry.department.name],
-        ['Logged by', `${shortName(entry.loggedBy.name)} · ${dayClock(entry.at)}`],
+        ['Logged by', `${shortPerson(entry.loggedBy.name)} · ${dayClock(entry.at)}`],
         ['Reason', entry.reasonText],
         ...(money ? ([['Value', <span key="v" className="font-wds-mono">{money}</span>]] as [string, React.ReactNode][]) : []),
         ['Note', entry.note ?? 'None'],
         ...(entry.reversal
           ? ([
-              ['Reversed', `${shortName(entry.reversal.by.name)} · ${dayClock(entry.reversal.at)}`],
+              ['Reversed', `${shortPerson(entry.reversal.by.name)} · ${dayClock(entry.reversal.at)}`],
               ['Reversal reason', `${entry.reversal.reasonText}${entry.reversal.note ? `: ${entry.reversal.note}` : ''}`],
             ] as [string, React.ReactNode][])
           : []),
@@ -87,7 +88,7 @@ export function EntryDrawer({ entryId, onClose }: { entryId: string | null; onCl
                       <span className="text-wds-text-secondary">
                         {row.kind === 'LOGGED' ? 'Logged' : 'Reversal'} · {dayClock(row.at)}
                       </span>
-                      <span className="font-wds-mono text-wds-text-ink">{Number(row.quantity) > 0 ? '+' : '−'}{qtyLabel(String(Math.abs(Number(row.quantity))), entry.unit)}</span>
+                      <span className="font-wds-mono text-wds-text-ink">{Number(row.quantity) > 0 ? '+' : '−'}{quantityLabel(String(Math.abs(Number(row.quantity))), entry.unit)}</span>
                     </li>
                   ))}
                 </ul>

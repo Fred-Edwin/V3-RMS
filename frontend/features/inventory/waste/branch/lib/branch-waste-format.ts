@@ -1,21 +1,8 @@
 import { clockLabel } from '../../../counting/_shared/lib/count-format';
+import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
 import type { BranchWasteEntry } from '../../_shared/types/waste-contract';
 
 const NAIROBI = 'Africa/Nairobi';
-
-/** "Grace Wanjiru" → "Grace W." (first name and a last initial, as Paper draws other people's entries). */
-export function shortPerson(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0] ?? '';
-  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
-  return last ? `${first} ${last.charAt(0).toUpperCase()}.` : first;
-}
-
-/** "2 kg" / "2.5 kg": the stored decimal shown without trailing zeros. */
-export function quantityLabel(quantity: string, unit: string): string {
-  const n = Number(quantity);
-  return `${Number.isFinite(n) ? String(n) : quantity} ${unit}`;
-}
 
 /** "2 kg · Spoiled · 14:20 · you" or "… · Joseph M." (Paper step 55). */
 export function entryMeta(entry: BranchWasteEntry, meId: string | undefined): string {

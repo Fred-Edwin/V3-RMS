@@ -9,7 +9,8 @@ import { clockLabel } from '../../../counting/_shared/lib/count-format';
 import { BRANCH_WASTE_BUTTONS, BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import { WASTE_REVERSAL_REASONS, WASTE_REVERSAL_TEXT, type BranchWasteEntry, type WasteReversalReason } from '../../_shared/types/waste-contract';
 import { useBranchReverse } from '../hooks/use-branch-reverse';
-import { entrySummary, quantityLabel, shortPerson } from '../lib/branch-waste-format';
+import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
+import { entrySummary } from '../lib/branch-waste-format';
 import { radioGroupKeyDown, radioTabIndex, SectionLabel } from './parts';
 
 /** The third reason reads "Other, add a note" on both devices (owner ruling, 9 Oct 2026). */

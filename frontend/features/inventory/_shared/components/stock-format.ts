@@ -1,6 +1,6 @@
 import type { StatusTone } from '@/components/ui2/status-dot';
 import type { InventoryItemTypeValue, InventoryTransactionTypeValue } from '../../stock/types/stock';
-import type { WasteReasonValue } from '../../waste/department/types/waste';
+import type { WasteReason } from '../../waste/_shared/types/waste-contract';
 
 /**
  * Display formatting for the Milestone Six stock screens, matching Paper's
@@ -87,7 +87,7 @@ export const TRANSACTION_TYPE_TONE: Record<InventoryTransactionTypeValue, { dot:
   ADJUSTMENT: { dot: 'bg-wds-error-fg', text: 'text-wds-error-fg' },
 };
 
-export const WASTE_REASON_LABEL: Record<WasteReasonValue, string> = {
+export const WASTE_REASON_LABEL: Record<WasteReason, string> = {
   SPOILAGE: 'Spoilage',
   EXPIRY: 'Expiry',
   DAMAGE_IN_STORE: 'Damage in store',
@@ -95,7 +95,7 @@ export const WASTE_REASON_LABEL: Record<WasteReasonValue, string> = {
 };
 
 /** Lower-case form used in the hub's waste rows ("spoilage", "prep error"). */
-export function wasteReasonShort(reason: WasteReasonValue): string {
+export function wasteReasonShort(reason: WasteReason): string {
   return reason === 'DAMAGE_IN_STORE' ? 'damage' : WASTE_REASON_LABEL[reason].toLowerCase();
 }
 

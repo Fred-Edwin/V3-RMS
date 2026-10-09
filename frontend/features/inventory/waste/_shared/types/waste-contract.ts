@@ -6,8 +6,8 @@
  * reverses only their own entries and receives no stock figure; the screens read the `can` flags and test whether a key
  * is present, never a role name.
  *
- * The first half is the Central Store (W1 to W4). A Department Head's branch waste keeps its old endpoints and screens
- * (`waste/department/`) until the build replaces them; its new contract (BW1 to BW7) is the second half of this file.
+ * The first half is the Central Store (W1 to W4). The branch departments' waste (BW1 to BW7, `waste/branch/` on the phone and
+ * `waste/branch-desk/` on the desktop) is the second half of this file.
  */
 import type { KpiCell, PageInfo, PageQuery, Person } from '../../../_shared/types/wire';
 import type { BranchRef } from '../../../requisitions/_shared/types/requisitions-contract';

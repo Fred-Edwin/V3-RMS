@@ -20,8 +20,9 @@ import { clockLabel, signedMoney } from '../../../counting/_shared/lib/count-for
 import { BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import { WASTE_REASONS, WASTE_REASON_TEXT, type BranchWasteDepartment, type BranchWasteEntry, type WasteReason } from '../../_shared/types/waste-contract';
 import { useBranchWasteAccess } from '../hooks/use-branch-waste-access';
-import { qtyLabel, rangeLabel, reversalReasonShort, shortName } from '../lib/branch-waste-desk-format';
-import { branchWasteDeskApi } from '../services/branch-waste-desk-api';
+import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
+import { rangeLabel, reversalReasonShort } from '../lib/branch-waste-desk-format';
 import { EntryDrawer } from './entry-drawer';
 import { ReverseEntryDialog } from './reverse-entry-dialog';
 
@@ -118,13 +119,13 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
     const cols: TableColumn<BranchWasteEntry>[] = [
       { id: 'time', header: 'Time', width: all ? '72px' : '80px', className: lead, headClassName: head, cell: (e) => <span className={cn('font-wds-mono text-[12px] leading-4', ink(e))}>{clockLabel(e.at)}</span> },
       { id: 'item', header: 'Item', width: all ? '160px' : '190px', className: mid, headClassName: head, cell: (e) => <span className={cn('text-[13px] font-medium leading-4', quiet(e) ? `${FAINT} line-through` : 'text-wds-text-ink')}>{e.itemName}</span> },
-      { id: 'qty', header: 'Qty', width: all ? '80px' : '90px', align: 'right', className: mid, headClassName: head, cell: (e) => <span className={cn('font-wds-mono text-[13px] leading-4', ink(e))}>{qtyLabel(e.quantity, e.unit)}</span> },
+      { id: 'qty', header: 'Qty', width: all ? '80px' : '90px', align: 'right', className: mid, headClassName: head, cell: (e) => <span className={cn('font-wds-mono text-[13px] leading-4', ink(e))}>{quantityLabel(e.quantity, e.unit)}</span> },
       ...(all
         ? ([{ id: 'branch', header: 'Branch', width: '130px', className: 'pl-6 pr-0', headClassName: head, cell: (e: BranchWasteEntry) => <span className={cn('text-[13px] leading-4', ink(e))}>{e.branch.name}</span> }] as TableColumn<BranchWasteEntry>[])
         : []),
       { id: 'department', header: 'Department', width: all ? '110px' : '150px', className: all ? mid : 'pl-7 pr-0', headClassName: head, cell: (e) => <span className={cn('text-[13px] leading-4', ink(e))}>{e.department.name}</span> },
       { id: 'reason', header: 'Reason', width: all ? '140px' : '150px', className: mid, headClassName: head, cell: (e) => <span className={cn('text-[13px] leading-4', ink(e))}>{e.reasonText}</span> },
-      { id: 'by', header: 'Logged by', width: all ? '100px' : '120px', className: mid, headClassName: head, cell: (e) => <span className={cn('text-[13px] leading-4', ink(e))}>{shortName(e.loggedBy.name)}</span> },
+      { id: 'by', header: 'Logged by', width: all ? '100px' : '120px', className: mid, headClassName: head, cell: (e) => <span className={cn('text-[13px] leading-4', ink(e))}>{shortPerson(e.loggedBy.name)}</span> },
       ...(seesMoney
         ? ([
             {
@@ -159,7 +160,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
               }}
               className="relative -mr-2 h-8 px-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none transition-colors hover:bg-wds-surface-sunken hover:text-wds-text-ink focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98]"
             >
-              Reverse<span className="sr-only"> {e.itemName}, {qtyLabel(e.quantity, e.unit)}</span>
+              Reverse<span className="sr-only"> {e.itemName}, {quantityLabel(e.quantity, e.unit)}</span>
             </button>
           ) : null,
       },
@@ -239,7 +240,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
               page: q.page,
               pageSize: q.perPage as 25 | 50 | 100,
             };
-            const res = everyBranch ? await branchWasteDeskApi.branches({ ...query, branchId, departmentName: q.filters.departmentName }, signal) : await branchWasteDeskApi.branch(query, signal);
+            const res = everyBranch ? await branchWasteApi.branches({ ...query, branchId, departmentName: q.filters.departmentName }, signal) : await branchWasteApi.branch(query, signal);
             setKpis(res.kpis ?? null);
             setDepartments(res.departments);
             if (res.branches) setBranches(res.branches);

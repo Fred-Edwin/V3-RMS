@@ -1,7 +1,7 @@
 # Waste (front end)
 
 Central Store waste. Contract §4.3 (W1 to W4); `_shared/services/waste-api.ts`. No PIN anywhere. **Branch waste (Block 3):** the BW1 to BW7 types are the second half of `_shared/types/waste-contract.ts` (hand mirror, same fixtures file as the Central Store), the wording from Paper W9 is `_shared/lib/branch-waste-copy.ts`, and the spec is `docs/features/inventory/branch-waste-contract.md`.
-- **Phone** (department head or member, W1 to W5, step 55): built in `branch/` (see `branch/README.md`). `department/` now holds only the old log drawer and form that the Stock ledger still uses (the old head screen is deleted); it goes with that ledger's redo.
+- **Phone** (department head or member, W1 to W5, step 55): built in `branch/` (see `branch/README.md`). The old `department/` folder is deleted; the drawer-motion helpers it held now live in `_shared/components/drawer-motion.tsx`. Phone and desktop share one service (`_shared/services/branch-waste-api.ts`) and one set of name/quantity helpers (`_shared/lib/branch-waste-people.ts`).
 - **Desktop** (W6 Branch waste, W7 Reverse any entry, W8 Waste for any branch, the entry drawer): built in `branch-desk/` on the real API (BW4 to BW7); see `branch-desk/README.md`.
 
 `/stock/waste` shows the phone "My waste, today and earlier" (step 54, `entries/components/my-waste-screen.tsx`) when the list carries no `kpis`, the desktop Waste when it does. Step 54 reads W3 with `from` and `to` (starting at the last 7 days, in the URL), groups by the Nairobi day logged, shows Reverse only where the server says `can.reverse` (own entry, same day), and strikes through reversed entries (text uses `copy-faint` for contrast, not Paper's #8D8982). Fifty entries a page; the heading count is per page.

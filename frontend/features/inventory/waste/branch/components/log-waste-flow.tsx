@@ -17,8 +17,8 @@ import { BRANCH_WASTE_BUTTONS, BRANCH_WASTE_MESSAGES, BRANCH_WASTE_STATES_COPY }
 import { WASTE_REASON_TEXT, type BranchWasteItems, type WasteItemOption } from '../../_shared/types/waste-contract';
 import { NOTE_MAX, useBranchWasteCart } from '../hooks/use-branch-waste-cart';
 import { useDepartmentName } from '../hooks/use-department-name';
-import { quantityLabel } from '../lib/branch-waste-format';
-import { branchWasteApi } from '../services/branch-waste-api';
+import { quantityLabel } from '../../_shared/lib/branch-waste-people';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 import { AmountSheet, type AmountSheetTarget } from './amount-sheet';
 import { BranchHeader, hitArea, SectionLabel } from './parts';
 
