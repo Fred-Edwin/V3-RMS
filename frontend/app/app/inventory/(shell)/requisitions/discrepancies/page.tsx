@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 
-import { RequisitionsListScreen } from '@/features/inventory';
+import { DiscrepanciesListScreen } from '@/features/inventory';
 
 export default function InventoryRequisitionsDiscrepanciesPage() {
   return (
     <Suspense>
-      <RequisitionsListScreen base="/app/inventory/requisitions" mode="discrepancies" />
+      <DiscrepanciesListScreen base="/app/inventory/requisitions" section="Central Store" />
     </Suspense>
   );
 }

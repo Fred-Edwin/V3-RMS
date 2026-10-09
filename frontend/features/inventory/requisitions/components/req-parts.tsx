@@ -123,8 +123,8 @@ export function UrgentTag() {
 }
 
 /** "YOUR PIN": one masked field of four digits (Paper steps 11, 16, 19). `invalid` marks it after a rejected PIN. */
-export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string }>(
-  ({ value, onChange, invalid, onSubmit, id = 'req-pin' }, ref) => (
+export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean }>(
+  ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false }, ref) => (
     <div className="flex flex-col gap-1.5">
       <MonoLabel htmlFor={id}>Your PIN</MonoLabel>
       <input
@@ -141,7 +141,8 @@ export const PinField = React.forwardRef<HTMLInputElement, { value: string; onCh
           if (event.key === 'Enter' && value.length === 4) onSubmit?.();
         }}
         className={cn(
-          'h-12 w-[200px] border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
+          wide ? 'w-full' : 'w-[200px]',
+          'h-12 border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
           invalid ? 'border-wds-error-fg' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-wds-ring',
         )}
       />

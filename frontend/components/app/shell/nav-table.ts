@@ -203,6 +203,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'manage-staff', label: 'Staff', group: 'mgr-manage', icon: ico.staff, oldHref: '/app/manage/staff', roles: [MANAGER] },
   // Paper step 20: Departments in Settings (add, rename, retire). The old heads page stays at /app/manage/departments until its own redo.
   { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, newHref: '/app/manage/department-settings', roles: [MANAGER] },
+  // Block 2: the Branch Manager reads the carrier list (read only) to see who carries the branch's deliveries.
+  { key: 'manage-carriers', label: 'Carriers', group: 'mgr-manage', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [MANAGER], capability: 'carriers.read' },
   { key: 'manage-menu', label: 'Menu', group: 'mgr-manage', icon: ico.menu, oldHref: '/app/manage/menu', roles: [MANAGER] },
   { key: 'manage-shifts', label: 'Shifts', group: 'mgr-manage', icon: ico.shifts, oldHref: '/app/manage/shifts', roles: [MANAGER] },
   { key: 'manage-delivery-zones', label: 'Delivery Zones', group: 'mgr-manage', icon: ico.delivery, oldHref: '/app/manage/delivery-zones', roles: [MANAGER] },
@@ -358,6 +360,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'suppliers', label: 'Suppliers', group: 'procurement', icon: SuppliersIcon, newHref: '/app/inventory/suppliers', roles: DESKTOP_HUB, capability: 'suppliers.read', hub: true },
   { key: 'catalog', label: 'Catalog', group: 'procurement', icon: CatalogIcon, newHref: '/app/inventory/catalog', roles: HUB_ALL, capability: 'catalog.read', hub: true },
   { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB, capability: 'audit.read', hub: true },
+  // Carriers (Paper D18, Block 2): the Store Manager and System Admin manage the list, the Director and Accountant read it (the page decides from `can.manage`).
+  { key: 'carriers', label: 'Carriers', group: 'procurement', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [STORE_MANAGER, DIRECTOR, ACCOUNTANT, SYSTEM_ADMIN], capability: 'carriers.read', hub: true },
   // The Store Manager's alone, until a later session moves it onto the table. Not drawn in Paper.
   { key: 'inventory-settings', label: 'Settings', group: 'procurement', icon: SettingsIcon, oldHref: '/app/inventory/settings', framed: true, roles: [STORE_MANAGER], hub: true },
 

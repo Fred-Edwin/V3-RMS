@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 
-import { RequisitionsListScreen } from '@/features/inventory';
+import { DiscrepanciesListScreen } from '@/features/inventory';
 
 export default function BranchRequisitionsDiscrepanciesPage() {
   return (
     <Suspense>
-      <RequisitionsListScreen base="/app/branch/requisitions" mode="discrepancies" />
+      <DiscrepanciesListScreen base="/app/branch/requisitions" section="Branch" />
     </Suspense>
   );
 }

@@ -104,6 +104,17 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
 
   const rowAction = (row: RequisitionRow): React.ReactNode => {
     const action = row.rowAction;
+    const stage = forcedTab ?? activeTab;
+    if (!action && (stage === 'to-pack' || stage === 'on-the-way' || stage === 'to-confirm')) {
+      // The Block 2 tabs: the store packs from To pack; everyone else opens the requisition, which follows its dispatches.
+      const packs = stage === 'to-pack' && can('dispatch.pack');
+      return (
+        <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(packs ? '/app/inventory/dispatch' : href(row.id)); }} className="h-10 px-5 text-[14px] max-sm:h-11">
+          {packs ? 'Pack' : 'Open'}
+          <span className="sr-only"> {row.reference}</span>
+        </Button>
+      );
+    }
     if (!action) return null;
     // The over-an-hour urgent row of the Director's list is answered by the banner under the table instead.
     if (row.urgentOverHour && action.action === 'APPROVE_AND_SIGN' && hub) return null;
@@ -181,11 +192,15 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
     };
     const time: TableColumn<RequisitionRow> = {
       id: 'time',
-      header: tab === 'collecting' ? 'Open for' : hub ? 'Unapproved for' : 'Waiting',
-      width: '150px',
+      header: tab === 'collecting' ? 'Open for' : tab === 'on-the-way' ? 'Left' : tab === 'to-confirm' ? 'Waiting for the branch' : tab === 'to-pack' ? 'Waiting to pack' : hub ? 'Unapproved for' : 'Waiting',
+      width: tab === 'to-confirm' ? '190px' : '150px',
       cell: (r) => {
+        // The Block 2 tabs: On the way shows when the store signed it; To confirm counts from signing; To pack counts from approval (amber from 20 minutes).
+        if (tab === 'on-the-way') return <span className="font-wds-mono text-[14px] text-wds-text-ink">{r.sentAt ? clock(r.sentAt) : '—'}</span>;
+        if (tab === 'to-confirm') return <span className="font-wds-mono text-[14px] text-wds-warning-fg">{r.sentAt ? elapsed(r.sentAt, now) : '—'}</span>;
         const from = tab === 'collecting' ? r.openedAt : hub && r.urgentAt ? r.urgentAt : (r.allInAt ?? r.openedAt);
-        return <span className={r.urgentOverHour ? 'font-wds-mono text-[14px] text-wds-error-fg' : 'font-wds-mono text-[14px] text-wds-text-ink'}>{elapsed(from, now)}</span>;
+        const late = tab === 'to-pack' && now - new Date(from).getTime() >= 20 * 60000;
+        return <span className={r.urgentOverHour ? 'font-wds-mono text-[14px] text-wds-error-fg' : late ? 'font-wds-mono text-[14px] text-wds-warning-fg' : 'font-wds-mono text-[14px] text-wds-text-ink'}>{elapsed(from, now)}</span>;
       },
     };
     const action: TableColumn<RequisitionRow> = { id: 'action', header: <span className="sr-only">Action</span>, width: '190px', align: 'right', cell: (r) => rowAction(r) };
@@ -201,6 +216,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
     if (mode === 'discrepancies') return [requisition, ...(hub ? [branch] : []), sections, lines, status];
     if (tab === 'collecting') return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), time, action];
     if (tab === 'to-approve') return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), time, action];
+    if (tab === 'to-pack' || tab === 'on-the-way' || tab === 'to-confirm') return [requisition, ...(hub ? [branch] : []), lines, ...(showValue ? [value] : []), status, time, action];
     return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), status, action];
     // `href` and `rowAction` close over the base path and router, which do not change for the life of the screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps

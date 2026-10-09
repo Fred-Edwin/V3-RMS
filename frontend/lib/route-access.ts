@@ -39,7 +39,7 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
   }
 
   // The printed requisition is read by every desktop role that reads requisitions (the file itself is gated by the API's table).
-  if (pathname.startsWith('/app/branch/requisitions-print')) {
+  if (pathname.startsWith('/app/branch/requisitions-print') || pathname.startsWith('/app/branch/dispatch-print')) {
     return role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
@@ -141,6 +141,10 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     }
     // Requisitions (rebuilt, Block 1): every desktop role reads the list and the file; the API's access table decides what each may do.
     if (pathname.startsWith('/app/inventory/requisitions')) {
+      return isDesktopCentralStoreRole;
+    }
+    // Carriers (Block 2): the Store Manager and System Admin manage it, the other desktop roles read it; the API's table decides.
+    if (pathname.startsWith('/app/inventory/carriers')) {
       return isDesktopCentralStoreRole;
     }
     // Purchasing and Receiving (mock-first rebuild): every desktop role reads them, the Attendant works them on the phone.
