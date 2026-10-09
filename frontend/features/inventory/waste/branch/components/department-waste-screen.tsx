@@ -136,7 +136,7 @@ export function DepartmentWasteScreen() {
             </ul>
           </section>
         ))}
-        <p className="border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
+        <p className="w-[320px] max-w-full border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
       </>
     );
   }

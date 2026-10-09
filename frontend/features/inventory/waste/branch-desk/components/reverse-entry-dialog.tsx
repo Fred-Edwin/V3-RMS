@@ -86,7 +86,7 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
           <Button type="button" variant="flat" size="dialog" shape="square" className="w-[84px]" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" variant="solid" size="dialog" shape="square" className="min-w-[130px]" disabled={!ready || busy} onClick={() => void submit()}>
+          <Button type="button" variant="solid" size="dialog" shape="square" className="min-w-[130px] font-semibold" disabled={!ready || busy} onClick={() => void submit()}>
             {busy ? BRANCH_WASTE_STATES_COPY.reverseAny.loading : 'Reverse entry'}
           </Button>
         </>
