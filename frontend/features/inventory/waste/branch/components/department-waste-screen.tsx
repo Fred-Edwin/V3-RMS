@@ -31,8 +31,8 @@ function EntryRow({ entry, meId, onReverse, onShowReversed }: { entry: BranchWas
   return (
     <li data-entry-id={entry.id} className="flex min-h-[62px] items-center gap-3 border-b border-wds-neutral-100 px-3.5 py-2 last:border-b-0">
       <span className="flex min-w-0 grow flex-col">
-        <span className={cn('truncate font-wds-sans text-[15px] leading-[18px]', reversed ? 'text-[#8D8982] line-through' : 'text-wds-text-ink')}>{entry.itemName}</span>
-        <span className={cn('font-wds-sans text-[12px] leading-4', reversed ? 'text-[#8D8982]' : 'text-wds-text-secondary')}>{entryMeta(entry, meId)}</span>
+        <span className={cn('truncate font-wds-sans text-[15px] leading-[18px]', reversed ? 'text-wds-text-secondary line-through' : 'text-wds-text-ink')}>{entry.itemName}</span>
+        <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{entryMeta(entry, meId)}</span>
       </span>
       {reversed && entry.reversal ? (
         <button

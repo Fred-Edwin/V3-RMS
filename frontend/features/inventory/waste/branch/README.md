@@ -11,7 +11,7 @@ Branch waste for a **department head or member**, on the phone column (a centred
 
 Routes are thin shells in `app/app/waste/`. Nav rows: `department-waste` (head) and `member-waste` (member) in `components/app/shell/nav-table.ts`; `lib/route-access.ts` opens `/app/waste` to a head and the floor roles (the department rule itself is the API's).
 
-**Status: built on mock data.** `services/branch-waste-api.ts` calls `/inventory/branch-waste`. With `NEXT_PUBLIC_BRANCH_WASTE_MOCK=true` it answers from `services/branch-waste-mock.ts` instead (in-memory, built from the contract fixtures, same-day reverse rule, idempotent log; test aids on `window.__bwMock`: `failNext('items'|'log'|'mine'|'reverse', code)`, `delay(ms)`, `seedMany(n)`). The flag is off by default; once `feat/block3-be` is merged and the screens are walked on the real API, delete the flag and the mock file.
+**Status: on the real API** (BW1, BW2, BW3, BW7 at `/inventory/branch-waste`, `services/branch-waste-api.ts`). The mock and its flag are deleted. The old Log waste drawer, form and `/inventory/waste` calls are deleted too; the Stock topbar's "Log waste" now links to the Central Store drawer (`/stock/waste?drawer=log`).
 
 Behaviour worth knowing
 - The reason starts unchosen and is required (W2, W5); Add waits for a quantity above zero and a reason. "Other, add a note" needs a note on the reversal sheet.
