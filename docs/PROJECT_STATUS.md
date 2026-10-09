@@ -24,7 +24,7 @@ Where each sub-module stands. Design is what the owner approved in Paper; code i
 | Prep | Approved | **Rebuilt** (PR #89, #90) |
 | Stock, Counting, Waste | Approved (Paper chapters 1 to 10) | **Rebuilt on branch `feat/stock-count-waste`** (8 Oct 2026) |
 | Requisitions | Approved (8 Oct 2026, Paper chapters 1 to 4, 24 screens) | Block 1 back end A built on `feat/req-be-a` (migration, departments, requisition rules). Back end B built on `feat/req-be-b` (lists, badges, notifications, urgent escalation job, Audit log source, branch-code fix; not pushed). The screens and Block 2 still to do; old screens run until then |
-| Dispatch | Approved (owner, 8 Oct 2026) | Old flow, rebuild pending (build planning session next: `sessions/final-pass-build-planning-session.md`) |
+| Dispatch, Deliveries, Discrepancies | Approved (owner, 8 Oct 2026; gap screens 9 Oct) | Back end C (store side) and back end D (branch count, findings, 2-hour and 24-hour jobs, notices, audit sources) built on branches `feat/dispatch-be-c` (merged) and `feat/dispatch-be-d` (not pushed). The phone and desktop screens are still to build |
 | Branch day, Branch waste | Approved (8 Oct 2026, Paper pages "Inventory · Counting and closing" and "Inventory · Branch waste": 28 and 9 screens) | Old flow, rebuild pending. Summary: [features/inventory/final-pass-design-summary.md](features/inventory/final-pass-design-summary.md) |
 
 **Next, in the owner's order:**

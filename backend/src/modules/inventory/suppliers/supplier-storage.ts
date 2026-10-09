@@ -19,10 +19,16 @@ export interface DocumentStorage {
   putObject(key: string, body: Buffer, contentType: string): Promise<void>;
   getSignedUrl(key: string, options: { expiresInSeconds: number; fileName: string }): Promise<SignedDownload>;
   deleteObject(key: string): Promise<void>;
+  /** The stored bytes, or null when the object is gone (delivery photos are served through the API, not by a public link). */
+  getObject(key: string): Promise<{ body: Buffer; contentType: string } | null>;
 }
 
 export class InMemoryDocumentStorage implements DocumentStorage {
   readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+
+  async getObject(key: string): Promise<{ body: Buffer; contentType: string } | null> {
+    return this.objects.get(key) ?? null;
+  }
 
   async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
     this.objects.set(key, { body, contentType });
@@ -74,6 +80,17 @@ export class R2DocumentStorage implements DocumentStorage {
 
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async getObject(key: string): Promise<{ body: Buffer; contentType: string } | null> {
+    try {
+      const out = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      if (!out.Body) return null;
+      return { body: Buffer.from(await out.Body.transformToByteArray()), contentType: out.ContentType ?? 'application/octet-stream' };
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'NoSuchKey' || error.name === 'NotFound')) return null;
+      throw error;
+    }
   }
 }
 

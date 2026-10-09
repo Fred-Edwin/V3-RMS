@@ -106,8 +106,8 @@ apiRouter.use(branchDayRoutes);
 apiRouter.use('/inventory/requisitions', requisitionsRoutes);
 apiRouter.use('/inventory/departments', departmentsRoutes);
 // Final pass, Block 2 (docs/features/inventory/dispatch-contract.md): the rebuilt Dispatch, Carriers, Deliveries and Discrepancies.
-// Dispatch and Carriers are filled (back end C); Deliveries and Discrepancies are placeholders until back end D. The old
-// /dispatch, /deliveries and /discrepancies router (Milestone Five) is deleted: those endpoints are gone until back end D lands.
+// Dispatch and Carriers (back end C), Deliveries and Discrepancies (back end D) are all filled. The old /dispatch, /deliveries and
+// /discrepancies router (Milestone Five) is deleted.
 apiRouter.use('/inventory/dispatch', dispatchRoutes);
 apiRouter.use('/inventory/carriers', carriersRoutes);
 apiRouter.use('/inventory/deliveries', deliveriesRoutes);

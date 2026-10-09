@@ -162,7 +162,7 @@ export type Carrier = z.infer<typeof carrierSchema>;
 /**
  * A photo on a delivery line: up to 3 per line, 5 MB each, JPEG, PNG or WebP (owner default, 8 Oct), kept in the new `DispatchPhoto`
  * table (not Purchasing's file table; Amendment 1 row 6). The wire is `{ id, url }`: the url is an AUTHENTICATED link, so the screen
- * loads it with the caller's token. // back end D
+ * loads it with the caller's token (`GET /inventory/deliveries/photos/:photoId`, built in back end D).
  */
 export const PHOTO_MAX_PER_LINE = 3;
 export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
@@ -432,7 +432,7 @@ export const dispatchFileSchema = z.object({
   sendBatchId: uuid,
   /** Amendment 1 row 10, the flat moments and people the file also carries (the stamps above hold the same as objects). */
   packedAt: isoDateTime,
-  /** Stamped by V2 the first time anyone from the department opens the delivery; information only ("Arrived 3:28 pm"). Null before that: the card reads "On the way". // back end D */
+  /** Stamped by V2 the first time anyone from the department opens the delivery; information only ("Arrived 3:28 pm"). Null before that: the card reads "On the way". Stamped by Deliveries V2 (built, back end D). */
   arrivedAt: isoDateTime.nullable(),
   countedById: z.string().nullable(),
   countedAt: isoDateTime.nullable(),

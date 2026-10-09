@@ -76,7 +76,7 @@ export const deliveryRowSchema = z.object({
   lineCount: z.number().int().nonnegative(),
   /** When the Central Store signed it ("left 3:05 pm"). The 2-hour wait runs from here (Amendment 1 row 1). */
   signedAt: isoDateTime,
-  /** Stamped the first time anyone from the department opens the delivery (V2); information only. Null before that: the card reads "On the way". // back end D */
+  /** Stamped the first time anyone from the department opens the delivery (V2); information only. Null before that: the card reads "On the way". Built (back end D). */
   arrivedAt: isoDateTime.nullable(),
   /** ON_THE_WAY or WAITING_FOR_BRANCH while waiting; CONFIRMED, GAP_HELD or CLOSED on the past tab. */
   stage: dispatchStageSchema,
@@ -131,7 +131,7 @@ export const countViewSchema = z.object({
   branch: branchRefSchema,
   department: departmentRefSchema,
   signedAt: isoDateTime,
-  /** Stamped by this very read the first time anyone from the department opens the delivery (Amendment 1 row 1). // back end D */
+  /** Stamped by this very read the first time anyone from the department opens the delivery (Amendment 1 row 1; only someone from the department stamps it, the Branch Manager looking in does not). Built (back end D). */
   arrivedAt: isoDateTime.nullable(),
   lineCount: z.number().int().nonnegative(),
   /** Lines with a saved count ("8 of 8 counted"). */
