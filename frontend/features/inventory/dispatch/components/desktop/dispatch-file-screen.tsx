@@ -127,7 +127,7 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
               chip={stageChip(data.stage)}
               subline={
                 <>
-                  <DocLink className="text-[13px]">{data.reference}</DocLink>
+                  <DocLink className="text-[13px] !underline">{data.reference}</DocLink>
                   <span>from</span>
                   <DocLink href={`${base}/${data.requisition.id}`} className="text-[13px]">{data.requisition.reference}</DocLink>
                   <span>

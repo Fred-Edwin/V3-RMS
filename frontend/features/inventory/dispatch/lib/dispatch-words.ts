@@ -112,7 +112,7 @@ export function dispatchProgress(file: Pick<DispatchFile, 'tracker' | 'stage' | 
     state: closed?.state ?? 'TODO',
     tone: act && closed?.state === 'CURRENT' ? 'act' : 'ok',
     label: 'Closed',
-    second: closed?.state === 'DONE' ? `${closed.at ? clock(closed.at) : ''}${closed.at && file.stage === 'CLOSED' && counted?.at === closed.at ? ' · at once' : ''}` : file.stage === 'GAP_HELD' ? 'After a finding' : '',
+    second: closed?.state === 'DONE' ? `${closed.at ? clock(closed.at) : ''}${closed.at && file.stage === 'CLOSED' && counted?.at && Math.abs(new Date(counted.at).getTime() - new Date(closed.at).getTime()) <= 60_000 ? ' · at once' : ''}` : file.stage === 'GAP_HELD' ? 'After a finding' : '',
   });
   return out;
 }

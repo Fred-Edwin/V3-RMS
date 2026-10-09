@@ -374,6 +374,7 @@ export function B2Tracker({ rows, heading, currentTone = 'success' }: { rows: re
           const last = i === rows.length - 1;
           return (
             <li key={row.key} className="flex gap-3" aria-current={row.state === 'CURRENT' ? 'step' : undefined}>
+              {/* Paper draws the circles with no line between them (N1, N3a): the rows are 12px apart. */}
               <div className="flex w-5 shrink-0 flex-col items-center">
                 <TrackerDot state={row.state} tone={currentTone} />
               </div>
@@ -414,8 +415,8 @@ function TrackerDot({ state, tone }: { state: TrackerRow['state']; tone: 'succes
   if (state === 'CANCELLED')
     return (
       <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-wds-error-fg">
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <path d="M2 2L8 8M8 2L2 8" fill="none" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" />
+        <svg width="12" height="12" viewBox="0 0 24 24">
+          <path d="M7 7l10 10M17 7L7 17" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
         </svg>
       </span>
     );
@@ -425,7 +426,7 @@ function TrackerDot({ state, tone }: { state: TrackerRow['state']; tone: 'succes
         <span className={cn('size-2 rounded-full', tone === 'warning' ? 'bg-wds-warning-fg' : 'bg-wds-success-fg')} />
       </span>
     );
-  return <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-[1.5px] border-wds-border-strong bg-wds-surface" />;
+  return <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-[1.5px] border-wds-border-strong" />;
 }
 
 // --- Items table (N1, N3: ITEM, SENT, COUNTED, GAP) --------------------------------------------------------------------------------------

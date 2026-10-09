@@ -120,7 +120,8 @@ export function MobileErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-wds-1 flex h-8 items-center rounded-wds-sm border border-wds-border-strong px-wds-4 font-wds-sans text-wds-caption text-wds-text-ink"
+          // Drawn 32px (Paper); the invisible ::before widens the tap area to 44px.
+          className="relative mt-wds-1 flex h-8 items-center rounded-wds-sm border border-wds-border-strong px-wds-4 font-wds-sans text-wds-caption text-wds-text-ink before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']"
         >
           Retry
         </button>

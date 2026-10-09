@@ -18,14 +18,18 @@ import { Skeleton } from '@/components/ui2/skeleton';
 function StateCard({
   center = true,
   className,
+  role,
   children,
 }: {
   center?: boolean;
   className?: string;
+  /** `alert` for an error, so a screen reader announces it when it appears. */
+  role?: 'alert';
   children: React.ReactNode;
 }) {
   return (
     <div
+      role={role}
       className={cn(
         // mx-auto: the card is a fixed width, so it centers itself in whatever area it replaces.
         'mx-auto flex h-[220px] w-80 shrink-0 flex-col gap-2.5 rounded-wds-md border border-wds-border bg-wds-surface p-6',
@@ -94,7 +98,7 @@ export function ErrorState({
   className?: string;
 }) {
   return (
-    <StateCard className={className}>
+    <StateCard className={className} role="alert">
       <div className="size-1.5 shrink-0 rounded-wds-full bg-wds-error-fg" aria-hidden />
       <StateTitle>{title}</StateTitle>
       <StateDescription>{description}</StateDescription>

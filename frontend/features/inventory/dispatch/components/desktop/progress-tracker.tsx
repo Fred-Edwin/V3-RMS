@@ -1,5 +1,3 @@
-import { Check, X } from 'lucide-react';
-
 import { cn } from '@/lib/cn';
 import type { ProgressStep } from '../../lib/dispatch-words';
 
@@ -39,15 +37,19 @@ export function ProgressTracker({ steps, label = 'Progress' }: { steps: readonly
 function Marker({ step }: { step: ProgressStep }) {
   if (step.state === 'DONE') {
     return (
-      <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-wds-success-fg text-wds-surface">
-        <Check className="size-3" strokeWidth={3} />
+      <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-wds-success-fg">
+        <svg width="11" height="11" viewBox="0 0 24 24">
+          <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </span>
     );
   }
   if (step.state === 'CANCELLED') {
     return (
-      <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-wds-error-fg text-wds-surface">
-        <X className="size-3" strokeWidth={3} />
+      <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-wds-error-fg">
+        <svg width="11" height="11" viewBox="0 0 24 24">
+          <path d="M7 7l10 10M17 7L7 17" fill="none" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" />
+        </svg>
       </span>
     );
   }

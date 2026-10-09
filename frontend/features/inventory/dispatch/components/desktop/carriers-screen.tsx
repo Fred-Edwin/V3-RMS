@@ -96,14 +96,14 @@ export function CarriersScreen() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar hideSearch breadcrumb={{ root: 'Procurement', section: 'Settings', screen: 'Carriers' }} />
-      <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
+      <main className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-8 py-7">
         <div className="flex items-start justify-between gap-6">
-          <div className="flex max-w-[760px] flex-col gap-1">
+          <div className="flex max-w-[640px] flex-col gap-1.5">
             <h1 className="font-wds-sans text-wds-mobile-title tracking-[-0.01em] text-wds-text-ink">Carriers</h1>
             <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Who takes a delivery to a branch. Chosen when the Store Attendant signs. A carrier is a name or a vehicle, not a user.{data && !canManage ? ' Read only here: the Store Manager adds, renames and retires carriers.' : ''}</p>
           </div>
           {canManage ? (
-            <Button ref={addButton} size="lg" className="h-10 px-[18px] text-[14px]" onClick={() => open({ kind: 'add' })}>
+            <Button ref={addButton} size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => open({ kind: 'add' })}>
               Add a carrier
             </Button>
           ) : null}
@@ -126,12 +126,12 @@ export function CarriersScreen() {
             <Table aria-label="Carriers">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Carrier</TableHead>
-                  <TableHead className="w-[220px]">Kind</TableHead>
-                  <TableHead className="w-[200px] text-right">Deliveries this month</TableHead>
-                  <TableHead className="w-[180px] pl-8">Status</TableHead>
+                  <TableHead className="text-wds-text-secondary">Carrier</TableHead>
+                  <TableHead className="w-[220px] text-wds-text-secondary">Kind</TableHead>
+                  <TableHead className="w-[140px] text-right text-wds-text-secondary">Deliveries this month</TableHead>
+                  <TableHead className="w-[120px] text-wds-text-secondary">Status</TableHead>
                   {canManage ? (
-                    <TableHead className="w-[64px]">
+                    <TableHead className="w-[40px]">
                       <span className="sr-only">Actions</span>
                     </TableHead>
                   ) : null}
@@ -142,11 +142,11 @@ export function CarriersScreen() {
                   const retired = !row.active;
                   return (
                     <TableRow key={row.id}>
-                      <TableCell className={cn('py-4 font-wds-sans text-[15px] font-medium', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</TableCell>
-                      <TableCell className="font-wds-sans text-[15px] text-wds-text-secondary">{CARRIER_KIND_TEXT[row.kind]}</TableCell>
-                      <TableCell className="text-right font-wds-mono text-[15px] text-wds-text-ink">{row.deliveriesThisMonth}</TableCell>
-                      <TableCell className="pl-8">
-                        <span className={cn('inline-flex h-6 items-center gap-1.5 border px-2.5 font-wds-sans text-[13px] leading-4', retired ? 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary' : 'border-wds-success-border bg-wds-success-bg text-wds-success-fg')}>
+                      <TableCell className={cn('py-[13px] font-wds-sans text-[14px] font-medium leading-[18px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.name}</TableCell>
+                      <TableCell className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{CARRIER_KIND_TEXT[row.kind]}</TableCell>
+                      <TableCell className={cn('text-right font-wds-mono text-[14px] leading-[18px]', retired ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{row.deliveriesThisMonth}</TableCell>
+                      <TableCell>
+                        <span className={cn('inline-flex items-center gap-1.5 border px-2 py-[3px] font-wds-sans text-[12px] leading-[14px]', retired ? 'border-wds-border-strong bg-wds-neutral-50 text-wds-text-secondary' : 'border-wds-success-border bg-wds-success-bg text-wds-success-fg')}>
                           <span aria-hidden className={cn('size-1.5 rounded-full', retired ? 'border border-wds-text-secondary' : 'bg-wds-success-fg')} />
                           {retired ? 'Retired' : 'Active'}
                         </span>
@@ -155,7 +155,7 @@ export function CarriersScreen() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="secondary" size="icon" aria-label={`Actions for ${row.name}`}>
+                              <Button variant="secondary" size="icon" className="h-7 w-10" aria-label={`Actions for ${row.name}`}>
                                 <MoreHorizontal />
                               </Button>
                             </DropdownMenuTrigger>
@@ -186,7 +186,7 @@ export function CarriersScreen() {
                 })}
               </TableBody>
             </Table>
-            <p className="max-w-[1000px] font-wds-sans text-[14px] leading-5 text-wds-text-secondary">A retired carrier stays on the deliveries it already carried and no longer appears in the picker. Nothing is deleted. Every dispatch records who carried it, so a loss can be traced.</p>
+            <p className="max-w-[760px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">A retired carrier stays on the deliveries it already carried and no longer appears in the picker. Nothing is deleted. Every dispatch records who carried it, so a loss can be traced.</p>
           </>
         )}
       </main>

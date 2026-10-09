@@ -55,7 +55,9 @@ describe.skipIf(!enabled)('audit log against the real database', () => {
     expect(all.entries.length).toBeLessThanOrEqual(100);
     if (branch) {
       const narrowed = await auditLogService.list(actor, AuditLogQuerySchema.parse({ branchId: branch.id }));
-      expect(narrowed.entries.every((e) => e.area === 'RESTOCK_LEVELS')).toBe(true);
+      // With the Branch filter on, only the areas a branch can have entries in answer (the hub's own areas answer nothing).
+      const branchAreas: readonly string[] = ['RESTOCK_LEVELS', 'REQUISITIONS', 'DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'];
+      expect(narrowed.entries.every((e) => branchAreas.includes(e.area))).toBe(true);
     }
   });
 });
