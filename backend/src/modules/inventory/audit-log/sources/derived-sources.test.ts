@@ -7,9 +7,12 @@ import { stockCountsRepository } from './stock-counts-repository';
 import { stockCountsSource } from './stock-counts-source';
 import { wasteAuditRepository } from './waste-repository';
 import { wasteSource } from './waste-source';
+import { branchWasteAuditRepository } from './branch-waste-repository';
+import { branchWasteSource } from './branch-waste-source';
 
 vi.mock('./stock-counts-repository', () => ({ stockCountsRepository: { entries: vi.fn(), count: vi.fn(), adjustmentsOf: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./waste-repository', () => ({ wasteAuditRepository: { entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./branch-waste-repository', () => ({ branchWasteAuditRepository: { entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./stock-adjustments-repository', () => ({ stockAdjustmentsRepository: { entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 
 const scope: Scope = { hubId: 'hub', restockOrgIds: ['hub'], peopleOrgIds: ['hub'] };
@@ -114,6 +117,52 @@ describe('Waste source', () => {
     vi.mocked(wasteAuditRepository.entries).mockImplementation((async (_s: unknown, _f: unknown, kind: string) =>
       kind === 'REVERSED' ? [log({ reversedAt: new Date('2026-10-08T12:00:00Z'), reversedBy: isabel, reversalReason: 'OTHER', reversalNote: 'Counted in the wrong bin' })] : []) as never);
     expect((await wasteSource.entries(scope, filter, 50))[0]?.what).toBe('Reversed waste entry · Marinated chicken 3 kg · reason: Counted in the wrong bin');
+  });
+});
+
+describe('Branch waste source', () => {
+  const log = (over: Record<string, unknown> = {}) => ({
+    id: 'bw1',
+    quantity: D('2.0000'),
+    reason: 'EXPIRY',
+    createdAt: new Date('2026-10-08T11:05:00Z'),
+    reversedAt: null,
+    reversalReason: null,
+    reversalNote: null,
+    inventoryItem: { id: 'item-9', name: 'Beef stew', usageUnit: 'kg' },
+    loggedBy: peter,
+    reversedBy: null,
+    ...over,
+  });
+
+  it('tells an entry logged with no money in the sentence, and links to the item’s stock card on that day', async () => {
+    vi.mocked(branchWasteAuditRepository.entries).mockImplementation((async (_s: unknown, _f: unknown, kind: string) => (kind === 'LOGGED' ? [log()] : [])) as never);
+    expect(await branchWasteSource.entries(scope, filter, 50)).toEqual([
+      {
+        id: 'branch-waste:logged:bw1',
+        at: '2026-10-08T11:05:00.000Z',
+        actor: peter,
+        area: 'BRANCH_WASTE',
+        what: 'Logged waste · Beef stew 2 kg · Expired',
+        reason: null,
+        record: { kind: 'STOCK_CARD', id: 'item-9', label: 'Stock ledger entry', day: '2026-10-08' },
+      },
+    ]);
+  });
+
+  it('tells an entry reversed, with the reason in the sentence and the Nairobi day it was reversed', async () => {
+    vi.mocked(branchWasteAuditRepository.entries).mockImplementation((async (_s: unknown, _f: unknown, kind: string) =>
+      kind === 'REVERSED' ? [log({ reversedAt: new Date('2026-10-08T21:30:00Z'), reversedBy: isabel, reversalReason: 'WRONG_QUANTITY' })] : []) as never);
+    const [entry] = await branchWasteSource.entries(scope, filter, 50);
+    expect(entry).toMatchObject({ id: 'branch-waste:reversed:bw1', actor: isabel, what: 'Reversed waste entry · Beef stew 2 kg · reason: wrong quantity' });
+    expect(entry?.record?.day).toBe('2026-10-09');
+  });
+
+  it('counts both kinds and lists the people who logged or reversed', async () => {
+    vi.mocked(branchWasteAuditRepository.count).mockResolvedValueOnce(4).mockResolvedValueOnce(1);
+    expect(await branchWasteSource.count(scope, filter)).toBe(5);
+    vi.mocked(branchWasteAuditRepository.actorIds).mockResolvedValue(['u-peter']);
+    expect(await branchWasteSource.actorIds(scope, {})).toEqual(['u-peter']);
   });
 });
 

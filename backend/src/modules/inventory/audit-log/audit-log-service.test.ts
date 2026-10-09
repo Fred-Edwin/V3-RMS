@@ -9,6 +9,7 @@ import { dispatchSource } from './sources/dispatch-source';
 import { discrepanciesSource } from './sources/discrepancies-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
+import { branchWasteSource } from './sources/branch-waste-source';
 
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findActiveBranchOptions: vi.fn() } }));
 vi.mock('./audit-log-repository', () => ({
@@ -38,6 +39,7 @@ vi.mock('./sources/requisitions-source', () => ({ requisitionsSource: { area: 'R
 vi.mock('./sources/dispatch-source', () => ({ dispatchSource: { area: 'DISPATCH', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/discrepancies-source', () => ({ discrepanciesSource: { area: 'DISCREPANCIES', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/waste-source', () => ({ wasteSource: { area: 'WASTE', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/branch-waste-source', () => ({ branchWasteSource: { area: 'BRANCH_WASTE', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/stock-adjustments-source', () => ({ stockAdjustmentsSource: { area: 'STOCK_ADJUSTMENTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 
 const hubId = '11111111-1111-4111-8111-111111111111';
@@ -79,7 +81,7 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
-  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource]) {
+  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource, branchWasteSource]) {
     vi.mocked(source.entries).mockResolvedValue([]);
     vi.mocked(source.count).mockResolvedValue(0);
     vi.mocked(source.actorIds).mockResolvedValue([]);
@@ -268,13 +270,23 @@ describe('auditLogService.list', () => {
     });
   });
 
-  it('lists the Branches areas and answers them with nothing until each block adds its source', async () => {
-    for (const area of ['BRANCH_DAY', 'BRANCH_WASTE'] as const) {
-      const page = await auditLogService.list(sm, query({ area }));
-      expect(page.entries).toEqual([]);
-      expect(page.pagination.total).toBe(0);
-    }
+  it('lists the Branch day area and answers it with nothing until its block adds a source', async () => {
+    const page = await auditLogService.list(sm, query({ area: 'BRANCH_DAY' }));
+    expect(page.entries).toEqual([]);
+    expect(page.pagination.total).toBe(0);
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
+    expect(branchWasteSource.entries).not.toHaveBeenCalled();
+  });
+
+  it('reads Branch waste from its own source, and the Branch filter keeps it while the Central Store waste drops out', async () => {
+    vi.mocked(branchWasteSource.entries).mockResolvedValue([
+      { id: 'branch-waste:logged:w9', at: at('12:00').toISOString(), actor: { id: 'u8', name: 'Grace' }, area: 'BRANCH_WASTE', what: 'Logged waste · Beef stew 2 kg · Expired', reason: null },
+    ]);
+    vi.mocked(branchWasteSource.count).mockResolvedValue(1);
+    const page = await auditLogService.list(sm, query({ area: 'BRANCH_WASTE', branchId }));
+    expect(page.entries.map((e) => e.id)).toEqual(['branch-waste:logged:w9']);
+    expect(page.pagination.total).toBe(1);
+    expect(wasteSource.entries).not.toHaveBeenCalled();
   });
 
   it('with the Branch filter on, reads only that branch’s restock changes and none of the hub’s own areas', async () => {

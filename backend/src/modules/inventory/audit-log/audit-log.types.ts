@@ -22,7 +22,7 @@ export const AUDIT_AREAS = [
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 /** Listed in the Area menu, answered with nothing until the block that owns each one adds its source. */
-export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['BRANCH_DAY', 'BRANCH_WASTE'];
+export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['BRANCH_DAY'];
 
 /**
  * The record a derived row points at, so the screen can draw the link: a count (`COUNT`, `id` is the count's id), a day on one

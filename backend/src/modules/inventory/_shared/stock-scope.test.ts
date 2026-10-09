@@ -5,7 +5,7 @@
  * refused the stock list and the ledger at the route (403).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveLedgerScope, resolveWasteScope } from './stock-scope';
+import { resolveLedgerScope } from './stock-scope';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
 
@@ -79,17 +79,5 @@ describe('resolveLedgerScope', () => {
 
   it('Store Attendant: 403 in the service too (second wall behind the route)', async () => {
     await expect(resolveLedgerScope(attendant, undefined)).rejects.toMatchObject({ statusCode: 403 });
-  });
-});
-
-describe('resolveWasteScope', () => {
-  it('department head always writes to their own department', async () => {
-    const scope = await resolveWasteScope(townKitchenHead);
-    expect(scope).toMatchObject({ locationId: townKitchenId, departmentTag: 'KITCHEN' });
-    expect(locationRepository.findBySiteTypeDepartment).toHaveBeenCalledWith(nyeriTownId, 'BRANCH_DEPARTMENT', 'KITCHEN');
-  });
-
-  it('store roles write to the Central Store', async () => {
-    await expect(resolveWasteScope(attendant)).resolves.toMatchObject({ locationId: centralStoreId });
   });
 });
