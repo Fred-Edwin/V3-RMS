@@ -103,8 +103,10 @@ describe('the Central Store permissions table', () => {
     }
   });
 
-  it('gives the System Admin everything except the "on behalf" rows and the department\'s own delivery count and branch waste log, and an unknown role nothing', () => {
-    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 6);
+  it('gives the System Admin everything except the "on behalf" rows and the department\'s own delivery count, branch waste log and day count, and an unknown role nothing', () => {
+    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 8);
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_day.count');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_day.count_on_behalf');
     expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_waste.log');
     expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_waste.reverse_own');
     expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.edit_on_behalf');

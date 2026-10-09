@@ -73,6 +73,12 @@ export const CAPABILITIES = [
   'branch_waste.read',
   'branch_waste.read_any_branch',
   'branch_waste.reverse_any',
+  'branch_day.count',
+  'branch_day.count_on_behalf',
+  'branch_day.read',
+  'branch_day.read_any_branch',
+  'branch_day.close',
+  'branch_day.correct',
   'audit.read',
   'central_store.read_any_org',
 ] as const;

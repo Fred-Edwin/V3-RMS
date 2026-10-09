@@ -1,0 +1,901 @@
+{
+  "homeMorning": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "itemCount": 8,
+    "opening": { "state": "NOT_CHECKED", "checkedAt": null, "checkedBy": null, "onBehalf": false, "differences": [] },
+    "delivery": { "state": "NONE", "dispatches": [], "confirmedAt": null, "gapCount": 0, "gapOpen": false },
+    "count": { "state": "NOT_COUNTED", "signedAt": null, "signedBy": null, "onBehalf": false },
+    "closed": { "at": null },
+    "action": "CHECK_OPENING"
+  },
+  "homeEvening": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "itemCount": 8,
+    "opening": {
+      "state": "RECOUNTED",
+      "checkedAt": "2026-10-07T04:17:00.000Z",
+      "checkedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" },
+      "onBehalf": false,
+      "differences": [
+        {
+          "itemId": "80000000-0000-4000-8000-000000000102",
+          "itemName": "Milk 1L",
+          "unit": "Packets",
+          "lastNightQty": "8",
+          "countedQty": "7",
+          "difference": "-1"
+        }
+      ]
+    },
+    "delivery": {
+      "state": "CONFIRMED",
+      "dispatches": [{ "id": "50000000-0000-4000-8000-000000000002", "reference": "DSP-NYR-0232" }],
+      "confirmedAt": "2026-10-07T12:35:00.000Z",
+      "gapCount": 1,
+      "gapOpen": true
+    },
+    "count": { "state": "NOT_COUNTED", "signedAt": null, "signedBy": null, "onBehalf": false },
+    "closed": { "at": null },
+    "action": "COUNT"
+  },
+  "homeSent": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "itemCount": 8,
+    "opening": { "state": "ACCEPTED", "checkedAt": "2026-10-07T04:10:00.000Z", "checkedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" }, "onBehalf": false, "differences": [] },
+    "delivery": { "state": "NONE", "dispatches": [], "confirmedAt": null, "gapCount": 0, "gapOpen": false },
+    "count": {
+      "state": "COUNTED",
+      "signedAt": "2026-10-07T15:52:00.000Z",
+      "signedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" },
+      "onBehalf": false
+    },
+    "closed": { "at": null },
+    "action": "NONE"
+  },
+  "openingView": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "itemCount": 2,
+    "lastCloseAt": "2026-10-06T16:31:00.000Z",
+    "check": { "state": "NOT_CHECKED", "checkedAt": null, "checkedBy": null, "onBehalf": false, "differences": [] },
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000101", "itemName": "Coffee beans 1kg", "unit": "Bags", "lastNightQty": "12", "acceptedQty": null },
+      { "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "lastNightQty": "8", "acceptedQty": null }
+    ]
+  },
+  "acceptOpeningInput": { "idempotencyKey": "open-accept-0044-barista" },
+  "openingResult": {
+    "view": {
+      "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "itemCount": 2,
+      "lastCloseAt": "2026-10-06T16:31:00.000Z",
+      "check": {
+        "state": "RECOUNTED",
+        "checkedAt": "2026-10-07T04:17:00.000Z",
+        "checkedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" },
+        "onBehalf": false,
+        "differences": [
+          { "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "lastNightQty": "8", "countedQty": "7", "difference": "-1" }
+        ]
+      },
+      "lines": [
+        { "itemId": "80000000-0000-4000-8000-000000000101", "itemName": "Coffee beans 1kg", "unit": "Bags", "lastNightQty": "12", "acceptedQty": "12" },
+        { "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "lastNightQty": "8", "acceptedQty": "7" }
+      ]
+    },
+    "replayed": false
+  },
+  "recountPreviewInput": {
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000101", "countedQty": "12" },
+      { "itemId": "80000000-0000-4000-8000-000000000102", "countedQty": "7" }
+    ]
+  },
+  "recountPreview": {
+    "itemCount": 2,
+    "matchedItems": ["Coffee beans 1kg"],
+    "differences": [{ "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "lastNightQty": "8", "countedQty": "7", "difference": "-1" }]
+  },
+  "recountOpeningInput": {
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000101", "countedQty": "12" },
+      { "itemId": "80000000-0000-4000-8000-000000000102", "countedQty": "7" }
+    ],
+    "pin": "1234",
+    "idempotencyKey": "open-recount-0044-barista"
+  },
+  "countView": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+    "onBehalfOfDepartment": false,
+    "state": "NOT_COUNTED",
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000101", "itemName": "Coffee beans 1kg", "unit": "Bags", "categoryPath": ["Drinks and dry goods"], "countedQty": "9" },
+      { "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "categoryPath": ["Drinks and dry goods"], "countedQty": "14" },
+      { "itemId": "80000000-0000-4000-8000-000000000106", "itemName": "Paper cups 12oz", "unit": "Sleeves", "categoryPath": ["Serving supplies"], "countedQty": null }
+    ],
+    "summary": {
+      "itemCount": 3,
+      "filledCount": 2,
+      "blankCount": 1,
+      "groups": [
+        { "name": "Drinks and dry goods", "itemCount": 2 },
+        { "name": "Serving supplies", "itemCount": 1 }
+      ]
+    },
+    "canSign": false,
+    "signedAt": null,
+    "signedBy": null
+  },
+  "saveCountInput": {
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000101", "countedQty": "9" },
+      { "itemId": "80000000-0000-4000-8000-000000000106", "countedQty": null }
+    ]
+  },
+  "saveCountResult": {
+    "savedAt": "2026-10-07T15:40:00.000Z",
+    "view": {
+      "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "onBehalfOfDepartment": false,
+      "state": "NOT_COUNTED",
+      "lines": [
+        { "itemId": "80000000-0000-4000-8000-000000000101", "itemName": "Coffee beans 1kg", "unit": "Bags", "categoryPath": ["Drinks and dry goods"], "countedQty": "9" },
+        { "itemId": "80000000-0000-4000-8000-000000000106", "itemName": "Paper cups 12oz", "unit": "Sleeves", "categoryPath": ["Serving supplies"], "countedQty": null }
+      ],
+      "summary": { "itemCount": 2, "filledCount": 1, "blankCount": 1, "groups": [{ "name": "Drinks and dry goods", "itemCount": 1 }, { "name": "Serving supplies", "itemCount": 1 }] },
+      "canSign": false,
+      "signedAt": null,
+      "signedBy": null
+    }
+  },
+  "signCountInput": { "pin": "1234", "idempotencyKey": "count-sign-0044-barista" },
+  "signCountResult": {
+    "view": {
+      "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+      "onBehalfOfDepartment": false,
+      "state": "COUNTED",
+      "lines": [{ "itemId": "80000000-0000-4000-8000-000000000101", "itemName": "Coffee beans 1kg", "unit": "Bags", "categoryPath": ["Drinks and dry goods"], "countedQty": "9" }],
+      "summary": { "itemCount": 1, "filledCount": 1, "blankCount": 0, "groups": [{ "name": "Drinks and dry goods", "itemCount": 1 }] },
+      "canSign": false,
+      "signedAt": "2026-10-07T15:52:00.000Z",
+      "signedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" }
+    },
+    "signedAt": "2026-10-07T15:52:00.000Z",
+    "onBehalf": false,
+    "replayed": false
+  },
+  "countViewOnBehalf": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "department": { "id": "30000000-0000-4000-8000-000000000005", "name": "Housekeeping" },
+    "onBehalfOfDepartment": true,
+    "state": "NOT_COUNTED",
+    "lines": [
+      { "itemId": "80000000-0000-4000-8000-000000000501", "itemName": "Floor cleaner 5L", "unit": "Cans", "categoryPath": ["Cleaning"], "countedQty": "6" },
+      { "itemId": "80000000-0000-4000-8000-000000000502", "itemName": "Dish soap 5L", "unit": "Cans", "categoryPath": ["Cleaning"], "countedQty": "8" },
+      { "itemId": "80000000-0000-4000-8000-000000000504", "itemName": "Bin liners", "unit": "Rolls", "categoryPath": ["Cleaning"], "countedQty": null }
+    ],
+    "summary": { "itemCount": 3, "filledCount": 2, "blankCount": 1, "groups": [{ "name": "Cleaning", "itemCount": 3 }] },
+    "canSign": false,
+    "signedAt": null,
+    "signedBy": null
+  },
+  "myHistoryQuery": { "from": "2026-09-08", "to": "2026-10-08", "status": "CORRECTED", "page": "1", "pageSize": "25" },
+  "myHistory": {
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "head": { "id": "20000000-0000-4000-8000-000000000001", "name": "Grace W.", "initials": "GW", "roleLabel": "Kitchen Department Head" },
+    "rows": [
+      { "id": "70000000-0000-4000-8000-000000000043", "reference": "DAY-NYR-0043", "date": "2026-10-06", "status": "CLOSED", "itemsCounted": 62, "signedAt": "2026-10-06T15:20:00.000Z", "correctedCount": 0 },
+      { "id": "70000000-0000-4000-8000-000000000042", "reference": "DAY-NYR-0042", "date": "2026-10-05", "status": "CORRECTED", "itemsCounted": 62, "signedAt": "2026-10-05T15:35:00.000Z", "correctedCount": 1 }
+    ],
+    "page": { "page": 1, "pageSize": 25, "total": 28 }
+  },
+  "myDay": {
+    "day": { "id": "70000000-0000-4000-8000-000000000043", "reference": "DAY-NYR-0043", "date": "2026-10-06", "status": "CLOSED" },
+    "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+    "signedAt": "2026-10-06T15:20:00.000Z",
+    "lines": [
+      { "itemName": "Marinated chicken", "unit": "Kg", "openingQty": "6", "receivedQty": "10", "wasteQty": "3", "closingQty": "4", "usedQty": "9" },
+      { "itemName": "Beef stew", "unit": "Kg", "openingQty": "8", "receivedQty": "12", "wasteQty": "2", "closingQty": "6", "usedQty": "12" },
+      { "itemName": "Fries portions", "unit": "Portions", "openingQty": "30", "receivedQty": "40", "wasteQty": "5", "closingQty": "22", "usedQty": "43" }
+    ]
+  },
+  "todayQuery": { "branchId": "10000000-0000-4000-8000-000000000001" },
+  "todayBlocked": {
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "day": {
+      "head": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "departments": [
+        {
+          "departmentId": "30000000-0000-4000-8000-000000000001",
+          "name": "Kitchen",
+          "head": { "id": "20000000-0000-4000-8000-000000000001", "name": "Grace W.", "initials": "GW", "roleLabel": "Kitchen Department Head" },
+          "state": "COUNTED",
+          "countedAt": "2026-10-07T15:20:00.000Z",
+          "countedBy": { "id": "20000000-0000-4000-8000-000000000001", "name": "Grace W.", "initials": "GW", "roleLabel": "Kitchen Department Head" },
+          "onBehalf": false,
+          "itemCount": 12,
+          "opening": { "state": "ACCEPTED", "differences": [] },
+          "usedValueKes": "24380.00"
+        },
+        {
+          "departmentId": "30000000-0000-4000-8000-000000000002",
+          "name": "Barista",
+          "head": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" },
+          "state": "COUNTED",
+          "countedAt": "2026-10-07T15:52:00.000Z",
+          "countedBy": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista Department Head" },
+          "onBehalf": false,
+          "itemCount": 8,
+          "opening": {
+            "state": "RECOUNTED",
+            "differences": [{ "itemId": "80000000-0000-4000-8000-000000000102", "itemName": "Milk 1L", "unit": "Packets", "lastNightQty": "8", "countedQty": "7", "difference": "-1" }]
+          },
+          "usedValueKes": "11940.00"
+        },
+        {
+          "departmentId": "30000000-0000-4000-8000-000000000004",
+          "name": "Service",
+          "head": { "id": "20000000-0000-4000-8000-000000000004", "name": "John M.", "initials": "JM", "roleLabel": "Service Department Head" },
+          "state": "COUNTED",
+          "countedAt": "2026-10-07T15:41:00.000Z",
+          "countedBy": { "id": "20000000-0000-4000-8000-000000000004", "name": "John M.", "initials": "JM", "roleLabel": "Service Department Head" },
+          "onBehalf": false,
+          "itemCount": 9,
+          "opening": { "state": "NOT_CHECKED", "differences": [] },
+          "usedValueKes": "3120.00"
+        },
+        {
+          "departmentId": "30000000-0000-4000-8000-000000000005",
+          "name": "Housekeeping",
+          "head": { "id": "20000000-0000-4000-8000-000000000005", "name": "Mary N.", "initials": "MN", "roleLabel": "Housekeeping Department Head" },
+          "state": "NOT_COUNTED",
+          "countedAt": null,
+          "countedBy": null,
+          "onBehalf": false,
+          "itemCount": 6,
+          "opening": { "state": "ACCEPTED", "differences": [] },
+          "usedValueKes": null
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "DELIVERIES_CONFIRMED",
+          "severity": "OK",
+          "department": null,
+          "dispatch": null,
+          "discrepancies": [{ "id": "90000000-0000-4000-8000-000000000007", "reference": "DSC-NYR-0007" }],
+          "at": null,
+          "lastDepartment": null
+        },
+        {
+          "kind": "DEPARTMENT_NOT_COUNTED",
+          "severity": "BLOCKS",
+          "department": { "id": "30000000-0000-4000-8000-000000000005", "name": "Housekeeping" },
+          "dispatch": null,
+          "discrepancies": [],
+          "at": null,
+          "lastDepartment": null
+        },
+        {
+          "kind": "OPENING_NOT_CHECKED",
+          "severity": "INFO",
+          "department": { "id": "30000000-0000-4000-8000-000000000004", "name": "Service" },
+          "dispatch": null,
+          "discrepancies": [],
+          "at": null,
+          "lastDepartment": null
+        }
+      ],
+      "summary": { "todo": 1, "toKnow": 1 },
+      "canClose": false,
+      "usedValueKes": "39440.00",
+      "closed": null
+    },
+    "can": { "close": true, "countOnBehalf": true }
+  },
+  "todayDeliveryBlocked": {
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "day": {
+      "head": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "departments": [
+        {
+          "departmentId": "30000000-0000-4000-8000-000000000001",
+          "name": "Kitchen",
+          "head": { "id": "20000000-0000-4000-8000-000000000001", "name": "Grace W.", "initials": "GW", "roleLabel": "Kitchen Department Head" },
+          "state": "COUNTED",
+          "countedAt": "2026-10-07T15:20:00.000Z",
+          "countedBy": { "id": "20000000-0000-4000-8000-000000000001", "name": "Grace W.", "initials": "GW", "roleLabel": "Kitchen Department Head" },
+          "onBehalf": false,
+          "itemCount": 12,
+          "opening": { "state": "ACCEPTED", "differences": [] },
+          "usedValueKes": "24380.00"
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "DELIVERY_NOT_CONFIRMED",
+          "severity": "BLOCKS",
+          "department": { "id": "30000000-0000-4000-8000-000000000001", "name": "Kitchen" },
+          "dispatch": { "id": "50000000-0000-4000-8000-000000000231", "reference": "DSP-NYR-0231", "signedAt": "2026-10-07T12:05:00.000Z" },
+          "discrepancies": [{ "id": "90000000-0000-4000-8000-000000000007", "reference": "DSC-NYR-0007" }],
+          "at": null,
+          "lastDepartment": null
+        },
+        {
+          "kind": "ALL_COUNTED",
+          "severity": "OK",
+          "department": null,
+          "dispatch": null,
+          "discrepancies": [],
+          "at": "2026-10-07T16:24:00.000Z",
+          "lastDepartment": { "id": "30000000-0000-4000-8000-000000000005", "name": "Housekeeping" }
+        }
+      ],
+      "summary": { "todo": 1, "toKnow": 0 },
+      "canClose": false,
+      "usedValueKes": "24380.00",
+      "closed": null
+    },
+    "can": { "close": true, "countOnBehalf": true }
+  },
+  "todayClosed": {
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "day": {
+      "head": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "CLOSED" },
+      "departments": [],
+      "blockers": [],
+      "summary": { "todo": 0, "toKnow": 0 },
+      "canClose": false,
+      "usedValueKes": "50060.00",
+      "closed": {
+        "at": "2026-10-07T16:48:00.000Z",
+        "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "entryCount": 41,
+        "entries": [
+          {
+            "id": "a0000000-0000-4000-8000-000000000001",
+            "at": "2026-10-07T16:48:00.000Z",
+            "itemName": "Flour 25kg",
+            "unit": "Bags",
+            "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+            "quantity": "-3",
+            "reference": "DAY-NYR-0044",
+            "kind": "USAGE"
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000002",
+            "at": "2026-10-07T16:48:00.000Z",
+            "itemName": "Milk 1L",
+            "unit": "Packets",
+            "department": { "id": "30000000-0000-4000-8000-000000000002", "name": "Barista" },
+            "quantity": "-15",
+            "reference": "DAY-NYR-0044",
+            "kind": "USAGE"
+          }
+        ]
+      }
+    },
+    "can": { "close": false, "countOnBehalf": false }
+  },
+  "todayHub": {
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "branches": [
+      { "id": "10000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+      { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+    ],
+    "day": {
+      "head": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+      "departments": [],
+      "blockers": [],
+      "summary": { "todo": 0, "toKnow": 0 },
+      "canClose": true,
+      "usedValueKes": "50060.00",
+      "closed": null
+    },
+    "can": { "close": false, "countOnBehalf": false }
+  },
+  "todayNoDay": {
+    "branch": { "id": "10000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+    "branches": [
+      { "id": "10000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+      { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+    ],
+    "day": null,
+    "can": { "close": false, "countOnBehalf": false }
+  },
+  "departmentFigures": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "CORRECTED" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "rail": [
+      {
+        "departmentId": "30000000-0000-4000-8000-000000000003",
+        "name": "Pastry",
+        "head": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "state": "COUNTED",
+        "countedAt": "2026-10-07T15:35:00.000Z",
+        "countedBy": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "onBehalf": false,
+        "itemCount": 8,
+        "opening": { "state": "ACCEPTED", "differences": [] },
+        "usedValueKes": "6760.00"
+      }
+    ],
+    "branchUsedValueKes": "48060.00",
+    "department": {
+      "id": "30000000-0000-4000-8000-000000000003",
+      "name": "Pastry",
+      "state": "COUNTED",
+      "countedAt": "2026-10-07T15:35:00.000Z",
+      "countedBy": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+      "onBehalf": false,
+      "opening": {
+        "state": "ACCEPTED",
+        "checkedAt": "2026-10-07T04:14:00.000Z",
+        "checkedBy": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "onBehalf": false,
+        "differences": []
+      },
+      "delivery": {
+        "state": "CONFIRMED",
+        "dispatches": [{ "id": "50000000-0000-4000-8000-000000000230", "reference": "DSP-NYR-0230" }],
+        "confirmedAt": "2026-10-07T12:20:00.000Z",
+        "gapCount": 0,
+        "gapOpen": false
+      },
+      "lines": [
+        {
+          "itemId": "80000000-0000-4000-8000-000000000301",
+          "itemName": "Flour 25kg",
+          "unit": "Bags",
+          "openingQty": "4",
+          "receivedQty": "0",
+          "wasteQty": "0",
+          "closingQty": "2",
+          "usedQty": "2",
+          "yesterdayUsedQty": "1",
+          "unitCostKes": "2000.00",
+          "usedValueKes": "4000.00",
+          "closingValueKes": "4000.00",
+          "correction": {
+            "id": "b0000000-0000-4000-8000-000000000001",
+            "at": "2026-10-08T06:14:00.000Z",
+            "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+            "fromClosingQty": "1",
+            "toClosingQty": "2",
+            "fromUsedQty": "3",
+            "toUsedQty": "2",
+            "reason": "COUNTED_WRONGLY",
+            "note": "A bag was in the dry store, not on the shelf."
+          }
+        },
+        {
+          "itemId": "80000000-0000-4000-8000-000000000302",
+          "itemName": "Butter 500g",
+          "unit": "Blocks",
+          "openingQty": "6",
+          "receivedQty": "4",
+          "wasteQty": "0",
+          "closingQty": "8",
+          "usedQty": "2",
+          "yesterdayUsedQty": "2",
+          "unitCostKes": "620.00",
+          "usedValueKes": "1240.00",
+          "closingValueKes": "4960.00",
+          "correction": null
+        },
+        {
+          "itemId": "80000000-0000-4000-8000-000000000303",
+          "itemName": "Eggs",
+          "unit": "Trays",
+          "openingQty": "4",
+          "receivedQty": "3",
+          "wasteQty": "1",
+          "closingQty": "5",
+          "usedQty": "1",
+          "yesterdayUsedQty": "1",
+          "unitCostKes": "480.00",
+          "usedValueKes": "480.00",
+          "closingValueKes": "2400.00",
+          "correction": null
+        },
+        {
+          "itemId": "80000000-0000-4000-8000-000000000305",
+          "itemName": "Baking powder 500g",
+          "unit": "Tins",
+          "openingQty": "3",
+          "receivedQty": "0",
+          "wasteQty": "0",
+          "closingQty": "3",
+          "usedQty": "0",
+          "yesterdayUsedQty": "0",
+          "unitCostKes": "400.00",
+          "usedValueKes": "0.00",
+          "closingValueKes": "1200.00",
+          "correction": null
+        }
+      ],
+      "waste": { "entryCount": 1, "items": [{ "itemName": "Eggs", "reasonText": "Damaged in store" }] },
+      "totals": { "usedValueKes": "6760.00", "closingValueKes": "17840.00" },
+      "can": { "correct": true }
+    }
+  },
+  "closeSummary": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "OPEN" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "usedValueKes": "50060.00",
+    "departments": [
+      { "departmentId": "30000000-0000-4000-8000-000000000001", "name": "Kitchen", "itemCount": 12, "usedValueKes": "24380.00" },
+      { "departmentId": "30000000-0000-4000-8000-000000000002", "name": "Barista", "itemCount": 8, "usedValueKes": "11940.00" },
+      { "departmentId": "30000000-0000-4000-8000-000000000003", "name": "Pastry", "itemCount": 8, "usedValueKes": "8760.00" },
+      { "departmentId": "30000000-0000-4000-8000-000000000004", "name": "Service", "itemCount": 9, "usedValueKes": "3120.00" },
+      { "departmentId": "30000000-0000-4000-8000-000000000005", "name": "Housekeeping", "itemCount": 6, "usedValueKes": "1860.00" }
+    ],
+    "entryCount": 41,
+    "canClose": true,
+    "blockers": [
+      {
+        "kind": "OPENING_NOT_CHECKED",
+        "severity": "INFO",
+        "department": { "id": "30000000-0000-4000-8000-000000000004", "name": "Service" },
+        "dispatch": null,
+        "discrepancies": [],
+        "at": null,
+        "lastDepartment": null
+      }
+    ]
+  },
+  "closeDayInput": { "pin": "1234", "idempotencyKey": "close-day-0044" },
+  "closeDayResult": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "CLOSED" },
+    "closedAt": "2026-10-07T16:48:00.000Z",
+    "closedBy": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+    "usedValueKes": "50060.00",
+    "entryCount": 41,
+    "entries": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-07T16:48:00.000Z",
+        "itemName": "Flour 25kg",
+        "unit": "Bags",
+        "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+        "quantity": "-3",
+        "reference": "DAY-NYR-0044",
+        "kind": "USAGE"
+      }
+    ],
+    "document": { "id": "c0000000-0000-4000-8000-000000000001", "version": 1, "kind": "AT_THE_CLOSE", "latest": true, "reference": "DAY-NYR-0044", "pages": 6, "madeAt": "2026-10-07T16:48:00.000Z" },
+    "replayed": false
+  },
+  "historyQuery": { "q": "0044", "from": "2026-10-01", "to": "2026-10-08", "status": "CLOSED", "page": "1", "pageSize": "25" },
+  "history": {
+    "rows": [
+      {
+        "id": "70000000-0000-4000-8000-000000000045",
+        "reference": "DAY-NYR-0045",
+        "date": "2026-10-08",
+        "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "departmentsCounted": 0,
+        "departmentsTotal": 5,
+        "status": "OPEN",
+        "closedBy": null,
+        "closedAt": null,
+        "usedValueKes": null,
+        "closingValueKes": null
+      },
+      {
+        "id": "70000000-0000-4000-8000-000000000043",
+        "reference": "DAY-NYR-0043",
+        "date": "2026-10-06",
+        "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+        "departmentsCounted": 5,
+        "departmentsTotal": 5,
+        "status": "CORRECTED",
+        "closedBy": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "closedAt": "2026-10-06T16:40:00.000Z",
+        "usedValueKes": "47310.00",
+        "closingValueKes": "219850.00"
+      }
+    ],
+    "page": { "page": 1, "pageSize": 25, "total": 7 }
+  },
+  "historyHub": {
+    "rows": [
+      {
+        "id": "70000000-0000-4000-8000-000000000130",
+        "reference": "DAY-KRT-0030",
+        "date": "2026-10-07",
+        "branch": { "id": "10000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+        "departmentsCounted": 4,
+        "departmentsTotal": 4,
+        "status": "CLOSED",
+        "closedBy": { "id": "20000000-0000-4000-8000-000000000020", "name": "Lucy Wanjiku", "initials": "LW", "roleLabel": "Branch Manager" },
+        "closedAt": "2026-10-07T16:30:00.000Z",
+        "usedValueKes": "31480.00",
+        "closingValueKes": "128900.00"
+      }
+    ],
+    "branches": [
+      { "id": "10000000-0000-4000-8000-000000000002", "name": "Karatina", "code": "KRT" },
+      { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" }
+    ],
+    "page": { "page": 1, "pageSize": 8, "total": 14 }
+  },
+  "dayFile": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "CORRECTED" },
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR" },
+    "tracker": {
+      "openingsChecked": { "checked": 4, "total": 5 },
+      "counted": { "counted": 5, "total": 5, "lastAt": "2026-10-07T16:24:00.000Z" },
+      "closed": { "at": "2026-10-07T16:48:00.000Z", "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" } }
+    },
+    "rail": [
+      {
+        "departmentId": "30000000-0000-4000-8000-000000000003",
+        "name": "Pastry",
+        "head": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "state": "COUNTED",
+        "countedAt": "2026-10-07T15:35:00.000Z",
+        "countedBy": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "onBehalf": false,
+        "itemCount": 8,
+        "opening": { "state": "ACCEPTED", "differences": [] },
+        "usedValueKes": "6760.00"
+      }
+    ],
+    "tabCounts": { "documents": 2, "activity": 10 },
+    "usedValueKes": "48060.00",
+    "lastCorrection": {
+      "at": "2026-10-08T06:14:00.000Z",
+      "itemName": "Flour 25kg",
+      "departmentName": "Pastry",
+      "fromClosingQty": "1",
+      "toClosingQty": "2"
+    },
+    "can": { "correct": true, "print": true }
+  },
+  "activityQuery": { "limit": "5" },
+  "dayActivity": {
+    "entries": [
+      {
+        "id": "correction:b0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-08T06:14:00.000Z",
+        "actor": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "type": "COUNT_CORRECTED",
+        "sentence": "Corrected a count: Flour 25kg (Pastry), closing stock 1 → 2",
+        "detail": "Reason: counted wrongly. Note: a bag was in the dry store, not on the shelf. Signed with PIN.",
+        "link": { "kind": "LEDGER_ENTRY", "id": "a0000000-0000-4000-8000-000000000099", "reference": "DAY-NYR-0044" }
+      },
+      {
+        "id": "close:70000000-0000-4000-8000-000000000044",
+        "at": "2026-10-07T16:48:00.000Z",
+        "actor": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "type": "DAY_CLOSED",
+        "sentence": "Closed the day · Used today KES 50,060",
+        "detail": "41 usage entries written to the stock ledger. Signed with PIN.",
+        "link": { "kind": "DAY", "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044" }
+      },
+      {
+        "id": "opening:d0000000-0000-4000-8000-000000000002",
+        "at": "2026-10-07T04:17:00.000Z",
+        "actor": { "id": "20000000-0000-4000-8000-000000000002", "name": "David M.", "initials": "DM", "roleLabel": "Barista" },
+        "type": "OPENING_RECOUNTED",
+        "sentence": "Recorded the opening: Milk 1L, 1 less than last night (8 → 7)",
+        "detail": null,
+        "link": null
+      }
+    ],
+    "total": 10
+  },
+  "dayDocuments": {
+    "documents": [
+      { "id": "c0000000-0000-4000-8000-000000000002", "version": 2, "kind": "AFTER_CORRECTION", "latest": true, "reference": "DAY-NYR-0044", "pages": 6, "madeAt": "2026-10-08T06:15:00.000Z" },
+      { "id": "c0000000-0000-4000-8000-000000000001", "version": 1, "kind": "AT_THE_CLOSE", "latest": false, "reference": "DAY-NYR-0044", "pages": 6, "madeAt": "2026-10-07T16:48:00.000Z" }
+    ]
+  },
+  "entriesQuery": { "page": "1", "pageSize": "50" },
+  "dayEntries": {
+    "rows": [
+      {
+        "id": "a0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-07T16:48:00.000Z",
+        "itemName": "Flour 25kg",
+        "unit": "Bags",
+        "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+        "quantity": "-3",
+        "reference": "DAY-NYR-0044",
+        "kind": "USAGE"
+      },
+      {
+        "id": "a0000000-0000-4000-8000-000000000099",
+        "at": "2026-10-08T06:14:00.000Z",
+        "itemName": "Flour 25kg",
+        "unit": "Bags",
+        "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+        "quantity": "1",
+        "reference": "DAY-NYR-0044",
+        "kind": "CORRECTION"
+      }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 42 }
+  },
+  "correctCountInput": {
+    "departmentId": "30000000-0000-4000-8000-000000000003",
+    "itemId": "80000000-0000-4000-8000-000000000301",
+    "closingQty": "2",
+    "reason": "COUNTED_WRONGLY",
+    "note": "A bag was in the dry store, not on the shelf.",
+    "pin": "1234",
+    "idempotencyKey": "correct-0044-flour"
+  },
+  "correctCountResult": {
+    "day": { "id": "70000000-0000-4000-8000-000000000044", "reference": "DAY-NYR-0044", "date": "2026-10-07", "status": "CORRECTED" },
+    "line": {
+      "itemId": "80000000-0000-4000-8000-000000000301",
+      "itemName": "Flour 25kg",
+      "unit": "Bags",
+      "openingQty": "4",
+      "receivedQty": "0",
+      "wasteQty": "0",
+      "closingQty": "2",
+      "usedQty": "2",
+      "yesterdayUsedQty": "1",
+      "unitCostKes": "2000.00",
+      "usedValueKes": "4000.00",
+      "closingValueKes": "4000.00",
+      "correction": {
+        "id": "b0000000-0000-4000-8000-000000000001",
+        "at": "2026-10-08T06:14:00.000Z",
+        "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "fromClosingQty": "1",
+        "toClosingQty": "2",
+        "fromUsedQty": "3",
+        "toUsedQty": "2",
+        "reason": "COUNTED_WRONGLY",
+        "note": "A bag was in the dry store, not on the shelf."
+      }
+    },
+    "entry": {
+      "id": "a0000000-0000-4000-8000-000000000099",
+      "at": "2026-10-08T06:14:00.000Z",
+      "itemName": "Flour 25kg",
+      "unit": "Bags",
+      "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+      "quantity": "1",
+      "reference": "DAY-NYR-0044",
+      "kind": "CORRECTION"
+    },
+    "document": { "id": "c0000000-0000-4000-8000-000000000002", "version": 2, "kind": "AFTER_CORRECTION", "latest": true, "reference": "DAY-NYR-0044", "pages": 6, "madeAt": "2026-10-08T06:15:00.000Z" },
+    "usedValueKes": "48060.00",
+    "replayed": false
+  },
+  "sheetQuery": { "version": "2" },
+  "daySheet": {
+    "reference": "DAY-NYR-0044",
+    "date": "2026-10-07",
+    "branch": { "id": "10000000-0000-4000-8000-000000000001", "name": "Nyeri Town", "code": "NYR", "address": "Kimathi Way", "phone": "+254 700 000 000" },
+    "version": 2,
+    "kind": "AFTER_CORRECTION",
+    "closedAt": "2026-10-07T16:48:00.000Z",
+    "closedBy": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+    "correctedAt": "2026-10-08T06:14:00.000Z",
+    "printedAt": "2026-10-08T06:15:00.000Z",
+    "totals": { "itemCount": 43, "usedValueKes": "48060.00", "closingValueKes": "216500.00" },
+    "pageCount": 6,
+    "departments": [
+      {
+        "position": 3,
+        "department": { "id": "30000000-0000-4000-8000-000000000003", "name": "Pastry" },
+        "head": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "itemCount": 8,
+        "usedValueKes": "6760.00",
+        "closingValueKes": "17840.00",
+        "page": 4,
+        "corrected": true,
+        "countedAt": "2026-10-07T15:35:00.000Z",
+        "countedBy": { "id": "20000000-0000-4000-8000-000000000003", "name": "Ann K.", "initials": "AK", "roleLabel": "Pastry Department Head" },
+        "onBehalf": false,
+        "opening": { "state": "ACCEPTED", "checkedAt": "2026-10-07T04:14:00.000Z", "differenceCount": 0 },
+        "delivery": { "state": "CONFIRMED", "dispatches": ["DSP-NYR-0230"] },
+        "lines": [
+          {
+            "position": 1,
+            "itemName": "Flour 25kg",
+            "unit": "Bags",
+            "openingQty": "4",
+            "receivedQty": "0",
+            "wasteQty": "0",
+            "closingQty": "2",
+            "usedQty": "2",
+            "usedValueKes": "4000.00",
+            "closingValueKes": "4000.00",
+            "correction": {
+              "id": "b0000000-0000-4000-8000-000000000001",
+              "at": "2026-10-08T06:14:00.000Z",
+              "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+              "fromClosingQty": "1",
+              "toClosingQty": "2",
+              "fromUsedQty": "3",
+              "toUsedQty": "2",
+              "reason": "COUNTED_WRONGLY",
+              "note": null
+            }
+          },
+          {
+            "position": 2,
+            "itemName": "Butter 500g",
+            "unit": "Blocks",
+            "openingQty": "6",
+            "receivedQty": "4",
+            "wasteQty": "0",
+            "closingQty": "8",
+            "usedQty": "2",
+            "usedValueKes": "1240.00",
+            "closingValueKes": "4960.00",
+            "correction": null
+          }
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "at": "2026-10-08T06:14:00.000Z",
+        "by": { "id": "20000000-0000-4000-8000-000000000010", "name": "Peter Njoroge", "initials": "PN", "roleLabel": "Branch Manager" },
+        "departmentName": "Pastry",
+        "itemName": "Flour 25kg",
+        "fromClosingQty": "1",
+        "toClosingQty": "2",
+        "reason": "COUNTED_WRONGLY"
+      }
+    ],
+    "notes": {
+      "openingNotChecked": ["Service"],
+      "openDiscrepancies": [{ "reference": "DSC-NYR-0007", "departmentName": "Barista", "itemName": "Milk 1L" }]
+    },
+    "qrUrl": "https://app.wendo-rms.co.ke/app/branch/day/history/70000000-0000-4000-8000-000000000044"
+  },
+  "errorInvalidPin": { "success": false, "error": { "code": "INVALID_PIN", "message": "That PIN is not right." } },
+  "errorNotYourDepartment": { "success": false, "error": { "code": "NOT_YOUR_DEPARTMENT", "message": "That department is not yours to count." } },
+  "errorDayAlreadyClosed": { "success": false, "error": { "code": "DAY_ALREADY_CLOSED", "message": "This day is already closed." } },
+  "errorDayNotReady": {
+    "success": false,
+    "error": {
+      "code": "DAY_NOT_READY",
+      "message": "The day is not ready to close.",
+      "details": {
+        "blockers": [
+          {
+            "kind": "DEPARTMENT_NOT_COUNTED",
+            "severity": "BLOCKS",
+            "department": { "id": "30000000-0000-4000-8000-000000000005", "name": "Housekeeping" },
+            "dispatch": null,
+            "discrepancies": [],
+            "at": null,
+            "lastDepartment": null
+          }
+        ]
+      }
+    }
+  },
+  "errorDayNotClosed": { "success": false, "error": { "code": "DAY_NOT_CLOSED", "message": "The day has not been closed." } },
+  "errorAlreadyCounted": { "success": false, "error": { "code": "ALREADY_COUNTED", "message": "This department has already signed its count." } },
+  "errorCountIncomplete": {
+    "success": false,
+    "error": { "code": "COUNT_INCOMPLETE", "message": "Count every item before you sign.", "details": { "itemIds": ["80000000-0000-4000-8000-000000000106"] } }
+  },
+  "errorOpeningAlreadyChecked": { "success": false, "error": { "code": "OPENING_ALREADY_CHECKED", "message": "This opening has already been checked." } },
+  "errorCorrectionWindowPassed": {
+    "success": false,
+    "error": { "code": "CORRECTION_WINDOW_PASSED", "message": "The next opening was accepted, so this figure can no longer be corrected here." }
+  },
+  "errorCorrectionNoChange": { "success": false, "error": { "code": "CORRECTION_NO_CHANGE", "message": "That is the figure already on the day." } }
+}
