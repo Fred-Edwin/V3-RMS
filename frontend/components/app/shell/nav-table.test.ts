@@ -358,3 +358,31 @@ describe('where the shell applies', () => {
     expect(usesDesktopShell('KITCHEN_DISPLAY', true)).toBe(false);
   });
 });
+
+describe('Branch waste rows (Block 3, Paper W6 and W8)', () => {
+  const WASTE = '/app/inventory/branch-waste';
+
+  it('gives the Branch Manager Branch › Waste below Requisitions and Day, once the table grants read', () => {
+    const groups = navFor(ctxFor('MANAGER', { can: holds('branch_waste.read') }));
+    const branch = groups.find((g) => g.key === 'mgr-branch');
+    expect(branch?.items.map((i) => i.label)).toEqual(['Requisitions', 'Day', 'Waste']);
+    expect(item(groups, 'branch-waste')?.href).toBe(WASTE);
+    expect(keys(navFor(ctxFor('MANAGER', { can: holds() })))).not.toContain('branch-waste');
+  });
+
+  it('gives Director, Accountant, Store Manager and System Admin Branches › Waste, read only, once the table grants read-any-branch', () => {
+    for (const role of ['DIRECTOR', 'ACCOUNTANT', 'STORE_MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const groups = navFor(ctxFor(role, { can: holds('branch_waste.read_any_branch') }));
+      expect(hrefs(groups), role).toContain(WASTE);
+      expect(keys(navFor(ctxFor(role, { can: holds() }))), role).not.toEqual(expect.arrayContaining(['director-waste']));
+      expect(hrefs(navFor(ctxFor(role, { can: holds() }))), role).not.toContain(WASTE);
+    }
+    expect(groupKeys(navFor(ctxFor('DIRECTOR', { can: holds('branch_waste.read_any_branch') }))).slice(0, 2)).toEqual(['dir-overview', 'dir-branches']);
+  });
+
+  it('shows no Branch waste row to floor staff, the Attendant or HR', () => {
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT', 'HR_MANAGER'] as AppRole[]) {
+      expect(hrefs(navFor(ctxFor(role, { can: EVERYTHING }))), role).not.toContain(WASTE);
+    }
+  });
+});

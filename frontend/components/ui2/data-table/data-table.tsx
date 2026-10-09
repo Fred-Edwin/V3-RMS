@@ -22,6 +22,8 @@ export interface TableColumn<Row> {
   align?: 'left' | 'right';
   /** Classes for both the header and body cell (truncation, tabular numbers). */
   className?: string;
+  /** Classes for the header cell only (Branch waste draws its header labels in secondary text). */
+  headClassName?: string;
 }
 
 export interface TableResult<Row> {
@@ -85,6 +87,10 @@ export interface DataTableProps<Row> {
    */
   layout?: 'table' | 'cards';
   renderCard?: (row: Row, ctx: { term: string }) => React.ReactNode;
+  /** `paper` gives the toolbar and pager the Branch waste sizes (W6, W8). The layout and behaviour are the same. */
+  look?: 'default' | 'paper';
+  /** Classes for the `<table>` itself, e.g. a minimum width so a narrow screen scrolls the table sideways instead of squeezing it. */
+  tableClassName?: string;
   className?: string;
 }
 
@@ -147,6 +153,8 @@ export function DataTable<Row>({
   searchParam,
   layout = 'table',
   renderCard,
+  look = 'default',
+  tableClassName,
   className,
 }: DataTableProps<Row>) {
   const filterKeys = React.useMemo(() => filterKeysOf(filters), [filters]);
@@ -209,11 +217,11 @@ export function DataTable<Row>({
     body = (
       <div className={cn(!paged && 'overflow-y-auto')} style={paged ? undefined : { maxHeight: maxBodyHeight }}>
         <div className="w-full overflow-x-auto">
-          <table aria-label={label} aria-busy={status === 'loading'} className="w-full caption-bottom font-wds-sans text-wds-body-sm">
+          <table aria-label={label} aria-busy={status === 'loading'} className={cn('w-full caption-bottom font-wds-sans text-wds-body-sm', tableClassName)}>
             <TableHeader>
               <TableRow className="h-[30px] hover:bg-transparent">
                 {columns.map((c) => (
-                  <TableHead key={c.id} style={c.width ? { width: c.width } : undefined} className={cn(c.align === 'right' && 'text-right', c.className)}>
+                  <TableHead key={c.id} style={c.width ? { width: c.width } : undefined} className={cn(c.align === 'right' && 'text-right', c.className, c.headClassName)}>
                     {c.header}
                   </TableHead>
                 ))}
@@ -286,6 +294,7 @@ export function DataTable<Row>({
           counts={counts ?? result?.counts}
           onFilterChange={onFilterChange}
           onFiltersChange={onFiltersChange}
+          variant={look}
           className={searchable ? undefined : '[&>label]:hidden'}
         />
       ) : null}
@@ -304,6 +313,7 @@ export function DataTable<Row>({
           total={result.total}
           onPageChange={setPage}
           onPerPageChange={(perPage) => patch({ perPage })}
+          variant={look}
           className="border-t border-wds-border"
         />
       ) : null}
