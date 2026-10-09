@@ -10,7 +10,8 @@ Waste at the Central Store, plus the Department Head's branch waste (unchanged).
 | `log/` | the item picker, log one or several items as a batch | W1, W2 | [log](log/README.md) |
 | `entries/` | the list with its KPI strip | W3 | [entries](entries/README.md) |
 | `reverse/` | reverse an entry | W4 | [reverse](reverse/README.md) |
-| `department/` | the Department Head's branch waste, **moved unchanged** | 3 old endpoints | below |
+| `department/` | the Department Head's branch waste, **moved unchanged**; replaced by `branch/` in Block 3 | 3 old endpoints | below |
+| `branch/` | a branch's departments log and reverse waste; the Branch Manager and the hub roles read it (Block 3; contract only so far, a placeholder router) | BW1 to BW7 | [branch](branch/README.md) |
 | `_shared/` | the frozen contract, `waste-view` (builds every response), `waste-rules` (who may reverse, who sees only their own), `waste-row` | none | this file |
 
 ## Who can do what

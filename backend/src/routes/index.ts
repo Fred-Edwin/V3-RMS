@@ -43,6 +43,7 @@ import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
 import countingRoutes from '../modules/inventory/counting/counting-routes';
 import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';
 import wasteHubRoutes from '../modules/inventory/waste/waste-hub-routes';
+import branchWasteRoutes from '../modules/inventory/waste/branch/branch-routes';
 import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import departmentsRoutes from '../modules/inventory/departments/departments-routes';
@@ -100,6 +101,9 @@ apiRouter.use(thresholdsRoutes);
 apiRouter.use(countingRoutes);
 apiRouter.use(stockHubRoutes);
 apiRouter.use(wasteHubRoutes);
+// Final pass, Block 3 (docs/features/inventory/branch-waste-contract.md): the rebuilt Branch waste. A placeholder until the build fills it;
+// the Department Head's three old endpoints (`wasteRoutes` above) keep running until it replaces them.
+apiRouter.use('/inventory/branch-waste', branchWasteRoutes);
 apiRouter.use(branchDayRoutes);
 // Final pass, Block 1 (docs/features/inventory/requisitions-contract.md): the rebuilt Requisitions and Departments, new paths
 // under /inventory/requisitions and /inventory/departments.
