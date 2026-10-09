@@ -18,12 +18,13 @@ export const countStoryRepository = {
       select: {
         quantity: true,
         createdAt: true,
-        dispatchLine: { select: { dispatch: { select: { sequenceLabel: true, confirmedAt: true, toSite: { select: { name: true } } } } } },
+        dispatchLine: { select: { dispatch: { select: { reference: true, countedAt: true, toSite: { select: { name: true } } } } } },
       },
     });
+    // Block 2: the label is the DSP- reference (a dispatch that left the store always has one: it is numbered at the final sign).
     return rows.flatMap((row) =>
-      row.dispatchLine
-        ? [{ label: row.dispatchLine.dispatch.sequenceLabel, toSiteName: row.dispatchLine.dispatch.toSite.name, quantity: row.quantity, confirmed: row.dispatchLine.dispatch.confirmedAt !== null, at: row.createdAt }]
+      row.dispatchLine?.dispatch.reference
+        ? [{ label: row.dispatchLine.dispatch.reference, toSiteName: row.dispatchLine.dispatch.toSite.name, quantity: row.quantity, confirmed: row.dispatchLine.dispatch.countedAt !== null, at: row.createdAt }]
         : [],
     );
   },

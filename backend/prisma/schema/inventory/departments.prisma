@@ -23,6 +23,7 @@ model Department {
   locations            Location[]
   requisitionSections  RequisitionSection[]
   requisitionAdditions RequisitionAddition[]
+  dispatches           Dispatch[]
 
   @@unique([siteId, name])
   @@index([siteId, status])

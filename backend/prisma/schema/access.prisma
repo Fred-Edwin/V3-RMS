@@ -90,6 +90,7 @@ model Site {
   requisitions                 Requisition[]
   dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
   dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
+  carriers                     Carrier[]                     @relation("CarrierSite")
   wasteLogs                    WasteLog[]
   wasteBatches                 WasteBatch[]
   counts                       Count[]
@@ -233,9 +234,15 @@ model User {
   prepRecipeVersionsCreated          PrepRecipeVersion[]           @relation("PrepRecipeVersionCreatedBy")
   requisitionsOpened                 Requisition[]                 @relation("RequisitionOpenedBy")
   requisitionsApproved               Requisition[]                 @relation("RequisitionApprovedBy")
-  dispatchesDispatched               Dispatch[]                    @relation("DispatchDispatchedBy")
-  dispatchesConfirmed                Dispatch[]                    @relation("DispatchConfirmedBy")
-  discrepanciesResolved              Discrepancy[]                 @relation("DiscrepancyResolvedBy")
+  dispatchesPacked                   Dispatch[]                    @relation("DispatchPackedBy")
+  dispatchesSigned                   Dispatch[]                    @relation("DispatchSignedBy")
+  dispatchesCounted                  Dispatch[]                    @relation("DispatchCountedBy")
+  dispatchesCancelled                Dispatch[]                    @relation("DispatchCancelledBy")
+  dispatchEvents                     DispatchEvent[]               @relation("DispatchEventActor")
+  dispatchPhotosUploaded             DispatchPhoto[]               @relation("DispatchPhotoUploadedBy")
+  discrepanciesRecorded              Discrepancy[]                 @relation("DiscrepancyRecordedBy")
+  discrepanciesReversed              Discrepancy[]                 @relation("DiscrepancyReversedBy")
+  discrepancyEvents                  DiscrepancyEvent[]            @relation("DiscrepancyEventActor")
   requisitionSectionsSubmitted       RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited             RequisitionLine[]             @relation("RequisitionLineEditedBy")
   requisitionsCancelled              Requisition[]                 @relation("RequisitionCancelledBy")

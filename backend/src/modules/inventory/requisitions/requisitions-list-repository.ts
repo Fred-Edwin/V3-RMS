@@ -62,9 +62,21 @@ const factsSelect = {
   openedAt: true,
   urgent: true,
   urgentAt: true,
-  sections: { select: { departmentId: true, status: true, department: { select: { key: true, status: true } } } },
+  sections: {
+    select: {
+      departmentId: true,
+      status: true,
+      department: { select: { key: true, status: true } },
+      // Whether the department has anything to pack (an addition still waiting for approval is not packed yet).
+      lines: { where: { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' as const } }] }, select: { id: true }, take: 1 },
+    },
+  },
   additions: { where: { status: 'PENDING' as const }, select: { id: true, departmentId: true } },
-  dispatches: { select: { departmentTag: true, status: true } },
+  // The live dispatch of each department (a cancelled one is replaced); a discrepancy Open or reversed holds the requisition in Discrepancies.
+  dispatches: {
+    where: { status: { not: 'CANCELLED' as const } },
+    select: { departmentId: true, status: true, signedAt: true, discrepancies: { where: { status: { in: ['OPEN' as const, 'REVERSED' as const] } }, select: { id: true }, take: 1 } },
+  },
 } satisfies Prisma.RequisitionSelect;
 
 export type FactsRecord = Prisma.RequisitionGetPayload<{ select: typeof factsSelect }>;

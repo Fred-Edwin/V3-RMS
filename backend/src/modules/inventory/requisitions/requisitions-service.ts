@@ -161,7 +161,7 @@ export const viewerFor = async (c: Caller, rec: RequisitionRecord, now: Date): P
     repo.listHeads(rec.siteId, deptIds),
     repo.findCategoryNames(parentIds),
     rec.status === 'APPROVED'
-      ? Promise.all(rec.sections.map(async (s) => ((await repo.hasDispatch(rec.id, rec.siteId, s.department?.key ?? null)) && s.departmentId ? s.departmentId : null)))
+      ? Promise.all(rec.sections.map(async (s) => ((await repo.hasDispatch(rec.id, rec.siteId, s.departmentId)) && s.departmentId ? s.departmentId : null)))
       : Promise.resolve([]),
   ]);
   const headOf = new Map(heads.map((h) => [h.departmentId, { id: h.id, name: h.name, role: h.role as string }]));
@@ -556,7 +556,7 @@ export const requisitionsService = {
     if (section.status !== 'SUBMITTED') throw stateConflict('SECTION_NOT_SENT', 'Only a sent section can be changed here.');
     if (rec.status === 'APPROVED') {
       if (!input.reason) throw requisitionError('REASON_REQUIRED', 'Say why the quantity changed.');
-      if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+      if (await repo.hasDispatch(rec.id, rec.siteId, section.departmentId)) {
         throw requisitionError('DEPARTMENT_PACKED', 'This department has been packed, so its quantities are locked.');
       }
     }
@@ -724,7 +724,7 @@ export const requisitionsService = {
     if (guard === 'CLOSED') throw requisitionError('ADDITION_LOCKED', 'This requisition is closed. Start an Extra requisition.');
     if (guard === 'NOT_APPROVED') throw stateConflict('NOT_APPROVED', 'This requisition is not signed yet, so edit your section instead.');
     if (section.status !== 'SUBMITTED') throw stateConflict('SECTION_NOT_SENT', 'Your department did not send this requisition.');
-    if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+    if (await repo.hasDispatch(rec.id, rec.siteId, section.departmentId)) {
       throw requisitionError('ADDITION_LOCKED', 'Your department has been dispatched. Start an Extra requisition.');
     }
     const tagged = await repo.findTaggedItemIds(rec.siteId, departmentId, input.lines.map((l) => l.itemId));
@@ -776,7 +776,7 @@ export const requisitionsService = {
     if (rec.status !== 'APPROVED') throw stateConflict('NOT_APPROVED', 'This requisition is not signed yet, so there is nothing to add to.');
     if (addition.status !== 'PENDING') throw stateConflict('ADDITION_NOT_PENDING', 'This addition has already been decided.');
     const section = findSection(rec, addition.departmentId);
-    if (await repo.hasDispatch(rec.id, rec.siteId, section.department?.key ?? null)) {
+    if (await repo.hasDispatch(rec.id, rec.siteId, section.departmentId)) {
       throw requisitionError('ADDITION_LOCKED', "This department has been dispatched. The head should start an Extra requisition.");
     }
     await countPin.verifyOwn(actor, input.pin);

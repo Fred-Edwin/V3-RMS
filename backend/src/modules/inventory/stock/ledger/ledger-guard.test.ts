@@ -17,8 +17,6 @@ const DOOR_DIR = join('modules', 'inventory', 'stock', 'ledger');
 /** file (relative to backend/src) -> number of direct ledger writes still allowed there. */
 const ALLOWED_DIRECT_WRITES: Record<string, number> = {
   'modules/inventory/branch-day/branch-day-repository.ts': 1, // writeAdjustment
-  'modules/inventory/dispatch/discrepancy-service.ts': 3,
-  'modules/inventory/dispatch/dispatch-service.ts': 2,
 };
 
 const PRISMA_WRITE = /inventoryTransaction\s*\.\s*(create|createMany|update|updateMany|delete|deleteMany|upsert)\b/g;

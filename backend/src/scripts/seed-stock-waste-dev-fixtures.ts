@@ -239,14 +239,15 @@ const run = async (): Promise<void> => {
         data: { siteId: town.id, type: 'EXTRA', reference: `REQ-FIX-${Date.now().toString().slice(-6)}`, note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id, openedAt: daysAgo(11, 7), approvedAt: daysAgo(11, 8) },
       });
       const dispatchAt = daysAgo(11);
+      const baristaDepartment = await tx.department.findFirstOrThrow({ where: { siteId: town.id, key: 'BARISTA' }, select: { id: true } });
       const dispatch = await tx.dispatch.create({
         data: {
-          siteId: hub.id, toSiteId: town.id, requisitionId: requisition.id, departmentTag: 'BARISTA', sequenceLabel: 'Dispatch 1 · Nyeri Town · fixture',
-          status: 'CONFIRMED', dispatchedById: manager.id, dispatchedAt: dispatchAt, confirmedById: kitchenHead.id, confirmedAt: dispatchAt,
+          siteId: hub.id, toSiteId: town.id, requisitionId: requisition.id, departmentId: baristaDepartment.id, reference: `DSP-FIX-${Date.now().toString().slice(-6)}`,
+          status: 'CONFIRMED', packedById: manager.id, packedAt: dispatchAt, signedById: manager.id, signedAt: dispatchAt, countedById: kitchenHead.id, countedAt: dispatchAt,
           lines: {
             create: {
-              inventoryItemId: coffeeId, requestedQty: new Prisma.Decimal(6), dispatchedQty: new Prisma.Decimal(6), confirmedQty: new Prisma.Decimal(6),
-              costAtDispatch: new Prisma.Decimal(1180),
+              inventoryItemId: coffeeId, requestedQty: new Prisma.Decimal(6), sentQty: new Prisma.Decimal(6), countedQty: new Prisma.Decimal(6), packedTick: true,
+              unitCostAtDispatch: new Prisma.Decimal(1180),
             },
           },
         },

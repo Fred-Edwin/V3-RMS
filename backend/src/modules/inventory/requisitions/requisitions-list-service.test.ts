@@ -72,10 +72,18 @@ const facts = (
   openedAt: new Date('2026-10-08T06:00:00Z'),
   urgent: false,
   urgentAt: null,
-  sections: sections.map(([departmentId, s, key]) => ({ departmentId, status: s, department: { key, status: 'ACTIVE' as const } })),
+  sections: sections.map(([departmentId, s, key]) => ({ departmentId, status: s, department: { key, status: 'ACTIVE' as const }, lines: [{ id: `${departmentId}-line` }] })),
   additions: [],
   dispatches,
   ...extra,
+});
+
+/** A live dispatch of a department as the list reads it; signed an hour ago, so it is On the way and not yet Waiting. */
+const dsp = (departmentId: string, status: FactsRecord['dispatches'][number]['status'], discrepancyOpen = false): FactsRecord['dispatches'][number] => ({
+  departmentId,
+  status,
+  signedAt: new Date(Date.now() - 60 * 60_000),
+  discrepancies: discrepancyOpen ? [{ id: 'd1' }] : [],
 });
 
 const KB = (k: FactsRecord['sections'][number]['status'], b: FactsRecord['sections'][number]['status']): Array<[string, typeof k, 'KITCHEN' | 'BARISTA']> => [
@@ -88,10 +96,10 @@ const FACTS: FactsRecord[] = [
   facts('r-collect-2', 'OPEN', KB('NOT_STARTED', 'NOT_STARTED')),
   facts('r-approve', 'PENDING_APPROVAL', KB('SUBMITTED', 'SUBMITTED')),
   facts('r-pack', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
-  facts('r-transit', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }]),
-  facts('r-disc', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'CONFIRMED' }, { departmentTag: 'BARISTA', status: 'DISCREPANCY_OPEN' }]),
-  facts('r-done', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'CONFIRMED' }, { departmentTag: 'BARISTA', status: 'CONFIRMED' }]),
-  facts('r-add', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }], { additions: [{ id: 'a1', departmentId: KITCHEN }] }),
+  facts('r-transit', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]),
+  facts('r-disc', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'CONFIRMED'), dsp(BARISTA, 'CONFIRMED', true)]),
+  facts('r-done', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'CONFIRMED'), dsp(BARISTA, 'CLOSED')]),
+  facts('r-add', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')], { additions: [{ id: 'a1', departmentId: KITCHEN }] }),
   facts('r-cancelled', 'CANCELLED', KB('DRAFT', 'NOT_STARTED')),
 ];
 
@@ -281,7 +289,7 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
     facts('w1', 'PENDING_APPROVAL', KB('SUBMITTED', 'SUBMITTED')),
     facts('w2', 'PENDING_APPROVAL', KB('SUBMITTED', 'SKIPPED')),
     facts('w3', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
-    facts('w4', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }]),
+    facts('w4', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]),
     facts('w5', 'OPEN', KB('DRAFT', 'SUBMITTED')),
     facts('w6', 'OPEN', KB('SUBMITTED', 'DRAFT')),
   ];

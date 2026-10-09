@@ -194,10 +194,10 @@ export const requisitionsRepository = {
     return new Map(rows.map((r) => [r.id, r.name]));
   },
 
-  /** Is there an old-dispatch row for this department of the requisition? (The store has signed it.) Only the original five can have one. */
-  hasDispatch: async (requisitionId: string, siteId: string, departmentKey: DepartmentTag | null, db: Db = prisma): Promise<boolean> => {
-    if (!departmentKey) return false;
-    return (await db.dispatch.count({ where: { requisitionId, toSiteId: siteId, departmentTag: departmentKey } })) > 0;
+  /** Has the store signed this department's dispatch (Block 2: a live dispatch with a final-sign time)? A cancelled one does not count: the department is back in the queue. */
+  hasDispatch: async (requisitionId: string, siteId: string, departmentId: string | null, db: Db = prisma): Promise<boolean> => {
+    if (!departmentId) return false;
+    return (await db.dispatch.count({ where: { requisitionId, toSiteId: siteId, departmentId, signedAt: { not: null }, status: { not: 'CANCELLED' } } })) > 0;
   },
 
   // --- Numbering and locking ---------------------------------------------------------------------------------------------

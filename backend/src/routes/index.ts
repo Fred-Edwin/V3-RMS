@@ -44,10 +44,9 @@ import countingRoutes from '../modules/inventory/counting/counting-routes';
 import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';
 import wasteHubRoutes from '../modules/inventory/waste/waste-hub-routes';
 import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
-import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import departmentsRoutes from '../modules/inventory/departments/departments-routes';
-import dispatchRebuildRoutes from '../modules/inventory/dispatch/dispatch-rebuild-routes';
+import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 import carriersRoutes from '../modules/inventory/dispatch/carriers-routes';
 import deliveriesRoutes from '../modules/inventory/deliveries/deliveries-routes';
 import discrepanciesRoutes from '../modules/inventory/discrepancies/discrepancies-routes';
@@ -102,14 +101,14 @@ apiRouter.use(countingRoutes);
 apiRouter.use(stockHubRoutes);
 apiRouter.use(wasteHubRoutes);
 apiRouter.use(branchDayRoutes);
-apiRouter.use(dispatchRoutes);
 // Final pass, Block 1 (docs/features/inventory/requisitions-contract.md): the rebuilt Requisitions and Departments, new paths
 // under /inventory/requisitions and /inventory/departments.
 apiRouter.use('/inventory/requisitions', requisitionsRoutes);
 apiRouter.use('/inventory/departments', departmentsRoutes);
 // Final pass, Block 2 (docs/features/inventory/dispatch-contract.md): the rebuilt Dispatch, Carriers, Deliveries and Discrepancies.
-// Placeholders until back ends C and D fill them; the old /dispatch, /deliveries and /discrepancies router above keeps running until C.
-apiRouter.use('/inventory/dispatch', dispatchRebuildRoutes);
+// Dispatch and Carriers are filled (back end C); Deliveries and Discrepancies are placeholders until back end D. The old
+// /dispatch, /deliveries and /discrepancies router (Milestone Five) is deleted: those endpoints are gone until back end D lands.
+apiRouter.use('/inventory/dispatch', dispatchRoutes);
 apiRouter.use('/inventory/carriers', carriersRoutes);
 apiRouter.use('/inventory/deliveries', deliveriesRoutes);
 apiRouter.use('/inventory/discrepancies', discrepanciesRoutes);
