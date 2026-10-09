@@ -183,6 +183,11 @@ export const socketService = {
     getSocketServer().to([branchRoomName(payload.siteId), branchRoomName(hubSiteId), inventoryAllSitesRoom]).emit('dispatch:changed', payload);
   },
 
+  /** A discrepancy changed (opened, finding recorded or reversed): the same rooms as `dispatch:changed`; open lists and files refetch that record. */
+  emitDiscrepancyChanged: (hubSiteId: string, payload: DispatchChangedSocketPayload & { reference: string }): void => {
+    getSocketServer().to([branchRoomName(payload.siteId), branchRoomName(hubSiteId), inventoryAllSitesRoom]).emit('discrepancy:changed', payload);
+  },
+
   emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {
     emitToStations(siteId, stations, 'order:closed', payload);
   },

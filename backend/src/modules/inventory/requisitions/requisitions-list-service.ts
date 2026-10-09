@@ -1,7 +1,9 @@
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
+import { branchRepository } from '../../../repositories/branch-repository';
 import { ForbiddenError } from '../../../utils/errors';
 import { actorCan } from '../_shared/central-store-access';
+import { deliveriesRepository } from '../deliveries/deliveries-repository';
 import { initialsOf, toPerson } from '../counting/_shared/count-people';
 import { nairobiDayEnd, nairobiDayStart } from '../counting/_shared/count-time';
 import {
@@ -141,15 +143,35 @@ export const requisitionsListService = {
     return facts.filter((f) => tabFromFacts(f) === wanted).length;
   },
 
+  /**
+   * Deliveries waiting for this caller (Block 2): signed and not yet counted. A head or member counts their own department's, the Branch
+   * Manager the branch's. Null for anyone who does not receive deliveries (the key is then absent from the badges).
+   */
+  deliveriesWaiting: async (c: Caller): Promise<number | null> => {
+    const siteId = c.staff.siteId;
+    if (!siteId) return null;
+    const branchManager = c.actor.role === 'MANAGER' && actorCan(c.actor, 'deliveries.confirm_on_behalf');
+    if (!branchManager && !c.staff.departmentId) return null;
+    const hub = await branchRepository.findHub();
+    if (!hub || hub.id === siteId) return null;
+    return deliveriesRepository.count({ hubId: hub.id, toSiteId: siteId, ...(branchManager ? {} : { departmentId: c.staff.departmentId ?? '' }) }, ['ON_THE_WAY']);
+  },
+
   badges: async (actor: Actor): Promise<Badges> => {
     const c = await loadCaller(actor);
     const family = familyOf(c);
-    if (family === 'NONE' && !actorCan(actor, 'requisitions.read')) throw new ForbiddenError('You do not have permission to view requisitions');
+    const deliveries = await requisitionsListService.deliveriesWaiting(c);
+    const withDeliveries = deliveries === null ? {} : { deliveries };
+    // A department member who is not a head holds nothing from the requisition table, but still has deliveries to count.
+    if (family === 'NONE' && !actorCan(actor, 'requisitions.read')) {
+      if (deliveries !== null) return { requisitions: 0, deliveries };
+      throw new ForbiddenError('You do not have permission to view requisitions');
+    }
     const scope = readScope(c);
     const head = restrictedHead(c);
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
-    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve') };
+    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve'), ...withDeliveries };
     if (family === 'STORE') {
       // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
       const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));
@@ -157,9 +179,9 @@ export const requisitionsListService = {
     }
     if (family === 'HEAD') {
       const mine = facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
-      return { requisitions: mine };
+      return { requisitions: mine, ...withDeliveries };
     }
-    return { requisitions: 0 };
+    return { requisitions: 0, ...withDeliveries };
   },
 
   // ======================================================================================================================

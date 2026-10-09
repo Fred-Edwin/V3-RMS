@@ -5,6 +5,8 @@ import { auditLogService } from './audit-log-service';
 import { AuditLogQuerySchema } from './audit-log-validators';
 import { stockAdjustmentsSource } from './sources/stock-adjustments-source';
 import { requisitionsSource } from './sources/requisitions-source';
+import { dispatchSource } from './sources/dispatch-source';
+import { discrepanciesSource } from './sources/discrepancies-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
 
@@ -33,6 +35,8 @@ vi.mock('./audit-log-repository', () => ({
 
 vi.mock('./sources/stock-counts-source', () => ({ stockCountsSource: { area: 'STOCK_COUNTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/requisitions-source', () => ({ requisitionsSource: { area: 'REQUISITIONS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/dispatch-source', () => ({ dispatchSource: { area: 'DISPATCH', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
+vi.mock('./sources/discrepancies-source', () => ({ discrepanciesSource: { area: 'DISCREPANCIES', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/waste-source', () => ({ wasteSource: { area: 'WASTE', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./sources/stock-adjustments-source', () => ({ stockAdjustmentsSource: { area: 'STOCK_ADJUSTMENTS', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 
@@ -75,7 +79,7 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
-  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource]) {
+  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource]) {
     vi.mocked(source.entries).mockResolvedValue([]);
     vi.mocked(source.count).mockResolvedValue(0);
     vi.mocked(source.actorIds).mockResolvedValue([]);
@@ -265,7 +269,7 @@ describe('auditLogService.list', () => {
   });
 
   it('lists the Branches areas and answers them with nothing until each block adds its source', async () => {
-    for (const area of ['DISPATCH', 'DISCREPANCIES', 'BRANCH_DAY', 'BRANCH_WASTE'] as const) {
+    for (const area of ['BRANCH_DAY', 'BRANCH_WASTE'] as const) {
       const page = await auditLogService.list(sm, query({ area }));
       expect(page.entries).toEqual([]);
       expect(page.pagination.total).toBe(0);

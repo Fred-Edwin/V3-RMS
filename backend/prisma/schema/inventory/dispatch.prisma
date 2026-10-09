@@ -67,8 +67,10 @@ model Dispatch {
   countedAt   DateTime? @map("counted_at")
   onBehalf    Boolean   @default(false) @map("on_behalf") // the Branch Manager signed the count for the department
   closedAt    DateTime? @map("closed_at")
+  /// Set by the 2-hour job when the Branch Manager was told "Waiting for the branch"; keeps the job from telling twice.
+  waitingNotifiedAt DateTime? @map("waiting_notified_at")
 
-  cancelledAt   DateTime? @map("cancelled_at")
+  cancelledAt  DateTime? @map("cancelled_at")
   cancelledById String?   @map("cancelled_by_id")
   cancelReason  String?   @map("cancel_reason")
 
@@ -114,6 +116,8 @@ model DispatchLine {
   /// The department's count (blind): the saved draft until the department signs, then final. Null until counted.
   countedQty      Decimal?             @map("counted_qty") @db.Decimal(12, 4)
   countedTwice    Boolean              @default(false) @map("counted_twice")
+  /// Checks the line has been through (V3 check): 0 not yet, 1 flagged once, 2 final (a match, or the second count). Back end D.
+  checkCount      Int                  @default(0) @map("check_count")
   countReason     DispatchCountReason? @map("count_reason")
   countReasonNote String?              @map("count_reason_note")
 
@@ -200,7 +204,9 @@ model Discrepancy {
   reverseReason  String?             @map("reverse_reason")
   /// Value written off by the recorded finding, at the cost frozen at dispatch (KES). Null unless the finding writes stock off.
   lossValue      Decimal?            @map("loss_value") @db.Decimal(14, 2)
-  createdAt      DateTime            @default(now()) @map("created_at")
+  /// The last reminder to the Store Manager (24 hours without a finding, then daily); the job's claim so it never sends twice.
+  reminderSentAt DateTime?           @map("reminder_sent_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt      DateTime            @updatedAt @map("updated_at")
 
   dispatch     Dispatch           @relation(fields: [dispatchId], references: [id])

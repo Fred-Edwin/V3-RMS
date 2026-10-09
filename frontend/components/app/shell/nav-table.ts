@@ -77,6 +77,8 @@ interface Visibility {
   flag?: NavFlag;
   /** Shows only for a department head (the marker on the token), whatever their base role. */
   departmentHead?: boolean;
+  /** Shows only for a department member who is not the head. */
+  departmentMemberOnly?: boolean;
   /** Hidden for a department head, whose own row replaces it (a chef-head sees the head's History, not the floor History). */
   hideForDepartmentHead?: boolean;
 }
@@ -337,7 +339,7 @@ export const NAV_ROWS: readonly NavRow[] = [
     ],
   },
   // The Attendant keeps Dispatch (Block 2 rebuilds its page). Discrepancies are resolved from the dispatch queue, so they light Dispatch.
-  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, oldHref: '/app/inventory/dispatch', framed: true, match: ['/app/inventory/discrepancies'], roles: [STORE_ATTENDANT], hub: true },
+  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, newHref: '/app/inventory/dispatch', match: ['/app/inventory/discrepancies'], roles: [STORE_ATTENDANT], hub: true },
   {
     key: 'stock-counts',
     label: 'Stock & counts',
@@ -369,7 +371,10 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-shifts', label: 'Department Shifts', group: 'department', icon: ico.shifts, oldHref: '/app/department/shifts', roles: ALL_HUMAN, departmentHead: true },
   // The head's Requisitions screens are rebuilt (phone column, own header). Deliveries and Waste stay links to the pages that exist today.
   { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/branch/deliveries', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true },
+  // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
+  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentMemberOnly: true },
+  { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: ALL_HUMAN, departmentMemberOnly: true },
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/branch/waste/new', roles: ALL_HUMAN, departmentHead: true },
   { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
 
@@ -384,6 +389,8 @@ export interface NavContext {
   /** The role the Central Store acts as: the System Admin's preview role, otherwise `role`. */
   hubRole?: AppRole;
   isDepartmentHead: boolean;
+  /** An active member of a department who is not its head (from `GET /inventory/permissions/me`, `departments`). */
+  isDepartmentMember?: boolean;
   /** `can` from the Central Store permissions table. */
   can: (capability: Capability) => boolean;
   /** `NEXT_PUBLIC_CREDIT_ACCOUNTS_ENABLED`. */
@@ -424,6 +431,7 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
   (!rule.departmentHead || ctx.isDepartmentHead) &&
+  (!rule.departmentMemberOnly || (ctx.isDepartmentMember === true && !ctx.isDepartmentHead)) &&
   (!rule.hideForDepartmentHead || !ctx.isDepartmentHead);
 
 /** The badge a person may see: dropped when the badge needs a capability they do not hold. */
