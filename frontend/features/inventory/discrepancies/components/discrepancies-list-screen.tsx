@@ -115,11 +115,11 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
       align: 'right',
       cell: (r) =>
         tab === 'open' && r.can.recordFinding ? (
-          <Button onClick={(event) => { event.stopPropagation(); router.push(`${href(r.id)}?drawer=finding`); }} className="h-10 px-5 text-[14px]">
+          <Button onClick={(event) => { event.stopPropagation(); router.push(`${href(r.id)}?drawer=finding`); }} className="h-9 w-[170px] px-0 text-[14px] leading-[18px]">
             Record a finding<span className="sr-only"> for {r.reference}</span>
           </Button>
         ) : (
-          <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(href(r.id)); }} className="h-10 px-5 text-[14px]">
+          <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(href(r.id)); }} className="h-9 w-[170px] px-0 text-[14px] leading-[18px]">
             Open<span className="sr-only"> {r.reference}</span>
           </Button>
         ),
@@ -141,7 +141,7 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-mobile-title tracking-[-0.01em] text-wds-text-ink">Discrepancies</h1>
-          <p className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">Every gap between what was sent and what a branch counted. {scope} · {new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi', weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Every gap between what was sent and what a branch counted. {scope} · {new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi', weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ReqTabs label="Discrepancies" tabs={tabs} active={tab} onChange={setTab} />
         <DataTable<DiscrepancyRow>
