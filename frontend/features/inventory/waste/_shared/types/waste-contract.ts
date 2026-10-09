@@ -168,6 +168,8 @@ export interface BranchWasteListQuery extends PageQuery {
 }
 export interface AllBranchesWasteQuery extends BranchWasteListQuery {
   branchId?: string;
+  /** The W8 Department filter: the same name matches that department in every branch; `departments` lists each name once. */
+  departmentName?: string;
 }
 export interface BranchWasteList {
   /** cap catalog.see_costs: Today, Last 7 days, Most wasted, Reversed 7 days. */

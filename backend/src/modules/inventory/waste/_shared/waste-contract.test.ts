@@ -194,6 +194,11 @@ describe('branch waste: inputs that must be refused', () => {
     expect(branchWasteListQuerySchema.safeParse({ departmentId: 'kitchen' }).success).toBe(false);
     expect(allBranchesWasteQuerySchema.parse({ branchId: '20000000-0000-4000-8000-000000000001', reason: 'EXPIRY', status: 'reversed' })).toMatchObject({ reason: 'EXPIRY' });
     expect(allBranchesWasteQuerySchema.safeParse({ branchId: 'nyeri' }).success).toBe(false);
+    expect(allBranchesWasteQuerySchema.parse({ departmentName: ' Kitchen ' })).toMatchObject({ departmentName: 'Kitchen' });
+    expect(allBranchesWasteQuerySchema.safeParse({ departmentName: '' }).success).toBe(false);
+    // The all-branches Department options list each name once.
+    const names = branchWasteListSchema.parse(F.allBranchesWasteDirector).departments.map((d) => d.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it('the error fixtures use the six branch waste codes', () => {

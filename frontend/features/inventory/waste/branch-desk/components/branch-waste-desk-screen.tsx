@@ -99,8 +99,14 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
   const titleRef = React.useRef<HTMLHeadingElement>(null);
 
   const filters = React.useMemo<TableFilter[]>(
-    () => [DATE_FILTER, { kind: 'dropdown', key: 'departmentId', label: 'Department', options: departments.map((d) => ({ value: d.id, label: d.name })) }, REASON_FILTER, STATUS_FILTER],
-    [departments],
+    // Across branches the filter is by name (one option per name, matching that department in every branch); in one branch, by id.
+    () => [
+      DATE_FILTER,
+      { kind: 'dropdown', key: everyBranch ? 'departmentName' : 'departmentId', label: 'Department', options: departments.map((d) => ({ value: everyBranch ? d.name : d.id, label: d.name })) },
+      REASON_FILTER,
+      STATUS_FILTER,
+    ],
+    [departments, everyBranch],
   );
 
   const columns = React.useMemo<TableColumn<BranchWasteEntry>[]>(() => {
@@ -225,7 +231,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
             const window = effectiveRange(q.filters, DATE_FILTER, DATE_FILTER.defaultPreset, nairobiToday());
             const query = {
               search: q.search || undefined,
-              departmentId: q.filters.departmentId,
+              departmentId: everyBranch ? undefined : q.filters.departmentId,
               reason: q.filters.reason as WasteReason | undefined,
               status: q.filters.status as 'logged' | 'reversed' | undefined,
               from: window?.from,
@@ -233,7 +239,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
               page: q.page,
               pageSize: q.perPage as 25 | 50 | 100,
             };
-            const res = everyBranch ? await branchWasteDeskApi.branches({ ...query, branchId }, signal) : await branchWasteDeskApi.branch(query, signal);
+            const res = everyBranch ? await branchWasteDeskApi.branches({ ...query, branchId, departmentName: q.filters.departmentName }, signal) : await branchWasteDeskApi.branch(query, signal);
             setKpis(res.kpis ?? null);
             setDepartments(res.departments);
             if (res.branches) setBranches(res.branches);

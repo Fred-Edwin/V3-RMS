@@ -88,6 +88,7 @@ Base `/api/v1/inventory/branch-waste`, envelope `{ success, data }`, wire rules 
 - **`branchWasteList`** (W6, W8): `kpis?` (four cells, cap `catalog.see_costs`: **Today** `KES · 9 entries` (BW5 adds `· 2 branches`), **Last 7 days** `KES · 41 entries`, **Most wasted** (the item, `KES 3,600 · Kitchen · mostly expired`), **Reversed · 7 days** (a count, `Both by their own department`); the server phrases the captions, the screen draws them), `rows`, `departments` (the Department filter's options, id and name, all of the branch's, or of the picked branch), `branches?` (BW5 only: the picker), `page`.
 - **`myBranchWasteList`**: `department {id, name}`, `rows` (no money), `bannerText`, `page`.
 - **`branchWasteDetail`**: `entry` and `ledger?` (cap `restock.read`: `{ kind: 'LOGGED' | 'REVERSAL', at, quantity }`, signed as stored).
+- **W8 Department filter (owner, 9 Oct 2026):** BW5's `departments` lists each department name once (the id is the first branch's), and BW5 takes `departmentName` (case-insensitive), which matches that department in every branch. BW4 keeps `departmentId`.
 - **Four figures** count entries that are not reversed for Today, Last 7 days and Most wasted (value × quantity at the cost frozen when logged); **Reversed** counts reversals made in the last 7 days.
 
 ### 4.2 Money and blind rules
