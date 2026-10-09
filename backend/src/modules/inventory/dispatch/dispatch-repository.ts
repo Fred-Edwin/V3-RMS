@@ -1,306 +1,365 @@
-import { Prisma, type Dispatch, type DispatchLine, type DispatchStatus, type DepartmentTag } from '@prisma/client';
+import { Prisma, type DispatchStatus } from '@prisma/client';
 import { prisma } from '../../../config/database';
-import { getTodayNairobiRangeUtc } from '../../../utils/date-only';
 
-type TxClient = Prisma.TransactionClient;
-type Client = typeof prisma | TxClient;
+type Db = Prisma.TransactionClient | typeof prisma;
 
-// ---------------------------------------------------------------------------
-// Dispatch (Milestone Five, Session A). organizationId = hub org (Central
-// Store owns the document), toOrganizationId = branch org — the StaffTransfer
-// two-org pattern. The dispatch queue's cross-org read is the documented
-// exception (CENTRAL_STORE_SCOPING_DESIGN.md §4): callers must pass an
-// explicit branch-org id list, never an unscoped query.
-// ---------------------------------------------------------------------------
+/**
+ * Dispatch: database access only, no rules. A Dispatch is owned by the HUB (`siteId`, column `organization_id`) and addressed to a
+ * branch (`toSiteId`); every query names the hub, and a Branch Manager's reads add their own `toSiteId`. The queue reads approved
+ * requisitions of every branch (a hub reader), which is the one deliberate cross-site read (CENTRAL_STORE_SCOPING_DESIGN.md §4).
+ */
+export interface DispatchScope {
+  hubId: string;
+  /** Set for a Branch Manager: only dispatches to this branch. */
+  toSiteId?: string;
+  /** Set for the Attendant: only dispatches they packed or signed. */
+  packedOrSignedBy?: string;
+}
 
-export type DispatchQueueRequisition = {
-  id: string;
-  siteId: string;
-  type: string;
-  openedAt: Date;
-  toSite: { id: string; name: string };
+const scopeWhere = (s: DispatchScope): Prisma.DispatchWhereInput => ({
+  siteId: s.hubId,
+  ...(s.toSiteId ? { toSiteId: s.toSiteId } : {}),
+  ...(s.packedOrSignedBy ? { OR: [{ packedById: s.packedOrSignedBy }, { signedById: s.packedOrSignedBy }] } : {}),
+});
+
+const personSelect = { id: true, name: true, role: true } as const;
+const itemSelect = {
+  id: true,
+  name: true,
+  usageUnit: true,
+  currentCost: true,
+  category: { select: { id: true, name: true, parentCategoryId: true } },
+} as const;
+
+/** Lines of a section that are packed: not deleted, and not an addition still waiting for approval. */
+const packableLines = { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' as const } }] } satisfies Prisma.RequisitionLineWhereInput;
+
+const queueInclude = {
+  site: { select: { id: true, name: true, code: true } },
   sections: {
-    departmentTag: DepartmentTag;
-    lines: { requestedQty: Prisma.Decimal | null; approvedQty: Prisma.Decimal | null }[];
-  }[];
-  dispatches: { departmentTag: DepartmentTag; status: DispatchStatus }[];
-};
+    where: { status: 'SUBMITTED' as const, departmentId: { not: null } },
+    select: {
+      departmentId: true,
+      department: { select: { id: true, name: true, position: true } },
+      lines: { where: packableLines, select: { id: true, requestedQty: true, approvedQty: true } },
+    },
+  },
+  dispatches: {
+    where: { status: { not: 'CANCELLED' as const } },
+    select: { id: true, departmentId: true, status: true, signedAt: true, lines: { select: { packedTick: true } } },
+  },
+} satisfies Prisma.RequisitionInclude;
 
-export type DispatchWithLines = Dispatch & {
-  toSite: { id: string; name: string };
-  dispatchedBy: { id: string; name: string } | null;
-  confirmedBy: { id: string; name: string } | null;
-  lines: (DispatchLine & { item: { id: string; name: string; usageUnit: string } })[];
-};
+export type QueueRequisition = Prisma.RequisitionGetPayload<{ include: typeof queueInclude }>;
 
-export type RequisitionSectionForFulfil = {
-  id: string;
-  departmentTag: DepartmentTag;
-  status: string;
-  requisition: { id: string; siteId: string; toSiteName: string } | null;
+const packInclude = {
+  site: { select: { id: true, name: true, code: true } },
+  approvedBy: { select: personSelect },
+  sections: {
+    where: { status: 'SUBMITTED' as const, departmentId: { not: null } },
+    select: {
+      id: true,
+      departmentId: true,
+      department: { select: { id: true, name: true, position: true } },
+      lines: { where: packableLines, include: { item: { select: itemSelect } }, orderBy: [{ item: { name: 'asc' as const } }, { id: 'asc' as const }] },
+    },
+    orderBy: [{ department: { position: 'asc' as const } }, { id: 'asc' as const }],
+  },
+} satisfies Prisma.RequisitionInclude;
+
+export type PackRequisition = Prisma.RequisitionGetPayload<{ include: typeof packInclude }>;
+export type PackSection = PackRequisition['sections'][number];
+
+const packDispatchInclude = {
+  lines: { include: { item: { select: itemSelect } }, orderBy: [{ item: { name: 'asc' as const } }, { id: 'asc' as const }] },
+} satisfies Prisma.DispatchInclude;
+
+export type PackDispatch = Prisma.DispatchGetPayload<{ include: typeof packDispatchInclude }>;
+export type PackDispatchLine = PackDispatch['lines'][number];
+
+export const fileInclude = {
+  toSite: { select: { id: true, name: true, code: true } },
+  requisition: { select: { id: true, reference: true, approvedAt: true, approvedBy: { select: personSelect } } },
+  department: { select: { id: true, name: true } },
+  packedBy: { select: personSelect },
+  signedBy: { select: personSelect },
+  countedBy: { select: personSelect },
+  cancelledBy: { select: personSelect },
+  carrier: { select: { id: true, name: true, kind: true } },
   lines: {
-    id: string;
-    inventoryItemId: string;
-    requestedQty: Prisma.Decimal | null;
-    approvedQty: Prisma.Decimal | null;
-    item: { id: string; name: string; usageUnit: string; currentCost: Prisma.Decimal };
-  }[];
-};
+    include: {
+      item: { select: itemSelect },
+      photos: { select: { id: true }, orderBy: { createdAt: 'asc' as const } },
+      discrepancy: { select: { id: true, reference: true, status: true } },
+    },
+    orderBy: [{ item: { name: 'asc' as const } }, { id: 'asc' as const }],
+  },
+  events: { include: { actor: { select: personSelect } }, orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
+  discrepancies: { select: { id: true, reference: true, status: true, lossValue: true } },
+} satisfies Prisma.DispatchInclude;
+
+export type DispatchRecord = Prisma.DispatchGetPayload<{ include: typeof fileInclude }>;
+
+const mineSelect = {
+  id: true,
+  reference: true,
+  status: true,
+  signedAt: true,
+  toSite: { select: { id: true, name: true, code: true } },
+  department: { select: { id: true, name: true } },
+  lines: { select: { id: true } },
+  discrepancies: { select: { status: true } },
+} satisfies Prisma.DispatchSelect;
+
+export type MineRecord = Prisma.DispatchGetPayload<{ select: typeof mineSelect }>;
+
+export interface NewDispatchLine {
+  requisitionLineId: string;
+  inventoryItemId: string;
+  requestedQty: Prisma.Decimal;
+  sentQty: Prisma.Decimal;
+}
 
 export const dispatchRepository = {
-  /**
-   * Central Store queue: APPROVED requisitions across the given branch org
-   * ids (explicit enumeration — never unscoped), with enough section/line
-   * data for the service to compute per-department fulfil status. Existing
-   * Dispatch rows are included so the service can mark a department
-   * AWAITING/IN_TRANSIT/CONFIRMED/DISCREPANCY_OPEN vs. not-yet-dispatched.
-   */
-  findQueueByBranchOrgIds: async (branchOrgIds: string[], limit: number): Promise<DispatchQueueRequisition[]> => {
-    if (branchOrgIds.length === 0) return [];
-    const rows = await prisma.requisition.findMany({
-      where: { siteId: { in: branchOrgIds }, status: 'APPROVED' },
-      include: {
-        site: { select: { id: true, name: true } },
-        sections: {
-          select: {
-            departmentTag: true,
-            lines: { where: { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' } }] }, select: { requestedQty: true, approvedQty: true } },
-          },
-        },
-        dispatches: { select: { departmentTag: true, status: true } },
-      },
-      orderBy: { approvedAt: 'desc' },
-      take: limit,
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      siteId: r.siteId,
-      type: r.type,
-      openedAt: r.openedAt,
-      toSite: r.site,
-      // A department added in Block 1 has no legacy key; the old dispatch cannot see it until Block 2 replaces it (contract §10).
-      sections: r.sections.flatMap((s) => (s.departmentTag ? [{ ...s, departmentTag: s.departmentTag }] : [])),
-      dispatches: r.dispatches,
-    }));
-  },
+  // --- Reads: the queue and the pack views -------------------------------------------------------------------------------
 
-  /**
-   * One requisition's fulfil detail, scoped by explicit branchOrgIds
-   * (same cross-org exception as the queue read above) — never an unscoped
-   * `findFirst({ where: { id } })`.
-   */
-  findRequisitionForFulfil: async (
-    requisitionId: string,
-    branchOrgIds: string[],
-  ): Promise<{
-    id: string;
-    siteId: string;
-    status: string;
-    type: string;
-    openedAt: Date;
-    toSiteName: string;
-    sections: RequisitionSectionForFulfil[];
-  } | null> => {
-    if (branchOrgIds.length === 0) return null;
-    const requisition = await prisma.requisition.findFirst({
-      where: { id: requisitionId, siteId: { in: branchOrgIds } },
-      include: {
-        site: { select: { id: true, name: true } },
-        sections: {
-          include: {
-            lines: {
-              // Lines of an addition still waiting for approval are not packed yet (Block 1 contract §10).
-              where: { deletedAt: null, OR: [{ additionId: null }, { addition: { status: 'APPROVED' } }] },
-              include: { item: { select: { id: true, name: true, usageUnit: true, currentCost: true } } },
-              orderBy: { id: 'asc' },
-            },
-          },
-          orderBy: { departmentTag: 'asc' },
-        },
+  /** Approved requisitions of every branch with what is packed so far, oldest approval first (P1). */
+  findApprovedForQueue: (db: Db = prisma): Promise<QueueRequisition[]> =>
+    db.requisition.findMany({ where: { status: 'APPROVED', site: { type: 'BRANCH' } }, include: queueInclude, orderBy: [{ approvedAt: 'asc' }, { id: 'asc' }] }),
+
+  /** One approved requisition with its Sent sections and their packable lines (P2 to P5). Null when it is not approved or not a branch's. */
+  findRequisitionForPack: (requisitionId: string, db: Db = prisma): Promise<PackRequisition | null> =>
+    db.requisition.findFirst({ where: { id: requisitionId, status: 'APPROVED', site: { type: 'BRANCH' } }, include: packInclude }),
+
+  /** The requisition's status, so a pack call can say "not approved" or "cancelled" rather than "not found". */
+  findRequisitionStatus: (requisitionId: string, db: Db = prisma): Promise<{ id: string; status: string } | null> =>
+    db.requisition.findFirst({ where: { id: requisitionId, site: { type: 'BRANCH' } }, select: { id: true, status: true } }),
+
+  /** The live (not cancelled) dispatch of a department of a requisition, with its lines. */
+  findLiveDispatch: (hubId: string, requisitionId: string, departmentId: string, db: Db = prisma): Promise<PackDispatch | null> =>
+    db.dispatch.findFirst({ where: { siteId: hubId, requisitionId, departmentId, status: { not: 'CANCELLED' } }, include: packDispatchInclude }),
+
+  /** Live dispatches with their discrepancy statuses (the hand-off that closes settled dispatches). */
+  listLiveDispatchesWithGaps: (hubId: string, requisitionId: string, db: Db = prisma) =>
+    db.dispatch.findMany({
+      where: { siteId: hubId, requisitionId, status: { not: 'CANCELLED' } },
+      select: { id: true, departmentId: true, status: true, discrepancies: { select: { status: true } } },
+    }),
+
+  /** Every live dispatch of a requisition (the review, the sign and the roll-up). */
+  listLiveDispatches: (hubId: string, requisitionId: string, db: Db = prisma): Promise<PackDispatch[]> =>
+    db.dispatch.findMany({ where: { siteId: hubId, requisitionId, status: { not: 'CANCELLED' } }, include: packDispatchInclude }),
+
+  // --- Reads: the file, the siblings, the Attendant's list ----------------------------------------------------------------
+
+  findFile: (id: string, scope: DispatchScope, db: Db = prisma): Promise<DispatchRecord | null> =>
+    db.dispatch.findFirst({ where: { id, ...scopeWhere(scope) }, include: fileInclude }),
+
+  /** The other dispatches of the same requisition (the file's roll-up), cancelled ones left out. */
+  listSiblings: (hubId: string, requisitionId: string, excludeId: string, db: Db = prisma) =>
+    db.dispatch.findMany({
+      where: { siteId: hubId, requisitionId, id: { not: excludeId }, status: { not: 'CANCELLED' }, signedAt: { not: null } },
+      select: { id: true, reference: true, status: true, signedAt: true, department: { select: { name: true, position: true } }, lines: { select: { packedTick: true } }, discrepancies: { select: { status: true } } },
+      orderBy: { department: { position: 'asc' } },
+    }),
+
+  /** The dispatches of one requisition as the requisition file's roll-up (R3) shows them. */
+  listForRequisition: (requisitionId: string, db: Db = prisma) =>
+    db.dispatch.findMany({
+      where: { requisitionId, status: { not: 'CANCELLED' } },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        signedAt: true,
+        countedAt: true,
+        departmentId: true,
+        department: { select: { name: true, position: true } },
+        carrier: { select: { name: true } },
+        lines: { select: { packedTick: true } },
+        discrepancies: { select: { status: true } },
       },
-    });
-    if (!requisition) return null;
-    return {
-      id: requisition.id,
-      siteId: requisition.siteId,
-      status: requisition.status,
-      type: requisition.type,
-      openedAt: requisition.openedAt,
-      toSiteName: requisition.site.name,
-      // Sections of a department added in Block 1 (no legacy key) stay invisible to the old dispatch (contract §10).
-      sections: requisition.sections.flatMap((s) =>
-        s.departmentTag
-          ? [
-              {
-                id: s.id,
-                departmentTag: s.departmentTag,
-                status: s.status,
-                requisition: { id: requisition.id, siteId: requisition.siteId, toSiteName: requisition.site.name },
-                lines: s.lines,
-              },
-            ]
-          : [],
-      ),
+      orderBy: { department: { position: 'asc' } },
+    }),
+
+  listMine: async (
+    scope: DispatchScope,
+    f: { statuses: DispatchStatus[]; branchId?: string; from?: Date; to?: Date; skip: number; take: number },
+    db: Db = prisma,
+  ): Promise<{ rows: MineRecord[]; total: number }> => {
+    const where: Prisma.DispatchWhereInput = {
+      ...scopeWhere(scope),
+      status: { in: f.statuses },
+      ...(f.branchId ? { toSiteId: f.branchId } : {}),
+      ...(f.from || f.to ? { signedAt: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {}),
     };
+    const [rows, total] = await Promise.all([
+      db.dispatch.findMany({ where, select: mineSelect, orderBy: [{ signedAt: 'desc' }, { id: 'desc' }], skip: f.skip, take: f.take }),
+      db.dispatch.count({ where }),
+    ]);
+    return { rows, total };
   },
 
-  /** Count of dispatches already created today for a branch org — feeds the daily sequenceLabel (not a persistent counter). */
-  countDispatchesTodayForBranch: async (toSiteId: string, tx: TxClient): Promise<number> => {
-    const { start, end } = getTodayNairobiRangeUtc();
-    return tx.dispatch.count({
-      where: { toSiteId, dispatchedAt: { gte: start, lt: end } },
-    });
-  },
+  countMine: (scope: DispatchScope, statuses: DispatchStatus[], db: Db = prisma): Promise<number> =>
+    db.dispatch.count({ where: { ...scopeWhere(scope), status: { in: statuses } } }),
 
-  /** Existing Dispatch row for (requisition, department) if the store already dispatched it — guards against double-dispatch. */
-  findByRequisitionAndDepartment: async (
-    requisitionId: string,
-    departmentTag: DepartmentTag,
-    hubOrgId: string,
-    client: Client = prisma,
-  ): Promise<Dispatch | null> => {
-    return client.dispatch.findFirst({ where: { requisitionId, departmentTag, siteId: hubOrgId } });
-  },
+  // --- Writes: creating, syncing and saving the pack -----------------------------------------------------------------------
 
-  create: async (
-    input: {
-      siteId: string;
-      toSiteId: string;
-      requisitionId: string;
-      departmentTag: DepartmentTag;
-      sequenceLabel: string;
-      dispatchedById: string;
-      dispatchedAt: Date;
-      lines: {
-        requisitionLineId: string | null;
-        inventoryItemId: string;
-        requestedQty: Prisma.Decimal.Value | null;
-        dispatchedQty: Prisma.Decimal.Value;
-        costAtDispatch: Prisma.Decimal.Value;
-        isSubstitute: boolean;
-        substituteNote: string | null;
-      }[];
-    },
-    tx: TxClient,
-  ): Promise<Dispatch> => {
-    return tx.dispatch.create({
+  createDispatch: (
+    tx: Db,
+    data: { hubId: string; toSiteId: string; requisitionId: string; departmentId: string; lines: NewDispatchLine[] },
+  ): Promise<PackDispatch> =>
+    tx.dispatch.create({
       data: {
-        siteId: input.siteId,
-        toSiteId: input.toSiteId,
-        requisitionId: input.requisitionId,
-        departmentTag: input.departmentTag,
-        sequenceLabel: input.sequenceLabel,
-        status: 'IN_TRANSIT',
-        dispatchedById: input.dispatchedById,
-        dispatchedAt: input.dispatchedAt,
-        lines: { createMany: { data: input.lines } },
+        siteId: data.hubId,
+        toSiteId: data.toSiteId,
+        requisitionId: data.requisitionId,
+        departmentId: data.departmentId,
+        lines: { create: data.lines.map((l) => ({ requisitionLineId: l.requisitionLineId, inventoryItemId: l.inventoryItemId, requestedQty: l.requestedQty, sentQty: l.sentQty })) },
       },
+      include: packDispatchInclude,
+    }),
+
+  addLines: async (tx: Db, dispatchId: string, lines: NewDispatchLine[]): Promise<void> => {
+    if (lines.length === 0) return;
+    await tx.dispatchLine.createMany({
+      data: lines.map((l) => ({ dispatchId, requisitionLineId: l.requisitionLineId, inventoryItemId: l.inventoryItemId, requestedQty: l.requestedQty, sentQty: l.sentQty })),
     });
   },
 
-  /** Delivery-note read: one Dispatch + lines, shared by the print and on-screen renderers (one record, two views). */
-  findByIdWithLines: async (id: string, client: Client = prisma): Promise<DispatchWithLines | null> => {
-    return client.dispatch.findFirst({
-      where: { id },
-      include: {
-        toSite: { select: { id: true, name: true } },
-        dispatchedBy: { select: { id: true, name: true } },
-        confirmedBy: { select: { id: true, name: true } },
-        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
-      },
-    });
+  updateLineQuantities: (tx: Db, lineId: string, data: { requestedQty: Prisma.Decimal; sentQty: Prisma.Decimal }) =>
+    tx.dispatchLine.update({ where: { id: lineId }, data }),
+
+  deleteLines: async (tx: Db, ids: string[]): Promise<void> => {
+    if (ids.length === 0) return;
+    await tx.dispatchLine.deleteMany({ where: { id: { in: ids } } });
   },
 
-  /** Same shape, but org-scoped to the hub — used by the store-side detail read (not the branch-side, which Session B scopes by toOrganizationId). */
-  findByIdWithLinesForHub: async (id: string, hubOrgId: string): Promise<DispatchWithLines | null> => {
-    return prisma.dispatch.findFirst({
-      where: { id, siteId: hubOrgId },
-      include: {
-        toSite: { select: { id: true, name: true } },
-        dispatchedBy: { select: { id: true, name: true } },
-        confirmedBy: { select: { id: true, name: true } },
-        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
-      },
-    });
+  savePackLine: (tx: Db, lineId: string, data: { sentQty: Prisma.Decimal; packedTick: boolean }) => tx.dispatchLine.update({ where: { id: lineId }, data }),
+
+  setStatus: (tx: Db, id: string, status: DispatchStatus) => tx.dispatch.update({ where: { id }, data: { status } }),
+
+  /** CONFIRMED dispatches whose discrepancies are all settled (or that had none) become CLOSED. */
+  markClosed: async (db: Db, ids: string[], closedAt: Date): Promise<void> => {
+    if (ids.length === 0) return;
+    await db.dispatch.updateMany({ where: { id: { in: ids }, status: 'CONFIRMED' }, data: { status: 'CLOSED', closedAt } });
   },
 
-  /** Active department heads for the receiving branch's department — recipients of the in-transit push. */
-  findDepartmentHeads: async (siteId: string, departmentTag: DepartmentTag): Promise<{ id: string; name: string }[]> => {
-    return prisma.user.findMany({
-      where: { siteId, departmentTag, isDepartmentHead: true, isActive: true },
-      select: { id: true, name: true },
-    });
+  // --- Writes: the final sign (P5) -----------------------------------------------------------------------------------------
+
+  /** Serialises signs and cancels at one hub, so two Attendants cannot both send the last unit. Released at commit. */
+  lockHub: async (tx: Db, hubId: string): Promise<void> => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dispatch-stock:${hubId}`}))`;
   },
 
-  // ── Milestone Five, Session B — branch-side receiving ─────────────────────
-
-  /**
-   * Branch's own dispatches — Branch Manager sees every department,
-   * Department Head sees only `departmentTag` (role-gated by the caller,
-   * mirrors `requisitions-service.ts`'s `assertOwnDepartment` pattern:
-   * this repository method takes an already-resolved department filter,
-   * the service decides whether to pass one).
-   */
-  findDispatchesForBranch: async (
-    toSiteId: string,
-    departmentTag: DepartmentTag | null,
-    limit: number,
-  ): Promise<DispatchWithLines[]> => {
-    return prisma.dispatch.findMany({
-      where: {
-        toSiteId,
-        ...(departmentTag ? { departmentTag } : {}),
-        status: { in: ['IN_TRANSIT', 'CONFIRMED', 'DISCREPANCY_OPEN'] },
-      },
-      include: {
-        toSite: { select: { id: true, name: true } },
-        dispatchedBy: { select: { id: true, name: true } },
-        confirmedBy: { select: { id: true, name: true } },
-        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
-      },
-      orderBy: { dispatchedAt: 'desc' },
-      take: limit,
-    });
+  /** Stock on hand at the Central Store location per item: the sum of the ledger. */
+  onHand: async (hubId: string, locationId: string, itemIds: string[], db: Db = prisma): Promise<Map<string, Prisma.Decimal>> => {
+    if (itemIds.length === 0) return new Map();
+    const sums = await db.inventoryTransaction.groupBy({ by: ['inventoryItemId'], where: { siteId: hubId, locationId, inventoryItemId: { in: itemIds } }, _sum: { quantity: true } });
+    return new Map(sums.map((s) => [s.inventoryItemId, s._sum.quantity ?? new Prisma.Decimal(0)]));
   },
 
-  /** Same shape, but org-scoped to the receiving branch — used by the branch-side detail read (never hub-scoped). */
-  findByIdWithLinesForBranch: async (id: string, toSiteId: string): Promise<DispatchWithLines | null> => {
-    return prisma.dispatch.findFirst({
-      where: { id, toSiteId },
-      include: {
-        toSite: { select: { id: true, name: true } },
-        dispatchedBy: { select: { id: true, name: true } },
-        confirmedBy: { select: { id: true, name: true } },
-        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
-      },
-    });
-  },
-
-  /**
-   * Guarded status transition, same "no partial-signed state" pattern as
-   * the old receiving sign-off and Session A's own dispatch create:
-   * `updateMany` with the current status (IN_TRANSIT) in the `where`, a
-   * `count === 0` means someone else confirmed it first — the caller rolls
-   * back, no partial ledger writes.
-   */
-  markConfirmed: async (
+  signDispatch: (
+    tx: Db,
     id: string,
-    toSiteId: string,
-    tx: TxClient,
-    data: { status: DispatchStatus; confirmedById: string; confirmedAt: Date; confirmedOnBehalf: boolean },
-  ): Promise<number> => {
-    const updated = await tx.dispatch.updateMany({
-      where: { id, toSiteId, status: 'IN_TRANSIT' },
-      data,
-    });
-    return updated.count;
+    data: { reference: string; packedById: string; signedById: string; signedAt: Date; carrierId: string; sendBatchId: string },
+  ) =>
+    tx.dispatch.update({
+      where: { id },
+      data: {
+        status: 'ON_THE_WAY',
+        reference: data.reference,
+        packedById: data.packedById,
+        packedAt: data.signedAt,
+        signedById: data.signedById,
+        signedAt: data.signedAt,
+        carrierId: data.carrierId,
+        sendBatchId: data.sendBatchId,
+      },
+    }),
+
+  freezeLineCost: (tx: Db, lineId: string, unitCost: Prisma.Decimal) => tx.dispatchLine.update({ where: { id: lineId }, data: { unitCostAtDispatch: unitCost } }),
+
+  /** The DISPATCH_OUT rows of a dispatch's lines that have not been reversed (cancel puts them back). */
+  findOutRows: (tx: Db, lineIds: string[]) =>
+    tx.inventoryTransaction.findMany({
+      where: { dispatchLineId: { in: lineIds }, type: 'DISPATCH_OUT', reversesTransactionId: null, reversedBy: { is: null } },
+      select: { id: true, dispatchLineId: true, locationId: true, inventoryItemId: true, quantity: true, unitCost: true },
+    }),
+
+  // --- Writes: cancel (P8) -------------------------------------------------------------------------------------------------
+
+  /** Cancels only while ON_THE_WAY and uncounted; the row count says whether it won. */
+  cancelDispatch: (tx: Db, id: string, data: { cancelledById: string; cancelledAt: Date; cancelReason: string }) =>
+    tx.dispatch.updateMany({
+      where: { id, status: 'ON_THE_WAY', countedAt: null },
+      data: { status: 'CANCELLED', cancelledById: data.cancelledById, cancelledAt: data.cancelledAt, cancelReason: data.cancelReason },
+    }),
+
+  // --- Events (idempotency and the file's Activity) -------------------------------------------------------------------------
+
+  /** A signing write that already ran with this key by this person on this requisition (any of its dispatches). */
+  findEventByKey: (hubId: string, requisitionId: string, actorId: string, idempotencyKey: string, type: string, db: Db = prisma) =>
+    db.dispatchEvent.findFirst({
+      where: { actorId, idempotencyKey, type, dispatch: { siteId: hubId, requisitionId } },
+      select: { id: true, dispatchId: true, at: true, dispatch: { select: { sendBatchId: true } } },
+      orderBy: { at: 'asc' },
+    }),
+
+  /** A cancel with this key by this person on this dispatch. */
+  findDispatchEventByKey: (hubId: string, dispatchId: string, actorId: string, idempotencyKey: string, type: string, db: Db = prisma) =>
+    db.dispatchEvent.findFirst({ where: { dispatchId, actorId, idempotencyKey, type, dispatch: { siteId: hubId } }, select: { id: true, at: true } }),
+
+  createEvent: (tx: Db, data: { dispatchId: string; type: string; actorId: string; actorRoleLabel: string; reason?: string | null; idempotencyKey?: string | null; at?: Date }) =>
+    tx.dispatchEvent.create({
+      data: { dispatchId: data.dispatchId, type: data.type, actorId: data.actorId, actorRoleLabel: data.actorRoleLabel, reason: data.reason ?? null, idempotencyKey: data.idempotencyKey ?? null, ...(data.at ? { at: data.at } : {}) },
+    }),
+
+  // --- Small lookups ----------------------------------------------------------------------------------------------------------
+
+  findBatch: (hubId: string, sendBatchId: string, db: Db = prisma) =>
+    db.dispatch.findMany({
+      where: { siteId: hubId, sendBatchId },
+      select: {
+        id: true,
+        reference: true,
+        departmentId: true,
+        department: { select: { name: true, position: true } },
+        signedAt: true,
+        requisitionId: true,
+        toSiteId: true,
+        carrier: { select: { id: true, name: true, kind: true } },
+        packedBy: { select: personSelect },
+        signedBy: { select: personSelect },
+        lines: { select: { requestedQty: true, sentQty: true } },
+      },
+      orderBy: { department: { position: 'asc' } },
+    }),
+
+  /** Heads and members of departments (for the "Signed and sent" push) are resolved by the notify layer; this gives the branch code for a reference. */
+  findBranch: (siteId: string, db: Db = prisma) => db.site.findFirst({ where: { id: siteId, type: 'BRANCH' }, select: { id: true, name: true, code: true } }),
+
+  findCarrier: (hubId: string, id: string, db: Db = prisma) => db.carrier.findFirst({ where: { id, siteId: hubId } }),
+
+  /** The carriers the Attendant picks from at the review (they hold no `carriers.read`). */
+  listActiveCarriers: (hubId: string, db: Db = prisma) => db.carrier.findMany({ where: { siteId: hubId, active: true }, orderBy: { name: 'asc' } }),
+
+  findCategoryNames: async (ids: string[], db: Db = prisma): Promise<Map<string, string>> => {
+    if (ids.length === 0) return new Map();
+    const rows = await db.category.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    return new Map(rows.map((r) => [r.id, r.name]));
   },
 
-  /** Active Branch Managers for the branch org — recipients of variance/resolution pushes. */
-  findBranchManagers: async (siteId: string): Promise<{ id: string; name: string }[]> => {
-    return prisma.user.findMany({
-      where: { siteId, role: 'MANAGER', isActive: true },
-      select: { id: true, name: true },
-    });
+  findDepartmentNames: async (ids: string[], db: Db = prisma): Promise<Map<string, string>> => {
+    if (ids.length === 0) return new Map();
+    const rows = await db.department.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    return new Map(rows.map((r) => [r.id, r.name]));
   },
+
+  /** The requisition's header, whatever its status (a replayed sign may come after the requisition closed). */
+  findRequisitionBasics: (requisitionId: string, db: Db = prisma) =>
+    db.requisition.findFirst({ where: { id: requisitionId, site: { type: 'BRANCH' } }, select: { id: true, reference: true, site: { select: { id: true, name: true, code: true } } } }),
+
+  findStaff: (userId: string, db: Db = prisma) =>
+    db.user.findFirst({ where: { id: userId, isActive: true, deletedAt: null }, select: { id: true, name: true, role: true, siteId: true, isDepartmentHead: true, departmentId: true } }),
 };

@@ -1,21 +1,31 @@
+import { dispatchService } from '../dispatch/dispatch-service';
+import { logger } from '../../../utils/logger';
+import { requisitionsRepository } from './requisitions-repository';
+
 /**
- * Hand-offs to Block 2 (contract §2.3 and §4.2). Both are deliberate no-ops in Block 1; Block 2 (dispatch, packing, deliveries)
- * fills the bodies, and the requisition service already calls them at the right moments, so nothing else changes then.
+ * The two hand-offs between Requisitions (Block 1) and Dispatch (Block 2), contract §2.3 and §4.2. The requisition service calls them
+ * at the right moments; the bodies live in `dispatch/dispatch-service.ts`. Both are best effort for the caller: a failure here is
+ * logged and never undoes the write that triggered it (the pack screens reconcile on every look, and the next count tries to close again).
  */
 
 /**
- * Called after every dispatch confirmation and discrepancy settlement (Block 2). When every department's dispatch is confirmed and
- * every discrepancy is settled or open-but-confirmed, it sets the requisition to CLOSED with `closedAt`. Block 1 sets nothing to CLOSED.
+ * Called after every department count and discrepancy settlement (Block 2, back end D calls it). A CONFIRMED dispatch with no gap held
+ * becomes CLOSED; when every department's dispatch is CLOSED the requisition is set to CLOSED with `closedAt`.
  */
-export const closeIfComplete = async (_requisitionId: string): Promise<void> => {
-  // Block 2 fills this in.
+export const closeIfComplete = async (requisitionId: string): Promise<void> => {
+  try {
+    await dispatchService.closeIfComplete(requisitionId);
+  } catch (error) {
+    logger.error({ err: error, requisitionId }, 'closeIfComplete failed');
+  }
 };
 
-/**
- * Called when an addition is approved (R22). Block 2 joins the addition's lines to the department's unsigned dispatch. In Block 1 the
- * old dispatch builds its lines from the requisition when the store signs, and the approved addition's lines are already on the
- * section, so there is nothing to attach.
- */
-export const attachAdditionToDispatch = async (_additionId: string): Promise<void> => {
-  // Block 2 fills this in.
+/** Called when an addition is approved (R22): its lines join the department's unsigned dispatch (open pack screens refetch). */
+export const attachAdditionToDispatch = async (additionId: string): Promise<void> => {
+  try {
+    const addition = await requisitionsRepository.findAdditionRef(additionId);
+    if (addition) await dispatchService.attachAddition(addition.requisitionId, addition.departmentId);
+  } catch (error) {
+    logger.error({ err: error, additionId }, 'attachAdditionToDispatch failed');
+  }
 };

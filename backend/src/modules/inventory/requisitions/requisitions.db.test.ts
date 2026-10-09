@@ -12,7 +12,6 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
-import { dispatchRepository } from '../dispatch/dispatch-repository';
 import { departmentLinks } from '../departments/department-links';
 import { LOCK_WAIT_MS, takeDbTestLock } from '../_shared/db-test-lock';
 import { requisitionsRepository } from './requisitions-repository';
@@ -207,37 +206,6 @@ describe.skipIf(!enabled)('Block 1 writes against the real database', () => {
     await expect(requisitionsService.getFile(actor(otherManagerId, 'MANAGER', otherSiteId), id)).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('the old dispatch queue still lists an approved requisition, and hides a pending addition\'s lines', async () => {
-    const id = (await prisma.requisition.findFirstOrThrow({ where: { siteId, type: 'MORNING' }, select: { id: true } })).id;
-    const kitchenSection = await prisma.requisitionSection.findFirstOrThrow({ where: { requisitionId: id, departmentId: kitchenId } });
-    const addition = await prisma.requisitionAddition.create({ data: { requisitionId: id, departmentId: kitchenId, addedById: headId, sentPinSignedAt: new Date() } });
-    await prisma.requisitionLine.createMany({
-      data: [
-        { requisitionSectionId: kitchenSection.id, inventoryItemId: milkId, requestedQty: new Prisma.Decimal(5), approvedQty: new Prisma.Decimal(5) },
-        { requisitionSectionId: kitchenSection.id, inventoryItemId: creamId, requestedQty: new Prisma.Decimal(2), additionId: addition.id },
-      ],
-    });
-    await prisma.requisition.update({ where: { id }, data: { status: 'APPROVED', approvedById: managerId, approvedAt: new Date() } });
-
-    const queue = await dispatchRepository.findQueueByBranchOrgIds([siteId], 10);
-    const listed = queue.find((r) => r.id === id);
-    expect(listed).toBeDefined();
-    expect(listed?.sections.find((s) => s.departmentTag === 'KITCHEN')?.lines).toHaveLength(1); // the pending addition's line is not packed yet
-    const fulfil = await dispatchRepository.findRequisitionForFulfil(id, [siteId]);
-    expect(fulfil?.sections.find((s) => s.departmentTag === 'KITCHEN')?.lines).toHaveLength(1);
-
-    await prisma.requisitionAddition.update({ where: { id: addition.id }, data: { status: 'APPROVED', approvedById: managerId, approvedAt: new Date() } });
-    const after = await dispatchRepository.findRequisitionForFulfil(id, [siteId]);
-    expect(after?.sections.find((s) => s.departmentTag === 'KITCHEN')?.lines).toHaveLength(2); // approved, it joins the unsigned dispatch
-  });
-
-  it('a department added in Block 1 has no legacy key and is invisible to the old dispatch', async () => {
-    const id = (await prisma.requisition.findFirstOrThrow({ where: { siteId, type: 'AFTERNOON' }, select: { id: true } })).id;
-    const added = await prisma.department.create({ data: { siteId, name: `Terrace ${tag}`, position: 10 } });
-    await prisma.requisitionSection.create({ data: { requisitionId: id, departmentId: added.id, departmentTag: null, status: 'SUBMITTED' } });
-    await prisma.requisition.update({ where: { id }, data: { status: 'APPROVED', approvedAt: new Date(), approvedById: managerId } });
-    const fulfil = await dispatchRepository.findRequisitionForFulfil(id, [siteId]);
-    expect(fulfil?.sections.every((s) => s.departmentTag !== null)).toBe(true);
-    expect(fulfil?.sections.some((s) => s.id && s.departmentTag === 'KITCHEN')).toBe(true);
-  });
+  // The two tests that read the old dispatch queue (pending addition hidden, a department without a legacy key invisible) moved to
+  // `dispatch/dispatch.db.test.ts`, which reads the same facts through the rebuilt pack views (Block 2).
 });

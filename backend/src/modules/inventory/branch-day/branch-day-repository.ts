@@ -156,12 +156,16 @@ export const branchDayRepository = {
   },
 
   /** Unconfirmed dispatches into this branch — what blocks a department (plan §1.4, derived, never stored). */
-  inTransitDispatches: async (branchOrgId: string) =>
-    prisma.dispatch.findMany({
-      where: { toSiteId: branchOrgId, status: 'IN_TRANSIT' },
-      select: { id: true, departmentTag: true, sequenceLabel: true },
-      orderBy: { dispatchedAt: 'asc' },
-    }),
+  inTransitDispatches: async (branchOrgId: string) => {
+    const rows = await prisma.dispatch.findMany({
+      where: { toSiteId: branchOrgId, status: 'ON_THE_WAY' },
+      select: { id: true, reference: true, department: { select: { key: true } } },
+      orderBy: { signedAt: 'asc' },
+    });
+    // Block 2: the wire name `sequenceLabel` now carries the DSP- reference. A department added in Block 1 has no legacy key, and
+    // branch day still keys its departments by the legacy tag, so a dispatch to such a department is not listed here (Block 4 contract).
+    return rows.flatMap((r) => (r.department.key ? [{ id: r.id, departmentTag: r.department.key, sequenceLabel: r.reference ?? '' }] : []));
+  },
 
   upsertLines: async (tx: Tx, departmentId: string, lines: LineWrite[]): Promise<void> => {
     for (const line of lines) {

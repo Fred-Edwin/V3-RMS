@@ -1,44 +1,54 @@
+import { WAITING_FOR_BRANCH_AFTER_HOURS } from '../dispatch/_shared/dispatch-contract';
 import type { RequisitionStatus, RequisitionTab, SectionStatus } from './_shared/requisitions-contract';
 
 /**
- * Which stage tab a requisition sits in (contract R1, Paper steps 7 and 7b). Pure, so the whole table is tested without a database.
- *
- * BLOCK 2 REPLACES `tabOf` (and only it): until packing, dispatch and deliveries are rebuilt, the four store-side tabs are derived
- * from the OLD dispatch rows (`Dispatch.status` per department) and the old discrepancy rows. Nothing else in the list reads
- * dispatches, so swapping this one function swaps the source.
+ * Which stage tab a requisition sits in (contract R1, Paper steps 7 and 7b; Block 2 dispatch contract Amendment 1 row 9). Pure, so
+ * the whole table is tested without a database. This is the ONE function that reads dispatches for the list.
  *
  *   Collecting (OPEN)                          -> collecting
  *   Ready to approve (PENDING_APPROVAL)        -> to-approve
  *   Approved with an addition waiting          -> to-approve   (contract §5: "Addition waiting ... shown in To approve")
- *   Approved:
- *     any dispatch with an open discrepancy    -> discrepancies
- *     a Sent department with no signed dispatch (none, or AWAITING) -> to-pack
- *     a dispatch IN_TRANSIT                    -> on-the-way
- *     every Sent department confirmed          -> closed       (shown there; `CLOSED` itself is set by Block 2 only)
+ *   Approved (checked in this order):
+ *     any discrepancy Open (or reversed)       -> discrepancies
+ *     a Sent department with no live dispatch signed -> to-pack   (none, TO_PACK or PACKING; a cancelled dispatch does not count)
+ *     a department waiting more than 2 hours   -> to-confirm   (ON_THE_WAY and `signedAt` older than 2 hours: what the Branch Manager acts on)
+ *     a department still ON_THE_WAY            -> on-the-way
+ *     every Sent department counted            -> closed       (shown there; CLOSED itself is set when the last discrepancy settles)
  *   Cancelled, Closed                          -> closed
- *
- * `to-confirm` is empty until Block 2: in the old model a signed dispatch is IN_TRANSIT until the branch confirms it, which is
- * what `on-the-way` already says. A department added in Block 1 has no legacy key and the old dispatch cannot see it, so it never
- * holds a requisition in `to-pack`.
  */
-export type DispatchState = 'AWAITING' | 'IN_TRANSIT' | 'CONFIRMED' | 'DISCREPANCY_OPEN';
+export type DispatchFactStatus = 'TO_PACK' | 'PACKING' | 'ON_THE_WAY' | 'CONFIRMED' | 'CLOSED';
+
+/** A Sent department's live (not cancelled) dispatch; null while the department has none. */
+export interface DispatchFact {
+  status: DispatchFactStatus;
+  signedAt: Date | null;
+  /** A discrepancy of this dispatch is OPEN, or was reversed and is held again. */
+  discrepancyOpen: boolean;
+}
 
 export interface TabFacts {
   status: RequisitionStatus;
   additionWaiting: boolean;
-  /** One entry per Sent department the old dispatch can see (it has a legacy key). `dispatch` is null while the store has not signed. */
-  sentDepartments: ReadonlyArray<{ dispatch: DispatchState | null }>;
+  /** One entry per Sent department that has lines to pack. */
+  sentDepartments: ReadonlyArray<{ dispatch: DispatchFact | null }>;
+  now: Date;
 }
+
+const WAITING_MS = WAITING_FOR_BRANCH_AFTER_HOURS * 60 * 60 * 1000;
+
+export const isWaitingForBranch = (d: Pick<DispatchFact, 'status' | 'signedAt'>, now: Date): boolean =>
+  d.status === 'ON_THE_WAY' && d.signedAt !== null && now.getTime() - d.signedAt.getTime() > WAITING_MS;
 
 export const tabOf = (f: TabFacts): RequisitionTab => {
   if (f.status === 'OPEN') return 'collecting';
   if (f.status === 'PENDING_APPROVAL') return 'to-approve';
   if (f.status === 'CANCELLED' || f.status === 'CLOSED') return 'closed';
   if (f.additionWaiting) return 'to-approve';
-  const states = f.sentDepartments.map((d) => d.dispatch);
-  if (states.includes('DISCREPANCY_OPEN')) return 'discrepancies';
-  if (states.length === 0 || states.some((s) => s === null || s === 'AWAITING')) return 'to-pack';
-  if (states.includes('IN_TRANSIT')) return 'on-the-way';
+  const dispatches = f.sentDepartments.map((d) => d.dispatch);
+  if (dispatches.some((d) => d?.discrepancyOpen)) return 'discrepancies';
+  if (dispatches.length === 0 || dispatches.some((d) => d === null || d.status === 'TO_PACK' || d.status === 'PACKING')) return 'to-pack';
+  if (dispatches.some((d) => d !== null && isWaitingForBranch(d, f.now))) return 'to-confirm';
+  if (dispatches.some((d) => d?.status === 'ON_THE_WAY')) return 'on-the-way';
   return 'closed';
 };
 

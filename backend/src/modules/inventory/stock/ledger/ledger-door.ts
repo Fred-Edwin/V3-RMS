@@ -83,9 +83,9 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     if (rule.reversal === 'ADJUSTMENT' && original.type !== 'ADJUSTMENT') {
       throw new ValidationError('Only an adjustment can be reversed');
     }
-    if (rule.reversal === 'PREP' || rule.reversal === 'WASTE') {
-      // A prep or waste row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
-      const label = rule.reversal === 'PREP' ? 'prep' : 'waste';
+    if (rule.reversal === 'PREP' || rule.reversal === 'WASTE' || rule.reversal === 'DISPATCH') {
+      // A prep, waste or dispatch-out row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
+      const label = rule.reversal === 'PREP' ? 'prep' : rule.reversal === 'WASTE' ? 'waste' : 'dispatch';
       if (original.type !== input.type) throw new ValidationError(`A ${label} row can only be reversed by a row of the same type`);
       if (original.reversesTransactionId !== null) throw new ValidationError('A reversal cannot be reversed');
       storedQuantity = reversedPrepQuantity(rule.direction, input.quantity);

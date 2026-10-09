@@ -1,54 +1,48 @@
 # dispatch
 
-**Design:** *Requisition and dispatch* page in Paper, **approved by the owner (8 Oct 2026)**; flows in `dispatch-flow.md` and `discrepancies.md` · **Code:** built to the old flow (Milestone Five, discrepancies in Six), **pending redo** (Block 2 of `docs/features/inventory/final-pass-build-plan.md`).
+**Design:** Paper "Inventory · Requisition and dispatch" chapters 5 to 8 (D1 to D21) and the gap fixes G2 to G4, owner approved; contract `docs/features/inventory/dispatch-contract.md` with Amendment 1 (`dispatch-amendment-1.md`); flows in `dispatch-flow.md` and `discrepancies.md`. **Code:** the store side of Block 2 (back end C) is built and replaces the Milestone Five dispatch entirely. Deliveries (branch count) and Discrepancies (findings) are back end D: `../deliveries/` and `../discrepancies/`.
 
-Fulfil approved requisitions at the Central Store, deliver, confirm at the branch, and record findings on gaps. Where the rules below disagree with Paper or `discrepancies.md`, Paper wins: the branch counts blind, a gap is held as unaccounted until the Store Manager records one of four findings, and the old outcomes (found and re-delivered, transit loss, miscount corrected) are gone.
+Pack the departments of an approved requisition at the Central Store, give one final review and one signature, send. One `Dispatch` per department of the requisition (`DSP-<branch code>-nnnn`, counted per branch). The branch counts blind; a gap is held until the Store Manager records one finding.
 
-## Block 2 contract in code (read this first; the rest of this file describes the OLD code until back end C replaces it)
-The frozen contract for the rebuild is `_shared/dispatch-contract.ts` (Zod, P1 to P10, carriers included), with `dispatch-contract.fixtures.json` (byte-identical to `frontend/features/inventory/dispatch/_shared/types/`) and `dispatch-contract.test.ts`. The rebuilt routes will live under `/inventory/dispatch` (`dispatch-rebuild-routes.ts`, a placeholder that only authenticates) and `/inventory/carriers` (`carriers-routes.ts`, placeholder); the old router `dispatch-routes.ts` (paths `/dispatch`, `/deliveries`, `/discrepancies`) keeps running until back end C deletes it, together with the old services. Deliveries are in `../deliveries/`, discrepancies in `../discrepancies/`. Access rows: `dispatch.read`, `dispatch.pack`, `dispatch.cancel`, `carriers.read`, `carriers.manage` in `_shared/central-store-access.ts`.
+## Rules (what the code does)
+- **A dispatch row exists from the first look** at a department (status `TO_PACK`, no reference). Opening a department (P2/P3/P4/P5) builds or reconciles its lines from the requisition: the approved quantity (else the requested one), an addition still waiting for approval is left out, an approved one joins, a changed quantity follows while the department is unsigned. Sent quantity pre-fills with the requested quantity, or what the store holds when that is less. Any tick makes it `PACKING`.
+- **P3 save** (last write wins): `OVER_REQUESTED` (422) above the requested quantity; `STOCK_CHANGED` (409, `details.lineIds`) when a ticked line sends more than the store holds; `ALREADY_SIGNED` on a signed department. Nothing is saved on an error.
+- **P5 sign**: one transaction, serialised per hub by an advisory lock. Departments in `leaveOut` (and any not ready) stay in To pack. Errors `INVALID_PIN` (own PIN, through `countPin`), `CARRIER_INACTIVE`, `NOTHING_TO_SEND`, `NOT_ALL_PACKED` (`details.departmentIds`), `STOCK_CHANGED` (stock is checked per item across every department shipping now). Each shipped department gets `DSP-` from `ReferenceCounter` (prefix `DSP`, branch site), its line costs are frozen, `DISPATCH_OUT` is posted through `postStockMovement` (never `inventoryTransaction.create`), a `SIGNED_AND_SENT` event is written, and after commit the department's members are pushed and `dispatch:changed` is emitted. A repeated `idempotencyKey` by the same person returns the first result with `replayed: true`.
+- **P8 cancel**: PIN-signed, `dispatch.cancel` (Store Manager, System Admin), only while `ON_THE_WAY` and not counted (`DISPATCH_ALREADY_COUNTED`, `NOT_SIGNED`, `DISPATCH_CANCELLED`). Locks that dispatch only. Stock goes back by a **linked reversing `DISPATCH_OUT` row** per line (the door's `DISPATCH` reversal: positive, `reversesTransactionId` set; the original stays). The note is voided and kept. The department's lines return to the queue as a fresh dispatch with ticks reset the next time it is opened (the partial unique index allows one live dispatch per department).
+- **Blind and money rules** (decided in `dispatch-view.ts`): a Branch Manager reading P6 gets no `sentQty`, `gapQty`, short count or value before the department has counted (`sentVisible: false`); the branch copy of the note has no quantities and the store copy is refused to the branch before the count. Cost and value only for holders of `requisitions.see_value`; never the Attendant.
+- **Read scope** (`dispatch-caller.ts`): `dispatch.read` is narrowed in the service: Branch Manager their own branch, Attendant only what they packed or signed, the other hub roles everything.
 
-Endpoints: P1 `GET /queue` · P2 `GET /pack/:requisitionId/departments/:departmentId` · P3 `PUT .../lines` · P4 `GET /pack/:requisitionId/review` · P5 `POST /pack/:requisitionId/sign` (`{ carrierId, pin, idempotencyKey, leaveOut? }`) · P6 `GET /:id` · P7 `GET /:id/print?copy=store|branch` · P8 `POST /:id/cancel` · P9 `GET /mine` · P10 `/carriers`. The sent figure is never shown to a branch-side caller before the department signs its count (`sentVisible`), and the branch copy of the delivery note has no quantities.
+## The DSC- reference on the ledger (decision, Amendment 1 row 17)
+The append-only ledger gets no new column. A finding's entries, its reversal and a cancellation post through the door as rows linked to the dispatch line by `dispatchLineId` (a finding's `ADJUSTMENT` keeps its own `ADJ-` number, which the door owns). There is one discrepancy per dispatch line, so the `DSC-` number is found through that link (`discrepancies.dispatch_line_id`) and shown as the entry's `source` (`stock/_shared/movement-reference.ts`, `discrepancyReference`); Stock search finds the item by `DSC-`, `DSP-` or `ADJ-`. Back end D posts the finding rows the same way.
 
-### Amendment 1 (owner approved 9 Oct 2026, `docs/features/inventory/dispatch-amendment-1.md`)
-In the contract: the clock runs from `signedAt` and `arrivedAt` is information only; P2 `canReview` and P4 `canLeaveOut` (leave a fully ticked department out at the review; a not-ready one "stays in To pack"); P5 returns `sentDepartments` of `totalDepartments`; P4 returns the active carriers; carrier kinds `PERSON`, `VEHICLE`, `COMPANY`; P6 adds `packedAt`, `countedById`, `countedAt`, `onBehalf`, `arrivedAt` and `lossValueKes` (gated); P7 adds `cancelledAt` for the VOID band; P8's reason is "preset — note" (Packed the wrong lines, Branch asked us to stop, Vehicle did not leave, Other needs a note) with an `idempotencyKey`; P9 rows answer `CONFIRMED`, `GAP_FOUND`, `GAP_SETTLED` or `CANCELLED`; photos are `{ id, url }`; and the codes of row 11. The requisition file's `dispatches` rows and the tracker facts (n of m sent, n counted) are in the Requisitions contract. Back end C: the replace migration (statuses, `Carrier`, `DispatchPhoto`, the new columns, counters `DSP` and `DSC`), P1 to P10, ledger postings for sign and cancel, the `DSC-` reference on the finding's ledger entry (decide and document how the door allows it), delivery note data, the `dispatches` field and `departments` on `GET /inventory/permissions/me`. Lane split for the front end: desktop owns `dispatch/components/desktop`, `discrepancies/` and carriers; phone owns `dispatch/components/phone` and `deliveries/`; `_shared` stays with the contract session.
-
-## Who can do what
-- **Store Manager/Attendant**: fulfil per department, sign and dispatch; Store Manager resolves discrepancies.
-- **Department Head** (phone): confirms and signs only their own lines.
-- **Branch Manager**: sees incoming and unconfirmed dispatches, may confirm on behalf of a head; reads own branch discrepancies.
-
-## Rules
-- Approved requisitions appear as one card per branch, expandable by department, oldest first. Per line: requested vs available on hand; dispatched quantity is entered; partial is normal; shortfall = requested − dispatched.
-- Signature is **per department**: each section has its own "Sign & dispatch"; stock leaves the store immediately (`DISPATCH_OUT`) and the dispatch is **In Transit**; a delivery note prints.
-- Substitution: add a line, set the requested one to zero; the department sees both.
-- Branch confirm: dispatched quantities prefilled; head corrects to what arrived and signs; `DISPATCH_IN` writes the confirmed quantity. Until confirmed, goods are still the store's. A dispatch closes only when all its departments confirm. Unconfirmed at end of day is flagged and blocks that department's close.
-- Discrepancy (dispatched 20, arrived 18): confirm the actual; alert Store Manager, Branch Manager, Directors; the Store Manager resolves with a signed outcome — found & re-delivered, transit loss (write-off adjustment, ADJ reference, reason "Transit loss"), or miscount corrected (reason "Receiving miscount").
-- Status progression visible: Awaiting → In Transit → Confirmed.
-- No returns from branch to store.
-
-## Open owner decisions
-F1 (miscount-correction ledger effect) and F4 (attendant on-hand on fulfil): see decisions.md.
-
-## Endpoints
-12 endpoints (generated from the route files; re-run if routes change).
-
-| Method | Path | Roles |
+## Endpoints (base `/inventory`; access rows in `_shared/central-store-access.ts`)
+| # | Endpoint | Capability |
 |---|---|---|
-| GET | `/dispatch/queue` | STORE_MANAGER, STORE_ATTENDANT |
-| GET | `/dispatch/:requisitionId/fulfil` | STORE_MANAGER, STORE_ATTENDANT |
-| POST | `/dispatch/:requisitionId/fulfil/:departmentTag` | STORE_MANAGER, STORE_ATTENDANT |
-| GET | `/dispatch/:id/delivery-note` | STORE_MANAGER, STORE_ATTENDANT |
-| GET | `/deliveries` | MANAGER |
-| GET | `/deliveries/:id` | MANAGER |
-| POST | `/deliveries/:id/confirm` | MANAGER |
-| POST | `/deliveries/:id/confirm-on-behalf` | MANAGER |
-| GET | `/deliveries/:id/delivery-note` | MANAGER |
-| GET | `/discrepancies` | STORE_MANAGER, STORE_ATTENDANT, MANAGER |
-| GET | `/discrepancies/:id` | STORE_MANAGER, STORE_ATTENDANT, MANAGER |
-| POST | `/discrepancies/:id/resolve` | STORE_MANAGER |
+| P1 | `GET /dispatch/queue` | `dispatch.pack` |
+| P2 | `GET /dispatch/pack/:requisitionId/departments/:departmentId` | `dispatch.pack` |
+| P3 | `PUT /dispatch/pack/:requisitionId/departments/:departmentId/lines` | `dispatch.pack` |
+| P4 | `GET /dispatch/pack/:requisitionId/review` | `dispatch.pack` |
+| P5 | `POST /dispatch/pack/:requisitionId/sign` | `dispatch.pack` |
+| P6 | `GET /dispatch/:id` | `dispatch.read` |
+| P7 | `GET /dispatch/:id/print?copy=store\|branch` | `dispatch.read` |
+| P8 | `POST /dispatch/:id/cancel` | `dispatch.cancel` |
+| P9 | `GET /dispatch/mine?tab=&from=&to=&branchId=&page=&pageSize=` | `dispatch.pack` |
+| P10 | `GET /carriers`, `POST /carriers`, `PATCH /carriers/:id` | `carriers.read` / `carriers.manage` |
+
+## Hand-offs and roll-ups it fills
+- `requisitions/requisitions-tabs.ts` `tabOf`: **To pack** (a Sent department with no signed live dispatch), **On the way**, **To confirm** (a department `ON_THE_WAY` more than 2 hours after `signedAt`), **Discrepancies** (any discrepancy Open or reversed), then Closed. One pure function, table-tested.
+- The requisition file (R3) `dispatches` field and tracker "n of m sent" / "n counted" (`dispatch-roll-up.ts`); the printed requisition's `dispatchReference`; the Attendant's `dispatch` badge (branches to pack) on R2; `departments` on `GET /inventory/permissions/me`.
+- `closeIfComplete` (CONFIRMED with no gap held becomes CLOSED; the requisition closes when every department has) and `attachAdditionToDispatch` (an approved addition joins the unsigned dispatch). Back end D calls `closeIfComplete` after a count and a settlement.
+- Sockets: `dispatch:changed` per record (branch room, hub room, all-sites room) and the `inventory:badges` nudge, through `dispatch-notify.ts` and `_shared/notify.ts`.
+
+## Data
+`prisma/schema/inventory/dispatch.prisma`: `Dispatch`, `DispatchLine`, `DispatchPhoto`, `DispatchEvent`, `Carrier`, `Discrepancy`, `DiscrepancyEvent`. Migration `20261009100000_block2_dispatch_replace` (replace, with `ROLLBACK.md`). Production had 0 dispatches and 0 discrepancies on 8 Oct 2026: **re-run those two counts the week of release**; the migration refuses to run if any discrepancy exists.
+
+## Open for back end D / later
+Findings (Q1 to Q5), the branch count (V1 to V6), photo upload and the authenticated photo URL (`/inventory/deliveries/photos/:id`), the 2-hour and 24-hour jobs, the `DISPATCH` and `DISCREPANCIES` audit sources, the `deliveries` badge, and the `DISPATCH_IN` posting. `Discrepancy` status/finding enums and tables already exist.
 
 ## Code map
-`discrepancy-repository.ts`, `discrepancy-service.ts`, `dispatch-controller.ts`, `dispatch-repository.ts`, `dispatch-routes.ts`, `dispatch-service.ts`, `dispatch-validators.ts`, `dispatch.types.ts`. 5 test files beside the code.
+`dispatch-routes.ts`, `carriers-routes.ts`, `dispatch-controller.ts`, `dispatch-validators.ts`, `dispatch-service.ts`, `carriers-service.ts`, `dispatch-repository.ts`, `carriers-repository.ts`, `dispatch-state.ts` (pure state rules), `dispatch-view.ts` (wire shapes, blind and money), `dispatch-roll-up.ts`, `dispatch-caller.ts`, `dispatch-errors.ts`, `dispatch-notify.ts`; contract in `_shared/dispatch-contract.ts` (+ fixtures and test). Tests: `dispatch-state.test.ts`, `dispatch-routes.test.ts`, `dispatch-roll-up.test.ts`, and the opt-in `dispatch.db.test.ts` (`RUN_DB_TESTS=1`).
 
 ## Coupling
-Uses `purchasing/receiving-repository`, `catalog/inventory-repository`.
+Uses `stock/ledger` (the door), `_shared/reference-counter`, `_shared/notify`, `counting/_shared/count-pin`, `requisitions` (read through the pack repository; the requisition list reads the dispatch roll-up), `branch-day` and the count story read the new columns.

@@ -7,7 +7,8 @@
  * `frontend/features/inventory/_shared/types/permissions-contract.ts`; fixture in `permissions-contract.fixtures.json`
  * (byte-identical on both sides, parsed by `permissions-contract.test.ts`).
  *
- * The route in `permissions-routes.ts` does not return `departments` yet. // back end C
+ * The route in `permissions-routes.ts` returns `departments` (back end C): the caller's own department, read by
+ * `permissions-repository.ts`; a System Admin previewing another role gets an empty list.
  */
 import { z } from 'zod';
 import { CAPABILITIES } from './central-store-access';

@@ -132,22 +132,40 @@ export interface TrackerFacts {
   /** Sections Sent or Skipped, and the sections that count: the "All in" step's count. */
   sectionsIn: number;
   sectionsTotal: number;
+  /** Block 2: the requisition's dispatches rolled up (`dispatch/dispatch-roll-up.ts`); absent or `total` 0 until a department has been opened for packing. */
+  dispatch?: DispatchTrackerFacts;
+}
+
+/** "n of m sent" and "n counted": departments with a live dispatch, those signed, those counted, and when the last of each happened. */
+export interface DispatchTrackerFacts {
+  total: number;
+  sent: number;
+  counted: number;
+  sentAt: Date | null;
+  countedAt: Date | null;
 }
 
 type TrackerStepKey = TrackerStep['key'];
 
-/** The six steps as facts (Amendment 2): state, date, who, and a count where the step has one. The labels are the front ends'. Packed and Delivered are Block 2's; they stay To do until then. */
+/** The six steps as facts (Amendment 2): state, date, who, and a count where the step has one. The labels are the front ends'. Packed ("n of m sent") and Delivered ("n counted") come from the dispatches (Block 2). */
 export const trackerOf = (f: TrackerFacts, person: (u: { id: string; name: string; role: string }) => TrackerStep['by']): TrackerStep[] => {
+  const d = f.dispatch;
   const reached: Record<TrackerStepKey, { at: Date | null; by: TrackerStep['by'] } | null> = {
     STARTED: { at: f.openedAt, by: person(f.openedBy) },
     ALL_IN: f.allInAt ? { at: f.allInAt, by: null } : null,
     APPROVED: f.approvedAt ? { at: f.approvedAt, by: f.approvedBy ? person(f.approvedBy) : null } : null,
-    PACKED: null,
-    DELIVERED: null,
+    PACKED: d && d.total > 0 && d.sent === d.total ? { at: d.sentAt, by: null } : null,
+    DELIVERED: d && d.total > 0 && d.counted === d.total ? { at: d.countedAt, by: null } : null,
     CLOSED: f.closedAt ? { at: f.closedAt, by: null } : null,
   };
   const order: TrackerStepKey[] = ['STARTED', 'ALL_IN', 'APPROVED', 'PACKED', 'DELIVERED', 'CLOSED'];
-  const countOf = (key: TrackerStepKey): TrackerStep['count'] => (key === 'ALL_IN' ? { done: f.sectionsIn, total: f.sectionsTotal } : null);
+  const countOf = (key: TrackerStepKey): TrackerStep['count'] => {
+    if (key === 'ALL_IN') return { done: f.sectionsIn, total: f.sectionsTotal };
+    if (!d || d.total === 0) return null;
+    if (key === 'PACKED') return { done: d.sent, total: d.total };
+    if (key === 'DELIVERED') return { done: d.counted, total: d.total };
+    return null;
+  };
   let currentSet = false;
   return order.map((key) => {
     const hit = reached[key];

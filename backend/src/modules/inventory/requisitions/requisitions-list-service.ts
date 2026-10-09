@@ -26,7 +26,7 @@ import { NAMES_REQUISITION, sentenceOf } from './_shared/requisitions-sentences'
 import { requisitionsListRepository as listRepo, type FactsRecord, type ListFilters } from './requisitions-list-repository';
 import { requisitionsRepository as repo, type RequisitionRecord, type Scope } from './requisitions-repository';
 import { loadCaller, loadFile, readScope, restrictedHead, viewerFor, type Caller } from './requisitions-service';
-import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchState, type WaitingFamily } from './requisitions-tabs';
+import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
 import { urgentOverHour } from './requisitions-state';
 import { additionStatusMap, cycleLabelOf, cycleOf, fileWire, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
 
@@ -46,15 +46,16 @@ const familyOf = (c: Caller): WaitingFamily => {
 const dayStartOf = (day: string): Date => new Date(`${day}T00:00:00+03:00`);
 const dayAfter = (day: string): Date => new Date(dayStartOf(day).getTime() + 24 * 60 * 60 * 1000);
 
-const tabFromFacts = (f: FactsRecord): RequisitionTab => {
-  const state = (key: string | null): DispatchState | null => {
-    const hit = f.dispatches.find((d) => d.departmentTag === key);
-    return hit ? hit.status : null;
+const tabFromFacts = (f: FactsRecord, now: Date = new Date()): RequisitionTab => {
+  const fact = (departmentId: string | null): DispatchFact | null => {
+    const hit = f.dispatches.find((d) => d.departmentId === departmentId);
+    return hit ? { status: hit.status as DispatchFactStatus, signedAt: hit.signedAt, discrepancyOpen: hit.discrepancies.length > 0 } : null;
   };
   return tabOf({
     status: f.status as RequisitionStatus,
     additionWaiting: f.additions.length > 0,
-    sentDepartments: f.sections.filter((s) => s.status === 'SUBMITTED' && s.department?.key).map((s) => ({ dispatch: state(s.department?.key ?? null) })),
+    sentDepartments: f.sections.filter((s) => s.status === 'SUBMITTED' && s.lines.length > 0).map((s) => ({ dispatch: fact(s.departmentId) })),
+    now,
   });
 };
 
@@ -149,7 +150,11 @@ export const requisitionsListService = {
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
     if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve') };
-    if (family === 'STORE') return { requisitions: count('to-pack'), toPack: count('to-pack') };
+    if (family === 'STORE') {
+      // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
+      const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));
+      return { requisitions: count('to-pack'), toPack: count('to-pack'), dispatch: branches.size };
+    }
     if (family === 'HEAD') {
       const mine = facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
       return { requisitions: mine };

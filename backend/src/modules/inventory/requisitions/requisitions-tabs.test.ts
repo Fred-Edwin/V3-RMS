@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { RequisitionStatus } from './_shared/requisitions-contract';
-import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchState } from './requisitions-tabs';
+import { defaultTab, headIsWaited, isWaitingForBranch, tabOf, waitingTab, type DispatchFact } from './requisitions-tabs';
 
-const sent = (...states: Array<DispatchState | null>) => states.map((dispatch) => ({ dispatch }));
-const tab = (status: RequisitionStatus, sentDepartments: ReturnType<typeof sent> = [], additionWaiting = false) => tabOf({ status, additionWaiting, sentDepartments });
+const NOW = new Date('2026-10-09T12:00:00.000Z');
+const ago = (minutes: number): Date => new Date(NOW.getTime() - minutes * 60_000);
 
-describe('tabOf (the replaceable derivation, Block 2 swaps it)', () => {
+const fact = (status: DispatchFact['status'], signedMinutesAgo: number | null = null, discrepancyOpen = false): DispatchFact => ({
+  status,
+  signedAt: signedMinutesAgo === null ? null : ago(signedMinutesAgo),
+  discrepancyOpen,
+});
+const sent = (...dispatches: Array<DispatchFact | null>) => dispatches.map((dispatch) => ({ dispatch }));
+const tab = (status: RequisitionStatus, sentDepartments: ReturnType<typeof sent> = [], additionWaiting = false) => tabOf({ status, additionWaiting, sentDepartments, now: NOW });
+
+describe('tabOf (Block 2: one function over the new dispatch statuses)', () => {
   it.each([
     ['OPEN', 'collecting'],
     ['PENDING_APPROVAL', 'to-approve'],
@@ -13,29 +21,35 @@ describe('tabOf (the replaceable derivation, Block 2 swaps it)', () => {
     ['CLOSED', 'closed'],
   ] as const)('%s is %s whatever the dispatches say', (status, expected) => {
     expect(tab(status)).toBe(expected);
-    expect(tab(status, sent('IN_TRANSIT'), true)).toBe(expected === 'to-approve' ? 'to-approve' : expected);
+    expect(tab(status, sent(fact('ON_THE_WAY', 300, true)), true)).toBe(expected);
   });
 
   it('an approved requisition with an addition waiting is in To approve', () => {
-    expect(tab('APPROVED', sent('IN_TRANSIT'), true)).toBe('to-approve');
+    expect(tab('APPROVED', sent(fact('ON_THE_WAY', 10)), true)).toBe('to-approve');
   });
 
   it.each([
-    ['nothing signed by the store yet', sent(null, null), 'to-pack'],
-    ['one department signed, one not', sent('IN_TRANSIT', null), 'to-pack'],
-    ['an AWAITING dispatch counts as not signed', sent('AWAITING'), 'to-pack'],
-    ['every department in transit', sent('IN_TRANSIT', 'IN_TRANSIT'), 'on-the-way'],
-    ['some confirmed, some still in transit', sent('CONFIRMED', 'IN_TRANSIT'), 'on-the-way'],
-    ['every department confirmed', sent('CONFIRMED', 'CONFIRMED'), 'closed'],
-    ['any open discrepancy wins over everything', sent('DISCREPANCY_OPEN', null, 'IN_TRANSIT'), 'discrepancies'],
-    ['no department the old dispatch can see (all added in Block 1)', sent(), 'to-pack'],
+    ['no live dispatch yet', sent(null, null), 'to-pack'],
+    ['dispatch rows exist but nothing is signed (TO_PACK)', sent(fact('TO_PACK')), 'to-pack'],
+    ['a department being packed', sent(fact('PACKING')), 'to-pack'],
+    ['one department signed, one not', sent(fact('ON_THE_WAY', 10), null), 'to-pack'],
+    ['one signed and waiting, one still to pack: the store has work first', sent(fact('ON_THE_WAY', 500), fact('TO_PACK')), 'to-pack'],
+    ['every department signed, none waiting', sent(fact('ON_THE_WAY', 10), fact('ON_THE_WAY', 119)), 'on-the-way'],
+    ['one department waiting over 2 hours', sent(fact('ON_THE_WAY', 10), fact('ON_THE_WAY', 121)), 'to-confirm'],
+    ['some counted, one still on the way', sent(fact('CONFIRMED'), fact('ON_THE_WAY', 30)), 'on-the-way'],
+    ['some counted, one waiting', sent(fact('CONFIRMED'), fact('ON_THE_WAY', 600)), 'to-confirm'],
+    ['every department counted, nothing open', sent(fact('CONFIRMED'), fact('CLOSED')), 'closed'],
+    ['an open discrepancy wins over everything', sent(fact('CONFIRMED', 600, true), null, fact('ON_THE_WAY', 600)), 'discrepancies'],
+    ['no department with lines to pack', sent(), 'to-pack'],
   ] as const)('approved: %s -> %s', (_name, departments, expected) => {
     expect(tab('APPROVED', [...departments])).toBe(expected);
   });
 
-  it('to-confirm is never produced before Block 2', () => {
-    const all = [null, 'AWAITING', 'IN_TRANSIT', 'CONFIRMED', 'DISCREPANCY_OPEN'] as const;
-    for (const a of all) for (const b of all) expect(tab('APPROVED', sent(a, b))).not.toBe('to-confirm');
+  it('the 2-hour wait is strictly more than 2 hours from the final sign', () => {
+    expect(isWaitingForBranch(fact('ON_THE_WAY', 120), NOW)).toBe(false);
+    expect(isWaitingForBranch(fact('ON_THE_WAY', 121), NOW)).toBe(true);
+    expect(isWaitingForBranch(fact('CONFIRMED', 600), NOW)).toBe(false);
+    expect(isWaitingForBranch(fact('ON_THE_WAY', null), NOW)).toBe(false);
   });
 });
 

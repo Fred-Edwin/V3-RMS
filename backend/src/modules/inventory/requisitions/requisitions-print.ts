@@ -24,7 +24,7 @@ const printLine = (line: LineRecord, n: number): Print['pages'][number]['lines']
 };
 
 /** `now` is the caller's clock (the footer's "generated" time), so a test passes a fixed one. */
-export const buildPrint = (rec: RequisitionRecord, now: Date = new Date()): Print => {
+export const buildPrint = (rec: RequisitionRecord, now: Date = new Date(), dispatchReferences: ReadonlyMap<string, string> = new Map()): Print => {
   const additionStatus = additionStatusMap(rec);
   // A section prints when it was Sent; a Skipped section (or one that never went) has nothing to fulfil.
   const sent = rec.sections.filter((s) => s.status === 'SUBMITTED');
@@ -70,7 +70,8 @@ export const buildPrint = (rec: RequisitionRecord, now: Date = new Date()): Prin
         departmentName: section.department?.name ?? '',
         lineCount: section.lines.filter((l) => !l.additionId || additionStatus.get(l.additionId) === 'APPROVED').length,
         page: i + 2,
-        dispatchReference: null,
+        // The department's DSP- number once the store has signed it (Block 2); null while it is still to pack.
+        dispatchReference: dispatchReferences.get(section.departmentId ?? '') ?? null,
       })),
       managerChanges: changes,
       additionsCount: rec.additions.filter((a) => a.status === 'APPROVED').length,

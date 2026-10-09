@@ -1,0 +1,238 @@
+// ── Block 2 — Dispatch, deliveries and discrepancies (docs/features/inventory/dispatch-contract.md §2, with Amendment 1) ──
+// REPLACES the Milestone Five / Six models (production had 0 dispatches and 0 discrepancies, owner's read-only queries, 8 Oct 2026).
+// One Dispatch per department of an approved requisition. The row exists from the first pack screen (status TO_PACK, no reference);
+// `reference` (DSP-<branch code>-nnnn, ReferenceCounter on the BRANCH site) is taken at the final sign (P5). organizationId = the hub
+// (the Central Store owns the document), toOrganizationId = the branch.
+
+enum DispatchStatus {
+  TO_PACK // lines exist, nothing ticked
+  PACKING // any line ticked
+  ON_THE_WAY // final sign (P5); "waiting for the branch" is derived (2 hours after signedAt, nobody counted)
+  CONFIRMED // the department signed its count
+  CLOSED // every discrepancy of the dispatch settled, or none
+  CANCELLED // P8, only before the department counted
+}
+
+enum DispatchCountReason {
+  NOT_IN_THE_BOX
+  DAMAGED
+  WRONG_ITEM
+  OTHER
+}
+
+model Carrier {
+  id        String      @id @default(uuid())
+  siteId    String      @map("organization_id") // the hub
+  name      String
+  kind      CarrierKind
+  active    Boolean     @default(true)
+  retiredAt DateTime?   @map("retired_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  site       Site       @relation("CarrierSite", fields: [siteId], references: [id])
+  dispatches Dispatch[]
+
+  @@unique([siteId, name])
+  @@index([siteId, active])
+  @@map("carriers")
+}
+
+enum CarrierKind {
+  PERSON
+  VEHICLE
+  COMPANY // "Courier company"
+}
+
+model Dispatch {
+  id            String         @id @default(uuid())
+  siteId        String         @map("organization_id") // hub org — Central Store owns this document
+  toSiteId      String         @map("to_organization_id") // branch org
+  requisitionId String         @map("requisition_id")
+  departmentId  String         @map("department_id")
+  reference     String? // DSP-<branch code>-nnnn; null until the final sign
+  status        DispatchStatus @default(TO_PACK)
+
+  packedById  String?   @map("packed_by_id")
+  packedAt    DateTime? @map("packed_at")
+  signedById  String?   @map("signed_by_id")
+  signedAt    DateTime? @map("signed_at") // the final signature; the 2-hour clock runs from here (Amendment 1 row 1)
+  carrierId   String?   @map("carrier_id")
+  /// Shared by every dispatch signed together in one P5.
+  sendBatchId String?   @map("send_batch_id")
+
+  /// Stamped by V2 the first time anyone from the department opens the delivery; information only.
+  arrivedAt   DateTime? @map("arrived_at")
+  countedById String?   @map("counted_by_id")
+  countedAt   DateTime? @map("counted_at")
+  onBehalf    Boolean   @default(false) @map("on_behalf") // the Branch Manager signed the count for the department
+  closedAt    DateTime? @map("closed_at")
+
+  cancelledAt   DateTime? @map("cancelled_at")
+  cancelledById String?   @map("cancelled_by_id")
+  cancelReason  String?   @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  site          Site            @relation("DispatchFrom", fields: [siteId], references: [id])
+  toSite        Site            @relation("DispatchTo", fields: [toSiteId], references: [id])
+  requisition   Requisition     @relation(fields: [requisitionId], references: [id])
+  department    Department      @relation(fields: [departmentId], references: [id])
+  packedBy      User?           @relation("DispatchPackedBy", fields: [packedById], references: [id])
+  signedBy      User?           @relation("DispatchSignedBy", fields: [signedById], references: [id])
+  countedBy     User?           @relation("DispatchCountedBy", fields: [countedById], references: [id])
+  cancelledBy   User?           @relation("DispatchCancelledBy", fields: [cancelledById], references: [id])
+  carrier       Carrier?        @relation(fields: [carrierId], references: [id])
+  lines         DispatchLine[]
+  events        DispatchEvent[]
+  discrepancies Discrepancy[]
+
+  @@unique([toSiteId, reference])
+  // The migration adds a partial unique index (requisition_id, department_id) WHERE status <> 'CANCELLED': one live dispatch per
+  // department per requisition; a cancelled one is replaced by a new row (P8 returns the lines to the queue). Prisma cannot express it.
+  @@index([siteId, status])
+  @@index([toSiteId, departmentId, status])
+  @@index([requisitionId])
+  @@index([sendBatchId])
+  @@map("dispatches")
+}
+
+model DispatchLine {
+  id                 String   @id @default(uuid())
+  dispatchId         String   @map("dispatch_id")
+  requisitionLineId  String?  @map("requisition_line_id")
+  inventoryItemId    String   @map("inventory_item_id")
+  /// The approved quantity (approvedQty, else requestedQty) of the requisition line.
+  requestedQty       Decimal  @map("requested_qty") @db.Decimal(12, 4)
+  /// What the Attendant sends; pre-filled with the requested quantity.
+  sentQty            Decimal  @map("sent_qty") @db.Decimal(12, 4)
+  packedTick         Boolean  @default(false) @map("packed_tick")
+  /// Frozen at the final sign (the item's current cost). Null while packing.
+  unitCostAtDispatch Decimal? @map("unit_cost_at_dispatch") @db.Decimal(12, 4)
+
+  /// The department's count (blind): the saved draft until the department signs, then final. Null until counted.
+  countedQty      Decimal?             @map("counted_qty") @db.Decimal(12, 4)
+  countedTwice    Boolean              @default(false) @map("counted_twice")
+  countReason     DispatchCountReason? @map("count_reason")
+  countReasonNote String?              @map("count_reason_note")
+
+  dispatch     Dispatch               @relation(fields: [dispatchId], references: [id])
+  item         InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions InventoryTransaction[]
+  discrepancy  Discrepancy?
+  photos       DispatchPhoto[]
+
+  @@unique([dispatchId, requisitionLineId])
+  @@index([dispatchId])
+  @@map("dispatch_lines")
+}
+
+/// A photo of a delivered line: up to 3 per line, 5 MB each (Amendment 1 row 6). The bytes live in object storage.
+model DispatchPhoto {
+  id             String   @id @default(uuid())
+  siteId         String   @map("organization_id") // the hub that owns the dispatch
+  dispatchLineId String   @map("dispatch_line_id")
+  objectKey      String   @unique @map("object_key")
+  fileName       String   @map("file_name")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  uploadedById   String   @map("uploaded_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  line       DispatchLine @relation(fields: [dispatchLineId], references: [id])
+  uploadedBy User         @relation("DispatchPhotoUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([dispatchLineId])
+  @@map("dispatch_photos")
+}
+
+/// Append-only activity of a dispatch: the file's Activity tab and the Audit log's DISPATCH source. Never edited or deleted.
+model DispatchEvent {
+  id             String   @id @default(uuid())
+  dispatchId     String   @map("dispatch_id")
+  type           String
+  actorId        String   @map("actor_id")
+  actorRoleLabel String   @map("actor_role_label")
+  at             DateTime @default(now())
+  reason         String?
+  /// The Idempotency-Key of the signing write (sign, cancel, confirm). A repeated key by the same person returns the first result.
+  idempotencyKey String?  @map("idempotency_key")
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id])
+  actor    User     @relation("DispatchEventActor", fields: [actorId], references: [id])
+
+  @@unique([dispatchId, actorId, idempotencyKey])
+  @@index([dispatchId, at])
+  @@map("dispatch_events")
+}
+
+// ── Discrepancies: one per differing line, opened at the department's confirm (V6), settled by one finding (Q4) ──
+enum DiscrepancyStatus {
+  OPEN // the gap is held as unaccounted
+  RECORDED // a finding is recorded
+  REVERSED // a finding was reversed; the gap is held again (a list counts it as Open)
+}
+
+enum DiscrepancyFinding {
+  PACKED_SHORT
+  PACKED_MORE
+  LOST_OR_DAMAGED
+  BRANCH_COUNTED_WRONG
+  CANT_TELL
+}
+
+model Discrepancy {
+  id             String              @id @default(uuid())
+  siteId         String              @map("organization_id") // the hub
+  toSiteId       String              @map("to_organization_id") // the branch
+  dispatchId     String              @map("dispatch_id")
+  dispatchLineId String              @unique @map("dispatch_line_id")
+  reference      String // DSC-<branch code>-nnnn
+  gapQty         Decimal             @map("gap_qty") @db.Decimal(12, 4) // counted − sent: negative short, positive extra
+  status         DiscrepancyStatus   @default(OPEN)
+  finding        DiscrepancyFinding?
+  findingNote    String?             @map("finding_note")
+  recordedById   String?             @map("recorded_by_id")
+  recordedAt     DateTime?           @map("recorded_at")
+  reversedById   String?             @map("reversed_by_id")
+  reversedAt     DateTime?           @map("reversed_at")
+  reverseReason  String?             @map("reverse_reason")
+  /// Value written off by the recorded finding, at the cost frozen at dispatch (KES). Null unless the finding writes stock off.
+  lossValue      Decimal?            @map("loss_value") @db.Decimal(14, 2)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  dispatch     Dispatch           @relation(fields: [dispatchId], references: [id])
+  dispatchLine DispatchLine       @relation(fields: [dispatchLineId], references: [id])
+  recordedBy   User?              @relation("DiscrepancyRecordedBy", fields: [recordedById], references: [id])
+  reversedBy   User?              @relation("DiscrepancyReversedBy", fields: [reversedById], references: [id])
+  events       DiscrepancyEvent[]
+
+  @@unique([toSiteId, reference])
+  @@index([siteId, status])
+  @@index([toSiteId, status])
+  @@index([dispatchId])
+  @@map("discrepancies")
+}
+
+/// Append-only: OPENED, FINDING_RECORDED, FINDING_REVERSED. A finding and its reversal are separate rows; nothing is edited or deleted.
+model DiscrepancyEvent {
+  id             String              @id @default(uuid())
+  discrepancyId  String              @map("discrepancy_id")
+  type           String
+  actorId        String              @map("actor_id")
+  actorRoleLabel String              @map("actor_role_label")
+  at             DateTime            @default(now())
+  finding        DiscrepancyFinding?
+  note           String?
+  reason         String?
+  idempotencyKey String?             @map("idempotency_key")
+
+  discrepancy Discrepancy @relation(fields: [discrepancyId], references: [id])
+  actor       User        @relation("DiscrepancyEventActor", fields: [actorId], references: [id])
+
+  @@unique([discrepancyId, actorId, idempotencyKey])
+  @@index([discrepancyId, at])
+  @@map("discrepancy_events")
+}

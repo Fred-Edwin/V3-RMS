@@ -194,10 +194,10 @@ export const requisitionsRepository = {
     return new Map(rows.map((r) => [r.id, r.name]));
   },
 
-  /** Is there an old-dispatch row for this department of the requisition? (The store has signed it.) Only the original five can have one. */
-  hasDispatch: async (requisitionId: string, siteId: string, departmentKey: DepartmentTag | null, db: Db = prisma): Promise<boolean> => {
-    if (!departmentKey) return false;
-    return (await db.dispatch.count({ where: { requisitionId, toSiteId: siteId, departmentTag: departmentKey } })) > 0;
+  /** Has the store signed this department's dispatch (Block 2: a live dispatch with a final-sign time)? A cancelled one does not count: the department is back in the queue. */
+  hasDispatch: async (requisitionId: string, siteId: string, departmentId: string | null, db: Db = prisma): Promise<boolean> => {
+    if (!departmentId) return false;
+    return (await db.dispatch.count({ where: { requisitionId, toSiteId: siteId, departmentId, signedAt: { not: null }, status: { not: 'CANCELLED' } } })) > 0;
   },
 
   // --- Numbering and locking ---------------------------------------------------------------------------------------------
@@ -327,6 +327,14 @@ export const requisitionsRepository = {
     additionId: string,
     data: { status: RequisitionAdditionStatus; approvedById: string; approvedAt: Date },
   ): Promise<boolean> => (await tx.requisitionAddition.updateMany({ where: { id: additionId, requisition: { siteId } }, data })).count > 0,
+
+  /** An addition's requisition and department (the Block 2 hand-off that joins its lines to the unsigned dispatch). */
+  findAdditionRef: (additionId: string, db: Db = prisma) =>
+    db.requisitionAddition.findFirst({ where: { id: additionId }, select: { id: true, requisitionId: true, departmentId: true, requisition: { select: { siteId: true } } } }),
+
+  /** Sets an APPROVED requisition to CLOSED (the Block 2 hand-off `closeIfComplete`); the row count says whether it closed now. */
+  closeRequisition: async (requisitionId: string, closedAt: Date, db: Db = prisma): Promise<boolean> =>
+    (await db.requisition.updateMany({ where: { id: requisitionId, status: 'APPROVED' }, data: { status: 'CLOSED', closedAt } })).count > 0,
 
   /** Approval of an addition freezes the cost and sets the Approved quantity on its lines. */
   freezeAdditionLines: async (tx: Prisma.TransactionClient, siteId: string, additionId: string): Promise<void> => {

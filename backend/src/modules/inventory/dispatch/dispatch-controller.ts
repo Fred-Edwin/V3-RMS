@@ -1,18 +1,20 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../../utils/errors';
+import { carriersService } from './carriers-service';
 import { dispatchService } from './dispatch-service';
-import { discrepancyService } from './discrepancy-service';
 import {
-  ConfirmDeliverySchema,
-  DiscrepancyIdParamSchema,
-  DispatchDepartmentParamsSchema,
-  DispatchIdParamSchema,
-  DispatchRequisitionParamsSchema,
-  FulfilDepartmentSchema,
-  ListDeliveriesQuerySchema,
-  ListDiscrepanciesQuerySchema,
-  ListDispatchQueueQuerySchema,
-  ResolveDiscrepancySchema,
+  addCarrierInputSchema,
+  cancelDispatchInputSchema,
+  carrierParamsSchema,
+  dispatchMineQuerySchema,
+  dispatchParamsSchema,
+  listCarriersQuerySchema,
+  packDepartmentParamsSchema,
+  printDispatchQuerySchema,
+  requisitionParamsSchema,
+  savePackLinesInputSchema,
+  signDispatchInputSchema,
+  updateCarrierInputSchema,
 } from './dispatch-validators';
 
 const requireActor = (req: Request) => {
@@ -20,94 +22,70 @@ const requireActor = (req: Request) => {
   return req.user;
 };
 
+/** 200 for a repeated key (the first result), the given status otherwise. */
+const signed = (res: Response, data: { replayed: boolean }, status = 200): void => {
+  res.status(data.replayed ? 200 : status).json({ success: true, data });
+};
+
 export const dispatchController = {
-  listQueue: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListDispatchQueueQuerySchema.parse(req.query);
-    const data = await dispatchService.listQueue(actor, query);
-    res.status(200).json({ success: true, data });
+  queue: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await dispatchService.queue(requireActor(req)) });
   },
 
-  getFulfilDetail: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { requisitionId } = DispatchRequisitionParamsSchema.parse(req.params);
-    const data = await dispatchService.getFulfilDetail(actor, requisitionId);
-    res.status(200).json({ success: true, data });
+  getDepartment: async (req: Request, res: Response): Promise<void> => {
+    const { requisitionId, departmentId } = packDepartmentParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await dispatchService.getDepartment(requireActor(req), requisitionId, departmentId) });
   },
 
-  fulfilDepartment: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { requisitionId, departmentTag } = DispatchDepartmentParamsSchema.parse(req.params);
-    const input = FulfilDepartmentSchema.parse(req.body);
-    const data = await dispatchService.fulfilDepartment(actor, requisitionId, departmentTag, input);
-    res.status(201).json({ success: true, data, message: 'Dispatched' });
+  saveLines: async (req: Request, res: Response): Promise<void> => {
+    const { requisitionId, departmentId } = packDepartmentParamsSchema.parse(req.params);
+    const input = savePackLinesInputSchema.parse(req.body);
+    res.status(200).json({ success: true, data: await dispatchService.saveLines(requireActor(req), requisitionId, departmentId, input) });
   },
 
-  getDeliveryNote: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DispatchIdParamSchema.parse(req.params);
-    const data = await dispatchService.getDeliveryNoteForHub(actor, id);
-    res.status(200).json({ success: true, data });
+  review: async (req: Request, res: Response): Promise<void> => {
+    const { requisitionId } = requisitionParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await dispatchService.review(requireActor(req), requisitionId) });
   },
 
-  // ── Milestone Five, Session B — branch-side receiving ─────────────────────
-
-  listDeliveries: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListDeliveriesQuerySchema.parse(req.query);
-    const data = await dispatchService.listDeliveries(actor, query);
-    res.status(200).json({ success: true, data });
+  sign: async (req: Request, res: Response): Promise<void> => {
+    const { requisitionId } = requisitionParamsSchema.parse(req.params);
+    const input = signDispatchInputSchema.parse(req.body);
+    signed(res, await dispatchService.sign(requireActor(req), requisitionId, input), 201);
   },
 
-  getDeliveryDetail: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DispatchIdParamSchema.parse(req.params);
-    const data = await dispatchService.getDeliveryDetail(actor, id);
-    res.status(200).json({ success: true, data });
+  getFile: async (req: Request, res: Response): Promise<void> => {
+    const { id } = dispatchParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await dispatchService.getFile(requireActor(req), id) });
   },
 
-  getDeliveryNoteForBranch: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DispatchIdParamSchema.parse(req.params);
-    const data = await dispatchService.getDeliveryNoteForBranch(actor, id);
-    res.status(200).json({ success: true, data });
+  print: async (req: Request, res: Response): Promise<void> => {
+    const { id } = dispatchParamsSchema.parse(req.params);
+    const { copy } = printDispatchQuerySchema.parse(req.query);
+    res.status(200).json({ success: true, data: await dispatchService.print(requireActor(req), id, copy) });
   },
 
-  confirmDelivery: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DispatchIdParamSchema.parse(req.params);
-    const input = ConfirmDeliverySchema.parse(req.body);
-    const data = await dispatchService.confirmDelivery(actor, id, input);
-    res.status(200).json({ success: true, data, message: 'Delivery confirmed' });
+  cancel: async (req: Request, res: Response): Promise<void> => {
+    const { id } = dispatchParamsSchema.parse(req.params);
+    const input = cancelDispatchInputSchema.parse(req.body);
+    signed(res, await dispatchService.cancel(requireActor(req), id, input));
   },
 
-  confirmDeliveryOnBehalf: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DispatchIdParamSchema.parse(req.params);
-    const input = ConfirmDeliverySchema.parse(req.body);
-    const data = await dispatchService.confirmDeliveryOnBehalf(actor, id, input);
-    res.status(200).json({ success: true, data, message: 'Delivery confirmed on behalf' });
+  mine: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await dispatchService.mine(requireActor(req), dispatchMineQuerySchema.parse(req.query)) });
   },
 
-  listDiscrepancies: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListDiscrepanciesQuerySchema.parse(req.query);
-    const { rows, pagination } = await discrepancyService.listDiscrepancyPage(actor, query);
-    res.status(200).json({ success: true, data: rows, pagination });
+  // --- Carriers (P10) ----------------------------------------------------------------------------------------------------------
+  listCarriers: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await carriersService.list(requireActor(req), listCarriersQuerySchema.parse(req.query)) });
   },
 
-  getDiscrepancy: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DiscrepancyIdParamSchema.parse(req.params);
-    const data = await discrepancyService.getDiscrepancy(actor, id);
-    res.status(200).json({ success: true, data });
+  addCarrier: async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json({ success: true, data: await carriersService.add(requireActor(req), addCarrierInputSchema.parse(req.body)) });
   },
 
-  resolveDiscrepancy: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = DiscrepancyIdParamSchema.parse(req.params);
-    const input = ResolveDiscrepancySchema.parse(req.body);
-    const data = await discrepancyService.resolveDiscrepancy(actor, id, input);
-    res.status(200).json({ success: true, data, message: 'Discrepancy resolved' });
+  updateCarrier: async (req: Request, res: Response): Promise<void> => {
+    const { id } = carrierParamsSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await carriersService.update(requireActor(req), id, updateCarrierInputSchema.parse(req.body)) });
   },
 };

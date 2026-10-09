@@ -59,7 +59,10 @@ const BRANCH_UUID = 'b0000000-0000-4000-8000-000000000002';
 const DEPT_UUID = 'd0000000-0000-4000-8000-000000000001';
 const query = (over: Record<string, unknown> = {}): ListRequisitionsQuery => listRequisitionsQuerySchema.parse(over);
 
-/** A facts record for the tab derivation: the sections' statuses and the old dispatch rows. */
+/** Which branch a fixture requisition belongs to (default Nyeri): the Attendant's Dispatch badge counts branches, not requisitions. */
+const SITE_OF = new Map<string, string>([['r-pack-2', 'branch-karatina']]);
+
+/** A facts record for the tab derivation: the sections' statuses and the live dispatch rows. */
 const facts = (
   id: string,
   status: FactsRecord['status'],
@@ -68,14 +71,23 @@ const facts = (
   extra: Partial<FactsRecord> = {},
 ): FactsRecord => ({
   id,
+  siteId: SITE_OF.get(id) ?? 'branch-nyeri',
   status,
   openedAt: new Date('2026-10-08T06:00:00Z'),
   urgent: false,
   urgentAt: null,
-  sections: sections.map(([departmentId, s, key]) => ({ departmentId, status: s, department: { key, status: 'ACTIVE' as const } })),
+  sections: sections.map(([departmentId, s, key]) => ({ departmentId, status: s, department: { key, status: 'ACTIVE' as const }, lines: [{ id: `${departmentId}-line` }] })),
   additions: [],
   dispatches,
   ...extra,
+});
+
+/** A live dispatch of a department as the list reads it; signed an hour ago, so it is On the way and not yet Waiting. */
+const dsp = (departmentId: string, status: FactsRecord['dispatches'][number]['status'], discrepancyOpen = false): FactsRecord['dispatches'][number] => ({
+  departmentId,
+  status,
+  signedAt: new Date(Date.now() - 60 * 60_000),
+  discrepancies: discrepancyOpen ? [{ id: 'd1' }] : [],
 });
 
 const KB = (k: FactsRecord['sections'][number]['status'], b: FactsRecord['sections'][number]['status']): Array<[string, typeof k, 'KITCHEN' | 'BARISTA']> => [
@@ -88,10 +100,10 @@ const FACTS: FactsRecord[] = [
   facts('r-collect-2', 'OPEN', KB('NOT_STARTED', 'NOT_STARTED')),
   facts('r-approve', 'PENDING_APPROVAL', KB('SUBMITTED', 'SUBMITTED')),
   facts('r-pack', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
-  facts('r-transit', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }]),
-  facts('r-disc', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'CONFIRMED' }, { departmentTag: 'BARISTA', status: 'DISCREPANCY_OPEN' }]),
-  facts('r-done', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'CONFIRMED' }, { departmentTag: 'BARISTA', status: 'CONFIRMED' }]),
-  facts('r-add', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }], { additions: [{ id: 'a1', departmentId: KITCHEN }] }),
+  facts('r-transit', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]),
+  facts('r-disc', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'CONFIRMED'), dsp(BARISTA, 'CONFIRMED', true)]),
+  facts('r-done', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'CONFIRMED'), dsp(BARISTA, 'CLOSED')]),
+  facts('r-add', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')], { additions: [{ id: 'a1', departmentId: KITCHEN }] }),
   facts('r-cancelled', 'CANCELLED', KB('DRAFT', 'NOT_STARTED')),
 ];
 
@@ -281,7 +293,7 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
     facts('w1', 'PENDING_APPROVAL', KB('SUBMITTED', 'SUBMITTED')),
     facts('w2', 'PENDING_APPROVAL', KB('SUBMITTED', 'SKIPPED')),
     facts('w3', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
-    facts('w4', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [{ departmentTag: 'KITCHEN', status: 'IN_TRANSIT' }, { departmentTag: 'BARISTA', status: 'IN_TRANSIT' }]),
+    facts('w4', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]),
     facts('w5', 'OPEN', KB('DRAFT', 'SUBMITTED')),
     facts('w6', 'OPEN', KB('SUBMITTED', 'DRAFT')),
   ];
@@ -296,8 +308,18 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
 
   it('the store waits on To pack: the Store Manager and the Attendant', async () => {
     expect((await requisitionsListService.list(storeManager, query())).waitingForYou).toBe(1);
-    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1 });
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1 });
+    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+  });
+
+  it('the Attendant\'s Dispatch badge counts branches to pack, not requisitions', async () => {
+    mocks.list['listFacts']!.mockResolvedValue([
+      facts('r-pack', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')),
+      facts('r-pack-b', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // same branch, a second requisition
+      facts('r-pack-2', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // another branch
+      facts('r-sent', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]), // nothing left to pack
+    ]);
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, dispatch: 2 });
   });
 
   it('a head waits on their own unsent list while the requisition collects', async () => {
