@@ -169,6 +169,30 @@ Do these in order, with real logins, on a quiet evening requisition (use a test 
 
 **Still look closely at these by eye:** the **VOID band** on a cancelled note (Paper has no drawing of it), the **Discrepancies list's filter row and pager** (they follow the app's shared table, not Paper's sizes; see the undrawn review §15), and the phone **reason sheet** (D10) once with a real photo. Production keeps photos in R2 (local development loses them when the API restarts).
 
+## 6b. Block 3 (Branch waste): no migration, can ride with this release or follow it
+
+Block 3 changes **no table and no migration file**. Every column it uses (`waste_logs.batch_id`, the `reversed_*` columns, `locations.department_id`) already exists, so it deploys with the normal image and needs no backup of its own. If it ships alone, skip sections 1 to 5 and only deploy. The old three department endpoints under `/inventory/waste` and the old head screens are gone, so deploy the front end and back end together.
+
+**Production check, by role** (real logins; waste is never PIN-signed):
+
+**Department head and member** (for example a kitchen head and a barista member)
+1. Menu › Waste opens the department's list. Log waste: pick an item, a quantity and a reason, Review, Log. Tapping Log twice does not post twice.
+2. A member sees the whole department's entries today and earlier, with "you" on their own. Reverse shows only on their own entries logged today; a reversed one is struck through and its chip shows the reason.
+3. No money, no stock figure and no PIN anywhere on these screens.
+4. A retired item is not offered; a department that has been retired cannot log.
+
+**Branch Manager**
+1. Branch › Waste: the four figures (money), search, Department, Reason and Status filters, a date range, pager. Reverse works on any entry of the branch with each reason; "Other" needs a note. A reversed entry reads 0 in the Value column and the figure drops.
+2. Click a row: the entry drawer shows who, when, why, value and the ledger rows (the log, then the linked reversal).
+
+**Director, Accountant, Store Manager**: Branches › Waste (Store Manager: its Branches group) opens every branch read only with a Branch picker; the Department filter lists each name once. There is no Reverse link anywhere.
+
+**System Admin**: reads every branch and can reverse, but cannot log (no department).
+
+**Everywhere:** Audit log › Area "Branch waste" lists "Logged waste · Beef stew 2 kg · Expired" and the reversals, with no money. Stock card of the item shows the WASTE row and the linked reversal. The console shows no red errors.
+
+**Measured and checked (integration, 9 Oct):** the same walk done against the real API for every role above, including a repeated tap, a retired item, each reversal reason, a second reversal (refused) and a colleague's entry (refused). Hover, press and keyboard states were added to every control and checked in the browser.
+
 ## 7. If something is wrong
 
-Stop, do not run anything by hand on production. Block 1: roll the application back to the previous image. Block 2: restore the backup and deploy the previous image. Tell the session what the "after" queries printed.
+Stop, do not run anything by hand on production. Block 1: roll the application back to the previous image. Block 2: restore the backup and deploy the previous image. Block 3: deploy the previous image (no data change to undo; entries logged remain valid ledger rows). Tell the session what the "after" queries printed.

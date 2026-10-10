@@ -390,5 +390,4 @@ export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow>
 }
 
 export * from '../stock/types/stock';
-export * from '../waste/department/types/waste';
 export * from '../counting/types/count';

@@ -9,8 +9,9 @@ import { scwErrorCode, scwErrorMessage } from '../../../_shared/lib/scw-errors';
 import { signedKes } from '../../../counting/_shared/lib/count-format';
 import { BRANCH_WASTE_ERROR_COPY, BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import { WASTE_REVERSAL_REASONS, WASTE_REVERSAL_TEXT, type BranchWasteEntry, type WasteReversalReason } from '../../_shared/types/waste-contract';
-import { dayClock, qtyLabel, shortName } from '../lib/branch-waste-desk-format';
-import { branchWasteDeskApi } from '../services/branch-waste-desk-api';
+import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
+import { dayClock } from '../lib/branch-waste-desk-format';
 
 const reasonLabel = (r: WasteReversalReason): string => (r === 'OTHER' ? 'Other, add a note' : WASTE_REVERSAL_TEXT[r]);
 
@@ -51,7 +52,7 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
     setBusy(true);
     setError(null);
     try {
-      onDone(await branchWasteDeskApi.reverse(entry.id, { reason, ...(reason === 'OTHER' ? { note: note.trim() } : {}) }));
+      onDone(await branchWasteApi.reverse(entry.id, { reason, ...(reason === 'OTHER' ? { note: note.trim() } : {}) }));
     } catch (err) {
       setError(scwErrorMessage(err, BRANCH_WASTE_ERROR_COPY, BRANCH_WASTE_STATES_COPY.reverseAny.error));
       if (scwErrorCode(err) === 'ALREADY_REVERSED' || (err instanceof ApiError && err.statusCode === 409)) onStale();
@@ -62,8 +63,8 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
   const money = entry?.valueKes !== undefined ? signedKes(entry.valueKes) : null;
   const facts: [string, React.ReactNode][] = entry
     ? [
-        ['Entry', `${entry.itemName} · ${qtyLabel(entry.quantity, entry.unit)} · ${entry.reasonText}`],
-        ['Logged by', `${shortName(entry.loggedBy.name)} · ${entry.department.name} · ${dayClock(entry.at)}`],
+        ['Entry', `${entry.itemName} · ${quantityLabel(entry.quantity, entry.unit)} · ${entry.reasonText}`],
+        ['Logged by', `${shortPerson(entry.loggedBy.name)} · ${entry.department.name} · ${dayClock(entry.at)}`],
         ...(money ? ([['Value', <span key="v" className="font-wds-mono">{money}</span>]] as [string, React.ReactNode][]) : []),
       ]
     : [];
@@ -85,7 +86,7 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
           <Button type="button" variant="flat" size="dialog" shape="square" className="w-[84px]" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" variant="solid" size="dialog" shape="square" className="min-w-[130px]" disabled={!ready || busy} onClick={() => void submit()}>
+          <Button type="button" variant="solid" size="dialog" shape="square" className="min-w-[130px] font-semibold" disabled={!ready || busy} onClick={() => void submit()}>
             {busy ? BRANCH_WASTE_STATES_COPY.reverseAny.loading : 'Reverse entry'}
           </Button>
         </>
@@ -102,7 +103,7 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
           <div className="flex items-start justify-between gap-6 border-b border-wds-border py-2.5">
             <dt className="shrink-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Effect</dt>
             <dd className="m-0 w-[300px] text-right font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
-              {entry.department.name} stock goes up by {qtyLabel(entry.quantity, entry.unit)}.{money ? ` The waste total drops by ${money}.` : ''}
+              {entry.department.name} stock goes up by {quantityLabel(entry.quantity, entry.unit)}.{money ? ` The waste total drops by ${money}.` : ''}
             </dd>
           </div>
         ) : null}

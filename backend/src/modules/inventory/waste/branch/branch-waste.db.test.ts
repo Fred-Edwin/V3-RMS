@@ -434,4 +434,25 @@ describe.skipIf(!enabled)('Branch waste against the real database', () => {
       expect(await prisma.wasteLog.count({ where: { siteId: hubId, id: { in: logIds } } })).toBe(0);
     });
   });
+
+  // Last on purpose: it gives the second branch an entry, which the "other branch has none" tests above must not see.
+  describe('BW5: the Department filter across branches', () => {
+    it('lists each name once and a name matches that department in every branch', async () => {
+      const headB = await prisma.user.create({ data: { name: `headb ${tag}`, email: `headb-${tag}@test.invalid`, passwordHash: 'x', role: 'CHEF', siteId: siteB, departmentId: deptB['KITCHEN'], isDepartmentHead: true } });
+      userIds.push(headB.id);
+      await prisma.itemDepartment.create({ data: { itemId: beefId, departmentId: deptB['KITCHEN'] ?? '' } });
+      const { result } = await logAs({ id: headB.id, role: 'CHEF', siteId: siteB, isDepartmentHead: true }, beefId, '1');
+      expect(result.entries).toHaveLength(1);
+
+      const all = await branchWasteService.listBranches(director as never, { page: 1, pageSize: 100, from: '2020-01-01', to: '2099-01-01' });
+      const names = all.departments.map((d) => d.name.toLowerCase());
+      expect(new Set(names).size).toBe(names.length);
+      expect(names.filter((n) => n === 'kitchen')).toHaveLength(1);
+
+      const kitchen = await branchWasteService.listBranches(director as never, { page: 1, pageSize: 100, from: '2020-01-01', to: '2099-01-01', departmentName: 'kitchen' });
+      const branchesSeen = new Set(kitchen.rows.map((r) => r.branch.id));
+      expect(branchesSeen.has(siteA) && branchesSeen.has(siteB)).toBe(true);
+      expect(kitchen.rows.every((r) => r.department.name.toLowerCase() === 'kitchen')).toBe(true);
+    });
+  });
 });

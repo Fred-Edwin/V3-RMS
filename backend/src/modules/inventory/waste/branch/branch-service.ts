@@ -97,6 +97,17 @@ const windowOf = (from: string | undefined, to: string | undefined, fallback: 'T
   return { ...(from ? { loggedFrom: dayStartInstant(from) } : {}), ...(to ? { loggedBefore: dayEndInstant(to) } : {}) };
 };
 
+/** The first department of each name (case-insensitive), keeping the order given. */
+const uniqueByName = (departments: Array<{ id: string; name: string }>): Array<{ id: string; name: string }> => {
+  const seen = new Set<string>();
+  return departments.filter((d) => {
+    const key = d.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const refuse = (check: Exclude<BranchReverseCheck, 'OK'>): never => {
   if (check === 'ALREADY_REVERSED') throw new ConflictError('This entry was already reversed', 'ALREADY_REVERSED');
   if (check === 'REVERSAL_WINDOW_PASSED') throw new ForbiddenError('Entries can only be reversed on the day they were logged. Ask the Branch Manager', 'REVERSAL_WINDOW_PASSED');
@@ -115,6 +126,7 @@ const listFor = async (
     ...windowOf(query.from, query.to, 'TODAY', now),
     ...(query.search ? { search: query.search } : {}),
     ...(query.departmentId ? { departmentId: query.departmentId } : {}),
+    ...('departmentName' in query && query.departmentName ? { departmentName: query.departmentName } : {}),
     ...(query.reason ? { reason: query.reason } : {}),
     ...(query.status ? { status: query.status } : {}),
   };
@@ -131,7 +143,8 @@ const listFor = async (
   return {
     ...(showFigures ? { kpis: buildBranchWasteKpis({ last7, reversedLast7: reversed, todayStart, scope: extra.figures }) } : {}),
     rows: rows.map((log) => branchWasteView.entry(actor, log, extra.mode, now)),
-    departments,
+    // W8 filters by name, so each name is listed once however many branches have it.
+    departments: extra.branches ? uniqueByName(departments) : departments,
     ...(extra.branches ? { branches: extra.branches } : {}),
     page: { page: query.page, pageSize: query.pageSize, total },
   };

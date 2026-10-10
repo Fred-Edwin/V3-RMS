@@ -142,7 +142,7 @@ export function ChoiceChips<T extends string>({
               'flex cursor-pointer items-center font-wds-sans text-[13px] leading-4 transition-colors duration-150 ease-out focus-within:shadow-wds-ring',
               ink && on ? 'text-white' : 'text-wds-text-ink',
               ink ? 'h-[34px] px-3.5' : 'h-8 px-3',
-              !(ink && on) && 'hover:bg-wds-neutral-50',
+              !(ink && on) && !disabled && '[@media(hover:hover)]:hover:bg-wds-neutral-50',
               disabled && 'cursor-not-allowed opacity-60',
               ink
                 ? on

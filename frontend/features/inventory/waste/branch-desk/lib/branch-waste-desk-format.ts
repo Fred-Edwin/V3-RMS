@@ -2,20 +2,6 @@ import type { WasteReversalReason } from '../../_shared/types/waste-contract';
 
 const NAIROBI = 'Africa/Nairobi';
 
-/** "Grace Wanjiru" → "Grace W." (a first name and a last initial, as Paper draws it). */
-export function shortName(full: string): string {
-  const [first = '', ...rest] = full.trim().split(/\s+/);
-  const last = rest[rest.length - 1];
-  return last ? `${first} ${last[0]?.toUpperCase() ?? ''}.` : first;
-}
-
-const nfq = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 4 });
-/** "2" + "kg" → "2 kg"; "1.50" → "1.5". */
-export function qtyLabel(quantity: string, unit: string): string {
-  const n = Number(quantity);
-  return `${Number.isFinite(n) ? nfq.format(n) : quantity} ${unit}`;
-}
-
 const REASON_SHORT: Record<WasteReversalReason, string> = { WRONG_ITEM: 'wrong item', WRONG_QUANTITY: 'wrong quantity', OTHER: 'other' };
 /** The reason as it reads in the desktop chip: "Reversed 09:12 · wrong item". */
 export const reversalReasonShort = (reason: WasteReversalReason): string => REASON_SHORT[reason];
