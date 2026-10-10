@@ -1,819 +1,1131 @@
-import type { Request } from 'express';
-import { Prisma, type DepartmentTag } from '@prisma/client';
-import {
-  branchDayRepository,
-  type BranchDayDepartmentFull,
-  type BranchDayFull,
-  type DepartmentItem,
-  type LineWrite,
-  type OpeningLineWrite,
-} from './branch-day-repository';
-import { hasGap, isDirectorAlert, isReasonRequired, lineVariance, lineVarianceValue, reasonSatisfied } from './branch-day-calc';
-import { GAP_REASON_LABEL } from './branch-day-validators';
-import { referenceCounterRepository } from '../_shared/reference-counter';
-import { getBranchThresholdsInForce, getHubThresholdsInForce } from '../counting/thresholds-service';
-import { requireHubOrgId } from '../_shared/stock-scope';
-import { departmentLabel as departmentLabelOf } from '../stock/stock-service';
-import { toMoney } from '../counting/count-calc';
-import { authRepository } from '../../../repositories/auth-repository';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
-import { fcmService } from '../../../services/fcm-service';
-import { comparePin } from '../../../utils/password';
-import { formatDateOnly, getTodayDateOnly, parseDateOnly } from '../../../utils/date-only';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
-import type {
-  AcceptOpeningInput,
-  AcceptOpeningResult,
-  BranchDayDetail,
-  BranchDayToday,
-  CloseBlocker,
-  CloseDayInput,
-  CloseResult,
-  DayDocument,
-  DepartmentDayDetail,
-  DepartmentDaySummary,
-  DepartmentLine,
-  HistoryList,
-  HistoryQuery,
-  OpeningView,
-  ReopenDayInput,
-  ReopenResult,
-  SaveDepartmentLinesInput,
-  SaveLinesResult,
-} from './branch-day.types';
+import { env } from '../../../config/env';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
+import { actorCan, type Capability } from '../_shared/central-store-access';
+import { referenceCounterRepository } from '../_shared/reference-counter';
+import { countPin } from '../counting/_shared/count-pin';
+import { dayAsDate, nairobiDay } from '../counting/_shared/count-time';
+import { deliveriesRepository } from '../deliveries/deliveries-repository';
+import { postStockMovement } from '../stock/ledger/ledger-door';
+import { addDays } from '../stock/_shared/nairobi-time';
+import { WASTE_REASON_TEXT } from '../waste/_shared/waste-contract';
+import {
+  CORRECTION_REASON_TEXT,
+  daySheetSchema,
+  type AcceptOpeningInput,
+  type ActivityQuery,
+  type CloseDayInput,
+  type CloseDayResult,
+  type CloseSummary,
+  type CorrectCountInput,
+  type CorrectCountResult,
+  type CountQuery,
+  type CountView,
+  type DayActivity,
+  type DayActivityEntry,
+  type DayDocuments,
+  type DayEntries,
+  type DayFile,
+  type DaySheet,
+  type DepartmentFigures as DepartmentFiguresWire,
+  type DepartmentTile,
+  type EntriesQuery,
+  type History,
+  type HistoryQuery,
+  type Home,
+  type MyDay,
+  type MyHistory,
+  type MyHistoryQuery,
+  type OpeningQuery,
+  type OpeningResult,
+  type OpeningView,
+  type RecountOpeningInput,
+  type RecountPreview,
+  type RecountPreviewInput,
+  type SaveCountInput,
+  type SaveCountResult,
+  type SheetQuery,
+  type SignCountInput,
+  type SignCountResult,
+  type Today,
+  type TodayQuery,
+} from './_shared/branch-day-contract';
+import { branchDayError } from './branch-day-errors';
+import { closingValueOf, departmentFigures, openingOf, usedValueOf, type DepartmentFigures } from './branch-day-figures';
+import { branchDayRepository as repo, type Db, type DayRecord, type DepartmentRow, type Person, type StaffRow } from './branch-day-repository';
+import {
+  blockersOf,
+  canCloseOf,
+  correctionWindowOpen,
+  dateText,
+  dayWindow,
+  differenceOf,
+  homeActionOf,
+  isCounted,
+  money,
+  qty,
+  summaryOf,
+  usageEntryQty,
+  valueOf,
+  zero,
+} from './branch-day-rules';
+import {
+  describeCountCorrected,
+  describeCorrectionDetail,
+  describeCountSigned,
+  describeDayClosed,
+  describeOpeningAccepted,
+  describeOpeningRecounted,
+  kesText,
+} from './branch-day-sentences';
+import { buildSheet, sheetPageCount } from './branch-day-sheet';
+import {
+  branchRefOf,
+  countStateOf,
+  countViewOf,
+  dayDocumentOf,
+  dayHeadOf,
+  deliveryFactOf,
+  departmentRefOf,
+  figureLineOf,
+  ledgerEntryOf,
+  openingCheckOf,
+  openingDifferencesOf,
+  openingStateOf,
+  openingViewOf,
+  person,
+  tileOf,
+  totalsOf,
+  wireDepartmentId,
+} from './branch-day-view';
+import type { Actor } from './branch-day.types';
 
-type Actor = NonNullable<Request['user']>;
+const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 } as const;
+const pad4 = (n: number): string => String(n).padStart(4, '0');
+const isUniqueViolation = (error: unknown): boolean => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+const D = (v: Prisma.Decimal.Value): Prisma.Decimal => new Prisma.Decimal(v);
 
-const ZERO = new Prisma.Decimal(0);
+// --- Who is calling ---------------------------------------------------------------------------------------------------------------------
 
-const requireBranchManager = (actor: Actor): string => {
-  if (actor.role !== 'MANAGER' || actor.isDepartmentHead) throw new ForbiddenError('Only the Branch Manager works the branch day');
-  if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
-  return actor.siteId;
+const loadStaff = async (actor: Actor): Promise<StaffRow> => {
+  const staff = await repo.findStaff(actor.id);
+  if (!staff) throw new UnauthorizedError('Authentication required');
+  return staff;
 };
 
-/** Verifies the actor's PIN and returns their display name (Actor carries no name). */
-const verifyPin = async (actorId: string, pin: string): Promise<string> => {
-  const user = await authRepository.findUserByIdWithPassword(actorId);
-  if (!user || !user.pinHash) throw new UnauthorizedError('No PIN is set for this account');
-  if (!(await comparePin(pin, user.pinHash))) throw new UnauthorizedError('Incorrect PIN');
-  return user.name;
-};
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const dayBefore = (date: Date): Date => new Date(date.getTime() - DAY_MS);
-const dayAfter = (date: Date): Date => new Date(date.getTime() + DAY_MS);
-
-/** Nairobi is UTC+3 with no DST: a date-only value stored as UTC midnight ends at `+21h`. Undefined for today and later. */
-const endOfBusinessDay = (businessDate: Date): Date | undefined => {
-  const end = new Date(businessDate.getTime() + 21 * 60 * 60 * 1000);
-  return end.getTime() <= Date.now() ? end : undefined;
-};
-
-const requireDepartmentHead = (actor: Actor): { branchOrgId: string; tag: DepartmentTag } => {
-  if (!actor.isDepartmentHead || !actor.departmentTag) throw new ForbiddenError('Only a department head opens their department');
-  if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
-  return { branchOrgId: actor.siteId, tag: actor.departmentTag };
-};
-
-/** Everything needed to derive a department's view, loaded once per request. */
-type Context = {
-  hubOrgId: string;
-  branchOrgId: string;
-  reasonRequiredKes: number;
-  blocking: Map<DepartmentTag, { id: string; sequenceLabel: string }[]>;
-  dayLineIds: string[];
-  /** End of the business day (Nairobi midnight) for a past day; undefined for today, whose position is the live ledger. */
-  asOf: Date | undefined;
-};
-
-const buildContext = async (day: BranchDayFull): Promise<Context> => {
-  const [hubOrgId, thresholds, dispatches] = await Promise.all([
-    requireHubOrgId(),
-    getBranchThresholdsInForce(day.siteId),
-    branchDayRepository.inTransitDispatches(day.siteId),
-  ]);
-  const blocking = new Map<DepartmentTag, { id: string; sequenceLabel: string }[]>();
-  for (const d of dispatches) {
-    const list = blocking.get(d.departmentTag) ?? [];
-    list.push({ id: d.id, sequenceLabel: d.sequenceLabel });
-    blocking.set(d.departmentTag, list);
-  }
-  return {
-    hubOrgId,
-    branchOrgId: day.siteId,
-    reasonRequiredKes: thresholds.reasonRequiredKes,
-    blocking,
-    dayLineIds: day.departments.flatMap((d) => d.lines.map((l) => l.id)),
-    asOf: endOfBusinessDay(day.businessDate),
-  };
-};
-
-type DepartmentView = { summary: DepartmentDaySummary; lines: DepartmentLine[]; itemIds: string[] };
+interface DepartmentCaller {
+  actor: Actor;
+  staff: StaffRow;
+  branchId: string;
+  departmentId: string;
+  /** The Branch Manager is counting for a department of the branch (recorded "on behalf"). */
+  onBehalf: boolean;
+}
 
 /**
- * One department's rows. An OPEN day merges the live item set with saved lines
- * (a saved line keeps its snapshot; an uncounted item shows the live expected
- * figure). A CLOSED day shows only what was counted and signed.
+ * The department rule (contract §5.7): an active user whose `department_id` names an ACTIVE department of their own branch. A holder of
+ * `branch_day.read` or `read_any_branch` is never a department. The Branch Manager (`branch_day.count_on_behalf`) names a department of
+ * their own branch; anything else is `NOT_YOUR_BRANCH`.
  */
-const buildDepartmentView = async (
-  ctx: Context,
-  day: BranchDayFull,
-  dept: BranchDayDepartmentFull,
-  savedOnly = false,
-): Promise<DepartmentView> => {
-  // History reads what was saved — never a live position — even for a day nobody closed.
-  const closed = savedOnly || day.status === 'CLOSED';
-  const saved = new Map(dept.lines.map((l) => [l.inventoryItemId, l]));
-
-  let items: DepartmentItem[];
-  if (closed) {
-    const catalog = await branchDayRepository.departmentItems(ctx.hubOrgId, ctx.branchOrgId, dept.locationId, dept.departmentTag);
-    const byId = new Map(catalog.map((i) => [i.id, i]));
-    const missing = dept.lines.map((l) => l.inventoryItemId).filter((id) => !byId.has(id));
-    const extra = missing.length ? await branchDayRepository.itemsByIds(ctx.hubOrgId, missing) : [];
-    items = [...catalog.filter((i) => saved.has(i.id)), ...extra];
-  } else {
-    items = await branchDayRepository.departmentItems(ctx.hubOrgId, ctx.branchOrgId, dept.locationId, dept.departmentTag);
+const departmentCaller = async (actor: Actor, requested: string | undefined, allowOnBehalf: boolean): Promise<DepartmentCaller> => {
+  const staff = await loadStaff(actor);
+  if (allowOnBehalf && actorCan(actor, 'branch_day.count_on_behalf')) {
+    if (!staff.siteId) throw new ValidationError('Branch context missing for this user');
+    if (!requested) throw new ValidationError('Say which department to count (departmentId)');
+    const dept = await repo.findDepartment(staff.siteId, requested);
+    if (!dept) throw branchDayError('NOT_YOUR_BRANCH', 'That department is not part of your branch.');
+    return { actor, staff, branchId: staff.siteId, departmentId: dept.id, onBehalf: true };
   }
-
-  const unsaved = items.filter((i) => !saved.has(i.id)).map((i) => i.id);
-  const [live, costs] = closed
-    ? [new Map<string, Prisma.Decimal>(), new Map<string, Prisma.Decimal>()]
-    : await Promise.all([
-        branchDayRepository.onHandExcludingDay(ctx.branchOrgId, dept.locationId, unsaved, ctx.dayLineIds, ctx.asOf),
-        branchDayRepository.latestInboundCosts(ctx.branchOrgId, dept.locationId, unsaved),
-      ]);
-
-  const lines: DepartmentLine[] = items.map((item) => {
-    const line = saved.get(item.id);
-    const expected = line ? line.expectedQty : (live.get(item.id) ?? ZERO);
-    const unitCost = line ? line.unitCost : (costs.get(item.id) ?? item.currentCost);
-    const counted = line?.countedQty ?? null;
-    const gap = lineVariance(counted, expected);
-    const value = lineVarianceValue(gap, unitCost);
-    return {
-      inventoryItemId: item.id,
-      name: item.name,
-      usageUnit: item.usageUnit,
-      expectedQty: expected.toString(),
-      countedQty: counted?.toString() ?? null,
-      gap: gap?.toString() ?? null,
-      gapValue: value ? toMoney(value) : null,
-      unitCost: unitCost.toString(),
-      reasonRequired: line?.reasonRequired ?? false,
-      reason: line?.reason ?? null,
-      reasonNote: line?.reasonNote ?? null,
-    };
-  });
-
-  const countedLines = lines.filter((l) => l.countedQty !== null);
-  const gapsAboveThreshold = countedLines.filter((l) => l.reasonRequired && l.gap !== null && !new Prisma.Decimal(l.gap).isZero()).length;
-  const net = countedLines.reduce((sum, l) => (l.gapValue ? sum.plus(l.gapValue) : sum), ZERO);
-  const blockingDispatches = ctx.blocking.get(dept.departmentTag) ?? [];
-
-  let status: DepartmentDaySummary['status'];
-  if (day.status === 'CLOSED') status = 'CLOSED';
-  else if (savedOnly) status = countedLines.length > 0 ? 'COUNTING' : 'NOT_STARTED';
-  else if (blockingDispatches.length > 0) status = 'BLOCKED';
-  else if (lines.length === 0 || countedLines.length === lines.length) status = 'COUNTED'; // no tagged items → auto-done (Q-D)
-  else if (countedLines.length > 0) status = 'COUNTING';
-  else status = 'NOT_STARTED';
-
-  return {
-    itemIds: items.map((i) => i.id),
-    lines,
-    summary: {
-      tag: dept.departmentTag,
-      name: departmentLabelOf(dept.departmentTag),
-      status,
-      blockingDispatches,
-      countedBy: dept.countedBy,
-      countedAt: dept.countedAt?.toISOString() ?? null,
-      itemCount: lines.length,
-      countedLines: countedLines.length,
-      gapsAboveThreshold,
-      netAdjustmentValue: toMoney(net),
-    },
-  };
+  if (actorCan(actor, 'branch_day.read') || actorCan(actor, 'branch_day.read_any_branch') || !staff.siteId || !staff.departmentId) {
+    throw branchDayError('NOT_YOUR_DEPARTMENT', 'Only a department head or member counts a department.');
+  }
+  if (requested && requested !== staff.departmentId) throw branchDayError('NOT_YOUR_DEPARTMENT', 'That is another department.');
+  const [dept, site] = await Promise.all([repo.findDepartment(staff.siteId, staff.departmentId), repo.findSite(staff.siteId)]);
+  if (!dept || dept.status !== 'ACTIVE' || !site || site.isHub) throw branchDayError('NOT_YOUR_DEPARTMENT', 'Your department is not active.');
+  return { actor, staff, branchId: staff.siteId, departmentId: dept.id, onBehalf: false };
 };
 
-const closeBlockersFor = (views: DepartmentView[]): CloseBlocker[] => {
-  const blockers: CloseBlocker[] = [];
-  for (const v of views) {
-    const name = v.summary.name;
-    if (v.summary.status === 'BLOCKED') {
-      const label = v.summary.blockingDispatches.map((d) => d.sequenceLabel.split(' · ')[0]).join(', ');
-      blockers.push({ code: 'BLOCKED', departmentTag: v.summary.tag, message: `${name} is blocked — ${label} is unconfirmed` });
-    } else if (v.summary.status === 'NOT_STARTED' || v.summary.status === 'COUNTING') {
-      blockers.push({
-        code: 'NOT_COUNTED',
-        departmentTag: v.summary.tag,
-        message:
-          v.summary.status === 'COUNTING'
-            ? `${name} is still counting (${v.summary.countedLines} of ${v.summary.itemCount})`
-            : `${name} has not been counted`,
-      });
-    }
-    const unreasoned = v.lines.filter(
-      (l) => l.countedQty !== null && l.reasonRequired && !reasonSatisfied(l.reason, l.reasonNote),
-    );
-    if (unreasoned.length > 0) {
-      blockers.push({
-        code: 'REASON_REQUIRED',
-        departmentTag: v.summary.tag,
-        message: `${name} has ${unreasoned.length} gap${unreasoned.length === 1 ? '' : 's'} without a reason`,
-      });
-    }
-  }
-  return blockers;
+interface Reader {
+  actor: Actor;
+  staff: StaffRow;
+  /** The caller's own branch (a Branch Manager). */
+  own: string | null;
+  /** Reads every branch (Director, Accountant, Store Manager, System Admin). */
+  anyBranch: boolean;
+  seeCosts: boolean;
+}
+
+const loadReader = async (actor: Actor): Promise<Reader> => {
+  const anyBranch = actorCan(actor, 'branch_day.read_any_branch');
+  if (!anyBranch && !actorCan(actor, 'branch_day.read')) throw new ForbiddenError('You do not have permission to read the Branch day');
+  const staff = await loadStaff(actor);
+  if (!anyBranch && !staff.siteId) throw new ValidationError('Branch context missing for this user');
+  return { actor, staff, own: staff.siteId, anyBranch, seeCosts: actorCan(actor, 'catalog.see_costs') };
 };
 
-/** Get-or-create today's day for the branch (plan §2.3). Losing a creation race just re-reads the winner. */
-const getOrCreateToday = async (branchOrgId: string): Promise<BranchDayFull> => {
-  const today = getTodayDateOnly();
-  const existing = await branchDayRepository.findByDate(branchOrgId, today);
-  if (existing) return existing;
-
-  const locations = await branchDayRepository.departmentLocations(branchOrgId);
-  if (locations.length === 0) throw new NotFoundError('No department locations are configured for this branch');
-  try {
-    await prisma.$transaction(async (tx) => {
-      const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'DAY');
-      await branchDayRepository.createDay(tx, {
-        siteId: branchOrgId,
-        businessDate: today,
-        reference,
-        locations: locations.map((l) => ({ id: l.id, tag: l.departmentTag! })),
-      });
-    });
-  } catch (error) {
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
-  }
-  const created = await branchDayRepository.findByDate(branchOrgId, today);
-  if (!created) throw new NotFoundError('Could not open today’s day');
-  return created;
+const requireCapability = (actor: Actor, capability: Capability, message: string): void => {
+  if (!actorCan(actor, capability)) throw new ForbiddenError(message);
 };
 
-const loadDay = async (id: string, branchOrgId: string | null): Promise<BranchDayFull> => {
-  const day = await branchDayRepository.findById(id, branchOrgId);
-  if (!day) throw new NotFoundError('Branch day not found');
+const assertBranch = (reader: Reader, siteId: string): void => {
+  if (!reader.anyBranch && reader.own !== siteId) throw branchDayError('NOT_YOUR_BRANCH', 'That is another branch.');
+};
+
+/** One day by id: found among the active branches, then refused with `NOT_YOUR_BRANCH` when the reader may not reach its branch. */
+const loadDay = async (reader: Reader, id: string, db: Db = prisma): Promise<DayRecord> => {
+  const branches = await repo.activeBranches(db);
+  const day = await repo.findDayById(branches.map((b) => b.id), id, db);
+  if (!day) throw new NotFoundError('Day not found');
+  assertBranch(reader, day.siteId);
   return day;
 };
 
-const findDepartment = (day: BranchDayFull, tag: DepartmentTag): BranchDayDepartmentFull => {
-  const dept = day.departments.find((d) => d.departmentTag === tag);
-  if (!dept) throw new NotFoundError('Department not found for this branch day');
-  return dept;
+const deptRow = (day: DayRecord, departmentId: string): DepartmentRow => {
+  const row = day.departments.find((d) => d.departmentId === departmentId);
+  if (!row) throw branchDayError('NO_DEPARTMENTS', 'This department is not part of today’s day.');
+  return row;
 };
 
-const toDetail = (day: BranchDayFull, ctx: Context, view: DepartmentView): DepartmentDayDetail => ({
-  branchDayId: day.id,
-  date: formatDateOnly(day.businessDate),
-  dayStatus: day.status,
-  closedAt: day.closedAt?.toISOString() ?? null,
-  reasonRequiredKes: ctx.reasonRequiredKes,
-  summary: view.summary,
-  lines: view.lines,
-});
-
-const orderedDepartments = (day: BranchDayFull): BranchDayDepartmentFull[] => {
-  const order: DepartmentTag[] = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
-  return [...day.departments].sort((a, b) => order.indexOf(a.departmentTag) - order.indexOf(b.departmentTag));
+const deptRowByWireId = (day: DayRecord, id: string): DepartmentRow => {
+  const row = day.departments.find((d) => d.departmentId === id || d.id === id);
+  if (!row) throw new NotFoundError('Department not found on this day');
+  return row;
 };
 
-const buildOverview = async (day: BranchDayFull, branchOrgId: string): Promise<BranchDayToday> => {
-  const ctx = await buildContext(day);
-  const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d)));
-  const blockers = day.status === 'OPEN' ? closeBlockersFor(views) : [];
+// --- The day: made together on the first read (contract §5.1) -----------------------------------------------------------------------------
 
-  const yesterdayRow = await branchDayRepository.findByDate(branchOrgId, dayBefore(day.businessDate));
-  return {
-    id: day.id,
-    reference: day.reference,
-    date: formatDateOnly(day.businessDate),
-    status: day.status,
-    branchName: day.site.name,
-    closedAt: day.closedAt?.toISOString() ?? null,
-    closedBy: day.closedBy,
-    reopenCount: day.reopenCount,
-    departments: views.map((v) => v.summary),
-    yesterday: yesterdayRow
-      ? {
-          id: yesterdayRow.id,
-          date: formatDateOnly(yesterdayRow.businessDate),
-          status: yesterdayRow.status,
-          closedAt: yesterdayRow.closedAt?.toISOString() ?? null,
-          closedBy: yesterdayRow.closedBy,
+/** An open day the old code made is adopted: lines for a department that has none, an id link where the back-fill found none, and a partial count undone. */
+const adoptOldDay = async (day: DayRecord): Promise<DayRecord> => {
+  if (day.status !== 'OPEN') return day;
+  let changed = false;
+  const departments = await repo.activeDepartments(day.siteId);
+  await prisma.$transaction(async (tx) => {
+    for (const row of day.departments) {
+      if (row.departmentId === null) {
+        const match = row.departmentTag ? departments.find((d) => d.key === row.departmentTag) : undefined;
+        if (match) {
+          await repo.linkDepartment(tx, row.id, match.id);
+          changed = true;
         }
-      : null,
-    reasonRequiredKes: ctx.reasonRequiredKes,
-    canClose: day.status === 'OPEN' && blockers.length === 0,
-    closeBlockers: blockers,
-  };
+      }
+      const departmentId = row.departmentId ?? (row.departmentTag ? departments.find((d) => d.key === row.departmentTag)?.id : undefined);
+      if (row.lines.length === 0 && departmentId) {
+        const items = await repo.itemsOfDepartment(departmentId, tx);
+        if (items.length > 0) {
+          await repo.addLines(tx, row.id, items.map((i) => ({ id: i.id, cost: i.currentCost })));
+          changed = true;
+        }
+      }
+      if (row.status === 'COUNTED' && row.lines.some((l) => l.countedQty === null)) {
+        await repo.reopenPartialCount(tx, row.id);
+        changed = true;
+      }
+    }
+  }, TX_OPTIONS);
+  if (!changed) return day;
+  return (await repo.findDayByDate(day.siteId, day.businessDate)) ?? day;
 };
-
-/** The department head's opening: live pre-fill until accepted, the signed figures after. */
-const loadOpeningView = async (branchOrgId: string, tag: DepartmentTag): Promise<OpeningView> => {
-  const day = await getOrCreateToday(branchOrgId);
-  const dept = findDepartment(day, tag);
-  const hubOrgId = await requireHubOrgId();
-  const [opening, yesterday] = await Promise.all([
-    branchDayRepository.findOpening(day.id, tag),
-    branchDayRepository.findByDate(branchOrgId, dayBefore(day.businessDate)),
-  ]);
-  const base = {
-    branchDayId: day.id,
-    date: formatDateOnly(day.businessDate),
-    departmentTag: tag,
-    departmentName: departmentLabelOf(tag),
-    lastCloseAt: yesterday?.status === 'CLOSED' ? (yesterday.closedAt?.toISOString() ?? null) : null,
-  };
-
-  if (opening) {
-    const items = await branchDayRepository.itemsByIds(hubOrgId, opening.lines.map((l) => l.inventoryItemId));
-    const byId = new Map(items.map((i) => [i.id, i]));
-    const lines = opening.lines
-      .map((l) => ({
-        inventoryItemId: l.inventoryItemId,
-        name: byId.get(l.inventoryItemId)?.name ?? 'Unknown item',
-        usageUnit: byId.get(l.inventoryItemId)?.usageUnit ?? '',
-        prefilledQty: l.prefilledQty.toString(),
-        acceptedQty: l.acceptedQty.toString(),
-        overnightVariance: l.overnightVariance.toString(),
-        unitCost: l.unitCost.toString(),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    return {
-      ...base,
-      status: 'ACCEPTED',
-      acceptedAt: opening.acceptedAt.toISOString(),
-      acceptedBy: opening.acceptedBy,
-      varianceLineCount: opening.lines.filter((l) => !l.overnightVariance.isZero()).length,
-      lines,
-    };
-  }
-
-  const items = await branchDayRepository.departmentItems(hubOrgId, branchOrgId, dept.locationId, tag);
-  const ids = items.map((i) => i.id);
-  const [onHand, costs] = await Promise.all([
-    branchDayRepository.onHandAt(null, branchOrgId, dept.locationId, ids),
-    branchDayRepository.latestInboundCosts(branchOrgId, dept.locationId, ids),
-  ]);
-  return {
-    ...base,
-    status: 'PENDING',
-    acceptedAt: null,
-    acceptedBy: null,
-    varianceLineCount: 0,
-    lines: items.map((i) => ({
-      inventoryItemId: i.id,
-      name: i.name,
-      usageUnit: i.usageUnit,
-      prefilledQty: (onHand.get(i.id) ?? ZERO).toString(),
-      acceptedQty: null,
-      overnightVariance: null,
-      unitCost: (costs.get(i.id) ?? i.currentCost).toString(),
-    })),
-  };
-};
-
-const OVERNIGHT_REASON = 'Overnight variance';
 
 /**
- * A (re-)close moves the ledger under any opening the next morning already
- * accepted. The department head's accepted figure is what was physically
- * counted, so it stays authoritative: reverse the standing overnight rows
- * (linked, append-only), re-derive the pre-fill from the ledger without them,
- * and write a fresh overnight row for whatever now differs (Flow 12b step 4).
+ * Today's day of a branch, made on the first read by the branch's own people: the day, one row per ACTIVE department and one line per
+ * live item of that department, all in one transaction with the day number. A losing creation race re-reads the winner.
  */
-const recomputeNextMorningOpenings = async (
-  tx: Prisma.TransactionClient,
-  branchOrgId: string,
-  closedDate: Date,
-  actorId: string,
-): Promise<void> => {
-  const openings = await branchDayRepository.openingsForDate(tx, branchOrgId, dayAfter(closedDate));
-  for (const opening of openings) {
-    const lineIds = opening.lines.map((l) => l.id);
-    const standing = await branchDayRepository.activeOpeningAdjustments(tx, branchOrgId, lineIds);
-    for (const original of standing) {
-      const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
-      await branchDayRepository.writeAdjustment(tx, {
-        siteId: branchOrgId,
-        locationId: original.locationId,
-        inventoryItemId: original.inventoryItemId,
-        quantity: original.quantity.negated(),
-        unitCost: original.unitCost,
-        reason: `Reversal of ${original.reference ?? 'adjustment'} — previous day re-closed`,
-        openingLineId: original.openingLineId!,
-        reference,
-        userId: actorId,
-        reversesTransactionId: original.id,
-      });
-    }
-    const onHand = await branchDayRepository.onHandAt(tx, branchOrgId, opening.locationId, opening.lines.map((l) => l.inventoryItemId), lineIds);
-    for (const line of opening.lines) {
-      const prefilled = onHand.get(line.inventoryItemId) ?? ZERO;
-      const variance = line.acceptedQty.minus(prefilled);
-      await branchDayRepository.updateOpeningLine(tx, line.id, prefilled, variance);
-      if (variance.isZero()) continue;
-      const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
-      await branchDayRepository.writeAdjustment(tx, {
-        siteId: branchOrgId,
-        locationId: opening.locationId,
-        inventoryItemId: line.inventoryItemId,
-        quantity: variance,
-        unitCost: line.unitCost,
-        reason: OVERNIGHT_REASON,
-        openingLineId: line.id,
-        reference,
-        userId: actorId,
-      });
-    }
+const ensureToday = async (branchId: string, now: Date): Promise<DayRecord> => {
+  const businessDate = dayAsDate(nairobiDay(now));
+  const existing = await repo.findDayByDate(branchId, businessDate);
+  if (existing) return adoptOldDay(existing);
+
+  const [site, departments] = await Promise.all([repo.findSite(branchId), repo.activeDepartments(branchId)]);
+  if (!site || site.isHub) throw new NotFoundError('Branch not found');
+  if (departments.length === 0) throw branchDayError('NO_DEPARTMENTS', 'This branch has no active department, so there is no day to count.');
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const number = await referenceCounterRepository.nextNumber(tx, branchId, 'DAY');
+      const reference = site.code ? `DAY-${site.code}-${pad4(number)}` : `DAY-${pad4(number)}`;
+      const located: { departmentId: string; tag: typeof departments[number]['key']; locationId: string }[] = [];
+      for (const d of departments) {
+        const location = await deliveriesRepository.ensureDepartmentLocation(tx, branchId, d.id);
+        if (!location) throw new ValidationError(`The stock location of ${d.name} could not be made`);
+        located.push({ departmentId: d.id, tag: d.key, locationId: location.id });
+      }
+      const created = await repo.createDay(tx, { siteId: branchId, businessDate, reference, departments: located });
+      for (const row of created.departments) {
+        if (!row.departmentId) continue;
+        const items = await repo.itemsOfDepartment(row.departmentId, tx);
+        await repo.addLines(tx, row.id, items.map((i) => ({ id: i.id, cost: i.currentCost })));
+      }
+    }, TX_OPTIONS);
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
   }
+  const day = await repo.findDayByDate(branchId, businessDate);
+  if (!day) throw new NotFoundError('Day not found');
+  return day;
 };
 
+// --- Shared reads -------------------------------------------------------------------------------------------------------------------------
+
+const heads = async (day: DayRecord, db: Db = prisma): Promise<Map<string, Person>> =>
+  repo.departmentHeads(day.siteId, day.departments.flatMap((d) => (d.departmentId ? [d.departmentId] : [])), db);
+
+const figuresOfAll = async (day: DayRecord, withYesterday: boolean, db?: Db): Promise<DepartmentFigures[]> =>
+  Promise.all(day.departments.map((d) => departmentFigures(day, d, { withYesterday }, db)));
+
+const blockersFor = async (day: DayRecord, db: Db = prisma) => {
+  const [onTheWay, discrepancies] = await Promise.all([repo.onTheWay(day.siteId, db), repo.openDiscrepancies(day.siteId, db)]);
+  return blockersOf({
+    departments: day.departments.map((d) => ({
+      id: wireDepartmentId(d),
+      name: d.department?.name ?? '',
+      status: d.status,
+      itemCount: d.lines.length,
+      countedAt: d.countedAt,
+      openingState: openingStateOf(day, d),
+    })),
+    onTheWay: onTheWay.flatMap((x) => (x.signedAt ? [{ id: x.id, reference: x.reference ?? '', signedAt: x.signedAt, department: { id: x.department.id, name: x.department.name } }] : [])),
+    openDiscrepancies: discrepancies.map((d) => ({ id: d.id, reference: d.reference })),
+  });
+};
+
+const parentNamesOf = (dept: DepartmentRow): Promise<Map<string, string>> =>
+  repo.categoryNames([...new Set(dept.lines.flatMap((l) => (l.inventoryItem.category?.parentCategoryId ? [l.inventoryItem.category.parentCategoryId] : [])))]);
+
+const sumUsed = (figs: DepartmentFigures[]): Prisma.Decimal | null => {
+  const counted = figs.filter((f) => f.dept.status === 'COUNTED' && f.lines.length > 0);
+  if (counted.length === 0) return null;
+  return counted.reduce((s, f) => s.plus(usedValueOf(f) ?? zero), zero);
+};
+
+/** The branch's Used value now: frozen once closed (a day closed under the old flow has none), the sum of the counted departments while open. */
+const dayUsedValue = (day: DayRecord, figs: DepartmentFigures[]): Prisma.Decimal | null => (day.status === 'CLOSED' ? day.usedValue : sumUsed(figs));
+
+const tilesOf = (day: DayRecord, figs: DepartmentFigures[], headMap: Map<string, Person>, seeCosts: boolean): DepartmentTile[] =>
+  figs.map((f) => tileOf(day, f, f.dept, f.dept.departmentId ? (headMap.get(f.dept.departmentId) ?? null) : null, seeCosts));
+
+/** The entries a close will post (or has posted): the closing count minus the ledger position, for each line that moved (contract §5.8, §5.9). */
+const usagePlan = async (day: DayRecord, figs: DepartmentFigures[], db: Db) => {
+  const plan: { f: DepartmentFigures['lines'][number]; locationId: string; quantity: Prisma.Decimal }[] = [];
+  for (const dept of figs) {
+    const closings = dept.lines.filter((l) => l.closing !== null);
+    const positions = await repo.positions(day.siteId, dept.dept.locationId, closings.map((l) => l.line.inventoryItemId), null, db);
+    for (const l of closings) {
+      const closing = l.closing;
+      if (closing === null) continue;
+      const quantity = usageEntryQty(closing, positions.get(l.line.inventoryItemId) ?? zero);
+      if (!quantity.isZero()) plan.push({ f: l, locationId: dept.dept.locationId, quantity });
+    }
+  }
+  return plan;
+};
+
+// --- Opening and count inputs ------------------------------------------------------------------------------------------------------------------
+
+/** A recount is every line of the department, none left out and none that is not on its day. */
+const checkedLines = (dept: DepartmentRow, lines: { itemId: string; countedQty: string }[]): Map<string, Prisma.Decimal> => {
+  const known = new Set(dept.lines.map((l) => l.inventoryItemId));
+  const unknown = lines.filter((l) => !known.has(l.itemId)).map((l) => l.itemId);
+  if (unknown.length > 0) throw branchDayError('ITEM_NOT_IN_DAY', 'Some of these items are not on this department’s day.', { itemIds: unknown });
+  const given = new Map(lines.map((l) => [l.itemId, D(l.countedQty)]));
+  const missing = dept.lines.filter((l) => !given.has(l.inventoryItemId)).map((l) => l.inventoryItemId);
+  if (missing.length > 0) throw branchDayError('COUNT_INCOMPLETE', 'Count every item.', { itemIds: missing });
+  return given;
+};
+
+const assertOpen = (day: DayRecord): void => {
+  if (day.status === 'CLOSED') throw branchDayError('DAY_ALREADY_CLOSED', 'This day is already closed.');
+};
+
+const closedAtOf = (day: DayRecord): string | null => (day.closedAt ? day.closedAt.toISOString() : null);
+
+// --- The service --------------------------------------------------------------------------------------------------------------------------------
+
 export const branchDayService = {
-  getToday: async (actor: Actor): Promise<BranchDayToday> => {
-    const branchOrgId = requireBranchManager(actor);
-    return buildOverview(await getOrCreateToday(branchOrgId), branchOrgId);
-  },
+  // ============================ The head (BD1 to BD10) ============================
 
-  /** The same overview for any of the branch's own days — a reopened past day is recounted and re-closed here. */
-  getOverview: async (actor: Actor, id: string): Promise<BranchDayToday> => {
-    const branchOrgId = requireBranchManager(actor);
-    return buildOverview(await loadDay(id, branchOrgId), branchOrgId);
-  },
-
-  getDepartment: async (actor: Actor, id: string, tag: DepartmentTag): Promise<DepartmentDayDetail> => {
-    const branchOrgId = requireBranchManager(actor);
-    const day = await loadDay(id, branchOrgId);
-    const ctx = await buildContext(day);
-    return toDetail(day, ctx, await buildDepartmentView(ctx, day, findDepartment(day, tag)));
-  },
-
-  saveLines: async (actor: Actor, id: string, tag: DepartmentTag, input: SaveDepartmentLinesInput): Promise<SaveLinesResult> => {
-    const branchOrgId = requireBranchManager(actor);
-    const day = await loadDay(id, branchOrgId);
-    if (day.status !== 'OPEN') throw new ConflictError('This day is closed — reopen it to change counts', 'DAY_CLOSED');
-    const dept = findDepartment(day, tag);
-    const ctx = await buildContext(day);
-    if ((ctx.blocking.get(tag) ?? []).length > 0) {
-      throw new ConflictError('This department has an unconfirmed dispatch — confirm it before counting', 'DEPARTMENT_BLOCKED');
-    }
-
-    const items = await branchDayRepository.departmentItems(ctx.hubOrgId, branchOrgId, dept.locationId, tag);
-    const known = new Set(items.map((i) => i.id));
-    const foreign = input.lines.filter((l) => !known.has(l.inventoryItemId));
-    if (foreign.length > 0) throw new ValidationError('Some items are not counted by this department', 'ITEM_NOT_IN_DEPARTMENT', { itemIds: foreign.map((l) => l.inventoryItemId) });
-
-    const existing = new Map(dept.lines.map((l) => [l.inventoryItemId, l]));
-    const ids = input.lines.map((l) => l.inventoryItemId);
-    const [live, costs] = await Promise.all([
-      branchDayRepository.onHandExcludingDay(branchOrgId, dept.locationId, ids, ctx.dayLineIds, ctx.asOf),
-      branchDayRepository.latestInboundCosts(branchOrgId, dept.locationId, ids),
-    ]);
-    const catalog = new Map(items.map((i) => [i.id, i]));
-
-    const writes: LineWrite[] = [];
-    for (const entry of input.lines) {
-      const prior = existing.get(entry.inventoryItemId);
-      const counted = entry.countedQty === null ? null : new Prisma.Decimal(entry.countedQty);
-      if (!prior && counted === null) continue; // nothing to record for an untouched, uncounted item
-
-      // Snapshot at the moment the count is saved (plan §1.4); a cleared count keeps its last snapshot.
-      const expected = counted === null && prior ? prior.expectedQty : (live.get(entry.inventoryItemId) ?? ZERO);
-      const unitCost = counted === null && prior ? prior.unitCost : (costs.get(entry.inventoryItemId) ?? catalog.get(entry.inventoryItemId)!.currentCost);
-      const variance = lineVariance(counted, expected);
-      const reasonRequired = isReasonRequired(variance, unitCost, ctx.reasonRequiredKes);
-      writes.push({
-        inventoryItemId: entry.inventoryItemId,
-        countedQty: counted,
-        expectedQty: expected,
-        unitCost,
-        reasonRequired,
-        // A reason only means something on a required line; anything else is dropped so stale reasons never linger.
-        reason: reasonRequired ? (entry.reason ?? null) : null,
-        reasonNote: reasonRequired && entry.reason ? (entry.reasonNote?.trim() || null) : null,
-      });
-    }
-
-    const now = new Date();
-    await prisma.$transaction(async (tx) => {
-      await branchDayRepository.upsertLines(tx, dept.id, writes);
-      const savedCount = await tx.branchDayLine.count({ where: { branchDayDepartmentId: dept.id, countedQty: { not: null } } });
-      const complete = savedCount >= items.length;
-      await branchDayRepository.setDepartmentStatus(tx, dept.id, complete ? 'COUNTED' : 'NOT_STARTED', actor.id, savedCount > 0 ? now : null);
-    });
-
-    const fresh = await loadDay(id, branchOrgId);
-    const freshCtx = await buildContext(fresh);
-    const detail = toDetail(fresh, freshCtx, await buildDepartmentView(freshCtx, fresh, findDepartment(fresh, tag)));
-    return { savedAt: now.toISOString(), detail };
-  },
-
-  close: async (actor: Actor, id: string, input: CloseDayInput): Promise<CloseResult> => {
-    const branchOrgId = requireBranchManager(actor);
-    const day = await loadDay(id, branchOrgId);
-    if (day.status !== 'OPEN') throw new ConflictError('This day is already closed', 'DAY_CLOSED');
-
-    const ctx = await buildContext(day);
-    const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d)));
-    const blockers = closeBlockersFor(views);
-    if (blockers.length > 0) throw new ConflictError('The day is not ready to close', 'DAY_NOT_READY', { blockers });
-
-    await verifyPin(actor.id, input.pin);
-
-    const { directorAlertKes } = await getHubThresholdsInForce(ctx.hubOrgId);
-    const now = new Date();
-    let adjustmentCount = 0;
-    let reversalCount = 0;
-    let net = ZERO;
-    const alertValues: Prisma.Decimal[] = [];
-
-    await prisma.$transaction(async (tx) => {
-      // A re-close reverses every adjustment the previous close left standing (Flow 12b): linked, equal and opposite.
-      const active = await branchDayRepository.activeAdjustments(tx, branchOrgId, ctx.dayLineIds);
-      const lineOwner = new Map<string, BranchDayDepartmentFull>();
-      for (const d of day.departments) for (const l of d.lines) lineOwner.set(l.id, d);
-      for (const original of active) {
-        const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
-        await branchDayRepository.writeAdjustment(tx, {
-          siteId: branchOrgId,
-          locationId: original.locationId,
-          inventoryItemId: original.inventoryItemId,
-          quantity: original.quantity.negated(),
-          unitCost: original.unitCost,
-          reason: `Reversal of ${original.reference ?? 'adjustment'} — day reopened`,
-          branchDayLineId: original.branchDayLineId!,
-          reference,
-          userId: actor.id,
-          reversesTransactionId: original.id,
-        });
-        reversalCount += 1;
-      }
-
-      for (const dept of day.departments) {
-        for (const line of dept.lines) {
-          if (line.countedQty === null || !hasGap(line.countedQty, line.expectedQty)) continue;
-          const variance = lineVariance(line.countedQty, line.expectedQty)!;
-          const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
-          const label = line.reason ? GAP_REASON_LABEL[line.reason] : 'End-of-day count';
-          await branchDayRepository.writeAdjustment(tx, {
-            siteId: branchOrgId,
-            locationId: dept.locationId,
-            inventoryItemId: line.inventoryItemId,
-            quantity: variance,
-            unitCost: line.unitCost,
-            reason: line.reason === 'OTHER' && line.reasonNote ? `${label}: ${line.reasonNote}` : label,
-            branchDayLineId: line.id,
-            reference,
-            userId: actor.id,
-          });
-          adjustmentCount += 1;
-          const value = lineVarianceValue(variance, line.unitCost)!;
-          net = net.plus(value);
-          if (isDirectorAlert(variance, line.unitCost, directorAlertKes)) alertValues.push(value);
-        }
-        await branchDayRepository.setDepartmentStatus(tx, dept.id, 'COUNTED', dept.countedById ?? actor.id, dept.countedAt ?? now);
-      }
-      await branchDayRepository.closeDay(tx, day.id, actor.id, now);
-      await recomputeNextMorningOpenings(tx, branchOrgId, day.businessDate, actor.id);
-    });
-
-    // After commit, fire-and-forget (plan §3) — never awaited inside the transaction.
-    let directorNotified = false;
-    if (alertValues.length > 0) {
-      const largest = alertValues.reduce((a, b) => (a.abs().greaterThan(b.abs()) ? a : b));
-      void fcmService.sendBranchDayDirectorAlertPush({
-        dayId: day.id,
-        reference: day.reference,
-        branchName: day.site.name,
-        alertLineCount: alertValues.length,
-        largestValueKes: toMoney(largest.abs()),
-      });
-      directorNotified = true;
-    }
-
+  /** BD1 GET /home: the head's Day (B0, B4). Creates today's day on the first read. */
+  home: async (actor: Actor, now: Date = new Date()): Promise<Home> => {
+    const c = await departmentCaller(actor, undefined, false);
+    const day = await ensureToday(c.branchId, now);
+    const dept = deptRow(day, c.departmentId);
+    const [site, deliveries] = await Promise.all([repo.findSite(c.branchId), repo.deliveriesInWindow(c.branchId, dayWindow(day.businessDate).start, dayWindow(day.businessDate).end)]);
+    if (!site) throw new NotFoundError('Branch not found');
+    const opening = openingCheckOf(day, dept);
+    const signed = countStateOf(dept) === 'COUNTED';
     return {
-      id: day.id,
-      reference: day.reference,
-      status: 'CLOSED',
-      closedAt: now.toISOString(),
-      adjustmentCount,
-      reversalCount,
-      netAdjustmentValue: toMoney(net),
-      directorNotified,
+      day: dayHeadOf(day),
+      branch: branchRefOf(site),
+      department: departmentRefOf(dept),
+      itemCount: dept.lines.length,
+      opening,
+      delivery: deliveryFactOf(c.departmentId, deliveries),
+      count: { state: countStateOf(dept), signedAt: dept.countedAt ? dept.countedAt.toISOString() : null, signedBy: dept.countedBy ? person(dept.countedBy) : null, onBehalf: dept.onBehalf },
+      closed: { at: closedAtOf(day) },
+      action: homeActionOf(now, signed, opening.state),
     };
   },
 
-  /** MANAGER (own branch) or DIRECTOR (API only). The day returns to OPEN; the ledger is only touched by the next close. */
-  reopen: async (actor: Actor, id: string, input: ReopenDayInput): Promise<ReopenResult> => {
-    let day: BranchDayFull;
-    if (actor.role === 'DIRECTOR') {
-      day = await loadDay(id, null);
-    } else {
-      day = await loadDay(id, requireBranchManager(actor));
+  /** BD2 GET /opening (B1). */
+  opening: async (actor: Actor, query: OpeningQuery, now: Date = new Date()): Promise<OpeningView> => {
+    const c = await departmentCaller(actor, query.departmentId, true);
+    const day = await ensureToday(c.branchId, now);
+    const dept = deptRow(day, c.departmentId);
+    const [figures, lastCloseAt] = await Promise.all([departmentFigures(day, dept, { withYesterday: false }), repo.previousClosedAt(c.branchId, day.businessDate)]);
+    return openingViewOf(day, dept, figures, lastCloseAt);
+  },
+
+  /** BD3 POST /opening/accept: one tap, no PIN, no ledger row. */
+  acceptOpening: async (actor: Actor, input: AcceptOpeningInput, now: Date = new Date()): Promise<OpeningResult> => {
+    const c = await departmentCaller(actor, input.departmentId, true);
+    const day = await ensureToday(c.branchId, now);
+    assertOpen(day);
+    const dept = deptRow(day, c.departmentId);
+    const existing = openingOf(day, dept);
+    const view = async (fresh: DayRecord): Promise<OpeningView> => {
+      const row = deptRow(fresh, c.departmentId);
+      const [figures, lastCloseAt] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate)]);
+      return openingViewOf(fresh, row, figures, lastCloseAt);
+    };
+    if (existing) {
+      if (existing.idempotencyKey === input.idempotencyKey) return { view: await view(day), replayed: true };
+      throw branchDayError('OPENING_ALREADY_CHECKED', 'The opening is already checked.');
     }
-    if (day.status !== 'CLOSED') throw new ConflictError('Only a closed day can be reopened', 'DAY_NOT_CLOSED');
-
-    const { reopenCount } = await prisma.$transaction((tx) => branchDayRepository.reopenDay(tx, day.id, actor.id, input.reason));
-    return { id: day.id, status: 'OPEN', reopenCount };
-  },
-
-  getDocument: async (actor: Actor, id: string): Promise<DayDocument> => {
-    const branchOrgId = requireBranchManager(actor);
-    const day = await loadDay(id, branchOrgId);
-    if (day.status !== 'CLOSED' || !day.closedAt || !day.closedBy) throw new ConflictError('The day has not been closed', 'DAY_NOT_CLOSED');
-
-    const ctx = await buildContext(day);
-    const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d)));
-    return {
-      id: day.id,
-      reference: day.reference,
-      date: formatDateOnly(day.businessDate),
-      branchName: day.site.name,
-      branchAddress: `${day.site.address}, ${day.site.city}`,
-      branchPhone: day.site.phone,
-      openedAt: day.createdAt.toISOString(),
-      closedAt: day.closedAt.toISOString(),
-      closedBy: day.closedBy,
-      reopenCount: day.reopenCount,
-      departments: views.map((v) => ({
-        tag: v.summary.tag,
-        name: v.summary.name,
-        items: v.summary.itemCount,
-        gaps: v.summary.gapsAboveThreshold,
-        status: 'Closed' as const,
-      })),
-      totals: {
-        items: views.reduce((n, v) => n + v.summary.itemCount, 0),
-        gapLines: views.reduce((n, v) => n + v.summary.gapsAboveThreshold, 0),
-        netAdjustmentValue: toMoney(views.reduce((sum, v) => sum.plus(v.summary.netAdjustmentValue), ZERO)),
-      },
-    };
-  },
-
-  // ── History (Session 4) ─────────────────────────────────────────────────────
-
-  getHistory: async (actor: Actor, query: HistoryQuery): Promise<HistoryList> => {
-    const branchOrgId = requireBranchManager(actor);
-    const days = await branchDayRepository.historyDays(branchOrgId, parseDateOnly(query.from), parseDateOnly(query.to), getTodayDateOnly());
-    return {
-      from: query.from,
-      to: query.to,
-      days: days.map((day) => {
-        const lines = day.departments.flatMap((d) => d.lines).filter((l) => l.countedQty !== null);
-        const gapLines = lines.filter((l) => l.reasonRequired && hasGap(l.countedQty, l.expectedQty)).length;
-        const net = lines.reduce((sum, l) => sum.plus(lineVarianceValue(lineVariance(l.countedQty, l.expectedQty), l.unitCost) ?? ZERO), ZERO);
-        return {
-          id: day.id,
-          reference: day.reference,
-          date: formatDateOnly(day.businessDate),
-          status: day.status,
-          reopenCount: day.reopenCount,
-          closedAt: day.closedAt?.toISOString() ?? null,
-          closedBy: day.closedBy,
-          departmentsClosed: day.status === 'CLOSED' ? day.departments.length : 0,
-          departmentsTotal: day.departments.length,
-          gapLines,
-          netAdjustmentValue: toMoney(net),
-        };
-      }),
-    };
-  },
-
-  getDetail: async (actor: Actor, id: string): Promise<BranchDayDetail> => {
-    const branchOrgId = requireBranchManager(actor);
-    const day = await loadDay(id, branchOrgId);
-    const ctx = await buildContext(day);
-    const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d, true)));
-    const reopens = await branchDayRepository.reopenAudit(day.id);
-    return {
-      id: day.id,
-      reference: day.reference,
-      date: formatDateOnly(day.businessDate),
-      status: day.status,
-      branchName: day.site.name,
-      closedAt: day.closedAt?.toISOString() ?? null,
-      closedBy: day.closedBy,
-      reopenCount: day.reopenCount,
-      kpis: {
-        departmentsClosed: day.status === 'CLOSED' ? views.length : 0,
-        departmentsTotal: views.length,
-        totalGaps: views.reduce((n, v) => n + v.summary.gapsAboveThreshold, 0),
-        netAdjustmentValue: toMoney(views.reduce((sum, v) => sum.plus(v.summary.netAdjustmentValue), ZERO)),
-        reopens: day.reopenCount,
-      },
-      departments: views.map((v) => ({ summary: v.summary, lines: v.lines })),
-      reopens: reopens.map((r) => ({ id: r.id, reopenedBy: r.reopenedBy, reopenedAt: r.reopenedAt.toISOString(), reason: r.reason })),
-    };
-  },
-
-  // ── Next-morning opening (Session 4, Flow 12c) ──────────────────────────────
-
-  getOpening: async (actor: Actor): Promise<OpeningView> => {
-    const { branchOrgId, tag } = requireDepartmentHead(actor);
-    return loadOpeningView(branchOrgId, tag);
-  },
-
-  acceptOpening: async (actor: Actor, input: AcceptOpeningInput): Promise<AcceptOpeningResult> => {
-    const { branchOrgId, tag } = requireDepartmentHead(actor);
-    const day = await getOrCreateToday(branchOrgId);
-    const dept = findDepartment(day, tag);
-    if (await branchDayRepository.findOpening(day.id, tag)) {
-      throw new ConflictError('This department’s opening has already been accepted today', 'OPENING_ALREADY_ACCEPTED');
-    }
-
-    const hubOrgId = await requireHubOrgId();
-    const items = await branchDayRepository.departmentItems(hubOrgId, branchOrgId, dept.locationId, tag);
-    const known = new Set(items.map((i) => i.id));
-    const foreign = input.lines.filter((l) => !known.has(l.inventoryItemId));
-    if (foreign.length > 0) throw new ValidationError('Some items are not counted by this department', 'ITEM_NOT_IN_DEPARTMENT', { itemIds: foreign.map((l) => l.inventoryItemId) });
-
-    const ids = items.map((i) => i.id);
-    const [onHand, costs, thresholds] = await Promise.all([
-      branchDayRepository.onHandAt(null, branchOrgId, dept.locationId, ids),
-      branchDayRepository.latestInboundCosts(branchOrgId, dept.locationId, ids),
-      getBranchThresholdsInForce(branchOrgId),
-    ]);
-    const entered = new Map(input.lines.map((l) => [l.inventoryItemId, new Prisma.Decimal(l.acceptedQty)]));
-
-    const writes: OpeningLineWrite[] = items.map((item) => {
-      const prefilled = onHand.get(item.id) ?? ZERO;
-      const accepted = entered.get(item.id) ?? prefilled;
-      return {
-        inventoryItemId: item.id,
-        prefilledQty: prefilled,
-        acceptedQty: accepted,
-        overnightVariance: accepted.minus(prefilled),
-        unitCost: costs.get(item.id) ?? item.currentCost,
-      };
-    });
-
-    const now = new Date();
-    let adjustmentCount = 0;
-    let openingId = '';
-    const alertValues: Prisma.Decimal[] = [];
+    const figures = await departmentFigures(day, dept, { withYesterday: false });
     try {
       await prisma.$transaction(async (tx) => {
-        const opening = await branchDayRepository.createOpening(tx, {
+        await repo.createOpening(tx, {
           branchDayId: day.id,
-          departmentTag: tag,
+          departmentId: c.departmentId,
+          departmentTag: dept.departmentTag,
           locationId: dept.locationId,
           acceptedById: actor.id,
           acceptedAt: now,
-          lines: writes,
+          kind: 'ACCEPTED',
+          onBehalf: c.onBehalf,
+          idempotencyKey: input.idempotencyKey,
+          lines: figures.lines.map((l) => ({ inventoryItemId: l.line.inventoryItemId, prefilledQty: l.lastNight, acceptedQty: l.lastNight, overnightVariance: zero, unitCost: l.unitCost })),
         });
-        openingId = opening.id;
-        const lineByItem = new Map(opening.lines.map((l) => [l.inventoryItemId, l]));
-        for (const w of writes) {
-          if (w.overnightVariance.isZero()) continue;
-          const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
-          await branchDayRepository.writeAdjustment(tx, {
-            siteId: branchOrgId,
-            locationId: dept.locationId,
-            inventoryItemId: w.inventoryItemId,
-            quantity: w.overnightVariance,
-            unitCost: w.unitCost,
-            reason: OVERNIGHT_REASON,
-            openingLineId: lineByItem.get(w.inventoryItemId)!.id,
-            reference,
-            userId: actor.id,
-          });
-          adjustmentCount += 1;
-          if (isReasonRequired(w.overnightVariance, w.unitCost, thresholds.overnightAlertKes)) {
-            alertValues.push(lineVarianceValue(w.overnightVariance, w.unitCost)!.abs());
-          }
-        }
-      });
+      }, TX_OPTIONS);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictError('This department’s opening has already been accepted today', 'OPENING_ALREADY_ACCEPTED');
-      }
-      throw error;
+      if (!isUniqueViolation(error)) throw error;
+      const raced = await repo.findDayByDate(c.branchId, day.businessDate);
+      const winner = raced ? openingOf(raced, deptRow(raced, c.departmentId)) : undefined;
+      if (raced && winner?.idempotencyKey === input.idempotencyKey) return { view: await view(raced), replayed: true };
+      throw branchDayError('OPENING_ALREADY_CHECKED', 'The opening is already checked.');
     }
+    const fresh = await repo.findDayByDate(c.branchId, day.businessDate);
+    if (!fresh) throw new NotFoundError('Day not found');
+    return { view: await view(fresh), replayed: false };
+  },
 
-    // After commit, fire-and-forget (plan §3).
-    let managerNotified = false;
-    if (alertValues.length > 0) {
-      const largest = alertValues.reduce((a, b) => (a.greaterThan(b) ? a : b));
-      void fcmService.sendOvernightVarianceAlertPush(branchOrgId, {
-        dayId: day.id,
-        departmentName: departmentLabelOf(tag),
-        alertLineCount: alertValues.length,
-        largestValueKes: toMoney(largest),
-      });
-      managerNotified = true;
-    }
-
+  /** BD4 POST /opening/recount/preview: the receipt before the PIN. Writes nothing. */
+  previewRecount: async (actor: Actor, input: RecountPreviewInput, now: Date = new Date()): Promise<RecountPreview> => {
+    const c = await departmentCaller(actor, input.departmentId, true);
+    const day = await ensureToday(c.branchId, now);
+    assertOpen(day);
+    const dept = deptRow(day, c.departmentId);
+    const given = checkedLines(dept, input.lines);
+    const figures = await departmentFigures(day, dept, { withYesterday: false });
+    const differences = figures.lines.flatMap((l) => {
+      const counted = given.get(l.line.inventoryItemId);
+      if (!counted || differenceOf(counted, l.lastNight).isZero()) return [];
+      return [{ itemId: l.line.inventoryItemId, itemName: l.line.inventoryItem.name, unit: l.line.inventoryItem.usageUnit, lastNightQty: qty(l.lastNight), countedQty: qty(counted), difference: qty(differenceOf(counted, l.lastNight)) }];
+    });
     return {
-      openingId,
-      acceptedAt: now.toISOString(),
-      varianceLineCount: writes.filter((w) => !w.overnightVariance.isZero()).length,
-      adjustmentCount,
-      managerNotified,
+      itemCount: figures.lines.length,
+      matchedItems: figures.lines.filter((l) => {
+        const counted = given.get(l.line.inventoryItemId);
+        return counted ? differenceOf(counted, l.lastNight).isZero() : false;
+      }).map((l) => l.line.inventoryItem.name),
+      differences,
     };
   },
+
+  /** BD5 POST /opening/recount: PIN. One opening, its lines, and one ADJUSTMENT per line whose count differs from the ledger position (§6.3). */
+  recountOpening: async (actor: Actor, input: RecountOpeningInput, now: Date = new Date()): Promise<OpeningResult> => {
+    const c = await departmentCaller(actor, input.departmentId, true);
+    await countPin.verifyOwn(actor, input.pin);
+    const day = await ensureToday(c.branchId, now);
+    assertOpen(day);
+    const dept = deptRow(day, c.departmentId);
+    const view = async (fresh: DayRecord): Promise<OpeningView> => {
+      const row = deptRow(fresh, c.departmentId);
+      const [figures, lastCloseAt] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate)]);
+      return openingViewOf(fresh, row, figures, lastCloseAt);
+    };
+    const existing = openingOf(day, dept);
+    if (existing) {
+      if (existing.idempotencyKey === input.idempotencyKey) return { view: await view(day), replayed: true };
+      throw branchDayError('OPENING_ALREADY_CHECKED', 'The opening is already checked.');
+    }
+    const given = checkedLines(dept, input.lines);
+    const figures = await departmentFigures(day, dept, { withYesterday: false });
+    try {
+      await prisma.$transaction(async (tx) => {
+        const opening = await repo.createOpening(tx, {
+          branchDayId: day.id,
+          departmentId: c.departmentId,
+          departmentTag: dept.departmentTag,
+          locationId: dept.locationId,
+          acceptedById: actor.id,
+          acceptedAt: now,
+          kind: 'RECOUNTED',
+          onBehalf: c.onBehalf,
+          idempotencyKey: input.idempotencyKey,
+          lines: figures.lines.map((l) => {
+            const counted = given.get(l.line.inventoryItemId) ?? l.lastNight;
+            return { inventoryItemId: l.line.inventoryItemId, prefilledQty: l.lastNight, acceptedQty: counted, overnightVariance: differenceOf(counted, l.lastNight), unitCost: l.unitCost };
+          }),
+        });
+        const positions = await repo.positions(c.branchId, dept.locationId, opening.lines.map((l) => l.inventoryItemId), null, tx);
+        for (const line of opening.lines) {
+          const delta = line.acceptedQty.minus(positions.get(line.inventoryItemId) ?? zero);
+          if (delta.isZero()) continue;
+          await postStockMovement(tx, {
+            type: 'ADJUSTMENT',
+            locationId: dept.locationId,
+            inventoryItemId: line.inventoryItemId,
+            quantity: delta,
+            unitCost: line.unitCost,
+            reason: 'Overnight variance',
+            userId: actor.id,
+            links: { openingLineId: line.id },
+          });
+        }
+      }, TX_OPTIONS);
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const raced = await repo.findDayByDate(c.branchId, day.businessDate);
+      const winner = raced ? openingOf(raced, deptRow(raced, c.departmentId)) : undefined;
+      if (raced && winner?.idempotencyKey === input.idempotencyKey) return { view: await view(raced), replayed: true };
+      throw branchDayError('OPENING_ALREADY_CHECKED', 'The opening is already checked.');
+    }
+    const fresh = await repo.findDayByDate(c.branchId, day.businessDate);
+    if (!fresh) throw new NotFoundError('Day not found');
+    return { view: await view(fresh), replayed: false };
+  },
+
+  /** BD6 GET /count: the blind count (B3, B3b, B3c, B15). Nothing to count against. */
+  getCount: async (actor: Actor, query: CountQuery, now: Date = new Date()): Promise<CountView> => {
+    const c = await departmentCaller(actor, query.departmentId, true);
+    const day = await ensureToday(c.branchId, now);
+    const dept = deptRow(day, c.departmentId);
+    return countViewOf(day, dept, c.onBehalf, await parentNamesOf(dept));
+  },
+
+  /** BD7 PUT /count: stores what was typed; last write wins; null clears. */
+  saveCount: async (actor: Actor, input: SaveCountInput, now: Date = new Date()): Promise<SaveCountResult> => {
+    const c = await departmentCaller(actor, input.departmentId, true);
+    const day = await ensureToday(c.branchId, now);
+    assertOpen(day);
+    const dept = deptRow(day, c.departmentId);
+    if (isCounted({ status: dept.status, itemCount: dept.lines.length })) throw branchDayError('ALREADY_COUNTED', 'This count is already signed.');
+    const byItem = new Map(dept.lines.map((l) => [l.inventoryItemId, l]));
+    const unknown = input.lines.filter((l) => !byItem.has(l.itemId)).map((l) => l.itemId);
+    if (unknown.length > 0) throw branchDayError('ITEM_NOT_IN_DAY', 'Some of these items are not on this department’s day.', { itemIds: unknown });
+    await prisma.$transaction(async (tx) => {
+      await repo.saveCounts(tx, dept.id, input.lines.flatMap((l) => {
+        const line = byItem.get(l.itemId);
+        return line ? [{ id: line.id, countedQty: l.countedQty === null ? null : D(l.countedQty) }] : [];
+      }));
+    }, TX_OPTIONS);
+    const fresh = await repo.findDayByDate(c.branchId, day.businessDate);
+    if (!fresh) throw new NotFoundError('Day not found');
+    const row = deptRow(fresh, c.departmentId);
+    return { savedAt: now.toISOString(), view: countViewOf(fresh, row, c.onBehalf, await parentNamesOf(row)) };
+  },
+
+  /** BD8 POST /count/sign: PIN. Every line filled. Marks the department Counted with the signer and `onBehalf`. */
+  signCount: async (actor: Actor, input: SignCountInput, now: Date = new Date()): Promise<SignCountResult> => {
+    const c = await departmentCaller(actor, input.departmentId, true);
+    await countPin.verifyOwn(actor, input.pin);
+    const day = await ensureToday(c.branchId, now);
+    assertOpen(day);
+    const dept = deptRow(day, c.departmentId);
+    const result = async (fresh: DayRecord, replayed: boolean): Promise<SignCountResult> => {
+      const row = deptRow(fresh, c.departmentId);
+      return { view: countViewOf(fresh, row, c.onBehalf, await parentNamesOf(row)), signedAt: (row.countedAt ?? now).toISOString(), onBehalf: row.onBehalf, replayed };
+    };
+    if (isCounted({ status: dept.status, itemCount: dept.lines.length })) {
+      if (dept.countIdempotencyKey === input.idempotencyKey) return result(day, true);
+      throw branchDayError('ALREADY_COUNTED', 'This count is already signed.');
+    }
+    const blank = dept.lines.filter((l) => l.countedQty === null).map((l) => l.inventoryItemId);
+    if (blank.length > 0) throw branchDayError('COUNT_INCOMPLETE', 'Count every item before you sign.', { itemIds: blank });
+    const signed = await prisma.$transaction((tx) => repo.signDepartment(tx, { id: dept.id, branchDayId: day.id, countedById: actor.id, countedAt: now, onBehalf: c.onBehalf, idempotencyKey: input.idempotencyKey }), TX_OPTIONS);
+    const fresh = await repo.findDayByDate(c.branchId, day.businessDate);
+    if (!fresh) throw new NotFoundError('Day not found');
+    if (!signed) {
+      // Someone signed first: the same key is a replay, any other is a conflict.
+      if (deptRow(fresh, c.departmentId).countIdempotencyKey === input.idempotencyKey) return result(fresh, true);
+      throw branchDayError('ALREADY_COUNTED', 'This count is already signed.');
+    }
+    return result(fresh, false);
+  },
+
+  /** BD9 GET /mine/history: the department's own closed days (step 19), last 30 Nairobi days by default, no money. */
+  myHistory: async (actor: Actor, query: MyHistoryQuery, now: Date = new Date()): Promise<MyHistory> => {
+    const c = await departmentCaller(actor, undefined, false);
+    const today = nairobiDay(now);
+    const from = query.from ?? (query.to ? addDays(query.to, -29) : addDays(today, -29));
+    const [dept, headMap, page] = await Promise.all([
+      repo.findDepartment(c.branchId, c.departmentId),
+      repo.departmentHeads(c.branchId, [c.departmentId]),
+      repo.listMine(c.branchId, c.departmentId, { from: dayAsDate(from), ...(query.to ? { to: dayAsDate(query.to) } : {}), ...(query.status ? { status: query.status } : {}) }, (query.page - 1) * query.pageSize, query.pageSize),
+    ]);
+    if (!dept) throw branchDayError('NOT_YOUR_DEPARTMENT', 'Your department is not active.');
+    const head = headMap.get(c.departmentId);
+    return {
+      department: { id: dept.id, name: dept.name },
+      head: head ? person(head) : null,
+      rows: page.rows.map((r) => {
+        const correctedCount = r.lines.reduce((n, l) => n + l.corrections.length, 0);
+        return {
+          id: r.branchDay.id,
+          reference: r.branchDay.reference,
+          date: dateText(r.branchDay.businessDate),
+          status: correctedCount > 0 ? ('CORRECTED' as const) : ('CLOSED' as const),
+          itemsCounted: r._count.lines,
+          signedAt: (r.countedAt ?? now).toISOString(),
+          correctedCount,
+        };
+      }),
+      page: { page: query.page, pageSize: query.pageSize, total: page.total },
+    };
+  },
+
+  /** BD10 GET /mine/days/:id: one past day of the caller's department (step 20), quantities only. */
+  myDay: async (actor: Actor, id: string): Promise<MyDay> => {
+    const c = await departmentCaller(actor, undefined, false);
+    const day = await repo.findDayById([c.branchId], id);
+    if (!day || day.status !== 'CLOSED') throw new NotFoundError('Day not found');
+    const dept = day.departments.find((d) => d.departmentId === c.departmentId);
+    // A day closed under the old flow has no Used today, so there is nothing to show a head.
+    if (!dept || dept.status !== 'COUNTED' || dept.lines.some((l) => l.openingQty === null)) throw new NotFoundError('Day not found');
+    const figures = await departmentFigures(day, dept, { withYesterday: false });
+    return {
+      day: dayHeadOf(day),
+      department: departmentRefOf(dept),
+      signedAt: (dept.countedAt ?? day.closedAt ?? new Date()).toISOString(),
+      lines: figures.lines.map((f) => ({
+        itemName: f.line.inventoryItem.name,
+        unit: f.line.inventoryItem.usageUnit,
+        openingQty: qty(f.opening),
+        receivedQty: qty(f.received),
+        wasteQty: qty(f.waste),
+        closingQty: qty(f.closing ?? zero),
+        usedQty: qty(f.used ?? zero),
+      })),
+    };
+  },
+
+  // ============================ The Branch Manager and the readers (BD11 to BD21) ============================
+
+  /** BD11 GET /today (B5, B7, B9, B14, B16). A Branch Manager's read creates today's day; a hub reader's does not. */
+  today: async (actor: Actor, query: TodayQuery, now: Date = new Date()): Promise<Today> => {
+    const reader = await loadReader(actor);
+    const branches = await repo.activeBranches();
+    let branchId: string;
+    if (reader.anyBranch) {
+      const wanted = query.branchId ?? branches[0]?.id;
+      if (!wanted || !branches.some((b) => b.id === wanted)) throw new NotFoundError('Branch not found');
+      branchId = wanted;
+    } else {
+      if (query.branchId && query.branchId !== reader.own) throw branchDayError('NOT_YOUR_BRANCH', 'That is another branch.');
+      branchId = reader.own ?? '';
+    }
+    const branch = branches.find((b) => b.id === branchId);
+    if (!branch) throw new NotFoundError('Branch not found');
+    const creates = actorCan(actor, 'branch_day.read') && !reader.anyBranch;
+    const can = {
+      close: actorCan(actor, 'branch_day.close') && (reader.anyBranch || reader.own === branchId),
+      countOnBehalf: actorCan(actor, 'branch_day.count_on_behalf') && reader.own === branchId,
+    };
+    const wire = { branch: branchRefOf(branch), ...(reader.anyBranch ? { branches: branches.map(branchRefOf) } : {}), can };
+    const day = creates ? await ensureToday(branchId, now) : await repo.findDayByDate(branchId, dayAsDate(nairobiDay(now)));
+    if (!day) return { ...wire, day: null };
+    // A hub reader never creates the day, but an open day the old code made still needs its lines before it can be read.
+    const adopted = creates ? day : await adoptOldDay(day);
+    const [figs, headMap, blockers] = await Promise.all([figuresOfAll(adopted, false), heads(adopted), blockersFor(adopted)]);
+    const used = dayUsedValue(adopted, figs);
+    let closed: NonNullable<Today['day']>['closed'] = null;
+    if (adopted.status === 'CLOSED' && adopted.closedAt && adopted.closedBy) {
+      const [entries, count] = await Promise.all([repo.firstEntries(adopted.siteId, adopted.reference, 5), repo.usageEntryCount(adopted.siteId, adopted.reference)]);
+      closed = { at: adopted.closedAt.toISOString(), by: person(adopted.closedBy), entryCount: count, entries: entries.map((e) => ledgerEntryOf(e, 'USAGE', adopted.reference)) };
+    }
+    return {
+      ...wire,
+      day: {
+        head: dayHeadOf(adopted),
+        departments: tilesOf(adopted, figs, headMap, reader.seeCosts),
+        blockers,
+        summary: summaryOf(blockers),
+        canClose: canCloseOf(adopted.status, blockers),
+        ...(reader.seeCosts ? { usedValueKes: used ? money(used) : null } : {}),
+        closed,
+      },
+    };
+  },
+
+  /** BD12 GET /days/:id/departments/:departmentId (B6, B11 Items tab): live for an open day, frozen for a closed one. */
+  departmentFigures: async (actor: Actor, id: string, departmentId: string): Promise<DepartmentFiguresWire> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const dept = deptRowByWireId(day, departmentId);
+    const { start, end } = dayWindow(day.businessDate);
+    const [figs, headMap, deliveries, wasteEntries, branch, later] = await Promise.all([
+      figuresOfAll(day, true),
+      heads(day),
+      repo.deliveriesInWindow(day.siteId, start, end),
+      repo.wasteEntries(day.siteId, dept.locationId, start, end),
+      repo.findSite(day.siteId),
+      dept.departmentId ? repo.laterOpeningExists(day.siteId, dept.departmentId, day.businessDate) : Promise.resolve(false),
+    ]);
+    const mine = figs.find((f) => f.dept.id === dept.id);
+    if (!branch || !mine) throw new NotFoundError('Day not found');
+    const used = dayUsedValue(day, figs);
+    const canCorrect =
+      actorCan(actor, 'branch_day.correct') && !mineLegacy(mine) && day.status === 'CLOSED' && isCounted({ status: dept.status, itemCount: dept.lines.length }) && dept.lines.length > 0 && correctionWindowOpen(later);
+    return {
+      day: dayHeadOf(day),
+      branch: branchRefOf(branch),
+      rail: tilesOf(day, figs, headMap, reader.seeCosts),
+      ...(reader.seeCosts ? { branchUsedValueKes: used ? money(used) : null } : {}),
+      department: {
+        id: wireDepartmentId(dept),
+        name: dept.department?.name ?? '',
+        state: countStateOf(dept),
+        countedAt: dept.countedAt ? dept.countedAt.toISOString() : null,
+        countedBy: dept.countedBy ? person(dept.countedBy) : null,
+        onBehalf: dept.onBehalf,
+        opening: openingCheckOf(day, dept),
+        delivery: deliveryFactOf(dept.departmentId, deliveries),
+        lines: mine.lines.map((l) => figureLineOf(l, reader.seeCosts)),
+        waste: { entryCount: wasteEntries.length, items: wasteEntries.map((w) => ({ itemName: w.inventoryItem.name, reasonText: WASTE_REASON_TEXT[w.reason] })) },
+        ...(reader.seeCosts ? { totals: totalsOf(mine) } : {}),
+        can: { correct: canCorrect },
+      },
+    };
+  },
+
+  /** BD13 GET /days/:id/close-summary (B8): always 200, with `canClose` and `blockers`. */
+  closeSummary: async (actor: Actor, id: string): Promise<CloseSummary> => {
+    requireCapability(actor, 'branch_day.close', 'You do not have permission to close the day');
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const [figs, blockers, branch] = await Promise.all([figuresOfAll(day, false), blockersFor(day), repo.findSite(day.siteId)]);
+    if (!branch) throw new NotFoundError('Day not found');
+    const plan = day.status === 'OPEN' ? await usagePlan(day, figs, prisma) : [];
+    const total = sumUsed(figs) ?? zero;
+    return {
+      day: dayHeadOf(day),
+      branch: branchRefOf(branch),
+      usedValueKes: money(day.status === 'CLOSED' ? (day.usedValue ?? zero) : total),
+      departments: figs.map((f) => ({ departmentId: wireDepartmentId(f.dept), name: f.dept.department?.name ?? '', itemCount: f.lines.length, usedValueKes: money(usedValueOf(f) ?? zero) })),
+      entryCount: plan.length,
+      canClose: canCloseOf(day.status, blockers),
+      blockers,
+    };
+  },
+
+  /** BD14 POST /days/:id/close (B8, B9): PIN, one transaction (contract §5.8). */
+  closeDay: async (actor: Actor, id: string, input: CloseDayInput, now: Date = new Date()): Promise<CloseDayResult> => {
+    requireCapability(actor, 'branch_day.close', 'You do not have permission to close the day');
+    const reader = await loadReader(actor);
+    const first = await loadDay(reader, id);
+    await countPin.verifyOwn(actor, input.pin);
+
+    const replay = async (day: DayRecord): Promise<CloseDayResult> => {
+      const sheet1 = await repo.findSheet(day.id, 1);
+      const parsed = sheet1 ? daySheetSchema.safeParse(sheet1.payload) : null;
+      return closeResultOf(day, parsed?.success ? parsed.data.totals.usedValueKes : money(day.usedValue ?? zero), true);
+    };
+    if (first.status === 'CLOSED') {
+      if (first.closeIdempotencyKey === input.idempotencyKey) return replay(first);
+      throw branchDayError('DAY_ALREADY_CLOSED', 'This day is already closed.');
+    }
+
+    type Outcome = { kind: 'replay' } | { kind: 'closed'; usedValue: string };
+    const outcome: Outcome = await prisma.$transaction(async (tx) => {
+      if (!(await repo.lockDay(tx, first.siteId, first.id))) throw new NotFoundError('Day not found');
+      const day = await repo.findDayById([first.siteId], first.id, tx);
+      if (!day) throw new NotFoundError('Day not found');
+      if (day.status === 'CLOSED') {
+        if (day.closeIdempotencyKey === input.idempotencyKey) return { kind: 'replay' };
+        throw branchDayError('DAY_ALREADY_CLOSED', 'This day is already closed.');
+      }
+      const blockers = await blockersFor(day, tx);
+      if (blockers.some((b) => b.severity === 'BLOCKS')) throw branchDayError('DAY_NOT_READY', 'Something still has to be done before the day can close.', { blockers });
+
+      const figs = await figuresOfAll(day, false, tx);
+      const plan = await usagePlan(day, figs, tx);
+      let used = zero;
+      let closing = zero;
+      for (const dept of figs) {
+        for (const l of dept.lines) {
+          await repo.freezeLine(tx, l.line.id, { openingQty: l.opening, receivedQty: l.received, wasteQty: l.waste, usedQty: l.used, unitCost: l.unitCost });
+          if (l.used) used = used.plus(valueOf(l.used, l.unitCost));
+          if (l.closing) closing = closing.plus(valueOf(l.closing, l.unitCost));
+        }
+      }
+      for (const p of plan) {
+        await postStockMovement(tx, {
+          type: 'ADJUSTMENT',
+          locationId: p.locationId,
+          inventoryItemId: p.f.line.inventoryItemId,
+          quantity: p.quantity,
+          unitCost: p.f.unitCost,
+          reason: 'Used today',
+          userId: actor.id,
+          links: { branchDayLineId: p.f.line.id },
+          reference: day.reference,
+        });
+      }
+      await repo.closeDay(tx, { id: day.id, siteId: day.siteId, closedById: actor.id, closedAt: now, usedValue: used, closingValue: closing, idempotencyKey: input.idempotencyKey });
+
+      const closed = await repo.findDayById([day.siteId], day.id, tx);
+      if (!closed) throw new NotFoundError('Day not found');
+      const closedFigs = await figuresOfAll(closed, false, tx);
+      const [branch, headMap, deliveries, discrepancies] = await Promise.all([
+        repo.findBranchForSheet(day.siteId, tx),
+        heads(closed, tx),
+        repo.deliveriesInWindow(day.siteId, dayWindow(day.businessDate).start, dayWindow(day.businessDate).end, tx),
+        repo.openDiscrepancies(day.siteId, tx),
+      ]);
+      if (!branch) throw new NotFoundError('Branch not found');
+      const sheet = buildSheet({
+        day: closed,
+        branch: { id: branch.id, name: branch.name, code: branch.code, address: branch.address, phone: branch.phone },
+        figures: closedFigs,
+        heads: headMap,
+        deliveries,
+        openDiscrepancies: discrepancies.map((d) => ({ reference: d.reference, departmentId: d.dispatch.departmentId, itemName: d.dispatchLine.item.name })),
+        kind: 'AT_THE_CLOSE',
+        version: 1,
+        madeAt: now,
+        qrUrl: `${env.FRONTEND_ORIGIN}/app/branch/day/history/${day.id}`,
+      });
+      await repo.createSheet(tx, { branchDayId: day.id, version: 1, kind: 'AT_THE_CLOSE', pages: sheetPageCount(closedFigs), payload: sheet as unknown as Prisma.InputJsonValue, createdById: actor.id });
+      return { kind: 'closed', usedValue: money(used) };
+    }, TX_OPTIONS);
+
+    const day = await repo.findDayById([first.siteId], first.id);
+    if (!day) throw new NotFoundError('Day not found');
+    if (outcome.kind === 'replay') return replay(day);
+    return closeResultOf(day, outcome.usedValue, false);
+  },
+
+  /** BD15 GET /history (B10, B10b, B10c): last 7 Nairobi days by default, newest first. */
+  history: async (actor: Actor, query: HistoryQuery, now: Date = new Date()): Promise<History> => {
+    const reader = await loadReader(actor);
+    const branches = await repo.activeBranches();
+    let siteIds: string[];
+    if (reader.anyBranch) {
+      if (query.branchId && !branches.some((b) => b.id === query.branchId)) throw new NotFoundError('Branch not found');
+      siteIds = query.branchId ? [query.branchId] : branches.map((b) => b.id);
+    } else {
+      if (query.branchId && query.branchId !== reader.own) throw branchDayError('NOT_YOUR_BRANCH', 'That is another branch.');
+      siteIds = reader.own ? [reader.own] : [];
+    }
+    const today = nairobiDay(now);
+    const noRange = query.from === undefined && query.to === undefined;
+    const from = noRange ? addDays(today, -6) : query.from;
+    const to = noRange ? today : query.to;
+    const page = await repo.listHistory(
+      siteIds,
+      { ...(query.q ? { q: query.q } : {}), ...(from ? { from: dayAsDate(from) } : {}), ...(to ? { to: dayAsDate(to) } : {}), ...(query.status ? { status: query.status } : {}) },
+      (query.page - 1) * query.pageSize,
+      query.pageSize,
+    );
+    return {
+      rows: page.rows.map((r) => {
+        const total = r.departments.length;
+        const counted = r.departments.filter((d) => isCounted({ status: d.status, itemCount: d._count.lines })).length;
+        const status = r.status === 'OPEN' ? ('OPEN' as const) : r._count.corrections > 0 ? ('CORRECTED' as const) : ('CLOSED' as const);
+        return {
+          id: r.id,
+          reference: r.reference,
+          date: dateText(r.businessDate),
+          branch: branchRefOf(r.site),
+          departmentsCounted: counted,
+          departmentsTotal: total,
+          status,
+          closedBy: r.closedBy ? person(r.closedBy) : null,
+          closedAt: r.closedAt ? r.closedAt.toISOString() : null,
+          ...(reader.seeCosts ? { usedValueKes: r.status === 'CLOSED' && r.usedValue ? money(r.usedValue) : null, closingValueKes: r.status === 'CLOSED' && r.closingValue ? money(r.closingValue) : null } : {}),
+        };
+      }),
+      ...(reader.anyBranch ? { branches: branches.map(branchRefOf) } : {}),
+      page: { page: query.page, pageSize: query.pageSize, total: page.total },
+    };
+  },
+
+  /** BD16 GET /days/:id (B11): the day file. */
+  dayFile: async (actor: Actor, id: string): Promise<DayFile> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const [figs, headMap, branch, sheets] = await Promise.all([figuresOfAll(day, false), heads(day), repo.findSite(day.siteId), repo.listSheets(day.id)]);
+    if (!branch) throw new NotFoundError('Day not found');
+    const counted = day.departments.filter((d) => isCounted({ status: d.status, itemCount: d.lines.length }));
+    const stamps = day.departments.flatMap((d) => (d.countedAt ? [d.countedAt] : []));
+    const last = stamps.length > 0 ? new Date(Math.max(...stamps.map((s) => s.getTime()))) : null;
+    const corrections = day.departments.flatMap((d) => d.lines.flatMap((l) => l.corrections.map((c) => ({ c, department: d.department?.name ?? '', item: l.inventoryItem.name }))));
+    corrections.sort((a, b) => b.c.correctedAt.getTime() - a.c.correctedAt.getTime());
+    const newest = corrections[0];
+    const v1 = reader.seeCosts && day.status === 'CLOSED' ? await repo.findSheet(day.id, 1) : null;
+    const activity = buildActivity(day, reader.seeCosts, v1 ? usedTextOf(v1.payload) : null);
+    const used = dayUsedValue(day, figs);
+    return {
+      day: dayHeadOf(day),
+      branch: branchRefOf(branch),
+      tracker: {
+        openingsChecked: { checked: day.departments.filter((d) => openingOf(day, d) !== undefined).length, total: day.departments.length },
+        counted: { counted: counted.length, total: day.departments.length, lastAt: last ? last.toISOString() : null },
+        closed: { at: closedAtOf(day), by: day.closedBy ? person(day.closedBy) : null },
+      },
+      rail: tilesOf(day, figs, headMap, reader.seeCosts),
+      tabCounts: { documents: sheets.length, activity: activity.length },
+      ...(reader.seeCosts ? { usedValueKes: used ? money(used) : null } : {}),
+      lastCorrection: newest
+        ? { at: newest.c.correctedAt.toISOString(), itemName: newest.item, departmentName: newest.department, fromClosingQty: qty(newest.c.fromClosingQty), toClosingQty: qty(newest.c.toClosingQty) }
+        : null,
+      can: { correct: actorCan(actor, 'branch_day.correct') && day.status === 'CLOSED' && !figs.some(mineLegacy), print: day.status === 'CLOSED' && sheets.length > 0 },
+    };
+  },
+
+  /** BD17 GET /days/:id/activity (B12b): newest first, `limit` defaults to 5, `total` is the whole. */
+  activity: async (actor: Actor, id: string, query: ActivityQuery): Promise<DayActivity> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const v1 = reader.seeCosts && day.status === 'CLOSED' ? await repo.findSheet(day.id, 1) : null;
+    const all = buildActivity(day, reader.seeCosts, v1 ? usedTextOf(v1.payload) : null);
+    return { entries: all.slice(0, query.limit), total: all.length };
+  },
+
+  /** BD18 GET /days/:id/documents (B13): the day sheets kept on file, newest first. */
+  documents: async (actor: Actor, id: string): Promise<DayDocuments> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const sheets = await repo.listSheets(day.id);
+    const latest = sheets[0]?.version ?? 0;
+    return { documents: sheets.map((s) => dayDocumentOf(s, latest, day.reference)) };
+  },
+
+  /** BD19 GET /days/:id/entries: every ledger entry carrying the day number. */
+  entries: async (actor: Actor, id: string, query: EntriesQuery): Promise<DayEntries> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    const page = await repo.entriesPage(day.siteId, day.reference, (query.page - 1) * query.pageSize, query.pageSize);
+    return {
+      rows: page.rows.map((r) => ledgerEntryOf(r, r.branchDayCorrection ? 'CORRECTION' : 'USAGE', day.reference)),
+      page: { page: query.page, pageSize: query.pageSize, total: page.total },
+    };
+  },
+
+  /** BD20 POST /days/:id/corrections (B12, B12b): PIN, one transaction (contract §5.10). */
+  correctCount: async (actor: Actor, id: string, input: CorrectCountInput, now: Date = new Date()): Promise<CorrectCountResult> => {
+    requireCapability(actor, 'branch_day.correct', 'You do not have permission to correct a count');
+    const reader = await loadReader(actor);
+    const first = await loadDay(reader, id);
+    await countPin.verifyOwn(actor, input.pin);
+
+    const result = async (dayId: string, correctionId: string, replayed: boolean): Promise<CorrectCountResult> => {
+      const day = await repo.findDayById([first.siteId], dayId);
+      if (!day) throw new NotFoundError('Day not found');
+      const correction = await repo.findCorrectionByKey(day.id, input.idempotencyKey);
+      const dept = day.departments.find((d) => d.lines.some((l) => l.id === correction?.branchDayLineId));
+      const line = dept?.lines.find((l) => l.id === correction?.branchDayLineId);
+      const entry = correction ? await repo.findEntry(day.siteId, correction.transactionId) : null;
+      const sheets = await repo.listSheets(day.id);
+      const doc = sheets.find((s) => s.version === correction?.sheetVersion);
+      if (!dept || !line || !correction || !entry || !doc || correction.id !== correctionId) throw new NotFoundError('Correction not found');
+      const [figures] = await Promise.all([departmentFigures(day, dept, { withYesterday: false })]);
+      const lineFigures = figures.lines.find((l) => l.line.id === line.id);
+      if (!lineFigures) throw new NotFoundError('Correction not found');
+      return {
+        day: dayHeadOf(day),
+        line: figureLineOf(lineFigures, true),
+        entry: ledgerEntryOf(entry, 'CORRECTION', day.reference),
+        document: dayDocumentOf(doc, sheets[0]?.version ?? doc.version, day.reference),
+        usedValueKes: money(day.usedValue ?? zero),
+        replayed,
+      };
+    };
+
+    const prior = await repo.findCorrectionByKey(first.id, input.idempotencyKey);
+    if (prior) return result(first.id, prior.id, true);
+
+    const created = await prisma.$transaction(async (tx) => {
+      if (!(await repo.lockDay(tx, first.siteId, first.id))) throw new NotFoundError('Day not found');
+      const day = await repo.findDayById([first.siteId], first.id, tx);
+      if (!day) throw new NotFoundError('Day not found');
+      const again = await repo.findCorrectionByKey(day.id, input.idempotencyKey, tx);
+      if (again) return { id: again.id, replayed: true };
+      if (day.status !== 'CLOSED') throw branchDayError('DAY_NOT_CLOSED', 'Only a closed day can be corrected.');
+      const dept = day.departments.find((d) => d.departmentId === input.departmentId);
+      if (!dept) throw branchDayError('ITEM_NOT_IN_DAY', 'That department is not on this day.');
+      if (dept.status !== 'COUNTED' || dept.lines.length === 0) throw branchDayError('DEPARTMENT_NOT_COUNTED', 'This department never counted.');
+      const line = dept.lines.find((l) => l.inventoryItemId === input.itemId);
+      if (!line) throw branchDayError('ITEM_NOT_IN_DAY', 'That item is not on this department’s day.');
+      if (line.countedQty === null || line.usedQty === null) throw new ValidationError('This day was closed under the old flow; its figures cannot be corrected.');
+      if (!correctionWindowOpen(await repo.laterOpeningExists(day.siteId, input.departmentId, day.businessDate, tx))) {
+        throw branchDayError('CORRECTION_WINDOW_PASSED', 'This department has already checked a later opening.');
+      }
+      const to = D(input.closingQty);
+      const from = line.countedQty;
+      if (to.equals(from)) throw branchDayError('CORRECTION_NO_CHANGE', 'That is the figure it already has.');
+      const delta = to.minus(from);
+      const entry = await postStockMovement(tx, {
+        type: 'ADJUSTMENT',
+        locationId: dept.locationId,
+        inventoryItemId: line.inventoryItemId,
+        quantity: delta,
+        unitCost: line.unitCost,
+        reason: `Count corrected: ${CORRECTION_REASON_TEXT[input.reason]}`,
+        userId: actor.id,
+        links: { branchDayLineId: line.id },
+        reference: day.reference,
+      });
+      const usedFrom = line.usedQty;
+      const usedTo = usedFrom.minus(delta);
+      const version = (await repo.latestSheetVersion(day.id, tx)) + 1;
+      await repo.updateLineFigures(tx, line.id, to, usedTo);
+      const correction = await repo.createCorrection(tx, {
+        branchDayId: day.id,
+        branchDayLineId: line.id,
+        fromClosingQty: from,
+        toClosingQty: to,
+        fromUsedQty: usedFrom,
+        toUsedQty: usedTo,
+        reason: input.reason,
+        note: input.note ?? null,
+        correctedById: actor.id,
+        correctedAt: now,
+        transactionId: entry.id,
+        sheetVersion: version,
+        idempotencyKey: input.idempotencyKey,
+      });
+
+      const fresh = await repo.findDayById([day.siteId], day.id, tx);
+      if (!fresh) throw new NotFoundError('Day not found');
+      const figs = await figuresOfAll(fresh, false, tx);
+      const used = figs.reduce((s, f) => s.plus(usedValueOf(f) ?? zero), zero);
+      const closing = figs.reduce((s, f) => s.plus(closingValueOf(f)), zero);
+      await repo.updateDayTotals(tx, day.id, day.siteId, used, closing);
+      const [branch, headMap, deliveries, previous] = await Promise.all([
+        repo.findBranchForSheet(day.siteId, tx),
+        heads(fresh, tx),
+        repo.deliveriesInWindow(day.siteId, dayWindow(day.businessDate).start, dayWindow(day.businessDate).end, tx),
+        repo.findSheet(day.id, 1, tx),
+      ]);
+      if (!branch) throw new NotFoundError('Branch not found');
+      const closedSheet = previous ? daySheetSchema.safeParse(previous.payload) : null;
+      const sheet = buildSheet({
+        day: fresh,
+        branch: { id: branch.id, name: branch.name, code: branch.code, address: branch.address, phone: branch.phone },
+        figures: figs,
+        heads: headMap,
+        deliveries,
+        openDiscrepancies: [],
+        ...(closedSheet?.success ? { notes: closedSheet.data.notes } : {}),
+        kind: 'AFTER_CORRECTION',
+        version,
+        madeAt: now,
+        qrUrl: `${env.FRONTEND_ORIGIN}/app/branch/day/history/${day.id}`,
+      });
+      await repo.createSheet(tx, { branchDayId: day.id, version, kind: 'AFTER_CORRECTION', pages: sheetPageCount(figs), payload: sheet as unknown as Prisma.InputJsonValue, createdById: actor.id });
+      return { id: correction.id, replayed: false };
+    }, TX_OPTIONS);
+    return result(first.id, created.id, created.replayed);
+  },
+
+  /** BD21 GET /days/:id/sheet (B13b to B13d): the stored copy of a version, `printedAt` set to now; writes nothing. */
+  sheet: async (actor: Actor, id: string, query: SheetQuery, now: Date = new Date()): Promise<DaySheet> => {
+    const reader = await loadReader(actor);
+    const day = await loadDay(reader, id);
+    if (day.status !== 'CLOSED') throw branchDayError('DAY_NOT_CLOSED', 'The day sheet is made when the day closes.');
+    const stored = await repo.findSheet(day.id, query.version);
+    if (!stored) throw new NotFoundError('Day sheet not found');
+    const parsed = daySheetSchema.parse(stored.payload);
+    return { ...parsed, printedAt: now.toISOString() };
+  },
+};
+
+// --- Small helpers that need the service's types -------------------------------------------------------------------------------------------
+
+/** A department closed under the old flow has no Used today and cannot be corrected. */
+const mineLegacy = (f: DepartmentFigures): boolean => f.lines.some((l) => l.legacy);
+
+const usedTextOf = (payload: Prisma.JsonValue): string | null => {
+  const parsed = daySheetSchema.safeParse(payload);
+  return parsed.success ? kesText(parsed.data.totals.usedValueKes) : null;
+};
+
+/** The Activity tab: every opening check, signed count, the close and each correction, newest first (contract §9). */
+const buildActivity = (day: DayRecord, seeCosts: boolean, closedUsedText: string | null): DayActivityEntry[] => {
+  const out: DayActivityEntry[] = [];
+  const link = { kind: 'DAY' as const, id: day.id, reference: day.reference };
+  for (const dept of day.departments) {
+    const name = dept.department?.name ?? '';
+    const opening = openingOf(day, dept);
+    if (opening) {
+      const differences = openingDifferencesOf(day, dept);
+      out.push({
+        id: `opening:${opening.id}`,
+        at: opening.acceptedAt.toISOString(),
+        actor: person(opening.acceptedBy),
+        type: opening.kind === 'RECOUNTED' ? 'OPENING_RECOUNTED' : 'OPENING_ACCEPTED',
+        sentence: opening.kind === 'RECOUNTED' ? describeOpeningRecounted(name, differences) : describeOpeningAccepted(name),
+        detail: null,
+        link,
+      });
+    }
+    if (dept.countedAt && dept.countedBy && dept.status === 'COUNTED') {
+      out.push({
+        id: `count:${dept.id}`,
+        at: dept.countedAt.toISOString(),
+        actor: person(dept.countedBy),
+        type: dept.onBehalf ? 'COUNT_SIGNED_ON_BEHALF' : 'COUNT_SIGNED',
+        sentence: describeCountSigned(name, dept.lines.length, dept.onBehalf),
+        detail: null,
+        link,
+      });
+    }
+    for (const line of dept.lines) {
+      for (const c of line.corrections) {
+        out.push({
+          id: `correction:${c.id}`,
+          at: c.correctedAt.toISOString(),
+          actor: person(c.correctedBy),
+          type: 'COUNT_CORRECTED',
+          sentence: describeCountCorrected(line.inventoryItem.name, name, qty(c.fromClosingQty), qty(c.toClosingQty)),
+          detail: describeCorrectionDetail(c.reason, c.note, true),
+          link: { kind: 'LEDGER_ENTRY', id: c.transactionId, reference: day.reference },
+        });
+      }
+    }
+  }
+  if (day.closedAt && day.closedBy) {
+    out.push({ id: `close:${day.id}`, at: day.closedAt.toISOString(), actor: person(day.closedBy), type: 'DAY_CLOSED', sentence: describeDayClosed(seeCosts ? closedUsedText : null), detail: null, link });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
+};
+
+/** The close's result: the day, the first five usage entries in department then item order and the total, and the sheet made at the close. */
+const closeResultOf = async (day: DayRecord, usedValueKes: string, replayed: boolean): Promise<CloseDayResult> => {
+  if (!day.closedAt || !day.closedBy) throw new NotFoundError('Day not found');
+  const [entries, count, sheets] = await Promise.all([repo.firstEntries(day.siteId, day.reference, 5), repo.usageEntryCount(day.siteId, day.reference), repo.listSheets(day.id)]);
+  const first = sheets.find((s) => s.version === 1);
+  if (!first) throw new NotFoundError('Day sheet not found');
+  return {
+    day: dayHeadOf(day),
+    closedAt: day.closedAt.toISOString(),
+    closedBy: person(day.closedBy),
+    usedValueKes,
+    entryCount: count,
+    entries: entries.map((e) => ledgerEntryOf(e, 'USAGE', day.reference)),
+    document: dayDocumentOf(first, sheets[0]?.version ?? 1, day.reference),
+    replayed,
+  };
 };

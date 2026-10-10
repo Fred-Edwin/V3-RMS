@@ -28,8 +28,8 @@ All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them
 ## Other sub-modules read Counting only through `_shared/count-reads.ts`
 `todaysCounts`, `longestWithoutCount`, `lastCountedByItem`, `sectionNamesByItem`, `unsectionedCount` (Stock Overview and All items), never Counting's repositories.
 
-## Kept for the branch-day refactor (marked in each file; delete when branch day is redone)
-`count-calc.ts` (+ test), `counting-thresholds.ts`, `thresholds-{controller,service,repository,validators}.ts`, `thresholds.types.ts`, `thresholds-service.test.ts`, and `thresholds-routes.ts` (the Branch Manager's `GET`/`PUT /inventory/thresholds`). The new code imports none of them.
+## Branch day's old counting files are gone
+`count-calc.ts`, `counting-thresholds.ts`, the `thresholds-*` files and the Branch Manager's `GET`/`PUT /inventory/thresholds` were deleted with the Branch day rebuild (Block 4, 10 Oct 2026). The `counting_thresholds` table and its branch rows stay until the contract migration (`branch-day-contract.md` §11).
 
 ## Data
 `counts`, `count_lines`, `count_scope_sections`, `count_sections`, `count_section_items`, `count_item_moves`, `count_day_orders`, `count_setup_visits` (schema `prisma/schema/inventory/counts.prisma`; migration `20261008100000_stock_count_waste_expand` also seeds the first sections: one per supplier with items, "Others", an empty "Packaging"). Two partial unique indexes enforce one open count per person and an item in at most one open count. The old `stock_counts` tables are dropped by the contract migration at release.
