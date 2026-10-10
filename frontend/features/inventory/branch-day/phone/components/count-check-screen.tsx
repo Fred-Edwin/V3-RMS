@@ -70,8 +70,8 @@ export function CountCheckScreen() {
                   <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{s.names.join(', ')}</p>
                 </ReceiptSection>
               ))}
-              <ReceiptSection className="py-0">
-                <Link href={DAY_COUNT_FIGURES} className="flex min-h-11 items-center font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none transition-opacity duration-100 ease-out focus-visible:shadow-wds-ring active:opacity-60 [@media(hover:hover)]:hover:underline">
+              <ReceiptSection>
+                <Link href={DAY_COUNT_FIGURES} className="relative flex items-center font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none transition-opacity duration-100 ease-out before:absolute before:inset-x-0 before:-inset-y-[13px] before:content-[''] focus-visible:shadow-wds-ring active:opacity-60 [@media(hover:hover)]:hover:underline">
                   {BRANCH_DAY_BUTTONS.seeEveryFigure}
                 </Link>
               </ReceiptSection>

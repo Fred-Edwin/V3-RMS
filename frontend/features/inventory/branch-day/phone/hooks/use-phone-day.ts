@@ -1,10 +1,17 @@
 import { useLoader } from '../../../_shared/hooks/use-async';
 import { BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import type { CountView, Home, MyDay, MyHistory, MyHistoryQuery, OpeningView } from '../../_shared/types/branch-day-contract';
+import { PHONE_REFUSAL_COPY } from '../lib/phone-copy';
 import { branchDayPhoneApi } from '../services/branch-day-phone-api';
 
-/** A failed load always says the screen's line from the wording table, never the server's own text. */
-const withCopy = <L extends { error: string | null }>(loader: L, line: string): L => ({ ...loader, error: loader.error === null ? null : line });
+/**
+ * A failed load always says the screen's line from the wording table, never the server's own text. A department added after the
+ * day started has no day yet (409 NO_DEPARTMENTS): it says so plainly; Retry stays, because tomorrow's first read makes it.
+ */
+const withCopy = <L extends { error: string | null; errorCode: string | null }>(loader: L, line: string): L => ({
+  ...loader,
+  error: loader.error === null ? null : loader.errorCode === 'NO_DEPARTMENTS' ? PHONE_REFUSAL_COPY.noDepartment : line,
+});
 
 /** BD1: the head's Day (B0, B4). */
 export function useDayHome() {
@@ -27,7 +34,7 @@ export function useMyHistory(query: MyHistoryQuery) {
   return withCopy(useLoader<MyHistory>(key, () => branchDayPhoneApi.myHistory(query), 'Could not load your past days.'), BRANCH_DAY_STATES_COPY.myHistory.error);
 }
 
-/** BD10: one past day. */
+/** BD10: one past day. A day closed under the old flow has no figures for the new shape (404). */
 export function useMyDay(id: string) {
   return withCopy(useLoader<MyDay>(`branch-day-mine-day:${id}`, () => branchDayPhoneApi.myDay(id), 'Could not load this day.'), 'Could not load this day. Try again.');
 }

@@ -11,6 +11,7 @@ import { B2Header } from '../../../_shared/components/block2-phone-parts';
 import { BRANCH_DAY_MESSAGES, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import { useMyDay } from '../hooks/use-phone-day';
 import { dayText, figureText, timeText } from '../lib/phone-format';
+import { PHONE_REFUSAL_COPY } from '../lib/phone-copy';
 import { DAY_PAST } from '../lib/phone-routes';
 import { BodyState } from './phone-parts';
 
@@ -26,7 +27,7 @@ const COLUMNS = [
 /** Paper step 20: one past day, my department. Read only, quantities only (no values, no costs). */
 export function PastDayScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { data, status, error, reload } = useMyDay(id);
+  const { data, status, error, errorCode, reload } = useMyDay(id);
   const orgName = useAuthStore((s) => s.user?.organizationName ?? '');
   const copy = BRANCH_DAY_STATES_COPY.myHistory;
 
@@ -51,10 +52,12 @@ export function PastDayScreen({ id }: { id: string }) {
               </div>
             ))}
           </div>
+        ) : errorCode === 'NOT_FOUND' ? (
+          <BodyState inMain kind="empty" text={PHONE_REFUSAL_COPY.oldDay} />
         ) : status === 'error' || !data ? (
-          <BodyState kind="error" text={error ?? 'Could not load this day. Try again.'} onRetry={() => void reload()} />
+          <BodyState inMain kind="error" text={error ?? 'Could not load this day. Try again.'} onRetry={() => void reload()} />
         ) : data.lines.length === 0 ? (
-          <BodyState kind="empty" text="This day has no items." />
+          <BodyState inMain kind="empty" text="This day has no items." />
         ) : (
           <>
             {/* Paper step 20: the column heads are their own card above the rows card. Table roles keep it a table for a screen reader. */}

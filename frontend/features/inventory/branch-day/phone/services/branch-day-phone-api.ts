@@ -1,7 +1,6 @@
 /**
  * The head's and member's Branch day phone calls (contract BD1 to BD10), typed with the frozen mirror. Components never call
- * `fetch`; they use these through their hooks. While the back end is unmerged the calls are answered by the mock
- * (`NEXT_PUBLIC_BRANCH_DAY_MOCK` is on unless set to "0"); once `feat/block4-be` is merged the default flips to the real API.
+ * `fetch`; they use these through their hooks. Always the real API.
  */
 import { makeCallApi, queryString } from '../../../_shared/services/scw-call';
 import type {
@@ -21,7 +20,6 @@ import type {
   SignCountInput,
   SignCountResult,
 } from '../../_shared/types/branch-day-contract';
-import { branchDayPhoneMock } from './branch-day-phone-mock';
 
 export interface BranchDayPhoneApi {
   /** BD1 */
@@ -48,7 +46,7 @@ export interface BranchDayPhoneApi {
 
 const call = makeCallApi('/inventory/branch-day');
 
-const realApi: BranchDayPhoneApi = {
+export const branchDayPhoneApi: BranchDayPhoneApi = {
   home: () => call<Home>('GET', '/home'),
   opening: () => call<OpeningView>('GET', '/opening'),
   acceptOpening: (input) => call<OpeningResult>('POST', '/opening/accept', input),
@@ -60,7 +58,3 @@ const realApi: BranchDayPhoneApi = {
   myHistory: (query) => call<MyHistory>('GET', `/mine/history${queryString(query)}`),
   myDay: (id) => call<MyDay>('GET', `/mine/days/${id}`),
 };
-
-export const branchDayMockOn = process.env.NEXT_PUBLIC_BRANCH_DAY_MOCK !== '0';
-
-export const branchDayPhoneApi: BranchDayPhoneApi = branchDayMockOn ? branchDayPhoneMock : realApi;

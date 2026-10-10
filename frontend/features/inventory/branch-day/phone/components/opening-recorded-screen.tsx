@@ -54,7 +54,7 @@ export function OpeningRecordedScreen() {
               </div>
               {differences.map((d) => (
                 <div key={d.itemId} className="flex items-center justify-between gap-3 border-t border-wds-warning-border bg-wds-warning-bg px-4 py-3">
-                  <div className="flex min-w-0 flex-col gap-0.5">
+                  <div className="flex min-w-0 flex-col gap-px">
                     <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{d.itemName}</span>
                     <span className="font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">{openingDifferenceLine({ ...d, lastNightQty: figureText(d.lastNightQty), countedQty: figureText(d.countedQty) })}</span>
                   </div>

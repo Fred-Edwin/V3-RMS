@@ -3,14 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useResource } from '@/features/inventory';
 import { formatApiErrorMessage } from '@/types/api';
 import {
-  acceptOpening,
   closeDay,
   getBranchThresholds,
   getDayDetail,
   getDayDocument,
   getDepartment,
   getHistory,
-  getOpening,
   getOverview,
   getToday,
   reopenDay,
@@ -22,7 +20,6 @@ import type {
   BranchDayDetail,
   BranchDayToday,
   HistoryList,
-  OpeningView,
   BranchThresholds,
   DayDocument,
   DepartmentDayDetail,
@@ -58,14 +55,6 @@ export function useDayDetail(dayId: string | null) {
   const r = useResource<BranchDayDetail>(dayId ? `branch-day:detail:${dayId}` : null, () => getDayDetail(dayId as string), "Couldn't load this day.");
   return { detail: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
 }
-
-/** The department head's next-morning opening: live pre-fill until accepted, the signed figures after. */
-export function useOpening(enabled = true) {
-  const r = useResource<OpeningView>(enabled ? 'branch-day:opening' : null, getOpening, "Couldn't load the opening figures.");
-  return { opening: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
-}
-
-export { acceptOpening };
 
 export function useDayDocument(dayId: string | null) {
   const r = useResource<DayDocument>(dayId ? `branch-day:document:${dayId}` : null, () => getDayDocument(dayId as string), "Couldn't load the signed document.");

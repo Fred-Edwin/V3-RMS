@@ -44,6 +44,7 @@ export function CountList({
   }, [ids.length, mode]);
 
   return (
+    <main className="flex min-h-0 flex-1 flex-col bg-wds-surface">
     <ul aria-label={label} className="min-h-0 flex-1 overflow-y-auto bg-wds-surface">
       {items.map((item, index) => {
         const inputId = `count-${item.id}`;
@@ -76,5 +77,6 @@ export function CountList({
         );
       })}
     </ul>
+    </main>
   );
 }

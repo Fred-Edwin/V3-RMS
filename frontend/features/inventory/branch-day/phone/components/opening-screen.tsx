@@ -9,7 +9,7 @@ import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2ErrorNote, B2Footer, B2Header, B2PrimaryButton, B2SecondaryButton } from '../../../_shared/components/block2-phone-parts';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { scwErrorCode, scwErrorMessage } from '../../../_shared/lib/scw-errors';
-import { BRANCH_DAY_BUTTONS, BRANCH_DAY_ERROR_COPY, BRANCH_DAY_MESSAGES, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
+import { BRANCH_DAY_BUTTONS, BRANCH_DAY_ERROR_COPY, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import { useOpeningView } from '../hooks/use-phone-day';
 import { branchDayPhoneApi } from '../services/branch-day-phone-api';
 import { clearRecount } from '../lib/recount-session';
@@ -71,12 +71,13 @@ export function OpeningScreen() {
         <BodyState kind="empty" text={copy.empty ?? ''} />
       ) : (
         <>
+          <main className="flex min-h-0 flex-1 flex-col">
           <section className="flex shrink-0 flex-col gap-1 border-b border-wds-text-ink bg-wds-surface px-5 pb-3.5 pt-4">
             <h2 className="font-wds-sans text-[17px] font-semibold leading-[22px] text-wds-text-ink">Same as last night?</h2>
             <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
               {data.lastCloseAt
                 ? `These are the figures signed when the ${data.department.name} day closed on ${weekdayText(data.lastCloseAt)} at ${timeText(data.lastCloseAt)}. Check the shelves, then accept or recount.`
-                : BRANCH_DAY_MESSAGES.openingIntro(data.department.name, 'the last close')}
+                : `These are the figures in stock for the ${data.department.name} day. Check the shelves, then accept or recount.`}
             </p>
           </section>
           <ul aria-label="Last night’s figures" className="min-h-0 flex-1 overflow-y-auto bg-wds-surface">
@@ -88,6 +89,7 @@ export function OpeningScreen() {
               </li>
             ))}
           </ul>
+          </main>
         </>
       )}
       {ready ? (

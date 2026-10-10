@@ -84,7 +84,7 @@ export function PastDaysScreen() {
             ))}
           </div>
         ) : loadStatus === 'error' || !data ? (
-          <BodyState kind="error" text={error ?? copy.error} onRetry={() => void reload()} />
+          <BodyState inMain kind="error" text={error ?? copy.error} onRetry={() => void reload()} />
         ) : data.rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 border border-wds-border bg-wds-surface px-6 py-12 text-center">
             <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">{filtered ? 'No days match' : 'No closed days yet'}</p>

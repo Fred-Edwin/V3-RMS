@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
 import { LoadingAnnouncer, ScwStatePanel } from '../../../_shared/components/scw-states';
 import { Chip, PinField, SectionLabel } from '../../../_shared/components/block2-phone-parts';
 import type { ChipTone } from '../../../_shared/lib/block2-words';
+import { PHONE_REFUSAL_COPY } from '../lib/phone-copy';
 
 /**
  * Parts the Branch day phone screens share (Paper B0 to B4). Values are from the spec `branch-day-paper-spec.md` §1.3: a mono label
@@ -229,7 +230,7 @@ export function PhoneTracker({ rows, label }: { rows: readonly PhoneTrackerRow[]
 /** A skeleton that mirrors a list of count rows, with the loading line announced. */
 export function RowsSkeleton({ rows = 8, text }: { rows?: number; text: string }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-wds-surface" aria-busy="true">
+    <main className="flex min-h-0 flex-1 flex-col bg-wds-surface" aria-busy="true">
       <LoadingAnnouncer text={text} />
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 border-b border-wds-border px-5 py-2.5" aria-hidden="true">
@@ -240,28 +241,31 @@ export function RowsSkeleton({ rows = 8, text }: { rows?: number; text: string }
           <Skeleton className="h-10 w-16" />
         </div>
       ))}
-    </div>
+    </main>
   );
 }
 
 /** A skeleton that mirrors the Day cards. */
 export function CardsSkeleton({ text }: { text: string }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3.5 bg-wds-surface p-5" aria-busy="true">
+    <main className="flex min-h-0 flex-1 flex-col gap-3.5 bg-wds-surface p-5" aria-busy="true">
       <LoadingAnnouncer text={text} />
       <Skeleton className="h-3 w-28" />
       {Array.from({ length: 3 }).map((_, i) => (
         <Skeleton key={i} className="h-[70px] w-full" />
       ))}
-    </div>
+    </main>
   );
 }
 
 /** Empty, error with Retry, or permission: the States kit's phone panel inside the white body. */
-export function BodyState({ kind, text, onRetry }: { kind: 'empty' | 'error' | 'permission'; text: string; onRetry?: () => void }) {
+export function BodyState({ kind, text, onRetry, inMain = false }: { kind: 'empty' | 'error' | 'permission'; text: string; onRetry?: () => void; /** The screen already has its own `main` (the past-days screens). */ inMain?: boolean }) {
+  const Wrap = inMain ? 'div' : 'main';
+  // A department added after the day began is not a failure: nothing will change on Retry until tomorrow, so it reads as a plain note.
+  const notAFailure = kind === 'error' && text === PHONE_REFUSAL_COPY.noDepartment;
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-center bg-wds-surface px-5 py-6">
-      <ScwStatePanel kind={kind} text={text} phone onRetry={onRetry} />
-    </div>
+    <Wrap className="flex min-h-0 flex-1 flex-col justify-center bg-wds-surface px-5 py-6">
+      <ScwStatePanel kind={notAFailure ? 'empty' : kind} text={text} phone onRetry={onRetry} />
+    </Wrap>
   );
 }
