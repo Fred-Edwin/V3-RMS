@@ -27,10 +27,14 @@ model BranchDay {
   siteId String          @map("organization_id") // branch org
   businessDate   DateTime        @map("business_date") @db.Date // Africa/Nairobi
   status         BranchDayStatus @default(OPEN)
-  reference      String // DAY-#### (ReferenceCounter)
+  reference      String // DAY-{branch code}-nnnn (ReferenceCounter prefix DAY); an older day keeps DAY-nnnn
   closedById     String?         @map("closed_by_id")
   closedAt       DateTime?       @map("closed_at")
   reopenCount    Int             @default(0) @map("reopen_count")
+  // Block 4 expand: the totals frozen at the close (a correction updates them) and the close's idempotency key.
+  usedValue      Decimal?        @map("used_value") @db.Decimal(14, 2)
+  closingValue   Decimal?        @map("closing_value") @db.Decimal(14, 2)
+  closeIdempotencyKey String?    @map("close_idempotency_key")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
@@ -39,8 +43,12 @@ model BranchDay {
   departments  BranchDayDepartment[]
   reopens      BranchDayReopen[]
   openings     DepartmentOpening[]
+  corrections  BranchDayCorrection[]
+  sheets       BranchDaySheet[]
 
   @@unique([siteId, businessDate])
+  @@unique([siteId, reference])
+  @@unique([siteId, closeIdempotencyKey])
   @@index([siteId, status])
   @@map("branch_days")
 }
@@ -53,15 +61,22 @@ model BranchDayDepartment {
   status        BranchDayDepartmentStatus @default(NOT_STARTED)
   countedById   String?                   @map("counted_by_id")
   countedAt     DateTime?                 @map("counted_at")
+  // Block 4 expand: the department as a row (back-filled from department_tag), who it was counted for, and the count's idempotency key.
+  departmentId  String?                   @map("department_id")
+  onBehalf      Boolean                   @default(false) @map("on_behalf")
+  countIdempotencyKey String?             @map("count_idempotency_key")
   createdAt     DateTime                  @default(now()) @map("created_at")
   updatedAt     DateTime                  @updatedAt @map("updated_at")
 
   branchDay BranchDay       @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
   location  Location        @relation(fields: [locationId], references: [id])
   countedBy User?           @relation("BranchDayDepartmentCountedBy", fields: [countedById], references: [id])
+  department Department?    @relation(fields: [departmentId], references: [id])
   lines     BranchDayLine[]
 
   @@unique([branchDayId, departmentTag])
+  @@unique([branchDayId, departmentId])
+  @@index([departmentId])
   @@map("branch_day_departments")
 }
 
@@ -69,22 +84,89 @@ model BranchDayLine {
   id                    String     @id @default(uuid())
   branchDayDepartmentId String     @map("branch_day_department_id")
   inventoryItemId       String     @map("inventory_item_id")
-  countedQty            Decimal?   @map("counted_qty") @db.Decimal(12, 4) // null = not counted; uncounted lines are never adjusted
-  expectedQty           Decimal    @map("expected_qty") @db.Decimal(12, 4) // department on-hand when this count was saved, excluding this day's own close adjustments
-  unitCost              Decimal    @map("unit_cost") @db.Decimal(12, 4) // cost carried into the department, frozen with the snapshot
+  countedQty            Decimal?   @map("counted_qty") @db.Decimal(12, 4) // null = not counted; uncounted lines are never adjusted. The closing figure (as corrected)
+  expectedQty           Decimal?   @map("expected_qty") @db.Decimal(12, 4) // OLD flow only: the new code writes null (the contract migration drops it)
+  unitCost              Decimal    @map("unit_cost") @db.Decimal(12, 4) // cost carried into the department; read live on an open day, frozen at the close
   reason                GapReason?
   reasonNote            String?    @map("reason_note")
   reasonRequired        Boolean    @default(false) @map("reason_required") // judged against the threshold in force when saved
+  // Block 4 expand: the figures frozen at the close.
+  openingQty            Decimal?   @map("opening_qty") @db.Decimal(12, 4)
+  receivedQty           Decimal?   @map("received_qty") @db.Decimal(12, 4)
+  wasteQty              Decimal?   @map("waste_qty") @db.Decimal(12, 4)
+  usedQty               Decimal?   @map("used_qty") @db.Decimal(12, 4)
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
 
   department    BranchDayDepartment    @relation(fields: [branchDayDepartmentId], references: [id], onDelete: Cascade)
   inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
   transactions  InventoryTransaction[]
+  corrections   BranchDayCorrection[]
 
   @@unique([branchDayDepartmentId, inventoryItemId])
   @@index([inventoryItemId])
   @@map("branch_day_lines")
+}
+
+enum BranchDayCorrectionReason {
+  COUNTED_WRONGLY
+  ITEM_WAS_MISSED
+  OTHER
+}
+
+enum BranchDaySheetKind {
+  AT_THE_CLOSE
+  AFTER_CORRECTION
+}
+
+enum OpeningKind {
+  ACCEPTED
+  RECOUNTED
+}
+
+/// Block 4: one correction of one item's closing figure on a closed day. Both figures are kept; the ledger entry is linked by transaction_id.
+model BranchDayCorrection {
+  id              String                    @id @default(uuid())
+  branchDayId     String                    @map("branch_day_id")
+  branchDayLineId String                    @map("branch_day_line_id")
+  fromClosingQty  Decimal                   @map("from_closing_qty") @db.Decimal(12, 4)
+  toClosingQty    Decimal                   @map("to_closing_qty") @db.Decimal(12, 4)
+  fromUsedQty     Decimal                   @map("from_used_qty") @db.Decimal(12, 4)
+  toUsedQty       Decimal                   @map("to_used_qty") @db.Decimal(12, 4)
+  reason          BranchDayCorrectionReason
+  note            String?
+  correctedById   String                    @map("corrected_by_id")
+  correctedAt     DateTime                  @default(now()) @map("corrected_at")
+  transactionId   String                    @unique @map("transaction_id")
+  sheetVersion    Int                       @map("sheet_version")
+  idempotencyKey  String                    @map("idempotency_key")
+
+  branchDay     BranchDay            @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  branchDayLine BranchDayLine        @relation(fields: [branchDayLineId], references: [id])
+  correctedBy   User                 @relation("BranchDayCorrectedBy", fields: [correctedById], references: [id])
+  transaction   InventoryTransaction @relation(fields: [transactionId], references: [id])
+
+  @@unique([branchDayId, idempotencyKey])
+  @@index([branchDayLineId])
+  @@map("branch_day_corrections")
+}
+
+/// Block 4: the printed day sheet, stored whole as it was made (version 1 at the close, one more after each correction).
+model BranchDaySheet {
+  id          String             @id @default(uuid())
+  branchDayId String             @map("branch_day_id")
+  version     Int
+  kind        BranchDaySheetKind
+  pages       Int
+  payload     Json
+  createdById String             @map("created_by_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  branchDay BranchDay @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("BranchDaySheetBy", fields: [createdById], references: [id])
+
+  @@unique([branchDayId, version])
+  @@map("branch_day_sheets")
 }
 
 /// Immutable, append-only audit of every reopen (plan §1.5).
@@ -111,14 +193,21 @@ model DepartmentOpening {
   locationId    String        @map("location_id")
   acceptedById  String        @map("accepted_by_id")
   acceptedAt    DateTime      @map("accepted_at")
+  // Block 4 expand: the department as a row (back-filled), accepted or recounted, who it was for, the idempotency key.
+  departmentId  String?       @map("department_id")
+  kind          OpeningKind   @default(ACCEPTED)
+  onBehalf      Boolean       @default(false) @map("on_behalf")
+  idempotencyKey String?      @map("idempotency_key")
   createdAt     DateTime      @default(now()) @map("created_at")
 
   branchDay  BranchDay               @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
   location   Location                @relation(fields: [locationId], references: [id])
   acceptedBy User                    @relation("DepartmentOpeningAcceptedBy", fields: [acceptedById], references: [id])
+  department Department?             @relation(fields: [departmentId], references: [id])
   lines      DepartmentOpeningLine[]
 
   @@unique([branchDayId, departmentTag])
+  @@unique([branchDayId, departmentId])
   @@map("department_openings")
 }
 
