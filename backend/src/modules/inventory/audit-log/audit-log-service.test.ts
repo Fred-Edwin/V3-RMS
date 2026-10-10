@@ -10,7 +10,9 @@ import { discrepanciesSource } from './sources/discrepancies-source';
 import { stockCountsSource } from './sources/stock-counts-source';
 import { wasteSource } from './sources/waste-source';
 import { branchWasteSource } from './sources/branch-waste-source';
+import { branchDaySource } from './sources/branch-day-source';
 
+vi.mock('./sources/branch-day-source', () => ({ branchDaySource: { area: 'BRANCH_DAY', entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findActiveBranchOptions: vi.fn() } }));
 vi.mock('./audit-log-repository', () => ({
   auditLogRepository: {
@@ -81,7 +83,7 @@ beforeEach(() => {
   vi.mocked(auditLogRepository.itemNames).mockResolvedValue(new Map());
   vi.mocked(auditLogRepository.userNames).mockResolvedValue(new Map([['u1', 'Isabel'], ['u3', 'Frederick']]));
   vi.mocked(auditLogRepository.actorIds).mockResolvedValue(['u3', 'u1']);
-  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource, branchWasteSource]) {
+  for (const source of [stockCountsSource, wasteSource, stockAdjustmentsSource, requisitionsSource, dispatchSource, discrepanciesSource, branchDaySource, branchWasteSource]) {
     vi.mocked(source.entries).mockResolvedValue([]);
     vi.mocked(source.count).mockResolvedValue(0);
     vi.mocked(source.actorIds).mockResolvedValue([]);
@@ -270,10 +272,14 @@ describe('auditLogService.list', () => {
     });
   });
 
-  it('lists the Branch day area and answers it with nothing until its block adds a source', async () => {
+  it('reads Branch day from its own source, and no other area answers when only it is asked for', async () => {
+    vi.mocked(branchDaySource.entries).mockResolvedValue([
+      { id: 'branch-day:close:d1', at: at('18:00').toISOString(), actor: { id: 'u9', name: 'Mercy' }, area: 'BRANCH_DAY', what: 'Closed the day', reason: null },
+    ]);
+    vi.mocked(branchDaySource.count).mockResolvedValue(1);
     const page = await auditLogService.list(sm, query({ area: 'BRANCH_DAY' }));
-    expect(page.entries).toEqual([]);
-    expect(page.pagination.total).toBe(0);
+    expect(page.entries.map((e) => e.id)).toEqual(['branch-day:close:d1']);
+    expect(page.pagination.total).toBe(1);
     expect(auditLogRepository.itemChanges).not.toHaveBeenCalled();
     expect(branchWasteSource.entries).not.toHaveBeenCalled();
   });

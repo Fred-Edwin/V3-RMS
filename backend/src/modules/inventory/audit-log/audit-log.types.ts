@@ -22,7 +22,7 @@ export const AUDIT_AREAS = [
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 /** Listed in the Area menu, answered with nothing until the block that owns each one adds its source. */
-export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['BRANCH_DAY'];
+export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = [];
 
 /**
  * The record a derived row points at, so the screen can draw the link: a count (`COUNT`, `id` is the count's id), a day on one
@@ -31,7 +31,7 @@ export const AUDIT_AREAS_WITHOUT_SOURCE: readonly AuditArea[] = ['BRANCH_DAY'];
  * Nairobi day the entry happened, which the ledger links use as their date range.
  */
 export interface AuditRecordLink {
-  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION' | 'DISPATCH' | 'DISCREPANCY';
+  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION' | 'DISPATCH' | 'DISCREPANCY' | 'DAY';
   id: string;
   label: string;
   day?: string;

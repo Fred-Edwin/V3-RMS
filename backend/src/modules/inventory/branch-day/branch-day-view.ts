@@ -192,11 +192,14 @@ const pathOf = (line: LineRow, parentNames: Map<string, string>): string[] => {
   return parent ? [parent, category.name] : [category.name];
 };
 
+/** Items with no category sort last (they are grouped under "Other"). */
+const groupKey = (path: string[]): string => (path.length > 0 ? path.join('/') : '￿');
+
 /** The blind count: the items, units, categories and what was typed. NOTHING to count against (a test pins the key names). */
 export const countViewOf = (day: DayRecord, dept: DepartmentRow, onBehalfOfDepartment: boolean, parentNames: Map<string, string>): CountView => {
   const lines = dept.lines
     .map((line) => ({ line, path: pathOf(line, parentNames) }))
-    .sort((a, b) => a.path.join('/').localeCompare(b.path.join('/')) || a.line.inventoryItem.name.localeCompare(b.line.inventoryItem.name));
+    .sort((a, b) => groupKey(a.path).localeCompare(groupKey(b.path)) || a.line.inventoryItem.name.localeCompare(b.line.inventoryItem.name));
   const filled = lines.filter((l) => l.line.countedQty !== null).length;
   const groups: { name: string; itemCount: number }[] = [];
   for (const { path } of lines) {

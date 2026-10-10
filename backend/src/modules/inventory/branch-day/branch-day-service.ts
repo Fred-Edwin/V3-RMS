@@ -100,8 +100,6 @@ import {
 } from './branch-day-view';
 import type { Actor } from './branch-day.types';
 
-type Tx = Prisma.TransactionClient;
-
 const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 } as const;
 const pad4 = (n: number): string => String(n).padStart(4, '0');
 const isUniqueViolation = (error: unknown): boolean => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';

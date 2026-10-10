@@ -130,9 +130,14 @@ describe('the access grid, route by route (§3.1)', () => {
     });
   }
   it('a refused caller never reaches the service', async () => {
-    await call(ENDPOINTS.find((e) => e.n === 'BD14')!, as('DIRECTOR'));
-    await call(ENDPOINTS.find((e) => e.n === 'BD20')!, as('ACCOUNTANT'));
-    await call(ENDPOINTS.find((e) => e.n === 'BD11')!, as('BARISTA'));
+    const endpoint = (n: string) => {
+      const found = ENDPOINTS.find((e) => e.n === n);
+      if (!found) throw new Error(`No endpoint ${n}`);
+      return found;
+    };
+    await call(endpoint('BD14'), as('DIRECTOR'));
+    await call(endpoint('BD20'), as('ACCOUNTANT'));
+    await call(endpoint('BD11'), as('BARISTA'));
     expect(svc.closeDay).not.toHaveBeenCalled();
     expect(svc.correctCount).not.toHaveBeenCalled();
     expect(svc.today).not.toHaveBeenCalled();
