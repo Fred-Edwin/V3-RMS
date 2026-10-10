@@ -87,7 +87,8 @@ export function detailIds(err: unknown, key: 'lineIds' | 'departmentIds'): strin
 
 // --- Chips (D22 "The word on every state") ------------------------------------------------------------------------------------
 
-export type ChipTone = 'neutral' | 'success' | 'warning' | 'info' | 'error';
+/** `muted` is Block 4's "Not counted" chip (a 50 fill, the lightest of the neutrals). */
+export type ChipTone = 'neutral' | 'success' | 'warning' | 'info' | 'error' | 'muted';
 export interface ChipSpec {
   text: string;
   tone: ChipTone;

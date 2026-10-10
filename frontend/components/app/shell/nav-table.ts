@@ -233,7 +233,19 @@ export const NAV_ROWS: readonly NavRow[] = [
       { key: 'history', label: 'History', newHref: '/app/branch/requisitions/history', roles: [MANAGER] },
     ],
   },
-  { key: 'branch-day', label: 'Day', group: 'mgr-branch', icon: ico.day, newHref: '/app/branch/day', roles: [MANAGER] },
+  // Block 4 (Paper B5 to B13): Today (and a department's figures) and History (and the closed day file), the Branch Manager's own branch.
+  {
+    key: 'branch-day',
+    label: 'Day',
+    group: 'mgr-branch',
+    icon: ico.day,
+    roles: [MANAGER],
+    capability: 'branch_day.read',
+    subItems: [
+      { key: 'today', label: 'Today', newHref: '/app/branch/day', roles: [MANAGER] },
+      { key: 'history', label: 'History', newHref: '/app/branch/day/history', roles: [MANAGER], match: ['/app/branch/day/file'] },
+    ],
+  },
   // Block 3 (Paper W6): the Branch Manager reads the branch's waste with values and reverses any entry.
   { key: 'branch-waste', label: 'Waste', group: 'mgr-branch', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [MANAGER], capability: 'branch_waste.read' },
 
@@ -242,6 +254,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'director-analytics', label: 'Analytics', group: 'dir-overview', icon: ico.analyticsLine, oldHref: '/app/director/analytics', roles: [DIRECTOR] },
   { key: 'director-inbox', label: 'Inbox', group: 'dir-overview', icon: ico.inbox, oldHref: '/app/inbox', roles: [DIRECTOR], badge: 'inbox' },
   { key: 'director-branch', label: 'Branch', group: 'dir-branches', icon: ico.branch, oldHref: '/app/director/branches/:id', roles: [DIRECTOR], expand: 'branches' },
+  // Block 4 (Paper B16): every branch's day, read only, with a branch picker.
+  { key: 'director-day', label: 'Day', group: 'dir-branches', icon: ico.day, newHref: '/app/inventory/branch-day', roles: [DIRECTOR], capability: 'branch_day.read_any_branch' },
   // Block 3 (Paper W8): every branch's waste, read only.
   { key: 'director-waste', label: 'Waste', group: 'dir-branches', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [DIRECTOR], capability: 'branch_waste.read_any_branch' },
   { key: 'director-income', label: 'Categories & Entries', group: 'dir-income', icon: ico.tags, oldHref: '/app/director/other-income', roles: [DIRECTOR] },
@@ -281,6 +295,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'admin-inbox', label: 'Inbox', group: 'adm-comms', icon: ico.inbox, oldHref: '/app/inbox', roles: [SYSTEM_ADMIN], badge: 'inbox' },
 
   // ── Branches (Block 3, Paper W8): the desktop roles without a branch of their own read every branch's waste ─────────────────
+  { key: 'branches-day', label: 'Day', group: 'branches', icon: ico.day, newHref: '/app/inventory/branch-day', roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN], capability: 'branch_day.read_any_branch' },
   { key: 'branches-waste', label: 'Waste', group: 'branches', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN], capability: 'branch_waste.read_any_branch' },
 
   // ── HR Manager ────────────────────────────────────────────────────────────────────────────────────────────────────────────

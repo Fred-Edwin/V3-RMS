@@ -167,6 +167,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     if (pathname.startsWith('/app/inventory/branch-waste')) {
       return isDesktopCentralStoreRole;
     }
+    // Branch day (Block 4, desktop): the same screens as the Branch Manager's, read only, for the roles without a branch of their own
+    // (Today with a branch picker, History, the day file, the printed day sheet). The API's table decides what each may do.
+    if (pathname.startsWith('/app/inventory/branch-day') || pathname.startsWith('/app/inventory/day-print')) {
+      return isDesktopCentralStoreRole;
+    }
     // Stock, Counting and Waste (rebuilt): every desktop role reads every screen; the Attendant counts and logs waste on the phone
     // (Counts, Waste) and may print the blank sheet. The Branch Manager is the `MANAGER` role. The API decides who may write.
     const isHubReader = isDesktopCentralStoreRole;

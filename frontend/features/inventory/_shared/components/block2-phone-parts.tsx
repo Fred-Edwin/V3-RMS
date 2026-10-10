@@ -153,13 +153,22 @@ const CHIP_TONE: Record<ChipTone, string> = {
   warning: 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
   info: 'border-wds-info-border bg-wds-info-bg text-wds-info-fg',
   error: 'border-wds-error-border bg-wds-error-bg text-wds-error-fg',
+  muted: 'border-wds-border-strong bg-wds-neutral-50 text-wds-text-secondary',
 };
 
-/** A status chip: a square-cornered box; a dot in front means someone has to act. */
-export function Chip({ spec, className }: { spec: ChipSpec; className?: string }) {
+/**
+ * A status chip: a square-cornered box; a dot in front means someone has to act. Options (defaults unchanged): `size="lg"` is Paper's
+ * padding 3 9 (24 high); `dot="square"` is Block 4's 6 by 6 square marker; `ring` draws it as a 1.5px ring (the "Not counted" chip).
+ */
+export function Chip({ spec, className, size = 'default', dotShape = 'round', ring = false }: { spec: ChipSpec; className?: string; size?: 'default' | 'lg'; dotShape?: 'round' | 'square'; ring?: boolean }) {
   return (
-    <span className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border px-2 py-[2px] font-wds-sans text-[12px] leading-4', CHIP_TONE[spec.tone], className)}>
-      {spec.dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden="true" /> : null}
+    <span className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border font-wds-sans text-[12px] leading-4', size === 'lg' ? 'px-[9px] py-[3px]' : 'px-2 py-[2px]', CHIP_TONE[spec.tone], className)}>
+      {spec.dot ? (
+        <span
+          className={cn('size-1.5', dotShape === 'round' && 'rounded-full', ring ? 'box-border border-[1.5px] border-[#8D8982]' : 'bg-current')}
+          aria-hidden="true"
+        />
+      ) : null}
       {spec.text}
     </span>
   );
@@ -309,17 +318,20 @@ export interface PinFieldProps {
   disabled?: boolean;
   label?: string;
   inputRef?: React.Ref<HTMLInputElement>;
+  /** `paper` is Block 4's box: 10/12 label, 44 high, Geist Mono 18/22 bullets at 0.3em. The default look is unchanged. */
+  size?: 'default' | 'paper';
 }
 
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
-export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef }: PinFieldProps) {
+export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
+  const paper = size === 'paper';
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
   }, [error, disabled, id]);
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
+      <label htmlFor={id} className={cn('font-wds-mono uppercase tracking-[0.06em] text-wds-text-secondary', paper ? 'text-[10px] leading-3' : 'text-[11px] leading-[14px]')}>
         {label}
       </label>
       <input
@@ -342,8 +354,10 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         className={cn(
-          'w-full border bg-white p-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em] text-wds-text-ink outline-none transition-shadow duration-100',
-          error ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-bg)]' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',
+          'w-full border bg-white text-wds-text-ink outline-none transition-shadow duration-100',
+          paper ? 'h-11 px-3 font-wds-mono text-[18px] leading-[22px] tracking-[0.3em]' : 'p-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em]',
+          // Paper draws the focused edge in #B0610F (`wds-selected-edge`), not the espresso brown the kit used before.
+          error ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-bg)]' : 'border-wds-border-strong focus:border-wds-selected-edge focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',
         )}
       />
       {error ? (

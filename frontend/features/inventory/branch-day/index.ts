@@ -2,7 +2,6 @@
  * Branch day close — public entry point (Milestone Six, Session 3).
  * Other features import from here, never from this module's internals.
  */
-export { TodaysDayScreen } from './components/todays-day-screen';
 export { DayDocumentScreen, PrintableDayDocument } from './components/day-document';
 export { OpeningCard } from './components/opening-card';
 export { DayHistoryScreen } from './components/history-list';

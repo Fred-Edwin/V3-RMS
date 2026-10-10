@@ -63,6 +63,8 @@ export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
 // Block 3 Branch waste: phone (`waste/branch/`) and desktop W6, W7, W8, entry drawer (`waste/branch-desk/`).
 export { WasteScreen, LogWastePhoneScreen, DepartmentWasteScreen, LogWasteFlow, BranchWasteDeskScreen } from './waste';
+// Block 4 Branch day, desktop: Today (B5, B7, B9, B14, B16) and a department's figures (B6).
+export { TodayScreen as BranchDayTodayScreen, FiguresScreen as BranchDayFiguresScreen } from './branch-day/desk';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.

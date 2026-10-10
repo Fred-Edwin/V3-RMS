@@ -363,7 +363,7 @@ describe('Branch waste rows (Block 3, Paper W6 and W8)', () => {
   const WASTE = '/app/inventory/branch-waste';
 
   it('gives the Branch Manager Branch › Waste below Requisitions and Day, once the table grants read', () => {
-    const groups = navFor(ctxFor('MANAGER', { can: holds('branch_waste.read') }));
+    const groups = navFor(ctxFor('MANAGER', { can: holds('branch_waste.read', 'branch_day.read') }));
     const branch = groups.find((g) => g.key === 'mgr-branch');
     expect(branch?.items.map((i) => i.label)).toEqual(['Requisitions', 'Day', 'Waste']);
     expect(item(groups, 'branch-waste')?.href).toBe(WASTE);
@@ -383,6 +383,45 @@ describe('Branch waste rows (Block 3, Paper W6 and W8)', () => {
   it('shows no Branch waste row to floor staff, the Attendant or HR', () => {
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT', 'HR_MANAGER'] as AppRole[]) {
       expect(hrefs(navFor(ctxFor(role, { can: EVERYTHING }))), role).not.toContain(WASTE);
+    }
+  });
+});
+
+describe('Branch day rows (Block 4, Paper B5 to B16)', () => {
+  const TODAY = '/app/branch/day';
+  const HUB_TODAY = '/app/inventory/branch-day';
+
+  it('gives the Branch Manager Day with Today and History, Today lit on Today and on a department\'s figures, History on the day file', () => {
+    const groups = navFor(ctxFor('MANAGER', { can: holds('branch_day.read') }));
+    const day = item(groups, 'branch-day');
+    expect(day?.subItems?.map((s) => [s.label, s.href])).toEqual([
+      ['Today', TODAY],
+      ['History', `${TODAY}/history`],
+    ]);
+    expect(activeFor(groups, TODAY).activeSubKey).toBe('today');
+    expect(activeFor(groups, `${TODAY}/figures`).activeSubKey).toBe('today');
+    expect(activeFor(groups, `${TODAY}/history`).activeSubKey).toBe('history');
+    expect(activeFor(groups, `${TODAY}/file/abc`).activeSubKey).toBe('history');
+    expect(keys(navFor(ctxFor('MANAGER', { can: holds() })))).not.toContain('branch-day');
+  });
+
+  it('gives the roles without a branch of their own Branches › Day, read only, once the table grants read-any-branch', () => {
+    for (const role of ['DIRECTOR', 'ACCOUNTANT', 'STORE_MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const groups = navFor(ctxFor(role, { can: holds('branch_day.read_any_branch') }));
+      expect(hrefs(groups), role).toContain(HUB_TODAY);
+      expect(hrefs(navFor(ctxFor(role, { can: holds() }))), role).not.toContain(HUB_TODAY);
+      // The route gate lets each of them in, and the Branch Manager's pages stay the Branch Manager's.
+      expect(isAllowedPath(HUB_TODAY, role, false), role).toBe(true);
+      expect(isAllowedPath(`${HUB_TODAY}/figures`, role, false), role).toBe(true);
+    }
+  });
+
+  it('shows no Day row to floor staff, the Attendant or HR, and the gate keeps them out of the hub pages', () => {
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT', 'HR_MANAGER'] as AppRole[]) {
+      const all = hrefs(navFor(ctxFor(role, { can: EVERYTHING })));
+      expect(all, role).not.toContain(HUB_TODAY);
+      expect(all, role).not.toContain(TODAY);
+      expect(isAllowedPath(HUB_TODAY, role, false), role).toBe(false);
     }
   });
 });
