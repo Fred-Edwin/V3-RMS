@@ -582,6 +582,8 @@ describe.skipIf(!enabled)('Branch day against the real database', () => {
       // Milk: opening 7 (recounted) + 5 received − 1 waste − 9 counted = used 2, the ledger held 11 so the entry is −2.
       // Oil: opening 10, counted 8: −2. Flour (Pastry): 6 → 5: −1. Dye: 3 → 4: +1, a surplus, shown as it is.
       expect(byItem).toEqual({ Milk: '-2', Oil: '-2', Flour: '-1', Dye: '1' });
+      // The day's entries carry the day number and take nothing from the ADJ counter: only the one opening recount did.
+      expect((await prisma.referenceCounter.findUniqueOrThrow({ where: { siteId_prefix: { siteId, prefix: 'ADJ' } } })).lastNumber).toBe(1);
     });
 
     it('after the close the ledger equals the count for every line, and the day is balanced', async () => {

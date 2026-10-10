@@ -9,6 +9,7 @@ import { dayAsDate, nairobiDay } from '../counting/_shared/count-time';
 import { deliveriesRepository } from '../deliveries/deliveries-repository';
 import { postStockMovement } from '../stock/ledger/ledger-door';
 import { addDays } from '../stock/_shared/nairobi-time';
+import { WASTE_REASON_TEXT } from '../waste/_shared/waste-contract';
 import {
   CORRECTION_REASON_TEXT,
   daySheetSchema,
@@ -701,7 +702,7 @@ export const branchDayService = {
         opening: openingCheckOf(day, dept),
         delivery: deliveryFactOf(dept.departmentId, deliveries),
         lines: mine.lines.map((l) => figureLineOf(l, reader.seeCosts)),
-        waste: { entryCount: wasteEntries.length, items: wasteEntries.map((w) => ({ itemName: w.inventoryItem.name, reasonText: WASTE_TEXT[w.reason] })) },
+        waste: { entryCount: wasteEntries.length, items: wasteEntries.map((w) => ({ itemName: w.inventoryItem.name, reasonText: WASTE_REASON_TEXT[w.reason] })) },
         ...(reader.seeCosts ? { totals: totalsOf(mine) } : {}),
         can: { correct: canCorrect },
       },
@@ -1052,13 +1053,6 @@ export const branchDayService = {
 };
 
 // --- Small helpers that need the service's types -------------------------------------------------------------------------------------------
-
-const WASTE_TEXT: Record<'EXPIRY' | 'SPOILAGE' | 'DAMAGE_IN_STORE' | 'PREP_ERROR', string> = {
-  EXPIRY: 'Expired',
-  SPOILAGE: 'Spoiled',
-  DAMAGE_IN_STORE: 'Damaged in store',
-  PREP_ERROR: 'Prep error',
-};
 
 /** A department closed under the old flow has no Used today and cannot be corrected. */
 const mineLegacy = (f: DepartmentFigures): boolean => f.lines.some((l) => l.legacy);
