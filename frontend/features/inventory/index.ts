@@ -68,6 +68,9 @@ export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScre
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
 export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, MyCountsScreen, PickSectionScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
 
+// Block 4 Branch day: the head's and member's phone screens (`branch-day/phone/`).
+export * from './branch-day/phone';
+
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './settings/components/screens/settings-screen';
 

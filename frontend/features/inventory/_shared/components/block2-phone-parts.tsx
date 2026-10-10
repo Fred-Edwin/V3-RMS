@@ -263,8 +263,23 @@ const BANNER_TONE = {
 } as const;
 
 /** "Signed and sent", "4 of 5 departments sent", "Cancelled at 3:12 pm": a coloured card with a title and a line. */
-export function B2Banner({ tone, title, children, dot = true, compact = false, role = 'status', footnote, smallFootnote = false }: { tone: keyof typeof BANNER_TONE; /** The footnote drawn 12/16 (Paper N1b) instead of 13/18 (Paper D12). */ smallFootnote?: boolean; title: string; children?: React.ReactNode; dot?: boolean; /** The slim card of D6 ("4 of 5 departments sent"): 12/16, a 14/18 title, 13/18 text. */ compact?: boolean; role?: 'status' | 'alert'; footnote?: React.ReactNode }) {
+export function B2Banner({ tone, title, children, dot = true, compact = false, role = 'status', footnote, smallFootnote = false, note = false }: { tone: keyof typeof BANNER_TONE; /** The Branch day success note (Paper B2b, B4): an 18 px check disc, 14/18 title, 13/18 body in the tone colour, padding 12 14. */ note?: boolean; /** The footnote drawn 12/16 (Paper N1b) instead of 13/18 (Paper D12). */ smallFootnote?: boolean; title: string; children?: React.ReactNode; dot?: boolean; /** The slim card of D6 ("4 of 5 departments sent"): 12/16, a 14/18 title, 13/18 text. */ compact?: boolean; role?: 'status' | 'alert'; footnote?: React.ReactNode }) {
   const t = BANNER_TONE[tone];
+  if (note) {
+    return (
+      <section role={role} className={cn('flex items-start gap-2.5 border px-3.5 py-3', t.box)}>
+        <span aria-hidden="true" className={cn('mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full', t.dot)}>
+          <svg width="12" height="12" viewBox="0 0 24 24">
+            <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className={cn('font-wds-sans text-[14px] font-semibold leading-[18px]', t.title)}>{title}</h2>
+          {children ? <div className={cn('font-wds-sans text-[13px] leading-[18px]', t.title)}>{children}</div> : null}
+        </div>
+      </section>
+    );
+  }
   // Paper D6 and D12: a card is 14/16 with gap 6; with a dot the title is 15/20 and the text 14/20, without one the title is
   // 14/20 and the text 13/20 (D12's gap card); the compact card of D6 is 12/16 with gap 3.
   return (
@@ -309,17 +324,20 @@ export interface PinFieldProps {
   disabled?: boolean;
   label?: string;
   inputRef?: React.Ref<HTMLInputElement>;
+  /** `paper` is the Branch day box (Paper B2, B3b): 10/12 label, 44 high, Geist Mono bullets at 0.3em. Default look unchanged. */
+  size?: 'default' | 'paper';
 }
 
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
-export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef }: PinFieldProps) {
+export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
+  const paper = size === 'paper';
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
   }, [error, disabled, id]);
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
+      <label htmlFor={id} className={cn('font-wds-mono uppercase tracking-[0.06em] text-wds-text-secondary', paper ? 'text-[10px] leading-3' : 'text-[11px] leading-[14px]')}>
         {label}
       </label>
       <input
@@ -342,8 +360,10 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         className={cn(
-          'w-full border bg-white p-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em] text-wds-text-ink outline-none transition-shadow duration-100',
-          error ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-bg)]' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',
+          'w-full border bg-white text-wds-text-ink outline-none transition-shadow duration-100',
+          paper ? 'h-11 px-3 font-wds-mono text-[18px] leading-[22px] tracking-[0.3em]' : 'p-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em]',
+          // Paper draws the focus edge in #B0610F (the primary button start), not the espresso #693C1B this used to take.
+          error ? 'border-wds-error-fg shadow-[0_0_0_3px_var(--wds-error-bg)]' : 'border-wds-border-strong focus:border-[var(--wds-primary-btn-start)] focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',
         )}
       />
       {error ? (
