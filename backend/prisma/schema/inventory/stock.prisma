@@ -65,6 +65,7 @@ model InventoryTransaction {
   countLine            CountLine?             @relation(fields: [countLineId], references: [id], onDelete: SetNull)
   branchDayLine        BranchDayLine?         @relation(fields: [branchDayLineId], references: [id])
   openingLine          DepartmentOpeningLine? @relation(fields: [openingLineId], references: [id])
+  branchDayCorrection  BranchDayCorrection?
   reverses             InventoryTransaction?  @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
   reversedBy           InventoryTransaction?  @relation("InventoryTransactionReversal")
 

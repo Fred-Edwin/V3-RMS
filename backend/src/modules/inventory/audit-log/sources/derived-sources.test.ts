@@ -9,7 +9,10 @@ import { wasteAuditRepository } from './waste-repository';
 import { wasteSource } from './waste-source';
 import { branchWasteAuditRepository } from './branch-waste-repository';
 import { branchWasteSource } from './branch-waste-source';
+import { branchDayAuditRepository } from './branch-day-repository';
+import { branchDaySource } from './branch-day-source';
 
+vi.mock('./branch-day-repository', () => ({ branchDayAuditRepository: { openings: vi.fn(), counts: vi.fn(), closes: vi.fn(), corrections: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./stock-counts-repository', () => ({ stockCountsRepository: { entries: vi.fn(), count: vi.fn(), adjustmentsOf: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./waste-repository', () => ({ wasteAuditRepository: { entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
 vi.mock('./branch-waste-repository', () => ({ branchWasteAuditRepository: { entries: vi.fn(), count: vi.fn(), actorIds: vi.fn() } }));
@@ -163,6 +166,113 @@ describe('Branch waste source', () => {
     expect(await branchWasteSource.count(scope, filter)).toBe(5);
     vi.mocked(branchWasteAuditRepository.actorIds).mockResolvedValue(['u-peter']);
     expect(await branchWasteSource.actorIds(scope, {})).toEqual(['u-peter']);
+  });
+});
+
+describe('Branch day source', () => {
+  const day = { id: 'day-1', reference: 'DAY-NYR-0044', businessDate: new Date('2026-10-08T00:00:00Z') };
+  const line = (name: string, prefilled: number, accepted: number) => ({ prefilledQty: D(prefilled), acceptedQty: D(accepted), overnightVariance: D(accepted - prefilled), inventoryItem: { name } });
+  const none = () => {
+    vi.mocked(branchDayAuditRepository.openings).mockResolvedValue([]);
+    vi.mocked(branchDayAuditRepository.counts).mockResolvedValue([]);
+    vi.mocked(branchDayAuditRepository.closes).mockResolvedValue([]);
+    vi.mocked(branchDayAuditRepository.corrections).mockResolvedValue([]);
+  };
+
+  it('tells an opening checked, and an opening recorded with its differences; the link is the day number', async () => {
+    none();
+    vi.mocked(branchDayAuditRepository.openings).mockResolvedValue([
+      { id: 'o1', kind: 'ACCEPTED', acceptedAt: new Date('2026-10-08T04:30:00Z'), onBehalf: false, acceptedBy: peter, department: { name: 'Barista' }, branchDay: day, lines: [line('Milk 1L', 8, 8)] },
+      { id: 'o2', kind: 'RECOUNTED', acceptedAt: new Date('2026-10-08T04:40:00Z'), onBehalf: false, acceptedBy: isabel, department: { name: 'Kitchen' }, branchDay: day, lines: [line('Milk 1L', 8, 7), line('Oil', 3, 3)] },
+      { id: 'o3', kind: 'RECOUNTED', acceptedAt: new Date('2026-10-08T04:20:00Z'), onBehalf: false, acceptedBy: isabel, department: { name: 'Pastry' }, branchDay: day, lines: [line('Flour', 5, 4), line('Eggs', 30, 28), line('Sugar', 2, 3)] },
+    ] as never);
+    const entries = await branchDaySource.entries(scope, filter, 50);
+    expect(entries.map((e) => [e.id, e.what])).toEqual([
+      ['branch-day:opening:o2', 'Recorded the opening: Milk 1L, 1 less than last night (8 → 7)'],
+      ['branch-day:opening:o1', 'Checked the opening: Barista, same as last night'],
+      ['branch-day:opening:o3', 'Recorded the opening: Pastry, 3 differences'],
+    ]);
+    expect(entries[0]).toMatchObject({ area: 'BRANCH_DAY', actor: isabel, reason: null, record: { kind: 'DAY', id: 'day-1', label: 'DAY-NYR-0044', day: '2026-10-08' } });
+  });
+
+  it('tells a count signed, on behalf of the department when the Branch Manager signed it', async () => {
+    none();
+    vi.mocked(branchDayAuditRepository.counts).mockResolvedValue([
+      { id: 'c1', countedAt: new Date('2026-10-08T16:20:00Z'), onBehalf: false, countedBy: peter, department: { name: 'Housekeeping' }, branchDay: day, _count: { lines: 6 } },
+      { id: 'c2', countedAt: new Date('2026-10-08T16:10:00Z'), onBehalf: true, countedBy: isabel, department: { name: 'Pastry' }, branchDay: day, _count: { lines: 1 } },
+    ] as never);
+    expect((await branchDaySource.entries(scope, filter, 50)).map((e) => e.what)).toEqual([
+      'Counted and signed: Housekeeping, 6 items',
+      'Counted and signed on behalf of Pastry: 1 item',
+    ]);
+  });
+
+  it('tells the day closed with NO money and NO PIN in the words', async () => {
+    none();
+    vi.mocked(branchDayAuditRepository.closes).mockResolvedValue([{ id: 'day-1', reference: 'DAY-NYR-0044', businessDate: day.businessDate, closedAt: new Date('2026-10-08T17:00:00Z'), closedBy: isabel }] as never);
+    const [entry] = await branchDaySource.entries(scope, filter, 50);
+    expect(entry).toMatchObject({ id: 'branch-day:close:day-1', what: 'Closed the day', actor: isabel, record: { kind: 'DAY', id: 'day-1' } });
+    expect(JSON.stringify(entry)).not.toMatch(/KES|pin|\d{3},\d{3}/i);
+  });
+
+  it('tells a count corrected: the reason and note in `reason`, the ledger searched for the day number as the record, no PIN', async () => {
+    none();
+    vi.mocked(branchDayAuditRepository.corrections).mockResolvedValue([
+      {
+        id: 'x1',
+        correctedAt: new Date('2026-10-09T06:14:00Z'),
+        fromClosingQty: D(1),
+        toClosingQty: D(2),
+        reason: 'COUNTED_WRONGLY',
+        note: 'Wrong shelf',
+        correctedBy: isabel,
+        branchDay: day,
+        branchDayLine: { inventoryItem: { name: 'Flour 25kg' }, department: { department: { name: 'Pastry' } } },
+      },
+      {
+        id: 'x2',
+        correctedAt: new Date('2026-10-09T06:00:00Z'),
+        fromClosingQty: D('2.5'),
+        toClosingQty: D(3),
+        reason: 'ITEM_WAS_MISSED',
+        note: null,
+        correctedBy: isabel,
+        branchDay: day,
+        branchDayLine: { inventoryItem: { name: 'Oil' }, department: { department: { name: 'Kitchen' } } },
+      },
+    ] as never);
+    const entries = await branchDaySource.entries(scope, filter, 50);
+    expect(entries[0]).toEqual({
+      id: 'branch-day:correction:x1',
+      at: '2026-10-09T06:14:00.000Z',
+      actor: isabel,
+      area: 'BRANCH_DAY',
+      what: 'Corrected a count: Flour 25kg (Pastry), closing stock 1 → 2',
+      reason: 'Counted wrongly · Wrong shelf',
+      record: { kind: 'LEDGER_SEARCH', id: 'DAY-NYR-0044', label: 'DAY-NYR-0044', day: '2026-10-09' },
+    });
+    expect(entries[1]).toMatchObject({ what: 'Corrected a count: Oil (Kitchen), closing stock 2.5 → 3', reason: 'Item was missed' });
+    expect(JSON.stringify(entries)).not.toMatch(/pin/i);
+  });
+
+  it('merges every kind newest first, cuts to the page asked for, and never carries money', async () => {
+    none();
+    vi.mocked(branchDayAuditRepository.closes).mockResolvedValue([{ id: 'day-1', reference: 'DAY-NYR-0044', businessDate: day.businessDate, closedAt: new Date('2026-10-08T17:00:00Z'), closedBy: isabel }] as never);
+    vi.mocked(branchDayAuditRepository.counts).mockResolvedValue([
+      { id: 'c1', countedAt: new Date('2026-10-08T16:20:00Z'), onBehalf: false, countedBy: peter, department: { name: 'Housekeeping' }, branchDay: day, _count: { lines: 6 } },
+      { id: 'c2', countedAt: new Date('2026-10-08T16:10:00Z'), onBehalf: false, countedBy: peter, department: { name: 'Pastry' }, branchDay: day, _count: { lines: 2 } },
+    ] as never);
+    const entries = await branchDaySource.entries(scope, filter, 2);
+    expect(entries.map((e) => e.id)).toEqual(['branch-day:close:day-1', 'branch-day:count:c1']);
+    expect(JSON.stringify(entries)).not.toMatch(/KES/);
+  });
+
+  it('counts every kind and lists every actor through the repository', async () => {
+    vi.mocked(branchDayAuditRepository.count).mockResolvedValue(9);
+    vi.mocked(branchDayAuditRepository.actorIds).mockResolvedValue(['u1', 'u2']);
+    expect(await branchDaySource.count(scope, filter)).toBe(9);
+    expect(await branchDaySource.actorIds(scope, {})).toEqual(['u1', 'u2']);
+    expect(branchDaySource.area).toBe('BRANCH_DAY');
   });
 });
 
