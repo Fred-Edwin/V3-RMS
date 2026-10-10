@@ -19,7 +19,7 @@ import { BRANCH_WASTE_BUTTONS, BRANCH_WASTE_MESSAGES, BRANCH_WASTE_STATES_COPY }
 import type { BranchWasteEntry, MyBranchWasteList } from '../../_shared/types/waste-contract';
 import { useDepartmentName } from '../hooks/use-department-name';
 import { entryMeta, groupByDay } from '../lib/branch-waste-format';
-import { branchWasteApi } from '../services/branch-waste-api';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 import { BranchHeader, SectionLabel } from './parts';
 import { ReversedDetailSheet, ReverseSheet } from './reverse-sheet';
 
@@ -40,7 +40,7 @@ function EntryRow({ entry, meId, onReverse, onShowReversed }: { entry: BranchWas
           data-reversed-chip
           onClick={() => onShowReversed(entry)}
           aria-label={`Reversed ${clockLabel(entry.reversal.at)}. Show why for ${entry.itemName}`}
-          className="relative shrink-0 border border-wds-border-strong bg-wds-neutral-100 px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none before:absolute before:-inset-x-1 before:-inset-y-[11px] before:content-[''] focus-visible:shadow-wds-ring"
+          className="relative shrink-0 border border-wds-border-strong bg-wds-neutral-100 px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none before:absolute before:-inset-x-1 before:-inset-y-[11px] before:content-[''] transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-200 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-neutral-200"
         >
           Reversed {clockLabel(entry.reversal.at)}
         </button>
@@ -136,7 +136,7 @@ export function DepartmentWasteScreen() {
             </ul>
           </section>
         ))}
-        <p className="border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
+        <p className="w-[320px] max-w-full border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
       </>
     );
   }

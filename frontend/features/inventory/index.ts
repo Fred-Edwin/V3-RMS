@@ -61,9 +61,8 @@ export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 // Milestone Six, Session 1 — Stock position & waste.
 // The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
 export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
-export { WasteScreen, LogWastePhoneScreen, DepartmentWasteScreen, LogWasteFlow } from './waste';
-// Block 3, desktop: Branch waste (W6, W7, W8, entry drawer). The phone screens live in `waste/branch/`.
-export { BranchWasteDeskScreen } from './waste/branch-desk/components/branch-waste-desk-screen';
+// Block 3 Branch waste: phone (`waste/branch/`) and desktop W6, W7, W8, entry drawer (`waste/branch-desk/`).
+export { WasteScreen, LogWastePhoneScreen, DepartmentWasteScreen, LogWasteFlow, BranchWasteDeskScreen } from './waste';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
@@ -83,7 +82,7 @@ export type { CountReasonControlProps, ReasonOption } from './counting/component
 export { Reveal, StatCell, StatusDot } from './counting/components/count-verify-parts';
 export { HighlightOnChange } from './stock/components/highlight-on-change';
 export { StockMobileHeader } from './_shared/components/stock-mobile-header';
-export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/department/components/log-waste-drawer';
+export { STOCK_DRAWER_MOTION, useReturnFocus } from './_shared/components/drawer-motion';
 export {
   FormErrorBanner,
   KpiValueSkeleton,

@@ -7,8 +7,8 @@
  * in `waste-contract.fixtures.json` (parsed by `waste-contract.test.ts`).
  *
  * Scope: the first half (W1 to W4) is the Central Store. The second half, "BRANCH WASTE (Block 3)" at the end of this file
- * (BW1 to BW7, docs/features/inventory/branch-waste-contract.md), is a branch's departments; until the build replaces them a
- * Department Head's three old endpoints keep running from `waste/department/`. Waste is never signed with a PIN (owner, 8 Oct 2026). The Store
+ * (BW1 to BW7, docs/features/inventory/branch-waste-contract.md), is a branch's departments (`waste/branch/`).
+ * Waste is never signed with a PIN (owner, 8 Oct 2026). The Store
  * Attendant reads and reverses only their own entries (a service rule on top of the capability) and receives no stock
  * figure from any endpoint; item cost reaches them (owner rule, 6 Oct 2026) though the drawn phone screens show none.
  *
@@ -238,14 +238,17 @@ const branchWasteFiltersSchema = pageQuerySchema.extend({
 /** cap branch_waste.read: the caller's own branch. */
 export const branchWasteListQuerySchema = branchWasteFiltersSchema;
 export type BranchWasteListQuery = z.infer<typeof branchWasteListQuerySchema>;
-/** cap branch_waste.read_any_branch: `branchId` absent means all branches. */
-export const allBranchesWasteQuerySchema = branchWasteFiltersSchema.extend({ branchId: uuid.optional() });
+/**
+ * cap branch_waste.read_any_branch: `branchId` absent means all branches. `departmentName` is the W8 Department filter: the same
+ * name matches that department in every branch (case-insensitive); `departments` lists each name once.
+ */
+export const allBranchesWasteQuerySchema = branchWasteFiltersSchema.extend({ branchId: uuid.optional(), departmentName: z.string().trim().min(1).max(100).optional() });
 export type AllBranchesWasteQuery = z.infer<typeof allBranchesWasteQuerySchema>;
 export const branchWasteListSchema = z.object({
   /** cap catalog.see_costs. Today, Last 7 days, Most wasted, Reversed 7 days; the server phrases the captions. */
   kpis: z.array(kpiCellSchema).optional(),
   rows: z.array(branchWasteEntrySchema),
-  /** The Department filter's options. */
+  /** The Department filter's options. BW5 lists each name once (the id is the first branch's); BW5 filters by `departmentName`. */
   departments: z.array(branchWasteDepartmentSchema),
   /** BW5 only: the "Branch: All branches" picker. */
   branches: z.array(z.object({ id: uuid, name: z.string() })).optional(),

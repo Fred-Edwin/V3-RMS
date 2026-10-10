@@ -27,7 +27,7 @@ The frozen contract is [branch-waste-contract.md](../../../../../../docs/feature
 - **Ledger** (always `postStockMovement`): log = one WASTE row per entry at the department's location (made on first use by `deliveriesRepository.ensureDepartmentLocation`, in the same transaction); reverse = the same type with the opposite sign, `reversesTransactionId` set, in the same transaction as the `reversed_*` stamp and under a row lock, so a race is `ALREADY_REVERSED`. Negative stock is allowed and flagged (`wentNegative`), never blocked.
 - **Value of an entry** is `quantity × the frozen unit cost`: the latest `DISPATCH_IN` cost at the department's location, else the item's current cost. A reversed entry reads `0.00`.
 - **Windows** are Nairobi days, both included; `from` or `to` may be given alone. **Reverse window**: an own entry only on the Nairobi day it was logged (`branchReverseCheck`).
-- **The four figures** (BW4, BW5) cover the scope's last 7 Nairobi days whatever the filters; captions are phrased from the data (`branch-kpis.ts`). Across branches the Department filter lists every branch's departments (same name twice, different ids).
+- **The four figures** (BW4, BW5) cover the scope's last 7 Nairobi days whatever the filters; captions are phrased from the data (`branch-kpis.ts`). Across branches (BW5) the Department filter lists each department name once and filters by `departmentName` (case-insensitive), so a name matches that department in every branch; BW4 keeps `departmentId`.
 - **Notifications: none** (contract §7): no push, no badge, no socket event, no Inbox row.
 - **Audit**: area `BRANCH_WASTE`, a derived source from `waste_logs` at branch department locations (`audit-log/sources/branch-waste-source.ts`): "Logged waste · Beef stew 2 kg · Expired" (no money) and "Reversed waste entry · …"; the link opens the item's stock card on that day. The Branch Manager reads only their branch.
 - **Migration: none.**
@@ -42,6 +42,5 @@ The frozen contract is [branch-waste-contract.md](../../../../../../docs/feature
 `stock/ledger/ledger-door`, `stock/_shared/{nairobi-time,person}`, `_shared/{central-store-access,blind-rule,wire}`, `deliveries/deliveries-repository` (`ensureDepartmentLocation`), `repositories/branch-repository`, `audit-log` (the source reads `waste_logs` itself). No other sub-module.
 
 ## Open for the owner
-- The Department filter with no branch picked (BW5) lists every branch's departments, so a name repeats; the contract is silent. Say if it should list names once.
 - BW4 for the System Admin needs a branch: they read the one they stand in, else 400. They read any branch through BW5.
 - `resolveWasteScope` (`_shared/stock-scope.ts`) had no caller left once the old endpoints went, so it was deleted rather than narrowed to the Central Store.

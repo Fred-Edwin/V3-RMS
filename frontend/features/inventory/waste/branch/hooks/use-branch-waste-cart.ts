@@ -6,7 +6,7 @@ import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { scwErrorMessage } from '../../../_shared/lib/scw-errors';
 import { BRANCH_WASTE_ERROR_COPY, BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import type { LogBranchWasteResult, WasteItemOption, WasteReason } from '../../_shared/types/waste-contract';
-import { branchWasteApi } from '../services/branch-waste-api';
+import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 
 export interface BranchCartLine {
   item: WasteItemOption;

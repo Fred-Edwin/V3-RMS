@@ -11,7 +11,7 @@ type Client = Tx | typeof prisma;
 export type WasteScope = { siteIds: string[]; departmentId?: string };
 
 /** What narrows the list page: the filters of W6 and W8 (the date range is the Nairobi day `from` to the day after `to`). */
-export type WasteFilter = { search?: string; departmentId?: string; reason?: WasteReason; status?: 'logged' | 'reversed'; loggedFrom?: Date; loggedBefore?: Date };
+export type WasteFilter = { search?: string; departmentId?: string; departmentName?: string; reason?: WasteReason; status?: 'logged' | 'reversed'; loggedFrom?: Date; loggedBefore?: Date };
 
 export type LoggableItem = { id: string; name: string; usageUnit: string; currentCost: Prisma.Decimal; deletedAt: Date | null; inDepartment: boolean };
 
@@ -34,7 +34,14 @@ const scopeWhere = (scope: WasteScope): Prisma.WasteLogWhereInput => ({
 });
 
 const filterWhere = (filter: WasteFilter): Prisma.WasteLogWhereInput => ({
-  ...(filter.departmentId ? { location: { departmentId: filter.departmentId } } : {}),
+  ...(filter.departmentId || filter.departmentName
+    ? {
+        location: {
+          ...(filter.departmentId ? { departmentId: filter.departmentId } : {}),
+          ...(filter.departmentName ? { department: { name: { equals: filter.departmentName, mode: 'insensitive' as const } } } : {}),
+        },
+      }
+    : {}),
   ...(filter.reason ? { reason: filter.reason } : {}),
   ...(filter.status === 'logged' ? { reversedAt: null } : filter.status === 'reversed' ? { reversedAt: { not: null } } : {}),
   ...(filter.loggedFrom || filter.loggedBefore

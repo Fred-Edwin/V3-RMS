@@ -13,7 +13,7 @@ import { useThresholds } from '../hooks/use-counts';
 import { saveThresholds } from '../services/count-api-service';
 import { FormErrorBanner, StockErrorCard } from '../../_shared/components/stock-states';
 import { StockMobileHeader } from '../../_shared/components/stock-mobile-header';
-import { STOCK_DRAWER_MOTION, useReturnFocus } from '../../waste/department/components/log-waste-drawer';
+import { STOCK_DRAWER_MOTION, useReturnFocus } from '../../_shared/components/drawer-motion';
 import { formatKes, formatNairobiDayMonth } from '../../_shared/components/stock-format';
 
 /**

@@ -462,6 +462,17 @@ describe('BW5 any branch', () => {
     await expect(branchWasteService.listBranches(director as never, { page: 1, pageSize: 50, branchId: '20000000-0000-4000-8000-0000000000ff' }, NOW)).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it('lists each department name once across branches and filters by that name', async () => {
+    vi.mocked(repo.departmentsOf).mockResolvedValue([
+      { id: KITCHEN, name: 'Kitchen' },
+      { id: BARISTA, name: 'Barista' },
+      { id: '30000000-0000-4000-8000-000000000011', name: 'kitchen' },
+    ]);
+    const result = await branchWasteService.listBranches(director as never, { page: 1, pageSize: 50, departmentName: 'Kitchen' }, NOW);
+    expect(result.departments).toEqual([{ id: KITCHEN, name: 'Kitchen' }, { id: BARISTA, name: 'Barista' }]);
+    expect(vi.mocked(repo.findPage).mock.calls[0]![1]).toMatchObject({ departmentName: 'Kitchen' });
+  });
+
   it('Today names the branch count when no branch is picked', async () => {
     vi.mocked(repo.loggedSince).mockResolvedValue([
       { createdAt: NOW, reversedAt: null, quantity: new Prisma.Decimal(1), unitCost: new Prisma.Decimal(100), reason: 'EXPIRY', siteId: NYERI, inventoryItemId: BEEF, inventoryItem: { name: 'Beef stew' }, location: { departmentId: KITCHEN, department: { id: KITCHEN, name: 'Kitchen' } }, reversedBy: null },
