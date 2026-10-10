@@ -24,6 +24,8 @@ model Department {
   requisitionSections  RequisitionSection[]
   requisitionAdditions RequisitionAddition[]
   dispatches           Dispatch[]
+  branchDayDepartments BranchDayDepartment[]
+  departmentOpenings   DepartmentOpening[]
 
   @@unique([siteId, name])
   @@index([siteId, status])

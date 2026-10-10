@@ -206,6 +206,8 @@ model User {
   branchDayDepartmentsCounted        BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")
   branchDayReopens                   BranchDayReopen[]             @relation("BranchDayReopenedBy")
   departmentOpeningsAccepted         DepartmentOpening[]           @relation("DepartmentOpeningAcceptedBy")
+  branchDayCorrections               BranchDayCorrection[]         @relation("BranchDayCorrectedBy")
+  branchDaySheets                    BranchDaySheet[]              @relation("BranchDaySheetBy")
   countingThresholdsDirectorUpdated  CountingThresholds[]          @relation("CountingThresholdsDirectorUpdatedBy")
   suppliersCreated                   Supplier[]                    @relation("SupplierCreatedBy")
   suppliersUpdated                   Supplier[]                    @relation("SupplierUpdatedBy")

@@ -38,13 +38,11 @@ import prepRunsRoutes from '../modules/inventory/prep/runs/runs-routes';
 import prepFixRoutes from '../modules/inventory/prep/fix/fix-routes';
 import prepReviewRoutes from '../modules/inventory/prep/review/review-routes';
 import prepRecipesRoutes from '../modules/inventory/prep/recipes/recipes-routes';
-import thresholdsRoutes from '../modules/inventory/counting/thresholds-routes';
 import countingRoutes from '../modules/inventory/counting/counting-routes';
 import stockHubRoutes from '../modules/inventory/stock/stock-hub-routes';
 import wasteHubRoutes from '../modules/inventory/waste/waste-hub-routes';
 import branchWasteRoutes from '../modules/inventory/waste/branch/branch-routes';
 import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
-import branchDayRebuildRoutes from '../modules/inventory/branch-day/branch-day-rebuild-routes';
 import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
 import departmentsRoutes from '../modules/inventory/departments/departments-routes';
 import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
@@ -94,7 +92,6 @@ apiRouter.use(prepReviewRoutes); // before prepRunsRoutes: `/runs/export` must w
 apiRouter.use(prepRunsRoutes);
 apiRouter.use(prepFixRoutes);
 apiRouter.use('/inventory/prep', prepRecipesRoutes);
-apiRouter.use(thresholdsRoutes);
 // The Stock, Counting and Waste rebuild (feat/stock-count-waste): new paths under /inventory/stock, none shared with the old
 // routers above, which are deleted at release. Each aggregator lists its folders; the build sessions fill the folder routers.
 apiRouter.use(countingRoutes);
@@ -103,10 +100,9 @@ apiRouter.use(wasteHubRoutes);
 // Final pass, Block 3 (docs/features/inventory/branch-waste-contract.md): the rebuilt Branch waste, BW1 to BW7. It replaces the Department
 // Head's three old endpoints under /inventory/waste, which are gone.
 apiRouter.use('/inventory/branch-waste', branchWasteRoutes);
-apiRouter.use(branchDayRoutes);
-// Final pass, Block 4 (docs/features/inventory/branch-day-contract.md): the rebuilt Branch day, BD1 to BD21. A placeholder until the build
-// fills it; the old /branch-day router above keeps running until it replaces it.
-apiRouter.use('/inventory/branch-day', branchDayRebuildRoutes);
+// Final pass, Block 4 (docs/features/inventory/branch-day-contract.md): the rebuilt Branch day, BD1 to BD21. It replaces the old
+// /branch-day router, the reopen, the KES threshold and the branch thresholds endpoints, which are gone.
+apiRouter.use('/inventory/branch-day', branchDayRoutes);
 // Final pass, Block 1 (docs/features/inventory/requisitions-contract.md): the rebuilt Requisitions and Departments, new paths
 // under /inventory/requisitions and /inventory/departments.
 apiRouter.use('/inventory/requisitions', requisitionsRoutes);
