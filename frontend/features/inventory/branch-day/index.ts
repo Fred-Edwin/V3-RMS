@@ -6,3 +6,4 @@
 export * from './_shared/types/branch-day-contract';
 export * from './_shared/lib/branch-day-copy';
 export * from './desk';
+export * from './phone';

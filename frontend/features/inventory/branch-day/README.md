@@ -4,6 +4,12 @@
 
 **Status (10 Oct 2026, branch `feat/block4-fe-desktop`):** the desktop is built and runs on the real API (`feat/block4-be` is merged; the mock, its flag and its scenarios are deleted). Today, a department's figures, Close the day, Count for a department, History, the closed day file (Items, Documents, Activity), Correct a count, the printed day sheet, the top-bar day search and the sidebar badge all work. The phone screens are another session's (`phone/`). Walked on the lane database as the Branch Manager (Confirm for Kitchen on a real `ON_THE_WAY` dispatch, counting on behalf, close with a wrong then right PIN, a correction, the sheet) and read as the Director, Accountant, Store Manager and System Admin. Old-flow days show "–" for Used value and have no file link.
 
+## Phone screens
+The head's and members' phone screens (Day, opening, recount, count, sent, past days) are built in [`phone/`](phone/README.md). The old phone opening card and sheet are deleted.
+
+## Contract
+`_shared/types/branch-day-contract.ts` mirrors `backend/src/modules/inventory/branch-day/_shared/branch-day-contract.ts` (BD1 to BD21). `branch-day-contract.fixtures.json` is byte-identical to the back end's; `branch-day-contract.test.ts` types it, checks the enums, error codes and sheet constant against the back end's file, and pins the blind rule (the head's count carries no opening, received, waste, used, yesterday or expected figure) and the money rule (a head or member never receives a `*ValueKes` or `unitCostKes`). The index exports the mirror now that the old screens and their clashing type names are deleted.
+
 ## Layout
 - `_shared/` types mirror, fixtures, wording table (`lib/branch-day-copy.ts`). Shared with the phone session.
 - `desk/` the desktop screens: `components/` (`today-screen`, `today-parts`, `department-pane` rail and figures table, `close-drawer`, `count-for-drawer`, `history-screen`, `day-file-screen`, `file-tabs` with `FileTabs` and `DayTracker`, `correct-drawer`, `day-sheet-print-screen`, `day-topbar`, `day-parts`), `hooks/` (`use-day-access` what the server's table lets this person see and do; `use-day-badge` the number beside Today), `lib/` (`desk-format`, `desk-paths`, `day-sheet-pages` the A4 pagination with its test, `mock-data` the fixtures), `services/branch-day-desk-api.ts` (BD6 to BD8, BD11 to BD21).

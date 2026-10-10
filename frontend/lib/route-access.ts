@@ -33,6 +33,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
+  // Block 4 — the department's Day (check the opening, count the evening, past days): a head, or a floor member of a department.
+  // Which department a person may count is decided by the API (the department rule), not here.
+  if (pathname === '/app/day' || pathname.startsWith('/app/day/')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+  }
+
   // Milestone Six, Session 1 — a Department Head's own-department stock
   // ledger (`1BPY-0`/`1FDY-0`). Department-scoped server-side (location
   // resolved from the actor); no Manager screen yet.
