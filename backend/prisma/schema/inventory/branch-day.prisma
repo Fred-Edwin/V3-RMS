@@ -56,7 +56,7 @@ model BranchDay {
 model BranchDayDepartment {
   id            String                    @id @default(uuid())
   branchDayId   String                    @map("branch_day_id")
-  departmentTag DepartmentTag             @map("department_tag")
+  departmentTag DepartmentTag?            @map("department_tag") // null for a department added in Block 1 (it has no legacy key); the id link below is the truth
   locationId    String                    @map("location_id")
   status        BranchDayDepartmentStatus @default(NOT_STARTED)
   countedById   String?                   @map("counted_by_id")
@@ -189,7 +189,7 @@ model BranchDayReopen {
 model DepartmentOpening {
   id            String        @id @default(uuid())
   branchDayId   String        @map("branch_day_id") // the day being opened
-  departmentTag DepartmentTag @map("department_tag")
+  departmentTag DepartmentTag? @map("department_tag") // null for an added department (no legacy key)
   locationId    String        @map("location_id")
   acceptedById  String        @map("accepted_by_id")
   acceptedAt    DateTime      @map("accepted_at")
