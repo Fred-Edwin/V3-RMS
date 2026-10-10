@@ -4,7 +4,9 @@ Governs: `branch-day-flow.md` (the agreed rules and the Paper design log), Paper
 
 **What Block 4 delivers:** the whole Branch day for the department heads and members (phone), the Branch Manager (desktop) and every other desktop role (read): the head's Day home, the opening check, the blind evening count, the Branch Manager's Today with the department cards and what blocks the close, a department's figures, counting on behalf of a department, closing the day, History, the day file with Items, Documents and Activity, correcting one count, and the printed day sheet. **What it removes:** reopen, the KES 1,000 reason threshold, the `CONSUMPTION` reason, the overnight and Director alert pushes, the Branch Manager's branch thresholds drawer, and (in a separate, later migration) the old department enums and dead branch-day columns.
 
-## 0. Owner decisions needed (recommendation first; nothing here breaks a rule, so the contract assumes the recommendation)
+## 0. Owner decisions (all seven ACCEPTED by the owner on 10 Oct 2026, "accept"; the contract stands as written)
+
+Also accepted: the head's button switches from "Check the opening" to "Count your department" at 12:00 Nairobi, and the printed sheet takes 16 rows per page. The owner still runs the §10.4 production queries before the contract migration is written.
 
 1. **Items that used nothing post no usage entry.** Paper counts "43 usage entries, one per item" for 43 items, two of them with Used today 0 (Baking powder, Vanilla essence). The ledger door refuses a movement of zero. Recommendation: post an entry only for an item whose Used today is not zero, and have the drawer and the banner say the real number (41 in the fixtures). The 43 in Paper is an invented figure.
 2. **Counting for a department ("on behalf") is the Branch Manager's alone**, not the System Admin's. The flow table says the System Admin "can do every action with their own PIN", but the owner's 8 Oct ruling for requisitions and deliveries is that signing for a department is the Branch Manager's alone. The System Admin reads, closes and corrects with their own PIN. One row in `central-store-access.ts` flips it.
