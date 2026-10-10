@@ -91,7 +91,8 @@ function Cover({ sheet, pageOf }: { sheet: DaySheet; pageOf: number[] }) {
     ...(sheet.correctedAt ? [['Corrected', shortDayClock(sheet.correctedAt)]] : []),
     ['Printed', shortDayClock(sheet.printedAt)],
   ] as const;
-  const head = `${COL} `;
+  // Paper 13b: the cover's table labels are 10/12 (the department pages use the 9 px COL).
+  const head = `font-wds-mono text-[10px] leading-3 tracking-[0.06em] ${SLATE}`;
   return (
     <>
       <div className="flex gap-10">
@@ -112,12 +113,13 @@ function Cover({ sheet, pageOf }: { sheet: DaySheet; pageOf: number[] }) {
 
       <table className="mt-7 w-full table-fixed border-collapse" aria-label="Departments">
         <colgroup>
-          <col className="w-[22px]" />
+          {/* Paper's widths are the content widths with a 10 px gap between columns; the cells carry that gap as padding. */}
+          <col className="w-8" />
           <col />
-          <col className="w-[84px]" />
-          <col className="w-[40px]" />
-          <col className="w-[78px]" />
-          <col className="w-[100px]" />
+          <col className="w-[94px]" />
+          <col className="w-[50px]" />
+          <col className="w-[88px]" />
+          <col className="w-[110px]" />
           <col className="w-[34px]" />
         </colgroup>
         <thead>

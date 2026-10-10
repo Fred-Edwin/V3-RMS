@@ -198,7 +198,7 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
                 <span className="truncate font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line?.itemName ?? '–'}</span>
                 {line ? <span className="truncate font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{target?.departmentName} · {unitWord(line.unit)}</span> : null}
               </span>
-              <button ref={changeRef} type="button" onClick={() => setPicking(true)} disabled={post.saving} className={cn(PRIMARY_LINK, 'text-[13px] leading-4')}>
+              <button ref={changeRef} type="button" onClick={() => setPicking(true)} disabled={post.saving} className={cn(PRIMARY_LINK, 'text-[13px] font-normal leading-4')}>
                 Change<span className="sr-only"> item</span>
               </button>
             </div>

@@ -64,7 +64,7 @@ export function FileTabs<T extends string>({ tabs, active, onChange, panelId, la
  */
 export function DayTracker({ items, chip }: { items: readonly string[]; chip: string | null }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border border-wds-border-strong bg-wds-surface px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border border-wds-border-strong bg-wds-surface px-4 py-3">
       {items.map((text, i) => (
         <span key={text} className="flex items-center gap-2">
           <CheckDisc size={16} strokeWidth={2.4} />
