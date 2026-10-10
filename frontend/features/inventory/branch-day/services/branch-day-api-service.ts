@@ -5,11 +5,9 @@
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type {
-  AcceptOpeningResult,
   BranchDayDetail,
   BranchDayToday,
   HistoryList,
-  OpeningView,
   BranchThresholds,
   CloseResult,
   DayDocument,
@@ -39,14 +37,6 @@ export async function getHistory(from: string, to: string): Promise<HistoryList>
 
 export async function getDayDetail(dayId: string): Promise<BranchDayDetail> {
   return apiClient.get<BranchDayDetail>(`/branch-day/${dayId}`, token());
-}
-
-export async function getOpening(): Promise<OpeningView> {
-  return apiClient.get<OpeningView>('/branch-day/opening', token());
-}
-
-export async function acceptOpening(lines: { inventoryItemId: string; acceptedQty: string }[]): Promise<AcceptOpeningResult> {
-  return apiClient.post<AcceptOpeningResult>('/branch-day/opening/accept', { lines }, token());
 }
 
 export async function getDepartment(dayId: string, tag: DepartmentTag): Promise<DepartmentDayDetail> {

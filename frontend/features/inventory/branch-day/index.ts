@@ -4,7 +4,6 @@
  */
 export { TodaysDayScreen } from './components/todays-day-screen';
 export { DayDocumentScreen, PrintableDayDocument } from './components/day-document';
-export { OpeningCard } from './components/opening-card';
 export { DayHistoryScreen } from './components/history-list';
 export { DayHistoryDetailScreen } from './components/history-detail';
 export { useDayDocument } from './hooks/use-branch-day';
