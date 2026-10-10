@@ -2,6 +2,9 @@
 
 **Design:** approved (Paper *Inventory · Counting and closing*, B0 to B18 and chapter 5; flow in `docs/features/inventory/branch-day-flow.md`) · **Code:** the contract mirror, its fixtures and the wording table are in place (Block 4 contract session, 9 Oct 2026). **The screens are not rebuilt yet:** the old Milestone Six components, hook, service and types in this folder still run until the Block 4 front-end sessions replace and delete them.
 
+## Phone screens
+The head's and members' phone screens (Day, opening, recount, count, sent, past days) are built in [`phone/`](phone/README.md). The old phone opening card and sheet are deleted.
+
 ## Contract
 `_shared/types/branch-day-contract.ts` mirrors `backend/src/modules/inventory/branch-day/_shared/branch-day-contract.ts` (BD1 to BD21). `branch-day-contract.fixtures.json` is byte-identical to the back end's; `branch-day-contract.test.ts` types it, checks the enums, error codes and sheet constant against the back end's file, and pins the blind rule (the head's count carries no opening, received, waste, used, yesterday or expected figure) and the money rule (a head or member never receives a `*ValueKes` or `unitCostKes`). The index does not export the mirror yet: the old type names clash, so the switch belongs to the PR that deletes the old screens.
 

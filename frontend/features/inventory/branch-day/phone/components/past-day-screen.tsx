@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
-import { BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
+import { BRANCH_DAY_MESSAGES, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import { useMyDay } from '../hooks/use-phone-day';
 import { dayText, figureText, timeText } from '../lib/phone-format';
 import { DAY_PAST } from '../lib/phone-routes';
@@ -57,39 +57,37 @@ export function PastDayScreen({ id }: { id: string }) {
           <BodyState kind="empty" text="This day has no items." />
         ) : (
           <>
-            <table className="w-full border-collapse border border-wds-border bg-wds-surface">
-              <caption className="sr-only">
-                {data.department.name} on {dayText(data.day.date)}: opening stock, received, waste, closing stock and used today
-              </caption>
-              <thead>
-                <tr className="border-b border-wds-border">
-                  <th scope="col" className={`${HEAD} py-2 pl-3 text-left font-normal`}>
+            {/* Paper step 20: the column heads are their own card above the rows card. Table roles keep it a table for a screen reader. */}
+            <div role="table" aria-label={`${data.department.name} on ${dayText(data.day.date)}: opening stock, received, waste, closing stock and used today`} className="flex flex-col gap-3">
+              <div role="rowgroup" className="border border-wds-border bg-wds-surface">
+                <div role="row" className="flex items-center px-3 py-2">
+                  <div role="columnheader" className={`${HEAD} w-[100px] shrink-0`}>
                     ITEM
-                  </th>
+                  </div>
                   {COLUMNS.map((c) => (
-                    <th key={c.key} scope="col" className={`${HEAD} ${c.width} py-2 pr-0 text-right font-normal last:pr-3`} aria-label={c.full}>
+                    <div key={c.key} role="columnheader" aria-label={c.full} className={`${HEAD} ${c.width} shrink-0 text-right`}>
                       {c.short}
-                    </th>
+                    </div>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </div>
+              </div>
+              <div role="rowgroup" className="border border-wds-border bg-wds-surface">
                 {data.lines.map((line) => (
-                  <tr key={line.itemName} className="border-b border-wds-border last:border-b-0">
-                    <th scope="row" className="py-2.5 pl-3 pr-1 text-left align-top font-wds-sans text-[13px] font-normal leading-4 text-wds-text-ink">
+                  <div key={line.itemName} role="row" className="flex items-center border-b border-wds-neutral-100 px-3 py-2.5 last:border-b-0">
+                    <div role="rowheader" className="w-[100px] shrink-0 font-wds-sans text-[13px] leading-4 text-wds-text-ink">
                       {line.itemName}
-                    </th>
+                    </div>
                     {COLUMNS.map((c) => (
-                      <td key={c.key} className={`${c.width} py-2.5 text-right align-top font-wds-mono text-[12px] leading-4 text-wds-text-ink last:pr-3 ${c.key === 'usedQty' ? 'font-semibold' : ''}`}>
+                      <div key={c.key} role="cell" className={`${c.width} shrink-0 text-right font-wds-mono text-[12px] leading-4 text-wds-text-ink ${c.key === 'usedQty' ? 'font-semibold' : ''}`}>
                         {figureText(line[c.key])}
-                      </td>
+                      </div>
                     ))}
-                  </tr>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
             <p className="border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">
-              OPEN is Opening stock, IN is Received, CLOSE is Closing stock, USED is Used today. Waste is waste logged that day. Values are for the Branch Manager.
+              {BRANCH_DAY_MESSAGES.pastDayNote} OPEN is Opening stock, IN is Received, CLOSE is Closing stock and USED is Used today.
             </p>
           </>
         )}

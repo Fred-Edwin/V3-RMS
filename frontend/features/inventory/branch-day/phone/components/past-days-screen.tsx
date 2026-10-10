@@ -113,7 +113,10 @@ export function PastDaysScreen() {
                 </li>
               ))}
             </ul>
-            <PagerBar page={data.page.page} pageSize={data.page.pageSize} total={data.page.total} shown={data.rows.length} onPage={(p) => setQuery({ page: String(p) })} noun="" />
+            {/* Paper pins the pager to the foot of the screen. */}
+            <div className="mt-auto">
+              <PagerBar page={data.page.page} pageSize={data.page.pageSize} total={data.page.total} shown={data.rows.length} onPage={(p) => setQuery({ page: String(p) })} noun="" />
+            </div>
           </>
         )}
       </main>
