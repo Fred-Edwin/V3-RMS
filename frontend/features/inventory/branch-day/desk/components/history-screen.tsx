@@ -84,7 +84,15 @@ function HistoryTable({ everyBranch, seesMoney }: { everyBranch: boolean; seesMo
     [everyBranch, branches],
   );
 
-  const open = React.useCallback((row: HistoryRow): void => router.push(row.status === 'OPEN' ? paths.today(everyBranch ? row.branch.id : undefined) : paths.file(row.id)), [router, paths, everyBranch]);
+  // A day closed under the old flow has no Used value and no file (contract §0.4): it shows "–" and is not a link.
+  const noFile = React.useCallback((row: HistoryRow): boolean => seesMoney && row.status !== 'OPEN' && row.usedValueKes === null, [seesMoney]);
+  const open = React.useCallback(
+    (row: HistoryRow): void => {
+      if (noFile(row)) return;
+      router.push(row.status === 'OPEN' ? paths.today(everyBranch ? row.branch.id : undefined) : paths.file(row.id));
+    },
+    [router, paths, everyBranch, noFile],
+  );
 
   const columns = React.useMemo<TableColumn<HistoryRow>[]>(() => {
     // `pl-0 pr-4`, not `px-…`: the kit's `px-wds-4` is a custom class tailwind-merge does not treat as the same group.
@@ -97,13 +105,19 @@ function HistoryTable({ everyBranch, seesMoney }: { everyBranch: boolean; seesMo
         headClassName: HEAD,
         cell: (r, { term }) => (
           <div className="flex flex-col gap-0.5">
-            <Link
-              href={r.status === 'OPEN' ? paths.today(everyBranch ? r.branch.id : undefined) : paths.file(r.id)}
-              onClick={(e) => e.stopPropagation()}
-              className={`${PRESS} self-start font-wds-mono text-[14px] leading-[18px] text-[#1F5BAE] underline underline-offset-2 outline-none focus-visible:shadow-wds-ring`}
-            >
-              <HighlightMatch text={r.reference} term={term} />
-            </Link>
+            {noFile(r) ? (
+              <span className="self-start font-wds-mono text-[14px] leading-[18px] text-wds-text-secondary">
+                <HighlightMatch text={r.reference} term={term} />
+              </span>
+            ) : (
+              <Link
+                href={r.status === 'OPEN' ? paths.today(everyBranch ? r.branch.id : undefined) : paths.file(r.id)}
+                onClick={(e) => e.stopPropagation()}
+                className={`${PRESS} self-start font-wds-mono text-[14px] leading-[18px] text-[#1F5BAE] underline underline-offset-2 outline-none focus-visible:shadow-wds-ring`}
+              >
+                <HighlightMatch text={r.reference} term={term} />
+              </Link>
+            )}
             <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{longDay(r.date)}</span>
           </div>
         ),
@@ -143,7 +157,7 @@ function HistoryTable({ everyBranch, seesMoney }: { everyBranch: boolean; seesMo
       },
     ];
     return cols;
-  }, [everyBranch, seesMoney, paths]);
+  }, [everyBranch, seesMoney, paths, noFile]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

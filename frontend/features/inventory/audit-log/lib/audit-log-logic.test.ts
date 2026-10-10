@@ -41,6 +41,20 @@ describe('rangeSentence', () => {
   });
 });
 
+describe('recordHref for the Block 2 and Block 4 records', () => {
+  it('sends a branch day, a dispatch and a discrepancy to the hub pages, or the Branch Manager’s own', () => {
+    const day = { kind: 'DAY', id: 'd1', label: 'DAY-NYR-0044' } as const;
+    const dispatch = { kind: 'DISPATCH', id: 'p1', label: 'DSP-NYR-0231' } as const;
+    const discrepancy = { kind: 'DISCREPANCY', id: 'c1', label: 'DSC-NYR-0007' } as const;
+    expect(recordHref(day)).toBe('/app/inventory/branch-day/file/d1');
+    expect(recordHref(day, { branchManager: true })).toBe('/app/branch/day/file/d1');
+    expect(recordHref(dispatch)).toBe('/app/inventory/requisitions/dispatch/p1');
+    expect(recordHref(dispatch, { branchManager: true })).toBe('/app/branch/requisitions/dispatch/p1');
+    expect(recordHref(discrepancy)).toBe('/app/inventory/requisitions/discrepancies/c1');
+    expect(recordHref(discrepancy, { branchManager: true })).toBe('/app/branch/requisitions/discrepancies/c1');
+  });
+});
+
 describe('recordHref', () => {
   it('opens a count, an item’s stock card on the day, and the ledger searched for an ADJ number', () => {
     expect(recordHref({ kind: 'COUNT', id: 'c1', label: 'CNT-2026-1013' })).toBe('/app/inventory/stock/counts/c1');

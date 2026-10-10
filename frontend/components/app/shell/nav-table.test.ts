@@ -69,8 +69,6 @@ describe('every desktop role keeps every link it had before', () => {
       '/app/director',
       '/app/director/analytics',
       '/app/inbox',
-      '/app/director/branches/b-town',
-      '/app/director/branches/b-highway',
       '/app/director/other-income',
       '/app/director/incidents',
       '/app/admin/discounts',
@@ -119,11 +117,11 @@ describe('every desktop role keeps every link it had before', () => {
     expect(hrefs(navFor(ctxFor('CHEF')))).not.toContain('/app/department/shifts');
   });
 
-  it('puts the Director\'s branches in their own group, after Overview, one link per branch', () => {
-    const groups = navFor(ctxFor('DIRECTOR'));
+  it('puts the Director\'s Branches group after Overview with only Day and Waste, as Paper draws (no per-branch rows)', () => {
+    const groups = navFor(ctxFor('DIRECTOR', { can: holds('branch_day.read_any_branch', 'branch_waste.read_any_branch') }));
     expect(groupKeys(groups).slice(0, 2)).toEqual(['dir-overview', 'dir-branches']);
-    expect(groups[1]?.items.map((i) => i.label)).toEqual(['Nyeri Town', 'Nyeri Highway']);
-    expect(groupKeys(navFor(ctxFor('DIRECTOR', { branches: [] })))).not.toContain('dir-branches');
+    expect(groups[1]?.items.map((i) => i.label)).toEqual(['Day', 'Waste']);
+    expect(groupKeys(navFor(ctxFor('DIRECTOR', { can: holds() })))).not.toContain('dir-branches');
   });
 
   it('ends every role with the Account group', () => {
@@ -264,7 +262,6 @@ describe('which row the current page lights', () => {
   it('takes the longest matching row, so a deeper page beats the dashboard that prefixes it', () => {
     expect(activeFor(director, '/app/director').activeKey).toBe('director-dashboard');
     expect(activeFor(director, '/app/director/analytics').activeKey).toBe('director-analytics');
-    expect(activeFor(director, '/app/director/branches/b-town/orders').activeKey).toBe('director-branch-b-town');
   });
 
   it('lights Overview for a stock page without a link of its own, and the exact sub-link otherwise', () => {

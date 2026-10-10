@@ -107,8 +107,10 @@ export function whenLabel(iso: string, now: Date): string {
 
 const ledger = '/app/inventory/stock/ledger';
 /** Where a record link goes: the count, one item's stock card on that day, or the ledger searched for an ADJ number on that day. */
-export function recordHref(record: AuditRecordLink): string {
+export function recordHref(record: AuditRecordLink, options: { branchManager?: boolean } = {}): string {
   const day = record.day ? `from=${record.day}&to=${record.day}` : '';
+  // The Branch Manager's own pages for a branch day, a dispatch and a discrepancy; every other desktop role reads the hub pages.
+  const mine = options.branchManager === true;
   switch (record.kind) {
     case 'COUNT':
       return `/app/inventory/stock/counts/${record.id}`;
@@ -118,5 +120,11 @@ export function recordHref(record: AuditRecordLink): string {
       return `${ledger}?search=${encodeURIComponent(record.id)}${day ? `&${day}` : ''}`;
     case 'REQUISITION':
       return `/app/inventory/requisitions/${record.id}`;
+    case 'DISPATCH':
+      return `${mine ? '/app/branch' : '/app/inventory'}/requisitions/dispatch/${record.id}`;
+    case 'DISCREPANCY':
+      return `${mine ? '/app/branch' : '/app/inventory'}/requisitions/discrepancies/${record.id}`;
+    case 'DAY':
+      return `${mine ? '/app/branch/day' : '/app/inventory/branch-day'}/file/${record.id}`;
   }
 }

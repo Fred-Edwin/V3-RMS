@@ -79,6 +79,14 @@ function DayFileView({ dayId, everyBranch, seesMoney, canCorrect }: { dayId: str
     [params, router],
   );
 
+  // The opener may be gone or changed after a correction: focus goes to the page title, where the green note is announced.
+  React.useEffect(() => {
+    if (!posted) return;
+    // After the drawer's 200 ms exit, which is when it hands focus back.
+    const timer = window.setTimeout(() => titleRef.current?.focus(), 350);
+    return () => window.clearTimeout(timer);
+  }, [posted]);
+
   const data = file.data;
   // An open day has no file (gap G11): Today is its page.
   React.useEffect(() => {
@@ -135,10 +143,12 @@ function DayFileView({ dayId, everyBranch, seesMoney, canCorrect }: { dayId: str
               {data.branch.name} · <RefLink reference={data.day.reference} href={paths.file(dayId)} className="text-[14px]" />
             </p>
           </div>
-          <Link href={paths.print(dayId)} target="_blank" rel="noopener" className={cn(SECONDARY_BUTTON, 'h-10 px-[18px]')}>
-            {BRANCH_DAY_BUTTONS.printSheet}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </Link>
+          {data.can.print ? (
+            <Link href={paths.print(dayId)} target="_blank" rel="noopener" className={cn(SECONDARY_BUTTON, 'h-10 px-[18px]')}>
+              {BRANCH_DAY_BUTTONS.printSheet}
+              <span className="sr-only"> (opens in a new tab)</span>
+            </Link>
+          ) : null}
         </div>
 
         <DayTracker items={trackerItems} chip={chip} />
@@ -177,10 +187,7 @@ function DayFileView({ dayId, everyBranch, seesMoney, canCorrect }: { dayId: str
           setCorrectOpen(open);
           if (!open) window.setTimeout(() => (opener.current ?? titleRef.current)?.focus(), 0);
         }}
-        onCorrected={(result) => {
-          afterCorrection(result);
-          window.setTimeout(() => titleRef.current?.focus(), 0);
-        }}
+        onCorrected={afterCorrection}
         onStale={(message) => {
           setCorrectOpen(false);
           setStaleNote(message);

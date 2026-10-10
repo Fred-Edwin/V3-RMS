@@ -2,7 +2,7 @@
 
 **Design:** approved (Paper *Inventory · Counting and closing*, B0 to B18 and chapter 5; flow in `docs/features/inventory/branch-day-flow.md`; Paper spec `docs/features/inventory/branch-day-paper-spec.md`) · **Contract:** `docs/features/inventory/branch-day-contract.md`, accepted 10 Oct 2026.
 
-**Status (10 Oct 2026, branch `feat/block4-fe-desktop`):** the desktop is built, on fixtures. Today, a department's figures, Close the day, Count for a department, History, the closed day file (Items, Documents, Activity), Correct a count, the printed day sheet, the top-bar day search and the sidebar badge all work. The phone screens are another session's (`phone/`). The back end (`feat/block4-be`) has not landed, so every desktop call answers from `desk/lib/mock-data.ts` (`BRANCH_DAY_MOCK` is on unless `NEXT_PUBLIC_BRANCH_DAY_MOCK=off`). When it lands: merge it, turn the flag off by default, walk every screen against it (Confirm for Kitchen needs a real `ON_THE_WAY` dispatch), and delete the mock only when the owner says so.
+**Status (10 Oct 2026, branch `feat/block4-fe-desktop`):** the desktop is built and runs on the real API (`feat/block4-be` is merged; the mock, its flag and its scenarios are deleted). Today, a department's figures, Close the day, Count for a department, History, the closed day file (Items, Documents, Activity), Correct a count, the printed day sheet, the top-bar day search and the sidebar badge all work. The phone screens are another session's (`phone/`). Walked on the lane database as the Branch Manager (Confirm for Kitchen on a real `ON_THE_WAY` dispatch, counting on behalf, close with a wrong then right PIN, a correction, the sheet) and read as the Director, Accountant, Store Manager and System Admin. Old-flow days show "–" for Used value and have no file link.
 
 ## Layout
 - `_shared/` types mirror, fixtures, wording table (`lib/branch-day-copy.ts`). Shared with the phone session.
@@ -27,15 +27,16 @@
 
 **Kit options added (defaults unchanged):** `Button` sizes `xl`/`md`/`drawer`; `Sheet` `overlayClassName`/`hideClose`; `DrawerShell` `variant="day"`; `Chip` `size="lg"`, `dotShape`, `ring`, tone `muted`; `PinField` `size="paper"` (focus `#B0610F`); `TableRow` `size="two-line"` and `DataTable` `rowSize`; `ChoiceChips` `size="drawer"`. The delivery note's `PrintFrame` and `PrintError` are now exported for the day sheet.
 
-## Fixtures
-`?mock=blocked|delivery|ready|closed` picks the starting state; `?corrected=1` (with `closed`) starts with Paper's Flour correction posted; `?window=passed` makes the correction window closed; `?fail=today|figures` makes the first second of calls fail. The PIN is 1234. State is per page load.
+## Live data in the lane
+`cd backend && npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=none|open|counting|ready|closed [--block="Kitchen"|none]` puts today's day in a state (a real `ON_THE_WAY` dispatch is the blocker); the Branch Manager `bm.town@wendo.test` has PIN 1234. Apply migrations first (`npx prisma migrate deploy`) and restart the API.
 
 ## Open points (reported, not decided)
 - The breadcrumb on the day file reads "Branch / Day" then "History" then the day number; the shell's top bar has two slots, so "Branch / Day" is one crumb and the day number is plain text (Paper sets it in mono).
 - A correction entry's record ("Stock ledger entry") has no page to go to yet: shown as plain text.
 - The printed department page says "Delivery confirmed" without a time: the contract's sheet carries the state only.
 - Activity asks BD17 for `limit=100` and pages on the screen; a day with more entries needs a paged BD17 (or BD19).
-- The Director's Branches group still lists the per-branch rows (legacy `director-branch`) above Day and Waste; Paper's has only Day and Waste (owner call).
+- The Audit log's Branch day rows show the person's name only; the role under the name is a back-end gap.
+- Not done: a numeric `get_computed_styles` pass of every screen and state against Paper after the move to the real API (Part 1 did Today, figures and the drawers; the day file, History, Correct a count and the sheet were checked by eye against the spec's numbers); loading skeletons were seen but not walked on a throttled network.
 - The Branch Manager's Audit log row (gap G25) is in the Branch group; the screen must scope to their branch on the server.
 
 ## Rules the screens follow

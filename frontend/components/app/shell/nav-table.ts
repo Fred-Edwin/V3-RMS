@@ -256,7 +256,6 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'director-dashboard', label: 'Dashboard', group: 'dir-overview', icon: ico.dashboard, oldHref: '/app/director', roles: [DIRECTOR] },
   { key: 'director-analytics', label: 'Analytics', group: 'dir-overview', icon: ico.analyticsLine, oldHref: '/app/director/analytics', roles: [DIRECTOR] },
   { key: 'director-inbox', label: 'Inbox', group: 'dir-overview', icon: ico.inbox, oldHref: '/app/inbox', roles: [DIRECTOR], badge: 'inbox' },
-  { key: 'director-branch', label: 'Branch', group: 'dir-branches', icon: ico.branch, oldHref: '/app/director/branches/:id', roles: [DIRECTOR], expand: 'branches' },
   // Block 4 (Paper B16): every branch's day, read only, with a branch picker.
   {
     key: 'director-day',

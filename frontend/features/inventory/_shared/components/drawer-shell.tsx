@@ -58,6 +58,8 @@ export interface DrawerShellProps {
   footerPrimary?: React.ReactNode;
   /** Day variant: a selector for the element that takes focus when the drawer opens (the first thing to fill), instead of the close glyph. */
   initialFocus?: string;
+  /** Day variant: return true to keep the drawer open on Escape (an inner list handles that key itself). */
+  escapeGuard?: () => boolean;
   children: React.ReactNode;
 }
 
@@ -80,6 +82,7 @@ export function DrawerShell({
   hideCloseGlyph = false,
   footerPrimary,
   initialFocus,
+  escapeGuard,
   children,
 }: DrawerShellProps) {
   const bottom = side === 'bottom';
@@ -90,6 +93,9 @@ export function DrawerShell({
           side="right"
           hideClose
           overlayClassName="bg-[#17151273]"
+          onEscapeKeyDown={(event) => {
+            if (escapeGuard?.()) event.preventDefault();
+          }}
           onOpenAutoFocus={(event) => {
             const target = initialFocus ? document.querySelector<HTMLElement>(initialFocus) : null;
             if (target) {

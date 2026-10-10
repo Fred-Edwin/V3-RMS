@@ -164,6 +164,7 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
       onPrimaryAction={() => void submit()}
       primaryDisabled={!ready}
       initialFocus="#correct-new"
+      escapeGuard={() => picking}
     >
       <div className="flex flex-col gap-[18px]" aria-busy={post.saving}>
         <div className="flex flex-col gap-1.5">
