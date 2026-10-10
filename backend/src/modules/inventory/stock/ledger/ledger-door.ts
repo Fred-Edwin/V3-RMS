@@ -28,6 +28,11 @@ export type PostStockMovementInput = {
    *  - WASTE: the same rule (a reversed waste row is positive and returns the stock).
    */
   reversesTransactionId?: string;
+  /**
+   * The Branch day number (`DAY-NYR-0044`) a usage or correction entry carries. Allowed only on an ADJUSTMENT linked by `branchDayLineId`;
+   * when given the door stores it and takes no number from the `ADJ` counter. Every other row is numbered or left bare as before.
+   */
+  reference?: string;
 };
 
 /**
@@ -59,6 +64,13 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     throw new ValidationError(`A ${input.type} movement must point at exactly one of: ${rule.links.join(', ')}`);
   }
   const linkId = input.links[link]!;
+
+  if (input.reference !== undefined) {
+    if (input.type !== 'ADJUSTMENT' || link !== 'branchDayLineId') {
+      throw new ValidationError('Only a Branch day adjustment can carry its own reference');
+    }
+    if (input.reference.trim() === '') throw new ValidationError('The reference cannot be empty');
+  }
 
   const location = await ledgerRepository.findLocationOwner(tx, input.locationId);
   if (!location) throw new ValidationError('The stock location does not exist');
@@ -104,7 +116,7 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     if (original.alreadyReversed) throw new ConflictError('This entry has already been reversed');
   }
 
-  const reference = rule.numbered ? await referenceCounterRepository.nextReference(tx, location.siteId, 'ADJ') : null;
+  const reference = input.reference ?? (rule.numbered ? await referenceCounterRepository.nextReference(tx, location.siteId, 'ADJ') : null);
 
   try {
     return await ledgerRepository.create(tx, {

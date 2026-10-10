@@ -405,3 +405,41 @@ describe('postStockMovement — reversing a prep row', () => {
     await expect(postStockMovement(tx, reverse('PREP_CONSUME', 10, 'orig-c'))).rejects.toThrow(/must match the original/);
   });
 });
+
+describe('postStockMovement — a Branch day entry carries its own reference', () => {
+  const dayEntry = (overrides: Partial<PostStockMovementInput> = {}): PostStockMovementInput =>
+    base({
+      type: 'ADJUSTMENT',
+      locationId: kitchenLocation.id,
+      quantity: D('-3'),
+      links: { branchDayLineId: 'bdl-1' },
+      reference: 'DAY-NYR-0044',
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    vi.mocked(ledgerRepository.findLocationOwner).mockResolvedValue(kitchenLocation);
+    vi.mocked(ledgerRepository.findLinkOwnerSites).mockResolvedValue([branchSite]);
+  });
+
+  it('stores the day number and takes no number from the ADJ counter', async () => {
+    await postStockMovement(tx, dayEntry());
+    expect(created().reference).toBe('DAY-NYR-0044');
+    expect(created().quantity.toString()).toBe('-3');
+    expect(referenceCounterRepository.nextReference).not.toHaveBeenCalled();
+  });
+
+  it('an adjustment without a reference is still numbered ADJ-nnnn', async () => {
+    await postStockMovement(tx, dayEntry({ reference: undefined }));
+    expect(created().reference).toBe('ADJ-0007');
+    expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(tx, branchSite, 'ADJ');
+  });
+
+  it('refuses a reference on any other link, on any other type, and an empty one', async () => {
+    await expect(postStockMovement(tx, dayEntry({ links: { openingLineId: 'ol-1' } }))).rejects.toThrow(/Branch day adjustment/);
+    await expect(postStockMovement(tx, dayEntry({ links: { countLineId: 'cl-1' } }))).rejects.toThrow(/Branch day adjustment/);
+    await expect(postStockMovement(tx, base({ reference: 'DAY-NYR-0001' }))).rejects.toThrow(/Branch day adjustment/);
+    await expect(postStockMovement(tx, dayEntry({ reference: '  ' }))).rejects.toThrow(/cannot be empty/);
+    expect(ledgerRepository.create).not.toHaveBeenCalled();
+  });
+});
