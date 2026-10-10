@@ -12,7 +12,7 @@ The head's and members' phone screens (Day, opening, recount, count, sent, past 
 
 ## Layout
 - `_shared/` types mirror, fixtures, wording table (`lib/branch-day-copy.ts`). Shared with the phone session.
-- `desk/` the desktop screens: `components/` (`today-screen`, `today-parts`, `department-pane` rail and figures table, `close-drawer`, `count-for-drawer`, `history-screen`, `day-file-screen`, `file-tabs` with `FileTabs` and `DayTracker`, `correct-drawer`, `day-sheet-print-screen`, `day-topbar`, `day-parts`), `hooks/` (`use-day-access` what the server's table lets this person see and do; `use-day-badge` the number beside Today), `lib/` (`desk-format`, `desk-paths`, `day-sheet-pages` the A4 pagination with its test, `mock-data` the fixtures), `services/branch-day-desk-api.ts` (BD6 to BD8, BD11 to BD21).
+- `desk/` the desktop screens: `components/` (`today-screen`, `today-parts`, `department-pane` rail and figures table, `close-drawer`, `count-for-drawer`, `history-screen`, `day-file-screen`, `file-tabs` with `FileTabs` and `DayTracker`, `correct-drawer`, `day-sheet-print-screen`, `day-topbar`, `day-parts`), `hooks/` (`use-day-access` what the server's table lets this person see and do; `use-day-badge` the number beside Today), `lib/` (`desk-format`, `desk-paths`, `day-sheet-pages` the A4 pagination with its test), `services/branch-day-desk-api.ts` (BD6 to BD8, BD11 to BD21).
 - Pages (thin shells): the Branch Manager's under `app/app/branch/(shell)/day/{,figures,history,file/[id]}` and the bare `app/app/branch/day-print/[id]`; the hub roles' under `app/app/inventory/(shell)/branch-day/...` and the bare `app/app/inventory/day-print/[id]`. Same screens; the server's table decides what shows.
 - `index.ts` exports the contract mirror, the wording table and the desktop screens. The shell reads the badge through `features/inventory/index.ts` (`useBranchDayBadge`).
 
@@ -42,7 +42,8 @@ The head's and members' phone screens (Day, opening, recount, count, sent, past 
 - The printed department page says "Delivery confirmed" without a time: the contract's sheet carries the state only.
 - Activity asks BD17 for `limit=100` and pages on the screen; a day with more entries needs a paged BD17 (or BD19).
 - The Audit log's Branch day rows show the person's name only; the role under the name is a back-end gap.
-- Not done: a numeric `get_computed_styles` pass of every screen and state against Paper after the move to the real API (Part 1 did Today, figures and the drawers; the day file, History, Correct a count and the sheet were checked by eye against the spec's numbers); loading skeletons were seen but not walked on a throttled network.
+- Not done: a numeric `get_computed_styles` pass of the day file, History, Correct a count and the printed sheet at 1440 and A4. Paper had a different file open during the integration session ("Fred K. Visual Identity"), so the approved file could not be read; they stay checked by eye against the spec's numbers. Part 1 measured Today, figures and the drawers.
+- Integration walk (10 Oct 2026, real API): the Branch Manager's whole close-to-correction round (a delivery blocker, then the clear close, a wrong then right PIN in the Correct drawer, History, the day file, the sheet, Audit log) and the Director, Accountant, Store Manager and System Admin views. Escape in the item picker closes only the picker and focus returns to "Change item" (fixed in integration: it fell to the drawer frame). The "Confirm for {department}" drawer header said "0 LINES" when opened from Today; it now shows the loaded delivery's count.
 - The Branch Manager's Audit log row (gap G25) is in the Branch group; the screen must scope to their branch on the server.
 
 ## Rules the screens follow

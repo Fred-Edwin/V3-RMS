@@ -19,7 +19,7 @@ import { PhotoStrip } from './photo-strip';
 
 type Step = 'count' | 'recount' | 'reason' | 'summary' | 'pin';
 
-const eyebrow = (reference: string, department: string, lines: number): string => `${reference} · ${department.toUpperCase()} · ${lines} LINES`;
+const eyebrow = (reference: string, department: string, lines: number): string => `${reference} · ${department.toUpperCase()}${lines > 0 ? ` · ${lines} ${lines === 1 ? 'LINE' : 'LINES'}` : ''}`;
 const isCount = (value: string): boolean => /^\d+(\.\d{1,4})?$/.test(value.trim());
 
 /**
@@ -192,7 +192,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
       open={open}
       onOpenChange={onOpenChange}
       title={step === 'pin' ? `Confirm ${departmentName}'s delivery` : `Confirm ${departmentName}'s delivery for them`}
-      description={eyebrow(reference, departmentName, lineCount)}
+      description={eyebrow(reference, departmentName, total)}
       primaryLabel={primary.label}
       primaryDisabled={primary.disabled}
       onPrimaryAction={() => void onPrimary()}

@@ -10,7 +10,7 @@ import { B2Footer, B2Header, B2PrimaryButton } from '../../../_shared/components
 import { BRANCH_DAY_BUTTONS, BRANCH_DAY_MESSAGES, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import { useCountView } from '../hooks/use-phone-day';
 import { useSign } from '../hooks/use-sign';
-import { groupSections } from '../lib/count-logic';
+import { groupSections, showCheckNames } from '../lib/count-logic';
 import { dayLine, plural, signedByText } from '../lib/phone-format';
 import { DAY_COUNT, DAY_COUNT_FIGURES, DAY_SENT } from '../lib/phone-routes';
 import { branchDayPhoneApi } from '../services/branch-day-phone-api';
@@ -43,6 +43,7 @@ export function CountCheckScreen() {
 
   const sections = data ? groupSections(data.lines) : [];
   const total = data?.summary.itemCount ?? 0;
+  const names = showCheckNames(total);
 
   return (
     <PhoneColumn>
@@ -67,7 +68,7 @@ export function CountCheckScreen() {
                   <p className="font-wds-sans text-[13px] font-medium leading-[18px] text-wds-text-ink">
                     {s.name} · {plural(s.itemCount, 'item', 'items')}
                   </p>
-                  <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{s.names.join(', ')}</p>
+                  {names ? <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{s.names.join(', ')}</p> : null}
                 </ReceiptSection>
               ))}
               <ReceiptSection>

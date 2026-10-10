@@ -73,6 +73,17 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
   const [pinError, setPinError] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [picking, setPicking] = React.useState(false);
+  const changeRef = React.useRef<HTMLButtonElement>(null);
+  const wasPicking = React.useRef(false);
+  // When the picker closes (Escape, Cancel or a pick) focus goes back to "Change", not to the drawer's frame.
+  React.useEffect(() => {
+    const returning = wasPicking.current && !picking;
+    wasPicking.current = picking;
+    if (!returning) return;
+    // One frame later: the focus trap moves focus to the drawer frame when the focused search box unmounts.
+    const frame = requestAnimationFrame(() => changeRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [picking]);
 
   const renewKey = idem.renew;
   React.useEffect(() => {
@@ -187,7 +198,7 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
                 <span className="truncate font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line?.itemName ?? '–'}</span>
                 {line ? <span className="truncate font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{target?.departmentName} · {unitWord(line.unit)}</span> : null}
               </span>
-              <button type="button" onClick={() => setPicking(true)} disabled={post.saving} className={cn(PRIMARY_LINK, 'text-[13px] leading-4')}>
+              <button ref={changeRef} type="button" onClick={() => setPicking(true)} disabled={post.saving} className={cn(PRIMARY_LINK, 'text-[13px] leading-4')}>
                 Change<span className="sr-only"> item</span>
               </button>
             </div>

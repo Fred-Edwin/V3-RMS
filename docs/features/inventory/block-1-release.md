@@ -193,6 +193,65 @@ Block 3 changes **no table and no migration file**. Every column it uses (`waste
 
 **Measured and checked (integration, 9 Oct):** the same walk done against the real API for every role above, including a repeated tap, a retired item, each reversal reason, a second reversal (refused) and a colleague's entry (refused). Hover, press and keyboard states were added to every control and checked in the browser.
 
+## 6c. Block 4 (Branch day): two additive migrations, ships after Blocks 1 and 2
+
+Block 4 replaces the whole Branch day flow (the old head and manager screens, reopen, the KES 1,000 threshold, the two pushes) with the approved one. It needs **Block 1** (its `department_id` points at the `departments` table) and **Block 2** (an unconfirmed delivery blocks the close). Deploy the front end and back end together: the old Branch day screens find no API once the new back end runs.
+
+**The two migration files, in the order they apply** (both in `backend/prisma/schema/migrations/`; `migrate deploy` runs them by file name, so the order is automatic):
+
+| # | File | What it does |
+|---|---|---|
+| 1 | `20261010090000_block4_branch_day_expand` | Additive. Three new types (correction reason, sheet kind, opening kind). New columns on `branch_day_departments` (`department_id`, `on_behalf`, `count_idempotency_key`), `branch_day_lines` (opening, received, used, waste quantities; `expected_qty` becomes optional), `branch_days` (`used_value`, `closing_value`, `close_idempotency_key`) and `department_openings` (`department_id`, `kind`, `on_behalf`, `idempotency_key`). Two new tables: `branch_day_corrections` and `branch_day_sheets`. Back-fills: the department id on every old Branch day department and opening row (matched on the old department key), `kind = RECOUNTED` on openings that had an overnight difference, and `closing_value` on every already-closed day. Nothing is dropped. |
+| 2 | `20261010091000_block4_branch_day_expand_tag_nullable` | Makes `department_tag` optional on `branch_day_departments` and `department_openings`, because a department added in Block 1 has no old key. |
+
+**Not included:** the migration that drops the old enums and dead Branch day columns (`CONSUMPTION`, the threshold and reopen columns) is a **separate later session** and needs your production counts first. Until it runs, the old values stay in the database and nothing reads them.
+
+**Before** (run now, keep the output; read-only):
+
+```sql
+SELECT status, count(*) FROM branch_days GROUP BY status ORDER BY 1;
+SELECT count(*) AS branch_day_departments FROM branch_day_departments;
+SELECT count(*) AS openings FROM department_openings;
+SELECT prefix, last_number FROM reference_counters WHERE prefix = 'DAY';
+SELECT count(*) AS closed_days FROM branch_days WHERE status = 'CLOSED';
+```
+
+**After** (the same five, plus these; every "should be" must hold):
+
+```sql
+-- should be 0: every old department row is linked to its department
+SELECT count(*) FROM branch_day_departments WHERE department_id IS NULL;
+SELECT count(*) FROM department_openings WHERE department_id IS NULL;
+-- should be 0: every closed day has a closing value
+SELECT count(*) FROM branch_days WHERE status = 'CLOSED' AND closing_value IS NULL;
+-- the new tables exist and are empty until the first correction and the first close
+SELECT count(*) AS corrections FROM branch_day_corrections;
+SELECT count(*) AS sheets FROM branch_day_sheets;
+-- openings: how many were marked recounted (equal to the old ones that had a difference)
+SELECT kind, count(*) FROM department_openings GROUP BY kind;
+```
+
+The first three counts of "Before" must equal their "After" values. Old days stay readable: they show "–" for Used value and have no day file link.
+
+**Rollback.** Prefer rolling the **application** back (deploy the previous image): the old code ignores every new column and table, and `expected_qty` still takes the value the old code writes. The database undo is only for a failed migration, before the new code has written anything: drop `branch_day_corrections` and `branch_day_sheets`, then the new columns and types. Once a day has been closed or corrected by the new code, do not undo by hand: restore the backup and deploy the previous image.
+
+**Production check, by role** (real logins, a branch that has closed its day; the PIN is each person's own)
+
+**Department head and member** (phone)
+1. Menu › Day: Opening check (accept or recount), Delivery confirmed, Evening count. The count is blind: nothing to count against, no money. A list of more than 12 items shows one line per section on Check and sign; "See every figure" lists them all.
+2. Check and sign: a wrong PIN is refused in place ("That PIN is not right. Try again.") and clears the box; the right PIN sends it and a repeat tap sends once. A member sees the same Day as the head.
+3. Past days (head): the closed days of the department, with a Corrected marker.
+
+**Branch Manager** (desktop)
+1. Branch › Day › Today: five department cards, "Before the day can close". With a delivery not yet confirmed, **Close the day is disabled** and the red row offers Confirm for that department. Counting for a department that has nobody available works from the same list.
+2. When nothing blocks: Close the day, PIN, "Day closed", the usage entries written. Then History and the day file (Items, Documents, Activity) and Print the day sheet.
+3. Correct a count: one item, a reason, a PIN; a wrong PIN stays in the drawer. The status becomes Corrected and Documents gets a second version.
+
+**System Admin:** the same screens, and can close and correct, but cannot count on behalf. **Director, Accountant, Store Manager:** Branches › Day opens every branch read only (no Close, no Correct a count; Print works).
+**Everywhere:** Audit log › Area "Branch day" lists each count ("Counted and signed on behalf of Pastry: 23 items"), the close and the correction with its reason, with no PIN. The console shows no red errors.
+
+**Walked and checked (integration, 10 Oct):** a member's full 130-item evening count on the phone, a wrong then right PIN on the sign screen and in the Correct drawer, the head's count, three counts on behalf, the blocked close then the clear close with a delivery confirmed, one correction, History, the day file, the printed day sheet, the Audit log rows, and the Director, Accountant, Store Manager and System Admin views, all against the real API. See `block-4-undrawn-review.md` for what was built beyond Paper.
+
 ## 7. If something is wrong
 
-Stop, do not run anything by hand on production. Block 1: roll the application back to the previous image. Block 2: restore the backup and deploy the previous image. Block 3: deploy the previous image (no data change to undo; entries logged remain valid ledger rows). Tell the session what the "after" queries printed.
+Stop, do not run anything by hand on production. Block 1: roll the application back to the previous image. Block 2: restore the backup and deploy the previous image. Block 3: deploy the previous image (no data change to undo; entries logged remain valid ledger rows). Block 4: deploy the previous image (its migrations only add), or restore the backup if a day has already been closed or corrected by the new code. Tell the session what the "after" queries printed.
