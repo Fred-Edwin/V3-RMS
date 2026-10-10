@@ -1,10 +1,8 @@
 /**
- * Branch day close — public entry point (Milestone Six, Session 3).
- * Other features import from here, never from this module's internals.
+ * Branch day: public entry point (Block 4). Other features import from here, never from this module's internals.
+ * The contract mirror (the wire types of BD1 to BD21) and the wording table are shared with the phone screens; the desktop screens
+ * are re-exported through `features/inventory/index.ts`.
  */
-export { DayDocumentScreen, PrintableDayDocument } from './components/day-document';
-export { OpeningCard } from './components/opening-card';
-export { DayHistoryScreen } from './components/history-list';
-export { DayHistoryDetailScreen } from './components/history-detail';
-export { useDayDocument } from './hooks/use-branch-day';
-export * from './types/branch-day';
+export * from './_shared/types/branch-day-contract';
+export * from './_shared/lib/branch-day-copy';
+export * from './desk';

@@ -19,6 +19,7 @@ import { useDayAccess, useDayBase } from '../hooks/use-day-access';
 import { dayPaths } from '../lib/desk-paths';
 import { clock12, kes, longDay, signedUnits } from '../lib/desk-format';
 import { branchDayDeskApi } from '../services/branch-day-desk-api';
+import { refreshBranchDayBadge } from '../hooks/use-day-badge';
 import { CloseDayDrawer } from './close-drawer';
 import { CountForDrawer } from './count-for-drawer';
 import { DayTopbar } from './day-topbar';
@@ -100,6 +101,13 @@ function TodayView({ everyBranch, seesMoney, canConfirmOnBehalf }: { everyBranch
       document.removeEventListener('visibilitychange', onFocus);
     };
   }, [reload]);
+
+  // The sidebar's number follows what this screen shows (the Branch Manager's own Today only).
+  const blocking = today.data?.day?.summary.todo ?? null;
+  const closedNow = today.data?.day?.closed != null;
+  React.useEffect(() => {
+    if (!everyBranch && blocking !== null) refreshBranchDayBadge();
+  }, [everyBranch, blocking, closedNow]);
 
   // Say which department has just counted (gap G6) when a reload brings it.
   React.useEffect(() => {

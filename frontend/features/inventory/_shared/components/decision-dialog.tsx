@@ -118,6 +118,7 @@ export function ChoiceChips<T extends string>({
   tone = 'espresso',
   labelOf,
   disabled = false,
+  size = 'default',
 }: {
   name: string;
   label: string;
@@ -129,8 +130,11 @@ export function ChoiceChips<T extends string>({
   /** The words shown for a value, when they differ from the value. */
   labelOf?: (value: T) => string;
   disabled?: boolean;
+  /** `drawer` is Paper's Correct a count chip (B12): 36 high, 0 14 padding, the chosen one ink with weight 400. Use with `tone="ink"`. */
+  size?: 'default' | 'drawer';
 }) {
   const ink = tone === 'ink';
+  const drawer = size === 'drawer';
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
       {options.map((option) => {
@@ -141,12 +145,12 @@ export function ChoiceChips<T extends string>({
             className={cn(
               'flex cursor-pointer items-center font-wds-sans text-[13px] leading-4 transition-colors duration-150 ease-out focus-within:shadow-wds-ring',
               ink && on ? 'text-white' : 'text-wds-text-ink',
-              ink ? 'h-[34px] px-3.5' : 'h-8 px-3',
+              ink ? (drawer ? 'h-9 px-3.5' : 'h-[34px] px-3.5') : 'h-8 px-3',
               !(ink && on) && !disabled && '[@media(hover:hover)]:hover:bg-wds-neutral-50',
               disabled && 'cursor-not-allowed opacity-60',
               ink
                 ? on
-                  ? 'bg-wds-text-ink font-semibold'
+                  ? cn('bg-wds-text-ink', drawer ? 'font-normal' : 'font-semibold')
                   : 'border border-wds-border-strong bg-wds-surface'
                 : on
                   ? 'border-[1.5px] border-wds-primary bg-wds-espresso-50 font-medium'

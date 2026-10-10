@@ -10,8 +10,16 @@ import type {
   CloseDayInput,
   CloseDayResult,
   CloseSummary,
+  CorrectCountInput,
+  CorrectCountResult,
   CountView,
+  DayActivity,
+  DayDocuments,
+  DayFile,
+  DaySheet,
   DepartmentFigures,
+  History,
+  HistoryQuery,
   SaveCountInput,
   SaveCountResult,
   SignCountInput,
@@ -39,6 +47,22 @@ export const branchDayDeskApi = {
   /** BD14: the caller's own PIN. A repeated key returns the first result with `replayed: true`. */
   close: (dayId: string, input: CloseDayInput): Promise<CloseDayResult> =>
     BRANCH_DAY_MOCK ? mockBranchDay.close(dayId, input) : callApi<CloseDayResult>('POST', `/days/${dayId}/close`, input),
+  /** BD15: History, newest first; the branch picker's options come back for a hub role. */
+  history: (query: HistoryQuery, signal?: AbortSignal): Promise<History> => (BRANCH_DAY_MOCK ? mockBranchDay.history(query) : callApi<History>('GET', `/history${queryString(query)}`, undefined, signal)),
+  /** BD16: the day file's header, tracker, rail, tab counts and what the caller may do. */
+  dayFile: (dayId: string, signal?: AbortSignal): Promise<DayFile> => (BRANCH_DAY_MOCK ? mockBranchDay.dayFile(dayId) : callApi<DayFile>('GET', `/days/${dayId}`, undefined, signal)),
+  /** BD17: newest first. The screen asks for the whole list and pages it (contract gap G16). */
+  activity: (dayId: string, limit?: number, signal?: AbortSignal): Promise<DayActivity> =>
+    BRANCH_DAY_MOCK ? mockBranchDay.activity(dayId, limit) : callApi<DayActivity>('GET', `/days/${dayId}/activity${queryString({ limit })}`, undefined, signal),
+  /** BD18: the day sheet versions, newest first. */
+  documents: (dayId: string, signal?: AbortSignal): Promise<DayDocuments> =>
+    BRANCH_DAY_MOCK ? mockBranchDay.documents(dayId) : callApi<DayDocuments>('GET', `/days/${dayId}/documents`, undefined, signal),
+  /** BD20: the caller's own PIN. One item, one reason; a repeated key returns the first result with `replayed: true`. */
+  correct: (dayId: string, input: CorrectCountInput): Promise<CorrectCountResult> =>
+    BRANCH_DAY_MOCK ? mockBranchDay.correct(dayId, input) : callApi<CorrectCountResult>('POST', `/days/${dayId}/corrections`, input),
+  /** BD21: the stored copy of one version (the latest by default). Reading it writes nothing. */
+  sheet: (dayId: string, version?: number, signal?: AbortSignal): Promise<DaySheet> =>
+    BRANCH_DAY_MOCK ? mockBranchDay.sheet(dayId, version) : callApi<DaySheet>('GET', `/days/${dayId}/sheet${queryString({ version })}`, undefined, signal),
   /** BD6: the blind count of a department, for the Branch Manager (`departmentId`). */
   count: (departmentId: string, signal?: AbortSignal): Promise<CountView> =>
     BRANCH_DAY_MOCK ? mockBranchDay.count(departmentId) : callApi<CountView>('GET', `/count${queryString({ departmentId })}`, undefined, signal),

@@ -416,6 +416,31 @@ describe('Branch day rows (Block 4, Paper B5 to B16)', () => {
     }
   });
 
+  it('gives the roles without a branch of their own Day with Today and History, like the Branch Manager', () => {
+    for (const role of ['DIRECTOR', 'ACCOUNTANT', 'STORE_MANAGER', 'SYSTEM_ADMIN'] as AppRole[]) {
+      const groups = navFor(ctxFor(role, { can: holds('branch_day.read_any_branch') }));
+      const day = groups.flatMap((g) => g.items).find((i) => i.label === 'Day' && i.subItems?.some((s) => s.href === HUB_TODAY));
+      expect(day?.subItems?.map((s) => [s.label, s.href]), role).toEqual([
+        ['Today', HUB_TODAY],
+        ['History', `${HUB_TODAY}/history`],
+      ]);
+      expect(activeFor(groups, `${HUB_TODAY}/file/abc`).activeSubKey, role).toBe('history');
+      expect(activeFor(groups, `${HUB_TODAY}/history`).activeSubKey, role).toBe('history');
+      expect(isAllowedPath(`${HUB_TODAY}/history`, role, false), role).toBe(true);
+      expect(isAllowedPath(`${HUB_TODAY}/file/abc`, role, false), role).toBe(true);
+      expect(isAllowedPath('/app/inventory/day-print/abc', role, false), role).toBe(true);
+    }
+  });
+
+  it('puts the blocker count on the Branch Manager’s Today only, and gives the Branch Manager an Audit log link in the Branch group', () => {
+    const groups = navFor(ctxFor('MANAGER', { can: holds('branch_day.read', 'branch_day.close', 'audit.read') }));
+    const day = item(groups, 'branch-day');
+    expect(day?.subItems?.find((s) => s.key === 'today')?.badge).toBe('branch-day-todo');
+    expect(day?.subItems?.find((s) => s.key === 'history')?.badge).toBeUndefined();
+    expect(item(groups, 'branch-audit-log')?.href).toBe('/app/inventory/audit-log');
+    expect(keys(navFor(ctxFor('MANAGER', { can: holds('branch_day.read') })))).not.toContain('branch-audit-log');
+  });
+
   it('shows no Day row to floor staff, the Attendant or HR, and the gate keeps them out of the hub pages', () => {
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT', 'HR_MANAGER'] as AppRole[]) {
       const all = hrefs(navFor(ctxFor(role, { can: EVERYTHING })));

@@ -3,14 +3,15 @@
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
 
-import { DayHistoryDetailScreen } from '@/features/inventory/branch-day';
+import { BranchDayFileScreen } from '@/features/inventory';
 
-export default function BranchDayHistoryDetailPage() {
+// The tab, department and page live in the URL, so useSearchParams() needs a Suspense boundary.
+export default function BranchDayFilePage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
   return (
     <Suspense fallback={null}>
-      <DayHistoryDetailScreen dayId={id} />
+      <BranchDayFileScreen dayId={id} />
     </Suspense>
   );
 }

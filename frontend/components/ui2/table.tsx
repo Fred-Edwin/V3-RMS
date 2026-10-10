@@ -67,12 +67,16 @@ TableFooter.displayName = "TableFooter"
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement> & {
+    /** `two-line` is for rows whose first cell stacks two lines (Branch day History, Paper B10: 67 high). The default is unchanged. */
+    size?: "default" | "two-line"
+  }
+>(({ className, size = "default", ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      "h-[46px] border-b border-wds-neutral-100 transition-colors hover:bg-wds-surface-sunken data-[state=selected]:bg-wds-surface-sunken",
+      size === "two-line" ? "h-[67px]" : "h-[46px]",
+      "border-b border-wds-neutral-100 transition-colors hover:bg-wds-surface-sunken data-[state=selected]:bg-wds-surface-sunken",
       className
     )}
     {...props}

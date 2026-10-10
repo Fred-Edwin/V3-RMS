@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { useNeedsLookCount, usePermissions, useRequisitionBadges } from '@/features/inventory';
+import { useBranchDayBadge, useNeedsLookCount, usePermissions, useRequisitionBadges } from '@/features/inventory';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -88,6 +88,8 @@ export function useShellNav(): ShellNav {
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
   // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
   const requisitionCount = useRequisitionBadges(hasHubRows(role) && can('requisitions.read'))?.requisitions ?? 0;
+  // What blocks the close today, beside Today in the Branch Manager's Day group (only someone who closes the day is told).
+  const dayTodo = useBranchDayBadge(role === 'MANAGER' && can('branch_day.close'));
 
   const tableGroups = React.useMemo(
     () =>
@@ -105,7 +107,7 @@ export function useShellNav(): ShellNav {
   // The unread count is the only thing added to the table's rows here.
   const groups = React.useMemo((): SidebarNavGroup[] => {
     // A zero count draws nothing, so a role without prep.read_flags (count 0) simply has no badge.
-    const counts: Record<NavBadge, number> = { inbox: unreadInbox, 'prep-needs-look': needsLook, requisitions: requisitionCount };
+    const counts: Record<NavBadge, number> = { inbox: unreadInbox, 'prep-needs-look': needsLook, requisitions: requisitionCount, 'branch-day-todo': dayTodo };
     const countOf = (badge: NavBadge | undefined): number | undefined => (badge && counts[badge] > 0 ? counts[badge] : undefined);
     return tableGroups.map((group) => ({
       key: group.key,
@@ -119,7 +121,7 @@ export function useShellNav(): ShellNav {
         subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
-  }, [tableGroups, unreadInbox, needsLook, requisitionCount]);
+  }, [tableGroups, unreadInbox, needsLook, requisitionCount, dayTodo]);
 
   const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
 
