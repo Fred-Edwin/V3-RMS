@@ -461,8 +461,12 @@ export const branchDayRepository = {
         status: 'CLOSED',
         ...(filter.from || filter.to ? { businessDate: { ...(filter.from ? { gte: filter.from } : {}), ...(filter.to ? { lte: filter.to } : {}) } } : {}),
       },
-      ...(filter.status === 'CORRECTED' ? { lines: { some: { corrections: { some: {} } } } } : {}),
-      ...(filter.status === 'CLOSED' ? { lines: { none: { corrections: { some: {} } } } } : {}),
+      // A day closed under the old flow has no Used today to show a head, so it is not listed (contract §0.4).
+      AND: [
+        { lines: { some: { usedQty: { not: null } } } },
+        ...(filter.status === 'CORRECTED' ? [{ lines: { some: { corrections: { some: {} } } } }] : []),
+        ...(filter.status === 'CLOSED' ? [{ lines: { none: { corrections: { some: {} } } } }] : []),
+      ],
     };
     const [rows, total] = await Promise.all([
       db.branchDayDepartment.findMany({
