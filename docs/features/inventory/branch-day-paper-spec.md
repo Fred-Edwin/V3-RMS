@@ -10,6 +10,17 @@ Extracted 9 Oct 2026 on branch `docs/block4-paper-spec`. Read this before buildi
 
 **Warning: Paper token names are not code token names.** Paper's `--color-primary` is `#B0610F` (code: `wds-selected-edge` / `wds-primary-btn-start`; the code's `wds-primary` is `#693C1B`, which Paper calls `--color-espresso-700`). Paper's `--color-espresso-600` is also `#B0610F`, but the code's `wds-espresso-600` is `#8B5A32`. Paper's `--color-text-muted` is `#635E57` = code `wds-text-secondary` (the code's `wds-text-muted` is `#847E76`). Always map by hex, as the tables below do.
 
+## Owner rulings on the decisions in section 10 (10 Oct 2026, "accept"): the defaults are approved
+
+1. Build the head's past days screens (Paper steps 19 and 20).
+2. Buttons keep the Block 2 look (2px radius), not Paper's 0.
+3. Audit log: keep the existing area menu and add the five Branches areas (no area chips).
+4. "Confirm for Kitchen" is a button on the red row on Today that opens the existing Block 2 confirm drawer.
+5. The Today page shows Today active in the sidebar, not History as steps 15 and 16 draw.
+6. Printed corrected figure: old figure struck through, corrected figure in weight 600.
+7. Secondary button height 44; one History table geometry (step 10's); the 560-wide drawer is an option on the drawer; `#000000` text on steps 15 and 17 becomes ink.
+8. Fix the kit bug: `PinField` focus uses `#B0610F`, as Paper draws (it was `#693C1B`). This is the only change to a shared piece; every other kit difference is an option that leaves default looks unchanged.
+
 ## Owner rulings that already apply (Block 3, 9 Oct 2026; carried to Block 4 by the brief)
 
 - Paper wins, built as **options** (props, size or tone variants) on the kit pieces **without changing the default look** of any other screen.
