@@ -64,7 +64,9 @@ function cycleRows(data: Home): CycleRow[] {
     if (!entry || !info) return { cycle, requisitionId: null, reference: null, state: 'Not started', short: 'Not started', lineCount: 0, startedAt: null, sentAt: null, changedCount: 0, tone: 'none' };
     const base = { cycle, requisitionId: entry.requisitionId, reference: info.reference, lineCount: info.lineCount, startedAt: info.startedAt, sentAt: info.sentAt, changedCount: info.changedCount };
     const open = info.status === 'OPEN' && (info.sectionStatus === 'NOT_STARTED' || info.sectionStatus === 'DRAFT');
-    if (open) return { ...base, state: info.lineCount > 0 ? 'Not sent yet' : 'Not sent yet', short: 'Draft', tone: 'draft' };
+    // A section nobody has touched is "not started", even when the requisition (opened by another head) already exists.
+    if (open && info.sectionStatus === 'NOT_STARTED' && info.lineCount === 0) return { ...base, state: 'Not started', short: 'Not started', tone: 'none' };
+    if (open) return { ...base, state: 'Not sent yet', short: 'Draft', tone: 'draft' };
     const good = info.status === 'APPROVED' || info.status === 'CLOSED';
     return { ...base, state: headStatusText(info.status, info.statusText, info.sectionStatus), short: good ? 'Approved' : 'Sent', tone: good ? 'good' : 'waiting' };
   });
@@ -174,7 +176,7 @@ export function HeadHomeScreen() {
                 row={card}
                 now={now}
                 firstName={firstName}
-                belowLevel={card.cycle === data.suggestedCycle ? data.suggestedLineCount : 0}
+                belowLevel={card.cycle === data.suggestedCycle ? data.suggestedLineCount : null}
                 busy={busy === card.cycle}
                 disabled={busy !== null}
                 onGo={() => void go(card.cycle)}
@@ -282,7 +284,7 @@ function TrackSwitcher({ rows, value, onChange }: { rows: CycleRow[]; value: Req
  * low), Extra not started ("Need something extra?"), a draft (the number on the list and how many are below level) and a list sent
  * (the number sent, the time, and "See what you sent").
  */
-function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { row: CycleRow; now: string | null; firstName: string; belowLevel: number; busy: boolean; disabled: boolean; onGo: () => void }) {
+function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { row: CycleRow; now: string | null; firstName: string; belowLevel: number | null; busy: boolean; disabled: boolean; onGo: () => void }) {
   const word = CYCLE_TEXT[row.cycle].toLowerCase();
   const hello = now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : '';
   const clock = now ? timeText(now).toUpperCase() : '';
@@ -305,7 +307,7 @@ function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { r
     button = 'Start an Extra list';
   } else if (row.tone === 'none') {
     body =
-      belowLevel > 0 ? (
+      belowLevel !== null && belowLevel > 0 ? (
         <>
           <Greeting id="req-hero" text={hello} />
           <BigNumber n={belowLevel} line={`${belowLevel === 1 ? 'item is' : 'items are'} running low`} sub="Below their restock level" />
@@ -314,8 +316,8 @@ function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { r
       ) : (
         <>
           <Greeting id="req-hero" text={hello} />
-          <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">Nothing is running low.</p>
-          <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">Start the {word} list and add what you need before anything is sent.</p>
+          <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{belowLevel === 0 ? 'Nothing is running low.' : `Ready for the ${word} list?`}</p>
+          <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">It starts with the items below their restock level. Add what else you need before anything is sent.</p>
         </>
       );
     button = `Start the ${word} list`;
@@ -324,7 +326,7 @@ function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { r
       <>
         <Greeting id="req-hero" text={hello} />
         {row.lineCount > 0 ? (
-          <BigNumber n={row.lineCount} line={`${items(row.lineCount)} on your list`} sub={belowLevel > 0 ? `${belowLevel} are below restock level` : undefined} />
+          <BigNumber n={row.lineCount} line={`${items(row.lineCount)} on your list`} sub={belowLevel !== null && belowLevel > 0 ? `${belowLevel} are below restock level` : undefined} />
         ) : (
           <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">Your list is started.</p>
         )}
