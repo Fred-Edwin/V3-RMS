@@ -17,7 +17,7 @@ import { usePermissions } from '../../_shared/hooks/use-permissions';
 import { departmentsApi } from '../../departments/services/departments-api';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import { CYCLE_TEXT, REQUISITION_CYCLES, type BranchRef, type RequisitionRow, type RequisitionTab, type TabCounts } from '../_shared/types/requisitions-contract';
-import { clock, dayAndClock, dayLabel, elapsed, kes } from '../_shared/lib/requisitions-words';
+import { clock, dayAndClock, dayLabel, elapsed, kes, sectionsInPlay } from '../_shared/lib/requisitions-words';
 import { LIST_COPY } from '../_shared/lib/list-copy';
 import { DocLink, ReqTabs, SectionSquares, StatusChip, UrgentTag, type TabDef } from './req-parts';
 import { useBadgesNudge } from '../hooks/use-badges-nudge';
@@ -162,14 +162,15 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       header: tab === 'to-approve' ? 'Sections in' : 'Sections',
       width: '230px',
       cell: (r) => {
-        const done = r.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length;
-        const missingAll = r.sections.filter((s) => s.status === 'NOT_STARTED' || s.status === 'DRAFT').map((s) => s.departmentName);
+        const play = sectionsInPlay(r.sections);
+        const done = play.filter((s) => s.status === 'SUBMITTED').length;
+        const missingAll = play.filter((s) => s.status === 'NOT_STARTED' || s.status === 'DRAFT').map((s) => s.departmentName);
         const missing = missingAll.length > 0 ? missingAll : null;
         return (
           <div className="flex flex-col gap-1">
             <span className="flex items-center gap-2.5">
-              <SectionSquares sections={r.sections} />
-              <span className="font-wds-sans text-[14px] text-wds-text-ink">{done === r.sections.length ? (r.sections.length === 1 ? '1 of 1 in' : `All ${r.sections.length} in`) : `${done} of ${r.sections.length} in`}</span>
+              <SectionSquares sections={play} />
+              <span className="font-wds-sans text-[14px] text-wds-text-ink">{done === play.length ? (play.length === 1 ? '1 of 1 in' : `All ${play.length} in`) : `${done} of ${play.length} in`}</span>
             </span>
             {tab === 'collecting' && missing ? <span className="font-wds-sans text-[13px] text-wds-text-secondary">Waiting for {missing.length > 3 ? `${missing.length} departments` : missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]}</span> : null}
           </div>
@@ -249,8 +250,8 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
               </span>
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2.5 font-wds-sans text-[13px] text-wds-text-ink">
-                  <SectionSquares sections={r.sections} />
-                  {r.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length} of {r.sections.length} in · {r.lineCount} lines
+                  <SectionSquares sections={sectionsInPlay(r.sections)} />
+                  {sectionsInPlay(r.sections).filter((s) => s.status === 'SUBMITTED').length} of {sectionsInPlay(r.sections).length} in · {r.lineCount} lines
                 </span>
                 {rowAction(r)}
               </div>
@@ -334,7 +335,9 @@ function subline(r: RequisitionRow, tab: RequisitionTab, history: boolean): stri
   return !history && r.changedLineCount > 0 ? `${base} · ${r.changedLineCount} ${r.changedLineCount === 1 ? 'line' : 'lines'} changed` : base;
 }
 
-function baseSubline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+function baseSubline(row: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+  // Departments sent without are not part of the requisition: "Barista only", not "5 departments".
+  const r = { ...row, sections: sectionsInPlay(row.sections) };
   const cycle = r.cycleLabel.split(' · ')[0] ?? r.cycleLabel;
   if (history) {
     if (r.status === 'CANCELLED') return `${cycle} · ${r.sections.length === 1 ? `${r.sections[0]?.departmentName} only` : `${r.sections.length} departments`}${r.cancelReason ? ` · cancelled before approval: "${r.cancelReason}"` : ''}`;

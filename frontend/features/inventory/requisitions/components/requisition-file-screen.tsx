@@ -15,7 +15,7 @@ import { LoadingAnnouncer } from '../../_shared/components/scw-states';
 import { useLoader } from '../../_shared/hooks/use-async';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import type { ApproveResult, Addition, RequisitionFile } from '../_shared/types/requisitions-contract';
-import { clock, dayLabel, errorWords, fileChip, kes, nextStepWords } from '../_shared/lib/requisitions-words';
+import { clock, dayLabel, errorWords, fileChip, kes, nextStepWords, sectionsInPlay } from '../_shared/lib/requisitions-words';
 import { AdditionsPanel, ApproveAdditionDialog } from './additions-panel';
 import { ApproveDrawer } from './approve-drawer';
 import { CancelDialog } from './cancel-dialog';
@@ -34,7 +34,7 @@ type View = 'items' | 'documents' | 'activity';
 function sectionsText(data: RequisitionFile): string {
   const { sectionsIn, sectionsTotal } = data.nextStep.facts;
   const skipped = data.sections.filter((s) => s.status === 'SKIPPED').length;
-  if (skipped > 0) return `${sectionsTotal - skipped} of ${sectionsTotal} sections in, ${skipped} sent without`;
+  if (skipped > 0) return `${sectionsTotal - skipped} ${sectionsTotal - skipped === 1 ? 'section' : 'sections'} in, the others sent without`;
   return `${sectionsIn === sectionsTotal ? `all ${sectionsTotal}` : `${sectionsIn} of ${sectionsTotal}`} sections in`;
 }
 
@@ -91,7 +91,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   const view: View = params.get('view') === 'documents' ? 'documents' : params.get('view') === 'activity' ? 'activity' : 'items';
   const drawer = params.get('drawer') === 'approve';
   const cancelling = params.get('dialog') === 'cancel';
-  const selected = params.get('department') ?? data?.sections.find((s) => s.status === 'SUBMITTED')?.departmentId ?? data?.sections[0]?.departmentId ?? '';
+  const selected = params.get('department') ?? data?.sections.find((s) => s.status === 'SUBMITTED')?.departmentId ?? (data ? sectionsInPlay(data.sections)[0]?.departmentId : undefined) ?? '';
   const printHref = `${printBase}/${id}`;
 
   const setParam = React.useCallback(

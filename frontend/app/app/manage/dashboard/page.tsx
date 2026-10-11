@@ -25,6 +25,7 @@ import { orderCancellationAuthService } from '@/services/orderCancellationAuthSe
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
+import { BranchNeedsAction } from '@/features/inventory';
 import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
@@ -110,6 +111,7 @@ const getClockStatus = (assignment: ShiftAssignment): { label: string; isOverrid
 export default function ManagerDashboardPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const isBranchManager = useAuthStore((state) => state.user?.role === 'MANAGER');
   const role = useAuthStore((state) => state.role);
   // Requisitions waiting for the Branch Manager: lists ready to approve, plus lists one department has already sent.
   const requisitionBadges = useRequisitionBadges(role === 'MANAGER');
@@ -128,6 +130,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
   const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
+  const [inventoryActionCount, setInventoryActionCount] = useState(0);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCancellationAuths, setPendingCancellationAuths] = useState<OrderCancellationAuthRequest[]>([]);
@@ -552,7 +555,7 @@ export default function ManagerDashboardPage(): JSX.Element {
           Needs your action
         </h2>
         <RequisitionsWaitingCard count={requisitionsWaiting} />
-        {pendingAuths.length === 0 && pendingLeaveCount === 0 && requisitionsWaiting === 0 && (
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && inventoryActionCount === 0 && requisitionsWaiting === 0 && (
           <EmptyState
             icon={<CheckCircle size={28} />}
             heading="Nothing pending right now"
@@ -560,6 +563,7 @@ export default function ManagerDashboardPage(): JSX.Element {
             className="rounded-xl border border-stone-200 bg-white py-8"
           />
         )}
+        <BranchNeedsAction enabled={isBranchManager} onCountChange={setInventoryActionCount} />
         <HouseAccountApprovalCard
           pendingAuths={pendingAuths}
           authOverrideSubmittingId={authOverrideSubmittingId}

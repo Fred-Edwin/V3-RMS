@@ -9,15 +9,16 @@ import { DrawerShell } from '../../../_shared/components/drawer-shell';
 import { useAction, useLoader } from '../../../_shared/hooks/use-async';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { MonoLabel, PinField } from '../../../requisitions/components/req-parts';
-import type { CheckCountResult, ConfirmPreview, CountLine, CountView } from '../../../deliveries/_shared/types/deliveries-contract';
-import { COUNT_REASONS, COUNT_REASON_TEXT, PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE, PHOTO_MIME_TYPES, type CountReason, type PhotoRef } from '../../_shared/types/dispatch-contract';
-import { differenceText, itemWord } from '../../../_shared/lib/block2-words';
+import type { CheckCountResult, CountLine, CountView } from '../../../deliveries/_shared/types/deliveries-contract';
+import { reasonsFor } from '../../../deliveries/lib/count-logic';
+import { COUNT_REASON_TEXT, PHOTO_MAX_BYTES, PHOTO_MAX_PER_LINE, PHOTO_MIME_TYPES, type CountReason, type PhotoRef } from '../../_shared/types/dispatch-contract';
+import { itemWord, linesText } from '../../../_shared/lib/block2-words';
 import { errorText } from '../../lib/dispatch-words';
 import { deliveriesDrawerApi } from '../../services/branch-side-api';
 import { ChoiceChips } from './choice-chips';
 import { PhotoStrip } from './photo-strip';
 
-type Step = 'count' | 'recount' | 'reason' | 'summary' | 'pin';
+type Step = 'count' | 'recount' | 'reason' | 'pin';
 
 const eyebrow = (reference: string, department: string, lines: number): string => `${reference} · ${department.toUpperCase()}${lines > 0 ? ` · ${lines} ${lines === 1 ? 'LINE' : 'LINES'}` : ''}`;
 const isCount = (value: string): boolean => /^\d+(\.\d{1,4})?$/.test(value.trim());
@@ -26,7 +27,7 @@ const isCount = (value: string): boolean => /^\d+(\.\d{1,4})?$/.test(value.trim(
  * Paper D19 and the D22 walk-through: the Branch Manager confirms a delivery nobody counted, for the department. The same blind count
  * as the phone (D8 to D11) in one drawer: count every line, the check flags a line that differs ("This doesn't match what was sent.
  * Count again."), the second count is final, a reason and photos for what still differs, a summary that finally shows the sent
- * figure, then the Branch Manager's own PIN. The record shows who really counted.
+ * figure, then the Branch Manager's own PIN (count, check, PIN: no summary step). The record shows who really counted.
  */
 export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentName, lineCount, leftAtLabel, open, onOpenChange, onConfirmed }: {
   dispatchId: string;
@@ -44,7 +45,6 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
   const [touched, setTouched] = React.useState<Record<string, boolean>>({});
   const [lines, setLines] = React.useState<CountLine[]>([]);
   const [reasonIndex, setReasonIndex] = React.useState(0);
-  const [preview, setPreview] = React.useState<ConfirmPreview | null>(null);
   const [pin, setPin] = React.useState('');
   const [photoMessage, setPhotoMessage] = React.useState<string | null>(null);
   const idem = useIdempotencyKey();
@@ -53,7 +53,6 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
   const save = useAction((counts: { lineId: string; countedQty: string }[]) => deliveriesDrawerApi.save(dispatchId, { counts }), 'Could not save your counts. Try again.');
   const check = useAction(() => deliveriesDrawerApi.check(dispatchId), 'Could not check the counts. Try again.');
   const reason = useAction((lineId: string, value: CountReason, note?: string) => deliveriesDrawerApi.reason(dispatchId, lineId, { reason: value, note }), 'Could not save the reason. Try again.');
-  const previewCall = useAction(() => deliveriesDrawerApi.preview(dispatchId), 'Could not build the summary. Try again.');
   const confirm = useAction((code: string) => deliveriesDrawerApi.confirm(dispatchId, { pin: code, onBehalf: true, idempotencyKey: idem.key() }), 'Could not confirm. Nothing was changed. Try again.');
 
   // A fresh walk each time the drawer opens; the loader refetches the view by its key.
@@ -63,7 +62,6 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
     setValues({});
     setTouched({});
     setReasonIndex(0);
-    setPreview(null);
     setPin('');
     setPhotoMessage(null);
     idem.renew();
@@ -115,16 +113,14 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
       setStep('reason');
       return;
     }
-    await toSummary();
+    setStep('pin');
   };
 
-  const toSummary = async (): Promise<void> => {
-    const result = await previewCall.run();
-    if (result) {
-      setPreview(result);
-      setStep('summary');
-    }
-  };
+  // The 4th digit signs, as on the phone.
+  React.useEffect(() => {
+    if (open && step === 'pin' && pin.length === 4 && !confirm.saving) void onPrimary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   const onPrimary = async (): Promise<void> => {
     if (step === 'count') {
@@ -139,12 +135,10 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
       const line = currentReasonLine;
       if (!line || !line.reason) return;
       if (reasonIndex < finalDiffs.length - 1) setReasonIndex(reasonIndex + 1);
-      else await toSummary();
-    } else if (step === 'summary') {
-      setStep('pin');
+      else setStep('pin');
     } else if (step === 'pin') {
       const result = await confirm.run(pin);
-      if (result) onConfirmed(`${result.matchedCount} of ${result.lineCount} lines match${result.discrepancies.length > 0 ? `. ${result.discrepancies.map((d) => d.reference).join(', ')} opened for the Store Manager.` : '. Their stock is updated.'}`);
+      if (result) onConfirmed(`${result.matchedCount} of ${linesText(result.lineCount)} match${result.discrepancies.length > 0 ? `. ${result.discrepancies.map((d) => d.reference).join(', ')} opened for the Store Manager.` : '. Their stock is updated.'}`);
       else setPin('');
     }
   };
@@ -169,8 +163,8 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
     }
   };
 
-  const busy = save.saving || check.saving || previewCall.saving || confirm.saving || reason.saving;
-  const failure = save.failure ?? check.failure ?? previewCall.failure ?? confirm.failure ?? reason.failure;
+  const busy = save.saving || check.saving || confirm.saving || reason.saving;
+  const failure = save.failure ?? check.failure ?? confirm.failure ?? reason.failure;
   const failureText = failure && failure.code !== 'INVALID_PIN' ? (failure.code === 'ALREADY_CONFIRMED' ? `Someone from ${departmentName} already confirmed this delivery.` : errorText(failure.code, failure.message)) : null;
 
   const primary = (() => {
@@ -180,8 +174,6 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
         return { label: busy ? 'Checking…' : 'Check and confirm', disabled: busy || (step === 'count' ? counted < total : flagged.some((l) => !touched[l.lineId] || !isCount(values[l.lineId] ?? ''))) };
       case 'reason':
         return { label: reasonIndex < finalDiffs.length - 1 ? 'Save and go on' : 'Save and go on', disabled: busy || !currentReasonLine?.reason };
-      case 'summary':
-        return { label: 'Go to the PIN', disabled: busy };
       case 'pin':
         return { label: busy ? 'Confirming…' : `Confirm for ${departmentName}`, disabled: busy || pin.length !== 4 };
     }
@@ -196,13 +188,14 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
       primaryLabel={primary.label}
       primaryDisabled={primary.disabled}
       onPrimaryAction={() => void onPrimary()}
-      cancelLabel={step === 'summary' || step === 'pin' ? 'Back' : 'Cancel'}
+      cancelLabel={step === 'pin' ? 'Back' : 'Cancel'}
       paper
       paperWidth={540}
       onCancel={() => {
-        if (step === 'pin') setStep('summary');
-        else if (step === 'summary') setStep(finalDiffs.length > 0 ? 'reason' : 'count');
-        else onOpenChange(false);
+        if (step === 'pin') {
+          setPin('');
+          setStep(finalDiffs.length > 0 ? 'reason' : 'count');
+        } else onOpenChange(false);
       }}
     >
       {view.status === 'error' ? (
@@ -272,7 +265,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                   <p id={`recount-hint-${l.lineId}`} role="alert" className="font-wds-sans text-[14px] leading-5 text-wds-error-fg">This doesn&apos;t match what was sent. Count again.</p>
                 </div>
               ))}
-              <p className="font-wds-sans text-[13px] text-wds-text-secondary">The sent figure is never shown here. Count the {flagged.length === 1 ? (flagged[0] ? itemWord(flagged[0].itemName) : 'item') : 'items'} again to go on.</p>
+              <p className="font-wds-sans text-[13px] text-wds-text-secondary">The sent figure is never shown here. Count {flagged.length === 1 ? (flagged[0] ? itemWord(flagged[0].itemName) : 'the item') : 'the flagged items'} again to go on.</p>
             </>
           ) : null}
 
@@ -282,7 +275,7 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                 <h3 className="font-wds-sans text-[18px] font-semibold text-wds-text-ink">{currentReasonLine.itemName}: why is it different?</h3>
                 <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Your second count, {currentReasonLine.countedQty}, is final. This line will be marked {currentReasonLine.state === 'SHORT' ? 'short' : 'extra'}.</p>
               </div>
-              <ChoiceChips label="Why it is different" value={currentReasonLine.reason ?? ''} options={COUNT_REASONS.map((r) => ({ value: r, label: COUNT_REASON_TEXT[r] }))} onChange={(next) => void chooseReason(currentReasonLine, next)} disabled={busy} />
+              <ChoiceChips label="Why it is different" value={currentReasonLine.reason ?? ''} options={reasonsFor(currentReasonLine.direction).map((r) => ({ value: r, label: COUNT_REASON_TEXT[r] }))} onChange={(next) => void chooseReason(currentReasonLine, next)} disabled={busy} />
               <div className="flex flex-col gap-2">
                 <MonoLabel>Photos (optional, up to 3)</MonoLabel>
                 <PhotoStrip photos={currentReasonLine.photos} />
@@ -295,29 +288,9 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
             </>
           ) : null}
 
-          {step === 'summary' && preview ? (
-            <>
-              <h3 className="font-wds-sans text-[18px] font-semibold text-wds-text-ink">
-                {preview.lineCount} lines · {preview.matchingLines.length} match{preview.differingLines.length > 0 ? ` · ${differenceText(preview.differingLines.map((l) => l.direction))}` : ''}
-              </h3>
-              {preview.differingLines.map((l) => (
-                <div key={l.lineId} className="flex flex-col gap-0.5 border border-wds-warning-border bg-wds-warning-bg px-4 py-3">
-                  <p className="font-wds-sans text-[15px] font-medium text-wds-warning-fg">{l.itemName}</p>
-                  <p className="font-wds-sans text-[14px] text-wds-text-ink">
-                    You counted {l.countedQty}, {l.sentQty} were sent.{l.direction === 'EXTRA' ? ` The Store Manager will say what happened to the ${Math.abs(Number(l.gapQty))} extra.` : ''}
-                  </p>
-                  {l.reason ? <p className="font-wds-sans text-[14px] text-wds-text-ink">Reason: {COUNT_REASON_TEXT[l.reason].toLowerCase()}.</p> : null}
-                </div>
-              ))}
-              {preview.differingLines.length === 0 ? <p className="border border-wds-success-border bg-wds-success-bg px-4 py-3 font-wds-sans text-[14px] text-wds-success-fg">Every line matches what was sent.</p> : null}
-              <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
-                Signed by {preview.signedBy.name}, {preview.signedBy.roleLabel}, on behalf of {departmentName}. The record shows who really counted.
-              </p>
-            </>
-          ) : null}
-
           {step === 'pin' ? (
             <>
+              <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Signed by you, on behalf of {departmentName}. The record shows who really counted.</p>
               <PinField wide value={pin} onChange={setPin} onSubmit={() => void onPrimary()} invalid={confirm.failure?.code === 'INVALID_PIN'} id="confirm-for-department-pin" />
               {confirm.failure?.code === 'INVALID_PIN' ? <p role="alert" className="font-wds-sans text-[13px] text-wds-error-fg">That PIN is not right. Try again.</p> : null}
               <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">If someone from {departmentName} confirms first, you will see who and when, and nothing is written twice.</p>

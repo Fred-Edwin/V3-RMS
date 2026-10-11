@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2Header, B2PrimaryButton, SectionLabel } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
-import { couldNotLoad } from '../../../_shared/lib/block2-words';
+import { couldNotLoad, linesText } from '../../../_shared/lib/block2-words';
 import { useDispatchQueue, usePackReview } from '../../hooks/use-phone-dispatch';
 import { countWord, shortSummary } from '../../lib/pack-logic';
 import { DISPATCH_HOME, packDepartment, packReview } from '../../lib/phone-routes';
@@ -68,7 +68,7 @@ export function PackOverviewScreen({ requisitionId }: { requisitionId: string })
 
   return (
     <PhoneColumn>
-      <B2Header title={title} subtitle={`${data.reference} · ${data.cycleLabel.split(' · ')[0] ?? data.cycleLabel} · ${data.lineCount} lines`} mono leading="back" onBack={() => router.push(DISPATCH_HOME)} place="CENTRAL STORE" />
+      <B2Header title={title} subtitle={`${data.reference} · ${data.cycleLabel.split(' · ')[0] ?? data.cycleLabel} · ${linesText(data.lineCount)}`} mono leading="back" onBack={() => router.push(DISPATCH_HOME)} place="CENTRAL STORE" />
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto bg-wds-canvas p-5">
         <div className="flex flex-col gap-2.5">
           <SectionLabel>

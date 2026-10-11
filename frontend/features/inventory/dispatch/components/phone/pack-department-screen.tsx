@@ -8,7 +8,7 @@ import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { BottomSheet, SheetGrabber } from '../../../_shared/components/bottom-sheet';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
-import { B2ErrorNote, B2Footer, B2Header, B2PrimaryButton, SectionLabel } from '../../../_shared/components/block2-phone-parts';
+import { B2ErrorNote, B2Footer, B2Header, B2PrimaryButton, SectionLabel, TextAction } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { block2ErrorMessage, couldNotLoad, detailIds, errorCodeOf, OFFLINE_PACK_MESSAGE } from '../../../_shared/lib/block2-words';
 import { useRestoreFocus } from '../../../requisitions/hooks/use-restore-focus';
@@ -119,6 +119,16 @@ export function PackDepartmentScreen({ requisitionId, departmentId }: { requisit
     edit(line, { packedTick: !line.packedTick });
   };
 
+  // One tap ticks every line the store can fill in full, at the quantity asked. A line short in store still needs the sheet's decision.
+  const packAsAsked = (): void => {
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const l of latest.current) if (!l.packedTick && !l.notEnough) next[l.lineId] = { sentQty: l.sentQty, packedTick: true };
+      return next;
+    });
+    queueSave();
+  };
+
   const total = lines.length;
   const done = ticked(lines);
   const left = total - done;
@@ -166,7 +176,11 @@ export function PackDepartmentScreen({ requisitionId, departmentId }: { requisit
           <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink" aria-live="polite">
             {done} of {total} packed
           </p>
-          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Tap a number to change it</p>
+          {lines.some((l) => !l.packedTick && !l.notEnough) ? (
+            <TextAction onClick={packAsAsked}>Pack as asked</TextAction>
+          ) : (
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Tap a number to change it</p>
+          )}
         </div>
         <div className="h-1 w-full bg-wds-neutral-100" role="progressbar" aria-label="Lines packed" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
           <div className="h-1 bg-wds-success-fg transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${total === 0 ? 0 : Math.round((done / total) * 100)}%` }} />

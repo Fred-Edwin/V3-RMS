@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2Footer, B2Header, B2SecondaryButton } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
-import { couldNotLoad } from '../../../_shared/lib/block2-words';
+import { couldNotLoad, linesText } from '../../../_shared/lib/block2-words';
 import { formatQty } from '../../../requisitions/lib/qty';
 import { usePackReview } from '../../hooks/use-phone-dispatch';
 import { reviewTotals } from '../../lib/pack-logic';
@@ -63,7 +63,7 @@ export function ReviewLinesScreen({ requisitionId }: { requisitionId: string }) 
     <PhoneColumn>
       <B2Header
         title="Everything you are sending"
-        subtitle={`${totals.lineCount} lines · ${totals.shipping.length} ${totals.shipping.length === 1 ? 'department' : 'departments'}${totals.shortCount > 0 ? ` · ${totals.shortCount} short` : ''}`}
+        subtitle={`${linesText(totals.lineCount)} · ${totals.shipping.length} ${totals.shipping.length === 1 ? 'department' : 'departments'}${totals.shortCount > 0 ? ` · ${totals.shortCount} short` : ''}`}
         tall
         leading="back"
         onBack={back}
@@ -78,7 +78,7 @@ export function ReviewLinesScreen({ requisitionId }: { requisitionId: string }) 
           <section key={d.departmentId} aria-label={d.departmentName}>
             <div className="flex items-center justify-between border-b border-wds-border bg-wds-neutral-100 px-5 py-[9px]">
               <h2 className="font-wds-sans text-[13px] font-semibold leading-[18px] text-wds-text-ink">{d.departmentName}</h2>
-              <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} lines</span>
+              <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{linesText(d.lineCount)}</span>
             </div>
             <ul>
               {data.lines
@@ -98,7 +98,7 @@ export function ReviewLinesScreen({ requisitionId }: { requisitionId: string }) 
         {staying.length > 0 ? (
           <section aria-label="Staying at the store">
             <h2 className="border-b border-wds-border bg-wds-neutral-50 px-5 py-3 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">
-              Staying at the store · {stayingLines} lines
+              Staying at the store · {linesText(stayingLines)}
             </h2>
             <ul>
               {staying.map((d) => (
@@ -107,7 +107,7 @@ export function ReviewLinesScreen({ requisitionId }: { requisitionId: string }) 
                     <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{d.departmentName}</span>
                     <span className={cn('font-wds-sans text-[12px] leading-4', d.allTicked ? 'text-wds-text-secondary' : 'text-wds-warning-fg')}>{d.allTicked ? 'Left out · ships later' : 'Not ready · stays in To pack'}</span>
                   </div>
-                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-faint">{d.lineCount} lines</span>
+                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-faint">{linesText(d.lineCount)}</span>
                 </li>
               ))}
             </ul>

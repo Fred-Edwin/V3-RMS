@@ -353,6 +353,8 @@ export interface PinFieldProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit?: () => void;
+  /** Called with the PIN the moment the fourth digit is typed, so a screen can sign without another tap. */
+  onComplete?: (value: string) => void;
   error?: string | null;
   disabled?: boolean;
   label?: string;
@@ -362,7 +364,7 @@ export interface PinFieldProps {
 }
 
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
-export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
+export function PinField({ id, value, onChange, onSubmit, onComplete, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
   const paper = size === 'paper';
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
@@ -383,7 +385,11 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
         pattern="[0-9]*"
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+        onChange={(e) => {
+          const next = e.target.value.replace(/\D/g, '').slice(0, 4);
+          onChange(next);
+          if (next.length === 4 && value.length < 4) onComplete?.(next);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && onSubmit) {
             e.preventDefault();

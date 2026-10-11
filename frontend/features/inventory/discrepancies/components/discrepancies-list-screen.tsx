@@ -20,6 +20,9 @@ import { COUNT_REASON_TEXT } from '../../dispatch/_shared/types/dispatch-contrac
 import { EMPTY } from '../../dispatch/lib/dispatch-words';
 import { useRecordNudge } from '../../dispatch/hooks/use-record-nudge';
 import { discrepanciesApi } from '../../dispatch/services/branch-side-api';
+import { useWdsToastStore } from '@/store/wdsToastStore';
+import { openLinesOfDelivery } from '../lib/delivery-findings';
+import { DeliveryFindingsDrawer } from './delivery-findings-drawer';
 import { FINDING_TEXT, type DiscrepancyRow, type DiscrepancyTab, type ListDiscrepancies } from '../_shared/types/discrepancies-contract';
 
 const SETTLED_DATE = { kind: 'dateRange', fromKey: 'from', toKey: 'to', label: 'Date', defaultPreset: 'last30', allowAny: true } as const satisfies TableFilter;
@@ -49,6 +52,18 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
   const departments = useLoader(ready ? 'departments' : null, () => departmentsApi.list(), 'Could not load departments.');
   const tab: DiscrepancyTab = params.get('tab') === 'settled' ? 'settled' : 'open';
   const hub = branches !== undefined;
+  // The page's rows, kept so a delivery with several open lines opens one drawer for all of them (Paper chapter 14, D).
+  const pageRows = React.useRef<DiscrepancyRow[]>([]);
+  const [group, setGroup] = React.useState<{ reference: string; department: string; ids: string[] } | null>(null);
+  const actionLabel = (r: DiscrepancyRow): string => {
+    const n = openLinesOfDelivery(pageRows.current, r).length;
+    return n > 1 ? `Record findings (${n})` : 'Record a finding';
+  };
+  const recordFor = (r: DiscrepancyRow): void => {
+    const lines = openLinesOfDelivery(pageRows.current, r);
+    if (lines.length > 1) setGroup({ reference: r.dispatch.reference, department: r.department.name, ids: lines.map((l) => l.id) });
+    else router.push(`${base}/discrepancies/${r.id}?drawer=finding`);
+  };
 
   useRecordNudge(() => setRefresh((n) => n + 1));
   React.useEffect(() => {
@@ -115,8 +130,8 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
       align: 'right',
       cell: (r) =>
         tab === 'open' && r.can.recordFinding ? (
-          <Button onClick={(event) => { event.stopPropagation(); router.push(`${href(r.id)}?drawer=finding`); }} className="h-9 w-[170px] px-0 text-[14px] leading-[18px]">
-            Record a finding<span className="sr-only"> for {r.reference}</span>
+          <Button onClick={(event) => { event.stopPropagation(); recordFor(r); }} className="h-9 w-[170px] px-0 text-[14px] leading-[18px]">
+            {actionLabel(r)}<span className="sr-only"> for {r.reference}</span>
           </Button>
         ) : (
           <Button variant="secondary" onClick={(event) => { event.stopPropagation(); router.push(href(r.id)); }} className="h-9 w-[170px] px-0 text-[14px] leading-[18px]">
@@ -156,8 +171,8 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
               <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{r.itemName} · {r.department.name} · {r.branch.name}</span>
               <div className="flex items-center justify-between gap-3">
                 <span className="font-wds-mono text-[13px] text-wds-text-ink">{tab === 'open' ? openedFor(r.openedAt, now).text : r.finding ? FINDING_TEXT[r.finding.finding] : ''}</span>
-                <Button variant={tab === 'open' && r.can.recordFinding ? 'primary' : 'secondary'} onClick={() => router.push(tab === 'open' && r.can.recordFinding ? `${href(r.id)}?drawer=finding` : href(r.id))} className="h-11 px-5 text-[14px]">
-                  {tab === 'open' && r.can.recordFinding ? 'Record a finding' : 'Open'}
+                <Button variant={tab === 'open' && r.can.recordFinding ? 'primary' : 'secondary'} onClick={() => (tab === 'open' && r.can.recordFinding ? recordFor(r) : router.push(href(r.id)))} className="h-11 px-5 text-[14px]">
+                  {tab === 'open' && r.can.recordFinding ? actionLabel(r) : 'Open'}
                 </Button>
               </div>
             </div>
@@ -175,10 +190,23 @@ export function DiscrepanciesListScreen({ base, section: crumb }: { base: string
             const res = await discrepanciesApi.list({ tab, q: q.search || undefined, branchId: q.filters.branchId, departmentId: q.filters.departmentId, from: range?.from, to: range?.to, page: q.page, pageSize: q.perPage as 25 | 50 | 100 });
             setCounts(res.counts);
             setBranches(res.branches);
+            pageRows.current = res.rows;
             return { rows: res.rows, total: res.page.total };
           }}
         />
       </main>
+      <DeliveryFindingsDrawer
+        dispatchReference={group?.reference ?? ''}
+        departmentName={group?.department ?? ''}
+        discrepancyIds={group?.ids ?? []}
+        open={group !== null}
+        onOpenChange={(next) => (next ? undefined : setGroup(null))}
+        onRecorded={(count) => {
+          setGroup(null);
+          useWdsToastStore.getState().addToast({ variant: 'success', title: `${count} ${count === 1 ? 'finding' : 'findings'} recorded` });
+          setRefresh((n) => n + 1);
+        }}
+      />
     </div>
   );
 }

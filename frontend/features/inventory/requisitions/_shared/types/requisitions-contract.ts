@@ -264,6 +264,8 @@ export interface Badges {
   requisitions: number;
   toApprove?: number;
   toPack?: number;
+  /** Open discrepancies the caller can see: the sidebar badge on Discrepancies. */
+  discrepancies?: number;
   deliveries?: number;
   /** Dispatch Amendment 1 row 16: the Attendant's Dispatch row (branches to pack). */
   dispatch?: number;

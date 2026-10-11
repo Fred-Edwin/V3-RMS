@@ -17,7 +17,7 @@ const RULE = 'border-[#D5DCE4]';
 
 function Sheet({ children, page, pages, reference, generatedAt }: { children: React.ReactNode; page: number; pages: number; reference: string; generatedAt: string }) {
   return (
-    <article className="relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col break-after-page bg-white px-12 pb-9 pt-0 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
+    <article className="print-exact relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col break-after-page bg-white px-12 pb-9 pt-0 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
       <div aria-hidden className="-mx-12 h-[6px] bg-[#0B2A4A]" />
       {children}
       <footer className={`mt-auto flex items-end justify-between border-t pt-3 text-[10px] leading-3 ${RULE} ${MUTED}`}>

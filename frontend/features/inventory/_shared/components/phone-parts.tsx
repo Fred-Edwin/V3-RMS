@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { initialsOf } from '@/lib/initials';
 import { Button } from '@/components/ui2/button';
 import { useAuthStore } from '@/store/authStore';
 
@@ -12,13 +13,7 @@ import { useAuthStore } from '@/store/authStore';
  * green "done" note. The header carries a back arrow (a task) or a menu (a landing screen).
  */
 
-export function initialsOf(name: string | undefined | null): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '';
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
-  return (first + last).toUpperCase();
-}
+export { initialsOf };
 
 export interface PhoneHeaderProps {
   title: string;

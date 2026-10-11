@@ -21,6 +21,7 @@ import { orderService } from '@/services/orderService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
+import { LandOnDeliveries } from '@/features/inventory';
 import { useToast } from '@/hooks/useToast';
 import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
@@ -82,7 +83,17 @@ const getGreetingPrefix = (): 'morning' | 'afternoon' | 'evening' => {
   return 'evening';
 };
 
+/** A department head or member with a delivery on the way lands on Deliveries first (Paper chapter 14, B); everyone else sees the dashboard. */
 export default function DashboardPage(): JSX.Element {
+  return (
+    <>
+      <LandOnDeliveries />
+      <DashboardPageBody />
+    </>
+  );
+}
+
+function DashboardPageBody(): JSX.Element {
   const router = useRouter();
   const { toast } = useToast();
   const user = useAuthStore((state) => state.user);

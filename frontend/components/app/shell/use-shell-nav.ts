@@ -9,6 +9,7 @@ import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
 import { useCommsStore } from '@/store/commsStore';
 import type { AppRole } from '@/types/auth';
+import { initialsOf as sharedInitialsOf } from '@/lib/initials';
 import { activeFor, hasHubRows, navFor, type ActiveNav, type NavBadge } from './nav-table';
 import { roleLabel } from './role-label';
 import type { SidebarNavGroup, SidebarNavUser } from './sidebar-nav';
@@ -53,15 +54,7 @@ function orgLabelFor(role: AppRole | null, organizationName: string | null | und
   }
 }
 
-const initialsOf = (name: string | undefined): string => {
-  if (!name) return '—';
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-};
+const initialsOf = (name: string | undefined): string => sharedInitialsOf(name) || '—';
 
 export interface ShellNav {
   groups: SidebarNavGroup[];
@@ -87,7 +80,11 @@ export function useShellNav(): ShellNav {
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
   // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
-  const requisitionCount = useRequisitionBadges(hasHubRows(role) && can('requisitions.read'))?.requisitions ?? 0;
+  // The Branch Manager's own branch asks too (a delivery waiting joins the Queue count; open shortages badge Discrepancies); the server decides what they may see.
+  // A department head or member asks too, for the Deliveries badge (deliveries waiting for their department).
+  const requisitionBadges = useRequisitionBadges((hasHubRows(role) && can('requisitions.read')) || role === 'MANAGER' || isDepartmentHead || isDepartmentMember);
+  const requisitionCount = (requisitionBadges?.requisitions ?? 0) + (role === 'MANAGER' ? requisitionBadges?.deliveries ?? 0 : 0);
+  const discrepancyCount = requisitionBadges?.discrepancies ?? 0;
   // The Store Attendant's Purchasing counts (Receiving, Restock list, My orders): only someone who raises but cannot approve orders.
   const purchasingBadges = usePurchasingBadges(hasHubRows(role) && can('orders.request') && !can('orders.approve'));
   // What blocks the close today, beside Today in the Branch Manager's Day group (only someone who closes the day is told).
@@ -113,6 +110,8 @@ export function useShellNav(): ShellNav {
       inbox: unreadInbox,
       'prep-needs-look': needsLook,
       requisitions: requisitionCount,
+      discrepancies: discrepancyCount,
+      deliveries: requisitionBadges?.deliveries ?? 0,
       'branch-day-todo': dayTodo,
       'purchasing-receiving': purchasingBadges?.receiving ?? 0,
       'purchasing-restock': purchasingBadges?.restock ?? 0,
@@ -131,7 +130,7 @@ export function useShellNav(): ShellNav {
         subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
-  }, [tableGroups, unreadInbox, needsLook, requisitionCount, dayTodo, purchasingBadges]);
+  }, [tableGroups, unreadInbox, needsLook, requisitionCount, discrepancyCount, dayTodo, purchasingBadges]);
 
   const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
 

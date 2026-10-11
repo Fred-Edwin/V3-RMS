@@ -14,7 +14,7 @@ import { block2ErrorMessage, couldNotLoad, errorCodeOf, OFFLINE_COUNT_MESSAGE } 
 import type { CountLine, CountView } from '../../_shared/types/deliveries-contract';
 import { useCountView } from '../../hooks/use-deliveries';
 import { DELIVERIES_HOME, deliveryConfirm } from '../../lib/delivery-routes';
-import { countFooterNote, isFlagged, reasonPosition, validCount } from '../../lib/count-logic';
+import { countFooterNote, isFlagged, validCount } from '../../lib/count-logic';
 import { deliveriesApi } from '../../services/deliveries-phone-api';
 import { ReasonSheet } from './reason-sheet';
 
@@ -29,7 +29,7 @@ export function CountScreen({ id }: { id: string }) {
 
   const [typed, setTyped] = React.useState<Record<string, string>>({});
   const [recounted, setRecounted] = React.useState<ReadonlySet<string>>(new Set());
-  const [firstCounts, setFirstCounts] = React.useState<Record<string, string>>({});
+  const [, setFirstCounts] = React.useState<Record<string, string>>({});
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [queue, setQueue] = React.useState<string[]>([]);
@@ -140,7 +140,7 @@ export function CountScreen({ id }: { id: string }) {
     }
   };
 
-  const sheetLine = view?.lines.find((l) => l.lineId === queue[0]) ?? null;
+  const sheetLines = view ? view.lines.filter((l) => queue.includes(l.lineId)) : [];
   const back = (): void => router.push(DELIVERIES_HOME);
 
   if (loader.status === 'error' && !view) {
@@ -218,15 +218,12 @@ export function CountScreen({ id }: { id: string }) {
       </B2Footer>
       <ReasonSheet
         deliveryId={id}
-        line={sheetLine}
-        position={reasonPosition(view.lines.filter((l) => l.state === 'SHORT' || l.state === 'EXTRA').map((l) => l.lineId), sheetLine?.lineId)}
-        firstCount={sheetLine ? (firstCounts[sheetLine.lineId] ?? null) : null}
+        lines={sheetLines}
         onClose={() => setQueue([])}
         onSaved={(updated) => {
-          loader.setData({ ...view, lines: view.lines.map((l) => (l.lineId === updated.lineId ? { ...l, reason: updated.reason, photos: updated.photos } : l)) });
-          const rest = queue.slice(1);
-          setQueue(rest);
-          if (rest.length === 0) router.push(deliveryConfirm(id));
+          loader.setData({ ...view, lines: view.lines.map((l) => { const u = updated.find((x) => x.lineId === l.lineId); return u ? { ...l, reason: u.reason, photos: u.photos } : l; }) });
+          setQueue([]);
+          router.push(deliveryConfirm(id));
         }}
       />
     </PhoneColumn>
