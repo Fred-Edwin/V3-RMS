@@ -60,6 +60,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
   return (
     <SignSheetDialog
       layout="sheet"
+      signOnLastDigit
       open={open}
       onOpenChange={onOpenChange}
       title={SEND_SHEET_COPY.title(departmentName)}

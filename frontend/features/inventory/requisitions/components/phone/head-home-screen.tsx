@@ -338,8 +338,8 @@ function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { r
     const sentWords = row.tone === 'good' ? 'items approved' : row.sentAt ? `${items(row.lineCount)} sent at ${timeText(row.sentAt)}` : `${items(row.lineCount)} sent`;
     body = (
       <>
-        <Greeting id="req-hero" text={`${row.tone === 'good' ? 'Approved' : 'All sent'}${firstName ? `, ${firstName}` : ''}`} />
-        {row.lineCount > 0 ? <BigNumber n={row.lineCount} line={sentWords} sub={row.tone === 'waiting' ? "You'll be told when it is approved" : row.state} /> : <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{row.state}</p>}
+        <Greeting id="req-hero" text={row.tone === 'good' ? hello : `All sent${firstName ? `, ${firstName}` : ''}`} />
+        {row.lineCount > 0 ? <BigNumber n={row.lineCount} line={sentWords} sub={row.tone === 'waiting' ? "You'll be told when it is approved" : 'With the Central Store'} /> : <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{row.state}</p>}
       </>
     );
     button = 'See what you sent';
