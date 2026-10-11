@@ -12,7 +12,7 @@ import type { Summary } from '../../types';
 import { NeedsRestockingTab } from '../needs-restocking-tab';
 import { OrdersTab } from '../orders-tab';
 import { AwaitingInvoiceTab, ToPayTab } from '../orders-money-tabs';
-import { AttendantPurchasingScreen } from './attendant-purchasing-screen';
+import { HomeScreen } from '../phone/home-screen';
 
 type TabKey = 'needs' | 'approval' | 'receive' | 'invoice' | 'pay' | 'closed';
 
@@ -48,9 +48,9 @@ export function PurchasingScreen() {
     };
   }, [service, data, ready]);
 
-  // Whoever raises requests but cannot approve them (the Store Attendant in the access table) gets Restock, To receive and My orders
-  // (Paper chapter 9) instead of the six stage tabs. Decided from capabilities, never from a role name.
-  if (ready && can('orders.request') && !can('orders.approve')) return <AttendantPurchasingScreen />;
+  // Whoever raises requests but cannot approve them (the Store Attendant in the access table) gets the phone Purchasing home
+  // (Paper chapter 9, 28A) instead of the six stage tabs. Decided from capabilities, never from a role name.
+  if (ready && can('orders.request') && !can('orders.approve')) return <HomeScreen />;
 
   return (
     <>

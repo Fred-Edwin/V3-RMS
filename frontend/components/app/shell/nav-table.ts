@@ -61,7 +61,7 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'branch-day-todo';
+export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'branch-day-todo' | 'purchasing-receiving' | 'purchasing-restock' | 'purchasing-my-orders';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
 export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
@@ -350,8 +350,25 @@ export const NAV_ROWS: readonly NavRow[] = [
 
   // ── Central Store (every desktop role reads it; the server's permissions table decides what each may open) ──────────────
   // Purchasing and Receiving are one flow on the mock: every desktop role reads it, the phone roles reach it through the order capabilities.
-  { key: 'receiving', label: 'Receiving', group: 'central-store', icon: ReceivingIcon, newHref: '/app/inventory/receiving', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.receive'], hub: true },
-  { key: 'purchasing', label: 'Purchasing', group: 'central-store', icon: PurchasingIcon, newHref: '/app/inventory/purchasing', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.request'], hub: true },
+  { key: 'receiving', label: 'Receiving', group: 'central-store', icon: ReceivingIcon, newHref: '/app/inventory/receiving', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.receive'], hub: true, badge: 'purchasing-receiving' },
+  { key: 'purchasing', label: 'Purchasing', group: 'central-store', icon: PurchasingIcon, newHref: '/app/inventory/purchasing', roles: DESKTOP_HUB, anyCapability: ['orders.read', 'orders.request'], hub: true },
+  // The Store Attendant's Purchasing phone (Paper 28I): the same link with five sub-links. Only one of the two rows shows for a role.
+  {
+    key: 'purchasing',
+    label: 'Purchasing',
+    group: 'central-store',
+    icon: PurchasingIcon,
+    roles: [STORE_ATTENDANT],
+    anyCapability: ['orders.read', 'orders.request'],
+    hub: true,
+    subItems: [
+      { key: 'purchasing-home', label: 'Home', newHref: '/app/inventory/purchasing', roles: [STORE_ATTENDANT] },
+      { key: 'purchasing-restock', label: 'Restock list', newHref: '/app/inventory/purchasing/restock', roles: [STORE_ATTENDANT], badge: 'purchasing-restock' },
+      { key: 'purchasing-my-orders', label: 'My orders', newHref: '/app/inventory/purchasing/my-orders', roles: [STORE_ATTENDANT], badge: 'purchasing-my-orders' },
+      { key: 'purchasing-history', label: 'History', newHref: '/app/inventory/purchasing/history', roles: [STORE_ATTENDANT] },
+      { key: 'purchasing-levels', label: 'Restock levels', newHref: '/app/inventory/purchasing/levels', roles: [STORE_ATTENDANT] },
+    ],
+  },
   {
     key: 'prep',
     label: 'Prep',

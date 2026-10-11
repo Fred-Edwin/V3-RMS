@@ -42,6 +42,7 @@ export { RequisitionsListScreen } from './requisitions/components/requisitions-l
 export { RequisitionFileScreen } from './requisitions/components/requisition-file-screen';
 export { RequisitionPrintScreen } from './requisitions/components/requisition-print-screen';
 export { useRequisitionBadges } from './requisitions/hooks/use-requisition-badges';
+export { usePurchasingBadges } from './purchasing/hooks/use-purchasing-badges';
 
 // Dispatch, deliveries and discrepancies (Block 2, desktop): the dispatch file, delivery notes, Carriers, the discrepancy list and file.
 export { DispatchFileScreen } from './dispatch/components/desktop/dispatch-file-screen';

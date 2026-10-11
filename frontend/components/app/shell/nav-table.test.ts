@@ -169,6 +169,22 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
     expect(keys(hub(navFor(ctxFor('MANAGER', { can: holds() }))))).toEqual([]);
   });
 
+  it('gives the Store Attendant the five Purchasing sub-links with their badges, and everyone else the plain link', () => {
+    const attendant = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('orders.read', 'orders.request') })));
+    const purchasing = item(attendant, 'purchasing');
+    expect(purchasing?.subItems?.map((s) => [s.label, s.href, s.badge])).toEqual([
+      ['Home', '/app/inventory/purchasing', undefined],
+      ['Restock list', '/app/inventory/purchasing/restock', 'purchasing-restock'],
+      ['My orders', '/app/inventory/purchasing/my-orders', 'purchasing-my-orders'],
+      ['History', '/app/inventory/purchasing/history', undefined],
+      ['Restock levels', '/app/inventory/purchasing/levels', undefined],
+    ]);
+    expect(item(hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('orders.read', 'orders.receive') }))), 'receiving')?.badge).toBe('purchasing-receiving');
+    const manager = item(hub(navFor(ctxFor('STORE_MANAGER', { can: holds('orders.read', 'orders.approve') }))), 'purchasing');
+    expect(manager?.subItems).toBeUndefined();
+    expect(manager?.href).toBe('/app/inventory/purchasing');
+  });
+
   it('keeps the Store Attendant to the catalog, Counts and Waste (the page shows them Pick a section, never the desktop count)', () => {
     const groups = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('catalog.read', 'suppliers.read_basic', 'orders.request', 'orders.receive', 'prep.read', 'prep.record', 'counts.record', 'waste.read', 'waste.log') })));
     expect(keys(groups)).toEqual(['receiving', 'purchasing', 'prep', 'dispatch', 'stock-counts', 'catalog']);
