@@ -40,6 +40,26 @@ The head's three screens became one working screen (the owner's "3 taps instead 
 - **Small (F7, F9, F14):** "1 line" grammar, a dash instead of "KES 0" for unpriced items, one Audit log link for the Branch Manager.
 - **Data:** restock levels set on 42 Kitchen and 13 Barista items in the lane 4 database (local only).
 
+## Round two: owner walk and Paper comparison (11 Oct 2026, commits d20fbfda to 4f2bec6c)
+
+Paper was redrawn first (Chapter 13 for the head, Chapter 2 for the manager), approved, then built. Where the built screen differed from Paper it was changed to match.
+
+- **Head home (Paper 1, 2, 8, 9):** a Morning, Afternoon, Extra switcher (a dot and one word of state each) and one dark card. The card carries the cycle and the time, the state at the top right, the greeting, the big number ("11 items sent at 5:22 pm", "12 items are running low", "3 items on your list"), one button and the requisition number. "Need something extra?" for an Extra not started. A "Branch Manager changed N lines" notice. Earlier rows with "N items" and the status. The header reads "Kitchen · Sunday 11 October".
+- **Head working screen and send sheet:** the header reads "REQ… · started 4:17 pm", the footer says "Saved", the switcher has no dot. The send sheet no longer squashes its list when "See every line" opens, and has no note box (as drawn). An empty list no longer shows two contradicting hints. Group headings align with their rows on the status view.
+- **Manager list:** Collecting rows have no button; the row opens the requisition. "Start a requisition" is gone. The row button says "Approve". The "Waiting for…" line names every department that has not sent.
+- **Manager file:** Print is a visible header button (once, not repeated on the Next step card). "Nudge" tells every department that has not sent, and the Next step names them all. "Approve with {names} only" and "Fill {department} in myself" are visible; the ▾ menu is gone. The approved quantity is a plain number until clicked, then an inline reason strip (Enter saves, a reason is required after approval). Items and Activity tabs no longer show counts.
+- **Approve drawer:** the fourth PIN digit signs ("Your PIN · signs on the 4th digit"), "sent without" no longer wraps, and the banner after signing names who was told.
+- **Print:** the signature and the line below show the plain name ("Faith Njeri · Branch Manager Nyeri Town").
+- **A real bug found and fixed:** the reason dropdown in the Cancel dialog (and every select inside a dialog) opened underneath the dialog overlay and could not be clicked. The select list now sits above dialogs (`components/ui2/select.tsx`).
+- **Walked in a browser with real users:** head start, add, send with PIN, recall and resend, add to an approved requisition (PIN) and the manager approving the addition, a quantity change after approval, approve with only, sign, cancel, Print, Documents, Activity, the Director's list. Not exercised: urgent set and clear, the Discrepancies and History lists with data, and the hub's To approve with a real row.
+
+## Found, needs a back-end change
+
+- **Extra starts with all five departments.** An Extra started by the Kitchen head lists Kitchen, Barista, Pastry, Service and Housekeeping, so the manager sees "Nudge the 5 that have not sent". Paper draws an Extra as one department ("Extra · Service only"). The Extra should create only the starter's section.
+- **Activity is noisy.** Every autosave of a draft writes "Changed Barista's list · N lines". It should record the send, not each save.
+- **Home data:** the draft card cannot show "started 4:03 pm" for a requisition other than the open one, and the "Needs you" strip has no data.
+- **Names:** test users carry brackets ("Faith Njeri (BM Nyeri Town)", "Kelvin Kings (Kitchen head, Town)"); the tracker shows them. Real names will not.
+
 ## Left for later
 
 - **F2** dashboard "Needs your action" row and the sidebar badge for the Branch Manager. The badge counts only To approve, so a partly sent requisition never raises it. Needs a back-end change to the badge count (M).
