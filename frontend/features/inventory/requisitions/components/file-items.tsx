@@ -175,7 +175,13 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
   const section = file.sections.find((s) => s.departmentId === selected) ?? file.sections[0];
   const money = file.valueKes !== undefined;
   const inCount = file.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length;
-  const railTitle = file.status === 'APPROVED' || file.status === 'CLOSED' ? 'Departments · approved' : `Departments · ${inCount === file.sections.length ? 'all' : inCount} ${inCount === file.sections.length ? `${file.sections.length} in` : `of ${file.sections.length} in`}`;
+  const skippedCount = file.sections.filter((s) => s.status === 'SKIPPED').length;
+  const railTitle =
+    file.status === 'APPROVED' || file.status === 'CLOSED'
+      ? 'Departments · approved'
+      : skippedCount > 0
+        ? `Departments · ${inCount - skippedCount} in, ${skippedCount} sent without`
+        : `Departments · ${inCount === file.sections.length ? 'all' : inCount} ${inCount === file.sections.length ? `${file.sections.length} in` : `of ${file.sections.length} in`}`;
   if (!section) return null;
   const mainLines = section.lines.filter((l) => l.additionId === null);
   const empty = mainLines.length === 0;
@@ -214,7 +220,7 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
         </ul>
         <div className="flex items-center justify-between bg-wds-neutral-100 px-4 py-3 font-wds-sans text-[14px] text-wds-text-secondary">
           <span>
-            {file.status === 'OPEN' ? 'So far' : 'Total'} · {file.lineCount} lines
+            {file.status === 'OPEN' ? 'So far' : 'Total'} · {file.lineCount} {file.lineCount === 1 ? 'line' : 'lines'}
           </span>
           {money ? <span className="font-wds-mono text-[15px] font-semibold text-wds-text-ink">{kes(file.valueKes ?? '0')}</span> : null}
         </div>
@@ -226,7 +232,7 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
             <h2 className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-wds-text-ink">{section.departmentName}</h2>
             <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
               {section.status === 'SUBMITTED' && section.sentAt
-                ? `${mainLines.length} lines · sent at ${clock(section.sentAt)} by the ${section.sentBy?.roleLabel ?? `${section.departmentName} head`}`
+                ? `${mainLines.length} ${mainLines.length === 1 ? 'line' : 'lines'} · sent at ${clock(section.sentAt)} by the ${section.sentBy?.roleLabel ?? `${section.departmentName} head`}`
                 : section.status === 'SKIPPED' && section.skippedAt
                   ? `Sent without this section at ${clock(section.skippedAt)}`
                   : railWords(section, file.status).line}

@@ -112,7 +112,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
                   <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{group.heading}</p>
                   <p className="font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{group.lines.length}</p>
                 </div>
-                <p className="line-clamp-1 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{group.lines.map((l) => l.itemName).join(', ')}</p>
+                <p className="line-clamp-1 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{group.lines.map((l) => `${l.itemName} × ${formatQty(l.qty)}`).join(', ')}</p>
               </li>
             ))}
           </ul>

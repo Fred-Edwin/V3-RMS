@@ -30,6 +30,21 @@ import { RequisitionDispatchesPanel } from '../../dispatch/components/desktop/re
 
 type View = 'items' | 'documents' | 'activity';
 
+/** "1 of 5 sections in", "all 5 sections in", or "1 of 5 sections in, 4 sent without" once the manager skipped some. */
+function sectionsText(data: RequisitionFile): string {
+  const { sectionsIn, sectionsTotal } = data.nextStep.facts;
+  const skipped = data.sections.filter((s) => s.status === 'SKIPPED').length;
+  if (skipped > 0) return `${sectionsTotal - skipped} of ${sectionsTotal} sections in, ${skipped} sent without`;
+  return `${sectionsIn === sectionsTotal ? `all ${sectionsTotal}` : `${sectionsIn} of ${sectionsTotal}`} sections in`;
+}
+
+/** "Kitchen", "Kitchen and Barista", "the 3 sections that are in". */
+function namesIn(data: RequisitionFile): string {
+  const names = data.sections.filter((s) => s.status === 'SUBMITTED').map((s) => s.departmentName);
+  if (names.length <= 2) return names.join(' and ');
+  return `the ${names.length} sections that are in`;
+}
+
 function FileSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-5">
@@ -52,6 +67,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   const [fillFor, setFillFor] = React.useState<string | null>(null);
   const [menuFailure, setMenuFailure] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [confirmSkip, setConfirmSkip] = React.useState(false);
   const data = file.data;
   const reload = file.reload;
   // Dialogs and sheets opened from a menu return focus to the control that opened the menu (the menu item is gone by then).
@@ -125,17 +141,19 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   };
 
   const sendWithoutMissing = (): void => {
-    void run(() => requisitionsApi.skip(id, { departmentIds: missing.map((m) => m.departmentId) }), { title: 'Sent without the missing section', description: missing.map((m) => m.departmentName).join(', ') });
+    setConfirmSkip(false);
+    void run(() => requisitionsApi.skip(id, { departmentIds: missing.map((m) => m.departmentId) }), { title: missing.length === 1 ? 'Sent without the missing section' : `Sent without ${missing.length} sections`, description: missing.map((m) => m.departmentName).join(', ') });
   };
+  const canApproveWithoutMissing = Boolean(data?.can.skip) && (data?.nextStep.facts.sectionsIn ?? 0) > 0 && missing.length > 0;
 
   const subline = data
     ? [
         data.reference,
         data.branch.name,
         data.status === 'APPROVED' || data.status === 'CLOSED' ? (data.approvedAt ? `approved ${clock(data.approvedAt)}` : null) : `started ${clock(data.openedAt)}`,
-        data.status === 'OPEN' || data.status === 'PENDING_APPROVAL' ? `${data.nextStep.facts.sectionsIn === data.nextStep.facts.sectionsTotal ? `all ${data.nextStep.facts.sectionsTotal}` : `${data.nextStep.facts.sectionsIn} of ${data.nextStep.facts.sectionsTotal}`} sections in` : null,
+        data.status === 'OPEN' || data.status === 'PENDING_APPROVAL' ? sectionsText(data) : null,
         // An approved addition's lines are already in `lineCount`; only the ones still waiting are "added" on top of it.
-        `${data.lineCount} lines${data.additions.some((a) => a.status === 'PENDING') ? ` + ${data.additions.filter((a) => a.status === 'PENDING').reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
+        `${data.lineCount} ${data.lineCount === 1 ? 'line' : 'lines'}${data.additions.some((a) => a.status === 'PENDING') ? ` + ${data.additions.filter((a) => a.status === 'PENDING').reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
         data.valueKes !== undefined ? `KES ${kes(data.valueKes)}${data.status === 'OPEN' ? ' so far' : ''}` : null,
       ]
         .filter(Boolean)
@@ -214,11 +232,17 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
               </div>
               {words.action && words.actionLabel ? (
                 data.nextStep.action === 'NUDGE' ? (
-                  <div className="flex shrink-0">
-                    <Button size="lg" onClick={doNextStep} disabled={busy} className="h-[46px] rounded-r-none px-6 text-[16px]">{words.actionLabel}</Button>
+                  <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+                    {canApproveWithoutMissing ? (
+                      <Button size="lg" variant="secondary" onClick={() => setConfirmSkip(true)} disabled={busy} className="h-[46px] px-5 text-[16px]">
+                        Approve with {namesIn(data)} only
+                      </Button>
+                    ) : null}
+                    <div className="flex">
+                    <Button size="lg" variant={canApproveWithoutMissing ? 'secondary' : 'primary'} onClick={doNextStep} disabled={busy} className="h-[46px] rounded-r-none px-6 text-[16px]">{words.actionLabel}</Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button ref={caretRef} size="lg" aria-label="More ways to deal with the missing section" disabled={busy} className="h-[46px] rounded-l-none border-l border-wds-primary-fg/30 px-3">▾</Button>
+                        <Button ref={caretRef} size="lg" variant={canApproveWithoutMissing ? 'secondary' : 'primary'} aria-label="More ways to deal with the missing section" disabled={busy} className="h-[46px] rounded-l-none border-l border-wds-primary-fg/30 px-3">▾</Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[340px]">
                         {data.sections.find((s) => s.departmentId === data.nextStep.departmentId)?.can.fillMyself ? (
@@ -228,13 +252,14 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                           </DropdownMenuItem>
                         ) : null}
                         {data.can.skip ? (
-                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={sendWithoutMissing}>
-                            <span className="text-[16px]">Send without this section</span>
-                            <span className="text-[14px] text-wds-text-secondary">{data.nextStep.facts.sectionsIn === 1 ? 'Approve the 1 section that is in' : `Approve the ${data.nextStep.facts.sectionsIn} sections that are in`}</span>
+                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={() => setConfirmSkip(true)}>
+                            <span className="text-[16px]">Approve with {namesIn(data)} only</span>
+                            <span className="text-[14px] text-wds-text-secondary">{missing.length === 1 ? `Send without ${missing[0]?.departmentName}` : `Send without the ${missing.length} missing sections`}</span>
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
                 ) : (
                   <Button size="lg" variant={data.nextStep.action === 'PRINT' || data.nextStep.action === 'START_A_NEW_ONE' ? 'secondary' : 'primary'} onClick={doNextStep} disabled={busy} className="h-[46px] shrink-0 px-6 text-[16px]">
@@ -243,6 +268,22 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 )
               ) : null}
             </section>
+            {confirmSkip && canApproveWithoutMissing ? (
+              <section role="alertdialog" aria-labelledby="req-skip-title" className="flex flex-col items-stretch justify-between gap-4 border border-wds-warning-border bg-wds-warning-bg px-6 py-4 sm:flex-row sm:items-center sm:gap-8">
+                <div className="flex max-w-[860px] flex-col gap-1">
+                  <h2 id="req-skip-title" className="font-wds-sans text-[16px] font-semibold leading-6 text-wds-warning-fg">
+                    Send without {missing.map((m) => m.departmentName).join(', ')}?
+                  </h2>
+                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
+                    {missing.length === 1 ? 'That head' : 'Those heads'} will be told and can start an Extra requisition if they still need something. Then you sign for {namesIn(data)}.
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-3">
+                  <Button variant="secondary" onClick={() => setConfirmSkip(false)} disabled={busy}>Keep waiting</Button>
+                  <Button onClick={sendWithoutMissing} disabled={busy}>Send without them</Button>
+                </div>
+              </section>
+            ) : null}
             {menuFailure ? <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-4 py-2.5 font-wds-sans text-[14px] text-wds-error-fg">{menuFailure}</p> : null}
             {data.cancelled ? (
               <p className="border border-wds-border-strong bg-wds-neutral-50 px-4 py-3 font-wds-sans text-[15px] text-wds-text-ink">

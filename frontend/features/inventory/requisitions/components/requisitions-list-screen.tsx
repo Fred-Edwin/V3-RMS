@@ -66,7 +66,8 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const [refresh, setRefresh] = React.useState(0);
   const [startOpen, setStartOpen] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
-  const phone = useMediaQuery('(max-width: 639px)').matches;
+  const openedOnWork = React.useRef(false);
+  const phone =useMediaQuery('(max-width: 639px)').matches;
   const departments = useLoader(ready ? 'departments' : null, () => departmentsApi.list(), 'Could not load departments.');
 
   // Another person's change (a head sends, someone approves) reloads the rows and the tab counts at once.
@@ -295,6 +296,11 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
             });
             setTabCounts(res.tabCounts);
             setActiveTab(res.tab);
+            // Open on the tab that has work: nothing to approve but sections coming in means the queue opens on Collecting.
+            if (mode === 'queue' && !forcedTab && !openedOnWork.current) {
+              openedOnWork.current = true;
+              if (res.tab === 'to-approve' && res.tabCounts['to-approve'] === 0 && res.tabCounts.collecting > 0) setTab('collecting');
+            }
             setWaiting(res.waitingForYou);
             setBranches(res.branches ?? null);
             setShowValue(res.rows.some((r) => r.valueKes !== undefined));

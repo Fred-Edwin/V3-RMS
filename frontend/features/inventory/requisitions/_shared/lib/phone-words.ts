@@ -127,10 +127,27 @@ export const ADD_ITEM_COPY = {
   addedToList: (unit: string): string => `Added to your list · ${unit}`,
   onHandLevel: (onHand: string | undefined, level: string | undefined, unit: string): string =>
     onHand !== undefined && level !== undefined ? `On hand ${onHand} ${unit} · Level ${level}` : unit,
-  summary: (lines: number, added: number): string => `${lines} lines · ${added} added`,
+  summary: (lines: number, added: number): string => `${lines} ${lines === 1 ? 'line' : 'lines'} · ${added} added`,
   back: 'Back to my list',
   none: 'No item matches. Clear the search to see every item for your department.',
   clear: 'Clear the search',
+} as const;
+
+/** The merged working screen (the list, the search and the extra items on one page). */
+export const WORK_COPY = {
+  yourList: 'Your list',
+  searchPlaceholder: (department: string): string => `Search ${department.toLowerCase()} items`,
+  nothingBelowLevel: (department: string): string => `Nothing in ${department} is below its restock level. Search or browse to add what you need.`,
+  suggestedIntro: 'Filled in from your restock levels. Change what you need; the Branch Manager sees what you changed.',
+  otherItems: (n: number): string => `Other items (${n})`,
+  showOthers: 'Show',
+  hideOthers: 'Hide',
+  noMatch: 'No item matches. Clear the search to see your list again.',
+  switchTo: 'Switch requisition',
+  sendItems: (n: number): string => `Send ${n} ${n === 1 ? 'item' : 'items'}`,
+  starting: 'Opening your list',
+  startFailed: 'Could not open your list. Nothing was changed. Try again.',
+  retry: 'Try again',
 } as const;
 
 export const SEND_SHEET_COPY = {
@@ -307,6 +324,17 @@ export const HISTORY_COPY = {
   cancelledOn: (when: string, reason: string | null): string => (reason ? `Cancelled ${when} · ${reason}` : `Cancelled ${when}`),
   notSent: 'Not sent',
 } as const;
+
+/**
+ * The status chip text on a head's list rows. Before approval the requisition's own word ("Collecting") describes every
+ * department together, so a head sees the state of their own list instead.
+ */
+export function headStatusText(requisitionStatus: RequisitionStatus, requisitionText: string, sectionStatus: SectionStatus): string {
+  if (requisitionStatus !== 'OPEN' && requisitionStatus !== 'PENDING_APPROVAL') return requisitionText;
+  if (sectionStatus === 'SUBMITTED') return 'Sent, waiting for approval';
+  if (sectionStatus === 'SKIPPED') return 'Skipped';
+  return 'Not sent yet';
+}
 
 /** The reason shown on a row: "preset — note" reads "preset · note". */
 export const cancelReasonText = (reason: string | null): string | null => (reason ? reason.replace(' — ', ' · ') : null);

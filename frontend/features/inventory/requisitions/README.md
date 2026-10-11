@@ -13,9 +13,9 @@ The mirror is exported from `index.ts` (the old `types/` that clashed by name is
 
 | Route | Screen | Paper |
 |---|---|---|
-| `/app/requisitions` | `HeadHomeScreen`: cycle picker, Start, urgent Extra with note, Earlier today | 1, 18 |
-| `/app/requisitions/[id]` | `HeadFileScreen`: suggested lines + Send as suggested; sent (Recall); manager changed a line; approved with the store (Add); closed, cancelled, skipped | 2, 5, 6, 10, 14 |
-| `/app/requisitions/[id]/edit` (`?add=1`) | `HeadEditScreen`: Change lines (steppers, remove + Undo, autosave) and Add an item | 3, 4 |
+| `/app/requisitions` (`?cycle=MORNING\|AFTERNOON\|EXTRA`) | `HeadHomeScreen`: a redirector. Opens the cycle's requisition (cycle by time of day), or starts it quietly and goes straight to the list. Only an Extra keeps a card (urgent switch, note, Start) | 1, 18 (changed 11 Oct 2026) |
+| `/app/requisitions/[id]` | `HeadFileScreen`: while the list is open it shows `HeadWorkScreen` (cycle switcher, urgent, search, the list pre-filled from restock levels with steppers, remove + Undo, autosave, "Other items" with + Add, sticky "Send N items"); once sent, the status view: banner, the items with quantities (asked to approved), Where it is, Recall or Add | 2, 3, 4, 5, 6, 10, 14 (changed 11 Oct 2026) |
+| `/app/requisitions/[id]/edit` | `HeadEditScreen`: only forwards to the file route, so old links still work | (retired) |
 | `/app/requisitions/[id]/add` (`?pick=1`) | `HeadAdditionScreen`: add to an approved requisition, PIN-signed | 15 |
 | `/app/requisitions/history` | `HeadHistoryScreen`: date range, status, numbered pager, all in the URL | G1 |
 

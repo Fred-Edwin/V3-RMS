@@ -7,7 +7,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';
 import { initialsOf } from '../../../_shared/components/phone-parts';
 import { PHONE_SECONDARY_BUTTON } from '../../../_shared/lib/phone-styles';
-import type { Banner, RailStep } from '../../_shared/lib/phone-words';
+import { URGENT_SWITCH, type Banner, type RailStep } from '../../_shared/lib/phone-words';
+import { CYCLE_TEXT, REQUISITION_CYCLES, type RequisitionCycle } from '../../_shared/types/requisitions-contract';
 
 /**
  * Parts of the Department Head's phone screens, drawn from Paper steps 1 to 6, 10, 14, 15, 18 and G1: the dark header (a back arrow
@@ -230,6 +231,116 @@ export function Stepper({ itemName, value, onChange, onCommit, onStep, changed =
         <span aria-hidden="true">+</span>
       </button>
     </div>
+  );
+}
+
+/**
+ * Morning, Afternoon, Extra: three joined segments. The picked one is caramel with a 2 px primary underline. A dot marks a cycle
+ * that already has a requisition today. `compact` is the slim version that sits under the header of the working screen.
+ */
+export function CycleSwitcher({
+  value,
+  onChange,
+  open,
+  labelledBy,
+  compact = false,
+}: {
+  value: RequisitionCycle;
+  onChange: (c: RequisitionCycle) => void;
+  open: Partial<Record<RequisitionCycle, unknown>>;
+  labelledBy: string;
+  compact?: boolean;
+}) {
+  return (
+    <div role="radiogroup" aria-labelledby={labelledBy} className="flex border border-wds-border-strong">
+      {REQUISITION_CYCLES.map((c, i) => {
+        const selected = c === value;
+        return (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            // One tab stop for the group; the arrow keys move the choice and the focus (radio group pattern).
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(c)}
+            onKeyDown={(e) => {
+              const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+              if (!step) return;
+              e.preventDefault();
+              const next = REQUISITION_CYCLES[(i + step + REQUISITION_CYCLES.length) % REQUISITION_CYCLES.length];
+              if (!next) return;
+              onChange(next);
+              (e.currentTarget.parentElement?.querySelectorAll('[role=radio]')[REQUISITION_CYCLES.indexOf(next)] as HTMLElement | undefined)?.focus();
+            }}
+            className={cn(
+              'relative flex min-w-0 grow basis-0 items-center justify-center gap-1.5 font-wds-sans text-[14px] leading-[18px] outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring',
+              compact ? 'h-10' : 'h-11',
+              i > 0 && 'border-l border-wds-border-strong',
+              'active:bg-wds-caramel-100/70 motion-safe:active:scale-[0.99]',
+              selected ? 'border-b-2 border-b-wds-selected-edge bg-wds-caramel-100 font-medium text-wds-selected-edge' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50 hover:text-wds-text-ink',
+            )}
+          >
+            {CYCLE_TEXT[c]}
+            {open[c] ? <span className="size-1.5 rounded-full bg-wds-success-fg" role="img" aria-label="already started" /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The after-start Urgent switch. Paper draws Urgent only at start (step 18); the contract lets a head set or clear it on their own
+ * section before approval (R15), so this row is designed in the same style and reported to the owner.
+ */
+export function UrgentRow({ on, busy, onToggle, disabled, inline = false }: { on: boolean; busy: boolean; onToggle: () => void; disabled: boolean; inline?: boolean }) {
+  if (disabled && !on) return null;
+  return (
+    <div className={cn('flex items-center justify-between gap-4 border-b border-wds-border px-5 py-3', inline ? 'border border-wds-border bg-wds-surface' : 'bg-wds-surface', on && 'bg-wds-error-bg')}>
+      <p id="req-urgent-row" className={cn('font-wds-sans text-[14px] font-medium leading-[18px]', on ? 'text-wds-error-fg' : 'text-wds-text-ink')}>
+        {URGENT_SWITCH.title}
+      </p>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby="req-urgent-row"
+        disabled={disabled || busy}
+        onClick={onToggle}
+        className={cn('relative -my-1 h-7 w-12 shrink-0 rounded-full p-1 outline-none before:absolute before:-inset-y-2 before:inset-x-0 before:content-[""] transition-[background-color,filter] duration-150 hover:brightness-95 focus-visible:shadow-wds-ring active:brightness-90 disabled:opacity-60', on ? 'bg-wds-error-fg' : 'bg-wds-border-strong')}
+      >
+        <span aria-hidden="true" className={cn('block size-5 rounded-full bg-wds-surface transition-transform duration-150 motion-reduce:transition-none', on ? 'translate-x-5' : 'translate-x-0')} />
+      </button>
+    </div>
+  );
+}
+
+/** The search box of the working screen: a 44 px field with a clear button. */
+export function SearchField({ value, onChange, placeholder, clearLabel = 'Clear the search' }: { value: string; onChange: (v: string) => void; placeholder: string; clearLabel?: string }) {
+  return (
+    <label className="flex h-11 items-center gap-2.5 border border-wds-border-strong bg-wds-surface px-3 transition-shadow duration-150 focus-within:border-wds-selected-edge focus-within:shadow-wds-ring">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0 text-wds-text-secondary">
+        <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M11 11L14.5 14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <span className="sr-only">{placeholder}</span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="min-w-0 grow bg-transparent font-wds-sans text-[15px] leading-5 text-wds-text-ink outline-none placeholder:text-wds-text-secondary [&::-webkit-search-cancel-button]:hidden"
+      />
+      {value ? (
+        <button type="button" onClick={() => onChange('')} aria-label={clearLabel} className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-wds-sm outline-none focus-visible:shadow-wds-ring">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M2 2L12 12M12 2L2 12" fill="none" stroke="var(--wds-text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      ) : null}
+    </label>
   );
 }
 

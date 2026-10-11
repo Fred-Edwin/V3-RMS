@@ -15,8 +15,17 @@ describe('requisitions words', () => {
 
   it('writes the Ready to approve card from Paper', () => {
     const words = nextStepWords(file);
-    expect(words.title).toBe('Everything is in. Ready for your signature.');
+    // The fixture has a skipped department, so the card says how many were sent without instead of "Everything is in".
+    expect(words.title).toBe('Ready for your signature.');
+    expect(words.body).toContain('sent without');
     expect(words.actionLabel).toBe('Approve and sign');
+    const allIn = nextStepWords({ ...file, sections: file.sections.map((s) => ({ ...s, status: 'SUBMITTED' as const })) });
+    expect(allIn.title).toBe('Everything is in. Ready for your signature.');
+  });
+
+  it('shows a zero value as a dash, not as free', () => {
+    expect(kes('0')).toBe('—');
+    expect(kes('0.00')).toBe('—');
   });
 
   it('writes the Collecting card with the missing department', () => {

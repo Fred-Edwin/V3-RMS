@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Skeleton } from '@/components/ui2/skeleton';
@@ -11,22 +11,25 @@ import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
-import { errorCodeOf, headErrorMessage, HOME_COPY, homeHeadline, homeLine, startLabel, URGENT_SWITCH } from '../../_shared/lib/phone-words';
-import { CYCLE_TEXT, REQUISITION_CYCLES, type Home, type RequisitionCycle } from '../../_shared/types/requisitions-contract';
+import { errorCodeOf, headErrorMessage, headStatusText, HOME_COPY, homeHeadline, homeLine, startLabel, URGENT_SWITCH, WORK_COPY } from '../../_shared/lib/phone-words';
+import { REQUISITION_CYCLES, type RequisitionCycle } from '../../_shared/types/requisitions-contract';
 import { useHeadHome } from '../../hooks/use-head-requisitions';
 import { reqFile } from '../../lib/routes';
 import { longDateText, timeText } from '../../lib/time';
 import { requisitionsApi } from '../../services/requisitions-phone-api';
-import { HeadPrimaryButton, HeadPhoneHeader } from './head-phone-parts';
+import { CycleSwitcher, HeadPhoneHeader, HeadPrimaryButton } from './head-phone-parts';
+
+const parseCycle = (raw: string | null): RequisitionCycle | null => REQUISITION_CYCLES.find((c) => c === raw) ?? null;
 
 /**
- * The Department Head's Requisitions home (Paper step 1, and step 18 for the urgent Extra): pick the cycle, start it (the list is
- * filled in from the restock levels), and see what was asked earlier today. A cycle that already has a requisition today shows
- * "Open" instead of "Start" (the one open requisition per cycle rule), so the second start in a cycle is not offered; if it
- * happens anyway the server's 409 is shown inline.
+ * The Department Head's way in (owner decision, 11 Oct 2026). Morning and Afternoon need no screen of their own: the menu link
+ * opens the cycle for the time of day (or the one in `?cycle=`), starts its requisition quietly if there is none (the list is
+ * filled in from the restock levels) and goes straight to the working list. Only an Extra keeps a small card, because it can be
+ * marked urgent and is the exception, not the routine.
  */
 export function HeadHomeScreen() {
   const router = useRouter();
+  const wanted = parseCycle(useSearchParams().get('cycle'));
   const home = useHeadHome();
   const idem = useIdempotencyKey();
   const [picked, setPicked] = React.useState<RequisitionCycle | null>(null);
@@ -35,14 +38,16 @@ export function HeadHomeScreen() {
   const [starting, setStarting] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
   const [now, setNow] = React.useState<string | null>(null);
+  const startedFor = React.useRef<RequisitionCycle | null>(null);
 
   React.useEffect(() => {
     setNow(new Date().toISOString());
   }, []);
 
   const data = home.data;
-  const cycle: RequisitionCycle = picked ?? data?.suggestedCycle ?? 'AFTERNOON';
+  const cycle: RequisitionCycle = picked ?? wanted ?? data?.suggestedCycle ?? 'AFTERNOON';
   const openForCycle = data?.openByCycle[cycle] ?? null;
+  const routine = cycle !== 'EXTRA';
   const showUrgent = cycle === 'EXTRA' && !openForCycle;
 
   const start = React.useCallback(async (): Promise<void> => {
@@ -56,15 +61,38 @@ export function HeadHomeScreen() {
         idempotencyKey: idem.key(),
       });
       idem.renew();
-      router.push(reqFile(result.requisitionId));
+      router.replace(reqFile(result.requisitionId));
     } catch (err) {
       setFailure(headErrorMessage(err));
       setStarting(false);
-      if (errorCodeOf(err) === 'REQUISITION_ALREADY_OPEN') void home.reload();
+      if (errorCodeOf(err) === 'REQUISITION_ALREADY_OPEN') {
+        startedFor.current = null;
+        void home.reload();
+      }
     }
   }, [starting, cycle, showUrgent, urgent, urgentNote, idem, router, home]);
 
+  // Open the cycle's requisition if there is one, otherwise start the routine cycles quietly (once per cycle per visit).
+  React.useEffect(() => {
+    if (!data) return;
+    if (openForCycle) {
+      router.replace(reqFile(openForCycle.requisitionId));
+      return;
+    }
+    if (routine && startedFor.current !== cycle) {
+      startedFor.current = cycle;
+      void start();
+    }
+  }, [data, openForCycle, routine, cycle, router, start]);
+
+  const retry = (): void => {
+    startedFor.current = null;
+    setFailure(null);
+    void home.reload();
+  };
+
   const subtitle = HOME_COPY.subtitle(data?.department.name ?? '');
+  const redirecting = Boolean(data) && (Boolean(openForCycle) || (routine && !failure));
 
   return (
     <PhoneColumn>
@@ -74,19 +102,14 @@ export function HeadHomeScreen() {
           <div role="alert">
             <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void home.reload()} />
           </div>
-        ) : !data ? (
+        ) : !data || redirecting ? (
           <>
-            <LoadingAnnouncer text={HOME_COPY.loading} />
+            <LoadingAnnouncer text={WORK_COPY.starting} />
             <div className="flex flex-col gap-4 border border-wds-border bg-wds-surface p-5" aria-hidden="true">
               <Skeleton className="h-4 w-[55%]" />
               <Skeleton className="h-8 w-[85%]" />
               <Skeleton className="h-3 w-[40%]" />
               <Skeleton className="h-11 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-            <div className="flex flex-col gap-3" aria-hidden="true">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-[72px] w-full" />
             </div>
           </>
         ) : (
@@ -94,33 +117,31 @@ export function HeadHomeScreen() {
             <section className="flex flex-col gap-4 border border-wds-border bg-wds-surface p-5" aria-labelledby="req-headline">
               <div className="flex flex-col gap-1">
                 <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary" suppressHydrationWarning>
-                  {now ? `${longDateText(now)} · ${timeText(now)}` : ' '}
+                  {now ? `${longDateText(now)} · ${timeText(now)}` : ' '}
                 </p>
                 <h2 id="req-headline" className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">
-                  {openForCycle ? `${CYCLE_TEXT[cycle]} requisition` : homeHeadline(cycle, Boolean(data.openByCycle.AFTERNOON))}
+                  {homeHeadline(cycle, Boolean(data.openByCycle.AFTERNOON))}
                 </h2>
               </div>
-              <CyclePicker value={cycle} onChange={setPicked} open={data.openByCycle} />
-              {openForCycle ? (
-                <>
-                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
-                    {HOME_COPY.cycleOpenHint}. {statusLine(data, cycle)}
-                  </p>
-                  <HeadPrimaryButton onClick={() => router.push(reqFile(openForCycle.requisitionId))}>{HOME_COPY.openCycle(CYCLE_TEXT[cycle].toLowerCase())}</HeadPrimaryButton>
-                </>
+              <div className="flex flex-col gap-2">
+                <p id="req-which" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
+                  {HOME_COPY.whichRequisition}
+                </p>
+                <CycleSwitcher value={cycle} onChange={setPicked} open={data.openByCycle} labelledBy="req-which" />
+              </div>
+              {showUrgent ? <UrgentSwitch on={urgent} onChange={setUrgent} note={urgentNote} onNote={setUrgentNote} /> : null}
+              {routine ? null : <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{homeLine(data.department.name, data.suggestedLineCount)}</p>}
+              {failure ? (
+                <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
+                  {failure}
+                </p>
+              ) : null}
+              {routine ? (
+                <HeadPrimaryButton onClick={retry}>{WORK_COPY.retry}</HeadPrimaryButton>
               ) : (
-                <>
-                  {showUrgent ? <UrgentSwitch on={urgent} onChange={setUrgent} note={urgentNote} onNote={setUrgentNote} /> : null}
-                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{homeLine(data.department.name, data.suggestedLineCount)}</p>
-                  {failure ? (
-                    <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
-                      {failure}
-                    </p>
-                  ) : null}
-                  <HeadPrimaryButton onClick={() => void start()} disabled={starting} aria-busy={starting}>
-                    {starting ? 'Starting…' : startLabel(cycle, showUrgent && urgent)}
-                  </HeadPrimaryButton>
-                </>
+                <HeadPrimaryButton onClick={() => void start()} disabled={starting} aria-busy={starting}>
+                  {starting ? 'Starting…' : startLabel(cycle, showUrgent && urgent)}
+                </HeadPrimaryButton>
               )}
             </section>
 
@@ -137,7 +158,7 @@ export function HeadHomeScreen() {
                         >
                           {row.reference} · {row.cycleLabel.split(' · ')[0]}
                         </Link>
-                        <StatusChip status={row.status} text={row.statusText} />
+                        <StatusChip status={row.status} text={headStatusText(row.status, row.statusText, row.sectionStatus)} />
                       </div>
                       <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
                         {data.department.name} asked for {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'}
@@ -152,57 +173,6 @@ export function HeadHomeScreen() {
         )}
       </div>
     </PhoneColumn>
-  );
-}
-
-function statusLine(data: Home, cycle: RequisitionCycle): string {
-  const open = data.open;
-  if (open && open.cycle === cycle) return `${open.reference} · ${open.statusText}`;
-  return data.openByCycle[cycle] ? 'Open it to see where it is.' : '';
-}
-
-/** Morning, Afternoon, Extra: three joined segments. The picked one is caramel with a 2 px primary underline. */
-function CyclePicker({ value, onChange, open }: { value: RequisitionCycle; onChange: (c: RequisitionCycle) => void; open: Home['openByCycle'] }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p id="req-which" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
-        {HOME_COPY.whichRequisition}
-      </p>
-      <div role="radiogroup" aria-labelledby="req-which" className="flex border border-wds-border-strong">
-        {REQUISITION_CYCLES.map((c, i) => {
-          const selected = c === value;
-          return (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              // One tab stop for the group; the arrow keys move the choice and the focus (radio group pattern).
-              tabIndex={selected ? 0 : -1}
-              onClick={() => onChange(c)}
-              onKeyDown={(e) => {
-                const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-                if (!step) return;
-                e.preventDefault();
-                const next = REQUISITION_CYCLES[(i + step + REQUISITION_CYCLES.length) % REQUISITION_CYCLES.length];
-                if (!next) return;
-                onChange(next);
-                (e.currentTarget.parentElement?.querySelectorAll('[role=radio]')[REQUISITION_CYCLES.indexOf(next)] as HTMLElement | undefined)?.focus();
-              }}
-              className={cn(
-                'relative flex h-11 min-w-0 grow basis-0 items-center justify-center gap-1.5 font-wds-sans text-[14px] leading-[18px] outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring',
-                i > 0 && 'border-l border-wds-border-strong',
-                'active:bg-wds-caramel-100/70 motion-safe:active:scale-[0.99]',
-                selected ? 'border-b-2 border-b-wds-selected-edge bg-wds-caramel-100 font-medium text-wds-selected-edge' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50 hover:text-wds-text-ink',
-              )}
-            >
-              {CYCLE_TEXT[c]}
-              {open[c] ? <span className="size-1.5 rounded-full bg-wds-success-fg" role="img" aria-label="already started" /> : null}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

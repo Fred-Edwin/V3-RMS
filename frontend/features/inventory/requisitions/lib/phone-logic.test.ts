@@ -4,6 +4,7 @@ import { ApiError } from '@/types/api';
 import { navFor, type NavContext } from '@/components/app/shell/nav-table';
 import {
   headErrorMessage,
+  headStatusText,
   headTracker,
   HEAD_ERROR_COPY,
   homeHeadline,
@@ -14,6 +15,18 @@ import {
 import { REQUISITION_ERROR_CODES } from '../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged } from '../hooks/use-section-draft';
 import { cleanTyped, formatQty, isValidQty, stepQty } from './qty';
+
+describe('the head sees their own list state before approval', () => {
+  it('says what happened to the head list, not the whole requisition', () => {
+    expect(headStatusText('OPEN', 'Collecting', 'SUBMITTED')).toBe('Sent, waiting for approval');
+    expect(headStatusText('OPEN', 'Collecting', 'DRAFT')).toBe('Not sent yet');
+    expect(headStatusText('PENDING_APPROVAL', 'Ready to approve', 'SKIPPED')).toBe('Skipped');
+  });
+  it('leaves approved, closed and cancelled to the requisition word', () => {
+    expect(headStatusText('APPROVED', 'Approved', 'SUBMITTED')).toBe('Approved');
+    expect(headStatusText('CANCELLED', 'Cancelled', 'DRAFT')).toBe('Cancelled');
+  });
+});
 
 describe('quantities', () => {
   it('shows decimals as a person writes them', () => {

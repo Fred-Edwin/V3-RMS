@@ -22,6 +22,8 @@ export const dayAndClock = (iso: string): string => `${dayLabel(iso)} · ${clock
 /** "58,020" (no decimals when whole). */
 export const kes = (value: string): string => {
   const n = Number(value);
+  // A zero value means "no price on this item yet", not "free": a dash says that without a number that reads as real money.
+  if (n === 0) return '—';
   return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : value;
 };
 
@@ -137,9 +139,13 @@ export function nextStepWords(file: RequisitionFile): NextStepWords {
     return { title: 'With the Central Store now', body: 'The Store Manager packs each department. You will see each delivery here, and under To pack on the list.', action, actionLabel };
   }
   if (file.status === 'PENDING_APPROVAL') {
+    const skipped = file.sections.filter((s) => s.status === 'SKIPPED').length;
     return {
-      title: 'Everything is in. Ready for your signature.',
-      body: `All ${facts.sectionsTotal} sections are in. One signature covers the whole requisition, and the heads are told when you sign.`,
+      title: skipped > 0 ? 'Ready for your signature.' : 'Everything is in. Ready for your signature.',
+      body:
+        skipped > 0
+          ? `${facts.sectionsTotal - skipped} of ${facts.sectionsTotal} sections are in and ${skipped} ${skipped === 1 ? 'was' : 'were'} sent without. One signature covers the whole requisition, and the heads are told when you sign.`
+          : `All ${facts.sectionsTotal} sections are in. One signature covers the whole requisition, and the heads are told when you sign.`,
       action,
       actionLabel,
     };

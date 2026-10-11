@@ -88,7 +88,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 <div className="flex items-end justify-between border-b border-wds-neutral-950 px-5 pb-4 pt-[18px]">
                   <div className="flex flex-col gap-1">
                     <MonoLabel>What you are sending</MonoLabel>
-                    <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} lines</span>
+                    <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} {data.lineCount === 1 ? 'line' : 'lines'}</span>
                   </div>
                   {data.valueKes !== undefined ? <span className="font-wds-mono text-[22px] leading-7 text-wds-text-ink">KES {kes(data.valueKes)}</span> : null}
                 </div>
