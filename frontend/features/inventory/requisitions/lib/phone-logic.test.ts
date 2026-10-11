@@ -118,7 +118,9 @@ describe("the head's rows in the navigation table", () => {
   const ctx = (isDepartmentHead: boolean): NavContext => ({ role: 'CHEF', isDepartmentHead, can: () => false, creditAccounts: false });
   const hrefs = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.href));
   it('gives a head Requisitions, Deliveries, Waste and History on the new pages, and a member none of them', () => {
-    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/waste', '/app/requisitions/history']));
+    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/waste']));
+    // History is reached from the Requisitions home, not from a menu row of its own.
+    expect(hrefs(true)).not.toContain('/app/requisitions/history');
     expect(hrefs(false)).not.toContain('/app/requisitions');
   });
   it('gives a department member (not a head) Deliveries and its History, and no Requisitions', () => {
@@ -128,9 +130,9 @@ describe("the head's rows in the navigation table", () => {
     expect(hrefs(false)).not.toContain('/app/deliveries');
     expect(hrefs(true)).not.toContain('/app/deliveries/history');
   });
-  it('shows a chef-head one History (the head\'s), and a chef without the marker the floor History', () => {
+  it('shows a chef-head no History row (it is on the Requisitions home), and a chef without the marker the floor History', () => {
     const labels = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.label));
-    expect(labels(true).filter((l) => l === 'History')).toHaveLength(1);
+    expect(labels(true).filter((l) => l === 'History')).toHaveLength(0);
     expect(hrefs(true)).not.toContain('/app/history');
     expect(hrefs(false)).toContain('/app/history');
   });

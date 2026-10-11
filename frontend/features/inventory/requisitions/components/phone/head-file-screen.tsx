@@ -18,7 +18,7 @@ import { REQ_HOME, reqAddMore } from '../../lib/routes';
 import { timeText } from '../../lib/time';
 import { requisitionsApi } from '../../services/requisitions-phone-api';
 import { groupByCategory } from '../../hooks/use-section-draft';
-import { CategoryHeading, HeadFooter, HeadFooterHint, HeadPhoneHeader, HeadPrimaryButton, HeadRail, HeadSecondaryButton, StatusBanner, UrgentRow } from './head-phone-parts';
+import { CategoryHeading, HeadFooter, HeadFooterHint, HeadPhoneHeader, HeadPrimaryButton, HeadRail, HeadSecondaryButton, StatusBanner, UrgentAsk } from './head-phone-parts';
 import { HeadWorkScreen } from './head-work-screen';
 
 const CYCLE_WORD = (cycleLabel: string): string => cycleLabel.split(' · ')[0] ?? cycleLabel;
@@ -143,7 +143,7 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
   const cancelled = data.status === 'CANCELLED';
   return (
     <PhoneColumn>
-      <HeadPhoneHeader leading="menu" title={title} subtitle={subtitle} mono>
+      <HeadPhoneHeader leading="back" onBack={back} title={title} subtitle={subtitle} mono>
         {data.urgent ? <span className="self-start border border-wds-error-border bg-wds-error-bg px-2 py-0.5 font-wds-sans text-[12px] font-medium leading-4 text-wds-error-fg">{SECTION_COPY.urgentTag}</span> : null}
       </HeadPhoneHeader>
       <div key={data.status} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto bg-wds-canvas px-5 py-5">
@@ -153,7 +153,7 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
         {data.additions.map((addition) => (
           <AdditionBlock key={addition.id} lines={addition.lines} pending={addition.status === 'PENDING'} />
         ))}
-        {beforeApproval ? <UrgentRow on={data.urgent} busy={busy === 'urgent'} onToggle={() => void toggleUrgent()} disabled={!data.can.setUrgent} inline /> : null}
+        {beforeApproval ? <UrgentAsk on={data.urgent} busy={busy === 'urgent'} onToggle={() => void toggleUrgent()} disabled={!data.can.setUrgent} inline /> : null}
         {!cancelled ? <HeadRail steps={rail} currentTone={approved ? 'info' : 'warning'} /> : null}
       </div>
       {canRecall ? (

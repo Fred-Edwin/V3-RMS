@@ -316,6 +316,21 @@ export function UrgentRow({ on, busy, onToggle, disabled, inline = false }: { on
   );
 }
 
+/**
+ * "Mark as urgent" is kept but out of the way (owner decision, 11 Oct 2026): a small link that opens the switch when the head asks
+ * for it. A requisition that is already urgent shows the switch open, so it can be cleared.
+ */
+export function UrgentAsk(props: { on: boolean; busy: boolean; onToggle: () => void; disabled: boolean; inline?: boolean }) {
+  const [asked, setAsked] = React.useState(false);
+  if (props.disabled && !props.on) return null;
+  if (asked || props.on) return <UrgentRow {...props} />;
+  return (
+    <div className="flex px-5 py-2">
+      <RowLink onClick={() => setAsked(true)}>{URGENT_SWITCH.title}</RowLink>
+    </div>
+  );
+}
+
 /** The search box of the working screen: a 44 px field with a clear button. */
 export function SearchField({ value, onChange, placeholder, clearLabel = 'Clear the search' }: { value: string; onChange: (v: string) => void; placeholder: string; clearLabel?: string }) {
   return (

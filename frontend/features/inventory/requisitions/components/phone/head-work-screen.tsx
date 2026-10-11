@@ -14,9 +14,9 @@ import { ADD_ITEM_COPY, headErrorMessage, SECTION_COPY, workSummary, WORK_COPY }
 import type { AddableItem, RequisitionCycle } from '../../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged, useSectionDraft, type DraftLine } from '../../hooks/use-section-draft';
 import { formatQty } from '../../lib/qty';
-import { reqHomeFor } from '../../lib/routes';
+import { REQ_HOME, reqHomeFor } from '../../lib/routes';
 import { requisitionsApi } from '../../services/requisitions-phone-api';
-import { CategoryHeading, CycleSwitcher, HeadFooter, HeadPhoneHeader, HeadPrimaryButton, RowLink, SearchField, Stepper, UrgentRow } from './head-phone-parts';
+import { CategoryHeading, CycleSwitcher, HeadFooter, HeadPhoneHeader, HeadPrimaryButton, RowLink, SearchField, Stepper, UrgentAsk } from './head-phone-parts';
 import { SendSheet } from './send-sheet';
 
 const OBVIOUS_UNITS = new Set(['pcs', 'portion', 'portions']);
@@ -137,7 +137,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
 
   return (
     <PhoneColumn>
-      <HeadPhoneHeader leading="menu" title={`${departmentName} · ${cycleWord}`} subtitle={reference} mono />
+      <HeadPhoneHeader leading="back" onBack={() => void leave(REQ_HOME)} title={`${departmentName} · ${cycleWord}`} subtitle={reference} mono />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
           <div className="flex flex-col gap-2 border-b border-wds-border bg-wds-surface px-5 py-3">
@@ -146,7 +146,6 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
             </p>
             <CycleSwitcher compact value={cycle} labelledBy="req-switch" open={{ [cycle]: true }} onChange={(c) => void leave(reqHomeFor(c))} />
           </div>
-          <UrgentRow on={urgent.on} busy={urgent.busy} onToggle={urgent.onToggle} disabled={urgent.disabled} />
           <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b border-wds-border bg-wds-surface px-5 py-3">
             <SearchField value={query} onChange={setQuery} placeholder={WORK_COPY.searchPlaceholder(departmentName)} clearLabel={ADD_ITEM_COPY.clear} />
             <ViewSwitch value={effectiveView} onChange={chooseView}listCount={draft.lines.length} allCount={everyItem.length} />
@@ -196,6 +195,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
               ))}
             </>
           )}
+          <UrgentAsk on={urgent.on} busy={urgent.busy} onToggle={urgent.onToggle} disabled={urgent.disabled} inline />
           {/* Room so the undo toast never covers the last row. */}
           <div className="h-16 shrink-0" aria-hidden="true" />
         </div>

@@ -447,7 +447,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
   // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
   { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
+  // The head's requisition History is no menu row any more: the Requisitions home carries "Earlier" and "See all history" (11 Oct 2026).
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },
