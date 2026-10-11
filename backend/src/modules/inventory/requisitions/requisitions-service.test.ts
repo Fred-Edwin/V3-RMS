@@ -167,6 +167,22 @@ describe('start (R11)', () => {
     expect(kitchenSection?.departmentTag).toBe('KITCHEN');
   });
 
+  it('an Extra started by a head creates only that head\'s own section', async () => {
+    await requisitionsService.start(kitchen, { cycle: 'EXTRA', idempotencyKey: KEY });
+    const made = mocks.repo['createSection']!.mock.calls.map((c) => (c[1] as { departmentId: string }).departmentId);
+    expect(made).toEqual([KITCHEN]);
+  });
+
+  it('a Morning or Afternoon started by a head still creates every department\'s section', async () => {
+    await requisitionsService.start(kitchen, input);
+    expect(mocks.repo['createSection']!.mock.calls).toHaveLength(2);
+  });
+
+  it('an Extra started by a non-head (Branch Manager) keeps every department', async () => {
+    await requisitionsService.start(branchManager, { cycle: 'EXTRA', idempotencyKey: KEY });
+    expect(mocks.repo['createSection']!.mock.calls).toHaveLength(2);
+  });
+
   it('a repeated key returns the first result with replayed true and creates nothing', async () => {
     mocks.repo['findByStartKey']!.mockResolvedValue({ id: 'req-1' });
     const result = await requisitionsService.start(branchManager, input);
@@ -250,12 +266,11 @@ describe('saveLines (R12): section lines validation, reopen on edit', () => {
       expect(mocks.publish).not.toHaveBeenCalled();
     });
 
-    it('the head editing their own list leaves no on-behalf mark and tells nobody', async () => {
+    it('the head editing their own list leaves no on-behalf mark, writes no Activity line (autosave is not history) and tells nobody', async () => {
       draft();
       mocks.repo['findTaggedItemIds']!.mockResolvedValue(new Set(['i1']));
       await requisitionsService.saveLines(kitchen, 'req-1', KITCHEN, lines('i1'));
-      const event = mocks.repo['appendEvent']!.mock.calls[0]?.[1] as { reason?: string };
-      expect(event.reason).toBeUndefined();
+      expect(mocks.repo['appendEvent']!.mock.calls.filter((call) => (call[1] as { type: string }).type === 'LINE_CHANGED')).toHaveLength(0);
       expect(mocks.publish).not.toHaveBeenCalled();
     });
 
@@ -293,7 +308,7 @@ describe('sendSection (R13)', () => {
     expect(mocks.verifyOwn).toHaveBeenCalledWith(kitchen, '1234');
     expect(mocks.repo['updateSection']).toHaveBeenCalledWith(expect.anything(), SITE, 'sec-k', expect.objectContaining({ status: 'SUBMITTED', submittedById: 'head-k' }));
     expect(mocks.repo['setStatus']).toHaveBeenCalledWith(expect.anything(), SITE, 'req-1', 'PENDING_APPROVAL');
-    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'SENT', idempotencyKey: KEY }));
+    expect(mocks.repo['appendEvent']).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'SENT', toValue: '1 line', idempotencyKey: KEY }));
     expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'SECTION_SENT', departmentId: KITCHEN, readyToApprove: true }));
   });
 

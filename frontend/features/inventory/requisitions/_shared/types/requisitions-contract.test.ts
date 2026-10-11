@@ -38,7 +38,7 @@ describe('requisitions contract mirror', () => {
     const list = fixtures.listManager as ListRequisitions;
     expect(keysOf(list)).toEqual(['page', 'rows', 'tab', 'tabCounts', 'waitingForYou']);
     expect(keysOf(list.rows[0]!)).toEqual([
-      'additionWaiting', 'allInAt', 'branch', 'cancelReason', 'cancelledAt', 'closedAt', 'cycle', 'cycleLabel', 'id', 'lineCount', 'openedAt', 'reference', 'rowAction', 'sections', 'sentAt', 'status',
+      'additionWaiting', 'allInAt', 'branch', 'cancelReason', 'cancelledAt', 'changedLineCount', 'closedAt', 'cycle', 'cycleLabel', 'id', 'lineCount', 'openedAt', 'reference', 'rowAction', 'sections', 'sentAt', 'status',
       'statusText', 'tab', 'urgent', 'urgentAt', 'urgentNote', 'urgentOverHour', 'valueKes',
     ]);
     expect(keysOf(fixtures.listHubCollecting as ListRequisitions)).toContain('branches');
@@ -59,7 +59,9 @@ describe('requisitions contract mirror', () => {
 
   it('Amendment 2: Home, section edit, history rows and print carry the new fields', () => {
     const home = fixtures.home as Home;
-    expect(keysOf(home)).toEqual(['department', 'earlierToday', 'open', 'openByCycle', 'suggestedCycle', 'suggestedLineCount']);
+    expect(keysOf(home)).toEqual(['department', 'earlierToday', 'needsYou', 'open', 'openByCycle', 'suggestedCycle', 'suggestedLineCount']);
+    expect(keysOf(home.needsYou[0]!)).toEqual(['changedCount', 'cycle', 'firstChange', 'requisitionId']);
+    expect(keysOf(home.earlierToday[0]!)).toContain('openedAt');
     expect(keysOf(home.openByCycle)).toEqual(['AFTERNOON', 'EXTRA', 'MORNING']);
     expect(keysOf(home.open!)).toContain('openedAt');
     expect(keysOf(home.earlierToday[0]!)).toContain('sentAt');

@@ -44,7 +44,7 @@ export const sentenceOf = (e: SentenceEvent, c: SentenceContext): string => {
         ? `Filled ${dept}'s list on behalf of its head${e.toValue ? ` · ${e.toValue}` : ''}`
         : `Changed ${dept}'s list${e.toValue ? ` · ${e.toValue}` : ''}`;
     case 'SENT':
-      return `Sent ${dept}'s list${onBehalf(e) ? ' on behalf of its head' : ''} · signed with PIN`;
+      return `Sent ${dept}'s list${onBehalf(e) ? ' on behalf of its head' : ''}${e.toValue ? ` · ${e.toValue}` : ''} · signed with PIN`;
     case 'RECALLED':
       return `Took ${dept}'s list back to draft`;
     case 'QUANTITY_CHANGED': {

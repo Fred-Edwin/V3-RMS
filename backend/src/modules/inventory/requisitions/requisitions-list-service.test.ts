@@ -259,6 +259,12 @@ describe('R1 who sees what', () => {
     }
   });
 
+  it('a queue row counts the lines an approver changed ("N lines changed")', async () => {
+    const rows = await rowsFor(branchManager);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.changedLineCount).toBe(0); // the fixtures have no changed line
+  });
+
   it('a department member with no head rights and no read right is refused', async () => {
     await expect(requisitionsListService.list(member, query())).rejects.toMatchObject({ statusCode: 403 });
   });
@@ -456,7 +462,21 @@ describe('R7 home and R9 history (a head)', () => {
     expect(home.open).toMatchObject({ requisitionId: 'req-a', status: 'OPEN', section: { status: 'DRAFT' }, can: { edit: true } });
     expect(home.openByCycle).toEqual({ MORNING: { requisitionId: 'req-m', status: 'APPROVED' }, AFTERNOON: { requisitionId: 'req-a', status: 'OPEN' }, EXTRA: null });
     expect(home.earlierToday.map((r) => r.requisitionId)).toEqual(['req-m']);
-    expect(home.earlierToday[0]).toMatchObject({ sectionStatus: 'SUBMITTED', lineCount: 2, sentAt: '2026-10-08T07:00:00.000Z' });
+    expect(home.earlierToday[0]).toMatchObject({ sectionStatus: 'SUBMITTED', lineCount: 2, sentAt: '2026-10-08T07:00:00.000Z', openedAt: '2026-10-08T06:00:00.000Z' });
+    expect(home.needsYou).toEqual([]);
+    expect(homeSchema.safeParse(withUuids(home)).error?.issues ?? []).toEqual([]);
+  });
+
+  it('every earlier requisition carries its start time and how many lines the Branch Manager changed (the "Needs you" strip)', async () => {
+    const changed = makeRequisition(
+      'APPROVED',
+      [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', [makeLine('l1', 'i1', 'Milk', 30, { approvedQty: new Prisma.Decimal(20), editedById: 'mgr-1' }), makeLine('l2', 'i2', 'Eggs', 12)])],
+      { type: 'MORNING', id: 'req-m', reference: 'REQ-NYR-0100' },
+    );
+    mocks.list['listTodayForDepartment']!.mockResolvedValue([changed]);
+    const home = await requisitionsListService.home(kitchen, NOW);
+    expect(home.earlierToday[0]).toMatchObject({ requisitionId: 'req-m', openedAt: '2026-10-08T06:00:00.000Z' });
+    expect(home.needsYou).toEqual([{ requisitionId: 'req-m', cycle: 'MORNING', changedCount: 1, firstChange: expect.objectContaining({ requestedQty: '30', approvedQty: '20' }) }]);
     expect(homeSchema.safeParse(withUuids(home)).error?.issues ?? []).toEqual([]);
   });
 

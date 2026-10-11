@@ -30,7 +30,7 @@ import { requisitionsRepository as repo, type RequisitionRecord, type Scope } fr
 import { loadCaller, loadFile, readScope, restrictedHead, viewerFor, type Caller } from './requisitions-service';
 import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
 import { urgentOverHour } from './requisitions-state';
-import { additionStatusMap, cycleLabelOf, cycleOf, fileWire, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
+import { additionStatusMap, changedLineCount, cycleLabelOf, cycleOf, fileWire, firstChangedLine, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -312,8 +312,14 @@ export const requisitionsListService = {
             sectionStatus: (own?.status ?? 'NOT_STARTED') as SectionStatus,
             lineCount: own ? sectionLines(own, additionStatusMap(r)).length : 0,
             sentAt: iso(own?.submittedAt ?? null),
+            openedAt: r.openedAt.toISOString(),
           };
         }),
+      needsYou: live.flatMap((r) => {
+        const own = r.sections.find((s) => s.departmentId === departmentId);
+        const firstChange = own ? firstChangedLine(own, r) : null;
+        return own && firstChange ? [{ requisitionId: r.id, cycle: cycleOf(r.type), changedCount: changedLineCount(own, r), firstChange }] : [];
+      }),
     };
   },
 
@@ -415,6 +421,7 @@ const rowWire = (rec: RequisitionRecord, tab: RequisitionTab, ctx: RowContext, s
     tab,
     sections: sections.map((s) => ({ departmentId: s.departmentId ?? '', departmentName: s.department?.name ?? '', status: s.status as SectionStatus })),
     lineCount,
+    changedLineCount: sections.reduce((sum, s) => sum + changedLineCount(s, rec), 0),
     ...(ctx.seeValue ? { valueKes: kes(value) } : {}),
     openedAt: rec.openedAt.toISOString(),
     urgent: rec.urgent,

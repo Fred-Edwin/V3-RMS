@@ -360,7 +360,9 @@ export const requisitionsService = {
         if (open) throw requisitionError('REQUISITION_ALREADY_OPEN', `The ${input.cycle.toLowerCase()} requisition is already open (${open.reference}).`, { requisitionId: open.id });
         const reference = `REQ-${site.code}-${pad4(await referenceCounterRepository.nextNumber(tx, siteId, 'REQ'))}`;
         const created = await repo.createRequisition(tx, { siteId, type: input.cycle, reference, openedById: actor.id, urgent: input.urgent === true, urgentNote: input.urgent === true ? (input.urgentNote ?? null) : null, idempotencyKey: input.idempotencyKey });
-        const departments = await repo.listActiveDepartments(siteId, tx);
+        const allDepartments = await repo.listActiveDepartments(siteId, tx);
+        // An Extra is one department's own ask (Paper: "Extra · Service only"); Morning and Afternoon cover every department.
+        const departments = input.cycle === 'EXTRA' && c.headDepartmentId ? allDepartments.filter((d) => d.id === c.headDepartmentId) : allDepartments;
         const now = new Date();
         for (const d of departments) {
           // A department with no tagged items counts as done: it is Skipped by rule (nobody signed that).
@@ -450,10 +452,13 @@ export const requisitionsService = {
         ...(section.status === 'SUBMITTED' ? { submittedAt: null, submittedById: null } : {}),
         ...(input.noteForManager !== undefined ? { managerNote: input.noteForManager } : {}),
       });
-      await repo.appendEvent(tx, {
-        requisitionId: rec.id, sectionId: section.id, type: 'LINE_CHANGED', toValue: `${input.lines.length} ${input.lines.length === 1 ? 'line' : 'lines'}`,
-        ...(hand === 'ON_BEHALF' ? { reason: ON_BEHALF_REASON } : {}), ...event(c),
-      });
+      // A head's own autosaves are not history (the send is); only a list edited on someone's behalf is recorded.
+      if (hand === 'ON_BEHALF') {
+        await repo.appendEvent(tx, {
+          requisitionId: rec.id, sectionId: section.id, type: 'LINE_CHANGED', toValue: `${input.lines.length} ${input.lines.length === 1 ? 'line' : 'lines'}`,
+          reason: ON_BEHALF_REASON, ...event(c),
+        });
+      }
       await syncStatus(tx, rec.siteId, rec.id);
     });
     if (hand === 'ON_BEHALF') {
@@ -480,7 +485,8 @@ export const requisitionsService = {
     const hand = requireSectionEditor(c, rec, departmentId, 'requisitions.send_on_behalf');
     assertBeforeApproval(rec);
     const section = findSection(rec, departmentId);
-    const check = checkSend(section.status as SectionStatus, section.lines.filter((l) => !l.additionId).length);
+    const sentLines = section.lines.filter((l) => !l.additionId).length;
+    const check = checkSend(section.status as SectionStatus, sentLines);
     if (check === 'EMPTY') throw requisitionError('SECTION_EMPTY', 'A section with no lines cannot be sent.');
     if (check === 'NOT_SENDABLE') throw stateConflict('SECTION_ALREADY_SENT', 'This section has already been sent.');
     await countPin.verifyOwn(actor, pin);
@@ -488,7 +494,7 @@ export const requisitionsService = {
     try {
       const status = await prisma.$transaction(async (tx) => {
         await repo.updateSection(tx, rec.siteId, section.id, { status: 'SUBMITTED', submittedAt: new Date(), submittedById: actor.id });
-        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SENT', idempotencyKey, ...(hand === 'ON_BEHALF' ? { reason: ON_BEHALF_REASON } : {}), ...event(c) });
+        await repo.appendEvent(tx, { requisitionId: rec.id, sectionId: section.id, type: 'SENT', toValue: `${sentLines} ${sentLines === 1 ? 'line' : 'lines'}`, idempotencyKey, ...(hand === 'ON_BEHALF' ? { reason: ON_BEHALF_REASON } : {}), ...event(c) });
         return syncStatus(tx, rec.siteId, rec.id);
       });
       requisitionNotices.publish({

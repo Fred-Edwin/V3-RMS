@@ -20,6 +20,7 @@ describe('sentenceOf', () => {
     [ev('LINE_CHANGED', { toValue: '4 lines' }), "Changed Kitchen's list · 4 lines"],
     [ev('LINE_CHANGED', { toValue: '4 lines', reason: ON_BEHALF_REASON }), "Filled Kitchen's list on behalf of its head · 4 lines"],
     [ev('SENT'), "Sent Kitchen's list · signed with PIN"],
+    [ev('SENT', { toValue: '15 lines' }), "Sent Kitchen's list · 15 lines · signed with PIN"],
     [ev('SENT', { reason: ON_BEHALF_REASON }), "Sent Kitchen's list on behalf of its head · signed with PIN"],
     [ev('RECALLED'), "Took Kitchen's list back to draft"],
     [ev('QUANTITY_CHANGED', { fromValue: '30.0000', toValue: '24', reason: 'Not enough in the store' }), 'Changed Milk in Kitchen from 30 L to 24 L · Not enough in the store'],

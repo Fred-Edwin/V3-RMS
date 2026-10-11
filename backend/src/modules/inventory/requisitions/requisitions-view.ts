@@ -118,6 +118,17 @@ export const sectionValue = (section: SectionRecord, additions: Map<string, Addi
     0,
   );
 
+/** How many lines of a section someone other than the head changed after it was sent. */
+export const changedLineCount = (section: SectionRecord, rec: RequisitionRecord): number =>
+  sectionLines(section, additionStatusMap(rec)).filter((l) => l.editedById !== null && l.approvedQty !== null && !sameQty(l.approvedQty, l.requestedQty)).length;
+
+/** The first line the manager changed in a section, in words the head's home can print; null when none changed. */
+export const firstChangedLine = (section: SectionRecord, rec: RequisitionRecord): { itemName: string; unit: string; requestedQty: string; approvedQty: string } | null => {
+  const line = sectionLines(section, additionStatusMap(rec)).find((l) => l.editedById !== null && l.approvedQty !== null && !sameQty(l.approvedQty, l.requestedQty));
+  if (!line || !line.approvedQty || !line.requestedQty) return null;
+  return { itemName: line.item.name, unit: line.item.usageUnit, requestedQty: line.requestedQty.toString(), approvedQty: line.approvedQty.toString() };
+};
+
 export const sectionSummaryWire = (section: SectionRecord, rec: RequisitionRecord, v: Viewer): SectionSummary => {
   const additions = additionStatusMap(rec);
   const lines = sectionLines(section, additions);
@@ -133,7 +144,7 @@ export const sectionSummaryWire = (section: SectionRecord, rec: RequisitionRecor
     skippedAt: section.skippedAt ? section.skippedAt.toISOString() : null,
     skippedBy: section.skippedBy ? toPerson(section.skippedBy) : null,
     lineCount: lines.length,
-    changedCount: lines.filter((l) => l.editedById !== null && l.approvedQty !== null && !sameQty(l.approvedQty, l.requestedQty)).length,
+    changedCount: changedLineCount(section, rec),
     ...(v.seeValue ? { valueKes: kes(sectionValue(section, additions)) } : {}),
   };
 };

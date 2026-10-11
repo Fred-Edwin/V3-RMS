@@ -33,18 +33,16 @@ interface CycleRow {
   short: string;
   /** Items in the head's list, 0 when there is none. */
   lineCount: number;
-  /** When the requisition was opened, when R7 says so (only for the open one). */
+  /** When the requisition was opened. */
   startedAt: string | null;
   /** When this head sent their list. */
   sentAt: string | null;
-  /** Lines the Branch Manager changed (only for the open one). */
-  changedCount: number;
   tone: 'none' | 'draft' | 'waiting' | 'good';
 }
 
 /** Today's rows, built from what R7 already returns: the open one, the others of today, and which requisition each cycle has. */
 function cycleRows(data: Home): CycleRow[] {
-  const byId = new Map<string, { reference: string; status: RequisitionStatus; statusText: string; sectionStatus: SectionStatus; lineCount: number; startedAt: string | null; sentAt: string | null; changedCount: number }>();
+  const byId = new Map<string, { reference: string; status: RequisitionStatus; statusText: string; sectionStatus: SectionStatus; lineCount: number; startedAt: string | null; sentAt: string | null }>();
   if (data.open) {
     byId.set(data.open.requisitionId, {
       reference: data.open.reference,
@@ -54,15 +52,14 @@ function cycleRows(data: Home): CycleRow[] {
       lineCount: data.open.section.lineCount,
       startedAt: data.open.openedAt,
       sentAt: data.open.section.sentAt,
-      changedCount: data.open.section.changedCount,
     });
   }
-  for (const r of data.earlierToday) byId.set(r.requisitionId, { reference: r.reference, status: r.status, statusText: r.statusText, sectionStatus: r.sectionStatus, lineCount: r.lineCount, startedAt: null, sentAt: r.sentAt, changedCount: 0 });
+  for (const r of data.earlierToday) byId.set(r.requisitionId, { reference: r.reference, status: r.status, statusText: r.statusText, sectionStatus: r.sectionStatus, lineCount: r.lineCount, startedAt: r.openedAt, sentAt: r.sentAt });
   return REQUISITION_CYCLES.map((cycle) => {
     const entry = data.openByCycle[cycle];
     const info = entry ? byId.get(entry.requisitionId) : undefined;
-    if (!entry || !info) return { cycle, requisitionId: null, reference: null, state: 'Not started', short: 'Not started', lineCount: 0, startedAt: null, sentAt: null, changedCount: 0, tone: 'none' };
-    const base = { cycle, requisitionId: entry.requisitionId, reference: info.reference, lineCount: info.lineCount, startedAt: info.startedAt, sentAt: info.sentAt, changedCount: info.changedCount };
+    if (!entry || !info) return { cycle, requisitionId: null, reference: null, state: 'Not started', short: 'Not started', lineCount: 0, startedAt: null, sentAt: null, tone: 'none' };
+    const base = { cycle, requisitionId: entry.requisitionId, reference: info.reference, lineCount: info.lineCount, startedAt: info.startedAt, sentAt: info.sentAt };
     const open = info.status === 'OPEN' && (info.sectionStatus === 'NOT_STARTED' || info.sectionStatus === 'DRAFT');
     // A section nobody has touched is "not started", even when the requisition (opened by another head) already exists.
     if (open && info.sectionStatus === 'NOT_STARTED' && info.lineCount === 0) return { ...base, state: 'Not started', short: 'Not started', tone: 'none' };
@@ -142,8 +139,9 @@ export function HeadHomeScreen() {
   const chosen = picked ?? data?.suggestedCycle ?? 'MORNING';
   const card = rows.find((r) => r.cycle === chosen) ?? null;
   const arriving = Boolean(wanted) && !failure;
-  // The Branch Manager's changes, from the open requisition's own section.
-  const changed = rows.find((r) => r.tone === 'good' && r.changedCount > 0 && r.requisitionId === data?.open?.requisitionId) ?? null;
+  // The Branch Manager's changes on any requisition of today (R7 `needsYou`); the cycle on the card comes first.
+  const needs = data?.needsYou ?? [];
+  const changed = needs.find((n) => n.cycle === chosen) ?? needs[0] ?? null;
 
   return (
     <PhoneColumn>
@@ -183,11 +181,11 @@ export function HeadHomeScreen() {
               />
             ) : null}
 
-            {changed && changed.requisitionId ? (
+            {changed ? (
               <div className="flex items-start justify-between gap-4 border-l-[3px] border-l-wds-caramel-500 py-0.5 pl-3.5">
                 <div className="flex min-w-0 flex-col gap-1">
                   <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">The Branch Manager changed {changed.changedCount} {changed.changedCount === 1 ? 'line' : 'lines'}</p>
-                  <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{CYCLE_TEXT[changed.cycle]} · open it to see what you asked for and what was approved.</p>
+                  <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{CYCLE_TEXT[changed.cycle]} · {changed.firstChange.itemName}, you asked for {changed.firstChange.requestedQty}, {changed.firstChange.approvedQty} approved</p>
                 </div>
                 <Link href={reqFile(changed.requisitionId)} className="-my-2 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[15px] font-semibold text-wds-espresso-700 outline-none focus-visible:shadow-wds-ring active:opacity-70">
                   View
