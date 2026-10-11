@@ -37,6 +37,11 @@ const buttonVariants = cva(
         icon: 'h-8 w-8',
         /** Paper's dialog buttons: 38 high, 13/16. Give the width with a class (84 or 130). */
         dialog: 'h-[38px] px-4 text-[13px] leading-4',
+        /** Paper's Branch day desktop buttons: 40 high, 14/18. Pair with `shape="square"`; the width follows the label. */
+        xl: 'h-10 px-5 text-[14px] leading-[18px]',
+        /** Paper's day-file action and the drawer's primary: 36 and 44 high, 14/18. */
+        md: 'h-9 px-4 text-[14px] leading-[18px]',
+        drawer: 'h-11 px-7 text-[14px] leading-[18px]',
       },
       /** `square` is Paper's 0 radius on the Branch waste screens; `soft` is the kit's 2px. */
       shape: {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CountLine } from '../../_shared/types/branch-day-contract';
-import { changedLines, cleanFigure, groupSections, isFigure, nextRowToCount, progressOf, stillToCount, unitHint } from './count-logic';
+import { changedLines, cleanFigure, groupSections, isFigure, nextRowToCount, progressOf, showCheckNames, stillToCount, unitHint } from './count-logic';
 
 const line = (itemId: string, itemName: string, category: string, countedQty: string | null = null): CountLine => ({ itemId, itemName, unit: 'Bags', categoryPath: [category], countedQty });
 
@@ -60,6 +60,12 @@ describe('what is saved and shown', () => {
       { name: 'Drinks', itemCount: 2, names: ['Beans', 'Milk'] },
       { name: 'Serving', itemCount: 1, names: ['Cups'] },
     ]);
+  });
+  it('lists names on the check screen up to 12 items and only counts above that', () => {
+    expect(showCheckNames(8)).toBe(true);
+    expect(showCheckNames(12)).toBe(true);
+    expect(showCheckNames(13)).toBe(false);
+    expect(showCheckNames(130)).toBe(false);
   });
   it('writes the unit hint', () => {
     expect(unitHint('Bags')).toBe('Count in bags');

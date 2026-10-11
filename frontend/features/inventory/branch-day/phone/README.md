@@ -1,6 +1,6 @@
 # branch-day / phone (department head and member)
 
-**Design:** approved (Paper "Inventory · Counting and closing", steps 0, 1, 2, 2b, 3, 3b, 3c, 4 and chapter 5 steps 19 and 20; values in `docs/features/inventory/branch-day-paper-spec.md`) · **Code:** built 10 Oct 2026 on branch `feat/block4-fe-phone`, **on the contract's fixtures** (see "Mock" below). Contract: `docs/features/inventory/branch-day-contract.md` (BD1 to BD10).
+**Design:** approved (Paper "Inventory · Counting and closing", steps 0, 1, 2, 2b, 3, 3b, 3c, 4 and chapter 5 steps 19 and 20; values in `docs/features/inventory/branch-day-paper-spec.md`) · **Code:** built 10 Oct 2026 on branch `feat/block4-fe-phone`, on the real API. Contract: `docs/features/inventory/branch-day-contract.md` (BD1 to BD10).
 
 ## Screens and routes
 | Route | Screen | Paper | Endpoint |
@@ -26,8 +26,14 @@ Nav rows (`components/app/shell/nav-table.ts`): **Day** for a head and for a mem
 - **States:** loading skeletons mirror the screen; empty, error with Retry and permission use the States kit with the lines in `_shared/lib/branch-day-copy.ts`. A failed load shows the table line, never the server's text.
 - **Touch:** the count row is a label, so the whole 61 px row is the target; every link and button is 44 high.
 
-## Mock
-`services/branch-day-phone-api.ts` answers from `services/branch-day-phone-mock.ts` (typed with the contract mirror, PIN 1234) unless `NEXT_PUBLIC_BRANCH_DAY_MOCK=0`. Test switches in the browser console: `localStorage.bdMock = 'error' | 'empty' | 'slow'` (remove the key to clear), `localStorage.bdMockClock = 'morning' | 'evening'`. **When `feat/block4-be` is merged, flip the default (`!== '0'` to `=== '1'`) and run the walk again against the real API.**
+## Real API
+`services/branch-day-phone-api.ts` calls the real endpoints; the mock and its switches are deleted. To see a state on the lane: `cd backend && npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=open` (then count as the head or a member).
+
+## Check and sign with a big department (owner ruling, 10 Oct 2026)
+Up to 12 items, step 3b lists the item names under each section exactly as Paper drew it. Above 12 each section is one line ("Dry goods · 21 items") with no names; "See every figure" still lists everything. The limit is `CHECK_NAMES_LIMIT` in `lib/count-logic.ts`. Paper drew an 8-item department; Kitchen has 130 items, and the full list was a wall of text.
+
+## Walked live (10 Oct 2026, integration)
+A member's full evening count on the real API (130 items typed, a reload keeps the draft, a wrong PIN stays on the sign screen with the red error and an empty box, the right PIN sends and a repeat tap sends once); the head's count of 40 items; loading (busy region with a status line) and empty states.
 
 ## Parts added to the shared kit (`_shared/components/block2-phone-parts.tsx`), default looks unchanged
 `PinField size="paper"` (44 high, Geist Mono bullets) and the focus edge fixed to `#B0610F` (was `#693C1B`); `B2Banner note` (the 18 px check disc success note of B2b and B4).

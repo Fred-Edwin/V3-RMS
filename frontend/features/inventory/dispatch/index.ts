@@ -14,3 +14,5 @@ export { FinalReviewScreen } from './components/phone/final-review-screen';
 export { ReviewLinesScreen } from './components/phone/review-lines-screen';
 export { SentScreen } from './components/phone/sent-screen';
 export { DispatchFileScreen } from './components/phone/dispatch-file-screen';
+// Block 4 (Branch day, Today): the Branch Manager confirms a delivery on a department's behalf from the blocked day.
+export { ConfirmForDepartmentDrawer } from './components/desktop/confirm-for-department-drawer';

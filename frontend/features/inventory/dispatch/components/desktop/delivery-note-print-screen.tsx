@@ -291,7 +291,8 @@ function NoteSheets({ data }: { data: PrintDispatch }) {
   );
 }
 
-function PrintFrame({ children }: { children: React.ReactNode }) {
+/** The grey sheet ground with a Print button that is hidden on paper. The Branch day sheet uses it too. */
+export function PrintFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
       <style>{'@page { size: A4; margin: 0; }'}</style>
@@ -305,7 +306,7 @@ function PrintFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PrintError({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function PrintError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white font-wds-sans text-wds-body-sm text-wds-text-secondary">
       <p role="alert">{message}</p>

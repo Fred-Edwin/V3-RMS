@@ -47,6 +47,10 @@ export const groupSections = (lines: readonly CountLine[]): { name: string; item
   return groups;
 };
 
+/** Owner ruling (10 Oct 2026): up to this many items, B3b lists the names under each section as Paper drew it; above it each section is one line with its count. */
+export const CHECK_NAMES_LIMIT = 12;
+export const showCheckNames = (total: number): boolean => total <= CHECK_NAMES_LIMIT;
+
 /** The lines to save: only the ones that differ from what the server holds. A cleared box saves null. */
 export const changedLines = (typed: Readonly<Record<string, string>>, saved: Readonly<Record<string, string>>): { itemId: string; countedQty: string | null }[] =>
   Object.keys(typed)

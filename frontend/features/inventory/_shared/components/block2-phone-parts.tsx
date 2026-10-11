@@ -153,13 +153,22 @@ const CHIP_TONE: Record<ChipTone, string> = {
   warning: 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
   info: 'border-wds-info-border bg-wds-info-bg text-wds-info-fg',
   error: 'border-wds-error-border bg-wds-error-bg text-wds-error-fg',
+  muted: 'border-wds-border-strong bg-wds-neutral-50 text-wds-text-secondary',
 };
 
-/** A status chip: a square-cornered box; a dot in front means someone has to act. */
-export function Chip({ spec, className }: { spec: ChipSpec; className?: string }) {
+/**
+ * A status chip: a square-cornered box; a dot in front means someone has to act. Options (defaults unchanged): `size="lg"` is Paper's
+ * padding 3 9 (24 high); `dot="square"` is Block 4's 6 by 6 square marker; `ring` draws it as a 1.5px ring (the "Not counted" chip).
+ */
+export function Chip({ spec, className, size = 'default', dotShape = 'round', ring = false }: { spec: ChipSpec; className?: string; size?: 'default' | 'lg'; dotShape?: 'round' | 'square'; ring?: boolean }) {
   return (
-    <span className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border px-2 py-[2px] font-wds-sans text-[12px] leading-4', CHIP_TONE[spec.tone], className)}>
-      {spec.dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden="true" /> : null}
+    <span className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border font-wds-sans text-[12px] leading-4', size === 'lg' ? 'px-[9px] py-[3px]' : 'px-2 py-[2px]', CHIP_TONE[spec.tone], className)}>
+      {spec.dot ? (
+        <span
+          className={cn('size-1.5', dotShape === 'round' && 'rounded-full', ring ? 'box-border border-[1.5px] border-[#8D8982]' : 'bg-current')}
+          aria-hidden="true"
+        />
+      ) : null}
       {spec.text}
     </span>
   );

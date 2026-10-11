@@ -52,7 +52,7 @@ const backendList = (name: string): string[] => {
   const source = readFileSync(join(__dirname, '../../../../../../backend/src/modules/inventory/branch-day/_shared/branch-day-contract.ts'), 'utf8');
   const match = new RegExp(`export const ${name} = \\[([\\s\\S]*?)\\] as const;`).exec(source);
   expect(match, `${name} not found in the back-end contract`).not.toBeNull();
-  return [...(match?.[1] ?? '').matchAll(/'([A-Za-z_]+)'/g)].map((m) => m[1] as string);
+  return Array.from((match?.[1] ?? '').matchAll(/'([A-Za-z_]+)'/g)).map((m) => m[1] as string);
 };
 
 describe('branch day contract mirror', () => {

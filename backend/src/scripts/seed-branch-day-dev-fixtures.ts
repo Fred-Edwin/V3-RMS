@@ -125,6 +125,8 @@ async function main(): Promise<void> {
   const blocked = block.toLowerCase() === 'none' ? null : departments.find((d) => d.name.toLowerCase() === block.toLowerCase());
   if (blocked && dispatches[0]) {
     await prisma.dispatch.update({ where: { id: dispatches[0].id }, data: { status: 'ON_THE_WAY', countedById: null, countedAt: null, departmentId: blocked.id } });
+    // A line that was counted twice earlier refuses a new count (RECOUNT_USED), so the blocker could never be cleared from the screen.
+    await prisma.dispatchLine.updateMany({ where: { dispatchId: dispatches[0].id }, data: { countedQty: null, countedTwice: false, checkCount: 0 } });
   }
 
   // 4. Today, in the requested state: through the real service so every rule runs.

@@ -31,7 +31,7 @@ export interface PurchasingAuditFields {
  * `REQ-NYR-0112`). `day` is the Nairobi day it happened, the ledger links' date range.
  */
 export interface AuditRecordLink {
-  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION';
+  kind: 'COUNT' | 'STOCK_CARD' | 'LEDGER_SEARCH' | 'REQUISITION' | 'DISPATCH' | 'DISCREPANCY' | 'DAY';
   id: string;
   label: string;
   day?: string;

@@ -2,14 +2,13 @@
 
 import { Suspense } from 'react';
 
-import { TodaysDayScreen } from '@/features/inventory/branch-day';
+import { BranchDayTodayScreen } from '@/features/inventory';
 
-// useSearchParams() (the selected department) needs a Suspense boundary —
-// see the note in ../deliveries/page.tsx.
+// The branch picker's value lives in the URL, so useSearchParams() needs a Suspense boundary.
 export default function BranchDayPage() {
   return (
     <Suspense fallback={null}>
-      <TodaysDayScreen />
+      <BranchDayTodayScreen />
     </Suspense>
   );
 }

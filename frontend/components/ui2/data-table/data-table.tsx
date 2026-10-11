@@ -91,6 +91,8 @@ export interface DataTableProps<Row> {
   look?: 'default' | 'paper';
   /** Classes for the `<table>` itself, e.g. a minimum width so a narrow screen scrolls the table sideways instead of squeezing it. */
   tableClassName?: string;
+  /** `two-line` for rows whose first cell stacks two lines (Branch day History). The default row height is unchanged. */
+  rowSize?: 'default' | 'two-line';
   className?: string;
 }
 
@@ -155,6 +157,7 @@ export function DataTable<Row>({
   renderCard,
   look = 'default',
   tableClassName,
+  rowSize = 'default',
   className,
 }: DataTableProps<Row>) {
   const filterKeys = React.useMemo(() => filterKeysOf(filters), [filters]);
@@ -230,7 +233,7 @@ export function DataTable<Row>({
             <TableBody className={cn('transition-opacity duration-150', stale && 'opacity-60')}>
               {firstLoad
                 ? Array.from({ length: SKELETON_ROWS }, (_, i) => (
-                    <TableRow key={`sk-${i}`} className="hover:bg-transparent" aria-hidden>
+                    <TableRow key={`sk-${i}`} size={rowSize} className="hover:bg-transparent" aria-hidden>
                       {columns.map((c) => (
                         <TableCell key={c.id} className={cn(c.align === 'right' && 'text-right', c.className)}>
                           <Skeleton className={cn('h-3', c.align === 'right' ? 'ml-auto w-12' : 'w-[70%]')} />
@@ -243,6 +246,7 @@ export function DataTable<Row>({
                     return (
                       <TableRow
                         key={getRowId(row)}
+                        size={rowSize}
                         tabIndex={interactive ? 0 : undefined}
                         onClick={interactive ? () => onRowActivate(row) : undefined}
                         onKeyDown={
