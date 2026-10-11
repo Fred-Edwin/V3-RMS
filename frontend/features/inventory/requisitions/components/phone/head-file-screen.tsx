@@ -108,6 +108,7 @@ export function HeadFileScreen({ requisitionId }: { requisitionId: string }) {
         departmentId={section.departmentId}
         departmentName={section.departmentName}
         reference={data.reference}
+        startedAt={data.openedAt}
         cycle={data.cycle}
         cycleWord={cycleWord}
         branchName={data.branch.name}

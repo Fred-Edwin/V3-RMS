@@ -236,18 +236,16 @@ export function Stepper({ itemName, value, onChange, onCommit, onStep, changed =
 
 /**
  * Morning, Afternoon, Extra: three joined segments. The picked one is caramel with a 2 px primary underline. A dot marks a cycle
- * that already has a requisition today. `compact` is the slim version that sits under the header of the working screen.
+ * (no dot, as drawn). `compact` is the slim version that sits under the header of the working screen.
  */
 export function CycleSwitcher({
   value,
   onChange,
-  open,
   labelledBy,
   compact = false,
 }: {
   value: RequisitionCycle;
   onChange: (c: RequisitionCycle) => void;
-  open: Partial<Record<RequisitionCycle, unknown>>;
   labelledBy: string;
   compact?: boolean;
 }) {
@@ -282,7 +280,6 @@ export function CycleSwitcher({
             )}
           >
             {CYCLE_TEXT[c]}
-            {open[c] ? <span className="size-1.5 rounded-full bg-wds-success-fg" role="img" aria-label="already started" /> : null}
           </button>
         );
       })}

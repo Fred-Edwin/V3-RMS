@@ -15,6 +15,7 @@ import type { AddableItem, RequisitionCycle } from '../../_shared/types/requisit
 import { groupByCategory, isChanged, useSectionDraft, type DraftLine } from '../../hooks/use-section-draft';
 import { formatQty } from '../../lib/qty';
 import { REQ_HOME, reqHomeFor } from '../../lib/routes';
+import { timeText } from '../../lib/time';
 import { requisitionsApi } from '../../services/requisitions-phone-api';
 import { CategoryHeading, CycleSwitcher, HeadFooter, HeadPhoneHeader, HeadPrimaryButton, RowLink, SearchField, Stepper, UrgentAsk } from './head-phone-parts';
 import { SendSheet } from './send-sheet';
@@ -28,6 +29,8 @@ export interface HeadWorkScreenProps {
   departmentId: string;
   departmentName: string;
   reference: string;
+  /** When the requisition was opened, for the header line ("REQ-NYR-0007 · started 3:20 pm"). */
+  startedAt: string;
   cycle: RequisitionCycle;
   cycleWord: string;
   branchName: string;
@@ -44,7 +47,8 @@ type Draft = ReturnType<typeof useSectionDraft>;
  * steppers (typing allowed), changes autosave, and one sticky button signs and sends. There is no Start, Change lines or Add an
  * item screen to pass through.
  */
-export function HeadWorkScreen({ requisitionId, departmentId, departmentName, reference, cycle, cycleWord, branchName, urgent, onSent }: HeadWorkScreenProps) {
+export function HeadWorkScreen({ requisitionId, departmentId, departmentName, reference, startedAt, cycle, cycleWord, branchName, urgent, onSent }: HeadWorkScreenProps) {
+  const headerLine = `${reference} · started ${timeText(startedAt)}`;
   const router = useRouter();
   const draft = useSectionDraft(requisitionId, departmentId);
   const [sendOpen, setSendOpen] = React.useState(false);
@@ -116,7 +120,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
   if (draft.edit.status === 'error') {
     return (
       <PhoneColumn>
-        <HeadPhoneHeader leading="menu" title={`${departmentName} · ${cycleWord}`} subtitle={reference} mono />
+        <HeadPhoneHeader leading="menu" title={`${departmentName} · ${cycleWord}`} subtitle={headerLine} mono />
         <div className="flex flex-1 flex-col bg-wds-canvas px-5 py-8">
           <div role="alert">
             <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void draft.edit.reload()} />
@@ -137,14 +141,14 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
 
   return (
     <PhoneColumn>
-      <HeadPhoneHeader leading="back" onBack={() => void leave(REQ_HOME)} title={`${departmentName} · ${cycleWord}`} subtitle={reference} mono />
+      <HeadPhoneHeader leading="back" onBack={() => void leave(REQ_HOME)} title={`${departmentName} · ${cycleWord}`} subtitle={headerLine} mono />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
           <div className="flex flex-col gap-2 border-b border-wds-border bg-wds-surface px-5 py-3">
             <p id="req-switch" className="sr-only">
               {WORK_COPY.switchTo}
             </p>
-            <CycleSwitcher compact value={cycle} labelledBy="req-switch" open={{ [cycle]: true }} onChange={(c) => void leave(reqHomeFor(c))} />
+            <CycleSwitcher compact value={cycle} labelledBy="req-switch" onChange={(c) => void leave(reqHomeFor(c))} />
           </div>
           <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b border-wds-border bg-wds-surface px-5 py-3">
             <SearchField value={query} onChange={setQuery} placeholder={WORK_COPY.searchPlaceholder(departmentName)} clearLabel={ADD_ITEM_COPY.clear} />
@@ -213,7 +217,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
           </div>
         ) : null}
       </div>
-      <HeadFooter summary={workSummary(draft.counts.lineCount, draft.counts.added, draft.counts.changed, draft.counts.removed)} aside={failure ?? saveText ?? SECTION_COPY.toTheManager}>
+      <HeadFooter summary={workSummary(draft.counts.lineCount, draft.counts.added, draft.counts.changed, draft.counts.removed)} aside={failure ?? saveText ?? (draft.lines.length > 0 ? SECTION_COPY.saved : SECTION_COPY.toTheManager)}>
         <HeadPrimaryButton onClick={() => void openSend()} disabled={draft.lines.length === 0 || draft.anyInvalid}>
           {WORK_COPY.sendItems(draft.lines.length)}
         </HeadPrimaryButton>
