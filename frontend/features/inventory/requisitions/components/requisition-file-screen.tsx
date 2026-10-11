@@ -145,8 +145,12 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
     if (!data) return;
     const action = data.nextStep.action;
     if (action === 'NUDGE' && data.nextStep.departmentId) {
-      const name = data.sections.find((s) => s.departmentId === data.nextStep.departmentId)?.departmentName ?? 'the department';
-      void run(() => requisitionsApi.nudge(id, data.nextStep.departmentId ?? ''), { title: 'Nudge sent', description: `${name} has been told.` });
+      // Everyone who has not sent is told, not only the first one.
+      const targets = missing.length > 0 ? missing : data.sections.filter((s) => s.departmentId === data.nextStep.departmentId);
+      void run(() => Promise.all(targets.map((t) => requisitionsApi.nudge(id, t.departmentId))), {
+        title: targets.length > 1 ? 'Nudges sent' : 'Nudge sent',
+        description: `${targets.map((t) => t.departmentName).join(', ')} ${targets.length > 1 ? 'have' : 'has'} been told.`,
+      });
     } else if (action === 'APPROVE_AND_SIGN') setParam({ drawer: 'approve' });
     else if (action === 'APPROVE_ADDITION') setAdditionToApprove(data.additions.find((a) => a.status === 'PENDING') ?? null);
     else if (action === 'PRINT') window.open(printHref, '_blank', 'noopener');
