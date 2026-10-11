@@ -30,6 +30,35 @@ import { RequisitionDispatchesPanel } from '../../dispatch/components/desktop/re
 
 type View = 'items' | 'documents' | 'activity';
 
+/** "1 of 5 sections in", "all 5 sections in", or "1 of 5 sections in, 4 sent without" once the manager skipped some. */
+function sectionsText(data: RequisitionFile): string {
+  const { sectionsIn, sectionsTotal } = data.nextStep.facts;
+  const skipped = data.sections.filter((s) => s.status === 'SKIPPED').length;
+  if (skipped > 0) return `${sectionsTotal - skipped} of ${sectionsTotal} sections in, ${skipped} sent without`;
+  return `${sectionsIn === sectionsTotal ? `all ${sectionsTotal}` : `${sectionsIn} of ${sectionsTotal}`} sections in`;
+}
+
+/** "Kitchen", "Kitchen and Barista", "the 3 sections that are in". */
+function namesIn(data: RequisitionFile): string {
+  const names = data.sections.filter((s) => s.status === 'SUBMITTED').map((s) => s.departmentName);
+  if (names.length <= 2) return names.join(' and ');
+  return `the ${names.length} sections that are in`;
+}
+
+/** The first names of the heads who sent a section, so the banner says who was told. */
+function toldNames(data: RequisitionFile | null | undefined): string[] {
+  return (data?.sections ?? []).filter((s) => s.status === 'SUBMITTED').map((s) => s.sentBy?.name.split(' ')[0] ?? `The ${s.departmentName} head`);
+}
+
+/** "Kelvin has been told", "Kelvin and Amina have been told", "Kelvin and 3 others have been told". */
+function toldSentence(told: string[]): string {
+  const [first, second] = told;
+  if (!first) return 'The heads have been told.';
+  if (!second) return `${first} has been told.`;
+  if (told.length === 2) return `${first} and ${second} have been told.`;
+  return `${first} and ${told.length - 1} others have been told.`;
+}
+
 function FileSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-5">
@@ -47,16 +76,16 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   const router = useRouter();
   const params = useSearchParams();
   const file = useLoader(`file:${id}`, () => requisitionsApi.file(id), 'Could not load this requisition.');
-  const [approved, setApproved] = React.useState<{ at: string; reference: string; heads: number } | null>(null);
+  const [approved, setApproved] = React.useState<{ at: string; reference: string; told: string[] } | null>(null);
   const [additionToApprove, setAdditionToApprove] = React.useState<Addition | null>(null);
   const [fillFor, setFillFor] = React.useState<string | null>(null);
   const [menuFailure, setMenuFailure] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [confirmSkip, setConfirmSkip] = React.useState(false);
   const data = file.data;
   const reload = file.reload;
   // Dialogs and sheets opened from a menu return focus to the control that opened the menu (the menu item is gone by then).
   const moreRef = React.useRef<HTMLButtonElement>(null);
-  const caretRef = React.useRef<HTMLButtonElement>(null);
   const fillTrigger = React.useRef<HTMLElement | null>(null);
 
   const view: View = params.get('view') === 'documents' ? 'documents' : params.get('view') === 'activity' ? 'activity' : 'items';
@@ -103,7 +132,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   };
 
   const onApproved = (result: ApproveResult): void => {
-    setApproved({ at: result.approvedAt, reference: result.reference, heads: data?.sections.filter((s) => s.status === 'SUBMITTED').length ?? 0 });
+    setApproved({ at: result.approvedAt, reference: result.reference, told: toldNames(data) });
     setParam({ drawer: null });
     void reload();
   };
@@ -116,8 +145,12 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
     if (!data) return;
     const action = data.nextStep.action;
     if (action === 'NUDGE' && data.nextStep.departmentId) {
-      const name = data.sections.find((s) => s.departmentId === data.nextStep.departmentId)?.departmentName ?? 'the department';
-      void run(() => requisitionsApi.nudge(id, data.nextStep.departmentId ?? ''), { title: 'Nudge sent', description: `${name} has been told.` });
+      // Everyone who has not sent is told, not only the first one.
+      const targets = missing.length > 0 ? missing : data.sections.filter((s) => s.departmentId === data.nextStep.departmentId);
+      void run(() => Promise.all(targets.map((t) => requisitionsApi.nudge(id, t.departmentId))), {
+        title: targets.length > 1 ? 'Nudges sent' : 'Nudge sent',
+        description: `${targets.map((t) => t.departmentName).join(', ')} ${targets.length > 1 ? 'have' : 'has'} been told.`,
+      });
     } else if (action === 'APPROVE_AND_SIGN') setParam({ drawer: 'approve' });
     else if (action === 'APPROVE_ADDITION') setAdditionToApprove(data.additions.find((a) => a.status === 'PENDING') ?? null);
     else if (action === 'PRINT') window.open(printHref, '_blank', 'noopener');
@@ -125,17 +158,20 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
   };
 
   const sendWithoutMissing = (): void => {
-    void run(() => requisitionsApi.skip(id, { departmentIds: missing.map((m) => m.departmentId) }), { title: 'Sent without the missing section', description: missing.map((m) => m.departmentName).join(', ') });
+    setConfirmSkip(false);
+    void run(() => requisitionsApi.skip(id, { departmentIds: missing.map((m) => m.departmentId) }), { title: missing.length === 1 ? 'Sent without the missing section' : `Sent without ${missing.length} sections`, description: missing.map((m) => m.departmentName).join(', ') });
   };
+  const fillable = data?.sections.find((s) => s.departmentId === data.nextStep.departmentId && s.can.fillMyself) ?? null;
+  const canApproveWithoutMissing = Boolean(data?.can.skip) && (data?.nextStep.facts.sectionsIn ?? 0) > 0 && missing.length > 0;
 
   const subline = data
     ? [
         data.reference,
         data.branch.name,
         data.status === 'APPROVED' || data.status === 'CLOSED' ? (data.approvedAt ? `approved ${clock(data.approvedAt)}` : null) : `started ${clock(data.openedAt)}`,
-        data.status === 'OPEN' || data.status === 'PENDING_APPROVAL' ? `${data.nextStep.facts.sectionsIn === data.nextStep.facts.sectionsTotal ? `all ${data.nextStep.facts.sectionsTotal}` : `${data.nextStep.facts.sectionsIn} of ${data.nextStep.facts.sectionsTotal}`} sections in` : null,
+        data.status === 'OPEN' || data.status === 'PENDING_APPROVAL' ? sectionsText(data) : null,
         // An approved addition's lines are already in `lineCount`; only the ones still waiting are "added" on top of it.
-        `${data.lineCount} lines${data.additions.some((a) => a.status === 'PENDING') ? ` + ${data.additions.filter((a) => a.status === 'PENDING').reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
+        `${data.lineCount} ${data.lineCount === 1 ? 'line' : 'lines'}${data.additions.some((a) => a.status === 'PENDING') ? ` + ${data.additions.filter((a) => a.status === 'PENDING').reduce((n, a) => n + a.lines.length, 0)} added` : ''}`,
         data.valueKes !== undefined ? `KES ${kes(data.valueKes)}${data.status === 'OPEN' ? ' so far' : ''}` : null,
       ]
         .filter(Boolean)
@@ -163,7 +199,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 <div className="flex flex-col">
                   <p className="font-wds-sans text-[17px] font-semibold text-wds-success-fg">Approved and sent to the Central Store</p>
                   <p className="font-wds-sans text-[15px] text-wds-text-ink">
-                    You signed {approved.reference} at {clock(approved.at)}. {approved.heads === 1 ? 'The head has' : `The ${approved.heads} heads have`} been told.
+                    You signed {approved.reference} at {clock(approved.at)}. {toldSentence(approved.told)}
                   </p>
                 </div>
               </div>
@@ -179,14 +215,14 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 <p className="font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">{subline}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {approved ? <Button variant="secondary" onClick={() => router.push(base)}>Back to requisitions</Button> : null}
-                {data.can.print || data.can.setUrgent || data.can.cancel ? (
+                {data.can.print ? <Button variant="secondary" onClick={() => window.open(printHref, '_blank', 'noopener')}>Print</Button> : null}
+                {approved ? <Button onClick={() => router.push(base)}>Back to requisitions</Button> : null}
+                {data.can.setUrgent || data.can.cancel ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button ref={moreRef} variant="secondary" size="icon" aria-label="More actions" disabled={busy}><MoreHorizontal /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      {data.can.print ? <DropdownMenuItem onSelect={() => window.open(printHref, '_blank', 'noopener')}>Print</DropdownMenuItem> : null}
                       {data.can.setUrgent ? (
                         <DropdownMenuItem onSelect={() => void run(() => requisitionsApi.setUrgent(id, { urgent: !data.urgent }), { title: data.urgent ? 'Urgent cleared' : 'Marked as urgent', description: data.urgent ? undefined : 'The Branch Manager is told at once, the Director after 1 hour.' })}>
                           {data.urgent ? 'Clear urgent' : 'Mark as urgent'}
@@ -211,30 +247,27 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 <MonoLabel>Next step</MonoLabel>
                 <h2 className="font-wds-sans text-[18px] font-semibold leading-6 tracking-[-0.01em] text-wds-text-ink">{words.title}</h2>
                 <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{words.body}</p>
+                {data.nextStep.action === 'NUDGE' && fillable ? (
+                  <button
+                    type="button"
+                    onClick={(event) => { fillTrigger.current = event.currentTarget; setFillFor(fillable.departmentId); }}
+                    disabled={busy}
+                    className="mt-1 self-start font-wds-sans text-[14px] font-medium text-wds-text-ink underline underline-offset-4 outline-none hover:text-wds-primary focus-visible:shadow-wds-ring"
+                  >
+                    Fill {fillable.departmentName} in myself
+                  </button>
+                ) : null}
               </div>
-              {words.action && words.actionLabel ? (
+              {/* Print already sits in the header, so the card does not repeat it. */}
+              {words.action && words.actionLabel && !(data.nextStep.action === 'PRINT' && data.can.print) ? (
                 data.nextStep.action === 'NUDGE' ? (
-                  <div className="flex shrink-0">
-                    <Button size="lg" onClick={doNextStep} disabled={busy} className="h-[46px] rounded-r-none px-6 text-[16px]">{words.actionLabel}</Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button ref={caretRef} size="lg" aria-label="More ways to deal with the missing section" disabled={busy} className="h-[46px] rounded-l-none border-l border-wds-primary-fg/30 px-3">▾</Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[340px]">
-                        {data.sections.find((s) => s.departmentId === data.nextStep.departmentId)?.can.fillMyself ? (
-                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={() => { fillTrigger.current = caretRef.current; setFillFor(data.nextStep.departmentId); }}>
-                            <span className="text-[16px]">Fill it myself</span>
-                            <span className="text-[14px] text-wds-text-secondary">Start {missing[0]?.departmentName}&apos;s section for them</span>
-                          </DropdownMenuItem>
-                        ) : null}
-                        {data.can.skip ? (
-                          <DropdownMenuItem className="flex-col items-start gap-0.5 py-2.5" onSelect={sendWithoutMissing}>
-                            <span className="text-[16px]">Send without this section</span>
-                            <span className="text-[14px] text-wds-text-secondary">{data.nextStep.facts.sectionsIn === 1 ? 'Approve the 1 section that is in' : `Approve the ${data.nextStep.facts.sectionsIn} sections that are in`}</span>
-                          </DropdownMenuItem>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+                    <Button size="lg" onClick={doNextStep} disabled={busy} className="h-[46px] px-6 text-[16px]">{words.actionLabel}</Button>
+                    {canApproveWithoutMissing ? (
+                      <Button size="lg" variant="secondary" onClick={() => setConfirmSkip(true)} disabled={busy} className="h-[46px] px-5 text-[16px]">
+                        Approve with {namesIn(data)} only
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <Button size="lg" variant={data.nextStep.action === 'PRINT' || data.nextStep.action === 'START_A_NEW_ONE' ? 'secondary' : 'primary'} onClick={doNextStep} disabled={busy} className="h-[46px] shrink-0 px-6 text-[16px]">
@@ -243,6 +276,22 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 )
               ) : null}
             </section>
+            {confirmSkip && canApproveWithoutMissing ? (
+              <section role="alertdialog" aria-labelledby="req-skip-title" className="flex flex-col items-stretch justify-between gap-4 border border-wds-warning-border bg-wds-warning-bg px-6 py-4 sm:flex-row sm:items-center sm:gap-8">
+                <div className="flex max-w-[860px] flex-col gap-1">
+                  <h2 id="req-skip-title" className="font-wds-sans text-[16px] font-semibold leading-6 text-wds-warning-fg">
+                    Send without {missing.map((m) => m.departmentName).join(', ')}?
+                  </h2>
+                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
+                    {missing.length === 1 ? 'That head' : 'Those heads'} will be told and can start an Extra requisition if they still need something. Then you sign for {namesIn(data)}.
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-3">
+                  <Button variant="secondary" onClick={() => setConfirmSkip(false)} disabled={busy}>Keep waiting</Button>
+                  <Button onClick={sendWithoutMissing} disabled={busy}>Send without them</Button>
+                </div>
+              </section>
+            ) : null}
             {menuFailure ? <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-4 py-2.5 font-wds-sans text-[14px] text-wds-error-fg">{menuFailure}</p> : null}
             {data.cancelled ? (
               <p className="border border-wds-border-strong bg-wds-neutral-50 px-4 py-3 font-wds-sans text-[15px] text-wds-text-ink">
@@ -258,7 +307,7 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                 active={view}
                 onChange={(next) => setParam({ view: next === 'items' ? null : next })}
                 tabs={[
-                  { key: 'items', label: data.dispatches.length > 0 ? 'Items and dispatches' : 'Items', count: data.dispatches.length > 0 ? undefined : data.lineCount },
+                  { key: 'items', label: data.dispatches.length > 0 ? 'Items and dispatches' : 'Items' },
                   { key: 'documents', label: 'Documents' },
                   { key: 'activity', label: 'Activity' },
                 ]}

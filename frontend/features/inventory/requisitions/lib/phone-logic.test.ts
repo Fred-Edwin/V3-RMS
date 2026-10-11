@@ -4,16 +4,39 @@ import { ApiError } from '@/types/api';
 import { navFor, type NavContext } from '@/components/app/shell/nav-table';
 import {
   headErrorMessage,
+  headStatusText,
   headTracker,
   HEAD_ERROR_COPY,
   homeHeadline,
   managerChangedBanner,
   OFFLINE_MESSAGE,
   statusBanner,
+  workSummary,
 } from '../_shared/lib/phone-words';
 import { REQUISITION_ERROR_CODES } from '../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged } from '../hooks/use-section-draft';
 import { cleanTyped, formatQty, isValidQty, stepQty } from './qty';
+
+describe('the head sees their own list state before approval', () => {
+  it('says what happened to the head list, not the whole requisition', () => {
+    expect(headStatusText('OPEN', 'Collecting', 'SUBMITTED')).toBe('Sent, waiting for approval');
+    expect(headStatusText('OPEN', 'Collecting', 'DRAFT')).toBe('Not sent yet');
+    expect(headStatusText('PENDING_APPROVAL', 'Ready to approve', 'SKIPPED')).toBe('Skipped');
+  });
+  it('leaves approved, closed and cancelled to the requisition word', () => {
+    expect(headStatusText('APPROVED', 'Approved', 'SUBMITTED')).toBe('Approved');
+    expect(headStatusText('CANCELLED', 'Cancelled', 'DRAFT')).toBe('Cancelled');
+  });
+});
+
+describe('the working screen footer', () => {
+  it('counts added lines apart from edited ones', () => {
+    // 28 lines: 3 added by the head (always "changed"), 2 suggested lines whose quantity was edited.
+    expect(workSummary(28, 3, 5, 0)).toBe('28 lines · 3 added · 2 changed');
+    expect(workSummary(1, 0, 0, 0)).toBe('1 line');
+    expect(workSummary(10, 0, 1, 2)).toBe('10 lines · 1 changed · 2 removed');
+  });
+});
 
 describe('quantities', () => {
   it('shows decimals as a person writes them', () => {
@@ -95,7 +118,9 @@ describe("the head's rows in the navigation table", () => {
   const ctx = (isDepartmentHead: boolean): NavContext => ({ role: 'CHEF', isDepartmentHead, can: () => false, creditAccounts: false });
   const hrefs = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.href));
   it('gives a head Requisitions, Deliveries, Waste and History on the new pages, and a member none of them', () => {
-    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/waste', '/app/requisitions/history']));
+    expect(hrefs(true)).toEqual(expect.arrayContaining(['/app/requisitions', '/app/deliveries', '/app/waste']));
+    // History is reached from the Requisitions home, not from a menu row of its own.
+    expect(hrefs(true)).not.toContain('/app/requisitions/history');
     expect(hrefs(false)).not.toContain('/app/requisitions');
   });
   it('gives a department member (not a head) Deliveries and its History, and no Requisitions', () => {
@@ -105,9 +130,9 @@ describe("the head's rows in the navigation table", () => {
     expect(hrefs(false)).not.toContain('/app/deliveries');
     expect(hrefs(true)).not.toContain('/app/deliveries/history');
   });
-  it('shows a chef-head one History (the head\'s), and a chef without the marker the floor History', () => {
+  it('shows a chef-head no History row (it is on the Requisitions home), and a chef without the marker the floor History', () => {
     const labels = (head: boolean): string[] => navFor(ctx(head)).flatMap((g) => g.items.map((i) => i.label));
-    expect(labels(true).filter((l) => l === 'History')).toHaveLength(1);
+    expect(labels(true).filter((l) => l === 'History')).toHaveLength(0);
     expect(hrefs(true)).not.toContain('/app/history');
     expect(hrefs(false)).toContain('/app/history');
   });

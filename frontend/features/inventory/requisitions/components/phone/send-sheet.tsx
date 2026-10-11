@@ -26,14 +26,12 @@ export interface SendSheetProps {
   branchName: string;
   lines: readonly SendSheetLine[];
   changes: number;
-  note: string;
-  onNote: (value: string) => void;
   /** Signs and sends. Resolves to the words of the failure, or null when it worked. */
   onSend: (pin: string, idempotencyKey: string) => Promise<string | null>;
 }
 
-/** Paper step 5: the summary, the optional note for the Branch Manager and the PIN, as one sheet. */
-export function SendSheet({ open, onOpenChange, departmentName, reference, cycleLabel, branchName, lines, changes, note, onNote, onSend }: SendSheetProps) {
+/** Paper step 5: the summary and the PIN, as one sheet (no note box, as drawn). */
+export function SendSheet({ open, onOpenChange, departmentName, reference, cycleLabel, branchName, lines, changes, onSend }: SendSheetProps) {
   const idem = useIdempotencyKey();
   useRestoreFocus(open);
   const [submitting, setSubmitting] = React.useState(false);
@@ -62,6 +60,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
   return (
     <SignSheetDialog
       layout="sheet"
+      signOnLastDigit
       open={open}
       onOpenChange={onOpenChange}
       title={SEND_SHEET_COPY.title(departmentName)}
@@ -73,7 +72,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
       submitting={submitting}
       error={error}
     >
-      <section aria-label="Your list" className="flex flex-col border border-wds-border-strong">
+      <section aria-label="Your list" className="flex shrink-0 flex-col border border-wds-border-strong">
         <div className="flex items-end justify-between gap-3 border-b border-wds-text-ink px-4 pb-3.5 pt-4">
           <div className="flex flex-col gap-0.5">
             <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">{SEND_SHEET_COPY.yourList}</p>
@@ -87,7 +86,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
           ) : null}
         </div>
         {showAll ? (
-          <ul className="flex max-h-[280px] flex-col overflow-y-auto">
+          <ul className="flex max-h-[280px] shrink-0 flex-col overflow-y-auto">
             {groups.map((group) => (
               <li key={group.heading} className="flex flex-col">
                 <p className="border-b border-wds-border bg-wds-neutral-50 px-4 py-2 font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{group.heading}</p>
@@ -112,7 +111,7 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
                   <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{group.heading}</p>
                   <p className="font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{group.lines.length}</p>
                 </div>
-                <p className="line-clamp-1 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{group.lines.map((l) => l.itemName).join(', ')}</p>
+                <p className="line-clamp-1 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{group.lines.map((l) => `${l.itemName} × ${formatQty(l.qty)}`).join(', ')}</p>
               </li>
             ))}
           </ul>
@@ -129,19 +128,6 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
           </button>
         </div>
       </section>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="req-note" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
-          {SEND_SHEET_COPY.noteLabel}
-        </label>
-        <textarea
-          id="req-note"
-          value={note}
-          onChange={(e) => onNote(e.target.value.slice(0, SEND_SHEET_COPY.noteMax))}
-          rows={2}
-          maxLength={SEND_SHEET_COPY.noteMax}
-          className="w-full resize-none border border-wds-border-strong bg-wds-surface px-3 py-2.5 font-wds-sans text-[14px] leading-5 text-wds-text-ink outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-wds-ring"
-        />
-      </div>
     </SignSheetDialog>
   );
 }

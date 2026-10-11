@@ -54,6 +54,8 @@ export interface SignSheetDialogProps {
   confirmBlockedReason?: string;
   /** `wide` layout only: the width in px when Paper draws it other than 560 (step 14 draws 580). */
   wideWidth?: number;
+  /** `wide` and `sheet` only: the fourth digit signs, with no second tap on the confirm button (the confirm button stays for keyboards and for a retry). */
+  signOnLastDigit?: boolean;
 }
 
 const PIN_LENGTH = 4;
@@ -75,6 +77,7 @@ export function SignSheetDialog({
   pinLabel = 'Enter your PIN',
   confirmBlockedReason,
   wideWidth,
+  signOnLastDigit = false,
 }: SignSheetDialogProps) {
   const [pin, setPin] = React.useState('');
   // Everyone who signs needs a PIN. If this signer has none yet, the sheet
@@ -102,6 +105,13 @@ export function SignSheetDialog({
   }, [submitting, error]);
 
   const canSubmit = pin.length === PIN_LENGTH && !submitting && !checkingPin;
+
+  // The fourth digit signs. A rejected PIN clears the boxes (above), so this cannot loop.
+  React.useEffect(() => {
+    if (signOnLastDigit && layout !== 'dialog' && canSubmit && !confirmBlockedReason && !needsPin) onSubmit(pin);
+    // Only a change of the typed PIN should sign; `onSubmit` is a fresh function each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   if (layout !== 'dialog') {
     return (
@@ -382,8 +392,9 @@ function CountingSignLayout({
               : 'left-1/2 top-1/2 max-h-[calc(100vh-32px)] w-[560px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 gap-[18px] overflow-y-auto border border-wds-border-strong px-7 py-6 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           )}
         >
-          {sheet ? <div className="h-1 w-9 shrink-0 self-center bg-wds-border-strong" aria-hidden /> : null}
-          <div className="flex flex-col gap-1">
+          {/* On the phone sheet the grab bar and the title stay in view while a long list scrolls under them. */}
+          <div className={cn('flex flex-col gap-1', sheet && 'sticky top-0 z-10 -mx-5 -mt-2.5 shrink-0 bg-wds-surface px-5 pb-3 pt-2.5')}>
+            {sheet ? <div className="mx-auto mb-3 h-1 w-9 shrink-0 bg-wds-border-strong" aria-hidden /> : null}
             <DialogPrimitive.Title className={cn('font-wds-sans font-semibold text-wds-text-ink', 'text-[20px] leading-[26px]')}>
               {needsPin ? 'Set your signing PIN' : title}
             </DialogPrimitive.Title>
