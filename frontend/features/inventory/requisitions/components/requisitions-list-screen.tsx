@@ -330,6 +330,11 @@ function dataTabForWaiting(active: RequisitionTab | null, counts: TabCounts | nu
 
 /** The grey line under a document number: "Afternoon · started 1:41 pm", "Extra · Service only", the cancel reason. */
 function subline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+  const base = baseSubline(r, tab, history);
+  return !history && r.changedLineCount > 0 ? `${base} · ${r.changedLineCount} ${r.changedLineCount === 1 ? 'line' : 'lines'} changed` : base;
+}
+
+function baseSubline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
   const cycle = r.cycleLabel.split(' · ')[0] ?? r.cycleLabel;
   if (history) {
     if (r.status === 'CANCELLED') return `${cycle} · ${r.sections.length === 1 ? `${r.sections[0]?.departmentName} only` : `${r.sections.length} departments`}${r.cancelReason ? ` · cancelled before approval: "${r.cancelReason}"` : ''}`;
