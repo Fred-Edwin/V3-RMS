@@ -158,7 +158,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
 
           {effectiveView === 'list' ? (
             <>
-              <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.suggestedIntro}</p>
+              {emptyList ? null : <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.suggestedIntro}</p>}
               {groups.map((group) => (
                 <section key={group.heading} aria-label={group.heading}>
                   <CategoryHeading heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
@@ -231,8 +231,6 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
         branchName={branchName}
         lines={draft.lines.map((l) => ({ itemId: l.itemId, itemName: l.itemName, unit: l.unit, qty: l.qty, categoryPath: l.categoryPath }))}
         changes={draft.counts.changes}
-        note={draft.note}
-        onNote={draft.setNote}
         onSend={send}
       />
     </PhoneColumn>

@@ -26,14 +26,12 @@ export interface SendSheetProps {
   branchName: string;
   lines: readonly SendSheetLine[];
   changes: number;
-  note: string;
-  onNote: (value: string) => void;
   /** Signs and sends. Resolves to the words of the failure, or null when it worked. */
   onSend: (pin: string, idempotencyKey: string) => Promise<string | null>;
 }
 
-/** Paper step 5: the summary, the optional note for the Branch Manager and the PIN, as one sheet. */
-export function SendSheet({ open, onOpenChange, departmentName, reference, cycleLabel, branchName, lines, changes, note, onNote, onSend }: SendSheetProps) {
+/** Paper step 5: the summary and the PIN, as one sheet (no note box, as drawn). */
+export function SendSheet({ open, onOpenChange, departmentName, reference, cycleLabel, branchName, lines, changes, onSend }: SendSheetProps) {
   const idem = useIdempotencyKey();
   useRestoreFocus(open);
   const [submitting, setSubmitting] = React.useState(false);
@@ -129,19 +127,6 @@ export function SendSheet({ open, onOpenChange, departmentName, reference, cycle
           </button>
         </div>
       </section>
-      <div className="flex shrink-0 flex-col gap-1.5">
-        <label htmlFor="req-note" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
-          {SEND_SHEET_COPY.noteLabel}
-        </label>
-        <textarea
-          id="req-note"
-          value={note}
-          onChange={(e) => onNote(e.target.value.slice(0, SEND_SHEET_COPY.noteMax))}
-          rows={2}
-          maxLength={SEND_SHEET_COPY.noteMax}
-          className="w-full resize-none border border-wds-border-strong bg-wds-surface px-3 py-2.5 font-wds-sans text-[14px] leading-5 text-wds-text-ink outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-wds-ring"
-        />
-      </div>
     </SignSheetDialog>
   );
 }
