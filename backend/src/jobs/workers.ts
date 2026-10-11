@@ -7,6 +7,7 @@ import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
 import { URGENT_ESCALATION_JOB, ensureUrgentEscalationSchedule, escalateUrgentRequisitions } from './requisition-urgent-escalation';
 import { ensureInventoryDeliverySchedule, runInventoryDeliveryJob } from './inventory-delivery-jobs';
+import { ensurePurchasingDueSchedule, runPurchasingDueJob } from './purchasing-due-jobs';
 import { INVENTORY_NOTICE_JOB, inventoryNotify, type HeldNotice } from '../modules/inventory/_shared/notify';
 import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
 import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
@@ -83,6 +84,9 @@ export const reportWorker = new Worker(
 
     // Block 2: the 2-hour "Waiting for the branch" nudge and the 24-hour then daily discrepancy reminder (idempotent claims).
     if (await runInventoryDeliveryJob(job.name)) return;
+
+    // Purchasing: the 08:00 "delivery due today" and "overdue" pushes to the Store Attendants (notification map rows 24 and 25).
+    if (await runPurchasingDueJob(job.name)) return;
 
     if (job.name === URGENT_ESCALATION_JOB) {
       const escalated = await escalateUrgentRequisitions();
@@ -164,6 +168,9 @@ export const startWorkers = (): void => {
     });
     void ensureInventoryDeliverySchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the delivery waiting and discrepancy reminder schedule');
+    });
+    void ensurePurchasingDueSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the Purchasing due and overdue schedule');
     });
     void ensureReadyOrderReminderSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register ready order reminder schedule');

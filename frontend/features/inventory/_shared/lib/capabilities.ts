@@ -27,6 +27,7 @@ export const CAPABILITIES = [
   'orders.approve',
   'orders.cancel',
   'orders.receive',
+  'orders.see_stock',
   'prep.read',
   'prep.see_costs',
   'prep.read_flags',

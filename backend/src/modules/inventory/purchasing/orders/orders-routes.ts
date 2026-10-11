@@ -24,4 +24,10 @@ router.post('/orders/:id/return', requireCapability('orders.approve'), ordersCon
 router.post('/orders/:id/send', requireCapability('orders.approve', 'orders.request'), ordersController.send);
 router.post('/orders/:id/cancel', requireCapability('orders.cancel'), ordersController.cancel);
 
+// The Store Attendant's phone (Paper 28D, 28H, 28K). `orders.request` is the raiser's right; the service checks it is their own order.
+router.get('/collectors', requireCapability('orders.approve', 'orders.request'), ordersController.getCollectors);
+router.put('/orders/:id/collected-by', requireCapability('orders.approve', 'orders.request'), ordersController.setCollectedBy);
+router.post('/orders/:id/withdraw', requireCapability('orders.request'), ordersController.withdraw);
+router.post('/orders/:id/remind', requireCapability('orders.request'), ordersController.remind);
+
 export default router;

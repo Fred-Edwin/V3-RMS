@@ -10,7 +10,8 @@ export type Stage = 'NEEDS' | 'APPROVAL' | 'RECEIVE' | 'INVOICE' | 'PAY' | 'CLOS
 export type PayMethod = 'BANK_TRANSFER' | 'MPESA_PAYBILL' | 'MPESA_TILL' | 'MPESA_SEND_MONEY' | 'CHEQUE' | 'CASH';
 export type LineResult = 'AS_ORDERED' | 'PRICE_CHANGED' | 'SHORT' | 'NOT_SUPPLIED';
 export type SendVia = 'WHATSAPP' | 'PRINT' | 'LINK' | 'MANUAL';
-export type CancelReason = 'ORDERED_BY_MISTAKE' | 'SUPPLIER_CANNOT_SUPPLY' | 'NO_LONGER_NEEDED' | 'OTHER';
+export type CancelReason = 'ORDERED_BY_MISTAKE' | 'SUPPLIER_CANNOT_SUPPLY' | 'NO_LONGER_NEEDED' | 'OTHER' | 'WITHDRAWN';
+export type CollectedByKind = 'SUPPLIER_DELIVERS' | 'CARRIER' | 'STAFF' | 'OTHER';
 export type TrackerStep = 'RAISED' | 'APPROVED' | 'SENT' | 'DELIVERED' | 'INVOICED' | 'PAID';
 
 export interface Person {
@@ -124,6 +125,8 @@ export interface SupplierCard {
   name: string;
   code: string;
   contactName: string | null;
+  /** The number to call: the contact's phone, else their WhatsApp number (Call supplier, Paper 28J and 28M). */
+  phone: string | null;
   whatsapp: string | null;
   termsDays: number | null;
   /** Hidden from callers without `suppliers.read_payment_details`. */
@@ -144,6 +147,12 @@ export interface OrderCan {
   return: boolean;
   send: boolean;
   cancel: boolean;
+  /** Raiser only, before approval, no PIN. */
+  withdraw: boolean;
+  /** Raiser only, while awaiting approval. */
+  remind: boolean;
+  /** Choose who is getting an approved or sent order. */
+  setCollectedBy: boolean;
   receive: boolean;
   recordDeposit: boolean;
   addInvoice: boolean;
@@ -162,6 +171,22 @@ export interface OrderMoney {
   stillToPay: string;
 }
 
+/** "Who is getting it?" (Paper 28D): "Sent, collected by {label}" or "Sent, supplier delivers". */
+export interface CollectedByView {
+  kind: CollectedByKind;
+  label: string;
+  /** "collected by Wendo van KCB 214K" or "supplier delivers". */
+  summary: string;
+  carrierId: string | null;
+  userId: string | null;
+  /** Who chose it ("Set by Joseph (Store Manager)") and when. */
+  setBy: Person | null;
+  setAt: string | null;
+}
+
+/** What the picker sends: the four kinds of collector. */
+export type CollectedByInput = { kind: 'SUPPLIER_DELIVERS' } | { kind: 'CARRIER'; carrierId: string } | { kind: 'STAFF'; userId: string } | { kind: 'OTHER'; name: string };
+
 export interface Order {
   id: string;
   reference: string | null;
@@ -176,6 +201,8 @@ export interface Order {
   returnedBy: { id: string; name: string } | null;
   sentAt: string | null;
   sentVia: SendVia | null;
+  /** Set on an approved order; null until someone says who is getting it. */
+  collectedBy: CollectedByView | null;
   expectedDate: string | null;
   supplierNote: string | null;
   attendantNote: string | null;
@@ -536,6 +563,9 @@ export type PurchasingErrorCode =
   | 'UPLOAD_TOO_LARGE'
   | 'UPLOAD_BAD_TYPE'
   | 'UPLOAD_FAILED'
+  | 'COLLECTOR_NOT_FOUND'
+  | 'REMINDER_TOO_SOON'
+  | 'DATE_RANGE_INVALID'
   | 'FORBIDDEN';
 
 /** True when the server refused with this code (every refusal arrives as an `ApiError` with the code of §31.6). */

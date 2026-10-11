@@ -12,6 +12,7 @@ import { extraDocumentView, invoiceView, liveInvoiceOf, METHOD_WORD, payMethodVi
 import { purchasingPin } from '../_shared/pin';
 import { kes, purchasingAudit } from '../_shared/purchasing-audit';
 import { purchasingError, wrongStateError } from '../_shared/purchasing-errors';
+import { purchasingNotices } from '../_shared/purchasing-notify';
 import type { FileDocumentView, InvoiceView, OrderView, PayMethod } from '../_shared/purchasing.types';
 import { purchaseFileService } from '../files/files-service';
 import { ordersRepository } from '../orders/orders-repository';
@@ -69,13 +70,16 @@ const needCheque = (method: string, chequeNo: string | null): string | null => {
  * Bring the invoice and the order in line with what has been paid, after anything that changes an advance, a payment, a dispute
  * or the invoice. An advance is applied up to the invoice amount; fully paid and not disputed moves the order to CLOSED.
  */
-const refresh = async (tx: Tx, siteId: string, orderId: string): Promise<void> => {
+const refresh = async (tx: Tx, siteId: string, orderId: string, now: Date): Promise<boolean> => {
   const order = await ordersRepository.findOrderInTx(tx, siteId, orderId);
   const live = order ? liveInvoiceOf(order) : null;
-  if (!order || !live) return;
+  if (!order || !live) return false;
   const paidInFull = invoiceFigures(live.amount, factsOf(order), live.disputed).paidInFull;
   await payablesRepository.setInvoiceStatus(tx, siteId, live.id, paidInFull ? 'PAID' : 'OPEN');
-  await ordersRepository.transition(tx, siteId, order.id, { from: ['INVOICED', 'CLOSED'], status: paidInFull ? 'CLOSED' : 'INVOICED' });
+  // `closedAt` is the day the order closed (History filters on it): stamped once on the move to CLOSED, cleared when a payment is reversed.
+  const closedAt = paidInFull ? (order.status === 'CLOSED' ? undefined : now) : null;
+  await ordersRepository.transition(tx, siteId, order.id, { from: ['INVOICED', 'CLOSED'], status: paidInFull ? 'CLOSED' : 'INVOICED', ...(closedAt !== undefined ? { closedAt } : {}) });
+  return paidInFull && order.status !== 'CLOSED';
 };
 
 const isUniqueViolation = (error: unknown): boolean => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
@@ -97,7 +101,7 @@ export const payablesService = {
         siteId, orderId: order.id, invoiceId: null, supplierId: order.supplierId, reference, kind: 'ADVANCE', amount, paidOn: dateOf(input.paidOn),
         method: input.method, methodRef: input.methodRef, chequeNo, note: input.note, proofFileId: null, recordedById: actor.id,
       });
-      await refresh(tx, siteId, order.id);
+      await refresh(tx, siteId, order.id, now);
       await purchasingAudit.record(
         tx,
         {
@@ -135,7 +139,7 @@ export const payablesService = {
           amount, disputed: variance.differs, varianceAmount: variance.differs ? variance.amount : null, varianceReason: variance.differs ? reason : null, fileId: file?.id ?? null, enteredById: actor.id,
         });
         if (!(await ordersRepository.transition(tx, siteId, order.id, { from: ['DELIVERED'], status: 'INVOICED' }))) throw wrongStateError('changed by someone else');
-        await refresh(tx, siteId, order.id);
+        await refresh(tx, siteId, order.id, now);
         const gap = kes(variance.amount.abs());
         await purchasingAudit.record(
           tx,
@@ -165,7 +169,7 @@ export const payablesService = {
     await prisma.$transaction(async (tx) => {
       const settled = await payablesRepository.settleInvoice(tx, siteId, invoice.id, { amount: agreed, settledAmount: agreed, settledNote: input.note, settledById: actor.id, settledAt: now });
       if (!settled) throw purchasingError('INVOICE_NOT_DISPUTED', 'This invoice is not in dispute.');
-      await refresh(tx, siteId, order.id);
+      await refresh(tx, siteId, order.id, now);
       await purchasingAudit.record(
         tx,
         {
@@ -214,13 +218,14 @@ export const payablesService = {
       throw purchasingError('PAYMENT_EXCEEDS_BALANCE', `That is more than the KES ${toMoney(balance)} owed.`, { balance: toMoney(balance) });
     }
     const proof = await purchaseFileService.resolve(siteId, input.proofPhotoId);
+    let closedNow = false;
     const paymentId = await prisma.$transaction(async (tx) => {
       const reference = await referenceCounterRepository.nextReference(tx, siteId, 'PAY');
       const id = await payablesRepository.createPayment(tx, {
         siteId, orderId: order.id, invoiceId: invoice.id, supplierId: order.supplierId, reference, kind: 'INVOICE', amount, paidOn: dateOf(input.paidOn),
         method: input.method, methodRef: input.methodRef, chequeNo, note: null, proofFileId: proof?.id ?? null, recordedById: actor.id,
       });
-      await refresh(tx, siteId, order.id);
+      closedNow = await refresh(tx, siteId, order.id, now);
       const after = await ordersRepository.findOrderInTx(tx, siteId, order.id);
       const left = after ? invoiceFigures(invoice.amount, factsOf(after), false).balance : D(0);
       await purchasingAudit.record(
@@ -234,6 +239,8 @@ export const payablesService = {
       );
       return id;
     });
+    // Map row 26: the person who raised the order is told it is closed (after the commit; never fails the payment).
+    if (closedNow && order.reference) await purchasingNotices.closed({ hubId: siteId, orderId: order.id, reference: order.reference, supplierName: order.supplier.name, raisedById: order.raisedById });
     return resultOf(actor, siteId, order.id, paymentId, now);
   },
 
@@ -254,7 +261,7 @@ export const payablesService = {
         paidOn: dateOf(day(now)), method: payment.method, methodRef: payment.methodRef, chequeNo: payment.chequeNo, note: input.note, proofFileId: null,
         reversesId: payment.id, reverseReason: input.reason, approvedById: approver.id, recordedById: actor.id,
       });
-      await refresh(tx, siteId, order.id);
+      await refresh(tx, siteId, order.id, now);
       await purchasingAudit.record(
         tx,
         {

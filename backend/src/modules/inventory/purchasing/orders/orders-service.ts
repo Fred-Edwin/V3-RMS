@@ -4,6 +4,7 @@ import { prisma } from '../../../../config/database';
 import { ForbiddenError } from '../../../../utils/errors';
 import { blindnessOf } from '../../_shared/blind-rule';
 import { actorCan, requireHubActor, requireHubReader } from '../../_shared/central-store-access';
+import { nairobiDay } from '../../counting/_shared/count-time';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { orderedTotal, toMoney, toQty } from '../_shared/money';
 import { ORDER_STATUSES, canMove, stageOf, type OrderStatus, type SendVia } from '../_shared/order-state';
@@ -12,12 +13,17 @@ import { cancelWord, roleLabel, termsDaysOf, viewFile, viewOrder, viewRow } from
 import { purchasingPin } from '../_shared/pin';
 import { kes, purchasingAudit } from '../_shared/purchasing-audit';
 import { purchasingError, wrongStateError } from '../_shared/purchasing-errors';
+import { purchasingNotices } from '../_shared/purchasing-notify';
 import type { OrderRowView, PurchaseFileView, OrderView } from '../_shared/purchasing.types';
 import { needsRestockingService } from '../needs-restocking/needs-restocking-service';
 import { packOf } from '../needs-restocking/needs-restocking-logic';
-import { ordersRepository, type NewLine, type OrderSupplier, type Transition } from './orders-repository';
-import type { CancelInput, OrderInput, OrdersQuery, UpdateOrderInput } from './orders-validators';
-import type { LpoPrint, OrdersList, OrdersSummary, WhatsappMessage } from './orders.types';
+import { ordersRepository, type CollectedByData, type NewLine, type OrderSupplier, type Transition } from './orders-repository';
+import type { CancelInput, CollectedByInput, OrderInput, OrdersQuery, UpdateOrderInput } from './orders-validators';
+import type { CollectorOptions, LpoPrint, OrdersList, OrdersSummary, WhatsappMessage } from './orders.types';
+
+/** Wait this long before the Store Manager can be reminded about the same order again (Paper 28K gives no number: safest default). */
+export const REMINDER_GAP_HOURS = 4;
+export const REMIND_ACTION = 'Reminded the approver';
 
 type Actor = NonNullable<Request['user']>;
 type InputLine = OrderInput['lines'][number];
@@ -95,6 +101,31 @@ const moveOrThrow = async (tx: Prisma.TransactionClient, siteId: string, o: Orde
 
 const dateOrNull = (iso: string | null | undefined): Date | null => (iso ? new Date(`${iso}T00:00:00Z`) : null);
 
+/** "Joseph.Store Manager": a person is named with their role, written Name.Role (owner, 11 Oct 2026). */
+const withRole = (p: { name: string; role: string }): string => `${p.name}.${roleLabel(p.role)}`;
+
+/** Check who is getting the order against the hub's own lists, and turn it into the columns and the name for the audit sentence. */
+const resolveCollectedBy = async (siteId: string, setById: string, input: CollectedByInput, now: Date): Promise<{ data: CollectedByData; sentence: string }> => {
+  const base = { collectedBySetById: setById, collectedBySetAt: now };
+  const by = (name: string): string => `collected by ${name}`;
+  switch (input.kind) {
+    case 'SUPPLIER_DELIVERS':
+      return { data: { ...base, collectedByKind: 'SUPPLIER_DELIVERS', collectedByCarrierId: null, collectedByUserId: null, collectedByName: null }, sentence: 'supplier delivers' };
+    case 'CARRIER': {
+      const carrier = await ordersRepository.findActiveCarrier(siteId, input.carrierId);
+      if (!carrier) throw purchasingError('COLLECTOR_NOT_FOUND', 'That carrier is not on the Carriers list.');
+      return { data: { ...base, collectedByKind: 'CARRIER', collectedByCarrierId: carrier.id, collectedByUserId: null, collectedByName: null }, sentence: by(carrier.name) };
+    }
+    case 'STAFF': {
+      const staff = await ordersRepository.findActiveStaff(siteId, input.userId);
+      if (!staff) throw purchasingError('COLLECTOR_NOT_FOUND', 'That person is not on the staff list.');
+      return { data: { ...base, collectedByKind: 'STAFF', collectedByCarrierId: null, collectedByUserId: staff.id, collectedByName: null }, sentence: by(staff.name) };
+    }
+    case 'OTHER':
+      return { data: { ...base, collectedByKind: 'OTHER', collectedByCarrierId: null, collectedByUserId: null, collectedByName: input.name }, sentence: by(input.name) };
+  }
+};
+
 export const ordersService = {
   // ------------------------------------------------------------------ reads
 
@@ -104,7 +135,8 @@ export const ordersService = {
     const [byStatus, awaitingLines, dueToReceiveCount, needs] = await Promise.all([
       ordersRepository.countByStatus(siteId),
       ordersRepository.findAwaitingApprovalLines(siteId),
-      ordersRepository.countDueToReceive(siteId, new Date(`${day(now)}T00:00:00Z`)),
+      // "Due today" is a Nairobi day: after 21:00 UTC it is already tomorrow there.
+      ordersRepository.countDueToReceive(siteId, new Date(`${nairobiDay(now)}T00:00:00Z`)),
       needsRestockingService.countNeeds(actor),
     ]);
     const inStage = (stage: ReturnType<typeof stageOf>): number => byStatus.filter((r) => stageOf(r.status) === stage).reduce((t, r) => t + r.count, 0);
@@ -264,25 +296,43 @@ export const ordersService = {
         now,
       );
     });
-    return viewOrder(actor, await load(siteId, id), now);
+    const fresh = await load(siteId, id);
+    if (fresh.reference) await purchasingNotices.submitted({ hubId: siteId, orderId: fresh.id, reference: fresh.reference, supplierName: fresh.supplier.name });
+    return viewOrder(actor, fresh, now);
   },
 
   /** Approve with the approver's own PIN. A draft is approved straight away when an approver raised it themselves. */
-  approve: async (actor: Actor, id: string, pin: string, now: Date = new Date()): Promise<OrderView> => {
+  approve: async (actor: Actor, id: string, pin: string, now: Date = new Date(), collectedBy?: CollectedByInput): Promise<OrderView> => {
     const siteId = await requireHubActor(actor);
     const o = await load(siteId, id);
     if (!canMove(o.status, 'approve')) throw wrongStateError(o.status);
     await purchasingPin.verifyOwn(actor, pin);
+    // "Set by Joseph (Store Manager)" (Paper 28D): the approver may already say who is getting it.
+    const collector = collectedBy ? await resolveCollectedBy(siteId, actor.id, collectedBy, now) : null;
     await prisma.$transaction(async (tx) => {
       const reference = o.reference ?? (await referenceCounterRepository.nextReference(tx, siteId, 'LPO'));
-      await moveOrThrow(tx, siteId, o, { from: ['AWAITING_APPROVAL', 'DRAFT'], status: 'APPROVED', reference, submittedAt: o.submittedAt ?? now, approvedById: actor.id, approvedAt: now });
+      await moveOrThrow(tx, siteId, o, { from: ['AWAITING_APPROVAL', 'DRAFT'], status: 'APPROVED', reference, submittedAt: o.submittedAt ?? now, approvedById: actor.id, approvedAt: now, ...(collector?.data ?? {}) });
       await purchasingAudit.record(
         tx,
-        { siteId, orderId: o.id, supplierId: o.supplierId, actorId: actor.id, action: 'Approved order', document: reference, detail: `To ${o.supplier.name} · KES ${kes(totalOf(o))} · signed with PIN`, what: 'approved the order with a PIN' },
+        {
+          siteId,
+          orderId: o.id,
+          supplierId: o.supplierId,
+          actorId: actor.id,
+          action: 'Approved order',
+          document: reference,
+          detail: `To ${o.supplier.name} · KES ${kes(totalOf(o))} · signed with PIN${collector ? ` · ${collector.sentence}` : ''}`,
+          what: `approved the order with a PIN${collector ? ` (${collector.sentence})` : ''}`,
+        },
         now,
       );
     });
-    return viewOrder(actor, await load(siteId, id), now);
+    const fresh = await load(siteId, id);
+    // Map row 22: the person who raised it is told (not when they approved their own).
+    if (fresh.approvedBy && fresh.reference && fresh.raisedById !== actor.id) {
+      await purchasingNotices.approved({ hubId: siteId, orderId: fresh.id, reference: fresh.reference, supplierName: fresh.supplier.name, raisedById: fresh.raisedById, approverLabel: withRole(fresh.approvedBy) });
+    }
+    return viewOrder(actor, fresh, now);
   },
 
   returnOrder: async (actor: Actor, id: string, note: string, now: Date = new Date()): Promise<OrderView> => {
@@ -299,11 +349,16 @@ export const ordersService = {
         now,
       );
     });
-    return viewOrder(actor, await load(siteId, id), now);
+    const fresh = await load(siteId, id);
+    // Map row 23: the person who raised it is told, with the note.
+    if (fresh.returnedBy && fresh.reference) {
+      await purchasingNotices.returned({ hubId: siteId, orderId: fresh.id, reference: fresh.reference, supplierName: fresh.supplier.name, raisedById: fresh.raisedById, returnerLabel: withRole(fresh.returnedBy), note: reason });
+    }
+    return viewOrder(actor, fresh, now);
   },
 
   /** Mark the approved order as sent. A second send changes nothing. */
-  send: async (actor: Actor, id: string, via: SendVia, now: Date = new Date()): Promise<OrderView> => {
+  send: async (actor: Actor, id: string, via: SendVia, now: Date = new Date(), collectedBy?: CollectedByInput): Promise<OrderView> => {
     const siteId = await requireHubActor(actor);
     const o = await load(siteId, id);
     if (!canMove(o.status, 'send')) throw wrongStateError(o.status);
@@ -311,10 +366,13 @@ export const ordersService = {
       const contact = o.supplier.contacts[0];
       const action = via === 'WHATSAPP' ? 'Sent order on WhatsApp' : via === 'MANUAL' ? 'Marked order as sent' : via === 'PRINT' ? 'Printed order' : 'Copied order link';
       const phone = contact?.whatsapp ?? contact?.phone;
-      const detail =
+      // "Mark as sent" on the Attendant's phone (Paper 28D) says who is getting it in the same tap; a second send changes nothing, so only this first send takes it.
+      const collector = collectedBy ? await resolveCollectedBy(siteId, actor.id, collectedBy, now) : null;
+      const base =
         via === 'WHATSAPP' ? `To ${contact?.name ?? o.supplier.name}${phone ? `, ${phone}` : ''}` : via === 'MANUAL' ? `Phoned in to ${o.supplier.name}` : `For ${o.supplier.name}`;
+      const detail = collector ? `${base} · ${collector.sentence}` : base;
       await prisma.$transaction(async (tx) => {
-        await moveOrThrow(tx, siteId, o, { from: ['APPROVED'], status: 'SENT', sentAt: now, sentVia: via, sentById: actor.id });
+        await moveOrThrow(tx, siteId, o, { from: ['APPROVED'], status: 'SENT', sentAt: now, sentVia: via, sentById: actor.id, ...(collector?.data ?? {}) });
         await purchasingAudit.record(
           tx,
           { siteId, orderId: o.id, supplierId: o.supplierId, actorId: actor.id, action, document: o.reference, detail, what: via === 'MANUAL' ? 'marked the order as sent' : `sent the order (${via.toLowerCase()})` },
@@ -322,6 +380,80 @@ export const ordersService = {
         );
       });
     }
+    return viewOrder(actor, await load(siteId, id), now);
+  },
+
+  /** The picker behind "Who is getting it?": the Carriers list and the hub's staff, filtered by the typed text. */
+  getCollectors: async (actor: Actor, q: string | undefined): Promise<CollectorOptions> => {
+    const siteId = await requireHubActor(actor);
+    return ordersRepository.listCollectors(siteId, q);
+  },
+
+  /** Set, correct or clear who is getting an approved or sent order. Each change is in the audit log. */
+  setCollectedBy: async (actor: Actor, id: string, input: CollectedByInput | null, now: Date = new Date()): Promise<OrderView> => {
+    const siteId = await requireHubActor(actor);
+    const o = await load(siteId, id);
+    if (!canMove(o.status, 'collect')) throw wrongStateError(o.status);
+    if (!viewOrder(actor, o, now).can.setCollectedBy) throw forbidden();
+    const collector = input ? await resolveCollectedBy(siteId, actor.id, input, now) : null;
+    await prisma.$transaction(async (tx) => {
+      if (!(await ordersRepository.setCollectedBy(tx, siteId, o.id, collector?.data ?? null))) throw wrongStateError('changed by someone else');
+      await purchasingAudit.record(
+        tx,
+        {
+          siteId,
+          orderId: o.id,
+          supplierId: o.supplierId,
+          actorId: actor.id,
+          action: collector ? 'Set who is getting the order' : 'Cleared who is getting the order',
+          document: o.reference,
+          detail: collector ? collector.sentence : 'Nobody chosen',
+          what: collector ? `chose who is getting the order (${collector.sentence})` : 'cleared who is getting the order',
+        },
+        now,
+      );
+    });
+    return viewOrder(actor, await load(siteId, id), now);
+  },
+
+  /**
+   * The person who raised an order takes it back before it is approved (Paper 28H and 28K). No PIN and no reason are asked: nothing
+   * was signed. It is kept, marked cancelled with the reason WITHDRAWN, and leaves the supplier's one open slot free.
+   */
+  withdraw: async (actor: Actor, id: string, now: Date = new Date()): Promise<OrderView> => {
+    const siteId = await requireHubActor(actor);
+    const o = await load(siteId, id);
+    if (!canMove(o.status, 'withdraw')) throw wrongStateError(o.status);
+    if (!viewOrder(actor, o, now).can.withdraw) throw forbidden();
+    await prisma.$transaction(async (tx) => {
+      await moveOrThrow(tx, siteId, o, { from: ['AWAITING_APPROVAL', 'RETURNED'], status: 'CANCELLED', cancelReason: 'WITHDRAWN', cancelNote: null, cancelledById: actor.id, cancelledAt: now });
+      await purchasingAudit.record(
+        tx,
+        { siteId, orderId: o.id, supplierId: o.supplierId, actorId: actor.id, action: 'Withdrew order', document: o.reference, detail: `${o.supplier.name} · KES ${kes(totalOf(o))} · taken back before approval`, what: 'withdrew the order' },
+        now,
+      );
+    });
+    return viewOrder(actor, await load(siteId, id), now);
+  },
+
+  /** "Remind the Store Manager" (Paper 28K): a push to the Store Manager, at most once every few hours per order. */
+  remind: async (actor: Actor, id: string, now: Date = new Date()): Promise<OrderView> => {
+    const siteId = await requireHubActor(actor);
+    const o = await load(siteId, id);
+    if (!canMove(o.status, 'remind')) throw wrongStateError(o.status);
+    if (!viewOrder(actor, o, now).can.remind) throw forbidden();
+    const last = await ordersRepository.findLastAuditAt(siteId, o.id, REMIND_ACTION);
+    if (last && now.getTime() - last.getTime() < REMINDER_GAP_HOURS * 3_600_000) {
+      throw purchasingError('REMINDER_TOO_SOON', `The Store Manager was reminded at ${last.toISOString().slice(11, 16)}. You can remind again in a few hours.`, { lastRemindedAt: last.toISOString() });
+    }
+    await prisma.$transaction(async (tx) => {
+      await purchasingAudit.record(
+        tx,
+        { siteId, orderId: o.id, supplierId: o.supplierId, actorId: actor.id, action: REMIND_ACTION, document: o.reference, detail: `${o.supplier.name} · waiting for approval`, what: 'reminded the Store Manager to approve the order' },
+        now,
+      );
+    });
+    if (o.reference) await purchasingNotices.reminder({ hubId: siteId, orderId: o.id, reference: o.reference, supplierName: o.supplier.name, fromLabel: withRole(o.raisedBy) });
     return viewOrder(actor, await load(siteId, id), now);
   },
 

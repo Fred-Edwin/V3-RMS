@@ -33,7 +33,21 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [ ] **Read-only variants** are not drawn: the item panel, restock levels table and supplier page for roles that can read but not write (no Edit, Retire, Add, Record buttons; no Payment tab for the Branch Manager).
 
 ## Fake phone status bar (logged 4 Oct 2026)
-- [ ] Older Paper phone frames show a status bar (9:41, signal, Wi-Fi, battery). It must not be part of the screens; remove it from each frame, and remove any copy of it from the built front end. Rule: `docs/UI_BUILD_RULES.md` §7a.
+- [x] Paper: all 38 status bars were deleted from every phone frame on 10 Oct 2026 (owner instruction, done with the Purchasing redo); no "9:41" text is left in the file.
+- [ ] Built front end: remove any copy of it from the built phone screens. Rule: `docs/UI_BUILD_RULES.md` §7a.
+
+## Purchasing: Store Attendant phone redo (designed 10 Oct 2026, not built)
+Paper chapter 9 now holds steps 28A to 28Q, with no 28O (see `purchasing-mock/screen-inventory.md`). Steps 30 and 31 are unchanged. What the build must do:
+- [ ] **Tracker with check marks.** Every stage tracker in Purchasing (steps 22, 24, 25, 28 to 31 and the desktop file) now draws done stages as a 16 px green circle with a white check (was a 10 px dot), the current stage as a 16 px caramel ring, and later stages as grey rings. Step 24's tracker column was widened to fit. Update the shared tracker component once.
+- [ ] **Purchasing home** replaces the tabbed Restock / To receive / My orders screen for the Attendant. Sub-links in the phone drawer: Home, Restock list, My orders, History, Restock levels (add the rows to `nav-table.ts`; middleware and `nav-table.test.ts` must agree).
+- [ ] **Suggested quantity** = reorder level minus what is left (owner, 10 Oct 2026). No separate "order up to" level.
+- [ ] **"Who is getting it?"** on an approved order: Supplier delivers, a carrier from the Store Manager's Carriers list, a staff member, or someone else (free-text name). Stored on the order and shown as "Sent, collected by ...". Open question for the owner: attach a driver name to a vehicle in Settings, and use the same picker on branch deliveries.
+- [ ] **Date filters** in History use the approved date range picker (phone bottom sheet with one month; the desktop picker shows two).
+- [ ] **The Attendant never sees invoice or payment figures.** Closed orders and History show the ordered and delivered values only.
+- [ ] **Notifications** (Approved, Returned, Due today, Overdue, Closed) with a bell and unread count in the header. Needs the notification map settled first.
+- [ ] **Filters and tables on phones** follow `UI_BUILD_RULES.md` §4a: search and Date / Status dropdowns first, numbered pager, no infinite scroll.
+- [ ] **States kit** (28Q): loading as grey rows with no spinner, empty with one sentence and one button, error that keeps what was on screen. Copy per screen is in the table on the artboard.
+- [ ] **Screens index** (Paper) was updated to say 54 screens; recount when the build finishes.
 
 ## Requisitions group (final design pass, logged 7 to 8 Oct 2026)
 - [ ] **Director sidebar** (step 18b): Central Store group open with Requisitions active. Code: the Director has no Requisitions row today. Also **Settings > Manage > Departments** (step 20) is new, and the urgent switch (18), cancel dialog (19) and States kit (21) are new surfaces for the build.

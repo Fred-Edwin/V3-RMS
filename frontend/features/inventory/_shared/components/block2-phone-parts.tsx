@@ -38,9 +38,15 @@ export interface B2HeaderProps {
   /** The line after "WENDO RMS ·" ("CENTRAL STORE", "NYERI TOWN"). */
   place: string;
   tabs?: { items: readonly B2Tab[]; active: string; onChange: (key: string) => void; label: string };
+  /** The bell left of the avatar (Purchasing home, Paper 28A): `count` is the unread badge, none when 0. */
+  bell?: { count: number; onClick: () => void };
+  /** A link bottom-aligned with the title block ("History ›", "Mark all read", Paper 28F and 28N). */
+  action?: React.ReactNode;
+  /** A search field (or anything else) under the title block, inside the dark band. */
+  children?: React.ReactNode;
 }
 
-export function B2Header({ title, subtitle, mono = false, small = false, tall = false, leading, onBack, place, tabs }: B2HeaderProps) {
+export function B2Header({ title, subtitle, mono = false, small = false, tall = false, leading, onBack, place, tabs, bell, action, children }: B2HeaderProps) {
   const initials = useAuthStore((s) => initialsOf(s.user?.name));
   const { open } = useMobileNavDrawer();
   // Paper N2, G3 and G2 (the headers with tabs) are the Counting-style band: 20 px above, a mono 11/14 eyebrow, a 30 px badge, a 22/28
@@ -69,14 +75,32 @@ export function B2Header({ title, subtitle, mono = false, small = false, tall = 
             </button>
             <span className={cn('uppercase text-wds-espresso-400', tabbed ? 'font-wds-mono text-[11px] leading-[14px] tracking-[0.08em]' : 'font-wds-sans text-[12px] leading-4 tracking-[0.06em]')}>WENDO RMS · {place}</span>
           </div>
-          <span className={cn('flex shrink-0 items-center justify-center bg-wds-espresso-800 text-[11px] leading-[14px] text-wds-espresso-100', tabbed ? 'size-[30px] rounded-[15px] font-wds-mono' : 'size-7 rounded-[14px] font-wds-sans')} aria-hidden="true">
-            {initials}
-          </span>
+          <div className="flex items-center gap-3">
+            {bell ? (
+              <button type="button" onClick={bell.onClick} aria-label={bell.count > 0 ? `Notifications, ${bell.count} unread` : 'Notifications'} className="-m-2.5 flex size-11 shrink-0 items-center justify-center rounded-wds-sm text-wds-neutral-50 outline-none transition-opacity duration-150 focus-visible:shadow-wds-ring active:opacity-70">
+                <span className="relative block size-6">
+                  <svg width="22" height="22" viewBox="0 0 24 24" className="absolute left-px top-0.5" aria-hidden="true">
+                    <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9zM10 19a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {bell.count > 0 ? (
+                    <span className="absolute -right-1 -top-[3px] flex h-4 min-w-4 items-center justify-center rounded-lg bg-[var(--wds-primary-btn-start)] px-1 font-wds-sans text-[10px] font-semibold leading-3 text-white">{bell.count}</span>
+                  ) : null}
+                </span>
+              </button>
+            ) : null}
+            <span className={cn('flex shrink-0 items-center justify-center bg-wds-espresso-800 text-[11px] leading-[14px] text-wds-espresso-100', tabbed ? 'size-[30px] rounded-[15px] font-wds-mono' : 'size-7 rounded-[14px] font-wds-sans')} aria-hidden="true">
+              {initials}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-0.5">
-          <h1 className={cn('font-wds-sans text-[22px] font-semibold leading-7 text-wds-neutral-0', !tabbed && 'tracking-[-0.01em]')}>{title}</h1>
-          <p className={cn('text-[#B5AEA5]', mono ? 'font-wds-mono text-[12px] leading-4 tracking-[0.02em]' : tabbed || tall ? 'font-wds-sans text-[13px] leading-[18px]' : small ? 'font-wds-sans text-[12px] leading-4' : 'font-wds-sans text-[13px] leading-4')}>{subtitle}</p>
+        <div className={cn(action && 'flex items-end justify-between gap-3')}>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h1 className={cn('font-wds-sans text-[22px] font-semibold leading-7 text-wds-neutral-0', !tabbed && 'tracking-[-0.01em]')}>{title}</h1>
+            <p className={cn('text-[#B5AEA5]', mono ? 'font-wds-mono text-[12px] leading-4 tracking-[0.02em]' : tabbed || tall ? 'font-wds-sans text-[13px] leading-[18px]' : small ? 'font-wds-sans text-[12px] leading-4' : 'font-wds-sans text-[13px] leading-4')}>{subtitle}</p>
+          </div>
+          {action}
         </div>
+        {children}
         {tabs ? (
           <div className="mt-1.5">
             <B2TabBar {...tabs} />
@@ -531,19 +555,20 @@ export function ItemsTable({ heading, columns, rows, previewCount = 4, labelId }
 // --- Pager (the Block 1 G1 shape) --------------------------------------------------------------------------------------------------------------
 
 /** "Showing 1 to 5 of 31" with ‹ 1 2 3 ›. The current page is dark; an arrow that cannot be used is grey. */
-export function PagerBar({ page, pageSize, total, shown, onPage, noun }: { page: number; pageSize: number; total: number; shown: number; onPage: (p: number) => void; noun: string }) {
+export function PagerBar({ page, pageSize, total, shown, onPage, noun, bar = false }: { page: number; pageSize: number; total: number; shown: number; onPage: (p: number) => void; noun: string; /** The Purchasing phone lists (Paper 28G): a white bar with a top border that sits under the list, 13 px numbers, gap 6. */ bar?: boolean }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const first = (page - 1) * pageSize + 1;
   const numbers = Array.from({ length: Math.min(pages, 5) }, (_, i) => Math.min(Math.max(1, page - 2), Math.max(1, pages - 4)) + i);
   const box =
-    'flex size-8 shrink-0 items-center justify-center border font-wds-sans text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed';
+    'flex size-8 shrink-0 items-center justify-center border font-wds-sans leading-4 outline-none transition-colors duration-100 focus-visible:shadow-wds-ring enabled:hover:bg-wds-neutral-100 enabled:active:bg-wds-neutral-200 disabled:cursor-not-allowed ' + (bar ? 'text-[13px]' : 'text-[12px]');
   return (
-    <nav aria-label="Pagination" className="flex items-center justify-between gap-3 pb-5 pt-3">
+    <nav aria-label="Pagination" className={cn('flex items-center justify-between gap-3', bar ? 'shrink-0 border-t border-wds-border bg-wds-surface px-5 pb-6 pt-2.5' : 'pb-5 pt-3')}>
       <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">
-        Showing {first} to {first + shown - 1} of {total} {noun}
+        Showing {first} to {first + shown - 1} of {total}
+        {noun ? ` ${noun}` : ''}
       </p>
       {pages > 1 ? (
-        <div className="flex items-center gap-1">
+        <div className={cn('flex items-center', bar ? 'gap-1.5' : 'gap-1')}>
           <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(box, 'border-wds-border-strong bg-wds-surface text-wds-text-ink disabled:text-wds-text-faint')}>
             ‹
           </button>

@@ -133,8 +133,26 @@ Same key as the Session 1 log. Everything was walked in the lane's browser throu
 | 25 | Supplier orders tab, `/suppliers/[id]` | SM, ACC; all read | Desktop | IN PAPER | [ ] |
 | 26 | Supplier statement, `/suppliers/[id]` | SM, ACC; all read (BM without payment details) | Desktop | IN PAPER | [ ] |
 | 27 | Supplier statement, printed | ACC | A4 | IN PAPER | [ ] |
-| 28 | Needs restocking (attendant phone): ask for restock, Low/Out only | ATT | Phone | IN PAPER | [ ] |
-| 29 | My orders (attendant phone), incl. approved | ATT | Phone | IN PAPER | [ ] |
+| 28 | **Replaced on 10 Oct 2026 by 28A to 28Q below.** The old "Needs restocking" tabbed screen (steps 28 and 29) is gone from Paper. | ATT | Phone | SUPERSEDED | n/a |
+| 28A | Purchasing home: search, restock card (8 items, 3 out, 5 low), "Needs you now" (Send it, Receive), open orders with the check-mark tracker, bell with unread count | ATT | Phone | IN PAPER (10 Oct 2026), not built | [ ] |
+| 28B | Restock list: search, Out and Low sections, suggested quantity = reorder level minus what is left, stepper, sticky "Review list" bar | ATT | Phone | IN PAPER, not built | [ ] |
+| 28C | Review and send for approval: grouped by supplier, one order each, note for the Store Manager | ATT | Phone | IN PAPER, not built | [ ] |
+| 28D | Approved: Print or Share, "Who is getting it?" (Supplier delivers, our carriers, a staff member, someone else with a free-text name), Mark as sent | ATT | Phone | IN PAPER, not built | [ ] |
+| 28E | Search across items, suppliers and orders | ATT | Phone | IN PAPER, not built | [ ] |
+| 28F | My orders: Needs you, Waiting on others, chips All / Needs me / Waiting / Overdue, search | ATT | Phone | IN PAPER, not built | [ ] |
+| 28G | History: closed orders by month, search, Date and Status dropdowns, pager. Shows the delivered value, never invoice or payment figures | ATT | Phone | IN PAPER, not built | [ ] |
+| 28G2 | History with the approved date range picker open (bottom sheet: quick picks, From and To, one month, Cancel and Apply) | ATT | Phone | IN PAPER, not built | [ ] |
+| 28H | Returned by the Store Manager: note, edit the flagged line, reply, send again or withdraw | ATT | Phone | IN PAPER, not built | [ ] |
+| 28I | Menu drawer with the Purchasing sub-links (Home, Restock list, My orders, History, Restock levels) | ATT | Phone | IN PAPER, not built; the rows go in `nav-table.ts` | [ ] |
+| 28J | Order page, sent and overdue: Call supplier, WhatsApp, who is getting it, items, activity, Receive delivery | ATT | Phone | IN PAPER, not built | [ ] |
+| 28K | Order page, awaiting approval: read only, Remind the Store Manager, Withdraw | ATT | Phone | IN PAPER, not built | [ ] |
+| 28L | Order page, closed: ordered and delivered values only (no invoice or payment), items received, her documents | ATT | Phone | IN PAPER, not built | [ ] |
+| 28M | Supplier page: Call, WhatsApp, open order, items bought with stock status, "Add low items to my list" | ATT | Phone | IN PAPER, not built | [ ] |
+| 28N | Notifications: Returned, Approved, Due today, Overdue, Closed. Each row has a colour-coded type icon, an unread bar, the order number and supplier, and one action button (Edit and resend, Print or share, Receive delivery, Call supplier). Chips All, Unread, Needs me | ATT | Phone | IN PAPER, not built | [ ] |
+| 28P | Restock levels: on hand against reorder level with a coloured horizontal status bar per item (red out, amber low, green fine), read only (levels are set in Catalog). The owner singled the bars out as the look to keep. There is no 28O, to avoid confusion with 280 | ATT | Phone | IN PAPER, not built | [ ] |
+| 28Q | States kit: loading, empty, error, with the copy per screen | ATT | Phone | IN PAPER (extends N-06), not built | [ ] |
+
+Wording rule for these screens (owner, 10 Oct 2026): name a person with their role, for example "Joseph (Store Manager)", never the bare first name. The WhatsApp button is WhatsApp green with the WhatsApp mark.
 | 30 | Check the goods (attendant phone) | ATT | Phone | IN PAPER, same screen as 12 | [ ] |
 | 31 | Delivery note and signature (attendant phone) | ATT | Phone | IN PAPER, same screen as 14 | [ ] |
 | 32 | Order returned with a note (phone) | ATT | Phone | IN PAPER | [ ] |

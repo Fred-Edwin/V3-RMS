@@ -1,6 +1,12 @@
-import { PurchaseFileScreen } from '@/features/inventory/purchasing/components/screens/purchase-file-screen';
+import { Suspense } from 'react';
+
+import { OrderRoute } from '@/features/inventory/purchasing/components/phone/order-route';
 
 export default async function PurchaseFilePage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params;
-  return <PurchaseFileScreen orderId={orderId} />;
+  return (
+    <Suspense>
+      <OrderRoute orderId={orderId} />
+    </Suspense>
+  );
 }

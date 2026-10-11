@@ -7,7 +7,7 @@ Design: Paper "Inventory · Purchasing" (`p-3-0`). Rules: `docs/features/invento
 ## Routes (under `/app/inventory/`)
 | Route | Screen |
 |---|---|
-| `purchasing?tab=needs\|approval\|receive\|invoice\|pay\|closed` | Purchasing, six stage tabs. Whoever can `orders.request` but not `orders.approve` (the Store Attendant in the access table) gets Restock, To receive and My orders instead |
+| `purchasing?tab=needs\|approval\|receive\|invoice\|pay\|closed` | Purchasing, six stage tabs. Whoever can `orders.request` but not `orders.approve` (the Store Attendant in the access table) gets the phone Home and the routes listed under "Store Attendant phone" below instead |
 | `purchasing/new` (`?supplier=&lines=`, `?edit=`) | New order; also edits a draft or a returned order |
 | `purchasing/[orderId]` | The purchase file in every state; the invoice, payment, void, reverse, settle and add-document drawers open over it. Closed: Documents first and the audit log on the right |
 | `purchasing-print/[orderId]` | Printed LPO (standalone, A4; no prices, total or amount in words) |
@@ -27,11 +27,34 @@ Design: Paper "Inventory · Purchasing" (`p-3-0`). Rules: `docs/features/invento
 - Uploads go to `POST /uploads`; the upload problem states of Paper `35` are in `components/photo-slot.tsx`. "View" on a document or the delivery-note photo asks `GET /uploads/:id/url` for a short-lived link (local dev storage is in memory and returns a `memory://` link that a browser cannot open; production storage returns a real one).
 
 ## Tests
-`services/purchasing-service.contract.test.ts` (every operation of the HTTP service against mocked `fetch` answers shaped like §31 and §31.9, plus refusals), `components/screens/next-step.test.ts` (each next-step button follows the order's `can`), `service-boundary.test.ts` (the boundary above; the old payables code stays deleted). The business rules are tested in the back-end module.
+`services/purchasing-service.contract.test.ts` (every operation of the HTTP service against mocked `fetch` answers shaped like §31 and §31.9, plus refusals), `components/screens/next-step.test.ts` (each next-step button follows the order's `can`), `service-boundary.test.ts` (the boundary above; the old payables code stays deleted). The contract test also covers the 16 Attendant calls (paths, bodies, the 204 mark-read, the new refusal codes); `components/app/shell/nav-table.test.ts` covers the Attendant's sub-links and badges. The business rules are tested in the back-end module.
 
 ## Gaps logged for the back-end (not built)
 - "Download all documents" on a closed file (the button is removed): needs an endpoint that zips the purchase file.
 - The receive and payment screens keep their client-side checks as well as the server's.
+
+## Store Attendant phone (built 11 Oct 2026, Block 6, awaiting owner review)
+Paper chapter 9, steps 28A to 28Q (30 and 31, Receive, unchanged). The old tabbed Restock / To receive / My orders screen is deleted. Code is in `components/phone/`, wired to the real API (`purchasing-attendant-api.md`); values and wording: `docs/features/inventory/block-6-paper-spec.md`; what was built beyond Paper and the defaults used: `docs/features/inventory/block-6-undrawn-review.md`.
+
+| Route (under `/app/inventory/purchasing/`) | Screen | File |
+|---|---|---|
+| `` | 28A Home (the Attendant only; every desktop role keeps the six tabs) | `home-screen.tsx` |
+| `restock` | 28B Restock list (suggested amounts, stepper, sticky total) | `restock-list-screen.tsx` |
+| `restock/review` | 28C Review and send for approval | `review-screen.tsx` |
+| `my-orders` | 28F My orders | `my-orders-screen.tsx` |
+| `history` | 28G History and 28G2 date sheet | `history-screen.tsx` |
+| `search` | 28E Search | `search-screen.tsx` |
+| `notifications` | 28N Notifications | `notifications-screen.tsx` |
+| `levels` | 28P Restock levels | `levels-screen.tsx` |
+| `suppliers/[id]` | 28M Supplier | `supplier-screen.tsx` |
+| `[orderId]` | The Attendant gets the phone page for the order's state (28D approved, 28H returned, 28J sent, 28K waiting, 28L closed); every desktop role keeps the purchase file | `order-route.tsx`, `order-page.tsx`, `order-approved.tsx`, `order-returned.tsx` |
+
+- **Shared parts:** `phone/phone-kit.tsx` (chips, bars, buttons, States kit 28Q, Name.Role words, Nairobi dates), `phone/order-cards.tsx`, `phone/order-parts.tsx`, `phone/gate.tsx` (`AttendantOnly` sends a desktop role back to the desktop Purchasing; page state lives in the URL). The header is `B2Header` (new `bell`, `action` and search slots), the pager is `PagerBar bar`, the date sheet is `DateRangePicker sheet`, the tracker is `CompactTracker` in two forms (`labelled`, `dots`).
+- **The restock list** has no server draft: `store/restock-list-store.ts` keeps it per signed-in person in the browser and empties it after a fully successful send.
+- **Navigation:** the Attendant's Purchasing row in `nav-table.ts` has the five sub-links; counts come from `GET /attendant/badges` through `hooks/use-purchasing-badges.ts` (also on Receiving).
+- **Types:** `types/attendant.ts` mirrors the new endpoints; `Order` gained `collectedBy`, `can.withdraw / remind / setCollectedBy` and `supplier.phone`.
+- **People are written Name.Role** ("Grace Wanjiku.Store Manager"): `withRole` in `phone-kit.tsx`.
+- **Rules kept:** the Attendant never sees an invoice, a payment or a balance; no phone status bar; loading, empty and error-with-retry on every list; a refused write shows the server's words (inline, or a toast where the screen can change under the person).
 
 ## Awaiting approval (owner, screen by screen)
 Purchasing six tabs; New order; the purchase file (every state); Receive (the new typed-price field is not in Paper: it sits under each quantity stepper); the Attendant's Restock / To receive / My orders (now shows item prices and order totals); invoice, payment, reverse, void and settle drawers; the three prints; supplier Orders and Statement tabs; audit log view.

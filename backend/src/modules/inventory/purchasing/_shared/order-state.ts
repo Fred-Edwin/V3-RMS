@@ -41,6 +41,9 @@ const FROM: Record<string, readonly OrderStatus[]> = {
   return: ['AWAITING_APPROVAL'],
   send: ['APPROVED', 'SENT'], // a second send is idempotent
   cancel: ['AWAITING_APPROVAL', 'RETURNED', 'APPROVED', 'SENT'],
+  withdraw: ['AWAITING_APPROVAL', 'RETURNED'], // the raiser takes back an order nobody has approved (Paper 28H, 28K)
+  remind: ['AWAITING_APPROVAL'], // "Remind the Store Manager" (Paper 28K)
+  collect: ['APPROVED', 'SENT'], // "Who is getting it?" may be set, and corrected until the goods arrive (Paper 28D)
   receive: ['APPROVED', 'SENT'],
   deposit: ['APPROVED', 'SENT', 'DELIVERED', 'INVOICED'],
   invoice: ['DELIVERED'],
@@ -65,6 +68,12 @@ export interface OrderCan {
   return: boolean;
   send: boolean;
   cancel: boolean;
+  /** Raiser only, before approval, no PIN. */
+  withdraw: boolean;
+  /** Raiser only, while awaiting approval. */
+  remind: boolean;
+  /** Choose who is getting an approved or sent order. */
+  setCollectedBy: boolean;
   receive: boolean;
   recordDeposit: boolean;
   addInvoice: boolean;
@@ -90,6 +99,9 @@ export const canOf = (o: OrderFacts, caller: Caller): OrderCan => {
     return: caller.can('orders.approve') && canMove(o.status, 'return'),
     send: (caller.can('orders.approve') || caller.can('orders.request')) && canMove(o.status, 'send'),
     cancel: caller.can('orders.cancel') && canMove(o.status, 'cancel'),
+    withdraw: caller.can('orders.request') && mine && canMove(o.status, 'withdraw'),
+    remind: caller.can('orders.request') && mine && canMove(o.status, 'remind'),
+    setCollectedBy: (caller.can('orders.approve') || caller.can('orders.request')) && canMove(o.status, 'collect'),
     receive: caller.can('orders.receive') && canMove(o.status, 'receive'),
     recordDeposit: caller.can('payables.record_deposit') && canMove(o.status, 'deposit'),
     addInvoice: caller.can('payables.record_invoice') && canMove(o.status, 'invoice'),

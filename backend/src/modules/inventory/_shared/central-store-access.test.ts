@@ -62,6 +62,8 @@ describe('the Central Store permissions table', () => {
       'orders.read',
       'orders.receive',
       'orders.request',
+      // 10 Oct 2026: on hand and the reorder level on the Purchasing phone screens only (Paper 28B, 28P); `restock.read` stays out.
+      'orders.see_stock',
       'prep.read',
       'prep.record',
       'requisitions.read',

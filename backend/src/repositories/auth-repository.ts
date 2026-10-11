@@ -202,4 +202,18 @@ export const authRepository = {
 
     return users.map((u) => u.fcmToken as string);
   },
+
+  /**
+   * Returns the FCM tokens of these active people (Purchasing notices go to the person who raised an order). The ids come
+   * from an order of the hub, and a System Admin who raised one has no organization, so there is no organizationId filter.
+   */
+  findFcmTokensByUserIds: async (userIds: string[]): Promise<string[]> => {
+    if (userIds.length === 0) return [];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, isActive: true, deletedAt: null, fcmToken: { not: null } },
+      select: { fcmToken: true },
+    });
+
+    return users.map((u) => u.fcmToken as string);
+  },
 };

@@ -30,6 +30,15 @@ enum PurchaseCancelReason {
   SUPPLIER_CANNOT_SUPPLY
   NO_LONGER_NEEDED
   OTHER
+  WITHDRAWN // the person who raised it took it back before it was approved (no PIN, no reason asked)
+}
+
+/// "Who is getting it?" on an approved order (Paper 28D). A vehicle carries no driver name.
+enum PurchaseCollectedByKind {
+  SUPPLIER_DELIVERS
+  CARRIER // a row of the Store Manager's Carriers list
+  STAFF // a staff member of the hub
+  OTHER // free-text name
 }
 
 enum PurchaseLineResult {
@@ -103,9 +112,21 @@ model PurchaseOrder {
   cancelNote    String?               @map("cancel_note")
   cancelledById String?               @map("cancelled_by_id")
   cancelledAt   DateTime?             @map("cancelled_at")
+  // When the invoice was paid in full (status CLOSED); null again if a payment is reversed. History filters on it.
+  closedAt      DateTime?             @map("closed_at")
+  // "Who is getting it?": set on an approved order, shown as "Sent, collected by ...". At most one of the three people columns is set.
+  collectedByKind     PurchaseCollectedByKind? @map("collected_by_kind")
+  collectedByCarrierId String?                 @map("collected_by_carrier_id")
+  collectedByUserId   String?                  @map("collected_by_user_id")
+  collectedByName     String?                  @map("collected_by_name") // free text for OTHER
+  collectedBySetById  String?                  @map("collected_by_set_by_id")
+  collectedBySetAt    DateTime?                @map("collected_by_set_at")
   createdAt     DateTime              @default(now()) @map("created_at")
   updatedAt     DateTime              @updatedAt @map("updated_at")
 
+  collectedByCarrier Carrier? @relation("PurchaseOrderCollectedByCarrier", fields: [collectedByCarrierId], references: [id])
+  collectedByUser    User?    @relation("PurchaseOrderCollectedByUser", fields: [collectedByUserId], references: [id])
+  collectedBySetBy   User?    @relation("PurchaseOrderCollectedBySetBy", fields: [collectedBySetById], references: [id])
   site        Site                   @relation(fields: [siteId], references: [id])
   supplier    Supplier               @relation(fields: [supplierId], references: [id])
   raisedBy    User                   @relation("PurchaseOrderRaisedBy", fields: [raisedById], references: [id])
@@ -123,8 +144,22 @@ model PurchaseOrder {
   @@unique([siteId, reference])
   @@index([siteId, status])
   @@index([siteId, supplierId, status])
+  @@index([siteId, status, closedAt])
   @@index([raisedById])
   @@map("purchase_orders")
+}
+
+/// Which Purchasing notices a person has opened. The notices themselves are derived from the orders (there is no stored inbox:
+/// requisitions-contract.md §7), so a read mark is just the notice's key, "TYPE:orderId".
+model PurchasingNoticeRead {
+  userId    String   @map("user_id")
+  noticeKey String   @map("notice_key")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  user User @relation("PurchasingNoticeReader", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, noticeKey])
+  @@map("purchasing_notice_reads")
 }
 
 model PurchaseOrderLine {
