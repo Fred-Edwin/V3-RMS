@@ -118,6 +118,16 @@ export function changeSummary(lineCount: number, changed: number, removed: numbe
   return parts.join(' · ');
 }
 
+/** The working screen's footer: "28 lines · 3 added · 2 changed". "Changed" counts only suggested lines whose quantity was edited. */
+export function workSummary(lineCount: number, added: number, changed: number, removed: number): string {
+  const parts = [`${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`];
+  if (added > 0) parts.push(`${added} added`);
+  const edited = Math.max(0, changed - added);
+  if (edited > 0) parts.push(`${edited} changed`);
+  if (removed > 0) parts.push(`${removed} removed`);
+  return parts.join(' · ');
+}
+
 export const ADD_ITEM_COPY = {
   subtitle: (department: string): string => `${department} items only`,
   placeholder: 'Search items',
@@ -139,9 +149,10 @@ export const WORK_COPY = {
   searchPlaceholder: (department: string): string => `Search ${department.toLowerCase()} items`,
   nothingBelowLevel: (department: string): string => `Nothing in ${department} is below its restock level. Search or browse to add what you need.`,
   suggestedIntro: 'Filled in from your restock levels. Change what you need; the Branch Manager sees what you changed.',
-  otherItems: (n: number): string => `Other items (${n})`,
-  showOthers: 'Show',
-  hideOthers: 'Hide',
+  myList: 'My list',
+  allItems: 'All items',
+  viewLabel: 'Which items to show',
+  browseAll: 'Browse all items',
   noMatch: 'No item matches. Clear the search to see your list again.',
   switchTo: 'Switch requisition',
   sendItems: (n: number): string => `Send ${n} ${n === 1 ? 'item' : 'items'}`,

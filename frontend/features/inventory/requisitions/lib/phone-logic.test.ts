@@ -11,6 +11,7 @@ import {
   managerChangedBanner,
   OFFLINE_MESSAGE,
   statusBanner,
+  workSummary,
 } from '../_shared/lib/phone-words';
 import { REQUISITION_ERROR_CODES } from '../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged } from '../hooks/use-section-draft';
@@ -25,6 +26,15 @@ describe('the head sees their own list state before approval', () => {
   it('leaves approved, closed and cancelled to the requisition word', () => {
     expect(headStatusText('APPROVED', 'Approved', 'SUBMITTED')).toBe('Approved');
     expect(headStatusText('CANCELLED', 'Cancelled', 'DRAFT')).toBe('Cancelled');
+  });
+});
+
+describe('the working screen footer', () => {
+  it('counts added lines apart from edited ones', () => {
+    // 28 lines: 3 added by the head (always "changed"), 2 suggested lines whose quantity was edited.
+    expect(workSummary(28, 3, 5, 0)).toBe('28 lines · 3 added · 2 changed');
+    expect(workSummary(1, 0, 0, 0)).toBe('1 line');
+    expect(workSummary(10, 0, 1, 2)).toBe('10 lines · 1 changed · 2 removed');
   });
 });
 

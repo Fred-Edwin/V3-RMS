@@ -10,7 +10,7 @@ import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { PhoneErrorNote } from '../../../_shared/components/phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
-import { ADD_ITEM_COPY, changeSummary, headErrorMessage, SECTION_COPY, WORK_COPY } from '../../_shared/lib/phone-words';
+import { ADD_ITEM_COPY, headErrorMessage, SECTION_COPY, workSummary, WORK_COPY } from '../../_shared/lib/phone-words';
 import type { AddableItem, RequisitionCycle } from '../../_shared/types/requisitions-contract';
 import { groupByCategory, isChanged, useSectionDraft, type DraftLine } from '../../hooks/use-section-draft';
 import { formatQty } from '../../lib/qty';
@@ -49,10 +49,16 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
   const draft = useSectionDraft(requisitionId, departmentId);
   const [sendOpen, setSendOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
-  const [showOthers, setShowOthers] = React.useState(false);
+  const [view, setView] = React.useState<'list' | 'all' | null>(null);
   const [flushFailed, setFlushFailed] = React.useState<string | null>(null);
   const undoRef = React.useRef<HTMLButtonElement>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
   const undoItem = draft.undo?.itemId ?? null;
+  // Choosing My list or All items starts that list from its top (a search does not move the page).
+  const chooseView = React.useCallback((next: 'list' | 'all'): void => {
+    setView(next);
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, []);
   // The removed row's own buttons are gone, so keyboard focus goes to Undo rather than falling to the page.
   React.useEffect(() => {
     if (undoItem) undoRef.current?.focus();
@@ -95,9 +101,17 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
   const term = query.trim().toLowerCase();
   const matches = React.useCallback((name: string): boolean => !term || name.toLowerCase().includes(term), [term]);
   const listLines = React.useMemo(() => draft.lines.filter((l) => matches(l.itemName)), [draft.lines, matches]);
-  const onList = React.useMemo(() => new Set(draft.lines.map((l) => l.itemId)), [draft.lines]);
-  const others = React.useMemo(() => (draft.data?.addable ?? []).filter((i) => !onList.has(i.itemId)), [draft.data, onList]);
-  const otherMatches = React.useMemo(() => others.filter((i) => matches(i.itemName)), [others, matches]);
+  const lineById = React.useMemo(() => new Map(draft.lines.map((l) => [l.itemId, l])), [draft.lines]);
+  // Every item of the department, in a fixed order: an item that is added keeps its row, it only changes from + Add to the stepper.
+  const everyItem = React.useMemo<AddableItem[]>(() => {
+    const base = draft.data?.addable ?? [];
+    const known = new Set(base.map((i) => i.itemId));
+    const extra = draft.lines
+      .filter((l) => !known.has(l.itemId))
+      .map((l) => ({ itemId: l.itemId, itemName: l.itemName, unit: l.unit, categoryPath: l.categoryPath, suggestedQty: l.suggestedQty ?? '1', onHand: l.onHand, level: l.level, inSection: true }));
+    return [...base, ...extra];
+  }, [draft.data, draft.lines]);
+  const allMatches = React.useMemo(() => everyItem.filter((i) => matches(i.itemName)), [everyItem, matches]);
 
   if (draft.edit.status === 'error') {
     return (
@@ -115,17 +129,17 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
 
   const saveText = draft.saveState === 'saving' ? SECTION_COPY.saving : draft.saveState === 'saved' ? SECTION_COPY.saved : null;
   const failure = flushFailed ?? (draft.saveState === 'error' ? draft.saveError : null);
-  const groups = groupByCategory(listLines);
   const emptyList = draft.lines.length === 0;
-  // The other items open by themselves when the list is empty or a search is running.
-  const othersOpen = showOthers || Boolean(term) || emptyList;
-  const otherGroups = groupByCategory(otherMatches);
+  // A search always looks through every item; with nothing on the list the screen opens on All items.
+  const effectiveView: 'list' | 'all' = term ? 'all' : (view ?? (emptyList ? 'all' : 'list'));
+  const groups = groupByCategory(listLines);
+  const allGroups = groupByCategory(allMatches);
 
   return (
     <PhoneColumn>
       <HeadPhoneHeader leading="menu" title={`${departmentName} · ${cycleWord}`} subtitle={reference} mono />
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas">
           <div className="flex flex-col gap-2 border-b border-wds-border bg-wds-surface px-5 py-3">
             <p id="req-switch" className="sr-only">
               {WORK_COPY.switchTo}
@@ -133,54 +147,55 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
             <CycleSwitcher compact value={cycle} labelledBy="req-switch" open={{ [cycle]: true }} onChange={(c) => void leave(reqHomeFor(c))} />
           </div>
           <UrgentRow on={urgent.on} busy={urgent.busy} onToggle={urgent.onToggle} disabled={urgent.disabled} />
-          <div className="sticky top-0 z-10 border-b border-wds-border bg-wds-surface px-5 py-3">
+          <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b border-wds-border bg-wds-surface px-5 py-3">
             <SearchField value={query} onChange={setQuery} placeholder={WORK_COPY.searchPlaceholder(departmentName)} clearLabel={ADD_ITEM_COPY.clear} />
+            <ViewSwitch value={effectiveView} onChange={chooseView}listCount={draft.lines.length} allCount={everyItem.length} />
           </div>
           {failure ? <PhoneErrorNote>{failure}</PhoneErrorNote> : null}
 
-          {emptyList ? (
-            <p className="border-b border-wds-border bg-wds-surface px-5 py-4 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{WORK_COPY.nothingBelowLevel(departmentName)}</p>
-          ) : (
-            <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.suggestedIntro}</p>
-          )}
-
-          {groups.map((group) => (
-            <section key={group.heading} aria-label={group.heading}>
-              <CategoryHeading heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
-              <ul>
-                {group.lines.map((line) => (
-                  <WorkRow key={line.itemId} line={line} draft={draft} />
-                ))}
-              </ul>
-            </section>
-          ))}
-
-          {term && listLines.length === 0 && otherMatches.length === 0 ? (
-            <p role="status" className="px-5 py-6 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
-              {WORK_COPY.noMatch}
-            </p>
-          ) : null}
-
-          {others.length > 0 ? (
-            <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-wds-surface px-5 py-3">
-              <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{WORK_COPY.otherItems(others.length)}</p>
-              {!term && !emptyList ? (
-                <RowLink onClick={() => setShowOthers((v) => !v)}>{showOthers ? WORK_COPY.hideOthers : WORK_COPY.showOthers}</RowLink>
-              ) : null}
-            </div>
-          ) : null}
-          {othersOpen
-            ? otherGroups.map((group) => (
-                <section key={`o-${group.heading}`} aria-label={group.heading}>
-                  <CategoryHeading heading={group.heading} trailing={ADD_ITEM_COPY.found(group.lines.length)} />
+          {effectiveView === 'list' ? (
+            <>
+              <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.suggestedIntro}</p>
+              {groups.map((group) => (
+                <section key={group.heading} aria-label={group.heading}>
+                  <CategoryHeading heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
                   <ul>
-                    {group.lines.map((item) => (
-                      <OtherRow key={item.itemId} item={item} draft={draft} />
+                    {group.lines.map((line) => (
+                      <WorkRow key={line.itemId} line={line} draft={draft} />
                     ))}
                   </ul>
                 </section>
-              ))
-            : null}
+              ))}
+              {emptyList ? (
+                <div className="flex flex-col items-start gap-2 px-5 py-5">
+                  <p className="font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{WORK_COPY.nothingBelowLevel(departmentName)}</p>
+                  <RowLink onClick={() => chooseView('all')}>{WORK_COPY.browseAll}</RowLink>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {emptyList && !term ? (
+                <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.nothingBelowLevel(departmentName)}</p>
+              ) : null}
+              {allMatches.length === 0 ? (
+                <p role="status" className="px-5 py-6 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
+                  {WORK_COPY.noMatch}
+                </p>
+              ) : null}
+              {allGroups.map((group) => (
+                <section key={`a-${group.heading}`} aria-label={group.heading}>
+                  <CategoryHeading heading={group.heading} trailing={ADD_ITEM_COPY.found(group.lines.length)} />
+                  <ul>
+                    {group.lines.map((item) => {
+                      const line = lineById.get(item.itemId);
+                      return line ? <WorkRow key={item.itemId} line={line} draft={draft} /> : <OtherRow key={item.itemId} item={item} draft={draft} />;
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </>
+          )}
           {/* Room so the undo toast never covers the last row. */}
           <div className="h-16 shrink-0" aria-hidden="true" />
         </div>
@@ -198,7 +213,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
           </div>
         ) : null}
       </div>
-      <HeadFooter summary={changeSummary(draft.counts.lineCount, draft.counts.changed, draft.counts.removed)} aside={failure ?? saveText ?? SECTION_COPY.toTheManager}>
+      <HeadFooter summary={workSummary(draft.counts.lineCount, draft.counts.added, draft.counts.changed, draft.counts.removed)} aside={failure ?? saveText ?? SECTION_COPY.toTheManager}>
         <HeadPrimaryButton onClick={() => void openSend()} disabled={draft.lines.length === 0 || draft.anyInvalid}>
           {WORK_COPY.sendItems(draft.lines.length)}
         </HeadPrimaryButton>
@@ -278,6 +293,41 @@ function OtherRow({ item, draft }: { item: AddableItem; draft: Draft }) {
         {ADD_ITEM_COPY.add}
       </button>
     </li>
+  );
+}
+
+/**
+ * "My list (28) | All items (130)". Adding an item in All items turns its + Add into the stepper in the same row, and the number on
+ * My list goes up, so the item is never lost: nothing moves, and the count says it was added.
+ */
+function ViewSwitch({ value, onChange, listCount, allCount }: { value: 'list' | 'all'; onChange: (v: 'list' | 'all') => void; listCount: number; allCount: number }) {
+  const tabs: { key: 'list' | 'all'; label: string; count: number }[] = [
+    { key: 'list', label: WORK_COPY.myList, count: listCount },
+    { key: 'all', label: WORK_COPY.allItems, count: allCount },
+  ];
+  return (
+    <div role="tablist" aria-label={WORK_COPY.viewLabel} className="flex border border-wds-border-strong">
+      {tabs.map((t, i) => {
+        const selected = t.key === value;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(t.key)}
+            className={cn(
+              'relative flex h-10 min-w-0 grow basis-0 items-center justify-center gap-1.5 font-wds-sans text-[14px] leading-[18px] outline-none transition-colors focus-visible:z-10 focus-visible:shadow-wds-ring',
+              i > 0 && 'border-l border-wds-border-strong',
+              selected ? 'border-b-2 border-b-wds-selected-edge bg-wds-caramel-100 font-medium text-wds-selected-edge' : 'bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50 hover:text-wds-text-ink',
+            )}
+          >
+            {t.label}
+            <span className="font-wds-mono text-[13px]">{t.count}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
