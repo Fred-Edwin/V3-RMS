@@ -33,6 +33,9 @@ Design: Paper "Inventory · Purchasing" (`p-3-0`). Rules: `docs/features/invento
 - "Download all documents" on a closed file (the button is removed): needs an endpoint that zips the purchase file.
 - The receive and payment screens keep their client-side checks as well as the server's.
 
+## Store Attendant phone redo (designed 10 Oct 2026, NOT built)
+The Attendant's tabbed Restock / To receive / My orders screen is replaced in Paper (chapter 9, steps 28A to 28Q) by a Purchasing home, a restock list with suggested quantities (reorder level minus what is left), review and send, "Who is getting it?" on approved orders, My orders, History with the approved date range picker, a returned-order screen, order pages for every state, a supplier page, notifications, restock levels and a states kit. The code still shows the old screen. Screen list: `docs/features/inventory/purchasing-mock/screen-inventory.md` (28A to 28Q). Build notes and open questions: `docs/features/inventory/paper-updates-needed.md` ("Purchasing: Store Attendant phone redo"). Rules to keep in the build: the Attendant never sees invoice or payment figures; the stage tracker draws done stages with a white check (shared component); phone filters follow `UI_BUILD_RULES.md` §4a.
+
 ## Awaiting approval (owner, screen by screen)
 Purchasing six tabs; New order; the purchase file (every state); Receive (the new typed-price field is not in Paper: it sits under each quantity stepper); the Attendant's Restock / To receive / My orders (now shows item prices and order totals); invoice, payment, reverse, void and settle drawers; the three prints; supplier Orders and Statement tabs; audit log view.
 
