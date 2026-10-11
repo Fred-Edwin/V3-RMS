@@ -123,10 +123,10 @@ export function UrgentTag() {
 }
 
 /** "YOUR PIN": one masked field of four digits (Paper steps 11, 16, 19). `invalid` marks it after a rejected PIN. */
-export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean }>(
-  ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false }, ref) => (
+export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean; label?: string }>(
+  ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false, label = 'Your PIN' }, ref) => (
     <div className="flex flex-col gap-1.5">
-      <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>Your PIN</MonoLabel>
+      <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>{label}</MonoLabel>
       <input
         ref={ref}
         id={id}

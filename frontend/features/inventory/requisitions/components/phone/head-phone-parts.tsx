@@ -185,9 +185,9 @@ export function HeadRail({ steps, currentTone = 'warning' }: { steps: RailStep[]
 }
 
 /** A category heading with the line count on the right. */
-export function CategoryHeading({ heading, trailing }: { heading: string; trailing: string }) {
+export function CategoryHeading({ heading, trailing, inset = false }: { heading: string; trailing: string; inset?: boolean }) {
   return (
-    <div role="presentation" className="flex items-center justify-between border-b border-wds-border bg-wds-neutral-50 px-5 py-[9px]">
+    <div role="presentation" className={cn('flex items-center justify-between border-b border-wds-border bg-wds-neutral-50 py-[9px]', inset ? 'px-4' : 'px-5')}>
       <h2 className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{heading}</h2>
       <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{trailing}</span>
     </div>

@@ -197,7 +197,7 @@ function ItemsCard({ section, file }: { section: SectionDetail; file: Requisitio
       <div className="border-t border-wds-border">
         {groups.map((group) => (
           <div key={group.heading}>
-            <CategoryHeading heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
+            <CategoryHeading inset heading={group.heading} trailing={SECTION_COPY.lines(group.lines.length)} />
             <ul>
               {group.lines.map((l) => {
                 const asked = formatQty(l.requestedQty);

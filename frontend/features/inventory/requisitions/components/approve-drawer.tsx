@@ -103,7 +103,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                   {data.departments.map((d) => (
                     <li key={d.departmentId} className="flex items-center gap-3 border-b border-wds-border px-5 py-3 last:border-b-0">
                       <span className="grow font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{d.departmentName}</span>
-                      <span className="w-[70px] shrink-0 text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
+                      <span className="w-[96px] shrink-0 whitespace-nowrap text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
                       {d.valueKes !== undefined ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kes(d.valueKes)}</span> : null}
                     </li>
                   ))}
@@ -120,7 +120,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 <p className="text-wds-text-secondary">{SAYS.told(sent)}</p>
                 {data.signingAs !== 'BRANCH_MANAGER' ? <p className="text-wds-text-secondary">You are signing as {data.signingAs === 'DIRECTOR' ? 'the Director' : 'the System Admin'}. The file records who approved it.</p> : null}
               </div>
-              <PinField ref={pinRef} value={pin} onChange={setPin} invalid={wrongPin} onSubmit={() => void submit()} />
+              <PinField ref={pinRef} value={pin} onChange={setPin} invalid={wrongPin} onSubmit={() => void submit()} label="Your PIN · signs on the 4th digit" />
               {failure ? (
                 <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
                   {failure}

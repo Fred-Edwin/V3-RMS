@@ -258,7 +258,8 @@ export function RequisitionFileScreen({ id, base, printBase, section: crumb }: {
                   </button>
                 ) : null}
               </div>
-              {words.action && words.actionLabel ? (
+              {/* Print already sits in the header, so the card does not repeat it. */}
+              {words.action && words.actionLabel && !(data.nextStep.action === 'PRINT' && data.can.print) ? (
                 data.nextStep.action === 'NUDGE' ? (
                   <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
                     <Button size="lg" onClick={doNextStep} disabled={busy} className="h-[46px] px-6 text-[16px]">{words.actionLabel}</Button>
