@@ -319,6 +319,8 @@ export const requisitionRowSchema = rowMomentsSchema.extend({
   tab: requisitionTabSchema,
   sections: z.array(z.object({ departmentId: uuid, departmentName: z.string(), status: sectionStatusSchema })),
   lineCount: z.number().int().nonnegative(),
+  /** Lines the Branch Manager (or another approver) changed from what the head asked for ("3 lines changed" on the queue row). */
+  changedLineCount: z.number().int().nonnegative(),
   /** cap requisitions.see_value */
   valueKes: decimalString.optional(),
   openedAt: isoDateTime,
@@ -538,6 +540,20 @@ export const homeSchema = z.object({
       lineCount: z.number().int().nonnegative(),
       /** Amendment 2: when the head's section was sent (null when it was not). */
       sentAt: isoDateTime.nullable(),
+      /** When the requisition was started ("REQ-NYR-0006 · started 4:03 pm" on a draft card). */
+      openedAt: isoDateTime,
+    }),
+  ),
+  /**
+   * The "Needs you" strip (Paper step 1): each of today's requisitions where the Branch Manager changed lines in this head's section,
+   * with the first changed line ("Beef patties, you asked for 20, 14 approved"). Empty when nothing was changed.
+   */
+  needsYou: z.array(
+    z.object({
+      requisitionId: uuid,
+      cycle: requisitionCycleSchema,
+      changedCount: z.number().int().positive(),
+      firstChange: z.object({ itemName: z.string(), unit: z.string(), requestedQty: z.string(), approvedQty: z.string() }),
     }),
   ),
 });

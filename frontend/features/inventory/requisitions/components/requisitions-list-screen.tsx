@@ -330,7 +330,12 @@ function dataTabForWaiting(active: RequisitionTab | null, counts: TabCounts | nu
 }
 
 /** The grey line under a document number: "Afternoon · started 1:41 pm", "Extra · Service only", the cancel reason. */
-function subline(row: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+function subline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+  const base = baseSubline(r, tab, history);
+  return !history && r.changedLineCount > 0 ? `${base} · ${r.changedLineCount} ${r.changedLineCount === 1 ? 'line' : 'lines'} changed` : base;
+}
+
+function baseSubline(row: RequisitionRow, tab: RequisitionTab, history: boolean): string {
   // Departments sent without are not part of the requisition: "Barista only", not "5 departments".
   const r = { ...row, sections: sectionsInPlay(row.sections) };
   const cycle = r.cycleLabel.split(' · ')[0] ?? r.cycleLabel;
