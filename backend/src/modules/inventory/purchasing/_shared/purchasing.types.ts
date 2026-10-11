@@ -6,7 +6,8 @@ import type { LineResult } from './money';
 import type { OrderCan, OrderStatus, SendVia, Stage, TrackerItem } from './order-state';
 
 export type PayMethod = 'BANK_TRANSFER' | 'MPESA_PAYBILL' | 'MPESA_TILL' | 'MPESA_SEND_MONEY' | 'CHEQUE' | 'CASH';
-export type CancelReason = 'ORDERED_BY_MISTAKE' | 'SUPPLIER_CANNOT_SUPPLY' | 'NO_LONGER_NEEDED' | 'OTHER';
+export type CancelReason = 'ORDERED_BY_MISTAKE' | 'SUPPLIER_CANNOT_SUPPLY' | 'NO_LONGER_NEEDED' | 'OTHER' | 'WITHDRAWN';
+export type CollectedByKind = 'SUPPLIER_DELIVERS' | 'CARRIER' | 'STAFF' | 'OTHER';
 export type VoidReason = 'WRONG_AMOUNT' | 'WRONG_SUPPLIER_OR_ORDER' | 'DUPLICATE' | 'OTHER';
 export type ReverseReason = 'WRONG_AMOUNT' | 'WRONG_REFERENCE' | 'WRONG_INVOICE' | 'PAYMENT_BOUNCED' | 'OTHER';
 export type AuditArea = 'Purchasing' | 'Payments';
@@ -100,11 +101,27 @@ export interface SupplierPayMethodView {
   isDefault: boolean;
 }
 
+/** "Who is getting it?" (Paper 28D): "Sent, collected by {label}" or "Sent, supplier delivers". */
+export interface CollectedByView {
+  kind: CollectedByKind;
+  /** The carrier's, person's or typed name; "Supplier delivers" for that kind. */
+  label: string;
+  /** "collected by Wendo van KCB 214K" or "supplier delivers": what follows "Sent, ". */
+  summary: string;
+  carrierId: string | null;
+  userId: string | null;
+  /** Who chose it ("Set by Joseph (Store Manager)", Paper 28D) and when. */
+  setBy: Person | null;
+  setAt: string | null;
+}
+
 export interface SupplierCardView {
   id: string;
   name: string;
   code: string;
   contactName: string | null;
+  /** The number to call: the contact's phone, else their WhatsApp number (Call supplier, Paper 28J and 28M). */
+  phone: string | null;
   whatsapp: string | null;
   termsDays: number | null;
   /** Empty for a caller without `suppliers.read_payment_details`. */
@@ -133,6 +150,8 @@ export interface OrderView {
   returnedBy: { id: string; name: string } | null;
   sentAt: string | null;
   sentVia: SendVia | null;
+  /** Set on an approved order; null until someone says who is getting it. */
+  collectedBy: CollectedByView | null;
   expectedDate: string | null;
   supplierNote: string | null;
   attendantNote: string | null;

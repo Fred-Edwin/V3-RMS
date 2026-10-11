@@ -32,6 +32,7 @@ model Carrier {
 
   site       Site       @relation("CarrierSite", fields: [siteId], references: [id])
   dispatches Dispatch[]
+  purchaseOrders PurchaseOrder[] @relation("PurchaseOrderCollectedByCarrier")
 
   @@unique([siteId, name])
   @@index([siteId, active])

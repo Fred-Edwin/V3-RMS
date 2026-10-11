@@ -9,7 +9,7 @@ What needs buying, and what a supplier's catalog offers when an order is raised.
 - **Suggested quantity** = round up of (level minus on-hand) divided by the pack, in whole buy units (`_shared/money.ts`). The pack is the supplier line's, else 1 when the line is sold in the unit we use, else the item's; unknown means no suggestion ("never bought before").
 - **Default supplier:** the line marked preferred (or the item's preferred supplier), else the cheapest by last price; an unpriced line ranks last. One line per supplier is kept (preferred, else cheapest). Only active suppliers are offered (on hold and archived are not).
 - Groups are by default supplier, most urgent first (Out before Low, then furthest below level); "No supplier yet" is last. Sorts: `urgent`, `name`, `value`. The `group` parameter is accepted and ignored: the screen re-groups the same data for "List by item".
-- **Blind rule:** the Store Attendant gets the same list and the prices, but `onHand` and `level` are removed (stock figures). The suggested quantity is kept: it is how the phone fills the box when an item is ticked.
+- **Blind rule:** a caller holding neither `restock.read` nor `orders.see_stock` gets the list and the prices without `onHand` and `level`. The Store Attendant holds `orders.see_stock` (owner, 10 Oct 2026: Paper 28B reads "0 left · reorder at 8 jerrican"), so the phone shows them. The suggested quantity (level minus on hand, whole buy units) is how the phone fills the box when an item is ticked.
 - The New-order catalog (`GET /catalog`) lists what one supplier sells: Low and Out by default, everything with `filter=all`. `filter=selected` is a screen-side state and behaves as the default.
 
 ## Endpoints (mounted under `/inventory/purchasing`)

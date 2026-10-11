@@ -20,6 +20,7 @@ const D = (v: number) => new Prisma.Decimal(v);
 const HUB = 'hub-1';
 const attendant = { id: 'att', role: 'STORE_ATTENDANT', siteId: HUB } as never;
 const manager = { id: 'sm', role: 'STORE_MANAGER', siteId: HUB } as never;
+const noStock = { id: 'w1', role: 'WAITER', siteId: HUB } as never; // a hub role with no stock capability
 const branchAttendant = { id: 'ba', role: 'STORE_ATTENDANT', siteId: 'branch-9' } as never;
 const branchManager = { id: 'bm', role: 'MANAGER', siteId: 'branch-9' } as never; // Branch Manager reads the hub from a branch
 
@@ -44,10 +45,14 @@ describe('getNeeds and the blind rule', () => {
     expect(r.groups[0]?.lines[0]).toMatchObject({ onHand: '18', level: '100', suggestedQty: '82' });
   });
 
-  it('gives the Attendant the list and prices but no on-hand or level', async () => {
+  it('gives the Attendant the list, the prices and on hand and the reorder level (`orders.see_stock`, owner 10 Oct 2026, Paper 28B)', async () => {
     const r = await needsRestockingService.getNeeds(attendant, {});
-    const l = r.groups[0]?.lines[0];
-    expect(l).toMatchObject({ itemName: 'Sugar', status: 'LOW', lastPrice: '168.00', estimatedTotal: '13776.00', suggestedQty: '82' });
+    expect(r.groups[0]?.lines[0]).toMatchObject({ itemName: 'Sugar', status: 'LOW', onHand: '18', level: '100', lastPrice: '168.00', estimatedTotal: '13776.00', suggestedQty: '82' });
+  });
+
+  it('still strips the stock figures from a person who holds neither `restock.read` nor `orders.see_stock`', async () => {
+    const r = await needsRestockingService.getNeeds(noStock, {});
+    expect(r.groups[0]?.lines[0]).toMatchObject({ itemName: 'Sugar', status: 'LOW', suggestedQty: '82' });
     expect(JSON.stringify(r)).not.toMatch(/"onHand"|"level"/);
   });
 
@@ -92,8 +97,10 @@ describe('getCatalog and the blind rule', () => {
     const m = await needsRestockingService.getCatalog(manager, { supplierId: 's1' });
     expect(m.items[0]).toMatchObject({ onHand: '18', level: '100', price: '168.00', qty: '82' });
     const a = await needsRestockingService.getCatalog(attendant, { supplierId: 's1' });
-    expect(a.items[0]).toMatchObject({ price: '168.00', qty: '82', status: 'LOW' });
-    expect(JSON.stringify(a)).not.toMatch(/"onHand"|"level"/);
+    expect(a.items[0]).toMatchObject({ onHand: '18', level: '100', price: '168.00', qty: '82', status: 'LOW' });
+    const n = await needsRestockingService.getCatalog(noStock, { supplierId: 's1' });
+    expect(n.items[0]).toMatchObject({ price: '168.00', qty: '82', status: 'LOW' });
+    expect(JSON.stringify(n)).not.toMatch(/"onHand"|"level"/);
   });
 });
 

@@ -5,6 +5,7 @@ import { ForbiddenError } from '../../../../utils/errors';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { purchasingPin } from '../_shared/pin';
 import { purchasingAudit } from '../_shared/purchasing-audit';
+import { purchasingNotices } from '../_shared/purchasing-notify';
 import { ordersRepository } from './orders-repository';
 import ordersRouter from './orders-routes';
 import { ordersService } from './orders-service';
@@ -14,7 +15,11 @@ vi.mock('./orders-repository', () => ({
     findOrder: vi.fn(), list: vi.fn(), countByStatus: vi.fn(), findAwaitingApprovalLines: vi.fn(), countDueToReceive: vi.fn(),
     findSupplier: vi.fn(), findOpenOrder: vi.fn(), findItems: vi.fn(), findSupplierLines: vi.fn(), findPreviousPrices: vi.fn(),
     create: vi.fn(), replaceLines: vi.fn(), updateDetails: vi.fn(), transition: vi.fn(), deleteDraft: vi.fn(),
+    findActiveCarrier: vi.fn(), findActiveStaff: vi.fn(), listCollectors: vi.fn(), setCollectedBy: vi.fn(), findLastAuditAt: vi.fn(),
   },
+}));
+vi.mock('../_shared/purchasing-notify', () => ({
+  purchasingNotices: { submitted: vi.fn(), approved: vi.fn(), returned: vi.fn(), reminder: vi.fn(), closed: vi.fn() },
 }));
 vi.mock('../../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('../../../../config/database', () => ({ prisma: { $transaction: (fn: (tx: unknown) => unknown) => fn({}) } }));
@@ -180,6 +185,203 @@ describe('submit, approve, return, send, cancel', () => {
   });
 });
 
+const CARRIER_ID = '11111111-1111-4111-8111-111111111111';
+const STAFF_ID = '22222222-2222-4222-8222-222222222222';
+const approved = (over: Record<string, unknown> = {}) => order({ status: 'APPROVED', reference: 'LPO-0045', approvedById: 'sm', approvedAt: NOW, approvedBy: user('sm', 'Joseph', 'STORE_MANAGER'), ...over });
+
+describe('who is getting it (Paper 28D)', () => {
+  beforeEach(() => {
+    vi.mocked(ordersRepository.findActiveCarrier).mockResolvedValue({ id: CARRIER_ID, name: 'Wendo van KCB 214K' });
+    vi.mocked(ordersRepository.findActiveStaff).mockResolvedValue({ id: STAFF_ID, name: 'Peter', role: 'STORE_ATTENDANT' });
+    vi.mocked(ordersRepository.setCollectedBy).mockResolvedValue(true);
+  });
+
+  it('marks the order sent and stores the carrier in the same tap, with who set it and when', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await ordersService.send(attendant, 'o1', 'MANUAL', NOW, { kind: 'CARRIER', carrierId: CARRIER_ID });
+    expect(ordersRepository.transition).toHaveBeenCalledWith(
+      expect.anything(),
+      HUB,
+      'o1',
+      expect.objectContaining({ status: 'SENT', collectedByKind: 'CARRIER', collectedByCarrierId: CARRIER_ID, collectedByUserId: null, collectedByName: null, collectedBySetById: 'att', collectedBySetAt: NOW }),
+    );
+    expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ detail: expect.stringContaining('collected by Wendo van KCB 214K') }), NOW);
+  });
+
+  it.each([
+    [{ kind: 'SUPPLIER_DELIVERS' as const }, { collectedByKind: 'SUPPLIER_DELIVERS', collectedByCarrierId: null, collectedByUserId: null, collectedByName: null }, 'supplier delivers'],
+    [{ kind: 'STAFF' as const, userId: STAFF_ID }, { collectedByKind: 'STAFF', collectedByCarrierId: null, collectedByUserId: STAFF_ID, collectedByName: null }, 'collected by Peter'],
+    [{ kind: 'OTHER' as const, name: 'Kamau the driver' }, { collectedByKind: 'OTHER', collectedByCarrierId: null, collectedByUserId: null, collectedByName: 'Kamau the driver' }, 'collected by Kamau the driver'],
+  ])('stores %j as the one kind it names and no other', async (collectedBy, columns, sentence) => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await ordersService.send(attendant, 'o1', 'MANUAL', NOW, collectedBy);
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', expect.objectContaining(columns));
+    expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ detail: expect.stringContaining(sentence) }), NOW);
+  });
+
+  it('refuses a carrier that is retired or not on the Carriers list, and a person who is not on the staff, before writing', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    vi.mocked(ordersRepository.findActiveCarrier).mockResolvedValue(null);
+    await expect(ordersService.send(attendant, 'o1', 'MANUAL', NOW, { kind: 'CARRIER', carrierId: CARRIER_ID })).rejects.toMatchObject({ code: 'COLLECTOR_NOT_FOUND', statusCode: 422 });
+    vi.mocked(ordersRepository.findActiveStaff).mockResolvedValue(null);
+    await expect(ordersService.send(attendant, 'o1', 'MANUAL', NOW, { kind: 'STAFF', userId: STAFF_ID })).rejects.toMatchObject({ code: 'COLLECTOR_NOT_FOUND' });
+    expect(ordersRepository.transition).not.toHaveBeenCalled();
+  });
+
+  it('looks the carrier and the person up at the hub only', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await ordersService.send(attendant, 'o1', 'MANUAL', NOW, { kind: 'CARRIER', carrierId: CARRIER_ID });
+    expect(ordersRepository.findActiveCarrier).toHaveBeenCalledWith(HUB, CARRIER_ID);
+  });
+
+  it('a second send keeps what was stored and ignores a different choice (it changes nothing)', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved({ status: 'SENT' }));
+    await ordersService.send(attendant, 'o1', 'MANUAL', NOW, { kind: 'SUPPLIER_DELIVERS' });
+    expect(ordersRepository.transition).not.toHaveBeenCalled();
+    expect(ordersRepository.findActiveCarrier).not.toHaveBeenCalled();
+  });
+
+  it('lets the approver say who is getting it while approving ("Set by Joseph (Store Manager)")', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0045' }));
+    await ordersService.approve(manager, 'o1', '1234', NOW, { kind: 'CARRIER', carrierId: CARRIER_ID });
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', expect.objectContaining({ status: 'APPROVED', collectedByKind: 'CARRIER', collectedBySetById: 'sm' }));
+  });
+
+  it('sets, corrects and clears the choice on an approved or sent order, each in the audit log', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await ordersService.setCollectedBy(attendant, 'o1', { kind: 'STAFF', userId: STAFF_ID }, NOW);
+    expect(ordersRepository.setCollectedBy).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', expect.objectContaining({ collectedByKind: 'STAFF', collectedByUserId: STAFF_ID }));
+    expect(purchasingAudit.record).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ action: 'Set who is getting the order', detail: 'collected by Peter' }), NOW);
+
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved({ status: 'SENT' }));
+    await ordersService.setCollectedBy(attendant, 'o1', null, NOW);
+    expect(ordersRepository.setCollectedBy).toHaveBeenLastCalledWith(expect.anything(), HUB, 'o1', null);
+    expect(purchasingAudit.record).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ action: 'Cleared who is getting the order' }), NOW);
+  });
+
+  it('refuses to change it before approval and after delivery, and a lost race', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0045' }));
+    await expect(ordersService.setCollectedBy(attendant, 'o1', { kind: 'SUPPLIER_DELIVERS' }, NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved({ status: 'DELIVERED' }));
+    await expect(ordersService.setCollectedBy(attendant, 'o1', { kind: 'SUPPLIER_DELIVERS' }, NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    vi.mocked(ordersRepository.setCollectedBy).mockResolvedValue(false);
+    await expect(ordersService.setCollectedBy(attendant, 'o1', { kind: 'SUPPLIER_DELIVERS' }, NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+  });
+
+  it('refuses a person who can neither approve nor request orders', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await expect(ordersService.setCollectedBy(accountant, 'o1', { kind: 'SUPPLIER_DELIVERS' }, NOW)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('shows the choice on the order: "Sent, collected by ..." and who set it', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(
+      approved({ status: 'SENT', collectedByKind: 'CARRIER', collectedByCarrierId: CARRIER_ID, collectedByUserId: null, collectedByCarrier: { id: CARRIER_ID, name: 'Wendo van KCB 214K', kind: 'VEHICLE' }, collectedBySetBy: user('sm', 'Joseph', 'STORE_MANAGER'), collectedBySetAt: NOW }),
+    );
+    const view = await ordersService.getOne(attendant, 'o1', NOW);
+    expect(view.collectedBy).toEqual({ kind: 'CARRIER', label: 'Wendo van KCB 214K', summary: 'collected by Wendo van KCB 214K', carrierId: CARRIER_ID, userId: null, setBy: { id: 'sm', name: 'Joseph', role: 'Store Manager' }, setAt: NOW.toISOString() });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved({ collectedByKind: 'SUPPLIER_DELIVERS' }));
+    expect((await ordersService.getOne(attendant, 'o1', NOW)).collectedBy).toMatchObject({ label: 'Supplier delivers', summary: 'supplier delivers' });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    expect((await ordersService.getOne(attendant, 'o1', NOW)).collectedBy).toBeNull();
+  });
+
+  it('lists the carriers and the hub staff for the picker', async () => {
+    vi.mocked(ordersRepository.listCollectors).mockResolvedValue({ carriers: [{ id: CARRIER_ID, name: 'Wendo van KCB 214K', kind: 'VEHICLE' }], staff: [] });
+    await expect(ordersService.getCollectors(attendant, 'van')).resolves.toMatchObject({ carriers: [{ name: 'Wendo van KCB 214K' }] });
+    expect(ordersRepository.listCollectors).toHaveBeenCalledWith(HUB, 'van');
+  });
+});
+
+describe('withdraw and remind (Paper 28H, 28K)', () => {
+  const waiting = (over: Record<string, unknown> = {}) => order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0047', ...over });
+
+  it('lets the person who raised an order take it back before approval, with no PIN, and records it as withdrawn', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting());
+    await ordersService.withdraw(attendant, 'o1', NOW);
+    expect(purchasingPin.verifyOwn).not.toHaveBeenCalled();
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', expect.objectContaining({ status: 'CANCELLED', cancelReason: 'WITHDRAWN', cancelledById: 'att', cancelledAt: NOW, from: ['AWAITING_APPROVAL', 'RETURNED'] }));
+    expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'Withdrew order' }), NOW);
+  });
+
+  it('withdraws a returned order too', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting({ status: 'RETURNED' }));
+    await ordersService.withdraw(attendant, 'o1', NOW);
+    expect(ordersRepository.transition).toHaveBeenCalled();
+  });
+
+  it("refuses someone else's order, an approved order, and a lost race", async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting({ raisedById: 'someone' }));
+    await expect(ordersService.withdraw(attendant, 'o1', NOW)).rejects.toBeInstanceOf(ForbiddenError);
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await expect(ordersService.withdraw(attendant, 'o1', NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting());
+    vi.mocked(ordersRepository.transition).mockResolvedValue(false);
+    await expect(ordersService.withdraw(attendant, 'o1', NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+  });
+
+  it('reminds the Store Manager with a push and an audit row', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting());
+    vi.mocked(ordersRepository.findLastAuditAt).mockResolvedValue(null);
+    await ordersService.remind(attendant, 'o1', NOW);
+    expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'Reminded the approver' }), NOW);
+    expect(purchasingNotices.reminder).toHaveBeenCalledWith(expect.objectContaining({ hubId: HUB, orderId: 'o1', reference: 'LPO-0047', fromLabel: 'Amina (Store Attendant)' }));
+  });
+
+  it('will not remind again within four hours, and says when the last reminder was', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting());
+    vi.mocked(ordersRepository.findLastAuditAt).mockResolvedValue(new Date(NOW.getTime() - 3 * 3_600_000));
+    await expect(ordersService.remind(attendant, 'o1', NOW)).rejects.toMatchObject({ code: 'REMINDER_TOO_SOON', statusCode: 409, details: { lastRemindedAt: '2026-10-06T05:00:00.000Z' } });
+    expect(purchasingNotices.reminder).not.toHaveBeenCalled();
+    vi.mocked(ordersRepository.findLastAuditAt).mockResolvedValue(new Date(NOW.getTime() - 5 * 3_600_000));
+    await ordersService.remind(attendant, 'o1', NOW);
+    expect(purchasingNotices.reminder).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a reminder on someone else's order and on an order that is not waiting", async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting({ raisedById: 'someone' }));
+    await expect(ordersService.remind(attendant, 'o1', NOW)).rejects.toBeInstanceOf(ForbiddenError);
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    await expect(ordersService.remind(attendant, 'o1', NOW)).rejects.toMatchObject({ code: 'ORDER_WRONG_STATE' });
+  });
+
+  it('puts withdraw, remind and the collector choice in the order’s `can` block, for the right person only', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(waiting());
+    expect((await ordersService.getOne(attendant, 'o1', NOW)).can).toMatchObject({ withdraw: true, remind: true, setCollectedBy: false });
+    expect((await ordersService.getOne(manager, 'o1', NOW)).can).toMatchObject({ withdraw: false, remind: false });
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(approved());
+    expect((await ordersService.getOne(attendant, 'o1', NOW)).can).toMatchObject({ withdraw: false, remind: false, setCollectedBy: true });
+    expect((await ordersService.getOne(accountant, 'o1', NOW)).can).toMatchObject({ setCollectedBy: false });
+  });
+});
+
+describe('the notices that follow a write (map rows 21b, 22, 23)', () => {
+  it('tells the raiser, with the approver named with their role, and not when they approved their own', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0045' })).mockResolvedValue(approved());
+    await ordersService.approve(manager, 'o1', '1234', NOW);
+    expect(purchasingNotices.approved).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', approverLabel: 'Joseph (Store Manager)', reference: 'LPO-0045' }));
+
+    vi.mocked(purchasingNotices.approved).mockClear();
+    vi.mocked(ordersRepository.findOrder).mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0046', raisedById: 'sm' })).mockResolvedValue(approved({ raisedById: 'sm' }));
+    await ordersService.approve(manager, 'o1', '1234', NOW);
+    expect(purchasingNotices.approved).not.toHaveBeenCalled();
+  });
+
+  it('tells the raiser when the order is sent back, with the note', async () => {
+    vi.mocked(ordersRepository.findOrder)
+      .mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0048' }))
+      .mockResolvedValue(order({ status: 'RETURNED', reference: 'LPO-0048', returnedNote: 'Lower the carrots', returnedBy: user('sm', 'Joseph', 'STORE_MANAGER') }));
+    await ordersService.returnOrder(manager, 'o1', 'Lower the carrots', NOW);
+    expect(purchasingNotices.returned).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', returnerLabel: 'Joseph (Store Manager)', note: 'Lower the carrots' }));
+  });
+
+  it('nudges the hub when an order is sent for approval', async () => {
+    vi.mocked(ordersRepository.findOrder).mockResolvedValueOnce(order()).mockResolvedValue(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0001' }));
+    await ordersService.submit(attendant, 'o1', NOW);
+    expect(purchasingNotices.submitted).toHaveBeenCalledWith({ hubId: HUB, orderId: 'o1', reference: 'LPO-0001', supplierName: 'Samrat' });
+  });
+});
+
 describe('reads and the blind rule', () => {
   beforeEach(() => {
     vi.mocked(ordersRepository.findOrder).mockResolvedValue(order({ status: 'INVOICED', reference: 'LPO-0001', invoices: [{ id: 'i1', number: 'INV-1', invoiceDate: NOW, dueDate: NOW, amount: D(1680), status: 'OPEN', disputed: false, varianceAmount: null, varianceReason: null, settledAmount: null, settledNote: null, settledById: null, settledAt: null, settledBy: null, voidReason: null, voidedById: null, voidedAt: null, voidedBy: null, file: null, enteredBy: user('acc', 'Margaret', 'ACCOUNTANT'), enteredAt: NOW }], payments: [] }));
@@ -252,6 +454,15 @@ describe('route matrix (capabilities, not role names)', () => {
     ['post', '/orders/:id/cancel', 'STORE_ATTENDANT', 403],
     ['post', '/orders/:id/cancel', 'STORE_MANAGER', 200],
     ['get', '/orders/:id/whatsapp', 'ACCOUNTANT', 403],
+    ['get', '/collectors', 'STORE_ATTENDANT', 200],
+    ['get', '/collectors', 'ACCOUNTANT', 403],
+    ['put', '/orders/:id/collected-by', 'STORE_ATTENDANT', 200],
+    ['put', '/orders/:id/collected-by', 'STORE_MANAGER', 200],
+    ['put', '/orders/:id/collected-by', 'ACCOUNTANT', 403],
+    ['post', '/orders/:id/withdraw', 'STORE_ATTENDANT', 200],
+    ['post', '/orders/:id/withdraw', 'ACCOUNTANT', 403],
+    ['post', '/orders/:id/remind', 'STORE_ATTENDANT', 200],
+    ['post', '/orders/:id/remind', 'DIRECTOR', 403],
   ])('%s %s as %s -> %i', async (method, path, role, expected) => {
     expect(await run(method, path, { id: 'u', role, siteId: HUB })).toBe(expected);
   });

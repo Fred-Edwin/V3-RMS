@@ -49,6 +49,7 @@ export const CAPABILITIES = [
   'orders.approve', // approve with a PIN, return with a note, send the approved order
   'orders.cancel', // cancel an order before anything arrives
   'orders.receive', // record a delivery
+  'orders.see_stock', // on-hand and reorder-level figures on the Purchasing screens (restock list, Restock levels); the Store Attendant holds it (owner, 10 Oct 2026, Paper 28B and 28P). It opens no other stock screen
   // Prep (docs/features/inventory/prep-plan.md §2). The Store Manager and System Admin hold all seven via the filter above.
   'prep.read', // Runs, Usual recipes (read-only), History, run detail
   'prep.see_costs', // run costs: output unit cost, input and line costs, prep value (the Attendant is blind to them)
@@ -253,6 +254,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'orders.read',
     'orders.request',
     'orders.receive',
+    // Sees on hand and the reorder level on the Purchasing phone screens only (Paper 28B, 28P); every other stock screen stays blind.
+    'orders.see_stock',
     'prep.read',
     'prep.record',
     // Counts blind (own count only), logs waste, reads and reverses their own waste the same day.

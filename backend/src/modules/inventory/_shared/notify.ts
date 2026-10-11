@@ -32,6 +32,8 @@ export type Audience =
   | { kind: 'roles'; siteId: string; roles: UserRole[] }
   /** Every active Director (a company-level role, so no site). */
   | { kind: 'directors' }
+  /** Named people (the person who raised an order: Purchasing map rows 22 to 26). */
+  | { kind: 'users'; userIds: string[] }
   /** The head, and unless `headsOnly` the members, of these departments of one branch. */
   | { kind: 'department'; siteId: string; departmentIds: string[]; headsOnly: boolean };
 
@@ -113,6 +115,7 @@ const defaultDeps: NotifyDeps = {
   tokensFor: async (audience) => {
     if (audience.kind === 'directors') return authRepository.findDirectorFcmTokens();
     if (audience.kind === 'roles') return authRepository.findFcmTokensByRole(audience.siteId, audience.roles);
+    if (audience.kind === 'users') return authRepository.findFcmTokensByUserIds(audience.userIds);
     return authRepository.findDepartmentFcmTokens(audience.siteId, audience.departmentIds, audience.headsOnly);
   },
   push: send,
