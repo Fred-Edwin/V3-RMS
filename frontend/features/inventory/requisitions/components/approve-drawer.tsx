@@ -54,6 +54,13 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
     pinRef.current?.focus();
   };
 
+  // The fourth digit signs: no second tap. A wrong PIN clears the field, so it cannot loop.
+  React.useEffect(() => {
+    if (open && summary.data && pin.length === 4 && !approve.saving) void submit();
+    // `submit` closes over the current pin; this runs only when the pin reaches four digits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
   const data = summary.data;
   const sent = data?.departments.filter((d) => d.status === 'SUBMITTED').length ?? 0;
   const failure = approve.failure ? errorWords(approve.failure.code, 'manager', approve.failure.message, approve.failure.message) : null;

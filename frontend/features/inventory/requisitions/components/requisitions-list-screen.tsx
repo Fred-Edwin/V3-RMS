@@ -22,7 +22,6 @@ import { CYCLE_TEXT, REQUISITION_CYCLES, type BranchRef, type RequisitionRow, ty
 import { clock, dayAndClock, dayLabel, elapsed, kes } from '../_shared/lib/requisitions-words';
 import { LIST_COPY } from '../_shared/lib/list-copy';
 import { DocLink, ReqTabs, SectionSquares, StatusChip, UrgentTag, type TabDef } from './req-parts';
-import { StartDialog } from './start-dialog';
 import { useBadgesNudge } from '../hooks/use-badges-nudge';
 
 export type ListMode = 'queue' | 'discrepancies' | 'history';
@@ -64,7 +63,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const [showValue, setShowValue] = React.useState(false);
   const [overHour, setOverHour] = React.useState<RequisitionRow | null>(null);
   const [refresh, setRefresh] = React.useState(0);
-  const [startOpen, setStartOpen] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
   const openedOnWork = React.useRef(false);
   const phone =useMediaQuery('(max-width: 639px)').matches;
@@ -82,7 +80,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const urlTab = params.get('tab');
   const forcedTab: RequisitionTab | undefined = mode === 'discrepancies' ? 'discrepancies' : mode === 'history' ? 'closed' : isTab(urlTab) && urlTab !== 'discrepancies' && urlTab !== 'closed' ? urlTab : undefined;
   const hub = branches !== null;
-  const canStart = can('requisitions.start') && role !== 'SYSTEM_ADMIN' && mode === 'queue';
   const href = (id: string): string => `${base}/${id}`;
 
   const setTab = (tab: RequisitionTab): void => {
@@ -126,7 +123,7 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
     };
     return (
       <Button variant="secondary" onClick={(event) => { event.stopPropagation(); run(); }} className="h-10 px-5 text-[14px] max-sm:h-11">
-        {action.action === 'APPROVE_AND_SIGN' ? 'Review and approve' : action.label}
+        {action.action === 'APPROVE_AND_SIGN' ? 'Approve' : action.label}
         <span className="sr-only"> {row.reference}</span>
       </Button>
     );
@@ -238,7 +235,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       <Topbar
         hideSearch
         breadcrumb={mode === 'queue' ? { section: crumb, screen: 'Requisitions' } : { root: crumb, section: 'Requisitions', sectionHref: base, screen: title }}
-        actions={canStart ? <Button onClick={() => setStartOpen(true)}>Start a requisition</Button> : undefined}
       />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
@@ -324,7 +320,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
         ) : null}
         <LoadingAnnouncer text="" />
       </main>
-      <StartDialog open={startOpen} onOpenChange={setStartOpen} onStarted={(id) => { setRefresh((n) => n + 1); router.push(href(id)); }} />
     </div>
   );
 }

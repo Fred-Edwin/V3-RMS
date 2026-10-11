@@ -13,30 +13,29 @@ import { MonoLabel } from './req-parts';
 
 const num = (value: string | null): number => (value === null ? NaN : Number(value));
 
-/** "Beef patty 120g: 30 to 24" popover with reason chips (Paper step 9). Reason is optional before approval and required after. */
-function ChangePopover({ line, from, to, reasonRequired, saving, failure, onSave, onCancel }: {
+/**
+ * "Beef patty 120g: 30 to 24" under the line being changed (Paper step 9, now inline instead of a popover): reason chips, Save and Cancel.
+ * Enter in the quantity box saves too. The reason is optional before approval and required after.
+ */
+function ReasonStrip({ line, from, to, reasonRequired, saving, failure, chip, other, onChip, onOther, onSave, onCancel }: {
   line: RequisitionLine;
   from: string;
   to: string;
   reasonRequired: boolean;
   saving: boolean;
   failure: string | null;
-  onSave: (reason: string | undefined) => void;
+  chip: ChangeReasonChip | null;
+  other: string;
+  onChip: (chip: ChangeReasonChip | null) => void;
+  onOther: (value: string) => void;
+  onSave: () => void;
   onCancel: () => void;
 }) {
-  const [chip, setChip] = React.useState<ChangeReasonChip | null>(null);
-  const [other, setOther] = React.useState('');
-  const first = React.useRef<HTMLButtonElement>(null);
-  // Focus moves a tick later, so the Enter that opened the popover cannot also press the first chip.
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => first.current?.focus(), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
   const reason = chip === 'Other' ? other.trim() : (chip ?? '');
   const blocked = reasonRequired && reason === '';
   return (
     <div
-      role="dialog"
+      role="group"
       aria-label={`Change ${line.itemName}`}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -44,41 +43,36 @@ function ChangePopover({ line, from, to, reasonRequired, saving, failure, onSave
           onCancel();
         }
       }}
-      className="absolute right-0 top-[calc(100%-4px)] z-20 w-[360px] border border-wds-border-strong bg-wds-surface p-4 shadow-wds-md"
+      className="col-span-full -mt-1 flex flex-col gap-2.5 border-t border-wds-border pt-3"
     >
-      <p className="font-wds-sans text-[16px] font-semibold leading-5 text-wds-text-ink">
-        {line.itemName}: {from} to {to}
-      </p>
-      <p className="mt-1 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+      <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+        <span className="font-semibold text-wds-text-ink">{line.itemName}: {from} to {to}.</span>{' '}
         {reasonRequired ? 'The head is told. A reason is needed now the requisition is approved.' : 'The head is told. Add a reason if it helps (optional).'}
       </p>
-      <div role="radiogroup" aria-label="Reason" className="mt-3 flex flex-wrap gap-2">
-        {CHANGE_REASON_CHIPS.map((c, i) => (
-          <button
-            key={c}
-            ref={i === 0 ? first : undefined}
-            type="button"
-            role="radio"
-            aria-checked={chip === c}
-            onClick={() => setChip(chip === c ? null : c)}
-            className={cn('h-8 border px-3 font-wds-sans text-[13px] outline-none focus-visible:shadow-wds-ring', chip === c ? 'border-wds-neutral-950 bg-wds-neutral-950 text-wds-neutral-0' : 'border-wds-border-strong bg-wds-surface text-wds-text-ink hover:bg-wds-neutral-50')}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-      {chip === 'Other' ? <Input aria-label="Other reason" className="mt-3" value={other} maxLength={120} onChange={(event) => setOther(event.target.value)} placeholder="What is the reason?" /> : null}
-      {failure ? <p role="alert" className="mt-3 font-wds-sans text-[13px] text-wds-error-fg">{failure}</p> : null}
-      <div className="mt-3 flex items-center justify-end gap-3">
-        {reasonRequired ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="radiogroup" aria-label="Reason" className="flex flex-wrap gap-2">
+          {CHANGE_REASON_CHIPS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={chip === c}
+              onClick={() => onChip(chip === c ? null : c)}
+              className={cn('h-8 border px-3 font-wds-sans text-[13px] outline-none focus-visible:shadow-wds-ring', chip === c ? 'border-wds-neutral-950 bg-wds-neutral-950 text-wds-neutral-0' : 'border-wds-border-strong bg-wds-surface text-wds-text-ink hover:bg-wds-neutral-50')}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {chip === 'Other' ? <Input aria-label="Other reason" className="h-8 w-56" value={other} maxLength={120} onChange={(event) => onOther(event.target.value)} placeholder="What is the reason?" /> : null}
+        <div className="ml-auto flex items-center gap-3">
           <button type="button" onClick={onCancel} className="font-wds-sans text-[14px] text-wds-text-secondary outline-none hover:text-wds-text-ink focus-visible:shadow-wds-ring">Cancel</button>
-        ) : (
-          <button type="button" onClick={() => onSave(undefined)} disabled={saving} className="font-wds-sans text-[14px] text-wds-text-secondary outline-none hover:text-wds-text-ink focus-visible:shadow-wds-ring">Skip</button>
-        )}
-        <Button onClick={() => onSave(reason || undefined)} disabled={saving || blocked}>
-          {saving ? 'Saving…' : 'Save change'}
-        </Button>
+          <Button onClick={onSave} disabled={saving || blocked}>
+            {saving ? 'Saving…' : 'Save change'}
+          </Button>
+        </div>
       </div>
+      {failure ? <p role="alert" className="font-wds-sans text-[13px] text-wds-error-fg">{failure}</p> : null}
     </div>
   );
 }
@@ -86,32 +80,42 @@ function ChangePopover({ line, from, to, reasonRequired, saving, failure, onSave
 function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; section: SectionDetail; line: RequisitionLine; onChanged: () => void }) {
   const current = line.approvedQty ?? line.requestedQty;
   const [draft, setDraft] = React.useState(current);
-  const [asking, setAsking] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [chip, setChip] = React.useState<ChangeReasonChip | null>(null);
+  const [other, setOther] = React.useState('');
   const [message, setMessage] = React.useState<string | null>(null);
   const editable = file.can.changeQuantity && section.can.changeQuantity && line.additionId === null;
   const afterApproval = file.status === 'APPROVED';
   const save = useAction((input: { approvedQty: string; reason?: string }) => requisitionsApi.changeQuantity(file.id, line.id, input), 'Could not save the change. Try again.');
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const shownRef = React.useRef<HTMLButtonElement>(null);
   const failure = save.failure ? errorWords(save.failure.code, 'manager', save.failure.message, save.failure.message) : null;
+  const next = Number(draft);
+  const valid = draft.trim() !== '' && Number.isFinite(next) && next >= 0;
+  const differs = valid && next !== num(current);
+  const reason = chip === 'Other' ? other.trim() : (chip ?? '');
 
   React.useEffect(() => setDraft(current), [current]);
+  React.useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
 
-  const revert = (): void => {
+  const stop = (): void => {
     setDraft(current);
-    setAsking(false);
+    setEditing(false);
+    setChip(null);
+    setOther('');
     save.clear();
-    inputRef.current?.focus();
+    // The number comes back as a button; keep the keyboard where it was.
+    window.setTimeout(() => shownRef.current?.focus(), 0);
   };
-  const commit = (): void => {
-    const next = Number(draft);
-    if (draft.trim() === '' || !Number.isFinite(next) || next < 0) return revert();
-    if (next === num(current)) return setAsking(false);
-    setAsking(true);
-  };
-  const doSave = async (reason: string | undefined): Promise<void> => {
-    const result = await save.run({ approvedQty: String(Number(draft)), reason });
+  const doSave = async (): Promise<void> => {
+    if (!differs || (afterApproval && reason === '')) return;
+    const result = await save.run({ approvedQty: String(next), reason: reason || undefined });
     if (result) {
-      setAsking(false);
+      setEditing(false);
+      setChip(null);
+      setOther('');
       setMessage(`${line.itemName} changed ${line.requestedQty} to ${result.line.approvedQty ?? draft}. The ${section.departmentName} head has been told.`);
       onChanged();
     }
@@ -120,7 +124,13 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
   const changed = line.changedByManager;
   const stock = line.onHand !== undefined ? `On hand ${line.onHand}${line.level !== undefined ? ` · Restock level ${line.level}` : ''}` : null;
   return (
-    <li className={cn('relative grid grid-cols-[minmax(0,1fr)_104px] sm:grid-cols-[minmax(0,1fr)_84px_112px_84px] xl:grid-cols-[minmax(0,1fr)_130px_150px_110px] items-center gap-4 border-b border-wds-border px-4 py-3', changed && 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]')}>
+    <li
+      onBlur={(event) => {
+        // Leaving the row without changing anything closes the box; a change stays open until it is saved or cancelled.
+        if (editing && !differs && !event.currentTarget.contains(event.relatedTarget as Node | null)) setEditing(false);
+      }}
+      className={cn('relative grid grid-cols-[minmax(0,1fr)_104px] sm:grid-cols-[minmax(0,1fr)_84px_112px_84px] xl:grid-cols-[minmax(0,1fr)_130px_150px_110px] items-center gap-4 border-b border-wds-border px-4 py-3', changed && 'border-l-[3px] border-l-wds-caramel-500 bg-wds-caramel-100 pl-[13px]')}
+    >
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line.itemName}</span>
         {changed ? (
@@ -137,28 +147,56 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
         {line.requestedQty} {line.unit}
       </span>
       <div className="relative">
-        {editable ? (
+        {editable && editing ? (
           <Input
             ref={inputRef}
             aria-label={`Approved quantity for ${line.itemName}`}
             inputMode="decimal"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            onBlur={() => {
-              if (!asking) commit();
-            }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') commit();
-              if (event.key === 'Escape') revert();
+              if (event.key === 'Enter') {
+                if (!valid || !differs) stop();
+                else void doSave();
+              }
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                stop();
+              }
             }}
-            className={cn('h-[34px] text-right font-wds-mono text-[14px]', asking && 'border-wds-primary shadow-wds-ring')}
+            className={cn('h-[34px] text-right font-wds-mono text-[14px]', differs && 'border-wds-primary shadow-wds-ring')}
           />
+        ) : editable ? (
+          <button
+            ref={shownRef}
+            type="button"
+            aria-label={`Approved quantity for ${line.itemName}: ${current}. Change it`}
+            onClick={() => setEditing(true)}
+            className="block h-[34px] w-full border border-transparent px-3 text-right font-wds-mono text-[14px] text-wds-text-ink outline-none hover:border-wds-border-strong hover:bg-wds-surface focus-visible:shadow-wds-ring"
+          >
+            {current}
+          </button>
         ) : (
           <span className="block text-right font-wds-mono text-[14px] text-wds-text-ink">{line.approvedQty ?? '—'}</span>
         )}
-        {asking ? <ChangePopover line={line} from={current} to={String(Number(draft))} reasonRequired={afterApproval} saving={save.saving} failure={failure} onSave={(reason) => void doSave(reason)} onCancel={revert} /> : null}
       </div>
       <span className="hidden text-right font-wds-mono text-[14px] text-wds-text-ink sm:block">{line.valueKes === undefined ? '' : kes(line.valueKes)}</span>
+      {editing && differs ? (
+        <ReasonStrip
+          line={line}
+          from={current}
+          to={String(next)}
+          reasonRequired={afterApproval}
+          saving={save.saving}
+          failure={failure}
+          chip={chip}
+          other={other}
+          onChip={setChip}
+          onOther={setOther}
+          onSave={() => void doSave()}
+          onCancel={stop}
+        />
+      ) : null}
       <p role="status" aria-live="polite" className="sr-only">{message}</p>
     </li>
   );
