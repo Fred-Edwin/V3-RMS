@@ -1,4 +1,5 @@
 import { itemWord } from '../../_shared/lib/block2-words';
+import type { CountReason } from '../../dispatch/_shared/types/dispatch-contract';
 import type { CountLine } from '../_shared/types/deliveries-contract';
 
 /** A typed count the server accepts: digits and at most one point. 0 is a count; an empty box is not. */
@@ -14,10 +15,15 @@ export const isFlagged = (line: Pick<CountLine, 'state' | 'lineId'>, touched: Re
 export function countFooterNote(left: number, flaggedNames: readonly string[]): string | undefined {
   if (flaggedNames.length > 0) {
     const word = itemWord(flaggedNames[0] ?? '');
-    return flaggedNames.length === 1 ? `Count the ${word} again to go on.` : `Count the ${flaggedNames.length} flagged lines again to go on.`;
+    return flaggedNames.length === 1 ? `Count ${word} again to go on.` : `Count the ${flaggedNames.length} flagged lines again to go on.`;
   }
   if (left > 0) return `${left} ${left === 1 ? 'line' : 'lines'} still to count.`;
   return undefined;
+}
+
+/** The reasons that can fit a line (Paper chapter 14, A): an extra cannot be "Not in the box" or "Damaged". */
+export function reasonsFor(direction: 'SHORT' | 'EXTRA' | null | undefined): readonly CountReason[] {
+  return direction === 'EXTRA' ? ['WRONG_ITEM', 'OTHER'] : ['NOT_IN_THE_BOX', 'DAMAGED', 'WRONG_ITEM', 'OTHER'];
 }
 
 /** "Line 2 of 3" for the reason sheet: how many differing lines there are and which one is open. */

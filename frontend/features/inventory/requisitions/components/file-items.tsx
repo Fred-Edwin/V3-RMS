@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn';
 import { useAction } from '../../_shared/hooks/use-async';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import type { RequisitionFile, RequisitionLine, SectionDetail } from '../_shared/types/requisitions-contract';
-import { CHANGE_REASON_CHIPS, clock, errorWords, kes, railWords, type ChangeReasonChip } from '../_shared/lib/requisitions-words';
+import { CHANGE_REASON_CHIPS, clock, errorWords, kes, railWords, sectionsInPlay, type ChangeReasonChip } from '../_shared/lib/requisitions-words';
 import { MonoLabel } from './req-parts';
 
 const num = (value: string | null): number => (value === null ? NaN : Number(value));
@@ -210,16 +210,18 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
   onChanged: () => void;
   onFillMyself: (departmentId: string, trigger: HTMLElement) => void;
 }) {
-  const section = file.sections.find((s) => s.departmentId === selected) ?? file.sections[0];
+  // A department the manager sent without is no longer part of this requisition: it is not in the rail or the counts.
+  const play = sectionsInPlay(file.sections);
+  const section = play.find((s) => s.departmentId === selected) ?? play[0];
   const money = file.valueKes !== undefined;
-  const inCount = file.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length;
-  const skippedCount = file.sections.filter((s) => s.status === 'SKIPPED').length;
+  const inCount = play.filter((s) => s.status === 'SUBMITTED').length;
+  const skippedCount = file.sections.length - play.length;
   const railTitle =
     file.status === 'APPROVED' || file.status === 'CLOSED'
       ? 'Departments · approved'
       : skippedCount > 0
-        ? `Departments · ${inCount - skippedCount} in, ${skippedCount} sent without`
-        : `Departments · ${inCount === file.sections.length ? 'all' : inCount} ${inCount === file.sections.length ? `${file.sections.length} in` : `of ${file.sections.length} in`}`;
+        ? `Departments · ${inCount} in`
+        : `Departments · ${inCount === play.length ? 'all' : inCount} ${inCount === play.length ? `${play.length} in` : `of ${play.length} in`}`;
   if (!section) return null;
   const mainLines = section.lines.filter((l) => l.additionId === null);
   const empty = mainLines.length === 0;
@@ -228,7 +230,7 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
       <nav aria-label="Departments" className="flex flex-col border-b border-wds-neutral-950 bg-wds-neutral-50 lg:border-b-0 lg:border-r">
         <MonoLabel className="px-4 py-3.5">{railTitle}</MonoLabel>
         <ul className="border-t border-wds-neutral-950">
-          {file.sections.map((s) => {
+          {play.map((s) => {
             const words = railWords(s, file.status);
             const on = s.departmentId === section.departmentId;
             const done = s.status === 'SUBMITTED' || s.status === 'SKIPPED';

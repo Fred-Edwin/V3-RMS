@@ -1,3 +1,5 @@
+'use client';
+
 import { useLoader } from '../../_shared/hooks/use-async';
 import { useBlock2Nudge } from '../../_shared/hooks/use-block2-nudge';
 import type { DispatchFile } from '../../dispatch/_shared/types/dispatch-contract';

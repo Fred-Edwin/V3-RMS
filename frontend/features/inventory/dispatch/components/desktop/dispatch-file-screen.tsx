@@ -2,13 +2,11 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { Topbar } from '@/components/app/shell/topbar';
 import { Button } from '@/components/ui2/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { cn } from '@/lib/cn';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -17,14 +15,17 @@ import { useLoader } from '../../../_shared/hooks/use-async';
 import { DocLink, ReqTabs } from '../../../requisitions/components/req-parts';
 import { dayAndClock, dayLabel, clock } from '../../../requisitions/_shared/lib/requisitions-words';
 import type { DispatchDocument, DispatchFile, DispatchItem } from '../../_shared/types/dispatch-contract';
-import { dispatchNextWords, dispatchProgress, fileTitle, nameAndTitle, stageChip } from '../../lib/dispatch-words';
+import { dispatchPrintBatch } from '../../lib/phone-routes';
+import { dispatchNextWords, dispatchProgress, fileTitle, kesText, nameAndTitle, stageChip } from '../../lib/dispatch-words';
 import { useRecordNudge } from '../../hooks/use-record-nudge';
 import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
+import { DeliveryFindingsDrawer } from '../../../discrepancies/components/delivery-findings-drawer';
 import { CancelDispatchDialog } from './cancel-dispatch-dialog';
 import { ConfirmForDepartmentDrawer } from './confirm-for-department-drawer';
 import { ColumnHead, FileHeader, NextStepCard } from './file-parts';
 import { PhotoStrip } from './photo-strip';
 import { ProgressTracker } from './progress-tracker';
+import { linesText } from '../../../_shared/lib/block2-words';
 
 type View = 'items' | 'documents' | 'activity';
 const SHOWN_AT_FIRST = 4;
@@ -90,10 +91,15 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
   const money = data?.items.some((i) => i.valueKes !== undefined) ?? false;
   const sentVisible = data?.sentVisible ?? false;
   // Several lines differ: the card's button opens the oldest open one (the file lists them oldest first) and each row has its own link.
-  const severalOpen = (data?.items.filter((i) => i.discrepancy && i.discrepancy.status !== 'RECORDED').length ?? 0) > 1;
+  const openIds = (data?.items ?? []).flatMap((i) => (i.discrepancy && i.discrepancy.status !== 'RECORDED' ? [i.discrepancy.id] : []));
+  const severalOpen = openIds.length > 1;
+  const [recordingAll, setRecordingAll] = React.useState(false);
 
   const mainAction = (): React.ReactNode => {
     if (!data || !words?.actionLabel) return null;
+    if (data.stage === 'GAP_HELD' && data.can.recordFinding && openIds.length > 1) {
+      return <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => setRecordingAll(true)}>Record findings ({openIds.length})</Button>;
+    }
     if (data.stage === 'GAP_HELD' && data.can.recordFinding) {
       const target = data.nextStep.facts.discrepancyId;
       return target ? <Button size="lg" className="h-10 px-[18px] text-[14px] leading-[18px]" onClick={() => router.push(`${base}/discrepancies/${target}?drawer=finding`)}>{words.actionLabel}</Button> : null;
@@ -131,53 +137,18 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                   <span>from</span>
                   <DocLink href={`${base}/${data.requisition.id}`} className="text-[13px]">{data.requisition.reference}</DocLink>
                   <span>
-                    · {data.lineCount} lines · {data.carrier.name}
+                    · {linesText(data.lineCount)} · {data.carrier.name}
                   </span>
-                  {data.valueKes !== undefined ? <span>· KES {Number(data.valueKes).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span> : null}
+                  {data.valueKes !== undefined ? <span>· KES {kesText(data.valueKes)}</span> : null}
                 </>
               }
               actions={
                 <>
                   {data.can.print ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button ref={printRef} variant="secondary" size="lg" className="h-9 px-4 text-[14px] leading-[18px]">
-                          Print delivery note
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onSelect={() => openPrint('store')}>Store copy</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => openPrint('branch')}>Branch copy</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : null}
-                  {data.can.print || data.can.cancel ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button ref={moreRef} variant="secondary" size="icon" aria-label="More actions" className="size-9">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {data.can.print ? (
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>Print delivery note</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                              <DropdownMenuItem onSelect={() => openPrint('store')}>Store copy</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => openPrint('branch')}>Branch copy</DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        ) : null}
-                        {data.can.cancel ? (
-                          <>
-                            {data.can.print ? <DropdownMenuSeparator /> : null}
-                            <DropdownMenuItem className="text-wds-error-fg" onSelect={() => setParam({ dialog: 'cancel' })}>
-                              Cancel this dispatch
-                            </DropdownMenuItem>
-                          </>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    // One button: the store copy and the branch copy open together, on separate pages (Paper chapter 14, C).
+                    <Button ref={printRef} variant="secondary" size="lg" className="h-9 px-4 text-[14px] leading-[18px]" onClick={() => window.open(dispatchPrintBatch([id]), '_blank', 'noopener')}>
+                      Print
+                    </Button>
                   ) : null}
                 </>
               }
@@ -186,6 +157,12 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
             <ProgressTracker steps={progress} />
 
             <NextStepCard title={words.title} body={words.body} tone={words.tone} action={mainAction()} />
+
+            {data.can.cancel ? (
+              <button ref={moreRef} type="button" onClick={() => setParam({ dialog: 'cancel' })} className="-mt-3 self-start font-wds-sans text-[14px] font-medium text-wds-error-fg underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
+                Cancel this dispatch
+              </button>
+            ) : null}
 
             <div className="flex flex-col">
               <ReqTabs
@@ -239,7 +216,7 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
                             {sentVisible ? (
                               <span role="cell" className={cn('w-[110px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px]', gap ? 'font-semibold text-wds-warning-fg' : 'text-wds-text-faint')}>{gapText(item)}</span>
                             ) : null}
-                            {money ? <span role="cell" className="w-[110px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{item.valueKes !== undefined ? Number(item.valueKes).toLocaleString('en-US', { maximumFractionDigits: 2 }) : ''}</span> : null}
+                            {money ? <span role="cell" className="w-[110px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kesText(item.valueKes)}</span> : null}
                           </div>
                         );
                       })}
@@ -341,6 +318,20 @@ export function DispatchFileScreen({ id, base, printBase, packHref, section: cru
           onConfirmed={(summary) => {
             setParam({ drawer: null });
             toast('success', `Confirmed on behalf of ${data.department.name}`, summary);
+            void reload();
+          }}
+        />
+      ) : null}
+      {data && openIds.length > 1 ? (
+        <DeliveryFindingsDrawer
+          dispatchReference={data.reference}
+          departmentName={data.department.name}
+          discrepancyIds={openIds}
+          open={recordingAll}
+          onOpenChange={setRecordingAll}
+          onRecorded={(count) => {
+            setRecordingAll(false);
+            toast('success', `${count} ${count === 1 ? 'finding' : 'findings'} recorded`);
             void reload();
           }}
         />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixtures from '../types/requisitions-contract.fixtures.json';
 import type { RequisitionFile } from '../types/requisitions-contract';
-import { changesSentence, clock, elapsed, errorWords, fileChip, kes, nextStepWords, trackerWords } from './requisitions-words';
+import { changesSentence, clock, elapsed, errorWords, fileChip, kes, nextStepWords, sectionsInPlay, trackerWords } from './requisitions-words';
 
 const file = fixtures.fileManager as RequisitionFile;
 
@@ -62,5 +62,16 @@ describe('requisitions words', () => {
     expect(changesSentence([{ itemName: 'Beef patty 120g', from: '30', to: '24' }, { itemName: 'Flour 25kg', from: '6', to: '4' }])).toBe(
       'You changed 2 lines: Beef patty 120g (30 to 24) and Flour 25kg (6 to 4).',
     );
+  });
+});
+
+describe('sectionsInPlay', () => {
+  it('leaves out the departments the manager sent without, so one department reads as one', () => {
+    const sections = [{ status: 'SKIPPED' }, { status: 'SUBMITTED' }, { status: 'SKIPPED' }, { status: 'SKIPPED' }, { status: 'SKIPPED' }];
+    expect(sectionsInPlay(sections)).toEqual([{ status: 'SUBMITTED' }]);
+  });
+
+  it('never returns an empty list', () => {
+    expect(sectionsInPlay([{ status: 'SKIPPED' }])).toHaveLength(1);
   });
 });

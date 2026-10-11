@@ -2,11 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal } from 'lucide-react';
 
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { Button } from '@/components/ui2/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { cn } from '@/lib/cn';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -16,14 +14,15 @@ import { clock } from '../../../requisitions/_shared/lib/requisitions-words';
 import type { DispatchRef, RequisitionFile } from '../../../requisitions/_shared/types/requisitions-contract';
 import { stageChip } from '../../lib/dispatch-words';
 import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
-import { nameAndTitle } from '../../lib/dispatch-words';
+import { kesText, nameAndTitle } from '../../lib/dispatch-words';
 import { CancelDispatchDialog } from './cancel-dispatch-dialog';
 import { ConfirmForDepartmentDrawer } from './confirm-for-department-drawer';
 import { ColumnHead } from './file-parts';
+import { linesText } from '../../../_shared/lib/block2-words';
 
 const DOT: Record<string, string> = { warning: 'bg-wds-warning-fg', success: 'bg-wds-success-fg', info: 'bg-wds-info-fg', neutral: 'border border-wds-text-secondary', error: 'bg-wds-error-fg' };
 
-const railLine = (d: DispatchRef): string => `${stageChip(d.derivedState).text} · ${d.lineCount} lines`;
+const railLine = (d: DispatchRef): string => `${stageChip(d.derivedState).text} · ${linesText(d.lineCount)}`;
 
 /**
  * Paper step 13 and the Block 2 states: an approved requisition follows its dispatches. The left rail has one row per department
@@ -45,6 +44,8 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
   if (!current) return null;
   const items = data ? (showAll ? data.items : data.items.slice(0, 3)) : [];
   const money = data?.items.some((i) => i.valueKes !== undefined) ?? false;
+  // F18: once the branch has counted, the file shows what it counted and the gap beside what was sent.
+  const showCounted = Boolean(data?.sentVisible && data.items.some((i) => i.countedQty !== null));
 
   return (
     <div className="grid min-h-[420px] grid-cols-1 border-t border-wds-border lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -80,7 +81,7 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
           <div className="flex flex-col gap-0.5">
             <h2 className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-wds-text-ink">{current.departmentName}</h2>
             <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
-              {current.reference ? `Dispatch ${current.reference} · ${stageChip(current.derivedState).text.toLowerCase()}${current.signedAt ? ` since ${clock(current.signedAt)}` : ''}` : `${current.lineCount} lines · to pack. It gets its dispatch number when the store signs.`}
+              {current.reference ? `Dispatch ${current.reference} · ${stageChip(current.derivedState).text.toLowerCase()}${current.signedAt ? ` since ${clock(current.signedAt)}` : ''}` : `${linesText(current.lineCount)} · to pack. It gets its dispatch number when the store signs.`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -91,18 +92,9 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
               </Button>
             ) : null}
             {data?.can.cancel ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button ref={moreRef} variant="secondary" size="icon" aria-label={`More actions for ${current.departmentName}`} className="size-9">
-                    <MoreHorizontal />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem className="text-wds-error-fg" onSelect={() => setCancelling(true)}>
-                    Cancel this dispatch
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button ref={moreRef} type="button" onClick={() => setCancelling(true)} className="font-wds-sans text-[14px] font-medium text-wds-error-fg underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
+                Cancel this dispatch
+              </button>
             ) : null}
           </div>
         </div>
@@ -135,10 +127,14 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
                 <ColumnHead className="flex-1">Item</ColumnHead>
                 <ColumnHead className="w-[90px] shrink-0 text-right">Approved</ColumnHead>
                 {data.sentVisible ? <ColumnHead className="w-[90px] shrink-0 text-right">Sent</ColumnHead> : null}
+                {showCounted ? <ColumnHead className="w-[90px] shrink-0 text-right">Counted</ColumnHead> : null}
+                {showCounted ? <ColumnHead className="w-[70px] shrink-0 text-right">Gap</ColumnHead> : null}
                 {money ? <ColumnHead className="w-[100px] shrink-0 text-right">Value (KES)</ColumnHead> : null}
               </div>
               {items.map((item) => {
                 const short = item.sentQty !== undefined && Number(item.sentQty) < Number(item.requestedQty);
+                // Counted minus sent: negative is short, positive is extra. Null until the branch has counted.
+                const gap = item.countedQty !== null && item.sentQty !== undefined ? Math.round((Number(item.countedQty) - Number(item.sentQty)) * 10000) / 10000 : null;
                 return (
                   <div key={item.lineId} role="row" className={cn('flex items-center gap-6 border-b border-wds-border px-4 py-[11px]', short && 'bg-wds-warning-bg')}>
                     <div role="cell" className="flex min-w-0 flex-1 flex-col">
@@ -147,7 +143,9 @@ export function RequisitionDispatchesPanel({ file, selected, onSelect, base, onC
                     </div>
                     <span role="cell" className="w-[90px] shrink-0 text-right font-wds-mono text-[14px] text-wds-text-ink">{item.requestedQty}</span>
                     {data.sentVisible ? <span role="cell" className={cn('w-[90px] shrink-0 text-right font-wds-mono text-[14px]', short ? 'font-semibold text-wds-warning-fg' : 'text-wds-text-ink')}>{item.sentQty}</span> : null}
-                    {money ? <span role="cell" className="w-[100px] shrink-0 text-right font-wds-mono text-[14px] text-wds-text-ink">{item.valueKes !== undefined ? Number(item.valueKes).toLocaleString('en-US', { maximumFractionDigits: 2 }) : ''}</span> : null}
+                    {showCounted ? <span role="cell" className="w-[90px] shrink-0 text-right font-wds-mono text-[14px] text-wds-text-ink">{item.countedQty ?? '—'}</span> : null}
+                    {showCounted ? <span role="cell" className={cn('w-[70px] shrink-0 text-right font-wds-mono text-[14px]', gap !== null && gap !== 0 ? 'font-semibold text-wds-warning-fg' : 'text-wds-text-secondary')}>{gap === null ? '—' : gap === 0 ? '0' : `${gap > 0 ? '+' : '−'}${Math.abs(gap)}`}</span> : null}
+                    {money ? <span role="cell" className="w-[100px] shrink-0 text-right font-wds-mono text-[14px] text-wds-text-ink">{kesText(item.valueKes)}</span> : null}
                   </div>
                 );
               })}

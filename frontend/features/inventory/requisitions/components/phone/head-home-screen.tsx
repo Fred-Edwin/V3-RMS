@@ -14,6 +14,7 @@ import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
 import { errorCodeOf, headErrorMessage, headStatusText, WORK_COPY } from '../../_shared/lib/phone-words';
 import { CYCLE_TEXT, REQUISITION_CYCLES, type Home, type RequisitionCycle, type RequisitionStatus, type SectionStatus } from '../../_shared/types/requisitions-contract';
+import { deliveryCount, deliveryForCycle, deliveryHomeState, useDeliveriesList, type DeliveryHomeState } from '../../../deliveries';
 import { useHeadHome, useHistoryMine } from '../../hooks/use-head-requisitions';
 import { REQ_HISTORY, reqFile } from '../../lib/routes';
 import { longDateText, shortDateText, timeText } from '../../lib/time';
@@ -91,6 +92,9 @@ export function HeadHomeScreen() {
   const wanted = parseCycle(useSearchParams().get('cycle'));
   const home = useHeadHome();
   const past = useHistoryMine({ page: 1, pageSize: 25 });
+  const [day] = React.useState(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date()));
+  const waitingDeliveries = useDeliveriesList({ tab: 'waiting' });
+  const countedToday = useDeliveriesList({ tab: 'past', from: day, to: day, pageSize: 25 });
   const idem = useIdempotencyKey();
   const firstName = useAuthStore((s) => s.user?.name.split(' ')[0] ?? '');
   const [busy, setBusy] = React.useState<RequisitionCycle | null>(null);
@@ -142,6 +146,9 @@ export function HeadHomeScreen() {
   const chosen = picked ?? data?.suggestedCycle ?? 'MORNING';
   const card = rows.find((r) => r.cycle === chosen) ?? null;
   const arriving = Boolean(wanted) && !failure;
+  // Where today's delivery for the chosen cycle is, once the list is approved (nothing is asked of the server for a head with none).
+  const deliveryRows = [...(waitingDeliveries.data?.rows ?? []), ...(countedToday.data?.rows ?? [])];
+  const cardDelivery = card && card.tone === 'good' ? (() => { const found = deliveryForCycle(deliveryRows, card.cycle); return found ? deliveryHomeState(found, timeText) : null; })() : null;
   // The Branch Manager's changes, from the open requisition's own section.
   const changed = rows.find((r) => r.tone === 'good' && r.changedCount > 0 && r.requisitionId === data?.open?.requisitionId) ?? null;
 
@@ -179,7 +186,8 @@ export function HeadHomeScreen() {
                 belowLevel={card.cycle === data.suggestedCycle ? data.suggestedLineCount : null}
                 busy={busy === card.cycle}
                 disabled={busy !== null}
-                onGo={() => void go(card.cycle)}
+                delivery={cardDelivery}
+                onGo={() => (cardDelivery?.canCount ? router.push(deliveryCount(cardDelivery.deliveryId)) : void go(card.cycle))}
               />
             ) : null}
 
@@ -284,12 +292,12 @@ function TrackSwitcher({ rows, value, onChange }: { rows: CycleRow[]; value: Req
  * low), Extra not started ("Need something extra?"), a draft (the number on the list and how many are below level) and a list sent
  * (the number sent, the time, and "See what you sent").
  */
-function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { row: CycleRow; now: string | null; firstName: string; belowLevel: number | null; busy: boolean; disabled: boolean; onGo: () => void }) {
+function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo, delivery }: { row: CycleRow; now: string | null; firstName: string; belowLevel: number | null; busy: boolean; disabled: boolean; onGo: () => void; delivery: DeliveryHomeState | null }) {
   const word = CYCLE_TEXT[row.cycle].toLowerCase();
   const hello = now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : '';
   const clock = now ? timeText(now).toUpperCase() : '';
   const eyebrow = row.cycle === 'EXTRA' && row.tone === 'none' ? 'EXTRA · WHEN SOMETHING COMES UP' : `${CYCLE_TEXT[row.cycle].toUpperCase()}${clock ? ` · ${clock}` : ''}`;
-  const dot = row.tone === 'draft' ? 'Not sent yet' : row.tone === 'waiting' ? 'Waiting for approval' : row.tone === 'good' ? 'Approved' : null;
+  const dot = row.tone === 'draft' ? 'Not sent yet' : row.tone === 'waiting' ? 'Waiting for approval' : row.tone === 'good' ? (delivery ? null : 'Approved') : null;
   const loading = busy ? 'Starting…' : null;
 
   let body: React.ReactNode;
@@ -336,14 +344,27 @@ function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { r
     foot = `${row.reference ?? ''}${row.startedAt ? ` · started ${timeText(row.startedAt)}` : ''}`;
   } else {
     const sentWords = row.tone === 'good' ? 'items approved' : row.sentAt ? `${items(row.lineCount)} sent at ${timeText(row.sentAt)}` : `${items(row.lineCount)} sent`;
-    body = (
-      <>
-        <Greeting id="req-hero" text={row.tone === 'good' ? hello : `All sent${firstName ? `, ${firstName}` : ''}`} />
-        {row.lineCount > 0 ? <BigNumber n={row.lineCount} line={sentWords} sub={row.tone === 'waiting' ? "You'll be told when it is approved" : 'With the Central Store'} /> : <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{row.state}</p>}
-      </>
-    );
-    button = 'See what you sent';
-    primary = false;
+    if (row.tone === 'good' && delivery) {
+      // The delivery says where the list is now (Paper chapter 14, B): on the way, counted, counted for you.
+      body = (
+        <>
+          <Greeting id="req-hero" text={hello} />
+          <p className="font-wds-sans text-[28px] font-semibold leading-8 tracking-[-0.01em] text-wds-espresso-50">{delivery.title}</p>
+          <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">{delivery.body}</p>
+        </>
+      );
+      button = delivery.canCount ? 'Count it now' : 'See what you sent';
+      primary = delivery.canCount;
+    } else {
+      body = (
+        <>
+          <Greeting id="req-hero" text={row.tone === 'good' ? hello : `All sent${firstName ? `, ${firstName}` : ''}`} />
+          {row.lineCount > 0 ? <BigNumber n={row.lineCount} line={sentWords} sub={row.tone === 'waiting' ? "You'll be told when it is approved" : 'With the Central Store'} /> : <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{row.state}</p>}
+        </>
+      );
+      button = 'See what you sent';
+      primary = false;
+    }
     foot = `${row.reference ?? ''}${row.tone === 'waiting' ? ' · you can recall until it is approved' : ''}`;
   }
 

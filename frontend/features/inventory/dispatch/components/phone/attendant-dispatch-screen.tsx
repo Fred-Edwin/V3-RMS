@@ -10,7 +10,7 @@ import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2Empty, B2Header, B2TabPanel, Chip, ListSkeleton, OutlineChip, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
-import { couldNotLoad, doneRowChip, EMPTY_COPY, onTheWayRowChip } from '../../../_shared/lib/block2-words';
+import { couldNotLoad, doneRowChip, EMPTY_COPY, linesText, onTheWayRowChip } from '../../../_shared/lib/block2-words';
 import { dateTimeText, fullDateText, timeText } from '../../../requisitions/lib/time';
 import type { DispatchMineRow, Queue, QueueCard } from '../../_shared/types/dispatch-contract';
 import { useDispatchMine, useDispatchQueue } from '../../hooks/use-phone-dispatch';
@@ -147,7 +147,7 @@ function BranchCard({ card, now, expanded, onToggle }: { card: QueueCard; now: n
           <span className="flex items-center gap-2">
             <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-secondary">{card.reference}</span>
             <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
-              {cycle} · {card.departments.length} {card.departments.length === 1 ? 'department' : 'departments'} · {card.lineCount} lines
+              {cycle} · {card.departments.length} {card.departments.length === 1 ? 'department' : 'departments'} · {linesText(card.lineCount)}
             </span>
           </span>
         </button>

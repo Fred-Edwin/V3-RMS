@@ -8,11 +8,12 @@ import type { RequisitionStatus, RequisitionTab, SectionStatus } from './_shared
  *   Collecting (OPEN)                          -> collecting
  *   Ready to approve (PENDING_APPROVAL)        -> to-approve
  *   Approved with an addition waiting          -> to-approve   (contract §5: "Addition waiting ... shown in To approve")
- *   Approved (checked in this order):
- *     any discrepancy Open (or reversed)       -> discrepancies
+ *   Approved (checked in this order; what is still moving wins, changed 11 Oct 2026 so a gap on one department cannot hide a
+ *   delivery that is waiting on another):
  *     a Sent department with no live dispatch signed -> to-pack   (none, TO_PACK or PACKING; a cancelled dispatch does not count)
  *     a department waiting more than 2 hours   -> to-confirm   (ON_THE_WAY and `signedAt` older than 2 hours: what the Branch Manager acts on)
  *     a department still ON_THE_WAY            -> on-the-way
+ *     any discrepancy Open (or reversed)       -> discrepancies   (only when nothing above is still moving)
  *     every Sent department counted            -> closed       (shown there; CLOSED itself is set when the last discrepancy settles)
  *   Cancelled, Closed                          -> closed
  */
@@ -45,10 +46,11 @@ export const tabOf = (f: TabFacts): RequisitionTab => {
   if (f.status === 'CANCELLED' || f.status === 'CLOSED') return 'closed';
   if (f.additionWaiting) return 'to-approve';
   const dispatches = f.sentDepartments.map((d) => d.dispatch);
-  if (dispatches.some((d) => d?.discrepancyOpen)) return 'discrepancies';
   if (dispatches.length === 0 || dispatches.some((d) => d === null || d.status === 'TO_PACK' || d.status === 'PACKING')) return 'to-pack';
   if (dispatches.some((d) => d !== null && isWaitingForBranch(d, f.now))) return 'to-confirm';
   if (dispatches.some((d) => d?.status === 'ON_THE_WAY')) return 'on-the-way';
+  // Nothing is moving any more: an open gap files it under Discrepancies until the Store Manager settles it.
+  if (dispatches.some((d) => d?.discrepancyOpen)) return 'discrepancies';
   return 'closed';
 };
 

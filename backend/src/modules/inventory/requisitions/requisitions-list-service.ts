@@ -175,11 +175,13 @@ export const requisitionsListService = {
     const head = restrictedHead(c);
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
-    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve'), ...withDeliveries };
+    // Open discrepancies themselves (a dispatch with two differing lines is two), whatever tab their requisition sits in.
+    const openDiscrepancies = facts.reduce((sum, f) => sum + f.dispatches.reduce((inner, d) => inner + d.discrepancies.length, 0), 0);
+    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve'), discrepancies: openDiscrepancies, ...withDeliveries };
     if (family === 'STORE') {
       // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
       const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));
-      return { requisitions: count('to-pack'), toPack: count('to-pack'), dispatch: branches.size };
+      return { requisitions: count('to-pack'), toPack: count('to-pack'), discrepancies: openDiscrepancies, dispatch: branches.size };
     }
     if (family === 'HEAD') {
       const mine = facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;

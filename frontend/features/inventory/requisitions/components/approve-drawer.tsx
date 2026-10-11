@@ -10,7 +10,7 @@ import { useAction, useLoader } from '../../_shared/hooks/use-async';
 import { useIdempotencyKey } from '../../_shared/hooks/use-idempotency-key';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import type { ApproveResult } from '../_shared/types/requisitions-contract';
-import { changesSentence, errorWords, kes } from '../_shared/lib/requisitions-words';
+import { changesSentence, errorWords, kes, sectionsInPlay } from '../_shared/lib/requisitions-words';
 import { MonoLabel, PinField } from './req-parts';
 
 const SAYS = {
@@ -100,7 +100,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                   {data.valueKes !== undefined ? <span className="font-wds-mono text-[22px] leading-7 text-wds-text-ink">KES {kes(data.valueKes)}</span> : null}
                 </div>
                 <ul>
-                  {data.departments.map((d) => (
+                  {sectionsInPlay(data.departments).map((d) => (
                     <li key={d.departmentId} className="flex items-center gap-3 border-b border-wds-border px-5 py-3 last:border-b-0">
                       <span className="grow font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{d.departmentName}</span>
                       <span className="w-[96px] shrink-0 whitespace-nowrap text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>

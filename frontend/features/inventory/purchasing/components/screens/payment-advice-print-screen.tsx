@@ -39,7 +39,7 @@ export function PaymentAdvicePrintScreen({ paymentId }: { paymentId: string }) {
           Print
         </button>
       </div>
-      <article className="relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col bg-white px-12 pb-9 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
+      <article className="print-exact relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col bg-white px-12 pb-9 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
         <div className="absolute inset-x-0 top-0 h-2.5 bg-[#0B2A4A]" aria-hidden />
         <header className="flex items-start justify-between border-b border-[#D5DCE4] pb-[22px] pt-10">
           <div className="flex items-center gap-3">

@@ -12,6 +12,7 @@ import { DISPATCH_CANCEL_PRESETS, DISPATCH_CANCEL_REASON_MAX, DISPATCH_CANCEL_RE
 import { CANCEL_WARNING, errorText } from '../../lib/dispatch-words';
 import { dispatchDesktopApi } from '../../services/dispatch-desktop-api';
 import { ChoiceChips } from './choice-chips';
+import { linesText } from '../../../_shared/lib/block2-words';
 
 /** The reason the server stores: "preset" or "preset — note". */
 export const composeDispatchCancelReason = (preset: DispatchCancelPreset, note: string): string => {
@@ -76,6 +77,13 @@ export function CancelDispatchDialog({ dispatchId, reference, departmentName, si
     else setPin('');
   };
 
+  // The fourth digit signs once a reason is chosen.
+  React.useEffect(() => {
+    if (open && ready && !cancel.saving) void submit();
+    // `submit` closes over the current pin; this runs only when the pin reaches four digits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
   // The branch counted it while the dialog was open: close, and let the file refresh into its new state.
   const code = cancel.failure?.code;
   React.useEffect(() => {
@@ -107,7 +115,7 @@ export function CancelDispatchDialog({ dispatchId, reference, departmentName, si
       <div className="border border-wds-neutral-950">
         <p className="px-3.5 py-3 font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">What cancelling does</p>
         <div className="border-t border-wds-neutral-950">
-          <Row left="Stock goes back to the Central Store" right={`${lineCount} lines, by a linked entry`} />
+          <Row left="Stock goes back to the Central Store" right={`${linesText(lineCount)}, by a linked entry`} />
           <Row left={`${departmentName}'s lines return to the queue`} right="Status: To pack" />
           <Row left="The delivery note is voided" right="Kept on file, marked Cancelled" />
         </div>

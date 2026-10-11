@@ -306,14 +306,14 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
     expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(2);
     expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(2);
     // The Branch Manager also gets the branch's deliveries waiting (Block 2); the Director has no branch, so no such key.
-    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2, deliveries: 3 });
-    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 2, toApprove: 2 });
+    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2, discrepancies: 0, deliveries: 3 });
+    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 2, toApprove: 2, discrepancies: 0 });
   });
 
   it('the store waits on To pack: the Store Manager and the Attendant', async () => {
     expect((await requisitionsListService.list(storeManager, query())).waitingForYou).toBe(1);
-    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, discrepancies: 0, dispatch: 1 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, discrepancies: 0, dispatch: 1 });
   });
 
   it('the Attendant\'s Dispatch badge counts branches to pack, not requisitions', async () => {
@@ -323,7 +323,7 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
       facts('r-pack-2', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // another branch
       facts('r-sent', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]), // nothing left to pack
     ]);
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, dispatch: 2 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, discrepancies: 0, dispatch: 2 });
   });
 
   it('a head waits on their own unsent list while the requisition collects', async () => {

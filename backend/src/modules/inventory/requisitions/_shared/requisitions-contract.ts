@@ -352,6 +352,8 @@ export const badgesSchema = z.object({
   requisitions: z.number().int().nonnegative(),
   toApprove: z.number().int().nonnegative().optional(),
   toPack: z.number().int().nonnegative().optional(),
+  /** Open discrepancies the caller can see (Store Manager and Branch Manager); the sidebar badge on Discrepancies. */
+  discrepancies: z.number().int().nonnegative().optional(),
   /** Block 2: a head's deliveries to confirm. */
   deliveries: z.number().int().nonnegative().optional(),
   /** Dispatch Amendment 1 row 16: the Attendant's Dispatch row (branches to pack). The `inventory:badges` event also carries `dispatch` and `deliveries`. // back end C */

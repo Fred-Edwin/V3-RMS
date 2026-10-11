@@ -45,6 +45,12 @@ export interface Chip {
 }
 
 /** The chip beside the file's title. An addition waiting and a store that is packing change the Approved chip. */
+/** The sections still part of a requisition: one the manager sent without is out of every count and list (the owner's walk, 11 Oct). */
+export const sectionsInPlay = <T extends { status: string }>(sections: readonly T[]): T[] => {
+  const play = sections.filter((s) => s.status !== 'SKIPPED');
+  return play.length > 0 ? play : [...sections];
+};
+
 export function fileChip(file: Pick<RequisitionFile, 'status' | 'additions' | 'dispatches'>): Chip {
   const status: RequisitionStatus = file.status;
   if (status === 'OPEN') return { text: 'Collecting', tone: 'warning' };
@@ -52,7 +58,7 @@ export function fileChip(file: Pick<RequisitionFile, 'status' | 'additions' | 'd
   if (status === 'CANCELLED') return { text: 'Cancelled', tone: 'neutral' };
   if (status === 'CLOSED') return { text: 'Closed', tone: 'success' };
   if (file.additions.some((a) => a.status === 'PENDING')) return { text: 'Addition waiting', tone: 'warning' };
-  if (file.dispatches.length > 0) return { text: 'Packing and sending', tone: 'info' };
+  if (file.dispatches.length > 0) return { text: file.dispatches.every((d) => d.reference !== null) ? 'On the way' : 'Packing and sending', tone: 'info' };
   return { text: 'Approved · with the store', tone: 'success' };
 }
 
@@ -143,11 +149,12 @@ export function nextStepWords(file: RequisitionFile): NextStepWords {
   }
   if (file.status === 'PENDING_APPROVAL') {
     const skipped = file.sections.filter((s) => s.status === 'SKIPPED').length;
+    const inCount = facts.sectionsTotal - skipped;
     return {
       title: skipped > 0 ? 'Ready for your signature.' : 'Everything is in. Ready for your signature.',
       body:
         skipped > 0
-          ? `${facts.sectionsTotal - skipped} of ${facts.sectionsTotal} sections are in and ${skipped} ${skipped === 1 ? 'was' : 'were'} sent without. One signature covers the whole requisition, and the heads are told when you sign.`
+          ? `${inCount === 1 ? '1 section is' : `${inCount} sections are`} in and the others ${skipped === 1 ? 'was' : 'were'} sent without. One signature covers the whole requisition, and the heads are told when you sign.`
           : `All ${facts.sectionsTotal} sections are in. One signature covers the whole requisition, and the heads are told when you sign.`,
       action,
       actionLabel,
