@@ -11,8 +11,6 @@ import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
 import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
-import { useWdsToastStore } from '@/store/wdsToastStore';
-import { formatApiErrorMessage } from '@/types/api';
 import { LoadingAnnouncer } from '../../_shared/components/scw-states';
 import { useLoader } from '../../_shared/hooks/use-async';
 import { usePermissions } from '../../_shared/hooks/use-permissions';
@@ -22,7 +20,6 @@ import { CYCLE_TEXT, REQUISITION_CYCLES, type BranchRef, type RequisitionRow, ty
 import { clock, dayAndClock, dayLabel, elapsed, kes } from '../_shared/lib/requisitions-words';
 import { LIST_COPY } from '../_shared/lib/list-copy';
 import { DocLink, ReqTabs, SectionSquares, StatusChip, UrgentTag, type TabDef } from './req-parts';
-import { StartDialog } from './start-dialog';
 import { useBadgesNudge } from '../hooks/use-badges-nudge';
 
 export type ListMode = 'queue' | 'discrepancies' | 'history';
@@ -64,9 +61,9 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const [showValue, setShowValue] = React.useState(false);
   const [overHour, setOverHour] = React.useState<RequisitionRow | null>(null);
   const [refresh, setRefresh] = React.useState(0);
-  const [startOpen, setStartOpen] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
-  const phone = useMediaQuery('(max-width: 639px)').matches;
+  const openedOnWork = React.useRef(false);
+  const phone =useMediaQuery('(max-width: 639px)').matches;
   const departments = useLoader(ready ? 'departments' : null, () => departmentsApi.list(), 'Could not load departments.');
 
   // Another person's change (a head sends, someone approves) reloads the rows and the tab counts at once.
@@ -81,7 +78,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
   const urlTab = params.get('tab');
   const forcedTab: RequisitionTab | undefined = mode === 'discrepancies' ? 'discrepancies' : mode === 'history' ? 'closed' : isTab(urlTab) && urlTab !== 'discrepancies' && urlTab !== 'closed' ? urlTab : undefined;
   const hub = branches !== null;
-  const canStart = can('requisitions.start') && role !== 'SYSTEM_ADMIN' && mode === 'queue';
   const href = (id: string): string => `${base}/${id}`;
 
   const setTab = (tab: RequisitionTab): void => {
@@ -89,17 +85,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
     q.set('tab', tab);
     q.delete('page');
     router.replace(`${base}?${q}`, { scroll: false });
-  };
-
-  const nudge = async (row: RequisitionRow): Promise<void> => {
-    const departmentId = row.rowAction?.departmentId;
-    if (!departmentId) return;
-    try {
-      await requisitionsApi.nudge(row.id, departmentId);
-      useWdsToastStore.getState().addToast({ variant: 'success', title: 'Nudge sent', description: `${row.rowAction?.label.replace('Nudge ', '')} has been told.` });
-    } catch (err) {
-      useWdsToastStore.getState().addToast({ variant: 'error', title: 'Could not nudge', description: formatApiErrorMessage(err, 'Try again.') });
-    }
   };
 
   const rowAction = (row: RequisitionRow): React.ReactNode => {
@@ -115,17 +100,17 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
         </Button>
       );
     }
-    if (!action) return null;
+    // Nudging is done inside the requisition (it can tell every department that has not sent); the row itself just opens it.
+    if (!action || action.action === 'NUDGE') return null;
     // The over-an-hour urgent row of the Director's list is answered by the banner under the table instead.
     if (row.urgentOverHour && action.action === 'APPROVE_AND_SIGN' && hub) return null;
     const run = (): void => {
-      if (action.action === 'NUDGE') void nudge(row);
-      else if (action.action === 'APPROVE_AND_SIGN') router.push(`${href(row.id)}?drawer=approve`);
+      if (action.action === 'APPROVE_AND_SIGN') router.push(`${href(row.id)}?drawer=approve`);
       else router.push(href(row.id));
     };
     return (
       <Button variant="secondary" onClick={(event) => { event.stopPropagation(); run(); }} className="h-10 px-5 text-[14px] max-sm:h-11">
-        {action.action === 'APPROVE_AND_SIGN' ? 'Review and approve' : action.label}
+        {action.action === 'APPROVE_AND_SIGN' ? 'Approve' : action.label}
         <span className="sr-only"> {row.reference}</span>
       </Button>
     );
@@ -178,14 +163,15 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       width: '230px',
       cell: (r) => {
         const done = r.sections.filter((s) => s.status === 'SUBMITTED' || s.status === 'SKIPPED').length;
-        const missing = r.sections.find((s) => s.status === 'NOT_STARTED' || s.status === 'DRAFT');
+        const missingAll = r.sections.filter((s) => s.status === 'NOT_STARTED' || s.status === 'DRAFT').map((s) => s.departmentName);
+        const missing = missingAll.length > 0 ? missingAll : null;
         return (
           <div className="flex flex-col gap-1">
             <span className="flex items-center gap-2.5">
               <SectionSquares sections={r.sections} />
               <span className="font-wds-sans text-[14px] text-wds-text-ink">{done === r.sections.length ? (r.sections.length === 1 ? '1 of 1 in' : `All ${r.sections.length} in`) : `${done} of ${r.sections.length} in`}</span>
             </span>
-            {tab === 'collecting' && missing ? <span className="font-wds-sans text-[13px] text-wds-text-secondary">Waiting for {missing.departmentName}</span> : null}
+            {tab === 'collecting' && missing ? <span className="font-wds-sans text-[13px] text-wds-text-secondary">Waiting for {missing.length > 3 ? `${missing.length} departments` : missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]}</span> : null}
           </div>
         );
       },
@@ -214,7 +200,8 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
 
     if (history) return [requisition, ...(hub ? [branch] : []), closed, lines, status];
     if (mode === 'discrepancies') return [requisition, ...(hub ? [branch] : []), sections, lines, status];
-    if (tab === 'collecting') return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), time, action];
+    // Collecting rows have no button: the row opens the requisition, where every department that has not sent can be nudged.
+    if (tab === 'collecting') return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), time];
     if (tab === 'to-approve') return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), time, action];
     if (tab === 'to-pack' || tab === 'on-the-way' || tab === 'to-confirm') return [requisition, ...(hub ? [branch] : []), lines, ...(showValue ? [value] : []), status, time, action];
     return [requisition, ...(hub ? [branch] : []), sections, lines, ...(showValue ? [value] : []), status, action];
@@ -237,7 +224,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
       <Topbar
         hideSearch
         breadcrumb={mode === 'queue' ? { section: crumb, screen: 'Requisitions' } : { root: crumb, section: 'Requisitions', sectionHref: base, screen: title }}
-        actions={canStart ? <Button onClick={() => setStartOpen(true)}>Start a requisition</Button> : undefined}
       />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
@@ -295,6 +281,11 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
             });
             setTabCounts(res.tabCounts);
             setActiveTab(res.tab);
+            // Open on the tab that has work: nothing to approve but sections coming in means the queue opens on Collecting.
+            if (mode === 'queue' && !forcedTab && !openedOnWork.current) {
+              openedOnWork.current = true;
+              if (res.tab === 'to-approve' && res.tabCounts['to-approve'] === 0 && res.tabCounts.collecting > 0) setTab('collecting');
+            }
             setWaiting(res.waitingForYou);
             setBranches(res.branches ?? null);
             setShowValue(res.rows.some((r) => r.valueKes !== undefined));
@@ -318,7 +309,6 @@ export function RequisitionsListScreen({ base, mode }: { base: string; mode: Lis
         ) : null}
         <LoadingAnnouncer text="" />
       </main>
-      <StartDialog open={startOpen} onOpenChange={setStartOpen} onStarted={(id) => { setRefresh((n) => n + 1); router.push(href(id)); }} />
     </div>
   );
 }
@@ -340,6 +330,11 @@ function dataTabForWaiting(active: RequisitionTab | null, counts: TabCounts | nu
 
 /** The grey line under a document number: "Afternoon · started 1:41 pm", "Extra · Service only", the cancel reason. */
 function subline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
+  const base = baseSubline(r, tab, history);
+  return !history && r.changedLineCount > 0 ? `${base} · ${r.changedLineCount} ${r.changedLineCount === 1 ? 'line' : 'lines'} changed` : base;
+}
+
+function baseSubline(r: RequisitionRow, tab: RequisitionTab, history: boolean): string {
   const cycle = r.cycleLabel.split(' · ')[0] ?? r.cycleLabel;
   if (history) {
     if (r.status === 'CANCELLED') return `${cycle} · ${r.sections.length === 1 ? `${r.sections[0]?.departmentName} only` : `${r.sections.length} departments`}${r.cancelReason ? ` · cancelled before approval: "${r.cancelReason}"` : ''}`;

@@ -62,5 +62,12 @@ export const waitingTab = (family: WaitingFamily): RequisitionTab | null => (fam
 export const headIsWaited = (requisitionStatus: RequisitionStatus, sectionStatus: SectionStatus): boolean =>
   requisitionStatus === 'OPEN' && (sectionStatus === 'NOT_STARTED' || sectionStatus === 'DRAFT');
 
+/**
+ * A list still collecting but with at least one department already sent: the approver has something to look at before it is complete
+ * (contract Amendment 3). The approve button stays locked until every department is in; this only raises the badge.
+ */
+export const isPartlySent = (requisitionStatus: RequisitionStatus, sectionStatuses: ReadonlyArray<SectionStatus>): boolean =>
+  requisitionStatus === 'OPEN' && sectionStatuses.includes('SUBMITTED');
+
 /** The caller's own tab when the screen asks for none. */
 export const defaultTab = (family: WaitingFamily): RequisitionTab => (family === 'STORE' ? 'to-pack' : family === 'APPROVER' ? 'to-approve' : 'collecting');

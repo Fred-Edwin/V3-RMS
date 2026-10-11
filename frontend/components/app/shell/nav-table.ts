@@ -425,7 +425,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   },
   { key: 'suppliers', label: 'Suppliers', group: 'procurement', icon: SuppliersIcon, newHref: '/app/inventory/suppliers', roles: DESKTOP_HUB, capability: 'suppliers.read', hub: true },
   { key: 'catalog', label: 'Catalog', group: 'procurement', icon: CatalogIcon, newHref: '/app/inventory/catalog', roles: HUB_ALL, capability: 'catalog.read', hub: true },
-  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB, capability: 'audit.read', hub: true },
+  // The Branch Manager has the 'branch-audit-log' row above (the same screen), so the hub row leaves them out: one link, not two.
+  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB.filter((r) => r !== MANAGER), capability: 'audit.read', hub: true },
   // Carriers (Paper D18, Block 2): the Store Manager and System Admin manage the list, the Director and Accountant read it (the page decides from `can.manage`).
   { key: 'carriers', label: 'Carriers', group: 'procurement', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [STORE_MANAGER, DIRECTOR, ACCOUNTANT, SYSTEM_ADMIN], capability: 'carriers.read', hub: true },
   // The Store Manager's alone, until a later session moves it onto the table. Not drawn in Paper.
@@ -446,7 +447,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
   // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
   { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
+  // The head's requisition History is no menu row any more: the Requisitions home carries "Earlier" and "See all history" (11 Oct 2026).
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },

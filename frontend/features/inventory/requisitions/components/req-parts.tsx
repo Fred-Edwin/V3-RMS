@@ -122,32 +122,54 @@ export function UrgentTag() {
   );
 }
 
-/** "YOUR PIN": one masked field of four digits (Paper steps 11, 16, 19). `invalid` marks it after a rejected PIN. */
-export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean }>(
-  ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false }, ref) => (
-    <div className="flex flex-col gap-1.5">
-      <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>Your PIN</MonoLabel>
-      <input
-        ref={ref}
-        id={id}
-        type="password"
-        inputMode="numeric"
-        autoComplete="off"
-        maxLength={4}
-        value={value}
-        aria-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && value.length === 4) onSubmit?.();
-        }}
-        className={cn(
-          wide ? 'w-full' : 'w-[200px]',
-          wide ? 'h-[46px] border bg-wds-surface px-3 font-wds-sans text-[18px] leading-5 tracking-[0.5em] text-wds-text-ink outline-none' : 'h-12 border bg-wds-surface px-4 font-wds-mono text-[20px] tracking-[0.4em] text-wds-text-ink outline-none',
-          invalid ? 'border-wds-error-fg' : 'border-wds-border-strong focus:border-wds-primary focus:shadow-wds-ring',
-        )}
-      />
-    </div>
-  ),
+/**
+ * "YOUR PIN": four boxes with a dot per digit (the same look as the counting sign sheet; Paper steps 11, 16, 19). One real masked input
+ * sits over the boxes, so typing, paste, focus and the label work as before. `invalid` marks the boxes after a rejected PIN.
+ */
+export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean; label?: string }>(
+  ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false, label = 'Your PIN' }, ref) => {
+    const [focused, setFocused] = React.useState(false);
+    return (
+      <div className="flex flex-col gap-1.5">
+        <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>{label}</MonoLabel>
+        <div className={cn('relative flex gap-2', wide ? 'w-full' : 'w-[216px]')}>
+          {[0, 1, 2, 3].map((slot) => {
+            const active = focused && slot === Math.min(value.length, 3);
+            return (
+              <div
+                key={slot}
+                aria-hidden
+                className={cn(
+                  'flex grow basis-0 items-center justify-center bg-wds-surface transition-[border-color] duration-150',
+                  wide ? 'h-[46px]' : 'h-12',
+                  active ? 'border-[1.5px] border-wds-selected-edge' : invalid ? 'border border-wds-error-fg' : 'border border-wds-border-strong',
+                )}
+              >
+                {slot < value.length ? <span className="size-2.5 rounded-[5px] bg-wds-text-ink" /> : null}
+              </div>
+            );
+          })}
+          <input
+            ref={ref}
+            id={id}
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            value={value}
+            aria-invalid={invalid || undefined}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && value.length === 4) onSubmit?.();
+            }}
+            className="absolute inset-0 h-full w-full cursor-text bg-transparent text-transparent caret-transparent opacity-0 outline-none"
+          />
+        </div>
+      </div>
+    );
+  },
 );
 PinField.displayName = 'PinField';
 

@@ -60,14 +60,17 @@ const approvedAddedLines = (additions: ReadonlyArray<{ approvedAt: string | null
 /** The script signature is one line in a 300px column: a long name steps down instead of wrapping over the labels. */
 const signatureSize = (name: string): string => (name.length <= 16 ? 'text-[36px] leading-10' : name.length <= 24 ? 'text-[28px] leading-10' : 'text-[20px] leading-10');
 
-function Signature({ label, who, at }: { label: string; who: Person | null; at: string | null }) {
+/** A name without its bracketed note: "Faith Njeri (BM Nyeri Town)" is "Faith Njeri". */
+const plainName = (name: string): string => name.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+
+function Signature({ label, who, at, place }: { label: string; who: Person | null; at: string | null; place: string }) {
   return (
     <div className="flex w-[262px] flex-col gap-1">
       <span className={`font-wds-mono text-[10px] tracking-[0.1em] ${MUTED}`}>{label}</span>
       <div className="flex h-[50px] items-end overflow-hidden border-b border-[#111111] pb-0.5">
-        {who ? <span className={`max-w-full truncate whitespace-nowrap font-wds-signature ${signatureSize(who.name)}`}>{who.name}</span> : null}
+        {who ? <span className={`max-w-full truncate whitespace-nowrap font-wds-signature ${signatureSize(plainName(who.name))}`}>{plainName(who.name)}</span> : null}
       </div>
-      <span className="text-[12px] leading-4">{who ? `${who.name} · ${who.roleLabel}` : 'Waiting for approval'}</span>
+      <span className="text-[12px] leading-4">{who ? `${plainName(who.name)} · ${who.roleLabel} ${place}` : 'Waiting for approval'}</span>
       {who && at ? <span className={`text-[10px] leading-3 ${MUTED}`}>Signed with PIN · {stamp(at)}</span> : null}
     </div>
   );
@@ -136,7 +139,7 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
             <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.1em] ${MUTED}`}>FROM</span>
             <span className="text-[18px] font-semibold leading-6">{p.branch.name} branch</span>
             <span className="text-[13px] leading-[18px]">{cycle} requisition, one for the whole branch</span>
-            {p.approvedBy ? <span className="text-[13px] leading-[18px]">{p.approvedBy.roleLabel}: {p.approvedBy.name}</span> : null}
+            {p.approvedBy ? <span className="text-[13px] leading-[18px]">{p.approvedBy.roleLabel}: {plainName(p.approvedBy.name)}</span> : null}
           </div>
           <div className={`w-px bg-[#D5DCE4]`} />
           <dl className="grid grow grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[13px]">
@@ -190,8 +193,8 @@ export function RequisitionPrintScreen({ requisitionId }: { requisitionId: strin
           </section>
         ) : null}
         <section className={`mt-auto flex items-end gap-8 border-t py-5 ${RULE}`}>
-          <Signature label="APPROVED BY" who={p.approvedBy} at={p.approvedAt} />
-          {additionSigner ? <Signature label="ADDITION APPROVED BY" who={additionSigner.approvedBy} at={additionSigner.approvedAt} /> : null}
+          <Signature label="APPROVED BY" who={p.approvedBy} at={p.approvedAt} place={p.branch.name} />
+          {additionSigner ? <Signature label="ADDITION APPROVED BY" who={additionSigner.approvedBy} at={additionSigner.approvedAt} place={p.branch.name} /> : null}
           <Qr print={p} caption={`Scan to open ${p.reference}`} />
         </section>
       </Sheet>

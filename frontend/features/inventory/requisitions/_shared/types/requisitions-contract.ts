@@ -236,6 +236,8 @@ export interface RequisitionRow extends RowMoments {
   tab: RequisitionTab;
   sections: { departmentId: string; departmentName: string; status: SectionStatus }[];
   lineCount: number;
+  /** Lines an approver changed from what the heads asked for ("3 lines changed" on the queue row). */
+  changedLineCount: number;
   /** cap requisitions.see_value */
   valueKes?: string;
   openedAt: string;
@@ -399,6 +401,15 @@ export interface Home {
     sectionStatus: SectionStatus;
     lineCount: number;
     sentAt: string | null;
+    /** When the requisition was started. */
+    openedAt: string;
+  }[];
+  /** The "Needs you" strip: today's requisitions where the Branch Manager changed lines in this head's section. */
+  needsYou: {
+    requisitionId: string;
+    cycle: RequisitionCycle;
+    changedCount: number;
+    firstChange: { itemName: string; unit: string; requestedQty: string; approvedQty: string };
   }[];
 }
 
