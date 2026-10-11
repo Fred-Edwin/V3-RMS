@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RequisitionStatus } from './_shared/requisitions-contract';
-import { defaultTab, headIsWaited, isWaitingForBranch, tabOf, waitingTab, type DispatchFact } from './requisitions-tabs';
+import { defaultTab, headIsWaited, isPartlySent, isWaitingForBranch, tabOf, waitingTab, type DispatchFact } from './requisitions-tabs';
 
 const NOW = new Date('2026-10-09T12:00:00.000Z');
 const ago = (minutes: number): Date => new Date(NOW.getTime() - minutes * 60_000);
@@ -73,5 +73,12 @@ describe('who is waited for', () => {
     expect(defaultTab('STORE')).toBe('to-pack');
     expect(defaultTab('HEAD')).toBe('collecting');
     expect(defaultTab('NONE')).toBe('collecting');
+  });
+
+  it('isPartlySent: collecting with at least one department sent, and nothing else', () => {
+    expect(isPartlySent('OPEN', ['DRAFT', 'SUBMITTED'])).toBe(true);
+    expect(isPartlySent('OPEN', ['DRAFT', 'NOT_STARTED', 'SKIPPED'])).toBe(false);
+    expect(isPartlySent('PENDING_APPROVAL', ['SUBMITTED', 'SUBMITTED'])).toBe(false);
+    expect(isPartlySent('APPROVED', ['SUBMITTED'])).toBe(false);
   });
 });

@@ -165,6 +165,7 @@ The list of changes is `requisitions-amendment-2.md` (wire changes §1, error co
 - **R11, Extra:** an Extra started by a department head creates only that head's own section ("Extra · Service only"). Morning and Afternoon, and anything started by a non-head, still create one section per active department. Consequence: another department cannot join an open Extra; it starts its own after that one is approved or cancelled.
 - **R12, Activity:** a head's autosave no longer writes `LINE_CHANGED`. Only a list edited on someone's behalf does. `SENT` now carries the line count in `toValue`, and its sentence reads "Sent Kitchen's list · 15 lines · signed with PIN".
 - **R7, Home:** every `earlierToday` row carries `openedAt`; a new `needsYou` list holds each of today's requisitions where an approver changed lines in the head's section (`requisitionId`, `cycle`, `changedCount`, `firstChange` with item, unit, asked and approved quantity).
+- **R2 and the dark badge (approvers):** the Branch Manager's and Director's count is To approve plus every collecting list that has at least one department sent ("partly sent"). The queue's To approve tab itself is unchanged, and Approve stays locked until every department is in. The Branch Manager dashboard's "Needs your action" shows the same count as a "N requisitions waiting" card.
 - **R1, rows:** each row carries `changedLineCount` (lines an approver changed), for "N lines changed" on the manager queue.
 
 ## 9. Ledger

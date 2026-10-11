@@ -19,6 +19,8 @@ The mirror is exported from `index.ts` (the old `types/` that clashed by name is
 | `/app/requisitions/[id]/add` (`?pick=1`) | `HeadAdditionScreen`: add to an approved requisition, PIN-signed | 15 |
 | `/app/requisitions/history` | `HeadHistoryScreen`: date range, status, numbered pager, all in the URL | G1 |
 
+Built 11 Oct 2026 (owner waived the Paper redraw to finish fast; not compared with a Paper frame): category chips under the head's All items tab (one chip per category, a row that scrolls sideways); "Editable until packed" under the Approved heading on the manager file once approved; four-box PIN (`PinField`, a dot per digit, one real input over the boxes) on the approve drawer and every other desktop PIN; a Requisitions card on the head's floor dashboard (`components/dashboard/HeadRequisitionsCard.tsx`); a "N requisitions waiting" card on the Branch Manager dashboard (`RequisitionsWaitingCard.tsx`, same count as the sidebar badge); "N lines changed" on the manager queue row (Paper-approved).
+
 Desktop screens (list, file, change quantity, approve drawer, cancel, additions, print, Departments) belong to the desktop session. See `docs/features/inventory/requisitions-contract.md` §11 to §13.
 
 ## Phone code map

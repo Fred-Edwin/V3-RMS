@@ -28,7 +28,7 @@ import { NAMES_REQUISITION, sentenceOf } from './_shared/requisitions-sentences'
 import { requisitionsListRepository as listRepo, type FactsRecord, type ListFilters } from './requisitions-list-repository';
 import { requisitionsRepository as repo, type RequisitionRecord, type Scope } from './requisitions-repository';
 import { loadCaller, loadFile, readScope, restrictedHead, viewerFor, type Caller } from './requisitions-service';
-import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
+import { defaultTab, headIsWaited, isPartlySent, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
 import { urgentOverHour } from './requisitions-state';
 import { additionStatusMap, changedLineCount, cycleLabelOf, cycleOf, fileWire, firstChangedLine, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
 
@@ -144,7 +144,8 @@ export const requisitionsListService = {
       return facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
     }
     const wanted = waitingTab(family);
-    return facts.filter((f) => tabFromFacts(f) === wanted).length;
+    // An approver also has a list waiting once one department has sent, though the tab still says Collecting (Amendment 3).
+    return facts.filter((f) => tabFromFacts(f) === wanted || (family === 'APPROVER' && isPartlySent(f.status as RequisitionStatus, f.sections.map((s) => s.status as SectionStatus)))).length;
   },
 
   /**
@@ -175,7 +176,10 @@ export const requisitionsListService = {
     const head = restrictedHead(c);
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
-    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve'), ...withDeliveries };
+    if (family === 'APPROVER') {
+      const partlySent = facts.filter((f) => isPartlySent(f.status as RequisitionStatus, f.sections.map((s) => s.status as SectionStatus))).length;
+      return { requisitions: count('to-approve') + partlySent, toApprove: count('to-approve') + partlySent, ...withDeliveries };
+    }
     if (family === 'STORE') {
       // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
       const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));

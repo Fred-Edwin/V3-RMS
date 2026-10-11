@@ -55,6 +55,8 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
   const [query, setQuery] = React.useState('');
   const [view, setView] = React.useState<'list' | 'all' | null>(null);
   const [flushFailed, setFlushFailed] = React.useState<string | null>(null);
+  // All items only: narrow the list to one category (null = every category).
+  const [category, setCategory] = React.useState<string | null>(null);
   const undoRef = React.useRef<HTMLButtonElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const undoItem = draft.undo?.itemId ?? null;
@@ -137,7 +139,10 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
   // A search always looks through every item; with nothing on the list the screen opens on All items.
   const effectiveView: 'list' | 'all' = term ? 'all' : (view ?? (emptyList ? 'all' : 'list'));
   const groups = groupByCategory(listLines);
-  const allGroups = groupByCategory(allMatches);
+  const categoryChips = groupByCategory(everyItem).map((g) => g.heading);
+  // A chip whose category is gone (everything moved) falls back to All.
+  const activeCategory = category !== null && categoryChips.includes(category) ? category : null;
+  const allGroups = groupByCategory(allMatches).filter((g) => activeCategory === null || g.heading === activeCategory);
 
   return (
     <PhoneColumn>
@@ -153,6 +158,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
           <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b border-wds-border bg-wds-surface px-5 py-3">
             <SearchField value={query} onChange={setQuery} placeholder={WORK_COPY.searchPlaceholder(departmentName)} clearLabel={ADD_ITEM_COPY.clear} />
             <ViewSwitch value={effectiveView} onChange={chooseView}listCount={draft.lines.length} allCount={everyItem.length} />
+            {effectiveView === 'all' && categoryChips.length > 1 ? <CategoryChips chips={categoryChips} value={activeCategory} onChange={setCategory} /> : null}
           </div>
           {failure ? <PhoneErrorNote>{failure}</PhoneErrorNote> : null}
 
@@ -181,7 +187,7 @@ export function HeadWorkScreen({ requisitionId, departmentId, departmentName, re
               {emptyList && !term ? (
                 <p className="border-b border-wds-border bg-wds-surface px-5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{WORK_COPY.nothingBelowLevel(departmentName)}</p>
               ) : null}
-              {allMatches.length === 0 ? (
+              {allGroups.length === 0 ? (
                 <p role="status" className="px-5 py-6 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">
                   {WORK_COPY.noMatch}
                 </p>
@@ -329,6 +335,30 @@ function ViewSwitch({ value, onChange, listCount, allCount }: { value: 'list' | 
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** "All | Fresh produce | Spices and seasonings ...": one tap narrows All items to a category; a row that scrolls sideways. */
+function CategoryChips({ chips, value, onChange }: { chips: string[]; value: string | null; onChange: (category: string | null) => void }) {
+  const chip = (label: string, selected: boolean, onClick: () => void) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        'flex h-8 shrink-0 items-center border px-3 font-wds-sans text-[13px] leading-[18px] outline-none transition-colors focus-visible:shadow-wds-ring',
+        selected ? 'border-wds-selected-edge bg-wds-caramel-100 font-medium text-wds-selected-edge' : 'border-wds-border-strong bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50 hover:text-wds-text-ink',
+      )}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Category" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {chip('All', value === null, () => onChange(null))}
+      {chips.map((heading) => chip(heading, value === heading, () => onChange(heading)))}
     </div>
   );
 }

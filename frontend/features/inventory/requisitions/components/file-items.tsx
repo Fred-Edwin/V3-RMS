@@ -294,7 +294,12 @@ export function FileItems({ file, selected, onSelect, onChanged, onFillMyself }:
             <div className="grid grid-cols-[minmax(0,1fr)_104px] sm:grid-cols-[minmax(0,1fr)_84px_112px_84px] xl:grid-cols-[minmax(0,1fr)_130px_150px_110px] gap-4 border-y border-wds-border px-4 py-2.5">
               <MonoLabel>Item</MonoLabel>
               <MonoLabel className="hidden text-right sm:block">Requested</MonoLabel>
-              <MonoLabel className="text-right">Approved</MonoLabel>
+              <div className="flex flex-col items-end gap-0.5">
+                <MonoLabel className="text-right">Approved</MonoLabel>
+                {file.status === 'APPROVED' && file.can.changeQuantity && section.can.changeQuantity ? (
+                  <span className="font-wds-sans text-[11px] normal-case leading-[14px] tracking-normal text-wds-text-secondary">Editable until packed</span>
+                ) : null}
+              </div>
               <MonoLabel className="hidden text-right sm:block">{money ? 'Value (KES)' : ''}</MonoLabel>
             </div>
             <ul className="border-b border-wds-neutral-950">

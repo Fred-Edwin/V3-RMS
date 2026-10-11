@@ -13,6 +13,8 @@ import {
 } from '@/components/ui';
 import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
 import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApprovalCard';
+import { RequisitionsWaitingCard } from '@/components/dashboard/RequisitionsWaitingCard';
+import { useRequisitionBadges } from '@/features/inventory';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
@@ -108,6 +110,10 @@ const getClockStatus = (assignment: ShiftAssignment): { label: string; isOverrid
 export default function ManagerDashboardPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  // Requisitions waiting for the Branch Manager: lists ready to approve, plus lists one department has already sent.
+  const requisitionBadges = useRequisitionBadges(role === 'MANAGER');
+  const requisitionsWaiting = requisitionBadges?.toApprove ?? 0;
   const { activeOrders, isLoading: isLoadingOrders } = useActiveOrders();
 
   const todayDate = useMemo(() => toYmdInTimeZone(new Date(), 'Africa/Nairobi'), []);
@@ -545,7 +551,8 @@ export default function ManagerDashboardPage(): JSX.Element {
         <h2 className="text-label-md font-semibold uppercase tracking-wider text-stone-500">
           Needs your action
         </h2>
-        {pendingAuths.length === 0 && pendingLeaveCount === 0 && (
+        <RequisitionsWaitingCard count={requisitionsWaiting} />
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && requisitionsWaiting === 0 && (
           <EmptyState
             icon={<CheckCircle size={28} />}
             heading="Nothing pending right now"

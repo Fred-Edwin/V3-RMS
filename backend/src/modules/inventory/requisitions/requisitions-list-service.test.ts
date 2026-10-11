@@ -308,12 +308,17 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
   ];
   beforeEach(() => mocks.list['listFacts']!.mockResolvedValue(live));
 
-  it('approvers wait on To approve: the Branch Manager and the Director', async () => {
-    expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(2);
-    expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(2);
+  it('approvers wait on To approve (w1, w2) and on a list that is partly sent (w5, w6): the Branch Manager and the Director', async () => {
+    expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(4);
+    expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(4);
     // The Branch Manager also gets the branch's deliveries waiting (Block 2); the Director has no branch, so no such key.
-    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2, deliveries: 3 });
-    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 2, toApprove: 2 });
+    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 4, toApprove: 4, deliveries: 3 });
+    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 4, toApprove: 4 });
+  });
+
+  it('a collecting list with nothing sent yet does not raise the approver badge', async () => {
+    mocks.list['listFacts']!.mockResolvedValue([facts('c1', 'OPEN', KB('DRAFT', 'NOT_STARTED')), facts('c2', 'OPEN', KB('SKIPPED', 'DRAFT'))]);
+    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 0, toApprove: 0 });
   });
 
   it('the store waits on To pack: the Store Manager and the Attendant', async () => {

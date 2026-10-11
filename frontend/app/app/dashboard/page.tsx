@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote } from 'lucide-react';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
+import { HeadRequisitionsCard } from '@/components/dashboard/HeadRequisitionsCard';
 import { StaleOrderLiabilityCard } from '@/components/dashboard/StaleOrderLiabilityCard';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
@@ -482,6 +483,8 @@ export default function DashboardPage(): JSX.Element {
           />
         </div>
 
+        <HeadRequisitionsCard />
+
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
         <section>
@@ -548,6 +551,8 @@ export default function DashboardPage(): JSX.Element {
             </div>
           </div>
         )}
+
+        <HeadRequisitionsCard />
 
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
