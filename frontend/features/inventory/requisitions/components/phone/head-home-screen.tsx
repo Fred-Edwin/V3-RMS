@@ -12,11 +12,11 @@ import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
-import { errorCodeOf, headErrorMessage, headStatusText, HOME_COPY, WORK_COPY } from '../../_shared/lib/phone-words';
+import { errorCodeOf, headErrorMessage, headStatusText, WORK_COPY } from '../../_shared/lib/phone-words';
 import { CYCLE_TEXT, REQUISITION_CYCLES, type Home, type RequisitionCycle, type RequisitionStatus, type SectionStatus } from '../../_shared/types/requisitions-contract';
 import { useHeadHome, useHistoryMine } from '../../hooks/use-head-requisitions';
 import { REQ_HISTORY, reqFile } from '../../lib/routes';
-import { shortDateText } from '../../lib/time';
+import { longDateText, shortDateText, timeText } from '../../lib/time';
 import { requisitionsApi } from '../../services/requisitions-phone-api';
 import { HeadPhoneHeader } from './head-phone-parts';
 
@@ -27,29 +27,46 @@ interface CycleRow {
   cycle: RequisitionCycle;
   requisitionId: string | null;
   reference: string | null;
-  /** The state of THIS head's list, in words ("Not started", "Draft · 12 items", "Sent, waiting for approval"). */
+  /** The state of THIS head's list in words ("Sent, waiting for approval"). */
   state: string;
   /** One word for the switcher: "Not started", "Draft", "Sent", "Approved". */
   short: string;
   /** Items in the head's list, 0 when there is none. */
   lineCount: number;
+  /** When the requisition was opened, when R7 says so (only for the open one). */
+  startedAt: string | null;
+  /** When this head sent their list. */
+  sentAt: string | null;
+  /** Lines the Branch Manager changed (only for the open one). */
+  changedCount: number;
   tone: 'none' | 'draft' | 'waiting' | 'good';
 }
 
 /** Today's rows, built from what R7 already returns: the open one, the others of today, and which requisition each cycle has. */
 function cycleRows(data: Home): CycleRow[] {
-  const byId = new Map<string, { reference: string; status: RequisitionStatus; statusText: string; sectionStatus: SectionStatus; lineCount: number }>();
-  if (data.open) byId.set(data.open.requisitionId, { reference: data.open.reference, status: data.open.status, statusText: data.open.statusText, sectionStatus: data.open.section.status, lineCount: data.open.section.lineCount });
-  for (const r of data.earlierToday) byId.set(r.requisitionId, { reference: r.reference, status: r.status, statusText: r.statusText, sectionStatus: r.sectionStatus, lineCount: r.lineCount });
+  const byId = new Map<string, { reference: string; status: RequisitionStatus; statusText: string; sectionStatus: SectionStatus; lineCount: number; startedAt: string | null; sentAt: string | null; changedCount: number }>();
+  if (data.open) {
+    byId.set(data.open.requisitionId, {
+      reference: data.open.reference,
+      status: data.open.status,
+      statusText: data.open.statusText,
+      sectionStatus: data.open.section.status,
+      lineCount: data.open.section.lineCount,
+      startedAt: data.open.openedAt,
+      sentAt: data.open.section.sentAt,
+      changedCount: data.open.section.changedCount,
+    });
+  }
+  for (const r of data.earlierToday) byId.set(r.requisitionId, { reference: r.reference, status: r.status, statusText: r.statusText, sectionStatus: r.sectionStatus, lineCount: r.lineCount, startedAt: null, sentAt: r.sentAt, changedCount: 0 });
   return REQUISITION_CYCLES.map((cycle) => {
     const entry = data.openByCycle[cycle];
     const info = entry ? byId.get(entry.requisitionId) : undefined;
-    if (!entry || !info) return { cycle, requisitionId: null, reference: null, state: 'Not started', short: 'Not started', lineCount: 0, tone: 'none' };
+    if (!entry || !info) return { cycle, requisitionId: null, reference: null, state: 'Not started', short: 'Not started', lineCount: 0, startedAt: null, sentAt: null, changedCount: 0, tone: 'none' };
+    const base = { cycle, requisitionId: entry.requisitionId, reference: info.reference, lineCount: info.lineCount, startedAt: info.startedAt, sentAt: info.sentAt, changedCount: info.changedCount };
     const open = info.status === 'OPEN' && (info.sectionStatus === 'NOT_STARTED' || info.sectionStatus === 'DRAFT');
-    if (open) return { cycle, requisitionId: entry.requisitionId, reference: info.reference, state: info.lineCount > 0 ? `Draft · ${info.lineCount} ${info.lineCount === 1 ? 'item' : 'items'}` : 'Not sent yet', short: 'Draft', lineCount: info.lineCount, tone: 'draft' };
-    const text = headStatusText(info.status, info.statusText, info.sectionStatus);
+    if (open) return { ...base, state: info.lineCount > 0 ? 'Not sent yet' : 'Not sent yet', short: 'Draft', tone: 'draft' };
     const good = info.status === 'APPROVED' || info.status === 'CLOSED';
-    return { cycle, requisitionId: entry.requisitionId, reference: info.reference, state: text, short: good ? 'Approved' : 'Sent', lineCount: info.lineCount, tone: good ? 'good' : 'waiting' };
+    return { ...base, state: headStatusText(info.status, info.statusText, info.sectionStatus), short: good ? 'Approved' : 'Sent', tone: good ? 'good' : 'waiting' };
   });
 }
 
@@ -59,11 +76,13 @@ function greeting(iso: string): string {
   return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 }
 
+const items = (n: number): string => (n === 1 ? 'item' : 'items');
+
 /**
- * The Department Head's Requisitions home (owner decision, 11 Oct 2026, replacing Paper steps 1 and 18; premium redraw approved the
- * same day): a greeting, a Morning | Afternoon | Extra switcher, one dark card for the chosen cycle with its one button, then
- * "Earlier" and a link to the full History. The switcher only chooses which cycle the card shows. A requisition is created only when
- * the head taps Start (or arrives with `?cycle=` from the switcher on the working screen), never by just opening the home.
+ * The Department Head's Requisitions home, drawn in Paper "Chapter 13" (steps 1, 2, 8, 9; owner decision and premium redraw, 11 Oct
+ * 2026): a Morning | Afternoon | Extra switcher that only chooses which cycle the dark card shows, the card (time, state, greeting,
+ * the number that matters, one button, the reference), a "Branch Manager changed" notice, then Earlier and a link to History.
+ * A requisition is created only when the head taps Start (or arrives with `?cycle=`), never by just opening the home.
  */
 export function HeadHomeScreen() {
   const router = useRouter();
@@ -118,15 +137,16 @@ export function HeadHomeScreen() {
 
   const todayIds = new Set(rows.flatMap((r) => (r.requisitionId ? [r.requisitionId] : [])));
   const earlier = (past.data?.rows ?? []).filter((r) => !todayIds.has(r.requisitionId)).slice(0, 5);
-  const subtitle = HOME_COPY.subtitle(data?.department.name ?? '');
   const chosen = picked ?? data?.suggestedCycle ?? 'MORNING';
   const card = rows.find((r) => r.cycle === chosen) ?? null;
   const arriving = Boolean(wanted) && !failure;
+  // The Branch Manager's changes, from the open requisition's own section.
+  const changed = rows.find((r) => r.tone === 'good' && r.changedCount > 0 && r.requisitionId === data?.open?.requisitionId) ?? null;
 
   return (
     <PhoneColumn>
-      <HeadPhoneHeader leading="menu" title="Requisitions" subtitle={data ? subtitle : 'Asking the Central Store'} />
-      <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto bg-wds-canvas px-5 pb-8 pt-6">
+      <HeadPhoneHeader leading="menu" title="Requisitions" subtitle={data ? `${data.department.name}${now ? ` · ${longDateText(now)}` : ''}` : 'Asking the Central Store'} />
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto bg-wds-canvas px-5 pb-8 pt-5">
         {home.status === 'error' ? (
           <div role="alert">
             <MobileErrorState title={REQUISITIONS_KIT_COPY.couldNotLoad.title} description={REQUISITIONS_KIT_COPY.couldNotLoad.line} onRetry={() => void home.reload()} />
@@ -135,16 +155,12 @@ export function HeadHomeScreen() {
           <>
             <LoadingAnnouncer text={WORK_COPY.starting} />
             <div className="flex flex-col gap-4" aria-hidden="true">
-              <Skeleton className="h-6 w-[60%]" />
-              <Skeleton className="h-11 w-full" />
-              <Skeleton className="h-44 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-64 w-full" />
             </div>
           </>
         ) : (
           <>
-            <h2 className="font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.01em] text-wds-text-ink" suppressHydrationWarning>
-              {now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : ' '}
-            </h2>
             {failure ? (
               <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
                 {failure}
@@ -153,31 +169,57 @@ export function HeadHomeScreen() {
 
             <TrackSwitcher rows={rows} value={chosen} onChange={setPicked} />
 
-            {card ? <HeroCard row={card} suggested={card.cycle === data.suggestedCycle ? data.suggestedLineCount : null} busy={busy === card.cycle} disabled={busy !== null} onGo={() => void go(card.cycle)} /> : null}
+            {card ? (
+              <HeroCard
+                row={card}
+                now={now}
+                firstName={firstName}
+                belowLevel={card.cycle === data.suggestedCycle ? data.suggestedLineCount : 0}
+                busy={busy === card.cycle}
+                disabled={busy !== null}
+                onGo={() => void go(card.cycle)}
+              />
+            ) : null}
+
+            {changed && changed.requisitionId ? (
+              <div className="flex items-start justify-between gap-4 border-l-[3px] border-l-wds-caramel-500 py-0.5 pl-3.5">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">The Branch Manager changed {changed.changedCount} {changed.changedCount === 1 ? 'line' : 'lines'}</p>
+                  <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{CYCLE_TEXT[changed.cycle]} · open it to see what you asked for and what was approved.</p>
+                </div>
+                <Link href={reqFile(changed.requisitionId)} className="-my-2 flex min-h-11 shrink-0 items-center rounded-wds-sm px-1 font-wds-sans text-[15px] font-semibold text-wds-espresso-700 outline-none focus-visible:shadow-wds-ring active:opacity-70">
+                  View
+                </Link>
+              </div>
+            ) : null}
 
             <section className="flex flex-col" aria-label="Earlier requisitions">
-              <div className="flex items-center justify-between gap-3 pb-1">
+              <div className="flex items-center justify-between gap-3 pb-2">
                 <h2 className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">Earlier</h2>
-                <Link href={REQ_HISTORY} className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink underline underline-offset-4 outline-none hover:text-wds-primary focus-visible:shadow-wds-ring active:opacity-70">
+                <Link href={REQ_HISTORY} className="-my-3 flex min-h-11 items-center rounded-wds-sm px-1 font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-espresso-700 outline-none hover:text-wds-espresso-800 focus-visible:shadow-wds-ring active:opacity-70">
                   See all history
                 </Link>
               </div>
               {past.status === 'loading' && !past.data ? (
                 <Skeleton className="h-[56px] w-full" />
               ) : earlier.length === 0 ? (
-                <p className="py-3 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Nothing before today yet.</p>
+                <p className="border-t border-wds-border py-3 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">Nothing before today yet.</p>
               ) : (
-                <ul className="flex flex-col">
+                <ul className="flex flex-col border-t border-wds-border">
                   {earlier.map((row) => {
                     const good = row.status === 'APPROVED' || row.status === 'CLOSED';
                     return (
-                      <li key={row.requisitionId} className="border-b border-wds-border last:border-b-0">
+                      <li key={row.requisitionId} className="border-b border-wds-border">
                         <Link href={reqFile(row.requisitionId)} className="flex min-h-14 items-center justify-between gap-3 py-3 outline-none focus-visible:shadow-wds-ring active:bg-wds-neutral-50">
                           <span className="flex min-w-0 flex-col gap-0.5">
-                            <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{row.cycleLabel.split(' · ')[0]}</span>
-                            <span className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{row.reference} · {shortDateText(row.openedAt)}</span>
+                            <span className="font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink">
+                              {row.cycleLabel.split(' · ')[0]} · {shortDateText(row.openedAt)}
+                            </span>
+                            <span className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">
+                              {row.reference} · {row.lineCount} {items(row.lineCount)}
+                            </span>
                           </span>
-                          <span className="flex shrink-0 items-center gap-2 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
+                          <span className={cn('flex shrink-0 items-center gap-2 font-wds-sans text-[13px] leading-4', good ? 'text-wds-success-fg' : 'text-wds-text-secondary')}>
                             <span aria-hidden className={cn('size-1.5 rounded-full', good ? 'bg-wds-success-fg' : 'bg-wds-caramel-500')} />
                             {headStatusText(row.status, row.statusText, row.sectionStatus)}
                           </span>
@@ -195,7 +237,7 @@ export function HeadHomeScreen() {
   );
 }
 
-/** Morning | Afternoon | Extra as one soft track with a raised tile on the chosen one, each with a dot and one word of state. */
+/** Morning | Afternoon | Extra as one soft track with a raised tile on the chosen one, each with its state under the name. */
 function TrackSwitcher({ rows, value, onChange }: { rows: CycleRow[]; value: RequisitionCycle; onChange: (cycle: RequisitionCycle) => void }) {
   return (
     <div role="radiogroup" aria-label="Which requisition" className="flex gap-1 bg-wds-neutral-100 p-1">
@@ -219,13 +261,13 @@ function TrackSwitcher({ rows, value, onChange }: { rows: CycleRow[]; value: Req
               (e.currentTarget.parentElement?.querySelectorAll('[role=radio]')[rows.indexOf(next)] as HTMLElement | undefined)?.focus();
             }}
             className={cn(
-              'flex min-h-[52px] min-w-0 grow basis-0 flex-col items-center justify-center gap-0.5 px-1 outline-none transition-colors focus-visible:shadow-wds-ring',
+              'flex min-h-[60px] min-w-0 grow basis-0 flex-col items-center justify-center gap-1 px-1 outline-none transition-colors focus-visible:shadow-wds-ring',
               selected ? 'bg-wds-surface shadow-wds-sm' : 'hover:bg-wds-neutral-50 active:bg-wds-neutral-50',
             )}
           >
-            <span className={cn('font-wds-sans text-[14px] leading-[18px]', selected ? 'font-semibold text-wds-text-ink' : 'text-wds-text-secondary')}>{CYCLE_TEXT[row.cycle]}</span>
-            <span className="flex items-center gap-1 font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">
-              <span aria-hidden className={cn('size-1.5 rounded-full', row.tone === 'good' ? 'bg-wds-success-fg' : row.tone === 'none' ? 'border border-wds-text-secondary' : 'bg-wds-caramel-500')} />
+            <span className={cn('font-wds-sans text-[17px] leading-[22px]', selected ? 'font-semibold text-wds-espresso-800' : 'text-wds-text-secondary')}>{CYCLE_TEXT[row.cycle]}</span>
+            <span className={cn('flex items-center gap-1.5 font-wds-sans text-[13px] leading-4', selected ? 'text-wds-text-ink' : 'text-wds-text-secondary')}>
+              {row.tone === 'none' ? null : <span aria-hidden className={cn('size-1.5 rounded-full', row.tone === 'good' ? 'bg-wds-success-fg' : 'bg-wds-caramel-600')} />}
               {row.short}
             </span>
           </button>
@@ -235,33 +277,86 @@ function TrackSwitcher({ rows, value, onChange }: { rows: CycleRow[]; value: Req
   );
 }
 
-/** The one strong block on the page: the chosen cycle on espresso, the number that matters and one button. */
-function HeroCard({ row, suggested, busy, disabled, onGo }: { row: CycleRow; suggested: number | null; busy: boolean; disabled: boolean; onGo: () => void }) {
+/**
+ * The one strong block on the page: the chosen cycle on espresso. Four drawn states: a list not started (the number of items running
+ * low), Extra not started ("Need something extra?"), a draft (the number on the list and how many are below level) and a list sent
+ * (the number sent, the time, and "See what you sent").
+ */
+function HeroCard({ row, now, firstName, belowLevel, busy, disabled, onGo }: { row: CycleRow; now: string | null; firstName: string; belowLevel: number; busy: boolean; disabled: boolean; onGo: () => void }) {
   const word = CYCLE_TEXT[row.cycle].toLowerCase();
-  const number = row.tone === 'draft' ? row.lineCount || null : row.tone === 'none' ? suggested : null;
-  const headline =
-    row.tone === 'none'
-      ? number
-        ? `${number === 1 ? 'item is' : 'items are'} running low`
-        : suggested === 0
-          ? `Nothing is running low. Start the ${word} list when you are ready.`
-          : `Not started yet. Start the ${word} list when you need something.`
-      : row.tone === 'draft'
-        ? number
-          ? `${number === 1 ? 'item' : 'items'} in your list, not sent yet`
-          : 'Your list is started and not sent yet.'
-        : row.state;
-  const label = busy ? 'Starting…' : row.tone === 'none' ? `Start the ${word} list` : row.tone === 'draft' ? `Continue the ${word} list` : `Open the ${word} list`;
-  const primary = row.tone === 'none' || row.tone === 'draft';
+  const hello = now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : '';
+  const clock = now ? timeText(now).toUpperCase() : '';
+  const eyebrow = row.cycle === 'EXTRA' && row.tone === 'none' ? 'EXTRA · WHEN SOMETHING COMES UP' : `${CYCLE_TEXT[row.cycle].toUpperCase()}${clock ? ` · ${clock}` : ''}`;
+  const dot = row.tone === 'draft' ? 'Not sent yet' : row.tone === 'waiting' ? 'Waiting for approval' : row.tone === 'good' ? 'Approved' : null;
+  const loading = busy ? 'Starting…' : null;
+
+  let body: React.ReactNode;
+  let button: string;
+  let foot: string | null = null;
+  let primary = true;
+
+  if (row.tone === 'none' && row.cycle === 'EXTRA') {
+    body = (
+      <>
+        <h2 id="req-hero" className="font-wds-sans text-[34px] font-semibold leading-[40px] tracking-[-0.02em] text-wds-espresso-50">Need something extra?</h2>
+        <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">It starts with the items below their restock level. Add what else you need, then send it to the Branch Manager.</p>
+      </>
+    );
+    button = 'Start an Extra list';
+  } else if (row.tone === 'none') {
+    body =
+      belowLevel > 0 ? (
+        <>
+          <Greeting id="req-hero" text={hello} />
+          <BigNumber n={belowLevel} line={`${belowLevel === 1 ? 'item is' : 'items are'} running low`} sub="Below their restock level" />
+          <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">We fill them in for you. You check the list and change what you need before anything is sent.</p>
+        </>
+      ) : (
+        <>
+          <Greeting id="req-hero" text={hello} />
+          <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">Nothing is running low.</p>
+          <p className="font-wds-sans text-[16px] leading-6 text-wds-espresso-100">Start the {word} list and add what you need before anything is sent.</p>
+        </>
+      );
+    button = `Start the ${word} list`;
+  } else if (row.tone === 'draft') {
+    body = (
+      <>
+        <Greeting id="req-hero" text={hello} />
+        {row.lineCount > 0 ? (
+          <BigNumber n={row.lineCount} line={`${items(row.lineCount)} on your list`} sub={belowLevel > 0 ? `${belowLevel} are below restock level` : undefined} />
+        ) : (
+          <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">Your list is started.</p>
+        )}
+      </>
+    );
+    button = `Continue the ${word} list`;
+    foot = `${row.reference ?? ''}${row.startedAt ? ` · started ${timeText(row.startedAt)}` : ''}`;
+  } else {
+    const sentWords = row.tone === 'good' ? 'items approved' : row.sentAt ? `${items(row.lineCount)} sent at ${timeText(row.sentAt)}` : `${items(row.lineCount)} sent`;
+    body = (
+      <>
+        <Greeting id="req-hero" text={`${row.tone === 'good' ? 'Approved' : 'All sent'}${firstName ? `, ${firstName}` : ''}`} />
+        {row.lineCount > 0 ? <BigNumber n={row.lineCount} line={sentWords} sub={row.tone === 'waiting' ? "You'll be told when it is approved" : row.state} /> : <p className="font-wds-sans text-[22px] font-semibold leading-7 text-wds-espresso-50">{row.state}</p>}
+      </>
+    );
+    button = 'See what you sent';
+    primary = false;
+    foot = `${row.reference ?? ''}${row.tone === 'waiting' ? ' · you can recall until it is approved' : ''}`;
+  }
+
   return (
     <section aria-labelledby="req-hero" className="flex flex-col gap-5 bg-wds-espresso-900 px-5 pb-5 pt-5 text-wds-espresso-50">
-      <div className="flex flex-col gap-2">
-        <p className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.08em] text-wds-caramel-500">{CYCLE_TEXT[row.cycle]}{row.reference ? ` · ${row.reference}` : ''}</p>
-        <h2 id="req-hero" className="flex items-baseline gap-3">
-          {number ? <span className="shrink-0 whitespace-nowrap font-wds-mono text-[56px] font-medium leading-[56px] tracking-[-0.03em] text-wds-caramel-300">{number}</span> : null}
-          <span className={cn('font-wds-sans text-wds-espresso-50', number ? 'text-[17px] leading-6' : 'text-[20px] font-semibold leading-7')}>{headline}</span>
-        </h2>
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-wds-mono text-[12px] uppercase leading-4 tracking-[0.08em] text-wds-caramel-500">{eyebrow}</p>
+        {dot ? (
+          <p className="flex shrink-0 items-center gap-1.5 font-wds-sans text-[13px] leading-4 text-wds-espresso-100">
+            <span aria-hidden className={cn('size-1.5 rounded-full', row.tone === 'good' ? 'bg-wds-success-fg' : 'bg-wds-caramel-500')} />
+            {dot}
+          </p>
+        ) : null}
       </div>
+      <div className="flex flex-col gap-3">{body}</div>
       <button
         type="button"
         onClick={onGo}
@@ -269,12 +364,34 @@ function HeroCard({ row, suggested, busy, disabled, onGo }: { row: CycleRow; sug
         aria-busy={busy}
         className={cn(
           'flex h-[52px] w-full items-center justify-center font-wds-sans text-[16px] font-semibold outline-none transition-opacity focus-visible:shadow-[0_0_0_3px_var(--wds-caramel-300)] active:opacity-80 disabled:opacity-60',
-          primary ? 'bg-wds-caramel-500 text-wds-espresso-900' : 'border border-wds-caramel-500 text-wds-caramel-300',
+          primary ? 'bg-wds-caramel-500 text-wds-espresso-900' : 'border border-wds-espresso-100/60 text-wds-espresso-50',
         )}
       >
-        {label}
+        {loading ?? button}
       </button>
+      {foot ? <p className="text-center font-wds-mono text-[12px] leading-4 text-wds-caramel-600">{foot}</p> : null}
     </section>
+  );
+}
+
+function Greeting({ id, text }: { id: string; text: string }) {
+  return (
+    <h2 id={id} className="font-wds-sans text-[16px] leading-5 text-wds-espresso-100" suppressHydrationWarning>
+      {text || ' '}
+    </h2>
+  );
+}
+
+/** The big mono number with a line and a quieter line beside it, as drawn ("28  items on your list / 12 are below restock level"). */
+function BigNumber({ n, line, sub }: { n: number; line: string; sub?: string }) {
+  return (
+    <div className="flex items-center gap-4">
+      <span className="shrink-0 whitespace-nowrap font-wds-sans text-[88px] font-medium leading-[88px] tracking-[-0.04em] text-wds-espresso-50">{n}</span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-wds-sans text-[17px] font-medium leading-6 text-wds-espresso-50">{line}</span>
+        {sub ? <span className="font-wds-sans text-[14px] leading-5 text-wds-espresso-100/80">{sub}</span> : null}
+      </span>
+    </div>
   );
 }
 
