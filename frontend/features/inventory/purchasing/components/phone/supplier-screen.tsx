@@ -86,7 +86,8 @@ export function SupplierScreen({ supplierId }: { supplierId: string }) {
 
   const items = React.useMemo(() => (data ? data.items.filter((i) => !find.trim() || i.name.toLowerCase().includes(find.trim().toLowerCase())) : []), [data, find]);
   const addable = data ? data.items.filter((i) => (i.status === 'OUT' || i.status === 'LOW') && !i.onOpenOrder) : [];
-  const toAdd = addable.filter((i) => !list.has(i.inventoryItemId));
+  // One entry per item, even if a supplier lists the same item twice.
+  const toAdd = addable.filter((i, n) => !list.has(i.inventoryItemId) && addable.findIndex((o) => o.inventoryItemId === i.inventoryItemId) === n);
   const supplier = data?.supplier;
   const open = data?.openOrder ?? null;
 
@@ -162,8 +163,8 @@ export function SupplierScreen({ supplierId }: { supplierId: string }) {
               {items.length > 0 ? (
                 <Card>
                   <ul>
-                    {items.map((i) => (
-                      <ItemLine key={i.inventoryItemId} item={i} />
+                    {items.map((i, n) => (
+                      <ItemLine key={`${i.inventoryItemId}-${n}`} item={i} />
                     ))}
                   </ul>
                 </Card>

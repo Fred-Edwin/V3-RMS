@@ -101,8 +101,8 @@ const moveOrThrow = async (tx: Prisma.TransactionClient, siteId: string, o: Orde
 
 const dateOrNull = (iso: string | null | undefined): Date | null => (iso ? new Date(`${iso}T00:00:00Z`) : null);
 
-/** "Joseph (Store Manager)": a person is named with their role (owner, 10 Oct 2026). */
-const withRole = (p: { name: string; role: string }): string => `${p.name} (${roleLabel(p.role)})`;
+/** "Joseph.Store Manager": a person is named with their role, written Name.Role (owner, 11 Oct 2026). */
+const withRole = (p: { name: string; role: string }): string => `${p.name}.${roleLabel(p.role)}`;
 
 /** Check who is getting the order against the hub's own lists, and turn it into the columns and the name for the audit sentence. */
 const resolveCollectedBy = async (siteId: string, setById: string, input: CollectedByInput, now: Date): Promise<{ data: CollectedByData; sentence: string }> => {

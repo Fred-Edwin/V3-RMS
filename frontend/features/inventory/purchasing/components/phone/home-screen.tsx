@@ -39,7 +39,7 @@ export function HomeScreen() {
                         <p className="font-wds-sans text-[44px] font-semibold leading-[44px] tracking-[-0.02em] text-wds-text-ink">{data.restock.total}</p>
                         <p className="w-24 pb-[3px] font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{data.restock.total === 1 ? 'item needs restocking' : 'items need restocking'}</p>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {data.restock.out > 0 ? (
                           <Pill tone="error" dot>
                             {data.restock.out} out

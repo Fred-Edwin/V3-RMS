@@ -3,17 +3,15 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { roleLabel } from '@/components/app/shell/role-label';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import type { AppRole } from '@/types/auth';
 import { useAction } from '../../../_shared/hooks/use-async';
 import { usePurchasing } from '../../hooks/use-purchasing';
 import { qty } from '../../lib/format';
 import type { PurchaseFile } from '../../types';
 import { PURCHASING } from './order-cards';
-import { OrderFrame, WithdrawDialog } from './order-parts';
+import { OrderFrame, WithdrawDialog, useFailureToast } from './order-parts';
 import { AddOrStepper } from './restock-list-screen';
-import { Banner, DangerTextAction, ItemsCard, Label, PhoneBar, PrimaryButton, WriteError, timeHmm, withRole } from './phone-kit';
+import { Banner, DangerTextAction, ItemsCard, Label, PhoneBar, PrimaryButton, WriteError, roleText, timeHmm, withRole } from './phone-kit';
 
 /** 28H: sent back (or still a draft). Fix the quantities, reply if you want to, send it for approval again, or withdraw it. */
 export function ReturnedOrder({ order }: { order: PurchaseFile }) {
@@ -23,21 +21,22 @@ export function ReturnedOrder({ order }: { order: PurchaseFile }) {
   const [qtys, setQtys] = React.useState<Record<string, string>>(() => Object.fromEntries(order.lines.map((l) => [l.id, l.orderedQty])));
   const [reply, setReply] = React.useState('');
   const [confirm, setConfirm] = React.useState(false);
-  const resend = useAction(async () => {
+  const failToast = useFailureToast();
+  const resend = useAction(failToast('We could not send this for approval', async () => {
     // Two calls: the lines (and the reply, which replaces the first note), then the submit.
     await service.updateOrder(order.id, {
       lines: order.lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: qtys[l.id] ?? l.orderedQty, unitPrice: l.unitPrice })),
       ...(reply.trim() ? { attendantNote: reply.trim() } : {}),
     });
     return service.submitOrder(order.id);
-  }, 'We could not send this for approval. Nothing was changed.');
-  const withdraw = useAction(() => service.withdrawOrder(order.id), 'We could not withdraw this order. Nothing was changed.');
+  }), 'We could not send this for approval. Nothing was changed.');
+  const withdraw = useAction(failToast('We could not withdraw this order', () => service.withdrawOrder(order.id)), 'We could not withdraw this order. Nothing was changed.');
 
   // Who sent it back, and when, comes from the order's own history (the row carries only a name).
   const returned = [...order.activity].sort((a, b) => b.at.localeCompare(a.at)).find((a) => a.action === 'Returned order');
   const returner = returned?.actor ?? (order.returnedBy ? { ...order.returnedBy, role: 'STORE_MANAGER' } : null);
   const firstName = returner?.name.split(' ')[0] ?? 'the Store Manager';
-  const roleWord = returner ? roleLabel(returner.role as AppRole) : 'Store Manager';
+  const roleWord = returner ? roleText(returner.role) : 'Store Manager';
 
   const onResend = async (): Promise<void> => {
     const done = await resend.run();

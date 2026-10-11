@@ -296,7 +296,7 @@ describe.skipIf(!enabled)('Purchasing: the Store Attendant phone against the rea
       const id = ord['waiting'] ?? '';
       await expect(ordersRepository.findLastAuditAt(hubId, id, 'Reminded the approver')).resolves.toBeNull();
       await ordersService.remind(att, id, NOW);
-      expect(purchasingNotices.reminder).toHaveBeenCalledWith(expect.objectContaining({ orderId: id, fromLabel: `Amina ${tag} (Store Attendant)` }));
+      expect(purchasingNotices.reminder).toHaveBeenCalledWith(expect.objectContaining({ orderId: id, fromLabel: `Amina ${tag}.Store Attendant` }));
       const last = await ordersRepository.findLastAuditAt(hubId, id, 'Reminded the approver');
       expect(last?.toISOString()).toBe(NOW.toISOString());
       await expect(ordersService.remind(att, id, new Date(NOW.getTime() + 3 * 3_600_000))).rejects.toMatchObject({ code: 'REMINDER_TOO_SOON', statusCode: 409 });
@@ -451,7 +451,7 @@ describe.skipIf(!enabled)('Purchasing: the Store Attendant phone against the rea
       expect(mineNotices.map((x) => x.type)).toEqual(expect.arrayContaining(['RETURNED', 'OVERDUE', 'DUE_TODAY']));
       expect(mineNotices.every((x) => x.unread)).toBe(true);
       const returned = mineNotices.find((x) => x.type === 'RETURNED');
-      expect(returned).toMatchObject({ action: 'EDIT_AND_RESEND', title: `Joseph ${tag} (Store Manager) sent it back`, body: '"Lower the carrots"' });
+      expect(returned).toMatchObject({ action: 'EDIT_AND_RESEND', title: `Joseph ${tag}.Store Manager sent it back`, body: '"Lower the carrots"' });
       await attendantService.markNoticesRead(att, [returned?.key ?? ''], NOW);
       await attendantService.markNoticesRead(att, [returned?.key ?? ''], NOW); // opening twice is fine
       const after = await attendantService.getNotices(att, { filter: 'all' }, NOW);

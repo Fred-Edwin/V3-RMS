@@ -36,7 +36,7 @@ export function toListLine(entry: Entry): ListLine {
 export function AddOrStepper({ name, onList, buyUnit, suggested, qtyValue, onAdd, onSet, floor = false }: { name: string; onList: boolean; buyUnit: string; suggested: string; qtyValue: string; onAdd: () => void; onSet: (n: number) => void; /** The stepper stops at 1 instead of taking the line off (a returned order keeps all its lines). */ floor?: boolean }) {
   if (!onList) {
     return (
-      <button type="button" onClick={onAdd} aria-label={`Add ${suggested} ${buyUnit} of ${name} to your list`} className={cn(HIT, 'flex h-9 w-28 shrink-0 items-center justify-center gap-1.5 border border-wds-border-strong bg-white font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring [@media(hover:hover)]:hover:bg-wds-neutral-50')}>
+      <button type="button" onClick={onAdd} aria-label={`Add ${suggested} ${buyUnit} of ${name} to your list`} className={cn(HIT, 'flex h-9 min-w-28 shrink-0 items-center justify-center gap-1.5 border border-wds-border-strong bg-white px-2 font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring [@media(hover:hover)]:hover:bg-wds-neutral-50')}>
         <span aria-hidden="true" className="font-wds-sans text-[16px] font-normal leading-[18px] text-[var(--wds-primary-btn-start)]">
           +
         </span>
@@ -76,7 +76,7 @@ function Row({ entry, list }: { entry: Entry; list: ReturnType<typeof useRestock
     <li className={cn('flex items-center justify-between gap-3 border-b border-wds-border px-5 py-3', onList ? 'bg-wds-espresso-50' : 'bg-white')}>
       <div className="flex min-w-0 flex-col gap-1">
         <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{line.itemName}</p>
-        <StatusLine tone={out ? 'error' : 'warning'}>{line.onHand !== undefined && line.level !== undefined ? `${qty(line.onHand)} left · reorder at ${qty(line.level)} ${unit}` : out ? 'Out of stock' : 'Running low'}</StatusLine>
+        <StatusLine tone={out ? 'error' : 'warning'}>{line.onHand !== undefined && line.level !== undefined ? `${Number.parseFloat(line.onHand) < 0 ? '0' : qty(line.onHand)} left · reorder at ${qty(line.level)} ${unit}` : out ? 'Out of stock' : 'Running low'}</StatusLine>
         <p className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{supplier ? `${supplier.name}${line.lastPrice ? ` · KES ${kes(line.lastPrice)} each` : ''}` : 'No supplier yet'}</p>
       </div>
       <AddOrStepper

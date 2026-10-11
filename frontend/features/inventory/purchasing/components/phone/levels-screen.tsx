@@ -29,7 +29,7 @@ function Row({ row }: { row: RestockLevelRow }) {
       <div className="flex items-baseline justify-between gap-3">
         <p className="min-w-0 font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{row.name}</p>
         <p className={cn('shrink-0 font-wds-mono text-[12px] leading-4', tone.text)}>
-          {qty(row.onHand)} / {qty(row.level)} {row.usageUnit}
+          {Number.parseFloat(row.onHand) < 0 ? '0' : qty(row.onHand)} / {qty(row.level)} {row.usageUnit}
           <span className="sr-only">{row.status === 'OUT' ? ', out of stock' : row.status === 'LOW' ? ', running low' : ', fine'}</span>
         </p>
       </div>

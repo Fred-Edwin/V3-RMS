@@ -19,8 +19,11 @@ import type { Person } from '../../types';
 
 // --- People, dates and words ---------------------------------------------------------------------------------------------------------
 
-/** "Joseph Kamau (Store Manager)": a person is always named with their role. */
-export const withRole = (p: Person | null | undefined, fallback = 'the Store Manager'): string => (p ? `${p.name} (${roleLabel(p.role as AppRole)})` : fallback);
+/** "Joseph Kamau.Store Manager": a person is always named with their role, written Name.Role (owner, 11 Oct 2026). */
+export const withRole = (p: Person | null | undefined, fallback = 'the Store Manager'): string => (p ? `${p.name.replace(/\s*\([^)]*\)\s*$/, '')}.${roleText(p.role)}` : fallback);
+
+/** The server names a person's role in words ("Store Manager"); a few lists (the collectors) send the role code, which gets its words here. */
+export const roleText = (role: string): string => (/^[A-Z_]+$/.test(role) ? roleLabel(role as AppRole) : role);
 
 /** The role on its own, for "NOTE FOR …" labels. */
 export const nameOnly = (p: Person | null | undefined): string => p?.name ?? 'the Store Manager';

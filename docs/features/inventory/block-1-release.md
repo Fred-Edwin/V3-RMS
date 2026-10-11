@@ -252,6 +252,58 @@ The first three counts of "Before" must equal their "After" values. Old days sta
 
 **Walked and checked (integration, 10 Oct):** a member's full 130-item evening count on the phone, a wrong then right PIN on the sign screen and in the Correct drawer, the head's count, three counts on behalf, the blocked close then the clear close with a delivery confirmed, one correction, History, the day file, the printed day sheet, the Audit log rows, and the Director, Accountant, Store Manager and System Admin views, all against the real API. See `block-4-undrawn-review.md` for what was built beyond Paper.
 
+## 6d. Block 6 (Purchasing, Store Attendant phone): one additive migration, ships after Block 1
+
+Block 6 replaces the Attendant's tabbed Purchasing screen with the 17 phone screens of Paper chapter 9 (28A to 28Q; Receive, steps 30 and 31, is unchanged). Back end and front end go together: the old Attendant screen finds no use for the new `attendant/` API, and the new screens need it. Desktop roles keep the desktop Purchasing exactly as it is.
+
+**The migration** (`backend/prisma/schema/migrations/20261011082704_purchasing_attendant_phone/`). Additive only; nothing is dropped.
+
+| What | Detail |
+|---|---|
+| New type | `PurchaseCollectedByKind` (supplier delivers, carrier, staff, other) |
+| `purchase_orders` | six collected-by columns (`collected_by_kind`, `_carrier_id`, `_user_id`, `_name`, `_set_by_id`, `_set_at`) and `closed_at`, back-filled from the last invoice payment on every closed order |
+| `PurchaseCancelReason` | new value `WITHDRAWN` |
+| New table | `purchasing_notice_reads (user_id, notice_key, read_at)`: which notifications a person has opened |
+| Access table | one new row in code, `orders.see_stock` (Store Attendant, Store Manager, System Admin): on-hand and reorder level on Purchasing screens only |
+
+**Before** (run now, keep the output; read-only):
+
+```sql
+SELECT status, count(*) FROM purchase_orders GROUP BY status ORDER BY 1;
+SELECT count(*) AS closed_orders FROM purchase_orders WHERE status = 'CLOSED';
+SELECT count(*) AS cancelled_orders FROM purchase_orders WHERE status = 'CANCELLED';
+```
+
+**After** (the same three, plus these; every "should be" must hold):
+
+```sql
+-- should be 0: every closed order has a closing day (back-filled from its last payment)
+SELECT count(*) FROM purchase_orders WHERE status = 'CLOSED' AND closed_at IS NULL;
+-- should be 0 on day one: nobody has chosen a collector or withdrawn an order yet
+SELECT count(*) FROM purchase_orders WHERE collected_by_kind IS NOT NULL;
+SELECT count(*) FROM purchase_orders WHERE cancel_reason = 'WITHDRAWN';
+-- the new table exists and is empty until the first notification is opened
+SELECT count(*) FROM purchasing_notice_reads;
+```
+
+The three "Before" counts must equal their "After" values. If the first "After" query returns rows, list them before going on (the back-fill takes the day from the last invoice payment).
+
+**Rollback.** Prefer rolling the **application** back (deploy the previous image): the old code ignores the new columns, the new enum value and the new table. The database undo is only for a failed migration, before the new code has written anything: drop `purchasing_notice_reads`, then the six collected-by columns and `closed_at`, then the type (the `WITHDRAWN` enum value cannot be removed once added; leave it). Once an order has a collector chosen, been withdrawn or a notification opened, do not undo by hand: restore the backup and deploy the previous image.
+
+**Production check, by role** (real logins; the PIN is each person's own)
+
+**Store Attendant** (phone, or any width: the same column)
+1. Menu › Purchasing opens with five sub-links (Home, Restock list, My orders, History, Restock levels) and counts on Receiving, Restock list and My orders. Home shows the restock card, "Needs you now", "My orders".
+2. Restock list › add items, Review list › each supplier is its own order; a supplier that already has an open order is flagged and not sent. Send for approval: the toast names the Store Manager, My orders lists them as "Waiting".
+3. After the Store Manager approves: open the order › Print LPO, choose who is getting it, Mark as sent. After the Store Manager returns one: change a quantity, Send for approval again, or Withdraw (a confirmation, no PIN).
+4. A waiting order: Remind once; a second tap shows "Reminded at …". History: pick a range in the date sheet; no figure on any screen is an invoice, a payment or a balance.
+5. Notifications: the bell on Home; Mark all read.
+
+**Store Manager** (desktop): Purchasing is the unchanged six-tab screen with no sub-links; Awaiting approval › Approve with PIN or Return with a note, and the Attendant sees the result within a refresh.
+**Director, Accountant, System Admin:** the desktop Purchasing as before. **Everywhere:** the console shows no red errors.
+
+**Walked and checked (11 Oct):** the Attendant's restock list, review and send, return and resend, remind (sent and refused as too soon), withdraw (done, and a real refusal when the order had moved on), Mark as sent on an already-approved order with a typed name and with a chosen staff member (the approval itself was seeded; the Store Manager's PIN approval was not walked), the overdue page, a closed order, History and the date sheet, search, supplier page, notifications and restock levels, and the Store Manager's return, all against the real API at 390 px, with 768 px checked for sideways scroll. See `block-6-undrawn-review.md` for what was built beyond Paper.
+
 ## 7. If something is wrong
 
 Stop, do not run anything by hand on production. Block 1: roll the application back to the previous image. Block 2: restore the backup and deploy the previous image. Block 3: deploy the previous image (no data change to undo; entries logged remain valid ledger rows). Block 4: deploy the previous image (its migrations only add), or restore the backup if a day has already been closed or corrected by the new code. Tell the session what the "after" queries printed.

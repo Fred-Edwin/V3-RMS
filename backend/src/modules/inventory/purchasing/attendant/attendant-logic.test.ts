@@ -173,8 +173,8 @@ describe('Notifications derived from the orders (Paper 28N)', () => {
 
   it('words each one with the person and their role, and no invoice or payment figure', () => {
     const byType = Object.fromEntries(deriveNotices(all, ctx()).map((x) => [x.type, x]));
-    expect(byType['RETURNED']).toMatchObject({ title: 'Joseph (Store Manager) sent it back', body: '"Lower the carrots to 5 sacks."', supplierName: 'Nyeri Market Traders' });
-    expect(byType['APPROVED']).toMatchObject({ title: 'Joseph (Store Manager) approved it', body: 'Ready to send · KES 16,050' });
+    expect(byType['RETURNED']).toMatchObject({ title: 'Joseph.Store Manager sent it back', body: '"Lower the carrots to 5 sacks."', supplierName: 'Nyeri Market Traders' });
+    expect(byType['APPROVED']).toMatchObject({ title: 'Joseph.Store Manager approved it', body: 'Ready to send · KES 16,050' });
     expect(byType['DUE_TODAY']).toMatchObject({ title: 'Delivery due today', body: 'Samrat Supermarket Ltd is due to deliver', itemCount: 4 });
     expect(byType['OVERDUE']).toMatchObject({ title: '1 day overdue', body: 'Kagumo Poultry Farm has not delivered' });
     expect(byType['CLOSED']).toMatchObject({ title: 'Order closed', body: 'Paid in full' });

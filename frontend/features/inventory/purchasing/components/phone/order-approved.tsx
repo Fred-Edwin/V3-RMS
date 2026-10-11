@@ -2,17 +2,15 @@
 
 import * as React from 'react';
 
-import { roleLabel } from '@/components/app/shell/role-label';
 import { cn } from '@/lib/cn';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import type { AppRole } from '@/types/auth';
 import { BottomSheet, SheetGrabber } from '../../../_shared/components/bottom-sheet';
 import { useAction } from '../../../_shared/hooks/use-async';
 import { useAttendantData } from '../../hooks/use-attendant';
 import type { PurchaseFile } from '../../types';
 import type { CollectedByInput, CollectorOptions } from '../../types/attendant';
-import { OrderFrame, OrderedItems, orderSubtitle } from './order-parts';
-import { Banner, Label, PhoneBar, PhoneError, PrimaryButton, SecondaryButton, WriteError, timeHmm, withRole } from './phone-kit';
+import { OrderFrame, OrderedItems, orderSubtitle, useFailureToast } from './order-parts';
+import { Banner, Label, PhoneBar, PhoneError, PrimaryButton, SecondaryButton, WriteError, roleText, timeHmm, withRole } from './phone-kit';
 
 const KIND_WORD: Record<'PERSON' | 'VEHICLE' | 'COMPANY', string> = { PERSON: 'Person', VEHICLE: 'Vehicle', COMPANY: 'Company' };
 
@@ -60,7 +58,7 @@ function StaffSheet({ open, onOpenChange, staff, onPick }: { open: boolean; onOp
           <li key={s.id} className="border-b border-wds-border last:border-b-0">
             <button type="button" onClick={() => onPick(s)} className="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--wds-caramel-500)]">
               <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{s.name}</span>
-              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{roleLabel(s.role as AppRole)}</span>
+              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{roleText(s.role)}</span>
             </button>
           </li>
         ))}
@@ -89,7 +87,8 @@ export function ApprovedOrder({ order }: { order: PurchaseFile }) {
   const [otherName, setOtherName] = React.useState(order.collectedBy?.kind === 'OTHER' ? order.collectedBy.label : '');
   const [picker, setPicker] = React.useState(false);
   const [shareError, setShareError] = React.useState<string | null>(null);
-  const send = useAction((collected: CollectedByInput | undefined) => service.sendOrder(order.id, 'MANUAL', collected), 'We could not mark this order as sent. Nothing was changed.');
+  const failToast = useFailureToast();
+  const send = useAction((collected: CollectedByInput | undefined) => failToast('We could not mark this order as sent', () => service.sendOrder(order.id, 'MANUAL', collected))(), 'We could not mark this order as sent. Nothing was changed.');
 
   const pick = (next: Choice): void => {
     setTouched(true);
@@ -205,7 +204,7 @@ export function ApprovedOrder({ order }: { order: PurchaseFile }) {
         onOpenChange={setPicker}
         staff={collectors?.staff ?? []}
         onPick={(s) => {
-          pick({ key: 'staff', input: { kind: 'STAFF', userId: s.id }, staffLabel: `${s.name} (${roleLabel(s.role as AppRole)})` });
+          pick({ key: 'staff', input: { kind: 'STAFF', userId: s.id }, staffLabel: `${s.name} (${roleText(s.role)})` });
           setPicker(false);
         }}
       />

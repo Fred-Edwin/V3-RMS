@@ -325,7 +325,7 @@ describe('withdraw and remind (Paper 28H, 28K)', () => {
     vi.mocked(ordersRepository.findLastAuditAt).mockResolvedValue(null);
     await ordersService.remind(attendant, 'o1', NOW);
     expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'Reminded the approver' }), NOW);
-    expect(purchasingNotices.reminder).toHaveBeenCalledWith(expect.objectContaining({ hubId: HUB, orderId: 'o1', reference: 'LPO-0047', fromLabel: 'Amina (Store Attendant)' }));
+    expect(purchasingNotices.reminder).toHaveBeenCalledWith(expect.objectContaining({ hubId: HUB, orderId: 'o1', reference: 'LPO-0047', fromLabel: 'Amina.Store Attendant' }));
   });
 
   it('will not remind again within four hours, and says when the last reminder was', async () => {
@@ -359,7 +359,7 @@ describe('the notices that follow a write (map rows 21b, 22, 23)', () => {
   it('tells the raiser, with the approver named with their role, and not when they approved their own', async () => {
     vi.mocked(ordersRepository.findOrder).mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0045' })).mockResolvedValue(approved());
     await ordersService.approve(manager, 'o1', '1234', NOW);
-    expect(purchasingNotices.approved).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', approverLabel: 'Joseph (Store Manager)', reference: 'LPO-0045' }));
+    expect(purchasingNotices.approved).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', approverLabel: 'Joseph.Store Manager', reference: 'LPO-0045' }));
 
     vi.mocked(purchasingNotices.approved).mockClear();
     vi.mocked(ordersRepository.findOrder).mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0046', raisedById: 'sm' })).mockResolvedValue(approved({ raisedById: 'sm' }));
@@ -372,7 +372,7 @@ describe('the notices that follow a write (map rows 21b, 22, 23)', () => {
       .mockResolvedValueOnce(order({ status: 'AWAITING_APPROVAL', reference: 'LPO-0048' }))
       .mockResolvedValue(order({ status: 'RETURNED', reference: 'LPO-0048', returnedNote: 'Lower the carrots', returnedBy: user('sm', 'Joseph', 'STORE_MANAGER') }));
     await ordersService.returnOrder(manager, 'o1', 'Lower the carrots', NOW);
-    expect(purchasingNotices.returned).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', returnerLabel: 'Joseph (Store Manager)', note: 'Lower the carrots' }));
+    expect(purchasingNotices.returned).toHaveBeenCalledWith(expect.objectContaining({ raisedById: 'att', returnerLabel: 'Joseph.Store Manager', note: 'Lower the carrots' }));
   });
 
   it('nudges the hub when an order is sent for approval', async () => {

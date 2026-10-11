@@ -12,7 +12,7 @@ import { kes, qty } from '../../lib/format';
 import type { PurchaseFile } from '../../types';
 import { ApprovedOrder } from './order-approved';
 import { PURCHASING, daysLate, receiveHref } from './order-cards';
-import { ActivityList, OrderFrame, OrderedItems, WithdrawDialog, orderSubtitle, useApprover } from './order-parts';
+import { ActivityList, OrderFrame, OrderedItems, WithdrawDialog, orderSubtitle, useApprover, useFailureToast } from './order-parts';
 import { ReturnedOrder } from './order-returned';
 import { Banner, Card, DangerTextAction, ItemsCard, Label, LinkAction, PhoneBar, PhoneError, PhoneLoading, PhoneScreen, PrimaryButton, SecondaryButton, WriteError, dayAndTime, dayLabel, plural, shortDay, timeHmm, useGoBack, withRole } from './phone-kit';
 
@@ -25,7 +25,8 @@ function AwaitingOrder({ order }: { order: PurchaseFile }) {
   const [reminded, setReminded] = React.useState<string | null>(null);
   const [confirm, setConfirm] = React.useState(false);
   const remind = useAction(() => service.remindOrder(order.id), 'We could not send the reminder.');
-  const withdraw = useAction(() => service.withdrawOrder(order.id), 'We could not withdraw this order. Nothing was changed.');
+  const failToast = useFailureToast();
+  const withdraw = useAction(failToast('We could not withdraw this order', () => service.withdrawOrder(order.id)), 'We could not withdraw this order. Nothing was changed.');
   const who = withRole(approver);
 
   const onRemind = async (): Promise<void> => {

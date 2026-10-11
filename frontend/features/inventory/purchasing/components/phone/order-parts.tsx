@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { useAuthStore } from '@/store/authStore';
+import { useWdsToastStore } from '@/store/wdsToastStore';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
 import { DecisionDialog } from '../../../_shared/components/decision-dialog';
 import { useAttendantData } from '../../hooks/use-attendant';
@@ -12,6 +13,27 @@ import type { Approver } from '../../types/attendant';
 import { CompactTracker } from '../compact-tracker';
 import { PURCHASING } from './order-cards';
 import { ItemRow, ItemsCard, Label, PhoneBar, PhoneScreen, PrimaryButton, SecondaryButton, dayLabel, plural, timeHHmm, useGoBack, withRole } from './phone-kit';
+
+/**
+ * A write that shows the server's own words in a toast when it is refused. A refused write reloads the order (it may have moved on
+ * under the person, e.g. approved while they were withdrawing it), and the screen can change with it, so an inline message would be
+ * lost; the toast outlives the screen.
+ */
+export function useFailureToast() {
+  const addToast = useWdsToastStore((s) => s.addToast);
+  return React.useCallback(
+    <T,>(title: string, run: () => Promise<T>) =>
+      async (): Promise<T> => {
+        try {
+          return await run();
+        } catch (e) {
+          addToast({ variant: 'error', title, description: e instanceof Error ? e.message : 'Try again.' });
+          throw e;
+        }
+      },
+    [addToast],
+  );
+}
 
 /** The Store Manager the Attendant's orders wait on, from the same call Home makes. */
 export function useApprover(): Approver {

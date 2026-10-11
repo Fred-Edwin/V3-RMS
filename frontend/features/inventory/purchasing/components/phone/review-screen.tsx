@@ -4,9 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { roleLabel } from '@/components/app/shell/role-label';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import type { AppRole } from '@/types/auth';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
 import { useAction } from '../../../_shared/hooks/use-async';
 import { useAttendantData } from '../../hooks/use-attendant';
@@ -16,7 +14,7 @@ import type { TrackerItem, TrackerStep } from '../../types';
 import type { ReviewGroup } from '../../types/attendant';
 import { CompactTracker } from '../compact-tracker';
 import { PURCHASING, orderHref } from './order-cards';
-import { Card, Label, PhoneBar, PhoneEmpty, PhoneError, PhoneLoading, PhoneScreen, PrimaryButton, StatusLine, WriteError, plural, useGoBack, withRole } from './phone-kit';
+import { Card, Label, PhoneBar, PhoneEmpty, PhoneError, PhoneLoading, PhoneScreen, PrimaryButton, StatusLine, WriteError, plural, roleText, useGoBack, withRole } from './phone-kit';
 
 const STEPS: TrackerStep[] = ['RAISED', 'APPROVED', 'SENT', 'DELIVERED', 'INVOICED', 'PAID'];
 const RAISING: TrackerItem[] = STEPS.map((step, i) => ({ step, state: i === 0 ? 'CURRENT' : 'TODO', at: null, note: null }));
@@ -87,7 +85,7 @@ export function ReviewScreen() {
 
   const sendable = data?.groups.filter((g) => g.problem === null && outcomes[g.supplier.id]?.kind !== 'sent') ?? [];
   const approverName = data?.approver?.name.split(' ')[0] ?? 'the Store Manager';
-  const approverRole = data?.approver ? roleLabel(data.approver.role as AppRole) : 'Store Manager';
+  const approverRole = data?.approver ? roleText(data.approver.role) : 'Store Manager';
 
   const onSend = async (): Promise<void> => {
     if (!data || sendable.length === 0) return;

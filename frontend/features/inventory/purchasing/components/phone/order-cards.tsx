@@ -23,7 +23,7 @@ export function statusLine(o: OrderRow, approver: Approver): { tone: Tone; text:
     case 'AWAITING_APPROVAL':
       return { tone: 'warning', text: `Waiting for ${withRole(approver)} · since ${timeHmm(o.submittedAt)}` };
     case 'RETURNED':
-      return { tone: 'warning', text: `Sent back by ${o.returnedBy?.name ?? nameOnly(approver)} · edit and resend` };
+      return { tone: 'warning', text: 'Sent back · edit and resend' };
     case 'APPROVED':
       return { tone: 'success', text: 'Approved · ready to send' };
     case 'SENT':
