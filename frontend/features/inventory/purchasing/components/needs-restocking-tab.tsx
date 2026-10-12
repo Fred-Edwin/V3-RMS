@@ -14,8 +14,28 @@ import { StockEmptyCard, StockErrorCard, SkeletonRows, TableRowSkeleton } from '
 import { useLoader } from '../../_shared/hooks/use-async';
 import { dayMonth, kes, qty as fmtQty } from '../lib/format';
 import { usePurchasing } from '../hooks/use-purchasing';
-import type { NeedsLine, NeedsRestocking } from '../types';
+import type { CatalogItem, NeedsLine, NeedsRestocking } from '../types';
 import { DotLabel, SegmentedToggle, thClass } from './parts';
+
+/** An item from the supplier's catalog that the manager ticked and gave a quantity (not low, so not on the needs list). */
+interface Pick {
+  supplierId: string;
+  item: CatalogItem;
+}
+
+/** How many extras show before "Show N more" (Paper board 2). */
+const EXTRAS_SHOWN = 3;
+
+/**
+ * The supplier's other items (Paper board 2): loads the catalog while the switch is on or a search is typed, and hands the items that are not
+ * already on the list to `children`. It owns the fetch so the tab's own hooks stay above its early returns.
+ */
+function CatalogExtras({ supplierId, enabled, query, excludeIds, children }: { supplierId: string; enabled: boolean; query: string; excludeIds: Set<string>; children: (items: CatalogItem[], loading: boolean) => React.ReactNode }) {
+  const { service } = usePurchasing();
+  const { data, status } = useLoader<{ items: CatalogItem[] }>(enabled ? `catalog:${supplierId}:${query}` : null, () => service.getCatalog({ supplierId, q: query || undefined, filter: 'all' }), 'We could not load this supplier’s catalog.');
+  const items = (data?.items ?? []).filter((i) => !excludeIds.has(i.inventoryItemId));
+  return <>{enabled ? children(items, status === 'loading' || status === 'idle') : null}</>;
+}
 
 /**
  * Tab 1: what is low or out, grouped by supplier (Paper `01`) or listed by item (`02`). Tick lines, change who to buy from
@@ -55,6 +75,11 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [busy, setBusy] = React.useState(false);
   const [activeKey, setActiveKey] = React.useState<string | null>(null);
+  const [fullCatalog, setFullCatalog] = React.useState(false);
+  const [showAllExtras, setShowAllExtras] = React.useState(false);
+  const [paneSearch, setPaneSearch] = React.useState('');
+  const [picks, setPicks] = React.useState<Record<string, Pick>>({});
+  const [extraQty, setExtraQty] = React.useState<Record<string, string>>({});
 
   const { data, status, error, reload } = useLoader<NeedsRestocking>(ready ? 'needs' : null,() => service.getNeedsRestocking({}), 'We could not load what needs restocking.');
   const reloadRef = React.useRef(reload);
@@ -134,7 +159,30 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
   const groupList = Array.from(groups.entries()).sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : (supplierMeta(a)?.name ?? '').localeCompare(supplierMeta(b)?.name ?? '')));
 
   const active = groupList.find(([k]) => k === activeKey) ?? groupList[0];
-  const selectedRows = rows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r));
+  // Extras are catalog items the manager picked from a supplier's other items; they join the order like any ticked line.
+  const extraRows: Row[] = Object.values(picks).map(({ supplierId, item }): Row => {
+    const q = Number.parseFloat(extraQty[item.inventoryItemId] ?? '') || 0;
+    const parsed = Number.parseFloat(item.price);
+    const price = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    const line: NeedsLine = {
+      inventoryItemId: item.inventoryItemId,
+      itemName: item.itemName,
+      subLabel: item.category,
+      status: item.status === 'OUT' ? 'OUT' : 'LOW',
+      onHand: item.onHand,
+      level: item.level,
+      usageUnit: item.soldAs,
+      supplierOptions: [],
+      chosenSupplierId: supplierId,
+      suggestedQty: null,
+      buyUnit: item.buyUnit,
+      lastPrice: item.price,
+      estimatedTotal: null,
+    };
+    return { line, supplierId, qty: q, price, hasLine: true, total: price === null ? null : price * q };
+  });
+  const tickedExtras = extraRows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r));
+  const selectedRows = [...rows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r)), ...tickedExtras];
   const selectedSuppliers = new Set(selectedRows.map((r) => r.supplierId));
   const selectedTotal = selectedRows.reduce((t, r) => t + (r.total ?? 0), 0);
 
@@ -276,6 +324,65 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
     );
   };
 
+  /** One of the supplier's other items (Paper board 2): unticked, no suggestion, empty quantity; a quantity ticks it. */
+  const renderExtraRow = (item: CatalogItem, sid: string) => {
+    const id = item.inventoryItemId;
+    const q = extraQty[id] ?? '';
+    const parsed = Number.parseFloat(item.price);
+    const priced = Number.isFinite(parsed) && parsed > 0;
+    const n = Number.parseFloat(q) || 0;
+    const setQ = (text: string): void => {
+      const v = text.replace(/[^0-9.]/g, '');
+      setExtraQty((prev) => ({ ...prev, [id]: v }));
+      setPicks((prev) => (prev[id] ? prev : { ...prev, [id]: { supplierId: sid, item } }));
+      const on = (Number.parseFloat(v) || 0) > 0;
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (on) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    };
+    const stock = item.onHand !== undefined ? ` · On hand ${fmtQty(item.onHand)}${item.level !== undefined && Number.parseFloat(item.level) > 0 ? ` · Restock level ${fmtQty(item.level)}` : ''}` : '';
+    return (
+      <div key={id} className="flex min-h-[52px] shrink-0 items-center gap-4 border-b border-wds-neutral-100 px-3 py-[9px]">
+        <span className="flex w-5 shrink-0 items-center">
+          <Checkbox
+            checked={selected.has(id) && n > 0}
+            disabled={!priced || n <= 0}
+            onCheckedChange={() => toggle(id)}
+            aria-label={`Select ${item.itemName}`}
+          />
+        </span>
+        <div className="flex min-w-[200px] grow basis-0 flex-col gap-0.5">
+          <span className="truncate font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">{item.itemName}</span>
+          <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">
+            <span className={item.status === 'OUT' ? 'text-wds-error-fg' : item.status === 'LOW' ? 'text-wds-warning-fg' : 'text-wds-success-fg'}>{item.status === 'OUT' ? 'Out' : item.status === 'LOW' ? 'Low' : 'Fine for now'}</span>
+            {stock}
+            {!priced && showPrices ? ' · No price set for this supplier' : ''}
+          </span>
+        </div>
+        <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">—</span>
+        <div className="w-[120px] shrink-0">
+          <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+            <input
+              inputMode="decimal"
+              value={q}
+              placeholder="—"
+              disabled={!priced}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label={`Order quantity for ${item.itemName}`}
+              className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
+            />
+            <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{item.buyUnit}</span>
+          </label>
+        </div>
+        {showPrices ? <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{priced ? kes(parsed) : '—'}</span> : null}
+        {showPrices ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{priced && n > 0 ? kes(parsed * n) : '—'}</span> : null}
+      </div>
+    );
+  };
+
   const renderRow = (r: Row) => {
     const { line } = r;
     const id = line.inventoryItemId;
@@ -404,7 +511,8 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
               const on = sid === (active?.[0] ?? '');
               const outCount = rs.filter((r) => r.line.status === 'OUT').length;
               const priced = rs.every((r) => r.total !== null);
-              const total = rs.reduce((t, r) => t + (r.total ?? 0), 0);
+              const extras = tickedExtras.filter((r) => r.supplierId === sid);
+              const total = rs.reduce((t, r) => t + (r.total ?? 0), 0) + extras.reduce((t, r) => t + (r.total ?? 0), 0);
               return (
                 <button
                   key={sid || 'none'}
@@ -425,7 +533,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                     {showPrices ? <span className={cn('font-wds-mono text-wds-body-sm', none || !priced ? 'text-wds-text-faint' : 'text-wds-neutral-950')}>{none ? '·' : priced ? kes(total) : '—'}</span> : null}
                   </span>
                   <span className="flex justify-between pl-4 font-wds-sans text-wds-caption text-wds-text-muted">
-                    <span>{plural(rs.length, 'item')}{none ? ' · choose who to buy from' : showPrices && !priced ? ' · no price yet' : ''}</span>
+                    <span>{plural(rs.length + extras.length, 'item')}{none ? ' · choose who to buy from' : showPrices && !priced ? ' · no price yet' : ''}</span>
                     {outCount > 0 ? <span className="text-wds-error-fg">{outCount} out</span> : null}
                   </span>
                 </button>
@@ -445,15 +553,18 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                 const [sid, rs] = active;
                 const none = sid === '';
                 const meta = supplierMeta(sid || null);
-                const ready = rs.filter((r) => orderable(r) && selected.has(r.line.inventoryItemId));
-                const groupTotal = rs.reduce((t, r) => t + (r.total ?? 0), 0);
+                const extras = tickedExtras.filter((r) => r.supplierId === sid);
+                const ready = [...rs.filter((r) => orderable(r) && selected.has(r.line.inventoryItemId)), ...extras];
+                const groupTotal = rs.reduce((t, r) => t + (r.total ?? 0), 0) + extras.reduce((t, r) => t + (r.total ?? 0), 0);
+                const catalogOn = !none && (fullCatalog || paneSearch.trim() !== '');
+                const lowIds = new Set(rows.map((r) => r.line.inventoryItemId));
                 return (
                   <>
                     <div className="flex items-end justify-between gap-4 border-b border-wds-border px-3 pb-3.5 pt-4">
                       <div className="flex min-w-0 flex-col gap-[3px]">
                         <h2 className="truncate font-wds-sans text-[20px] font-semibold leading-[26px] tracking-tight text-wds-neutral-950">{none ? 'No supplier yet' : meta?.name}</h2>
                         <p className="font-wds-sans text-wds-caption text-wds-text-muted">
-                          {none ? 'Choose who to buy these from, then they join that supplier’s order.' : [plural(rs.length, 'item'), meta?.termsLabel, meta?.code].filter(Boolean).join(' · ')}
+                          {none ? 'Choose who to buy these from, then they join that supplier’s order.' : [plural(rs.length + extras.length, 'item'), meta?.termsLabel, meta?.code].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       {!none ? (
@@ -467,6 +578,30 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                         </div>
                       ) : null}
                     </div>
+                    {canOrder && !none ? (
+                      <div className="flex items-center gap-4 border-b border-wds-border px-3 py-2.5">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={fullCatalog}
+                          onClick={() => setFullCatalog((v) => !v)}
+                          className="flex items-center gap-2 font-wds-sans text-wds-body-sm text-wds-neutral-950 outline-none focus-visible:shadow-wds-ring"
+                        >
+                          <span className={cn('flex h-4 w-7 shrink-0 items-center rounded-full border-[1.5px] bg-wds-surface px-px transition-colors', fullCatalog ? 'justify-end border-wds-select-blue' : 'justify-start border-wds-border-strong')} aria-hidden>
+                            <span className={cn('size-2.5 rounded-full', fullCatalog ? 'bg-wds-select-blue' : 'bg-wds-border-strong')} />
+                          </span>
+                          Show full catalog
+                        </button>
+                        <SearchInput
+                          value={paneSearch}
+                          onChange={(e) => setPaneSearch(e.target.value)}
+                          placeholder={`Search ${(meta?.name ?? 'the supplier').split(' ')[0]}’s catalog`}
+                          aria-label="Search this supplier’s catalog"
+                          shortcutHint=""
+                          className="ml-auto w-[240px]"
+                        />
+                      </div>
+                    ) : null}
                     <div className="flex h-[30px] shrink-0 items-center gap-4 border-b border-wds-neutral-950 px-3">
                       <span className="w-5 shrink-0" />
                       <span className={cn(thClass, 'min-w-[200px] grow basis-0')}>Item</span>
@@ -476,6 +611,31 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                       {showPrices ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Est. (KES)</span> : null}
                     </div>
                     {rs.map((r) => renderPaneRow(r, none))}
+                    {canOrder && !none ? (
+                      <CatalogExtras supplierId={sid} enabled={catalogOn} query={paneSearch.trim()} excludeIds={lowIds}>
+                        {(items, loading) => {
+                          const shownItems = showAllExtras ? items : items.slice(0, EXTRAS_SHOWN);
+                          return (
+                            <>
+                              <div className="flex flex-col gap-0.5 border-b border-wds-border bg-wds-neutral-50 px-3 py-2.5">
+                                <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-muted">
+                                  Also from {(meta?.name ?? '').split(' ')[0]}{loading ? '' : ` · ${items.length}`}
+                                </span>
+                                <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">Not low. Tick one and set a quantity to add it.</span>
+                              </div>
+                              {loading ? <SkeletonRows count={3} label="Loading the catalog">{(i) => <TableRowSkeleton key={i} />}</SkeletonRows> : null}
+                              {!loading && items.length === 0 ? <p className="px-3 py-4 font-wds-sans text-wds-caption text-wds-text-secondary">{paneSearch.trim() ? 'Nothing in this catalog matches.' : 'Nothing else is sold by this supplier.'}</p> : null}
+                              {shownItems.map((i) => renderExtraRow(i, sid))}
+                              {items.length > EXTRAS_SHOWN ? (
+                                <button type="button" onClick={() => setShowAllExtras((v) => !v)} className="flex h-10 items-center border-b border-wds-neutral-100 px-3 text-left font-wds-sans text-wds-caption text-wds-caramel-600 outline-none hover:underline focus-visible:shadow-wds-ring">
+                                  {showAllExtras ? 'Show fewer' : `Show ${items.length - EXTRAS_SHOWN} more`}
+                                </button>
+                              ) : null}
+                            </>
+                          );
+                        }}
+                      </CatalogExtras>
+                    ) : null}
                   </>
                 );
               })()}

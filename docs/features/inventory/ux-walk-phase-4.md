@@ -35,6 +35,7 @@ Branch `feat/ux-phase-4`, lane 6. Walked as Store Attendant (phone, 390 wide) an
 | 25 | Manager desktop lists | "Peter Mwangi (Store Attendant)" uses the bracket form, not Name.Role | One helper across the desktop lists | done for the Purchasing desktop lists, order page and approve drawer |
 | 26 | Sent order | No expected date is set when the Attendant sends an order | Pre-fill from the supplier's lead time | later: needs a lead-time field (back end) |
 | 27 | Returned order | Per-line "asked for a change" flag; some pushes not on Paper's map | Known, not built (owner ruling) | skipped |
+| 28 | Needs restocking (desktop and phone) | Only a supplier's low or out items can be ordered from the list; other items from the same supplier meant starting a New order | "Show full catalog" switch (off by default) with in-pane search on desktop; "More from <Supplier>" row on the phone's By supplier view. Extras start unticked with no quantity; a quantity adds them to the order | done (owner approved Paper boards 2 and 3, 12 Oct); no back-end change; items with no price for that supplier cannot be added |
 
 **Not walked:** Search (28E), Supplier page (28M) and the date-range sheet were walked in Block 6 and not changed; Share PDF and WhatsApp/Call links open other apps; Director and Accountant desktop pages in the browser; "A staff member" picker and "Someone else" were not re-tried this round (the carrier option was).
 
