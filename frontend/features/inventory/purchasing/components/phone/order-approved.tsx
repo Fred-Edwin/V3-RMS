@@ -131,6 +131,7 @@ export function ApprovedOrder({ order }: { order: PurchaseFile }) {
       bar={
         <PhoneBar>
           {send.failure ? <WriteError>{send.failure.message}</WriteError> : null}
+          {!ready && order.can.send ? <p className="text-center font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Choose who is getting it to mark this as sent.</p> : null}
           <PrimaryButton onClick={() => void onSend()} disabled={!ready || send.saving || !order.can.send} aria-busy={send.saving}>
             {send.saving ? 'Marking as sent…' : 'Mark as sent'}
           </PrimaryButton>

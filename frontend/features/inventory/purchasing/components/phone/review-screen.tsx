@@ -21,7 +21,7 @@ const RAISING: TrackerItem[] = STEPS.map((step, i) => ({ step, state: i === 0 ? 
 
 type Outcome = { kind: 'sent' } | { kind: 'failed'; message: string };
 
-function GroupCard({ group, outcome }: { group: ReviewGroup; outcome?: Outcome }) {
+function GroupCard({ group, outcome, approver }: { group: ReviewGroup; outcome?: Outcome; approver: Parameters<typeof withRole>[0] }) {
   const blocked = group.problem !== null;
   return (
     <li>
@@ -33,7 +33,7 @@ function GroupCard({ group, outcome }: { group: ReviewGroup; outcome?: Outcome }
               ORDER {group.orderNumber} · {plural(group.itemCount, 'ITEM')}
             </p>
           </div>
-          <p className="shrink-0 font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kes(group.estimatedTotal)}</p>
+          <p className="shrink-0 font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{Number.parseFloat(group.estimatedTotal || '0') > 0 ? kes(group.estimatedTotal) : '—'}</p>
         </div>
         <ul>
           {group.lines.map((l) => (
@@ -55,7 +55,7 @@ function GroupCard({ group, outcome }: { group: ReviewGroup; outcome?: Outcome }
                 </Link>
               </>
             ) : (
-              <>Some of these items are not set up to buy from {group.supplier.name} yet, so this one is not sent.</>
+              <>Some of these items are not set up to buy from {group.supplier.name} yet (a price is missing), so this one is not sent. Ask {withRole(approver)} to finish the setup in Catalog.</>
             )}
           </div>
         ) : null}
@@ -78,6 +78,8 @@ export function ReviewScreen() {
   const addToast = useWdsToastStore((s) => s.addToast);
   const [note, setNote] = React.useState('');
   const [outcomes, setOutcomes] = React.useState<Record<string, Outcome>>({});
+  // After a full send the list is emptied a moment before My orders opens; this keeps the screen from flashing "0 items" or an empty list.
+  const [leaving, setLeaving] = React.useState(false);
   const wire = React.useMemo(() => list.lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: l.qty, ...(l.supplierId ? { supplierId: l.supplierId } : {}) })), [list.lines]);
   const key = wire.length === 0 ? null : `review:${wire.map((l) => `${l.inventoryItemId}:${l.qty}:${l.supplierId ?? ''}`).join(',')}`;
   const { data, status, error, reload, service } = useAttendantData(key, (s) => s.reviewRestockList(wire), 'We could not review your list.');
@@ -99,6 +101,7 @@ export function ReviewScreen() {
     // Fully sent: the list is done. Partly sent: the list stays whole so every card keeps its own result ("Sent", or the server's words)
     // and a second tap only sends the suppliers that are not sent yet.
     if (result.failed.length === 0) {
+      setLeaving(true);
       list.clear();
       addToast({ variant: 'success', title: `${plural(result.sent.length, 'order')} sent to ${withRole(data.approver)}`, description: 'They will tell you as soon as it is decided.' });
       router.replace(`${PURCHASING}/my-orders`);
@@ -107,13 +110,22 @@ export function ReviewScreen() {
 
   return (
     <PhoneScreen
-      header={<B2Header title="Review your list" subtitle={`${plural(list.count, 'item')} · each supplier gets its own order`} leading="back" onBack={back} place="HUB" />}
+      header={<B2Header title="Review your list" subtitle={
+        leaving
+          ? 'Sent for approval'
+          : data
+            ? `${plural(sendable.reduce((n, g) => n + g.itemCount, 0), 'item')} to send · each supplier gets its own order`
+            : `${plural(list.count, 'item')} · each supplier gets its own order`
+      } leading="back" onBack={back} place="HUB" />}
       bar={
         data && data.groups.length > 0 ? (
           <PhoneBar gap={10}>
             <div className="flex items-center justify-between gap-3">
               <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{plural(sendable.length, 'order')} · estimated total</p>
-              <p className="font-wds-mono text-[16px] leading-5 text-wds-text-ink">KES {kes(sendable.reduce((sum, g) => sum + Number.parseFloat(g.estimatedTotal || '0'), 0))}</p>
+              <p className="font-wds-mono text-[16px] leading-5 text-wds-text-ink">{(() => {
+                  const sum = sendable.reduce((s, g) => s + Number.parseFloat(g.estimatedTotal || '0'), 0);
+                  return sum > 0 ? `KES ${kes(sum)}` : '—';
+                })()}</p>
             </div>
             <PrimaryButton onClick={() => void onSend()} disabled={sendable.length === 0 || send.saving} aria-busy={send.saving}>
               {send.saving ? 'Sending…' : 'Send for approval'}
@@ -123,7 +135,9 @@ export function ReviewScreen() {
       }
     >
       <CompactTracker tracker={RAISING} strip />
-      {list.count === 0 && Object.keys(outcomes).length === 0 ? (
+      {leaving ? (
+        <div className="min-h-[200px]" />
+      ) : list.count === 0 && Object.keys(outcomes).length === 0 ? (
         <PhoneEmpty title="Nothing on your list" line="Add the items you want to restock first." action={{ label: 'Build restock list', href: `${PURCHASING}/restock` }} />
       ) : status === 'loading' || status === 'idle' ? (
         <PhoneLoading rows={2} card label="Reviewing your list" />
@@ -143,7 +157,7 @@ export function ReviewScreen() {
               ) : null}
               <ul className="flex flex-col gap-3.5">
                 {data.groups.map((g) => (
-                  <GroupCard key={g.supplier.id} group={g} outcome={outcomes[g.supplier.id]} />
+                  <GroupCard key={g.supplier.id} group={g} outcome={outcomes[g.supplier.id]} approver={data.approver} />
                 ))}
               </ul>
               {data.groups.length > 0 ? (

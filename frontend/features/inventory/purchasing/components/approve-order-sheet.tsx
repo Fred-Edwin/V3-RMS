@@ -14,6 +14,7 @@ import { kes, kes2, qty as fmtQty, whenLabel } from '../lib/format';
 import type { OrderLine } from '../types';
 import { CompactTracker } from './compact-tracker';
 import { PinDialog } from './pin-dialog';
+import { withRole } from './phone/phone-kit';
 import { FieldLabel } from './parts';
 
 /** "▲ 4% on the last order" when the price is above what we paid last time; nothing when it is the same or new. */
@@ -151,7 +152,7 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
               {order?.reference ? <span className="font-wds-mono text-wds-caption font-normal text-wds-text-secondary">{order.reference}</span> : null}
             </SheetTitle>
             <SheetDescription className="font-wds-sans text-wds-caption text-wds-text-secondary">
-              {order ? `${narrow ? `${order.supplier.name} · ` : ''}Raised by ${order.raisedBy.role} · ${whenLabel(order.submittedAt)}` : 'Loading the order…'}
+              {order ? `${narrow ? `${order.supplier.name} · ` : ''}Raised by ${withRole(order.raisedBy)} · ${whenLabel(order.submittedAt)}` : 'Loading the order…'}
             </SheetDescription>
           </SheetHeader>
           <div className="flex min-h-0 grow flex-col gap-5 overflow-y-auto px-wds-6 py-wds-5">{body}</div>

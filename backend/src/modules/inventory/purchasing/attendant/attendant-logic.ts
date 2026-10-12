@@ -31,7 +31,7 @@ const DAY_MS = 86_400_000;
 
 const kes0 = (v: Prisma.Decimal.Value): string => Math.round(Number(v)).toLocaleString('en-US');
 /** Name.Role ("Joseph.Store Manager"), the owner's form of 11 Oct 2026. */
-const withRole = (p: { name: string; role: string }): string => `${p.name}.${roleLabel(p.role)}`;
+const withRole = (p: { name: string; role: string }): string => `${p.name.replace(/\s*\([^)]*\)\s*$/, '')}.${roleLabel(p.role)}`;
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---------------------------------------------------------------- My orders

@@ -84,9 +84,12 @@ export function HomeScreen() {
                 </div>
                 {data.myOrders.rows.length > 0 ? (
                   <ul className="flex flex-col gap-2.5">
-                    {data.myOrders.rows.map((o) => (
-                      <MyOrderCard key={o.id} order={o} approver={data.approver} />
-                    ))}
+                    {/* An order that needs me already sits in "Needs you now" above; showing it twice is noise. */}
+                    {data.myOrders.rows
+                      .filter((o) => !data.needsYou.some((n) => n.id === o.id))
+                      .map((o) => (
+                        <MyOrderCard key={o.id} order={o} approver={data.approver} />
+                      ))}
                   </ul>
                 ) : (
                   <Card>

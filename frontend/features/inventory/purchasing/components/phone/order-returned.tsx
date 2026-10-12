@@ -11,7 +11,7 @@ import type { PurchaseFile } from '../../types';
 import { PURCHASING } from './order-cards';
 import { OrderFrame, WithdrawDialog, useFailureToast } from './order-parts';
 import { AddOrStepper } from './restock-list-screen';
-import { Banner, DangerTextAction, ItemsCard, Label, PhoneBar, PrimaryButton, WriteError, roleText, timeHmm, withRole } from './phone-kit';
+import { Banner, DangerTextAction, ItemsCard, Label, PhoneBar, PrimaryButton, WriteError, dayAndTime, roleText, withRole } from './phone-kit';
 
 /** 28H: sent back (or still a draft). Fix the quantities, reply if you want to, send it for approval again, or withdraw it. */
 export function ReturnedOrder({ order }: { order: PurchaseFile }) {
@@ -67,7 +67,7 @@ export function ReturnedOrder({ order }: { order: PurchaseFile }) {
       }
     >
       {order.status === 'RETURNED' ? (
-        <Banner tone="warning" small title={`${withRole(returner)} sent this back${returned ? ` · ${timeHmm(returned.at)}` : ''}`}>
+        <Banner tone="warning" small title={`${withRole(returner)} sent this back${returned ? ` · ${dayAndTime(returned.at)}` : ''}`}>
           {order.returnedNote ? `“${order.returnedNote}”` : 'Look at the quantities, change what is needed, and send it again.'}
         </Banner>
       ) : null}
