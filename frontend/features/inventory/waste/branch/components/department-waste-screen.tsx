@@ -120,7 +120,8 @@ export function DepartmentWasteScreen() {
       </>
     );
   } else if (data.rows.length === 0) {
-    body = <ScwStatePanel kind="empty" phone text={BRANCH_WASTE_STATES_COPY.department.empty} actionLabel="Log waste" onAction={() => router.push(`${WASTE}/new`)} />;
+    // The foot button already logs waste: one way to do one thing.
+    body = <ScwStatePanel kind="empty" phone text={BRANCH_WASTE_STATES_COPY.department.empty} />;
   } else {
     body = (
       <>
@@ -136,7 +137,9 @@ export function DepartmentWasteScreen() {
             </ul>
           </section>
         ))}
-        <p className="w-[320px] max-w-full border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
+        {me?.isDepartmentHead ? null : (
+          <p className="w-full border border-wds-info-border bg-wds-info-bg px-3 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-info-fg">{BRANCH_WASTE_MESSAGES.departmentNote}</p>
+        )}
       </>
     );
   }
@@ -161,12 +164,13 @@ export function DepartmentWasteScreen() {
             buttonClassName={`h-[34px] max-sm:h-[34px] rounded-none px-3 font-wds-sans text-[13px] leading-4 ${PHONE_FILTER_HIT}`}
           />
         </div>
-        {justLogged && data?.bannerText ? (
+        {/* One visible result at a time: the latest reverse replaces the "logged" banner. */}
+        {notice || (justLogged && data?.bannerText) ? (
           <div role="status" className="flex items-center gap-2.5 border border-wds-success-border bg-wds-success-bg px-3.5 py-3">
             <svg width="16" height="16" viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
               <path d="M5 12l5 5 9-10" fill="none" stroke="var(--wds-success-fg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-success-fg">{data.bannerText}</p>
+            <p className="font-wds-sans text-[13px] leading-[18px] text-wds-success-fg">{notice || data?.bannerText}</p>
           </div>
         ) : null}
         {body}
@@ -174,9 +178,6 @@ export function DepartmentWasteScreen() {
         {data && data.page.total > PAGE_SIZE ? (
           <PagerBar page={page} pageSize={PAGE_SIZE} total={data.page.total} shown={data.rows.length} onPage={(p) => setQuery({ page: p === 1 ? null : String(p) })} noun="entries" />
         ) : null}
-        <p role="status" aria-live="polite" className="sr-only">
-          {notice}
-        </p>
       </div>
       <div className="shrink-0 px-4 pb-5 pt-2">
         <Link href={`${WASTE}/new`} className={cn(PHONE_PRIMARY_BUTTON_TOKEN, 'h-[50px] w-full text-[16px] leading-5')}>

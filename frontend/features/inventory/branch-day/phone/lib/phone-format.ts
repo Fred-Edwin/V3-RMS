@@ -28,6 +28,11 @@ export const signedText = (difference: string): string => {
 };
 
 /** The signer's title as Paper words it: "Barista Department Head", or "Barista Member" for a member (spec gap G33). */
-export const signedByText = (department: string, isHead: boolean): string => `${department} ${isHead ? 'Department Head' : 'Member'}`;
+export const signedByText = (department: string, isHead: boolean, name?: string): string => {
+  const role = `${department} ${isHead ? 'Department Head' : 'Member'}`;
+  // "Grace Njoki.Barista Member": the person, then the role (a bracketed suffix on a name is dropped).
+  const person = name?.replace(/\s*\(.*$/, '').trim();
+  return person ? `${person}.${role}` : role;
+};
 
 export const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;

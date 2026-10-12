@@ -114,24 +114,24 @@ export function ReverseEntryDialog({ entry, onClose, onDone, onStale, fallbackFo
           Why? · required
         </DialogLabel>
         <ChoiceChips name="reverse-reason" label="Why" tone="ink" options={WASTE_REVERSAL_REASONS} value={reason} onChange={setReason} labelOf={reasonLabel} disabled={busy} />
-        {reason === 'OTHER' ? (
-          <>
-            <label htmlFor="reverse-note" className="sr-only">
-              Add a note
-            </label>
-            <input
-              id="reverse-note"
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={300}
-              placeholder="Add a note"
-              aria-required
-              disabled={busy}
-              className="h-[34px] w-full border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none placeholder:text-[#8D8982] focus:border-wds-selected-edge focus-visible:shadow-wds-ring"
-            />
-          </>
-        ) : null}
+        {/* The note's space is always held, so choosing "Other" does not make the dialog grow. */}
+        <div className={reason === 'OTHER' ? undefined : 'invisible'} aria-hidden={reason === 'OTHER' ? undefined : true}>
+          <label htmlFor="reverse-note" className="sr-only">
+            Add a note
+          </label>
+          <input
+            id="reverse-note"
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={300}
+            placeholder="Add a note"
+            aria-required
+            tabIndex={reason === 'OTHER' ? 0 : -1}
+            disabled={busy || reason !== 'OTHER'}
+            className="h-[34px] w-full border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none placeholder:text-[#8D8982] focus:border-wds-selected-edge focus-visible:shadow-wds-ring"
+          />
+        </div>
       </div>
     </DecisionDialog>
   );

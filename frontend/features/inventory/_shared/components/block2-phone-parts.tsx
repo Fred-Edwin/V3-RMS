@@ -370,8 +370,13 @@ export function PinField({ id, value, onChange, onSubmit, onComplete, error, dis
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
   }, [error, disabled, id]);
+  // The sticky footer on a phone covers the foot of the page: keep the box and its error line above it.
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    wrapRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [error]);
   return (
-    <div className="flex flex-col gap-1.5">
+    <div ref={wrapRef} className="flex scroll-mb-40 flex-col gap-1.5">
       <label htmlFor={id} className={cn('font-wds-mono uppercase tracking-[0.06em] text-wds-text-secondary', paper ? 'text-[10px] leading-3' : 'text-[11px] leading-[14px]')}>
         {label}
       </label>

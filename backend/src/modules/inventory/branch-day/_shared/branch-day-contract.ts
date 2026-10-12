@@ -268,6 +268,8 @@ export const openingLineSchema = z.object({
   itemId: uuid,
   itemName: z.string(),
   unit: z.string(),
+  /** The top-level category, then its sub-category; empty when the item has none. Lines arrive grouped by it. */
+  categoryPath: z.array(z.string()),
   /** Last night's signed closing figure (as corrected). */
   lastNightQty: nonNegativeDecimal,
   /** What was accepted or recounted; null until the opening is checked. */

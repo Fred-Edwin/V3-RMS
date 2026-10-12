@@ -190,6 +190,7 @@ export interface OpeningLine {
   itemId: string;
   itemName: string;
   unit: string;
+  categoryPath: string[];
   lastNightQty: string;
   acceptedQty: string | null;
 }

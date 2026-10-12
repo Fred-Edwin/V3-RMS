@@ -26,7 +26,7 @@ const entriesText = (n: number): string => `${n} ${n === 1 ? 'entry' : 'entries'
 
 /** "Grace W.": first name and the initial of the last. */
 export const shortName = (name: string): string => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const parts = name.replace(/\s*\(.*$/, '').trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return parts[0] ?? '';
   return `${parts[0]} ${parts[parts.length - 1]!.charAt(0).toUpperCase()}.`;
 };

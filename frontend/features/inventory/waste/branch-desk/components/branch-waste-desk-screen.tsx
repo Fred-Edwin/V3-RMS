@@ -135,7 +135,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
               align: 'right',
               className: mid,
               headClassName: head,
-              cell: (e: BranchWasteEntry) => <span className={cn('font-wds-mono text-[13px] leading-4', ink(e))}>{e.valueKes === undefined ? '' : quiet(e) ? '0' : signedMoney(e.valueKes)}</span>,
+              cell: (e: BranchWasteEntry) => <span className={cn('font-wds-mono text-[13px] leading-4', ink(e))}>{e.valueKes === undefined ? '' : quiet(e) ? '—' : signedMoney(e.valueKes)}</span>,
             },
           ] as TableColumn<BranchWasteEntry>[])
         : []),
@@ -158,7 +158,7 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
                 ev.stopPropagation();
                 setReversing(e);
               }}
-              className="relative -mr-2 h-8 px-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary outline-none transition-[background-color,color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-surface-sunken [@media(hover:hover)]:hover:text-wds-text-ink"
+              className="relative h-8 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[12px] leading-4 text-wds-text-ink outline-none transition-[background-color,color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-neutral-50"
             >
               Reverse<span className="sr-only"> {e.itemName}, {quantityLabel(e.quantity, e.unit)}</span>
             </button>
@@ -260,7 +260,14 @@ function BranchWasteDesk({ everyBranch, seesMoney }: { everyBranch: boolean; see
           useWdsToastStore.getState().addToast({ variant: 'success', title: 'Entry reversed', description: `${done.itemName} · the stock went back.` });
         }}
       />
-      <EntryDrawer entryId={opened} onClose={() => setOpened(null)} />
+      <EntryDrawer
+        entryId={opened}
+        onClose={() => setOpened(null)}
+        onReverse={(e) => {
+          setOpened(null);
+          setReversing(e);
+        }}
+      />
     </div>
   );
 }

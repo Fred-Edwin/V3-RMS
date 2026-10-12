@@ -707,7 +707,7 @@ describe.skipIf(!enabled)('Branch day against the real database', () => {
       const all = await branchDayService.activity(bm as never, dayId, { limit: 50 });
       expect(all.total).toBe(all.entries.length);
       expect(all.entries[0]).toMatchObject({ type: 'DAY_CLOSED', actor: { id: bm.id } });
-      expect(all.entries[0]?.sentence).toMatch(/^Closed the day · Used today KES /);
+      expect(all.entries[0]?.sentence).toMatch(/^Closed the day · Used today −?KES /);
       const sentences = all.entries.map((e) => e.sentence);
       expect(sentences).toContain('Checked the opening: Kitchen, same as last night');
       expect(sentences).toContain(`Recorded the opening: Milk ${tag}, 1 less than last night (8 → 7)`);

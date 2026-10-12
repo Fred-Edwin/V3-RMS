@@ -82,5 +82,18 @@ export function useCountDraft(view: CountView | null) {
     [],
   );
 
+  // Leaving the tab or closing the page sends what is typed now, instead of waiting for the pause.
+  React.useEffect(() => {
+    const onHide = (): void => {
+      if (document.visibilityState === 'hidden') void flush();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, [flush]);
+
   return { typed, setFigure, flush, saveError, saving, ready, savedRef };
 }

@@ -73,6 +73,7 @@ export {
   HistoryScreen as BranchDayHistoryScreen,
   DayFileScreen as BranchDayFileScreen,
   DaySheetPrintScreen as BranchDaySheetPrintScreen,
+  DashboardDayCard as BranchDayDashboardCard,
   useBranchDayBadge,
   refreshBranchDayBadge,
 } from './branch-day/desk';
