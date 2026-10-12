@@ -21,6 +21,7 @@ import { CancelOrderSheet } from '../cancel-order-sheet';
 import { ReversePaymentSheet, SettleDisputeSheet, VoidInvoiceSheet } from '../fix-sheets';
 import { AddInvoiceSheet } from '../invoice-sheet';
 import { thClass } from '../parts';
+import { withRole } from '../phone/phone-kit';
 import { RecordPaymentSheet } from '../payment-sheet';
 import { RecordAdvanceSheet } from '../record-advance-sheet';
 import { SendWhatsappDialog } from '../send-whatsapp-dialog';
@@ -205,8 +206,8 @@ export function PurchaseFileScreen({ orderId }: { orderId: string }) {
               <span className={cn('rounded-[2px] border px-2 py-0.5 font-wds-sans text-[11px] font-medium', chipTone(order))}>{statusLabel(order)}</span>
             </div>
             <p className="font-wds-sans text-wds-body-sm text-wds-text-secondary">
-              {order.reference ?? 'Draft'} · Raised by {order.raisedBy.name}
-              {order.approvedBy ? ` · approved by ${order.approvedBy.name}` : ''}
+              {order.reference ?? 'Draft'} · Raised by {withRole(order.raisedBy)}
+              {order.approvedBy ? ` · approved by ${withRole(order.approvedBy)}` : ''}
               {closed && order.payments.length ? ` · closed ${dayMonth(order.tracker.find((t) => t.step === 'PAID')?.at)}` : ''}
             </p>
           </div>
@@ -609,7 +610,7 @@ export function NextStep({
       break;
     case 'AWAITING_APPROVAL':
       title = order.can.approve ? 'Approve this order' : 'Waiting for the Store Manager to approve';
-      body = order.can.approve ? `Read it through, then approve with your PIN or send it back with a note. Raised by ${order.raisedBy.name}.` : 'The Store Manager approves it with a PIN. There is nothing for you to do until then.';
+      body = order.can.approve ? `Read it through, then approve with your PIN or send it back with a note. Raised by ${withRole(order.raisedBy)}.` : 'The Store Manager approves it with a PIN. There is nothing for you to do until then.';
       actions = order.can.approve ? <Button onClick={onApprove}>Review and approve</Button> : null;
       break;
     case 'RETURNED':

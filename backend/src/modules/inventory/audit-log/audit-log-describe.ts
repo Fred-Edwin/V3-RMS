@@ -132,6 +132,10 @@ export const quantityWithUnit = (quantity: string, unit: string): string => `${t
 export const describeWasteLogged = (itemName: string, quantity: string, unit: string, reasonText: string, valueKes: string): string =>
   `Logged waste · ${itemName} ${quantityWithUnit(quantity, unit)} · ${reasonText} · ${valueKes}`;
 
+/** Branch waste (Paper step 60), no money: "Logged waste · Beef stew 2 kg · Expired". A reversal reads as the Central Store's does. */
+export const describeBranchWasteLogged = (itemName: string, quantity: string, unit: string, reasonText: string): string =>
+  `Logged waste · ${itemName} ${quantityWithUnit(quantity, unit)} · ${reasonText}`;
+
 /** "Reversed waste entry · Milk 6 L · reason: logged the wrong item". The note stands in for the reason when it is Other. */
 export const describeWasteReversed = (itemName: string, quantity: string, unit: string, reasonText: string, note: string | null): string =>
   `Reversed waste entry · ${itemName} ${quantityWithUnit(quantity, unit)} · reason: ${note && reasonText === 'Other' ? note : reasonText.replace(/^./, (c) => c.toLowerCase())}`;

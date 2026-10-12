@@ -24,12 +24,15 @@ model Location {
   siteId        String         @map("organization_id")
   type          LocationType
   departmentTag DepartmentTag? @map("department_tag")
+  /// Id link to the branch's Department row; dual-written with departmentTag until the contract migration (Block 4).
+  departmentId  String?        @map("department_id")
   name          String
   isActive      Boolean        @default(true) @map("is_active")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
   site                 Site                   @relation(fields: [siteId], references: [id])
+  department           Department?            @relation(fields: [departmentId], references: [id])
   transactions         InventoryTransaction[]
   restockLevels        RestockLevel[]
   restockLevelChanges  RestockLevelChange[]
@@ -122,6 +125,7 @@ model InventoryItem {
   prepRecipe             PrepRecipe[]            @relation("PrepRecipeOutput")
   prepRecipeLines        PrepRecipeLine[]        @relation("PrepRecipeInput")
   requisitionLines       RequisitionLine[]
+  departments            ItemDepartment[]
   dispatchLines          DispatchLine[]
   wasteLogs              WasteLog[]
   countLines             CountLine[]

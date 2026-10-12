@@ -2,7 +2,7 @@
  * Purchase orders: database access only. Every query carries `siteId` (the hub; column `organization_id`). Writes take the
  * `tx` of the service's `$transaction` so the change, its number and its audit row commit together.
  */
-import { Prisma, type PurchaseCancelReason, type PurchaseOrderStatus, type PurchaseSendVia, type SupplierStatus } from '@prisma/client';
+import { Prisma, type PurchaseCancelReason, type PurchaseCollectedByKind, type PurchaseOrderStatus, type PurchaseSendVia, type SupplierStatus } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 import { ORDER_INCLUDE, type OrderRecord } from '../_shared/order-record';
 
@@ -75,6 +75,24 @@ export interface Transition {
   cancelNote?: string | null;
   cancelledById?: string;
   cancelledAt?: Date;
+  closedAt?: Date | null;
+  /** "Who is getting it?": all six move together (set, or all null to clear). */
+  collectedByKind?: PurchaseCollectedByKind | null;
+  collectedByCarrierId?: string | null;
+  collectedByUserId?: string | null;
+  collectedByName?: string | null;
+  collectedBySetById?: string | null;
+  collectedBySetAt?: Date | null;
+}
+
+/** What `resolveCollectedBy` hands the repository: the six columns, plus the name for the audit sentence. */
+export interface CollectedByData {
+  collectedByKind: PurchaseCollectedByKind;
+  collectedByCarrierId: string | null;
+  collectedByUserId: string | null;
+  collectedByName: string | null;
+  collectedBySetById: string;
+  collectedBySetAt: Date;
 }
 
 const supplierSelect = {
@@ -101,7 +119,14 @@ export const ordersRepository = {
         ...(filter.supplierId ? { supplierId: filter.supplierId } : {}),
         ...(filter.raisedById ? { raisedById: filter.raisedById } : {}),
         ...(filter.q
-          ? { OR: [{ reference: { contains: filter.q, mode: 'insensitive' as const } }, { supplier: { name: { contains: filter.q, mode: 'insensitive' as const } } }] }
+          ? {
+              // "Search supplier, item or LPO" (Paper 28F): the order number, the supplier, or the name of an item on it.
+              OR: [
+                { reference: { contains: filter.q, mode: 'insensitive' as const } },
+                { supplier: { name: { contains: filter.q, mode: 'insensitive' as const } } },
+                { lines: { some: { inventoryItem: { name: { contains: filter.q, mode: 'insensitive' as const } } } } },
+              ],
+            }
           : {}),
       },
       include: ORDER_INCLUDE,
@@ -174,6 +199,40 @@ export const ordersRepository = {
   transition: async (tx: Tx, siteId: string, id: string, { from, ...data }: Transition): Promise<boolean> => {
     const result = await tx.purchaseOrder.updateMany({ where: { id, siteId, status: { in: [...from] } }, data });
     return result.count === 1;
+  },
+
+  /** A carrier of the hub's Carriers list that is still in use (retired ones cannot be chosen). */
+  findActiveCarrier: (siteId: string, carrierId: string): Promise<{ id: string; name: string } | null> =>
+    prisma.carrier.findFirst({ where: { id: carrierId, siteId, active: true }, select: { id: true, name: true } }),
+
+  /** A staff member of the hub who can still sign in. */
+  findActiveStaff: (siteId: string, userId: string): Promise<{ id: string; name: string; role: string } | null> =>
+    prisma.user.findFirst({ where: { id: userId, siteId, isActive: true, deletedAt: null }, select: { id: true, name: true, role: true } }),
+
+  /** The picker behind "Who is getting it?": active carriers and the hub's staff, each filtered by the typed text. */
+  listCollectors: async (
+    siteId: string,
+    q: string | undefined,
+  ): Promise<{ carriers: Array<{ id: string; name: string; kind: 'PERSON' | 'VEHICLE' | 'COMPANY' }>; staff: Array<{ id: string; name: string; role: string }> }> => {
+    const like = q ? { contains: q, mode: 'insensitive' as const } : undefined;
+    const [carriers, staff] = await Promise.all([
+      prisma.carrier.findMany({ where: { siteId, active: true, ...(like ? { name: like } : {}) }, orderBy: { name: 'asc' }, select: { id: true, name: true, kind: true } }),
+      prisma.user.findMany({ where: { siteId, isActive: true, deletedAt: null, ...(like ? { name: like } : {}) }, orderBy: { name: 'asc' }, take: 50, select: { id: true, name: true, role: true } }),
+    ]);
+    return { carriers, staff };
+  },
+
+  /** Set or clear who is getting an approved or sent order. False when the order had moved on. */
+  setCollectedBy: async (tx: Tx, siteId: string, id: string, data: CollectedByData | null): Promise<boolean> => {
+    const cleared = { collectedByKind: null, collectedByCarrierId: null, collectedByUserId: null, collectedByName: null, collectedBySetById: null, collectedBySetAt: null };
+    const result = await tx.purchaseOrder.updateMany({ where: { id, siteId, status: { in: ['APPROVED', 'SENT'] } }, data: data ?? cleared });
+    return result.count === 1;
+  },
+
+  /** When this order's audit last recorded this action (the reminder throttle). */
+  findLastAuditAt: async (siteId: string, orderId: string, action: string): Promise<Date | null> => {
+    const row = await prisma.purchasingAuditEntry.findFirst({ where: { siteId, orderId, action }, orderBy: { at: 'desc' }, select: { at: true } });
+    return row?.at ?? null;
   },
 
   /** A discarded draft leaves nothing behind: it has no number and nothing was sent. */

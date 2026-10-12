@@ -5,9 +5,11 @@
 ## The flow
 Need → order (LPO) → approval → send → delivery → invoice → payment → closed. One purchase = one **purchase file** (`PurchaseOrder` and everything hanging off it: lines, delivery, invoices, payments, documents, audit rows). Nothing is deleted once an order is submitted: cancel, void and reverse add a linked row with a reason.
 
-## Map of the six folders
+## Map of the eight folders
 | Folder | What it does |
 |---|---|
+| `attendant/` | The Store Attendant's phone reads (Paper 28A to 28Q): home, badges, my orders, history, search, supplier page, restock levels, notifications. Contract: `docs/features/inventory/purchasing-attendant-api.md`. |
+| `restock-list/` | Review the restock list by supplier and send one order per supplier for approval. |
 | `needs-restocking/` | The "we're running low" list grouped by supplier, and the supplier catalog the order form picks from. |
 | `orders/` | List, summary, the purchase file, the LPO print (no prices), WhatsApp text; create, edit, discard, submit, approve, return, send, cancel. |
 | `receiving/` | `POST /orders/:id/receive`: the delivery, the typed price, the PIN, stock through the ledger door, supplier price and item cost. |
@@ -19,7 +21,9 @@ Need → order (LPO) → approval → send → delivery → invoice → payment 
 `purchasing-routes.ts` mounts the six routers under `/inventory/purchasing`. Each router authenticates and gates by capability (`requireCapability`) from `_shared/central-store-access.ts`; never add a `requireRole(...)` list here.
 
 ## Rules that matter
-- **Blind rule:** the Attendant sees item prices and order totals but no invoice, payments or money; `order-view.ts` is the only place that strips them.
+- **Blind rule:** the Attendant sees item prices and order totals but no invoice, payments or money; `order-view.ts` is the only place that strips them. On the Purchasing screens `orders.see_stock` (the Attendant holds it) also shows on hand and the reorder level (owner, 10 Oct 2026).
+- **Who is getting it:** an approved order may say who collects it (supplier delivers, a carrier of the Carriers list, a hub staff member, or a typed name): `collectedBy` on the order, "Sent, collected by ...". A vehicle carries no driver name.
+- **Notices:** pushes for approved, returned, closed, due today, overdue and reminder go through `_shared/purchasing-notify.ts` and the one layer; the Notifications screen is derived from the orders (`attendant/`), not stored. `closed_at` is stamped once when an order closes and cleared if a payment is reversed.
 - **Stock:** receiving posts every line through `postStockMovement` with `purchaseDeliveryLineId`. Never write the ledger directly.
 - **Reference numbers** (`LPO`, `GRN`, `PAY`) come from `../_shared/reference-counter.ts`, gap-free.
 - **PINs:** an order is signed with the user's own PIN; a payment reversal needs a Store Manager or System Admin PIN.

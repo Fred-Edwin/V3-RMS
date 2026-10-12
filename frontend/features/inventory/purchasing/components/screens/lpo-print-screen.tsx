@@ -28,7 +28,7 @@ export function LpoPrintScreen({ orderId }: { orderId: string }) {
           Print
         </button>
       </div>
-      <article className="relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col bg-white px-12 pb-9 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
+      <article className="print-exact relative mx-auto flex min-h-[1123px] w-[794px] max-w-full flex-col bg-white px-12 pb-9 font-wds-sans text-[#111111] shadow-wds-md print:shadow-none">
         <header className="flex items-start justify-between border-b border-[#D5DCE4] pb-[22px] pt-10">
           <div className="flex items-center gap-3">
             <div className="size-[46px] rounded-full bg-cover bg-center" style={{ backgroundImage: 'url(/images/wendo-logo.jpg)' }} aria-hidden />

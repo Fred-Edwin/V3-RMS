@@ -55,6 +55,8 @@ export type CardEntryRow = {
   deliveryReference: string | null;
   prepReference: string | null;
   dispatchLabel: string | null;
+  /** `DSC-…`, through the dispatch line a finding's entries are linked to (one discrepancy per line). */
+  discrepancyReference?: string | null;
   isReversal: boolean;
   originalReference: string | null;
   reversed: boolean;
@@ -83,10 +85,11 @@ const baseCte = (f: LedgerFilter): Prisma.Sql => {
         LEFT JOIN prep_runs pr ON pr.id = x.prep_record_id
         LEFT JOIN dispatch_lines dl ON dl.id = x.dispatch_line_id
         LEFT JOIN dispatches d ON d.id = dl.dispatch_id
+        LEFT JOIN discrepancies disc ON disc.dispatch_line_id = dl.id
         WHERE x.organization_id = ${f.siteId} AND x.location_id = ${f.locationId} AND x.inventory_item_id = i.id
           AND x.created_at >= ${f.start} AND x.created_at < ${f.end}
           AND (x.reference ILIKE ${pattern} OR c.reference ILIKE ${pattern} OR pd.reference ILIKE ${pattern}
-            OR pr.reference ILIKE ${pattern} OR d.sequence_label ILIKE ${pattern})))`
+            OR pr.reference ILIKE ${pattern} OR d.reference ILIKE ${pattern} OR disc.reference ILIKE ${pattern})))`
     : Prisma.empty;
   const section = f.sectionItemIds ? (f.sectionItemIds.length > 0 ? Prisma.sql`AND i.id IN (${Prisma.join(f.sectionItemIds)})` : Prisma.sql`AND FALSE`) : Prisma.empty;
 
@@ -242,7 +245,7 @@ export const historyRepository = {
     return prisma.$queryRaw<CardEntryRow[]>`
       SELECT t.id, t.created_at AS "createdAt", t.type, t.quantity, t.unit_cost AS "unitCost",
         t.reference AS "adjustmentReference", c.reference AS "countReference", pd.reference AS "deliveryReference",
-        pr.reference AS "prepReference", d.sequence_label AS "dispatchLabel",
+        pr.reference AS "prepReference", d.reference AS "dispatchLabel", disc.reference AS "discrepancyReference",
         (t.reverses_transaction_id IS NOT NULL) AS "isReversal", orig.reference AS "originalReference",
         EXISTS (SELECT 1 FROM inventory_transactions r WHERE r.reverses_transaction_id = t.id) AS reversed
       FROM inventory_transactions t
@@ -253,6 +256,7 @@ export const historyRepository = {
       LEFT JOIN prep_runs pr ON pr.id = t.prep_record_id
       LEFT JOIN dispatch_lines dl ON dl.id = t.dispatch_line_id
       LEFT JOIN dispatches d ON d.id = dl.dispatch_id
+      LEFT JOIN discrepancies disc ON disc.dispatch_line_id = dl.id
       LEFT JOIN inventory_transactions orig ON orig.id = t.reverses_transaction_id
       WHERE t.organization_id = ${siteId} AND t.location_id = ${locationId} AND t.inventory_item_id = ${itemId}
         AND t.created_at >= ${start} AND t.created_at < ${end}

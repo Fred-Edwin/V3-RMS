@@ -14,8 +14,28 @@ import { StockEmptyCard, StockErrorCard, SkeletonRows, TableRowSkeleton } from '
 import { useLoader } from '../../_shared/hooks/use-async';
 import { dayMonth, kes, qty as fmtQty } from '../lib/format';
 import { usePurchasing } from '../hooks/use-purchasing';
-import type { NeedsLine, NeedsRestocking } from '../types';
+import type { CatalogItem, NeedsLine, NeedsRestocking } from '../types';
 import { DotLabel, SegmentedToggle, thClass } from './parts';
+
+/** An item from the supplier's catalog that the manager ticked and gave a quantity (not low, so not on the needs list). */
+interface Pick {
+  supplierId: string;
+  item: CatalogItem;
+}
+
+/** How many extras show before "Show N more" (Paper board 2). */
+const EXTRAS_SHOWN = 3;
+
+/**
+ * The supplier's other items (Paper board 2): loads the catalog while the switch is on or a search is typed, and hands the items that are not
+ * already on the list to `children`. It owns the fetch so the tab's own hooks stay above its early returns.
+ */
+function CatalogExtras({ supplierId, enabled, query, excludeIds, children }: { supplierId: string; enabled: boolean; query: string; excludeIds: Set<string>; children: (items: CatalogItem[], loading: boolean) => React.ReactNode }) {
+  const { service } = usePurchasing();
+  const { data, status } = useLoader<{ items: CatalogItem[] }>(enabled ? `catalog:${supplierId}:${query}` : null, () => service.getCatalog({ supplierId, q: query || undefined, filter: 'all' }), 'We could not load this supplier’s catalog.');
+  const items = (data?.items ?? []).filter((i) => !excludeIds.has(i.inventoryItemId));
+  return <>{enabled ? children(items, status === 'loading' || status === 'idle') : null}</>;
+}
 
 /**
  * Tab 1: what is low or out, grouped by supplier (Paper `01`) or listed by item (`02`). Tick lines, change who to buy from
@@ -37,6 +57,8 @@ interface Row {
 
 const COLS = 'gap-3 px-4';
 
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 /** On hand as a share of the restock level, lowest first; a caller blind to stock figures has none, so order ties stay as they came. */
 const coverOf = (l: NeedsLine): number => (l.onHand !== undefined && l.level !== undefined ? Number.parseFloat(l.onHand) / Number.parseFloat(l.level) : 0);
 
@@ -52,6 +74,12 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
   const [overrides, setOverrides] = React.useState<Record<string, Override>>({});
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [busy, setBusy] = React.useState(false);
+  const [activeKey, setActiveKey] = React.useState<string | null>(null);
+  const [fullCatalog, setFullCatalog] = React.useState(false);
+  const [showAllExtras, setShowAllExtras] = React.useState(false);
+  const [paneSearch, setPaneSearch] = React.useState('');
+  const [picks, setPicks] = React.useState<Record<string, Pick>>({});
+  const [extraQty, setExtraQty] = React.useState<Record<string, string>>({});
 
   const { data, status, error, reload } = useLoader<NeedsRestocking>(ready ? 'needs' : null,() => service.getNeedsRestocking({}), 'We could not load what needs restocking.');
   const reloadRef = React.useRef(reload);
@@ -69,12 +97,20 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         const supplierId = ov?.supplierId ?? line.chosenSupplierId;
         const opt = line.supplierOptions.find((o) => o.supplierId === supplierId);
         const q = Number.parseFloat(ov?.qty ?? line.suggestedQty ?? '0') || 0;
-        const price = opt && opt.lastPrice !== '' ? Number.parseFloat(opt.lastPrice) : null;
+        const parsed = opt && opt.lastPrice ? Number.parseFloat(opt.lastPrice) : Number.NaN;
+        const price = Number.isFinite(parsed) ? parsed : null;
         return { line, supplierId, qty: q, price, hasLine: Boolean(opt), total: price === null ? null : price * q };
       });
   }, [data, overrides]);
 
   const orderable = (r: Row): boolean => r.hasLine && r.qty > 0;
+  // Paper `2WUC`: every line that can be ordered starts ticked, once, when the list first arrives.
+  const tickedOnce = React.useRef(false);
+  React.useEffect(() => {
+    if (tickedOnce.current || rows.length === 0) return;
+    tickedOnce.current = true;
+    setSelected(new Set(rows.filter((r) => r.hasLine && r.qty > 0).map((r) => r.line.inventoryItemId)));
+  }, [rows]);
   const setOv = (id: string, patch: Override): void => setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   const toggle = (id: string): void =>
     setSelected((prev) => {
@@ -100,8 +136,12 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
     return <StockEmptyCard title="Nothing needs restocking" description="Every item is at or above its restock level, or already on an open order." />;
   }
 
+  const supplierMeta = (id: string | null) => (id ? data.suppliers.find((s) => s.id === id) : undefined);
+  const needle = search.trim().toLowerCase();
   const visibleRows = rows.filter(
-    (r) => (!search || r.line.itemName.toLowerCase().includes(search.toLowerCase())) && (!supplierFilter || r.supplierId === supplierFilter)
+    (r) =>
+      (!needle || r.line.itemName.toLowerCase().includes(needle) || (supplierMeta(r.supplierId)?.name ?? '').toLowerCase().includes(needle)) &&
+      (!supplierFilter || r.supplierId === supplierFilter)
   );
   const sortedRows =
     view === 'item'
@@ -114,12 +154,35 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         )
       : visibleRows;
 
-  const supplierMeta = (id: string | null) => (id ? data.suppliers.find((s) => s.id === id) : undefined);
   const groups = new Map<string, Row[]>();
   for (const r of sortedRows) groups.set(r.supplierId ?? '', [...(groups.get(r.supplierId ?? '') ?? []), r]);
   const groupList = Array.from(groups.entries()).sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : (supplierMeta(a)?.name ?? '').localeCompare(supplierMeta(b)?.name ?? '')));
 
-  const selectedRows = rows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r));
+  const active = groupList.find(([k]) => k === activeKey) ?? groupList[0];
+  // Extras are catalog items the manager picked from a supplier's other items; they join the order like any ticked line.
+  const extraRows: Row[] = Object.values(picks).map(({ supplierId, item }): Row => {
+    const q = Number.parseFloat(extraQty[item.inventoryItemId] ?? '') || 0;
+    const parsed = Number.parseFloat(item.price);
+    const price = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    const line: NeedsLine = {
+      inventoryItemId: item.inventoryItemId,
+      itemName: item.itemName,
+      subLabel: item.category,
+      status: item.status === 'OUT' ? 'OUT' : 'LOW',
+      onHand: item.onHand,
+      level: item.level,
+      usageUnit: item.soldAs,
+      supplierOptions: [],
+      chosenSupplierId: supplierId,
+      suggestedQty: null,
+      buyUnit: item.buyUnit,
+      lastPrice: item.price,
+      estimatedTotal: null,
+    };
+    return { line, supplierId, qty: q, price, hasLine: true, total: price === null ? null : price * q };
+  });
+  const tickedExtras = extraRows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r));
+  const selectedRows = [...rows.filter((r) => selected.has(r.line.inventoryItemId) && orderable(r)), ...tickedExtras];
   const selectedSuppliers = new Set(selectedRows.map((r) => r.supplierId));
   const selectedTotal = selectedRows.reduce((t, r) => t + (r.total ?? 0), 0);
 
@@ -173,15 +236,159 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
     </div>
   );
 
+  /** The "buy from" choices for one line (Paper `04`): the trigger is passed in, so the dropdown and the "Change supplier" link share one menu. */
+  const supplierMenu = (line: NeedsLine, trigger: React.ReactNode) => {
+    const id = line.inventoryItemId;
+    const choices = line.supplierOptions.length
+      ? line.supplierOptions.map((o) => ({ id: o.supplierId, name: o.name, price: o.lastPrice, last: o.lastBoughtAt, preferred: o.preferred, cheaperBy: o.cheaperBy }))
+      : data.suppliers.map((s) => ({ id: s.id, name: s.name, price: '', last: null, preferred: false, cheaperBy: null }));
+    return (
+      <DropdownMenu>
+        {trigger}
+        <DropdownMenuContent align="start" className="w-[280px] p-0">
+          {choices.map((c) => (
+            <DropdownMenuItem
+              key={c.id}
+              onSelect={() => setOv(id, { supplierId: c.id })}
+              className="flex items-center justify-between gap-3 rounded-none border-b border-wds-border px-3 py-2.5 last:border-b-0"
+            >
+              <span className="flex flex-col gap-0.5">
+                <span className="font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">
+                  {c.name.split(' ')[0]}
+                  {showPrices && c.price ? ` · KES ${kes(c.price)}` : ''}
+                </span>
+                <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{c.last ? `Last bought ${dayMonth(c.last)}` : 'Never bought from them'}</span>
+              </span>
+              {c.preferred ? (
+                <span className="rounded-[2px] border border-wds-espresso-200 bg-white px-[7px] py-0.5 font-wds-sans text-[10px] text-wds-espresso-700">Preferred</span>
+              ) : showPrices && c.cheaperBy ? (
+                <span className="font-wds-sans text-[11px] font-medium text-wds-success-fg">KES {kes(c.cheaperBy)} cheaper</span>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  /** One line in the supplier's pane (Paper `2WUC`): tick, item and its status line, suggested, order qty, price, estimate. No supplier dropdown. */
+  const renderPaneRow = (r: Row, none: boolean) => {
+    const { line } = r;
+    const id = line.inventoryItemId;
+    const stock = line.onHand !== undefined && line.level !== undefined ? ` · On hand ${fmtQty(line.onHand)} · Restock level ${fmtQty(line.level)}` : '';
+    return (
+      <div key={id} className="flex min-h-[52px] shrink-0 items-center gap-4 border-b border-wds-neutral-100 px-3 py-[9px]">
+        <span className="flex w-5 shrink-0 items-center">
+          {canOrder ? <Checkbox checked={selected.has(id)} disabled={!orderable(r)} onCheckedChange={() => toggle(id)} aria-label={`Select ${line.itemName}`} /> : null}
+        </span>
+        <div className="flex min-w-[200px] grow basis-0 flex-col gap-0.5">
+          <span className="truncate font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">{line.itemName}</span>
+          <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">
+            <span className={line.status === 'OUT' ? 'text-wds-error-fg' : 'text-wds-warning-fg'}>{line.status === 'OUT' ? 'Out' : 'Low'}</span>
+            {stock}
+            {canOrder
+              ? supplierMenu(
+                  line,
+                  <>
+                    {' · '}
+                    <DropdownMenuTrigger className="rounded-[2px] font-wds-sans text-[11px] leading-[14px] text-wds-caramel-600 outline-none hover:underline focus-visible:shadow-wds-ring" aria-label={`${none ? 'Choose' : 'Change'} supplier for ${line.itemName}`}>
+                      {none ? 'Choose supplier' : 'Change supplier'}
+                    </DropdownMenuTrigger>
+                  </>
+                )
+              : null}
+          </span>
+        </div>
+        <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">{line.suggestedQty ? `${fmtQty(line.suggestedQty)} ${line.buyUnit ?? ''}` : '—'}</span>
+        <div className="w-[120px] shrink-0">
+          {canOrder ? (
+            <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+              <input
+                inputMode="decimal"
+                value={overrides[id]?.qty ?? line.suggestedQty ?? ''}
+                placeholder="—"
+                disabled={!r.hasLine}
+                onChange={(e) => setOv(id, { qty: e.target.value.replace(/[^0-9.]/g, '') })}
+                aria-label={`Order quantity for ${line.itemName}`}
+                className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
+              />
+              <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>
+            </label>
+          ) : (
+            <span className="font-wds-mono text-wds-caption text-wds-neutral-950">{r.qty > 0 ? `${fmtQty(String(r.qty))} ${line.buyUnit ?? ''}` : '—'}</span>
+          )}
+        </div>
+        {showPrices ? <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{r.price === null ? '—' : kes(r.price)}</span> : null}
+        {showPrices ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{r.total === null ? '—' : kes(r.total)}</span> : null}
+      </div>
+    );
+  };
+
+  /** One of the supplier's other items (Paper board 2): unticked, no suggestion, empty quantity; a quantity ticks it. */
+  const renderExtraRow = (item: CatalogItem, sid: string) => {
+    const id = item.inventoryItemId;
+    const q = extraQty[id] ?? '';
+    const parsed = Number.parseFloat(item.price);
+    const priced = Number.isFinite(parsed) && parsed > 0;
+    const n = Number.parseFloat(q) || 0;
+    const setQ = (text: string): void => {
+      const v = text.replace(/[^0-9.]/g, '');
+      setExtraQty((prev) => ({ ...prev, [id]: v }));
+      setPicks((prev) => (prev[id] ? prev : { ...prev, [id]: { supplierId: sid, item } }));
+      const on = (Number.parseFloat(v) || 0) > 0;
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (on) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    };
+    const stock = item.onHand !== undefined ? ` · On hand ${fmtQty(item.onHand)}${item.level !== undefined && Number.parseFloat(item.level) > 0 ? ` · Restock level ${fmtQty(item.level)}` : ''}` : '';
+    return (
+      <div key={id} className="flex min-h-[52px] shrink-0 items-center gap-4 border-b border-wds-neutral-100 px-3 py-[9px]">
+        <span className="flex w-5 shrink-0 items-center">
+          <Checkbox
+            checked={selected.has(id) && n > 0}
+            disabled={!priced || n <= 0}
+            onCheckedChange={() => toggle(id)}
+            aria-label={`Select ${item.itemName}`}
+          />
+        </span>
+        <div className="flex min-w-[200px] grow basis-0 flex-col gap-0.5">
+          <span className="truncate font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">{item.itemName}</span>
+          <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">
+            <span className={item.status === 'OUT' ? 'text-wds-error-fg' : item.status === 'LOW' ? 'text-wds-warning-fg' : 'text-wds-success-fg'}>{item.status === 'OUT' ? 'Out' : item.status === 'LOW' ? 'Low' : 'Fine for now'}</span>
+            {stock}
+            {!priced && showPrices ? ' · No price set for this supplier' : ''}
+          </span>
+        </div>
+        <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">—</span>
+        <div className="w-[120px] shrink-0">
+          <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+            <input
+              inputMode="decimal"
+              value={q}
+              placeholder="—"
+              disabled={!priced}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label={`Order quantity for ${item.itemName}`}
+              className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
+            />
+            <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{item.buyUnit}</span>
+          </label>
+        </div>
+        {showPrices ? <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{priced ? kes(parsed) : '—'}</span> : null}
+        {showPrices ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{priced && n > 0 ? kes(parsed * n) : '—'}</span> : null}
+      </div>
+    );
+  };
+
   const renderRow = (r: Row) => {
     const { line } = r;
     const id = line.inventoryItemId;
-    const opt = line.supplierOptions.find((o) => o.supplierId === r.supplierId);
     const better = r.price === null ? [] : line.supplierOptions.filter((o) => o.supplierId !== r.supplierId && o.lastPrice !== '' && Number.parseFloat(o.lastPrice) < (r.price as number));
     const best = [...better].sort((a, b) => Number.parseFloat(a.lastPrice) - Number.parseFloat(b.lastPrice))[0];
     const cheapest = best && r.price !== null ? { name: best.name, by: r.price - Number.parseFloat(best.lastPrice) } : null;
-    const others = line.supplierOptions;
-    const choices = others.length ? others.map((o) => ({ id: o.supplierId, name: o.name, price: o.lastPrice, last: o.lastBoughtAt, preferred: o.preferred, cheaperBy: o.cheaperBy })) : data.suppliers.map((s) => ({ id: s.id, name: s.name, price: '', last: null, preferred: false, cheaperBy: null }));
     const checked = selected.has(id);
     return (
       <div key={id} className={cn('flex h-14 shrink-0 items-center border-b border-wds-neutral-100', COLS)}>
@@ -202,7 +409,8 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         </span>
         <div className="flex w-[200px] shrink-0 flex-col gap-[3px]">
           {canOrder ? (
-            <DropdownMenu>
+            supplierMenu(
+              line,
               <DropdownMenuTrigger
                 className="flex h-7 items-center justify-between gap-2 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 font-wds-sans text-wds-caption text-wds-neutral-950 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring"
                 aria-label={`Buy ${line.itemName} from`}
@@ -210,29 +418,7 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
                 <span className="truncate">{r.supplierId ? `${(supplierMeta(r.supplierId)?.name ?? '').split(' ')[0]}${showPrices && r.price !== null ? ` · KES ${kes(r.price)}` : ''}` : 'Choose supplier'}</span>
                 <ChevronDown className="size-3 shrink-0 text-wds-text-muted" aria-hidden />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-[280px] p-0">
-                {choices.map((c) => (
-                  <DropdownMenuItem
-                    key={c.id}
-                    onSelect={() => setOv(id, { supplierId: c.id })}
-                    className="flex items-center justify-between gap-3 rounded-none border-b border-wds-border px-3 py-2.5 last:border-b-0"
-                  >
-                    <span className="flex flex-col gap-0.5">
-                      <span className="font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-neutral-950">
-                        {c.name.split(' ')[0]}
-                        {showPrices && c.price ? ` · KES ${kes(c.price)}` : ''}
-                      </span>
-                      <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{c.last ? `Last bought ${dayMonth(c.last)}` : 'Never bought from them'}</span>
-                    </span>
-                    {c.preferred ? (
-                      <span className="rounded-[2px] border border-wds-espresso-200 bg-white px-[7px] py-0.5 font-wds-sans text-[10px] text-wds-espresso-700">Preferred</span>
-                    ) : showPrices && c.cheaperBy ? (
-                      <span className="font-wds-sans text-[11px] font-medium text-wds-success-fg">KES {kes(c.cheaperBy)} cheaper</span>
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            )
           ) : (
             <span className="font-wds-sans text-wds-caption text-wds-neutral-950">{supplierMeta(r.supplierId)?.name ?? '—'}</span>
           )}
@@ -269,41 +455,43 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
           {data.itemCount} item{data.itemCount === 1 ? '' : 's'} {data.itemCount === 1 ? 'is' : 'are'} below {data.itemCount === 1 ? 'its' : 'their'} restock level, across {data.supplierCount} supplier{data.supplierCount === 1 ? '' : 's'}.{' '}
           {canOrder ? 'Tick what you want and create the orders.' : ''}
         </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search item or supplier" aria-label="Search item or supplier" shortcutHint="" className="w-[260px]" />
+        {view === 'item' ? (
+          <>
+            <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
+              <span className="text-wds-text-secondary">Supplier:</span>
+              <select value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="bg-transparent outline-none" aria-label="Filter by supplier">
+                <option value="">All</option>
+                {data.suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
+              <span className="text-wds-text-secondary">Sort:</span>
+              <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="bg-transparent outline-none" aria-label="Sort by">
+                <option value="urgent">Most urgent first</option>
+                <option value="name">Name</option>
+                <option value="value">Highest value</option>
+              </select>
+            </label>
+          </>
+        ) : null}
         <SegmentedToggle
           label="How to list"
           value={view}
           onChange={setView}
           options={[
-            { value: 'supplier', label: 'Group by supplier' },
-            { value: 'item', label: 'List by item' },
+            { value: 'supplier', label: 'By supplier' },
+            { value: 'item', label: 'By item' },
           ]}
         />
       </div>
-
-      {view === 'item' ? (
-        <div className="flex items-center gap-2">
-          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items" aria-label="Search items" shortcutHint="" className="w-[260px]" />
-          <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-            <span className="text-wds-text-secondary">Supplier:</span>
-            <select value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="bg-transparent outline-none" aria-label="Filter by supplier">
-              <option value="">All</option>
-              {data.suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-            <span className="text-wds-text-secondary">Sort:</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="bg-transparent outline-none" aria-label="Sort by">
-              <option value="urgent">Most urgent first</option>
-              <option value="name">Name</option>
-              <option value="value">Highest value</option>
-            </select>
-          </label>
-        </div>
-      ) : null}
 
       {sortedRows.length === 0 ? (
         <StockEmptyCard title="No items match" description="Try a different search or supplier." actionLabel="Clear filters" onAction={() => { setSearch(''); setSupplierFilter(''); }} />
@@ -313,48 +501,150 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
           {sortedRows.map(renderRow)}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {headerCols}
-          {groupList.map(([sid, rs]) => {
-            const meta = supplierMeta(sid || null);
-            const ready = rs.filter(orderable);
-            const groupTotal = rs.reduce((t, r) => t + (r.total ?? 0), 0);
-            const none = sid === '';
-            return (
-              <div key={sid || 'none'} className={cn('flex flex-col overflow-hidden rounded bg-wds-surface border', none ? 'border-wds-warning-border' : 'border-wds-border')}>
-                <div className={cn('flex h-12 shrink-0 items-center border-b', COLS, none ? 'border-wds-warning-border bg-wds-warning-bg' : 'border-wds-border bg-wds-neutral-50')}>
-                  <span className="font-wds-sans text-wds-body-sm font-semibold leading-4 text-wds-neutral-950">{none ? 'No supplier yet' : meta?.name}</span>
-                  {none ? (
-                    <span className="font-wds-sans text-wds-caption text-wds-text-secondary">Choose who to buy these from, then they join that supplier&apos;s order.</span>
-                  ) : (
-                    <>
-                      <span className="font-wds-mono text-[11px] text-wds-text-secondary">{meta?.code}</span>
-                      <span className="font-wds-sans text-wds-caption text-wds-text-secondary">{meta?.termsLabel}</span>
-                      <span className="ml-auto font-wds-sans text-wds-caption text-wds-text-secondary">
-                        {rs.length} item{rs.length === 1 ? '' : 's'}
-                        {showPrices ? ` · est. KES ${kes(groupTotal)}` : ''}
-                      </span>
-                      {canOrder && sid ? (
-                        <Button
-                          size="sm"
-                          variant={ready.some((r) => selected.has(r.line.inventoryItemId)) ? 'primary' : 'secondary'}
-                          disabled={!ready.length || busy}
-                          onClick={() => goNew(sid, ready)}
-                        >
-                          Create order · {ready.length}
-                        </Button>
-                      ) : null}
-                    </>
+        <div className="flex items-stretch border-t border-wds-neutral-950">
+          <div className="flex w-[300px] shrink-0 flex-col border-r border-wds-neutral-950" role="tablist" aria-orientation="vertical" aria-label="Buy from">
+            <div className="border-b border-wds-neutral-950 px-4 py-3 font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-muted">
+              Buy from · {plural(groupList.filter(([k]) => k !== '').length, 'supplier')}
+            </div>
+            {groupList.map(([sid, rs]) => {
+              const none = sid === '';
+              const on = sid === (active?.[0] ?? '');
+              const outCount = rs.filter((r) => r.line.status === 'OUT').length;
+              const priced = rs.every((r) => r.total !== null);
+              const extras = tickedExtras.filter((r) => r.supplierId === sid);
+              const total = rs.reduce((t, r) => t + (r.total ?? 0), 0) + extras.reduce((t, r) => t + (r.total ?? 0), 0);
+              return (
+                <button
+                  key={sid || 'none'}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setActiveKey(sid)}
+                  className={cn(
+                    'flex flex-col gap-[3px] border-b border-wds-border py-3 pl-[19px] pr-4 text-left outline-none focus-visible:shadow-wds-ring',
+                    on ? 'bg-wds-caramel-100 shadow-[inset_3px_0_0_var(--wds-caramel-500)]' : 'hover:bg-wds-neutral-50'
                   )}
-                </div>
-                {rs.map(renderRow)}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={cn('size-2 shrink-0 rounded-full', none ? 'border-[1.5px] border-wds-text-faint' : outCount > 0 ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} aria-hidden />
+                    <span className={cn('grow truncate font-wds-sans text-wds-body-sm', on ? 'font-semibold' : 'font-medium', none ? 'text-wds-text-muted' : 'text-wds-neutral-950')}>
+                      {none ? 'No supplier yet' : (supplierMeta(sid)?.name ?? '')}
+                    </span>
+                    {showPrices ? <span className={cn('font-wds-mono text-wds-body-sm', none || !priced ? 'text-wds-text-faint' : 'text-wds-neutral-950')}>{none ? '·' : priced ? kes(total) : '—'}</span> : null}
+                  </span>
+                  <span className="flex justify-between pl-4 font-wds-sans text-wds-caption text-wds-text-muted">
+                    <span>{plural(rs.length + extras.length, 'item')}{none ? ' · choose who to buy from' : showPrices && !priced ? ' · no price yet' : ''}</span>
+                    {outCount > 0 ? <span className="text-wds-error-fg">{outCount} out</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+            {canOrder ? (
+              <div className="flex justify-between bg-wds-neutral-50 px-4 py-3">
+                <span className="font-wds-sans text-wds-caption text-wds-text-muted">Ticked · {plural(selectedRows.length, 'item')}</span>
+                {showPrices ? <span className="font-wds-mono text-wds-body-sm font-semibold text-wds-neutral-950">{kes(selectedTotal)}</span> : null}
               </div>
-            );
-          })}
+            ) : null}
+          </div>
+
+          {active ? (
+            <div className="flex min-w-0 grow flex-col overflow-x-auto">
+              {(() => {
+                const [sid, rs] = active;
+                const none = sid === '';
+                const meta = supplierMeta(sid || null);
+                const extras = tickedExtras.filter((r) => r.supplierId === sid);
+                const ready = [...rs.filter((r) => orderable(r) && selected.has(r.line.inventoryItemId)), ...extras];
+                const groupTotal = rs.reduce((t, r) => t + (r.total ?? 0), 0) + extras.reduce((t, r) => t + (r.total ?? 0), 0);
+                const catalogOn = !none && (fullCatalog || paneSearch.trim() !== '');
+                const lowIds = new Set(rows.map((r) => r.line.inventoryItemId));
+                return (
+                  <>
+                    <div className="flex items-end justify-between gap-4 border-b border-wds-border px-3 pb-3.5 pt-4">
+                      <div className="flex min-w-0 flex-col gap-[3px]">
+                        <h2 className="truncate font-wds-sans text-[20px] font-semibold leading-[26px] tracking-tight text-wds-neutral-950">{none ? 'No supplier yet' : meta?.name}</h2>
+                        <p className="font-wds-sans text-wds-caption text-wds-text-muted">
+                          {none ? 'Choose who to buy these from, then they join that supplier’s order.' : [plural(rs.length + extras.length, 'item'), meta?.termsLabel, meta?.code].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      {!none ? (
+                        <div className="flex shrink-0 items-center gap-5">
+                          {showPrices ? <span className="font-wds-mono text-[16px] leading-5 text-wds-neutral-950">KES {rs.some((r) => r.total !== null) ? kes(groupTotal) : '—'}</span> : null}
+                          {canOrder ? (
+                            <Button size="sm" disabled={!ready.length || busy} onClick={() => goNew(sid, ready)}>
+                              Create order · {ready.length}
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    {canOrder && !none ? (
+                      <div className="flex items-center gap-4 border-b border-wds-border px-3 py-2.5">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={fullCatalog}
+                          onClick={() => setFullCatalog((v) => !v)}
+                          className="flex items-center gap-2 font-wds-sans text-wds-body-sm text-wds-neutral-950 outline-none focus-visible:shadow-wds-ring"
+                        >
+                          <span className={cn('flex h-4 w-7 shrink-0 items-center rounded-full border-[1.5px] bg-wds-surface px-px transition-colors', fullCatalog ? 'justify-end border-wds-select-blue' : 'justify-start border-wds-border-strong')} aria-hidden>
+                            <span className={cn('size-2.5 rounded-full', fullCatalog ? 'bg-wds-select-blue' : 'bg-wds-border-strong')} />
+                          </span>
+                          Show full catalog
+                        </button>
+                        <SearchInput
+                          value={paneSearch}
+                          onChange={(e) => setPaneSearch(e.target.value)}
+                          placeholder={`Search ${(meta?.name ?? 'the supplier').split(' ')[0]}’s catalog`}
+                          aria-label="Search this supplier’s catalog"
+                          shortcutHint=""
+                          className="ml-auto w-[240px]"
+                        />
+                      </div>
+                    ) : null}
+                    <div className="flex h-[30px] shrink-0 items-center gap-4 border-b border-wds-neutral-950 px-3">
+                      <span className="w-5 shrink-0" />
+                      <span className={cn(thClass, 'min-w-[200px] grow basis-0')}>Item</span>
+                      <span className={cn(thClass, 'w-[96px] shrink-0')}>Suggested</span>
+                      <span className={cn(thClass, 'w-[120px] shrink-0')}>Order qty</span>
+                      {showPrices ? <span className={cn(thClass, 'w-[80px] shrink-0 text-right')}>Price</span> : null}
+                      {showPrices ? <span className={cn(thClass, 'w-[90px] shrink-0 text-right')}>Est. (KES)</span> : null}
+                    </div>
+                    {rs.map((r) => renderPaneRow(r, none))}
+                    {canOrder && !none ? (
+                      <CatalogExtras supplierId={sid} enabled={catalogOn} query={paneSearch.trim()} excludeIds={lowIds}>
+                        {(items, loading) => {
+                          const shownItems = showAllExtras ? items : items.slice(0, EXTRAS_SHOWN);
+                          return (
+                            <>
+                              <div className="flex flex-col gap-0.5 border-b border-wds-border bg-wds-neutral-50 px-3 py-2.5">
+                                <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-muted">
+                                  Also from {(meta?.name ?? '').split(' ')[0]}{loading ? '' : ` · ${items.length}`}
+                                </span>
+                                <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">Not low. Tick one and set a quantity to add it.</span>
+                              </div>
+                              {loading ? <SkeletonRows count={3} label="Loading the catalog">{(i) => <TableRowSkeleton key={i} />}</SkeletonRows> : null}
+                              {!loading && items.length === 0 ? <p className="px-3 py-4 font-wds-sans text-wds-caption text-wds-text-secondary">{paneSearch.trim() ? 'Nothing in this catalog matches.' : 'Nothing else is sold by this supplier.'}</p> : null}
+                              {shownItems.map((i) => renderExtraRow(i, sid))}
+                              {items.length > EXTRAS_SHOWN ? (
+                                <button type="button" onClick={() => setShowAllExtras((v) => !v)} className="flex h-10 items-center border-b border-wds-neutral-100 px-3 text-left font-wds-sans text-wds-caption text-wds-caramel-600 outline-none hover:underline focus-visible:shadow-wds-ring">
+                                  {showAllExtras ? 'Show fewer' : `Show ${items.length - EXTRAS_SHOWN} more`}
+                                </button>
+                              ) : null}
+                            </>
+                          );
+                        }}
+                      </CatalogExtras>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
         </div>
       )}
 
-      {canOrder && selectedRows.length > 0 ? (
+      {canOrder && view === 'item' && selectedRows.length > 0 ? (
         <div className="fixed bottom-16 left-[calc(236px+32px)] right-8 z-30 flex h-[52px] items-center gap-4 rounded bg-[#241609] px-5 shadow-[0_8px_24px_#17151240]" role="region" aria-label="Selected items">
           <span className="font-wds-sans text-wds-body-sm text-[#F5F3EF]">
             {selectedRows.length} item{selectedRows.length === 1 ? '' : 's'} selected · {selectedSuppliers.size} supplier{selectedSuppliers.size === 1 ? '' : 's'}

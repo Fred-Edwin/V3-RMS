@@ -3,6 +3,8 @@
  * `features/inventory/index.ts` re-exports these for the thin pages under `app/app/inventory/(shell)/stock/counts/`.
  */
 export { CountsHomeScreen } from './counts-home-screen';
+export { MyCountsScreen } from './mine/components/my-counts-screen';
+export { PickSectionScreen } from './record/components/pick-section-screen';
 export { CountScreen } from './record/components/count-screen';
 export { BlankSheetPage } from './print/components/blank-sheet-page';
 export { CountRecordPage } from './print/components/count-record-page';

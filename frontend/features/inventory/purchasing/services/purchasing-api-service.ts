@@ -40,6 +40,19 @@ async function send(method: 'POST' | 'DELETE', path: string, body?: FormData): P
   return response;
 }
 
+/** A JSON write whose answer is 204 with no body (marking notices read): the shared client would fail to parse it. */
+async function sendJson(method: 'POST', path: string, body: unknown): Promise<void> {
+  const t = token();
+  const response = await fetch(`${env.apiUrl}${path}`, {
+    method,
+    cache: 'no-store',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) await failFrom(response);
+}
+
 /**
  * The HTTP implementation of `PurchasingService` (docs/API_CONTRACT.md §31 and §31.9). The wire shapes are the types in
  * `../types`, so nothing is mapped here: one line per operation. Screens never import this file, only the hook that supplies it.
@@ -63,9 +76,9 @@ export function createPurchasingApiService(): PurchasingService {
       await send('DELETE', `${BASE}/orders/${id}`);
     },
     submitOrder: (id) => post(`/orders/${id}/submit`),
-    approveOrder: (id, pin) => post(`/orders/${id}/approve`, { pin }),
+    approveOrder: (id, pin, collectedBy) => post(`/orders/${id}/approve`, collectedBy ? { pin, collectedBy } : { pin }),
     returnOrder: (id, note) => post(`/orders/${id}/return`, { note }),
-    sendOrder: (id, via) => post(`/orders/${id}/send`, { via }),
+    sendOrder: (id, via, collectedBy) => post(`/orders/${id}/send`, collectedBy ? { via, collectedBy } : { via }),
     cancelOrder: (id, input) => post(`/orders/${id}/cancel`, input),
 
     recordDeposit: (id, input) => post(`/orders/${id}/deposits`, input),
@@ -116,6 +129,29 @@ export function createPurchasingApiService(): PurchasingService {
         .sort((a, b) => b.at.localeCompare(a.at));
     },
     addDocument: (orderId, input) => post<FileDocument>(`/orders/${orderId}/documents`, input),
+
+    getAttendantHome: () => get('/attendant/home'),
+    getAttendantBadges: () => get('/attendant/badges'),
+    getMyOrders: (q = {}) => get(`/attendant/my-orders${qs({ filter: q.filter, q: q.q })}`),
+    getHistory: (q = {}) =>
+      get(`/attendant/history${qs({ from: q.from, to: q.to, status: q.status, q: q.q, page: q.page === undefined ? undefined : String(q.page), pageSize: q.pageSize === undefined ? undefined : String(q.pageSize) })}`),
+    searchAttendant: (q) => get(`/attendant/search${qs({ q })}`),
+    getAttendantSupplier: (supplierId) => get(`/attendant/suppliers/${supplierId}`),
+    getRestockLevels: (q = {}) =>
+      get(`/attendant/restock-levels${qs({ status: q.status, supplierId: q.supplierId, q: q.q, page: q.page === undefined ? undefined : String(q.page), pageSize: q.pageSize === undefined ? undefined : String(q.pageSize) })}`),
+    getNotices: (filter) => get(`/attendant/notifications${qs({ filter })}`),
+    markNoticesRead: async (keys) => {
+      await sendJson('POST', `${BASE}/attendant/notifications/read`, { keys });
+    },
+    markAllNoticesRead: async () => {
+      await post('/attendant/notifications/read-all');
+    },
+    reviewRestockList: (lines) => post('/restock-list/review', { lines }),
+    sendRestockList: (lines, note) => post('/restock-list/send', { lines, note }),
+    getCollectors: (q) => get(`/collectors${qs({ q })}`),
+    setCollectedBy: (orderId, collectedBy) => apiClient.put(`${BASE}/orders/${orderId}/collected-by`, { collectedBy }, token()),
+    withdrawOrder: (orderId) => post(`/orders/${orderId}/withdraw`),
+    remindOrder: (orderId) => post(`/orders/${orderId}/remind`),
   };
 }
 

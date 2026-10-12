@@ -60,18 +60,23 @@ function RememberOpener({ target }: { target: React.MutableRefObject<HTMLElement
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /** Replaces the scrim colour (Paper draws the Branch day drawers over a 45% scrim; the default is 35%). */
+  overlayClassName?: string
+  /** Hides the built-in "×" for a drawer that draws its own close glyph. */
+  hideClose?: boolean
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+>(({ side = "right", className, children, onOpenAutoFocus, onCloseAutoFocus, overlayClassName, hideClose = false, ...props }, ref) => {
   // Sheets are mostly opened by state, not by a <SheetTrigger>, so Radix has no trigger to hand focus back to.
   // Remember what had focus when the sheet opened and return it on close, so a keyboard user keeps their place.
   const opener = React.useRef<HTMLElement | null>(null)
   return (
   <SheetPortal>
-    <SheetOverlay />
+    <SheetOverlay className={overlayClassName} />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
@@ -88,10 +93,12 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       <RememberOpener target={opener} />
-      <SheetPrimitive.Close className="absolute right-6 top-5 border-0 bg-transparent p-0 font-wds-sans text-[16px] leading-5 text-wds-text-faint transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:shadow-wds-ring disabled:pointer-events-none">
-        <span aria-hidden="true">&times;</span>
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
+      {hideClose ? null : (
+        <SheetPrimitive.Close className="absolute right-6 top-5 border-0 bg-transparent p-0 font-wds-sans text-[16px] leading-5 text-wds-text-faint transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:shadow-wds-ring disabled:pointer-events-none">
+          <span aria-hidden="true">&times;</span>
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      )}
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>

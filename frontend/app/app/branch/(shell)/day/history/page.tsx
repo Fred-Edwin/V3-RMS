@@ -2,13 +2,13 @@
 
 import { Suspense } from 'react';
 
-import { DayHistoryScreen } from '@/features/inventory/branch-day';
+import { BranchDayHistoryScreen } from '@/features/inventory';
 
-// useSearchParams() (the date range) needs a Suspense boundary — see ../page.tsx.
+// The search, date range, status and page live in the URL, so useSearchParams() needs a Suspense boundary.
 export default function BranchDayHistoryPage() {
   return (
     <Suspense fallback={null}>
-      <DayHistoryScreen />
+      <BranchDayHistoryScreen />
     </Suspense>
   );
 }

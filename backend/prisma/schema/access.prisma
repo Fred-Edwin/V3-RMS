@@ -22,6 +22,8 @@ model Site {
   type                         SiteType                      @default(BRANCH)
   company                      Company                       @relation(fields: [companyId], references: [id])
   name                         String
+  /// Three-letter branch code used in document references (REQ-NYR-0001). Null for the Central Store. Unique.
+  code                         String?                       @unique
   address                      String
   city                         String
   latitude                     Decimal                       @db.Decimal(10, 7)
@@ -88,12 +90,14 @@ model Site {
   requisitions                 Requisition[]
   dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
   dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
+  carriers                     Carrier[]                     @relation("CarrierSite")
   wasteLogs                    WasteLog[]
   wasteBatches                 WasteBatch[]
   counts                       Count[]
   countSections                CountSection[]
   countingThresholds           CountingThresholds?
   branchDays                   BranchDay[]
+  departments                  Department[]
 
   @@index([companyId])
   @@map("organizations")
@@ -127,6 +131,9 @@ model User {
   fcmToken                           String?                       @map("fcm_token")
   role                               UserRole
   departmentTag                      DepartmentTag?                @map("department_tag")
+  /// Id link to the branch's Department row; dual-written with departmentTag until the contract migration (Block 4).
+  departmentId                       String?                       @map("department_id")
+  department                         Department?                   @relation("DepartmentStaff", fields: [departmentId], references: [id])
   isDepartmentHead                   Boolean                       @default(false) @map("is_department_head")
   previousRole                       UserRole?                     @map("previous_role")
   isActive                           Boolean                       @default(true) @map("is_active")
@@ -199,6 +206,8 @@ model User {
   branchDayDepartmentsCounted        BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")
   branchDayReopens                   BranchDayReopen[]             @relation("BranchDayReopenedBy")
   departmentOpeningsAccepted         DepartmentOpening[]           @relation("DepartmentOpeningAcceptedBy")
+  branchDayCorrections               BranchDayCorrection[]         @relation("BranchDayCorrectedBy")
+  branchDaySheets                    BranchDaySheet[]              @relation("BranchDaySheetBy")
   countingThresholdsDirectorUpdated  CountingThresholds[]          @relation("CountingThresholdsDirectorUpdatedBy")
   suppliersCreated                   Supplier[]                    @relation("SupplierCreatedBy")
   suppliersUpdated                   Supplier[]                    @relation("SupplierUpdatedBy")
@@ -212,6 +221,9 @@ model User {
   purchaseOrdersReturned             PurchaseOrder[]               @relation("PurchaseOrderReturnedBy")
   purchaseOrdersSent                 PurchaseOrder[]               @relation("PurchaseOrderSentBy")
   purchaseOrdersCancelled            PurchaseOrder[]               @relation("PurchaseOrderCancelledBy")
+  purchaseOrdersCollecting           PurchaseOrder[]               @relation("PurchaseOrderCollectedByUser")
+  purchaseOrdersCollectorSet         PurchaseOrder[]               @relation("PurchaseOrderCollectedBySetBy")
+  purchasingNoticeReads              PurchasingNoticeRead[]        @relation("PurchasingNoticeReader")
   purchaseDeliveriesReceived         PurchaseDelivery[]            @relation("PurchaseDeliveryReceivedBy")
   purchaseInvoicesEntered            PurchaseInvoice[]             @relation("PurchaseInvoiceEnteredBy")
   purchaseInvoicesSettled            PurchaseInvoice[]             @relation("PurchaseInvoiceSettledBy")
@@ -227,11 +239,23 @@ model User {
   prepRecipeVersionsCreated          PrepRecipeVersion[]           @relation("PrepRecipeVersionCreatedBy")
   requisitionsOpened                 Requisition[]                 @relation("RequisitionOpenedBy")
   requisitionsApproved               Requisition[]                 @relation("RequisitionApprovedBy")
-  dispatchesDispatched               Dispatch[]                    @relation("DispatchDispatchedBy")
-  dispatchesConfirmed                Dispatch[]                    @relation("DispatchConfirmedBy")
-  discrepanciesResolved              Discrepancy[]                 @relation("DiscrepancyResolvedBy")
+  dispatchesPacked                   Dispatch[]                    @relation("DispatchPackedBy")
+  dispatchesSigned                   Dispatch[]                    @relation("DispatchSignedBy")
+  dispatchesCounted                  Dispatch[]                    @relation("DispatchCountedBy")
+  dispatchesCancelled                Dispatch[]                    @relation("DispatchCancelledBy")
+  dispatchEvents                     DispatchEvent[]               @relation("DispatchEventActor")
+  dispatchPhotosUploaded             DispatchPhoto[]               @relation("DispatchPhotoUploadedBy")
+  discrepanciesRecorded              Discrepancy[]                 @relation("DiscrepancyRecordedBy")
+  discrepanciesReversed              Discrepancy[]                 @relation("DiscrepancyReversedBy")
+  discrepancyEvents                  DiscrepancyEvent[]            @relation("DiscrepancyEventActor")
   requisitionSectionsSubmitted       RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited             RequisitionLine[]             @relation("RequisitionLineEditedBy")
+  requisitionsCancelled              Requisition[]                 @relation("RequisitionCancelledBy")
+  requisitionsApprovedAs             Requisition[]                 @relation("RequisitionApprovedAs")
+  requisitionSectionsSkipped         RequisitionSection[]          @relation("RequisitionSectionSkippedBy")
+  requisitionAdditionsAdded          RequisitionAddition[]         @relation("RequisitionAdditionAddedBy")
+  requisitionAdditionsApproved       RequisitionAddition[]         @relation("RequisitionAdditionApprovedBy")
+  requisitionEvents                  RequisitionEvent[]            @relation("RequisitionEventActor")
 
   @@index([siteId])
   @@index([email])

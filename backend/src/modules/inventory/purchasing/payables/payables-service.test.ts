@@ -4,6 +4,7 @@ import { branchRepository } from '../../../../repositories/branch-repository';
 import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { purchasingPin } from '../_shared/pin';
 import { purchasingAudit } from '../_shared/purchasing-audit';
+import { purchasingNotices } from '../_shared/purchasing-notify';
 import { ordersRepository } from '../orders/orders-repository';
 import { payablesRepository } from './payables-repository';
 import payablesRouter from './payables-routes';
@@ -23,6 +24,7 @@ vi.mock('../../_shared/reference-counter', () => ({ referenceCounterRepository: 
 vi.mock('../_shared/pin', () => ({ purchasingPin: { verifyOwn: vi.fn(), verifyReversalApprover: vi.fn() } }));
 vi.mock('../_shared/purchasing-audit', async (orig) => ({ ...(await orig<object>()), purchasingAudit: { record: vi.fn() } }));
 vi.mock('../files/files-service', () => ({ purchaseFileService: { resolve: vi.fn().mockResolvedValue(null) } }));
+vi.mock('../_shared/purchasing-notify', () => ({ purchasingNotices: { closed: vi.fn() } }));
 
 const HUB = 'hub-1';
 const D = (v: number | string) => new Prisma.Decimal(v);
@@ -159,7 +161,16 @@ describe('recordPayment', () => {
     vi.mocked(ordersRepository.findOrder).mockResolvedValue(invoiced([payment({ id: 'p2', amount: D(10000) })]));
     await payablesService.recordPayment(accountant, 'i1', pay, NOW);
     expect(payablesRepository.setInvoiceStatus).toHaveBeenCalledWith(expect.anything(), HUB, 'i1', 'PAID');
-    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', { from: ['INVOICED', 'CLOSED'], status: 'CLOSED' });
+    // `closedAt` is stamped once, on the move to CLOSED: History filters on it.
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', { from: ['INVOICED', 'CLOSED'], status: 'CLOSED', closedAt: NOW });
+  });
+
+  it('tells the person who raised the order when the invoice is paid in full (map row 26), and not on a part payment', async () => {
+    found(invoiced());
+    vi.mocked(ordersRepository.findOrderInTx).mockResolvedValue(invoiced([payment({ id: 'p2', amount: D(10000) })]));
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(invoiced([payment({ id: 'p2', amount: D(10000) })]));
+    await payablesService.recordPayment(accountant, 'i1', pay, NOW);
+    expect(purchasingNotices.closed).toHaveBeenCalledWith(expect.objectContaining({ hubId: HUB, orderId: 'o1', raisedById: expect.any(String) }));
   });
 
   it('keeps it in To pay on a part payment', async () => {
@@ -168,6 +179,19 @@ describe('recordPayment', () => {
     vi.mocked(ordersRepository.findOrder).mockResolvedValue(invoiced([payment({ id: 'p2', amount: D(4000) })]));
     await payablesService.recordPayment(accountant, 'i1', { ...pay, amount: '4000' }, NOW);
     expect(payablesRepository.setInvoiceStatus).toHaveBeenCalledWith(expect.anything(), HUB, 'i1', 'OPEN');
+    // Not closed: no `closedAt`, and nobody is told the order is closed.
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', { from: ['INVOICED', 'CLOSED'], status: 'INVOICED', closedAt: null });
+    expect(purchasingNotices.closed).not.toHaveBeenCalled();
+  });
+
+  it('does not stamp `closedAt` again when the order is already closed (a later change keeps the day it closed)', async () => {
+    found(invoiced());
+    const closed = order({ status: 'CLOSED', invoices: [invoice()], payments: [payment({ id: 'p2', amount: D(10000) })] });
+    vi.mocked(ordersRepository.findOrderInTx).mockResolvedValue(closed);
+    vi.mocked(ordersRepository.findOrder).mockResolvedValue(closed);
+    await payablesService.recordPayment(accountant, 'i1', pay, NOW);
+    expect(ordersRepository.transition).toHaveBeenCalledWith(expect.anything(), HUB, 'o1', { from: ['INVOICED', 'CLOSED'], status: 'CLOSED' });
+    expect(purchasingNotices.closed).not.toHaveBeenCalled();
   });
 
   it('asks before paying more than is owed (an advance counts)', async () => {

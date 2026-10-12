@@ -3,13 +3,15 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { useNeedsLookCount, usePermissions } from '@/features/inventory';
+import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
 import { useCommsStore } from '@/store/commsStore';
 import type { AppRole } from '@/types/auth';
-import { activeFor, hasHubRows, navFor, type ActiveNav, type NavBadge } from './nav-table';
+import { initialsOf as sharedInitialsOf } from '@/lib/initials';
+import { activeFor, hasHubRows, navFor, quickLinksFor, showsBottomBar, type ActiveNav, type NavBadge } from './nav-table';
+import type { NavIcon } from './nav-icons';
 import { roleLabel } from './role-label';
 import type { SidebarNavGroup, SidebarNavUser } from './sidebar-nav';
 
@@ -53,17 +55,24 @@ function orgLabelFor(role: AppRole | null, organizationName: string | null | und
   }
 }
 
-const initialsOf = (name: string | undefined): string => {
-  if (!name) return '—';
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-};
+const initialsOf = (name: string | undefined): string => sharedInitialsOf(name) || '—';
+
+export interface ShellBarLink {
+  key: string;
+  label: string;
+  href: string;
+  icon: NavIcon;
+  count?: number;
+}
+
+/** The phone bottom bar: its links (empty for a role with none) and whether the current page shows it. */
+export interface ShellBar {
+  links: ShellBarLink[];
+  visible: boolean;
+}
 
 export interface ShellNav {
+  bar: ShellBar;
   groups: SidebarNavGroup[];
   active: ActiveNav;
   user: SidebarNavUser;
@@ -80,29 +89,54 @@ export function useShellNav(): ShellNav {
   const role = useAuthStore((s) => s.role);
   const user = useAuthStore((s) => s.user);
   const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
-  const { can } = usePermissions(hasHubRows(role));
+  // A floor member also asks (the call is open to any signed-in person) so the shell knows whether they belong to a department.
+  const { can, isMember: isDepartmentMember } = usePermissions(hasHubRows(role) || isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING');
   const branches = useBranches(role === 'DIRECTOR');
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
+  // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
+  // The Branch Manager's own branch asks too (a delivery waiting joins the Queue count; open shortages badge Discrepancies); the server decides what they may see.
+  // A department head or member asks too, for the Deliveries badge (deliveries waiting for their department).
+  const requisitionBadges = useRequisitionBadges((hasHubRows(role) && can('requisitions.read')) || role === 'MANAGER' || isDepartmentHead || isDepartmentMember);
+  const requisitionCount = (requisitionBadges?.requisitions ?? 0) + (role === 'MANAGER' ? requisitionBadges?.deliveries ?? 0 : 0);
+  const discrepancyCount = requisitionBadges?.discrepancies ?? 0;
+  // The Store Attendant's Purchasing counts (Receiving, Restock list, My orders): only someone who raises but cannot approve orders.
+  const purchasingBadges = usePurchasingBadges(hasHubRows(role) && can('orders.request') && !can('orders.approve'));
+  // What blocks the close today, beside Today in the Branch Manager's Day group (only someone who closes the day is told).
+  const dayTodo = useBranchDayBadge(role === 'MANAGER' && can('branch_day.close'));
 
   const tableGroups = React.useMemo(
     () =>
       navFor({
         role: role ?? undefined,
         isDepartmentHead,
+        isDepartmentMember,
         can,
         creditAccounts: env.creditAccounts,
         branches,
       }),
-    [role, isDepartmentHead, can, branches]
+    [role, isDepartmentHead, isDepartmentMember, can, branches]
   );
 
-  // The unread count is the only thing added to the table's rows here.
+  // The counts are the only thing added to the table's rows here. A zero count draws nothing, so a role without prep.read_flags
+  // (count 0) simply has no badge.
+  const countOf = React.useMemo((): ((badge: NavBadge | undefined) => number | undefined) => {
+    const counts: Record<NavBadge, number> = {
+      inbox: unreadInbox,
+      'prep-needs-look': needsLook,
+      requisitions: requisitionCount,
+      discrepancies: discrepancyCount,
+      deliveries: requisitionBadges?.deliveries ?? 0,
+      'branch-day-todo': dayTodo,
+      'purchasing-receiving': purchasingBadges?.receiving ?? 0,
+      'purchasing-restock': purchasingBadges?.restock ?? 0,
+      'purchasing-my-orders': purchasingBadges?.myOrders ?? 0,
+    };
+    return (badge) => (badge && counts[badge] > 0 ? counts[badge] : undefined);
+  }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges]);
+
   const groups = React.useMemo((): SidebarNavGroup[] => {
-    // A zero count draws nothing, so a role without prep.read_flags (count 0) simply has no badge.
-    const counts: Record<NavBadge, number> = { inbox: unreadInbox, 'prep-needs-look': needsLook };
-    const countOf = (badge: NavBadge | undefined): number | undefined => (badge && counts[badge] > 0 ? counts[badge] : undefined);
     return tableGroups.map((group) => ({
       key: group.key,
       label: group.label,
@@ -115,7 +149,16 @@ export function useShellNav(): ShellNav {
         subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
-  }, [tableGroups, unreadInbox, needsLook]);
+  }, [tableGroups, countOf]);
+
+  // The phone bottom bar (floor staff): the table's quick links with the same counts, and whether this page shows it.
+  const bar = React.useMemo(
+    (): ShellBar => ({
+      links: quickLinksFor(tableGroups).map((link) => ({ key: link.key, label: link.label, href: link.href, icon: link.icon, count: countOf(link.badge) })),
+      visible: showsBottomBar(tableGroups, pathname),
+    }),
+    [tableGroups, countOf, pathname]
+  );
 
   const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
 
@@ -124,5 +167,5 @@ export function useShellNav(): ShellNav {
     [user?.name, role]
   );
 
-  return { groups, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName) };
+  return { groups, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName), bar };
 }

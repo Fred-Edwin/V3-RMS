@@ -25,13 +25,16 @@ describe('departments contract fixtures', () => {
     ['addDepartmentResult', departmentRowSchema],
     ['renameDepartmentInput', renameDepartmentInputSchema],
     ['errorNameTaken', errorBodySchema],
+    ['errorHasOpenSections', errorBodySchema],
   ] as const)('%s parses', (name, schema) => {
     const result = schema.safeParse(F[name]);
     expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
   });
 
-  it('the error fixture uses a listed code', () => {
+  it('the error fixtures use listed codes, including the Amendment 2 retire refusal', () => {
     expect(DEPARTMENT_ERROR_CODES as readonly string[]).toContain(fixtures.errorNameTaken.error.code);
+    expect(DEPARTMENT_ERROR_CODES as readonly string[]).toContain(fixtures.errorHasOpenSections.error.code);
+    expect(fixtures.errorHasOpenSections.error.code).toBe('DEPARTMENT_HAS_OPEN_SECTIONS');
   });
 
   it('the front-end copy of the fixtures is identical', () => {

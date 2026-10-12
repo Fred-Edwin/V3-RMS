@@ -1,6 +1,7 @@
 import type { PrepStation } from '@prisma/client';
 import type { PrepTicketRecord } from '../types/order.types';
-import { branchRoomName, getSocketServer, stationRoomName, userRoomName } from './socket';
+import { inventoryBadgesBridge } from './inventory-badges-bridge';
+import { branchRoomName, getSocketServer, inventoryAllSitesRoom, stationRoomName, userRoomName } from './socket';
 
 export interface OrderClaimedPayload {
   orderId: string;
@@ -48,6 +49,25 @@ export interface PayMethodChangedPayload {
   changedByName: string;
   /** "Added M-Pesa Paybill" · "Changed the account number on the bank transfer". */
   summary: string;
+  reason: string;
+}
+
+/** `inventory:badges`: carries no counts, only "something changed here"; the screen refetches R2. */
+export interface InventoryBadgesPayload {
+  siteId: string;
+  reason: string;
+}
+
+/** This process's own clients: the site's room, and the room of everyone who reads every site (the Director, the hub roles). */
+export const emitInventoryBadgesLocal = (payload: InventoryBadgesPayload): void => {
+  getSocketServer().to([branchRoomName(payload.siteId), inventoryAllSitesRoom]).emit('inventory:badges', payload);
+};
+
+/** `dispatch:changed` (Block 2, Dispatch Amendment 1 row 16): one dispatch changed; open screens refetch that record. `siteId` is the receiving branch. */
+export interface DispatchChangedSocketPayload {
+  id: string;
+  reference: string | null;
+  siteId: string;
   reason: string;
 }
 
@@ -149,6 +169,23 @@ export const socketService = {
   emitRequisitionNudge: (userId: string, payload: RequisitionNudgePayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('requisition:nudge', payload);
+  },
+
+  /** Inventory badge nudge (the one notification layer, `inventory/_shared/notify.ts`): open screens refetch their badge counts. */
+  emitInventoryBadges: (siteId: string, payload: InventoryBadgesPayload): void => {
+    emitInventoryBadgesLocal({ ...payload, siteId });
+    // The worker has no browsers of its own: tell the other processes too (a no-op for the one that hears itself).
+    void inventoryBadgesBridge.publish({ ...payload, siteId });
+  },
+
+  /** A dispatch changed (signed, cancelled, counted, closed): the branch's room, the hub's room and everyone who reads every site hear it. */
+  emitDispatchChanged: (hubSiteId: string, payload: DispatchChangedSocketPayload): void => {
+    getSocketServer().to([branchRoomName(payload.siteId), branchRoomName(hubSiteId), inventoryAllSitesRoom]).emit('dispatch:changed', payload);
+  },
+
+  /** A discrepancy changed (opened, finding recorded or reversed): the same rooms as `dispatch:changed`; open lists and files refetch that record. */
+  emitDiscrepancyChanged: (hubSiteId: string, payload: DispatchChangedSocketPayload & { reference: string }): void => {
+    getSocketServer().to([branchRoomName(payload.siteId), branchRoomName(hubSiteId), inventoryAllSitesRoom]).emit('discrepancy:changed', payload);
   },
 
   emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

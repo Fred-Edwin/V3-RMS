@@ -1,13 +1,18 @@
 # Waste (front end)
 
-Central Store waste. Contract §4.3 (W1 to W4); `_shared/services/waste-api.ts`. No PIN anywhere. `department/` holds the Department Head's branch waste (moved unchanged). `/stock/waste` shows the phone "My waste today" when the list carries no `kpis`, the desktop Waste when it does.
+Central Store waste. Contract §4.3 (W1 to W4); `_shared/services/waste-api.ts`. No PIN anywhere. **Branch waste (Block 3):** the BW1 to BW7 types are the second half of `_shared/types/waste-contract.ts` (hand mirror, same fixtures file as the Central Store), the wording from Paper W9 is `_shared/lib/branch-waste-copy.ts`, and the spec is `docs/features/inventory/branch-waste-contract.md`.
+- **Phone** (department head or member, W1 to W5, step 55): built in `branch/` (see `branch/README.md`). The old `department/` folder is deleted; the drawer-motion helpers it held now live in `_shared/components/drawer-motion.tsx`. Phone and desktop share one service (`_shared/services/branch-waste-api.ts`) and one set of name/quantity helpers (`_shared/lib/branch-waste-people.ts`).
+- **Desktop** (W6 Branch waste, W7 Reverse any entry, W8 Waste for any branch, the entry drawer): built in `branch-desk/` on the real API (BW4 to BW7); see `branch-desk/README.md`.
+
+`/stock/waste` shows the phone "My waste, today and earlier" (step 54, `entries/components/my-waste-screen.tsx`) when the list carries no `kpis`, the desktop Waste when it does. Step 54 reads W3 with `from` and `to` (starting at the last 7 days, in the URL), groups by the Nairobi day logged, shows Reverse only where the server says `can.reverse` (own entry, same day), and strikes through reversed entries (text uses `copy-faint` for contrast, not Paper's #8D8982). Fifty entries a page; the heading count is per page.
 
 | Step | Paper node | Route | Verdict |
 |---|---|---|---|
 | 16 Pick what was wasted | `1ZC8-0` | `/stock/waste/new` | built; not compared |
 | 17 How much and why | `1ZDQ-0` | quantity sheet | built; not compared |
 | 18 Check, then confirm | `1ZFH-0` | review step | built; not compared |
-| 19 My waste today | `1ZGW-0` | `/stock/waste` (Attendant) | built; not compared |
+| 19 My waste today | `1ZGW-0` | replaced by step 54 | superseded |
+| 54 My waste, today and earlier | `2OYW-0` | `/stock/waste` (Attendant); real Reverse walked | numeric at 390 and by eye, matches; 768 and 1024 checked |
 | 20 Reverse (phone) | `1ZJR-0` | reason sheet | built; not compared |
 | 21 Waste (desktop) | `1ZLU-0` | `/stock/waste` | by eye, close |
 | 22 Log waste drawer | `1ZS7-0` | `?drawer=log` | built; not compared |

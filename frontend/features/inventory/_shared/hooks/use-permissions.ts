@@ -10,6 +10,8 @@ interface PermissionsPayload {
   role: string;
   isDepartmentHead: boolean;
   capabilities: Capability[];
+  /** Departments the caller heads or belongs to (Dispatch Amendment 1 row 10). */
+  departments?: { id: string; name: string; role: 'HEAD' | 'MEMBER' }[];
 }
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
@@ -18,6 +20,8 @@ interface PermissionsState {
   /** Whose capabilities these are; a different user starts again. */
   userId: string | null;
   capabilities: Capability[];
+  /** True when the caller is a MEMBER (not head) of some department. */
+  isMember: boolean;
   status: Status;
   load: (userId: string) => Promise<void>;
   clear: () => void;
@@ -50,8 +54,9 @@ let inFlight: Promise<void> | null = null;
 export const usePermissionsStore = create<PermissionsState>((set, get) => ({
   userId: null,
   capabilities: [],
+  isMember: false,
   status: 'idle',
-  clear: () => set({ userId: null, capabilities: [], status: 'idle' }),
+  clear: () => set({ userId: null, capabilities: [], isMember: false, status: 'idle' }),
   load: async (userId) => {
     if (get().userId === userId && (get().status === 'ready' || get().status === 'loading')) return inFlight ?? undefined;
     const cached = readCache(userId);
@@ -62,7 +67,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
         const data = await apiClient.get<PermissionsPayload>('/inventory/permissions/me', token);
         if (get().userId !== userId) return;
         writeCache(userId, data.capabilities);
-        set({ capabilities: data.capabilities, status: 'ready' });
+        set({ capabilities: data.capabilities, isMember: (data.departments ?? []).some((d) => d.role === 'MEMBER'), status: 'ready' });
       } catch {
         if (get().userId !== userId) return;
         set({ status: cached ? 'ready' : 'error' });
@@ -93,5 +98,6 @@ export function usePermissions(enabled = true) {
 
   const mine = storeUserId === userId;
   const can = useCallback((capability: Capability): boolean => mine && capabilities.includes(capability), [mine, capabilities]);
-  return { can, ready: mine && status === 'ready', failed: mine && status === 'error', capabilities: mine ? capabilities : [] };
+  const isMember = usePermissionsStore((s) => s.isMember);
+  return { can, isMember: mine && isMember, ready: mine && status === 'ready', failed: mine && status === 'error', capabilities: mine ? capabilities : [] };
 }

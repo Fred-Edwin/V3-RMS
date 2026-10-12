@@ -7,7 +7,7 @@ Central Store counting: many counts a day, one **open** count per person, a sect
 ## Sub-modules (each has its own README)
 | Folder | Endpoints | What |
 |---|---|---|
-| [`counts/`](counts/README.md) | C1 to C5 | the Counts table, KPI strips, flagged lines, repeat shortfalls, one count |
+| [`counts/`](counts/README.md) | C1 to C5, C31, C32 | the Counts table, KPI strips, flagged lines, repeat shortfalls, one count; the Attendant's home and My counts (own, blind) |
 | [`record/`](record/README.md) | C8 to C14 | start, save numbers, section-end check, sign with PIN, order for today |
 | [`review/`](review/README.md) | C27 to C30 | decide lines, approve preview, approve with PIN, Mark seen |
 | [`setup/`](setup/README.md) | C15 to C22 | sections, order, items, moves, undo, add-items search |
@@ -15,7 +15,7 @@ Central Store counting: many counts a day, one **open** count per person, a sect
 | [`print/`](print/README.md) | C6, C7 | printed count record, blank sheet |
 | `_shared/` | | the contract (frozen), the one view builder, state machine, story, PIN, numbers, notifications, reads |
 
-All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them: print, record, review, counts, then setup and settings, so `GET /counts/:id` is last). `counting-routes.test.ts` pins the §3.1 role grid for all 30 endpoints and the route order.
+All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them: print, record, review, counts, then setup and settings, so `GET /counts/:id` is last). `counting-routes.test.ts` pins the §3.1 role grid for all 32 endpoints and the route order (C31 and C32, the Attendant's home and My counts, were added by Block 5).
 
 ## The rules in one place
 - **Judging** (`../_shared/variance-calc.ts`): within range = `|value| ≤ rangeKes` **and** `percent ≤ rangePercent` (ties within; expected ≤ 0 means any difference exceeds). `NOT_COUNTED` (skipped), `MATCHES`, `WITHIN_RANGE`, `EXCEEDS`.
@@ -28,8 +28,8 @@ All routes are under `/api/v1/inventory/stock` (`counting-routes.ts` mounts them
 ## Other sub-modules read Counting only through `_shared/count-reads.ts`
 `todaysCounts`, `longestWithoutCount`, `lastCountedByItem`, `sectionNamesByItem`, `unsectionedCount` (Stock Overview and All items), never Counting's repositories.
 
-## Kept for the branch-day refactor (marked in each file; delete when branch day is redone)
-`count-calc.ts` (+ test), `counting-thresholds.ts`, `thresholds-{controller,service,repository,validators}.ts`, `thresholds.types.ts`, `thresholds-service.test.ts`, and `thresholds-routes.ts` (the Branch Manager's `GET`/`PUT /inventory/thresholds`). The new code imports none of them.
+## Branch day's old counting files are gone
+`count-calc.ts`, `counting-thresholds.ts`, the `thresholds-*` files and the Branch Manager's `GET`/`PUT /inventory/thresholds` were deleted with the Branch day rebuild (Block 4, 10 Oct 2026). The `counting_thresholds` table and its branch rows stay until the contract migration (`branch-day-contract.md` §11).
 
 ## Data
 `counts`, `count_lines`, `count_scope_sections`, `count_sections`, `count_section_items`, `count_item_moves`, `count_day_orders`, `count_setup_visits` (schema `prisma/schema/inventory/counts.prisma`; migration `20261008100000_stock_count_waste_expand` also seeds the first sections: one per supplier with items, "Others", an empty "Packaging"). Two partial unique indexes enforce one open count per person and an item in at most one open count. The old `stock_counts` tables are dropped by the contract migration at release.

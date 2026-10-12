@@ -6,7 +6,7 @@ import { createPurchasingApiService } from '../services/purchasing-api-service';
 import type { PurchasingService } from '../services/purchasing-service';
 
 /** Goes up after every write (done or refused), so every open list and file reloads. */
-const useDataVersion = create<{ version: number }>(() => ({ version: 0 }));
+export const useDataVersion =create<{ version: number }>(() => ({ version: 0 }));
 const bump = (): void => useDataVersion.setState((s) => ({ version: s.version + 1 }));
 
 const WRITES = [
@@ -26,6 +26,12 @@ const WRITES = [
   'recordPayment',
   'reversePayment',
   'addDocument',
+  'setCollectedBy',
+  'withdrawOrder',
+  'remindOrder',
+  'sendRestockList',
+  'markNoticesRead',
+  'markAllNoticesRead',
 ] as const satisfies ReadonlyArray<keyof PurchasingService>;
 
 /** The HTTP service with a version bump after each write. A refused write bumps too: the order may have moved on under the person. */

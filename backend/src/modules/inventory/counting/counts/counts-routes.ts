@@ -4,7 +4,8 @@ import { requireCapability } from '../../_shared/central-store-access';
 import { countsController } from './counts-controller';
 
 /**
- * Counting, `counts/`: the Counts screens (C1 summary, C2 list, C3 flagged to the Director, C4 repeat shortfalls, C5 one count).
+ * Counting, `counts/`: the Counts screens (C1 summary, C2 list, C3 flagged to the Director, C4 repeat shortfalls, C5 one count) and
+ * the Attendant's front door and history (C31 home, C32 my counts).
  * Every route authenticates and gates by capability; never a role list. `GET /counts/:id` matches any single segment, so it is
  * registered LAST, after every literal path here (and this router is mounted after print, record and review).
  */
@@ -12,6 +13,9 @@ const router = Router();
 
 router.use(authenticate);
 
+// C31 and C32: the caller's own data, so counts.record (the Attendant, the Store Manager, the System Admin), not counts.read.
+router.get('/counts/home', requireCapability('counts.record'), countsController.home);
+router.get('/counts/mine', requireCapability('counts.record'), countsController.mine);
 router.get('/counts/summary', requireCapability('counts.read'), countsController.summary);
 router.get('/counts/flagged', requireCapability('counts.read'), countsController.flagged);
 router.get('/counts/repeat-shortfalls', requireCapability('counts.read'), countsController.repeatShortfalls);

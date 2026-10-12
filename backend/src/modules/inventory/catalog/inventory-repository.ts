@@ -1,5 +1,6 @@
 import { Prisma, type Category, type DepartmentTag, type InventoryItem, type InventoryItemType, type RestockLevel, type Supplier, type SupplierPaymentTerms } from '@prisma/client';
 import { prisma } from '../../../config/database';
+import { departmentLinks } from '../departments/department-links';
 import { USE_TRANSACTION_TYPES, type ItemUse } from '../restock/restock-suggestion';
 
 type TxClient = Prisma.TransactionClient;
@@ -236,7 +237,7 @@ export const inventoryItemRepository = {
     data: CreateInventoryItemInput,
     tx: TxClient = prisma,
   ): Promise<InventoryItemWithRelations> => {
-    return tx.inventoryItem.create({
+    const created = await tx.inventoryItem.create({
       data: {
         siteId,
         name: data.name,
@@ -253,6 +254,9 @@ export const inventoryItemRepository = {
       },
       include: itemInclude,
     });
+    // Dual-write (Block 1 expand phase): the id-based department links follow the enum tags in the same transaction.
+    await departmentLinks.syncItemTags({ id: created.id, siteId }, data.departmentTags, tx);
+    return created;
   },
 
   update: async (
@@ -284,6 +288,8 @@ export const inventoryItemRepository = {
     });
 
     if (updated.count === 0) return null;
+    // Dual-write (Block 1 expand phase): the id-based department links follow the enum tags in the same transaction.
+    if (data.departmentTags !== undefined) await departmentLinks.syncItemTags({ id, siteId }, data.departmentTags, tx);
     return tx.inventoryItem.findFirst({ where: { id, siteId }, include: itemInclude });
   },
 

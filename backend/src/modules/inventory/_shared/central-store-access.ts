@@ -49,6 +49,7 @@ export const CAPABILITIES = [
   'orders.approve', // approve with a PIN, return with a note, send the approved order
   'orders.cancel', // cancel an order before anything arrives
   'orders.receive', // record a delivery
+  'orders.see_stock', // on-hand and reorder-level figures on the Purchasing screens (restock list, Restock levels); the Store Attendant holds it (owner, 10 Oct 2026, Paper 28B and 28P). It opens no other stock screen
   // Prep (docs/features/inventory/prep-plan.md §2). The Store Manager and System Admin hold all seven via the filter above.
   'prep.read', // Runs, Usual recipes (read-only), History, run detail
   'prep.see_costs', // run costs: output unit cost, input and line costs, prep value (the Attendant is blind to them)
@@ -81,8 +82,40 @@ export const CAPABILITIES = [
   'requisitions.cancel', // cancel before approval, with a reason and a PIN
   'requisitions.nudge', // nudge a department; send without a section
   'requisitions.set_urgent', // set or clear Urgent before approval
+  // Amendment 2 ("Fill it myself", Paper): the Branch Manager opens, edits and sends a Not started or Draft section for a department, with their own PIN.
+  'requisitions.edit_on_behalf', // open and edit a department's section that is Not started or Draft (Branch Manager only)
+  'requisitions.send_on_behalf', // send that section with the caller's own PIN; recorded as sent by the caller for that department (Branch Manager only)
   'departments.read', // Departments settings, read only
   'departments.write', // add, rename, retire, restore (own branch)
+  'branches.set_code', // correct a branch's three-letter code, which numbers its requisitions (System Admin only; no screen in Block 1)
+  // Dispatch, deliveries and discrepancies (docs/features/inventory/dispatch-contract.md §3). The client has not approved these
+  // mappings; each is a one-row edit below. Own-branch (Branch Manager), own-history (Attendant) and own-department narrowing are service rules.
+  'dispatch.read', // dispatch files and lists; the Branch Manager's own branch only, the Attendant's own packing history only
+  'dispatch.pack', // pack, review and sign a dispatch with the caller's own PIN
+  'dispatch.cancel', // cancel a signed dispatch before any department member has signed its count
+  'carriers.read', // the carrier list, read only
+  'carriers.manage', // add, rename, retire and restore carriers
+  'deliveries.count', // count and sign a delivery for ONE department: held by no role here, the department rule in the service (an active member or the head)
+  'deliveries.confirm_on_behalf', // confirm a department's delivery, recorded as the real signer "on behalf of the department" (Branch Manager only)
+  'discrepancies.read', // every discrepancy (a Branch Manager's own branch; department heads their own department by the department rule)
+  'discrepancies.record', // record one finding with the caller's own PIN
+  'discrepancies.reverse', // reverse a recorded finding with a reason and PIN
+  // Branch waste (docs/features/inventory/branch-waste-contract.md §3). The client has not approved these mappings; each is a one-row
+  // edit below. Heads and members hold none: logging and reversing your own entry is the department rule in the service. No PIN anywhere.
+  'branch_waste.log', // log waste for the caller's own department: held by no role here (an active head or member)
+  'branch_waste.reverse_own', // reverse an entry the caller logged earlier the same Nairobi day: held by no role here (department rule)
+  'branch_waste.read', // the branch's waste with values, own branch (Branch Manager)
+  'branch_waste.read_any_branch', // every branch's waste, read only, with a Branch column
+  'branch_waste.reverse_any', // reverse any entry of the branch with a reason (Branch Manager: own branch)
+  // Branch day (docs/features/inventory/branch-day-contract.md §3). The client has not approved these mappings; each is a one-row edit
+  // below. Heads and members hold none for their own count and opening: that is the department rule in the service. Own-branch (Branch
+  // Manager) is a service rule. The values on every screen follow `catalog.see_costs`.
+  'branch_day.count', // check the opening and count and sign the evening count for the caller's own department: held by no role here (an active head or member)
+  'branch_day.count_on_behalf', // count and sign for a department, recorded "on behalf of the department" (Branch Manager only)
+  'branch_day.read', // Today, a department's figures, History, the day file and the day sheet for the caller's own branch, with values (Branch Manager)
+  'branch_day.read_any_branch', // the same for every branch, read only, with a Branch picker and column
+  'branch_day.close', // close the day with the caller's own PIN (Branch Manager: own branch)
+  'branch_day.correct', // correct one item's closing figure on a closed day, with a reason and the caller's own PIN (Branch Manager: own branch)
   // Audit log
   'audit.read',
   // Where the person may stand when reading: any organization (the hub rule D-15 still holds for every write)
@@ -109,6 +142,9 @@ const READ_EVERYTHING: readonly Capability[] = [
   'requisitions.read',
   'requisitions.see_value',
   'departments.read',
+  'dispatch.read',
+  'carriers.read',
+  'discrepancies.read',
   'audit.read',
   'central_store.read_any_org',
 ];
@@ -125,12 +161,43 @@ const NOT_THE_STORE_MANAGERS: readonly Capability[] = [
   'requisitions.cancel',
   'requisitions.nudge',
   'requisitions.set_urgent',
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
   'departments.write',
+  'branches.set_code',
+  // A branch department's delivery is counted by its own members or confirmed for them by the Branch Manager.
+  'deliveries.count',
+  'deliveries.confirm_on_behalf',
+  // Branch waste is read through `branch_waste.read_any_branch`; the Branch Manager's own-branch rows and the department's rows are not the store's.
+  'branch_waste.log',
+  'branch_waste.reverse_own',
+  'branch_waste.read',
+  'branch_waste.reverse_any',
+  // The Store Manager reads every branch's day through `branch_day.read_any_branch`; the Branch Manager's own-branch rows and the department's rows are not the store's.
+  'branch_day.count',
+  'branch_day.count_on_behalf',
+  'branch_day.read',
+  'branch_day.close',
+  'branch_day.correct',
+];
+
+/** Held by no one through "everything": filling or signing FOR a department is the Branch Manager's alone, and counting a delivery, logging branch waste or counting and opening the day is the department's (owner, 8 Oct 2026). */
+const DEPARTMENT_ONLY: readonly Capability[] = [
+  'requisitions.edit_on_behalf',
+  'requisitions.send_on_behalf',
+  'deliveries.count',
+  'deliveries.confirm_on_behalf',
+  'branch_waste.log',
+  'branch_waste.reverse_own',
+  'branch_day.count',
+  'branch_day.count_on_behalf',
 ];
 
 export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>> = {
   STORE_MANAGER: CAPABILITIES.filter((c) => !NOT_THE_STORE_MANAGERS.includes(c)),
-  SYSTEM_ADMIN: CAPABILITIES,
+  // Everything except "on behalf" and the department's own count: filling and sending a department's section, and confirming its
+  // delivery for it, is the Branch Manager's alone (owner, 8 Oct 2026; contract §3 for deliveries).
+  SYSTEM_ADMIN: CAPABILITIES.filter((c) => !DEPARTMENT_ONLY.includes(c)),
   ACCOUNTANT: [
     ...READ_EVERYTHING,
     'suppliers.read_payment_details',
@@ -139,9 +206,19 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'payables.record_invoice',
     'payables.record_payment',
     'payables.record_deposit',
+    'branch_waste.read_any_branch',
+    'branch_day.read_any_branch',
   ],
   // The Director's only writes in Counting: "Mark seen" and the alert amount; in Requisitions, approving any requisition or addition.
-  DIRECTOR: [...READ_EVERYTHING, 'suppliers.read_payment_details', 'counts.acknowledge', 'counts.set_director_alert', 'requisitions.approve'],
+  DIRECTOR: [
+    ...READ_EVERYTHING,
+    'suppliers.read_payment_details',
+    'counts.acknowledge',
+    'counts.set_director_alert',
+    'requisitions.approve',
+    'branch_waste.read_any_branch',
+    'branch_day.read_any_branch',
+  ],
   // The Branch Manager reads everything except supplier payment details, and runs the branch's requisitions and departments.
   MANAGER: [
     ...READ_EVERYTHING,
@@ -151,7 +228,19 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'requisitions.cancel',
     'requisitions.nudge',
     'requisitions.set_urgent',
+    'requisitions.edit_on_behalf',
+    'requisitions.send_on_behalf',
     'departments.write',
+    // Confirms any department's delivery of the branch, recorded as the real signer "on behalf of the department".
+    'deliveries.confirm_on_behalf',
+    // Reads the branch's waste with values and reverses any entry of it with a reason (no PIN); own branch is a service rule.
+    'branch_waste.read',
+    'branch_waste.reverse_any',
+    // Reads the branch's day with values; closes it and corrects one count, each with their own PIN; counts for a department that cannot ("on behalf").
+    'branch_day.read',
+    'branch_day.close',
+    'branch_day.correct',
+    'branch_day.count_on_behalf',
   ],
   // Phone and desktop. Sees item costs and prices; blind to stock figures and to financial data (what we owe, invoices,
   // payments, supplier balances and payment details, reports): see `_shared/blind-rule.ts`. Raises order requests and
@@ -165,6 +254,8 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'orders.read',
     'orders.request',
     'orders.receive',
+    // Sees on hand and the reorder level on the Purchasing phone screens only (Paper 28B, 28P); every other stock screen stays blind.
+    'orders.see_stock',
     'prep.read',
     'prep.record',
     // Counts blind (own count only), logs waste, reads and reverses their own waste the same day.
@@ -174,6 +265,9 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'waste.reverse_own',
     // Reads every requisition to pack it; no money and no branch values (the `requisitions.see_value` row is not theirs).
     'requisitions.read',
+    // Packs, reviews and signs dispatches with their own PIN; reads their own packing history only (the service narrows `dispatch.read`).
+    'dispatch.read',
+    'dispatch.pack',
   ],
 };
 

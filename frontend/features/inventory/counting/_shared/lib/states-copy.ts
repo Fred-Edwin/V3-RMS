@@ -59,6 +59,20 @@ export const COUNTING_STATES_COPY = {
     error: 'Could not change the order. It stays as it was. Try again.',
     permission: 'Reordering is for the Store Attendant and Store Manager.',
   },
+  /** Step 52, Stock & counts home (phone). Lines added in Block 5 in the same voice; the design pass table had no row for it. */
+  attendantHome: {
+    loading: 'Getting your counts',
+    empty: none,
+    error: 'Could not load your home screen. Nothing was changed. Try again.',
+    permission: 'Counting is for the Store Attendant and Store Manager.',
+  },
+  /** Step 53, My counts (phone). */
+  myCounts: {
+    loading: 'Getting your counts',
+    empty: 'You have signed no counts in this period. Pick a section to start one.',
+    error: 'Could not load your counts. Try again.',
+    permission: 'You see your own counts.',
+  },
   /** Step 41, Move an item. */
   moveItem: {
     loading: 'Moving it',

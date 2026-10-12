@@ -15,11 +15,7 @@ const SRC = join(__dirname, '..', '..', '..', '..'); // backend/src
 const DOOR_DIR = join('modules', 'inventory', 'stock', 'ledger');
 
 /** file (relative to backend/src) -> number of direct ledger writes still allowed there. */
-const ALLOWED_DIRECT_WRITES: Record<string, number> = {
-  'modules/inventory/branch-day/branch-day-repository.ts': 1, // writeAdjustment
-  'modules/inventory/dispatch/discrepancy-service.ts': 3,
-  'modules/inventory/dispatch/dispatch-service.ts': 2,
-};
+const ALLOWED_DIRECT_WRITES: Record<string, number> = {};
 
 const PRISMA_WRITE = /inventoryTransaction\s*\.\s*(create|createMany|update|updateMany|delete|deleteMany|upsert)\b/g;
 const RAW_SQL_WRITE = /(insert\s+into|update|delete\s+from)\s+"?inventory_transactions\b/gi;
@@ -59,8 +55,12 @@ describe('stock ledger guard', () => {
     expect(stale, 'These files write the ledger less than the allow-list says: lower or remove their entry.').toEqual([]);
   });
 
-  it('the moved writers (Waste, Prep) no longer write the ledger directly', () => {
+  it('the moved writers (Waste, Branch waste, Prep) no longer write the ledger directly', () => {
     expect(found.has('modules/inventory/waste/waste-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/log/log-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/reverse/reverse-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/branch/branch-service.ts')).toBe(false);
+    expect(found.has('modules/inventory/waste/branch/branch-repository.ts')).toBe(false);
     expect(found.has('modules/inventory/prep/prep-service.ts')).toBe(false);
   });
 

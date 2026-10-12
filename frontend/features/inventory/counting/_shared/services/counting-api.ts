@@ -13,8 +13,11 @@ import type {
   CountDetail,
   CountRecordPrint,
   CountSettings,
+  CountsHome,
   CountsList,
   CountsListQuery,
+  MyCountsList,
+  MyCountsQuery,
   CountsSummary,
   DecisionInput,
   FlaggedList,
@@ -38,6 +41,10 @@ const BASE = '/inventory/stock';
 const callApi = makeCallApi(BASE);
 
 export const countingApi = {
+  /** C31: the Attendant's home (own open count, sections, signed total, waste today). Blind. */
+  home: (signal?: AbortSignal) => callApi<CountsHome>('GET', '/counts/home', undefined, signal),
+  /** C32: the caller's own signed counts, newest first. Blind. */
+  mine: (query: MyCountsQuery = {}, signal?: AbortSignal) => callApi<MyCountsList>('GET', `/counts/mine${queryString(query)}`, undefined, signal),
   /** C1 */
   summary: (audience?: 'manager' | 'director') => callApi<CountsSummary>('GET', `/counts/summary${queryString({ audience })}`),
   /** C2 */

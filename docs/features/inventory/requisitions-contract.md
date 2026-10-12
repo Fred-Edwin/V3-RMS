@@ -156,6 +156,18 @@ Each write appends a `RequisitionEvent`. The Audit log sub-module reads `Requisi
 7. **The one open check:** that session did not open Paper steps 1 to 20 at full size. The two front-end sessions do that first (their prompts say so) and report every gap; I batch the gaps into **Amendment 2** before back end B starts. Back end A's migration and write rules are not affected by it.
 8. The front-end `requisitions/index.ts` barrel does not export the new mirror yet (old type names clash); that switch belongs to the PR that deletes the old screens.
 
+## 17. Amendment 2 (owner approved 8 Oct 2026)
+
+The list of changes is `requisitions-amendment-2.md` (wire changes §1, error codes §2, behaviour decisions §3, navigation §4, back end B scope §5); it applies on top of this document and Amendment 1, and Paper still wins. It is in code in `requisitions/_shared/requisitions-contract.ts`, `departments/_shared/departments-contract.ts`, both fixtures files, both front-end mirrors and the access table (`requisitions.edit_on_behalf`, `requisitions.send_on_behalf`: the Branch Manager alone, not the System Admin or the Director). `sentAt` on a row means, on R9 history rows, when the head's section was sent; on R1 rows it stays null for now. Where this document and the amendment disagree, the amendment wins: R18 takes a list, R20's reason is "preset — note", the Next step card and the tracker return facts only, and the capability list in §3 has two more rows.
+
+## 17a. Amendment 3 (owner direction, 11 Oct 2026, from the Phase 1 walk)
+
+- **R11, Extra:** an Extra started by a department head creates only that head's own section ("Extra · Service only"). Morning and Afternoon, and anything started by a non-head, still create one section per active department. Consequence: another department cannot join an open Extra; it starts its own after that one is approved or cancelled.
+- **R12, Activity:** a head's autosave no longer writes `LINE_CHANGED`. Only a list edited on someone's behalf does. `SENT` now carries the line count in `toValue`, and its sentence reads "Sent Kitchen's list · 15 lines · signed with PIN".
+- **R7, Home:** every `earlierToday` row carries `openedAt`; a new `needsYou` list holds each of today's requisitions where an approver changed lines in the head's section (`requisitionId`, `cycle`, `changedCount`, `firstChange` with item, unit, asked and approved quantity).
+- **R2 and the dark badge (approvers):** the Branch Manager's and Director's count is To approve plus every collecting list that has at least one department sent ("partly sent"). The queue's To approve tab itself is unchanged, and Approve stays locked until every department is in. The Branch Manager dashboard's "Needs your action" shows the same count as a "N requisitions waiting" card.
+- **R1, rows:** each row carries `changedLineCount` (lines an approver changed), for "N lines changed" on the manager queue.
+
 ## 9. Ledger
 
 Requisitions never write the stock ledger. No change to `ledger-guard.test.ts` in Block 1.

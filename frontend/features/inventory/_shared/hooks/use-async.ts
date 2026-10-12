@@ -18,6 +18,8 @@ export function useLoader<T>(key: string | null, fetcher: () => Promise<T>, fall
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<LoadStatus>(key === null ? 'idle' : 'loading');
   const [error, setError] = useState<string | null>(null);
+  // The contract code of the last failure (null for a lost connection), so a screen can word a known refusal itself.
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const hasData = useRef(false);
 
   const load = useCallback(async () => {
@@ -30,6 +32,7 @@ export function useLoader<T>(key: string | null, fetcher: () => Promise<T>, fall
     }
     if (!hasData.current) setStatus('loading');
     setError(null);
+    setErrorCode(null);
     try {
       const result = await fetcherRef.current();
       if (request !== latest.current) return;
@@ -39,6 +42,7 @@ export function useLoader<T>(key: string | null, fetcher: () => Promise<T>, fall
     } catch (err) {
       if (request !== latest.current) return;
       setError(formatApiErrorMessage(err, fallbackMessage));
+      setErrorCode(err instanceof ApiError ? err.code : null);
       setStatus('error');
     }
   }, [key, fallbackMessage]);
@@ -53,7 +57,7 @@ export function useLoader<T>(key: string | null, fetcher: () => Promise<T>, fall
     void load();
   }, [load]);
 
-  return { data, status, error, reload: load, setData };
+  return { data, status, error, errorCode, reload: load, setData };
 }
 
 export interface ActionFailure {

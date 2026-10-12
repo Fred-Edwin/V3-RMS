@@ -89,9 +89,11 @@ interface MonthProps {
   onPick: (d: string) => void;
   onHover: (d: string | null) => void;
   onKey: (day: string, e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  /** The phone bottom sheet (Paper 28G2): full width, 34 px day cells, a caramel tint for the range, and the heading is read out only (the sheet draws its own month row). */
+  sheet?: boolean;
 }
 
-function Month({ year, month, today, range, pending, focusDay, onPick, onHover, onKey }: MonthProps) {
+function Month({ year, month, today, range, pending, focusDay, onPick, onHover, onKey, sheet = false }: MonthProps) {
   const headingId = React.useId();
   const first = new Date(Date.UTC(year, month, 1));
   const lead = (first.getUTCDay() + 6) % 7;
@@ -100,8 +102,8 @@ function Month({ year, month, today, range, pending, focusDay, onPick, onHover, 
   while (cells.length % 7 !== 0) cells.push(null);
   const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
   return (
-    <div className="flex w-[252px] flex-col gap-2">
-      <div id={headingId} className="font-wds-sans text-[14px] font-semibold leading-5 text-wds-text-ink">{MONTHS[month]} {year}</div>
+    <div className={cn('flex flex-col gap-2', sheet ? 'w-full' : 'w-[252px]')}>
+      <div id={headingId} className={cn('font-wds-sans text-[14px] font-semibold leading-5 text-wds-text-ink', sheet && 'sr-only')}>{MONTHS[month]} {year}</div>
       <div role="grid" aria-labelledby={headingId} className="flex flex-col gap-y-px">
         <div className="grid grid-cols-7 font-wds-mono text-[10px] leading-3 text-wds-text-secondary" role="row">
           {WD.map((d) => <span key={d} className="flex h-6 items-center justify-center" role="columnheader">{d}</span>)}
@@ -126,8 +128,9 @@ function Month({ year, month, today, range, pending, focusDay, onPick, onHover, 
                     onKeyDown={(e) => onKey(d, e)}
                     onMouseEnter={() => pending && onHover(d)}
                     className={cn(
-                      'flex h-9 w-full items-center justify-center font-wds-mono text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]',
-                      future ? 'cursor-not-allowed text-wds-text-faint' : endpoint ? 'bg-wds-text-ink text-white' : inside ? 'bg-wds-espresso-50 text-wds-text-ink' : 'text-wds-text-ink [@media(hover:hover)]:hover:bg-wds-neutral-100',
+                      'flex w-full items-center justify-center font-wds-mono text-[12px] leading-4 outline-none transition-colors duration-100 focus-visible:shadow-[inset_0_0_0_2px_var(--wds-selected-edge)]',
+                      sheet ? 'h-[34px]' : 'h-9',
+                      future ? 'cursor-not-allowed text-wds-text-faint' : endpoint ? 'bg-wds-text-ink text-white' : inside ? (sheet ? 'bg-wds-caramel-100 text-wds-text-ink' : 'bg-wds-espresso-50 text-wds-text-ink') : 'text-wds-text-ink [@media(hover:hover)]:hover:bg-wds-neutral-100',
                     )}
                   >
                     {Number(d.slice(8))}
@@ -155,15 +158,20 @@ export interface DateRangePickerProps {
   note?: string;
   /** The name read out for the button and the dialog, e.g. "Date". */
   label?: string;
+  /** Draw "Date: " in front of the range and a small ▾ after it, as the phone lists do (Paper steps 53 and 54). Off, the label is read out only. */
+  showLabel?: boolean;
   className?: string;
   /** Extra classes for the button that opens the panel (a form row that wants 34px fields, say). */
   buttonClassName?: string;
+  /** Open as a bottom sheet over a scrim, one month at a time (the Store Attendant's phone lists, Paper 28G2) instead of the dropdown panel. */
+  sheet?: boolean;
 }
 
-export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', className, buttonClassName }: DateRangePickerProps) {
+export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', showLabel = false, className, buttonClassName, sheet = false }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   // Two months side by side from 1024px; one below it (the second would be hidden and could still hold the focus).
-  const { matches: wide } = useMediaQuery('(min-width: 1024px)');
+  const { matches: wideScreen } = useMediaQuery('(min-width: 1024px)');
+  const wide = wideScreen && !sheet;
   const shownValue: DateRange = value ?? { from: today, to: today };
   const [draft, setDraft] = React.useState<DateRange>(shownValue);
   const [anyDraft, setAnyDraft] = React.useState(value === null);
@@ -318,11 +326,73 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
         onClick={() => (open ? close(true) : setOpen(true))}
         className={cn('flex h-8 items-center gap-2 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring max-sm:h-11', buttonClassName)}
       >
-        <span className="sr-only">{label}: </span>
-        {value === null ? 'Any time' : presetLabel(value, today)}
-        <span aria-hidden className="text-wds-text-faint">⌄</span>
+        {showLabel ? (
+          <span>
+            {label}: {value === null ? 'Any time' : presetLabel(value, today)}
+          </span>
+        ) : (
+          <>
+            <span className="sr-only">{label}: </span>
+            {value === null ? 'Any time' : presetLabel(value, today)}
+          </>
+        )}
+        {showLabel ? <span aria-hidden className="text-[9px] text-wds-text-ink">▾</span> : <span aria-hidden className="text-wds-text-faint">⌄</span>}
       </button>
-      {open ? (
+      {open && sheet ? (
+        <>
+          <div aria-hidden="true" onClick={() => close(true)} className="fixed inset-0 z-50 bg-[#171512]/45" />
+          <div
+            ref={panelRef}
+            id={panelId}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Choose dates: ${label}`}
+            onKeyDown={onPanelKey}
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[480px] flex-col gap-3.5 border-t border-wds-border-strong bg-wds-surface px-5 pb-7 pt-4 shadow-[0_-12px_32px_#28190A2E] outline-none motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-200"
+          >
+            <div role="group" aria-label="Quick picks" className="flex flex-col gap-2">
+              <span aria-hidden className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">Quick picks</span>
+              <div className="flex flex-wrap gap-1.5">
+                {quick.map((q) => {
+                  const on = !anyDraft && q.r.from === draft.from && q.r.to === draft.to;
+                  return (
+                    <button key={q.label} type="button" data-quick aria-pressed={on} onClick={() => { setAnyDraft(false); setDraft(q.r); setPending(null); setView(monthOf(q.r.from)); setFocusDay(q.r.to); }} className={cn('h-8 border border-wds-border-strong px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring', on ? 'bg-wds-caramel-100 font-semibold' : 'bg-wds-surface')}>
+                      {q.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">From</span>
+                <span className={cn('flex h-8 items-center border px-2.5 font-wds-mono text-[13px] leading-4 text-wds-text-ink', pending ? 'border-wds-border-strong' : 'border-wds-text-ink')}>{longDate(shown.from)}</span>
+              </div>
+              <span aria-hidden className="pt-[19px] font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">→</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">To</span>
+                <span className={cn('flex h-8 items-center border px-2.5 font-wds-mono text-[13px] leading-4 text-wds-text-ink', pending ? 'border-wds-text-ink' : 'border-wds-border-strong')}>{longDate(shown.to)}</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex h-7 items-center justify-between">
+                <button type="button" aria-label="Previous month" onClick={() => step(-1)} className="flex size-11 -ml-3 items-center justify-center font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring">‹</button>
+                <span aria-hidden className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{MONTHS[view.m]} {view.y}</span>
+                <button type="button" aria-label="Next month" disabled={monthIndex(view) >= monthIndex(monthOf(today))} onClick={() => step(1)} className="flex size-11 -mr-3 items-center justify-center font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-faint outline-none focus-visible:shadow-wds-ring enabled:text-wds-text-ink disabled:cursor-not-allowed">›</button>
+              </div>
+              <Month sheet year={view.y} month={view.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} />
+            </div>
+            <div className="flex items-end justify-between gap-3 border-t border-wds-border pt-3">
+              <p className="w-[170px] font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">{spanDays(shown)} days · later dates can’t be picked.</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => close(true)} className="relative h-8 border border-wds-border-strong bg-wds-surface px-3.5 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none before:absolute before:inset-x-0 before:-inset-y-[6px] before:content-[''] focus-visible:shadow-wds-ring">Cancel</button>
+                <button type="button" onClick={() => { onChange(anyDraft ? null : draft); close(true); }} className="relative h-8 bg-[var(--wds-primary-btn-start)] px-3.5 font-wds-sans text-[13px] font-medium leading-4 text-white outline-none before:absolute before:inset-x-0 before:-inset-y-[6px] before:content-[''] focus-visible:shadow-wds-ring">Apply</button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+      {open && !sheet ? (
         <div
           ref={panelRef}
           id={panelId}

@@ -89,17 +89,25 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
     `Why:` — what this change does and how it serves the current task, in plain
     English (e.g. `Why: the sidebar needs the new Restock link before the tests can pass`).
     The owner's dashboard shows that line next to the file name. For multi-step
-    work, also keep a task list (TaskCreate/TaskUpdate).
+    work, also keep a task list (see "Task Tracking" below).
 14. End every task with a short plain-English recap (about 5 lines): what
     changed, which files, and how the owner can verify it. The owner does not
     read full diffs.
 
 ## Task Tracking
 
-For any multi-step task, use a todo list (e.g. the TodoWrite tool) and keep it updated
-as you go — mark items complete as soon as they're done, don't batch updates to the
-end. This is for the owner's visual feedback while work is in progress, not just your
-own bookkeeping, so update it live rather than only at the start/end of a task.
+For any multi-step task, keep a task list and update it as you go — mark items
+complete as soon as they're done, don't batch updates to the end. This is for the
+owner's visual feedback while work is in progress, not just your own bookkeeping, so
+update it live rather than only at the start/end of a task.
+
+Which tool: use whichever task-list tool your session has. The names vary by Claude
+Code version: `TaskCreate` / `TaskUpdate` / `TaskList`, or `TodoWrite`. If you cannot
+call one, it may be a deferred tool: run ToolSearch with the query `select:TaskCreate,TaskUpdate`
+(or `select:TodoWrite`) to load it, then use it. If neither loads, do not stop and do
+not mention it as a problem: keep a short numbered list in your messages instead, post
+it at the start of the task, and re-post the list with each item's status (done,
+doing, to do) every time one changes.
 
 ## MCP Tools — Prefer These Over Manual Equivalents
 

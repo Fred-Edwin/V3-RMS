@@ -4,7 +4,7 @@ Rebuilt from the Paper page "Inventory · Counting redesign (Oct 7)" (`01M3TP8J5
 
 Folders: `record/` (the Attendant's phone count and the Manager's own count), `review/` (Counts, Review, Director's view), `setup/` (Count setup and its drawers), `print/` (the two A4 pages), `_shared/` (landed contract mirror, fixtures, states copy, `counting-api.ts`, autosave, chips).
 
-Role-aware by data, never by role name: `/stock/counts` shows the Counts list to a caller holding `counts.read`, the Director's flagged view to one holding `counts.acknowledge` without `counts.resolve` (or with `?view=flagged`), and Pick a section to one holding only `counts.record`. `/counts/[id]/count` shows the phone column when the response has no stock-figure keys and the desktop table when it has them.
+Role-aware by data, never by role name: `/stock/counts` shows the Counts list to a caller holding `counts.read`, the Director's flagged view to one holding `counts.acknowledge` without `counts.resolve` (or with `?view=flagged`), and the Stock & counts home (step 52, `home/`, C31) to one holding only `counts.record`. Pick a section (step 1) is one level down at `/stock/counts/sections`; My counts (step 53, `mine/`, C32) is `/stock/counts/mine`, with date range, status and page in the URL (default last 30 days, 25 a page, the contract's smallest size). The reference on each row opens the phone Submitted screen (`/counts/[id]/submitted`); Paper draws no target for it. Both new screens are blind: no stock figure, no difference. `/counts/[id]/count` shows the phone column when the response has no stock-figure keys and the desktop table when it has them.
 
 ## Parity manifest
 
@@ -12,7 +12,9 @@ Verdicts: **by eye** = compared to `get_screenshot` in the browser at the artboa
 
 | Step | Paper node | Route and state | Width | Verdict |
 |---|---|---|---|---|
-| 1 Pick a section | `1WGA-0` | `/stock/counts` as Attendant; busy section, resume banner | 390 | by eye, matches |
+| 52 Stock & counts home | `2OV6-0` | `/stock/counts` as Attendant; open count (Resume), badge, wrap of a long section line | 390, 768 | numeric (`get_computed_styles`) and by eye, matches; the big button's gradient uses the shared `PHONE_PRIMARY_FILL` (start stop differs from step 52's drawn 57.3 %; left as on every phone screen) |
+| 53 My counts | `2OWT-0` | `/stock/counts/mine`; filters, empty, error with Retry | 390, 1024 | numeric and by eye, matches; Paper's sample page is 5 rows, built at 25 per the contract; the pager shows from 26 rows |
+| 1 Pick a section | `1WGA-0` | `/stock/counts/sections` as Attendant; busy section, resume banner | 390 | by eye, matches (back chevron to the home) |
 | 2 Count the shelf | `1WIL-0` | `/counts/[id]/count` | 390 | by eye, matches (empty boxes borderless; Paper draws a faint box, corrected later) |
 | 3 Check again | `1WM9-0` | section check sheet | 390 | by eye (list sheet); built |
 | 4 Recount once | `1WQJ-0` | recount mode, Up next, Keep | 390 | by eye, matches |

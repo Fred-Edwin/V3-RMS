@@ -57,9 +57,13 @@ describe('the Central Store permissions table', () => {
       'catalog.read',
       'catalog.see_costs',
       'counts.record',
+      'dispatch.pack',
+      'dispatch.read',
       'orders.read',
       'orders.receive',
       'orders.request',
+      // 10 Oct 2026: on hand and the reorder level on the Purchasing phone screens only (Paper 28B, 28P); `restock.read` stays out.
+      'orders.see_stock',
       'prep.read',
       'prep.record',
       'requisitions.read',
@@ -101,8 +105,16 @@ describe('the Central Store permissions table', () => {
     }
   });
 
-  it('gives the System Admin everything and an unknown role nothing', () => {
-    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length);
+  it('gives the System Admin everything except the "on behalf" rows and the department\'s own delivery count, branch waste log and day count, and an unknown role nothing', () => {
+    expect(capabilitiesOf('SYSTEM_ADMIN')).toHaveLength(CAPABILITIES.length - 8);
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_day.count');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_day.count_on_behalf');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_waste.log');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('branch_waste.reverse_own');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.edit_on_behalf');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('requisitions.send_on_behalf');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('deliveries.count');
+    expect(capabilitiesOf('SYSTEM_ADMIN')).not.toContain('deliveries.confirm_on_behalf');
     expect(capabilitiesOf('WAITER')).toEqual([]);
     expect(actorCan({ role: 'CHEF' } as never, 'catalog.read')).toBe(false);
   });

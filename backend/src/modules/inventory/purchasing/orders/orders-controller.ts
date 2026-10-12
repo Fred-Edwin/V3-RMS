@@ -1,7 +1,18 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../../../utils/errors';
 import { ordersService } from './orders-service';
-import { ApproveSchema, CancelSchema, IdParamSchema, OrderInputSchema, OrdersQuerySchema, ReturnSchema, SendSchema, UpdateOrderSchema } from './orders-validators';
+import {
+  ApproveSchema,
+  CancelSchema,
+  CollectedByBodySchema,
+  CollectorsQuerySchema,
+  IdParamSchema,
+  OrderInputSchema,
+  OrdersQuerySchema,
+  ReturnSchema,
+  SendSchema,
+  UpdateOrderSchema,
+} from './orders-validators';
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
@@ -49,7 +60,8 @@ export const ordersController = {
   },
 
   approve: async (req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ success: true, data: await ordersService.approve(requireActor(req), idOf(req), ApproveSchema.parse(req.body).pin) });
+    const body = ApproveSchema.parse(req.body);
+    res.status(200).json({ success: true, data: await ordersService.approve(requireActor(req), idOf(req), body.pin, new Date(), body.collectedBy) });
   },
 
   returnOrder: async (req: Request, res: Response): Promise<void> => {
@@ -57,7 +69,24 @@ export const ordersController = {
   },
 
   send: async (req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ success: true, data: await ordersService.send(requireActor(req), idOf(req), SendSchema.parse(req.body).via) });
+    const body = SendSchema.parse(req.body);
+    res.status(200).json({ success: true, data: await ordersService.send(requireActor(req), idOf(req), body.via, new Date(), body.collectedBy) });
+  },
+
+  getCollectors: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await ordersService.getCollectors(requireActor(req), CollectorsQuerySchema.parse(req.query).q) });
+  },
+
+  setCollectedBy: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await ordersService.setCollectedBy(requireActor(req), idOf(req), CollectedByBodySchema.parse(req.body).collectedBy) });
+  },
+
+  withdraw: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await ordersService.withdraw(requireActor(req), idOf(req)) });
+  },
+
+  remind: async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ success: true, data: await ordersService.remind(requireActor(req), idOf(req)) });
   },
 
   cancel: async (req: Request, res: Response): Promise<void> => {

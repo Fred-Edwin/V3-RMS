@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { Prisma, type SupplierPayMethodType } from '@prisma/client';
 import { blindnessOf, withoutFinancials } from '../../_shared/blind-rule';
 import { actorCan } from '../../_shared/central-store-access';
+import { nairobiDay } from '../../counting/_shared/count-time';
 import { toFileRef } from './file-ref';
 import {
   invoiceFigures,
@@ -16,6 +17,7 @@ import { canOf, dueInDaysOf, dueLabelOf, stageOf, trackerOf, type Caller } from 
 import type { OrderRecord } from './order-record';
 import type {
   ActivityEntryView,
+  CollectedByView,
   DeliveryView,
   FileDocumentView,
   InvoiceView,
@@ -51,7 +53,7 @@ export const METHOD_WORD: Record<PayMethod, string> = {
   CASH: 'Cash',
 };
 
-const CANCEL_WORD = { ORDERED_BY_MISTAKE: 'Ordered by mistake', SUPPLIER_CANNOT_SUPPLY: 'Supplier cannot supply', NO_LONGER_NEEDED: 'No longer needed', OTHER: 'Other' } as const;
+const CANCEL_WORD = { ORDERED_BY_MISTAKE: 'Ordered by mistake', SUPPLIER_CANNOT_SUPPLY: 'Supplier cannot supply', NO_LONGER_NEEDED: 'No longer needed', OTHER: 'Other', WITHDRAWN: 'Withdrawn by the person who raised it' } as const;
 export const cancelWord = (reason: keyof typeof CANCEL_WORD): string => CANCEL_WORD[reason];
 
 /** The supplier's terms as whole days: null for cash on delivery. */
@@ -97,10 +99,41 @@ const supplierCard = (actor: Actor, o: OrderRecord): SupplierCardView => ({
   name: o.supplier.name,
   code: o.supplier.code,
   contactName: o.supplier.contacts[0]?.name ?? null,
+  phone: o.supplier.contacts[0]?.phone ?? o.supplier.contacts[0]?.whatsapp ?? null,
   whatsapp: o.supplier.contacts[0]?.whatsapp ?? o.supplier.contacts[0]?.phone ?? null,
   termsDays: o.termsDays,
   payMethods: actorCan(actor, 'suppliers.read_payment_details') ? o.supplier.payMethods.map(payMethodView) : [],
 });
+
+/** The name shown for who is collecting, by kind. */
+const collectorLabel = (o: OrderRecord): string | null => {
+  switch (o.collectedByKind) {
+    case 'SUPPLIER_DELIVERS':
+      return 'Supplier delivers';
+    case 'CARRIER':
+      return o.collectedByCarrier?.name ?? null;
+    case 'STAFF':
+      return o.collectedByUser?.name ?? null;
+    case 'OTHER':
+      return o.collectedByName;
+    default:
+      return null;
+  }
+};
+
+export const collectedByView = (o: OrderRecord): CollectedByView | null => {
+  const label = collectorLabel(o);
+  if (!o.collectedByKind || label === null) return null;
+  return {
+    kind: o.collectedByKind,
+    label,
+    summary: o.collectedByKind === 'SUPPLIER_DELIVERS' ? 'supplier delivers' : `collected by ${label}`,
+    carrierId: o.collectedByCarrierId,
+    userId: o.collectedByUserId,
+    setBy: o.collectedBySetBy ? person(o.collectedBySetBy) : null,
+    setAt: o.collectedBySetAt ? iso(o.collectedBySetAt) : null,
+  };
+};
 
 const lineView = (actor: Actor, l: OrderRecord['lines'][number]): OrderLineView => {
   const blind = blindnessOf(actor).itemCosts;
@@ -196,7 +229,7 @@ export const viewOrder = (actor: Actor, o: OrderRecord, now: Date): OrderView =>
   const live = liveInvoiceOf(o);
   const facts = paymentFacts(o);
   const priced = o.lines.map((l) => ({ orderedQty: l.orderedQty, unitPrice: l.unitPrice, receivedQty: l.receivedQty, confirmedPrice: l.confirmedPrice }));
-  const dueIn = dueInDaysOf({ status: o.status, expectedDate: o.expectedDate ? day(o.expectedDate) : null, invoiceDueDate: live && !blind.financials ? day(live.dueDate) : null }, day(now));
+  const dueIn = dueInDaysOf({ status: o.status, expectedDate: o.expectedDate ? day(o.expectedDate) : null, invoiceDueDate: live && !blind.financials ? day(live.dueDate) : null }, nairobiDay(now));
   const shortLines = o.lines.some((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED');
   const lastInvoicePayment = [...o.payments].reverse().find((p) => p.kind === 'INVOICE' && p.status === 'RECORDED');
   const view: OrderView = {
@@ -213,6 +246,7 @@ export const viewOrder = (actor: Actor, o: OrderRecord, now: Date): OrderView =>
     returnedBy: o.status === 'RETURNED' && o.returnedBy ? nameOf(o.returnedBy) : null,
     sentAt: o.sentAt ? iso(o.sentAt) : null,
     sentVia: o.sentVia,
+    collectedBy: collectedByView(o),
     expectedDate: o.expectedDate ? day(o.expectedDate) : null,
     supplierNote: o.supplierNote,
     attendantNote: o.attendantNote,
@@ -239,7 +273,8 @@ export const viewOrder = (actor: Actor, o: OrderRecord, now: Date): OrderView =>
       deliveredAt: o.delivery ? iso(o.delivery.receivedAt) : null,
       deliveredShort: shortLines,
       invoicedAt: live ? iso(live.enteredAt) : null,
-      invoiceNote: live ? (live.disputed ? 'disputed' : live.settledAt ? 'settled' : null) : null,
+      // A dispute is invoice business: the Attendant's tracker shows the step as done, with no note.
+      invoiceNote: live && !blind.financials ? (live.disputed ? 'disputed' : live.settledAt ? 'settled' : null) : null,
       paidAt: lastInvoicePayment ? iso(lastInvoicePayment.recordedAt) : live ? iso(live.enteredAt) : null,
     }),
     can: canOf(

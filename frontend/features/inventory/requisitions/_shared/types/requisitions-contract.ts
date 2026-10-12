@@ -6,6 +6,9 @@
  * key is present (money, stock figures), never a role name. A field marked "cap" is ABSENT, never null, without the capability.
  * Status names are the database enum names; `statusText` carries the words.
  *
+ * Amendment 2 (docs/features/inventory/requisitions-amendment-2.md) is applied. Next step and tracker carry facts only: the
+ * front end writes their titles, bodies and labels from Paper.
+ *
  * The old `requisitions/types` (Milestone Four) is not touched here; it is deleted when the old screens are replaced.
  */
 import type { PageInfo, PageQuery, Person } from '../../../_shared/types/wire';
@@ -129,29 +132,66 @@ export interface Addition {
   can: { approve: boolean };
 }
 
+/** Facts only (Amendment 2): the labels and second lines are the front end's. */
 export interface TrackerStep {
   key: 'STARTED' | 'ALL_IN' | 'APPROVED' | 'PACKED' | 'DELIVERED' | 'CLOSED';
-  label: string;
   state: 'DONE' | 'CURRENT' | 'TODO';
   at: string | null;
   by: Person | null;
+  /**
+   * ALL_IN: sections in of sections counted. PACKED: "n of m sent" (departments whose dispatch is signed of the departments that
+   * count). DELIVERED: "n counted" (departments whose delivery is counted, of the same total). Null for the other steps.
+   */
+  count: { done: number; total: number } | null;
 }
 
+/** The action key and facts only (Amendment 2): the title, body and button label are the front end's. */
 export interface NextStep {
-  title: string;
-  text: string | null;
   action: NextStepAction | null;
-  actionLabel: string | null;
   departmentId: string | null;
+  facts: { sectionsIn: number; sectionsTotal: number; additionsWaiting: number };
 }
 
-/** Empty until Block 2. */
+/** The database dispatch statuses and the derived states (mirrors `dispatch/_shared/types/dispatch-contract.ts`; a test pins that they agree). */
+export type DispatchStatusValue = 'TO_PACK' | 'PACKING' | 'ON_THE_WAY' | 'CONFIRMED' | 'CLOSED' | 'CANCELLED';
+export const DISPATCH_STATUS_VALUES: readonly DispatchStatusValue[] = ['TO_PACK', 'PACKING', 'ON_THE_WAY', 'CONFIRMED', 'CLOSED', 'CANCELLED'];
+export type DispatchDerivedState =
+  | 'TO_PACK'
+  | 'PACKING'
+  | 'READY_TO_SEND'
+  | 'ON_THE_WAY'
+  | 'WAITING_FOR_BRANCH'
+  | 'CONFIRMED'
+  | 'GAP_HELD'
+  | 'CLOSED'
+  | 'CANCELLED';
+export const DISPATCH_DERIVED_STATE_VALUES: readonly DispatchDerivedState[] = [
+  'TO_PACK',
+  'PACKING',
+  'READY_TO_SEND',
+  'ON_THE_WAY',
+  'WAITING_FOR_BRANCH',
+  'CONFIRMED',
+  'GAP_HELD',
+  'CLOSED',
+  'CANCELLED',
+];
+
+/**
+ * A dispatch of this requisition (Block 2, Dispatch Amendment 1 row 10), one per department. Rows of departments still to pack have
+ * no number, no signing time and no carrier yet. The front end writes the words from `derivedState`.
+ */
 export interface DispatchRef {
   id: string;
-  reference: string;
+  /** "DSP-NYR-0112"; null until the department's dispatch is signed. */
+  reference: string | null;
   departmentId: string;
-  status: string;
-  statusText: string;
+  departmentName: string;
+  status: DispatchStatusValue;
+  derivedState: DispatchDerivedState;
+  lineCount: number;
+  signedAt: string | null;
+  carrierName: string | null;
 }
 
 // --- R1 list ---------------------------------------------------------------------
@@ -163,9 +203,27 @@ export interface ListRequisitionsQuery extends PageQuery {
   from?: string;
   to?: string;
   status?: RequisitionStatus;
+  /** Amendment 2 */
+  cycle?: RequisitionCycle;
+  departmentId?: string;
+  /** Sent as the string "true" or "false" in the query. */
+  urgent?: boolean;
 }
 
-export interface RequisitionRow {
+/** Amendment 2: the moments on an R1 row and an R9 history row. All nullable. */
+export interface RowMoments {
+  allInAt: string | null;
+  urgentAt: string | null;
+  sentAt: string | null;
+  closedAt: string | null;
+  cancelledAt: string | null;
+  /** "preset — note" */
+  cancelReason: string | null;
+  /** Max 200 characters. */
+  urgentNote: string | null;
+}
+
+export interface RequisitionRow extends RowMoments {
   id: string;
   /** "REQ-NYR-0112" */
   reference: string;
@@ -178,6 +236,8 @@ export interface RequisitionRow {
   tab: RequisitionTab;
   sections: { departmentId: string; departmentName: string; status: SectionStatus }[];
   lineCount: number;
+  /** Lines an approver changed from what the heads asked for ("3 lines changed" on the queue row). */
+  changedLineCount: number;
   /** cap requisitions.see_value */
   valueKes?: string;
   openedAt: string;
@@ -204,7 +264,11 @@ export interface Badges {
   requisitions: number;
   toApprove?: number;
   toPack?: number;
+  /** Open discrepancies the caller can see: the sidebar badge on Discrepancies. */
+  discrepancies?: number;
   deliveries?: number;
+  /** Dispatch Amendment 1 row 16: the Attendant's Dispatch row (branches to pack). */
+  dispatch?: number;
 }
 
 // --- R3 file --------------------------------------------------------------------------
@@ -286,6 +350,8 @@ export interface Print {
   branch: BranchRef;
   cycleLabel: string;
   urgent: boolean;
+  startedAt: string;
+  generatedAt: string;
   approvedAt: string | null;
   approvedBy: Person | null;
   cover: {
@@ -296,8 +362,13 @@ export interface Print {
   pages: {
     departmentId: string;
     departmentName: string;
+    /** Who asked (name and role label as recorded) and when the section was sent. */
+    askedBy: Person | null;
+    askedAt: string | null;
+    /** The "Deliver to" line. */
+    deliverTo: string | null;
     lines: PrintPageLine[];
-    additions: { addedAt: string; addedBy: Person; approvedBy: Person | null; lines: PrintPageLine[] }[];
+    additions: { addedAt: string; addedBy: Person; approvedBy: Person | null; approvedAt: string | null; lines: PrintPageLine[] }[];
   }[];
   qrPayload: string;
 }
@@ -307,6 +378,8 @@ export interface Print {
 export interface Home {
   department: { id: string; name: string };
   suggestedCycle: RequisitionCycle;
+  /** How many lines the suggestion would pre-fill. */
+  suggestedLineCount: number;
   open: {
     requisitionId: string;
     reference: string;
@@ -315,9 +388,12 @@ export interface Home {
     status: RequisitionStatus;
     statusText: string;
     urgent: boolean;
+    openedAt: string;
     section: SectionSummary;
     can: { edit: boolean; recall: boolean; addToIt: boolean };
   } | null;
+  /** Per cycle: today's requisition (id and status) or none. */
+  openByCycle: Record<RequisitionCycle, { requisitionId: string; status: RequisitionStatus } | null>;
   earlierToday: {
     requisitionId: string;
     reference: string;
@@ -326,6 +402,16 @@ export interface Home {
     statusText: string;
     sectionStatus: SectionStatus;
     lineCount: number;
+    sentAt: string | null;
+    /** When the requisition was started. */
+    openedAt: string;
+  }[];
+  /** The "Needs you" strip: today's requisitions where the Branch Manager changed lines in this head's section. */
+  needsYou: {
+    requisitionId: string;
+    cycle: RequisitionCycle;
+    changedCount: number;
+    firstChange: { itemName: string; unit: string; requestedQty: string; approvedQty: string };
   }[];
 }
 
@@ -345,6 +431,7 @@ export interface SectionEdit {
   cycleLabel: string;
   requisitionStatus: RequisitionStatus;
   urgent: boolean;
+  openedAt: string;
   section: SectionDetail;
   addable: AddableItem[];
 }
@@ -354,17 +441,18 @@ export interface HistoryMineQuery extends PageQuery {
   to?: string;
   status?: RequisitionStatus;
 }
+export interface HistoryMineRow extends RowMoments {
+  requisitionId: string;
+  reference: string;
+  cycleLabel: string;
+  status: RequisitionStatus;
+  statusText: string;
+  sectionStatus: SectionStatus;
+  lineCount: number;
+  openedAt: string;
+}
 export interface HistoryMine {
-  rows: {
-    requisitionId: string;
-    reference: string;
-    cycleLabel: string;
-    status: RequisitionStatus;
-    statusText: string;
-    sectionStatus: SectionStatus;
-    lineCount: number;
-    openedAt: string;
-  }[];
+  rows: HistoryMineRow[];
   page: PageInfo;
 }
 
@@ -397,6 +485,8 @@ export interface MutationResult {
 export interface StartRequisitionInput {
   cycle: RequisitionCycle;
   urgent?: boolean;
+  /** Amendment 2: max 200 characters. */
+  urgentNote?: string;
   idempotencyKey: string;
 }
 export type StartRequisitionResult = MutationResult;
@@ -424,6 +514,8 @@ export interface RecallSectionResult extends MutationResult {
 /** R15 */
 export interface SetUrgentInput {
   urgent: boolean;
+  /** Amendment 2: max 200 characters. */
+  urgentNote?: string;
 }
 export interface SetUrgentResult extends MutationResult {
   urgent: boolean;
@@ -447,9 +539,12 @@ export interface NudgeResult extends MutationResult {
   nudgedAt: string;
 }
 
-/** R18, no body. */
+/** R18 (Amendment 2): a list of departments, one transaction. */
+export interface SkipSectionsInput {
+  departmentIds: string[];
+}
 export interface SkipSectionResult extends MutationResult {
-  section: SectionSummary;
+  sections: SectionSummary[];
   readyToApprove: boolean;
 }
 
@@ -464,7 +559,19 @@ export interface ApproveResult extends MutationResult {
   valueKes?: string;
 }
 
-/** R20 */
+/** R20 (Amendment 2): the reason is "preset — note"; Other needs a note. */
+export const CANCEL_PRESETS = ['Asked for the wrong cycle', 'Asked twice by mistake', 'No longer needed', 'Other'] as const;
+export type CancelPreset = (typeof CANCEL_PRESETS)[number];
+export const CANCEL_REASON_SEPARATOR = ' — ';
+export const CANCEL_REASON_MAX = 300;
+/** Splits a reason into its preset and note; null when it does not start with a preset. */
+export const parseCancelReason = (reason: string): { preset: CancelPreset; note: string } | null => {
+  for (const preset of CANCEL_PRESETS) {
+    if (reason === preset) return { preset, note: '' };
+    if (reason.startsWith(preset + CANCEL_REASON_SEPARATOR)) return { preset, note: reason.slice(preset.length + CANCEL_REASON_SEPARATOR.length).trim() };
+  }
+  return null;
+};
 export interface CancelInput {
   reason: string;
   pin: string;
@@ -502,6 +609,13 @@ export const REQUISITION_ERROR_CODES = [
   'REASON_REQUIRED',
   'DEPARTMENT_PACKED',
   'CANCELLED',
+  // Amendment 2
+  'SECTION_NOT_SENT',
+  'SECTION_ALREADY_SENT',
+  'NOT_APPROVED',
+  'SECTION_NOT_OPEN',
+  'ADDITION_NOT_PENDING',
+  'BRANCH_CODE_MISSING',
 ] as const;
 export type RequisitionErrorCode = (typeof REQUISITION_ERROR_CODES)[number];
 

@@ -37,6 +37,23 @@ export { DepartmentRestockLevelsScreen } from './restock/components/screens/depa
 export { SuppliersListScreen } from './suppliers/components/screens/suppliers-list-screen';
 export { SupplierPageScreen } from './suppliers/components/screens/supplier-page-screen';
 
+// Requisitions rebuild (Block 1, desktop): the list, the file, the printed A4, the sidebar badge, and Departments in Settings.
+export { RequisitionsListScreen } from './requisitions/components/requisitions-list-screen';
+export { RequisitionFileScreen } from './requisitions/components/requisition-file-screen';
+export { RequisitionPrintScreen } from './requisitions/components/requisition-print-screen';
+export { LandOnDeliveries } from './_shared/components/land-on-deliveries';
+export { BranchNeedsAction } from './_shared/components/branch-needs-action';
+export { useRequisitionBadges } from './requisitions/hooks/use-requisition-badges';
+export { usePurchasingBadges } from './purchasing/hooks/use-purchasing-badges';
+
+// Dispatch, deliveries and discrepancies (Block 2, desktop): the dispatch file, delivery notes, Carriers, the discrepancy list and file.
+export { DispatchFileScreen } from './dispatch/components/desktop/dispatch-file-screen';
+export { DeliveryNotePrintScreen, DeliveryNoteBatchPrintScreen } from './dispatch/components/desktop/delivery-note-print-screen';
+export { CarriersScreen } from './dispatch/components/desktop/carriers-screen';
+export { DiscrepanciesListScreen } from './discrepancies/components/discrepancies-list-screen';
+export { DiscrepancyFileScreen } from './discrepancies/components/discrepancy-file-screen';
+export { DepartmentsScreen } from './departments/components/departments-screen';
+
 // Milestone Three — Prep.
 export { PrepHomeScreen } from './prep/runs/components/prep-home-screen';
 export { RecordRunScreen } from './prep/record/components/record-run-screen';
@@ -47,12 +64,26 @@ export { useNeedsLookCount } from './prep/review/hooks/use-needs-look-count';
 // Milestone Six, Session 1 — Stock position & waste.
 // The old ledger screen stays only for the branch Department Head's ledger (`app/branch/(shell)/ledger`); it goes with branch day's redo.
 export { StockLedgerScreen as DepartmentStockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
-export { WasteScreen, LogWastePhoneScreen } from './waste';
+// Block 3 Branch waste: phone (`waste/branch/`) and desktop W6, W7, W8, entry drawer (`waste/branch-desk/`).
+export { WasteScreen, LogWastePhoneScreen, DepartmentWasteScreen, LogWasteFlow, BranchWasteDeskScreen } from './waste';
+// Block 4 Branch day, desktop: Today (B5, B7, B9, B14, B16), a department's figures (B6), History (B10), the day file (B11, B12, B12b, B13), the printed sheet (B13b to B13d).
+export {
+  TodayScreen as BranchDayTodayScreen,
+  FiguresScreen as BranchDayFiguresScreen,
+  HistoryScreen as BranchDayHistoryScreen,
+  DayFileScreen as BranchDayFileScreen,
+  DaySheetPrintScreen as BranchDaySheetPrintScreen,
+  DashboardDayCard as BranchDayDashboardCard,
+  useBranchDayBadge,
+  refreshBranchDayBadge,
+} from './branch-day/desk';
 export { StockOverviewScreen, StockItemsScreen, StockLedgerScreen, StockCardScreen } from './stock';
-export { DepartmentLogWasteScreen } from './waste/department/components/department-log-waste-screen';
 
 // Stock, Counting and Waste rebuild (Paper "Inventory · Counting redesign (Oct 7)"): the new screens, one public entry per area.
-export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
+export { BlankSheetPage, CountRecordPage, CountsHomeScreen, CountSetupScreen, MyCountsScreen, PickSectionScreen, SignedCountScreen, StartCountScreen, CountScreen, ReviewCountScreen, ReviewSignScreen, SubmittedScreen } from './counting';
+
+// Block 4 Branch day: the head's and member's phone screens (`branch-day/phone/`).
+export * from './branch-day/phone';
 
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './settings/components/screens/settings-screen';
@@ -68,7 +99,7 @@ export type { CountReasonControlProps, ReasonOption } from './counting/component
 export { Reveal, StatCell, StatusDot } from './counting/components/count-verify-parts';
 export { HighlightOnChange } from './stock/components/highlight-on-change';
 export { StockMobileHeader } from './_shared/components/stock-mobile-header';
-export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/department/components/log-waste-drawer';
+export { STOCK_DRAWER_MOTION, useReturnFocus } from './_shared/components/drawer-motion';
 export {
   FormErrorBanner,
   KpiValueSkeleton,

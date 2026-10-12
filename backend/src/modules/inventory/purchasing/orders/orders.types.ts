@@ -29,6 +29,12 @@ export interface LpoPrint {
   generatedAt: string;
 }
 
+/** The picker behind "Who is getting it?": our carriers (Settings > Carriers) and the hub's staff. */
+export interface CollectorOptions {
+  carriers: Array<{ id: string; name: string; kind: 'PERSON' | 'VEHICLE' | 'COMPANY' }>;
+  staff: Array<{ id: string; name: string; role: string }>;
+}
+
 export interface WhatsappMessage {
   to: string;
   phone: string | null;

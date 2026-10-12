@@ -40,7 +40,7 @@ export const staffTransferRepository = {
         data: {
           siteId: data.toSiteId,
           ...(currentUser.isDepartmentHead
-            ? { isDepartmentHead: false, departmentTag: null }
+            ? { isDepartmentHead: false, departmentTag: null, departmentId: null }
             : {}),
         },
       });

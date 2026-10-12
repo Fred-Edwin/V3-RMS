@@ -1,5 +1,24 @@
 import type {
+  Badges,
+  CollectorOptions,
+  HistoryQuery,
+  HistoryView,
+  HomeView,
+  MyOrdersFilter,
+  MyOrdersView,
+  NoticesFilter,
+  NoticesView,
+  RestockLevelsQuery,
+  RestockLevelsView,
+  RestockListLine,
+  RestockReview,
+  RestockSendResult,
+  SearchView,
+  SupplierPageView,
+} from '../types/attendant';
+import type {
   AuditRow,
+  CollectedByInput,
   CancelReason,
   CatalogResult,
   DepositInput,
@@ -48,9 +67,11 @@ export interface PurchasingService {
   updateOrder: (id: string, input: Partial<OrderInput>) => Promise<Order>;
   discardOrder: (id: string) => Promise<void>;
   submitOrder: (id: string) => Promise<Order>;
-  approveOrder: (id: string, pin: string) => Promise<Order>;
+  /** The approver may also say who will collect it; leaving it out keeps the choice for the sender. */
+  approveOrder: (id: string, pin: string, collectedBy?: CollectedByInput) => Promise<Order>;
   returnOrder: (id: string, note: string) => Promise<Order>;
-  sendOrder: (id: string, via: SendVia) => Promise<Order>;
+  /** "Mark as sent" is `via: 'MANUAL'`; only the first send takes `collectedBy`. */
+  sendOrder: (id: string, via: SendVia, collectedBy?: CollectedByInput) => Promise<Order>;
   cancelOrder: (id: string, input: { reason: CancelReason; note: string | null; pin: string }) => Promise<Order>;
 
   recordDeposit: (id: string, input: DepositInput) => Promise<Payment>;
@@ -73,4 +94,22 @@ export interface PurchasingService {
 
   /** "+ Add a document" on the purchase file: attach an uploaded photo or PDF with a name. */
   addDocument: (orderId: string, input: DocumentInput) => Promise<FileDocument>;
+
+  // The Store Attendant's phone (Paper chapter 9, steps 28A to 28Q; docs/features/inventory/purchasing-attendant-api.md).
+  getAttendantHome: () => Promise<HomeView>;
+  getAttendantBadges: () => Promise<Badges>;
+  getMyOrders: (query?: { filter?: MyOrdersFilter; q?: string }) => Promise<MyOrdersView>;
+  getHistory: (query?: HistoryQuery) => Promise<HistoryView>;
+  searchAttendant: (q: string) => Promise<SearchView>;
+  getAttendantSupplier: (supplierId: string) => Promise<SupplierPageView>;
+  getRestockLevels: (query?: RestockLevelsQuery) => Promise<RestockLevelsView>;
+  getNotices: (filter?: NoticesFilter) => Promise<NoticesView>;
+  markNoticesRead: (keys: string[]) => Promise<void>;
+  markAllNoticesRead: () => Promise<void>;
+  reviewRestockList: (lines: RestockListLine[]) => Promise<RestockReview>;
+  sendRestockList: (lines: RestockListLine[], note: string | null) => Promise<RestockSendResult>;
+  getCollectors: (q?: string) => Promise<CollectorOptions>;
+  setCollectedBy: (orderId: string, collectedBy: CollectedByInput | null) => Promise<Order>;
+  withdrawOrder: (orderId: string) => Promise<Order>;
+  remindOrder: (orderId: string) => Promise<Order>;
 }

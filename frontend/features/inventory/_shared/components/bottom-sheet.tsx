@@ -33,6 +33,12 @@ const SCRIM = {
 } as const;
 
 export function BottomSheet({ open, onOpenChange, label, scrim = 45, dismissible = true, children, className, initialFocusRef }: BottomSheetProps) {
+  // Radix returns focus only to a `Dialog.Trigger`, and a sheet is opened by state, so remember what had focus when it opened and
+  // give it back on close (unless the screen has already moved focus somewhere on purpose, or the opener is gone).
+  const opener = React.useRef<HTMLElement | null>(null);
+  React.useLayoutEffect(() => {
+    if (open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+  }, [open]);
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(next) => (dismissible || next ? onOpenChange(next) : undefined)}>
       <DialogPrimitive.Portal>
@@ -49,6 +55,12 @@ export function BottomSheet({ open, onOpenChange, label, scrim = 45, dismissible
               event.preventDefault();
               initialFocusRef.current.focus();
             }
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const target = opener.current;
+            const nowhere = document.activeElement === null || document.activeElement === document.body;
+            if (nowhere && target && target.isConnected) target.focus();
           }}
           onInteractOutside={(event) => {
             if (!dismissible) event.preventDefault();

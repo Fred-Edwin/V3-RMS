@@ -7,7 +7,9 @@ import type {
   CountDetail,
   CountRecordPrint,
   CountSettings,
+  CountsHome,
   CountsList,
+  MyCountsList,
   CountsSummary,
   FlaggedList,
   RepeatShortfallList,
@@ -66,6 +68,19 @@ describe('counting contract mirror', () => {
     expect(keysOf(fixtures.signPreviewAttendant as SignPreview)).toEqual(['itemCount', 'skipped', 'zero']);
     expect(keysOf(fixtures.signPreviewManager as SignPreview)).toEqual(['figures', 'itemCount', 'skipped', 'zero']);
     expect(keysOf(fixtures.approvePreview as ApprovePreview)).toEqual(['adjustments', 'directorNote', 'netKes', 'notCountedNote', 'rows', 'withinRange']);
+  });
+
+  it('home and my counts keys, and no stock-figure key anywhere in them', () => {
+    const home = fixtures.countsHome as CountsHome;
+    expect(keysOf(home)).toEqual(['openCount', 'sections', 'signedCount', 'wasteToday']);
+    expect(keysOf(home.openCount as object)).toEqual(['counted', 'id', 'progressText', 'reference', 'sectionsText', 'total']);
+    expect(keysOf(home.sections)).toEqual(['longestAgo', 'total']);
+    expect(keysOf(home.sections.longestAgo as object)).toEqual(['id', 'lastCountedAt', 'lastCountedText', 'name']);
+    const mine = fixtures.myCountsList as MyCountsList;
+    expect(keysOf(mine)).toEqual(['page', 'rows']);
+    expect(keysOf(mine.rows[0] as object)).toEqual(['id', 'itemCount', 'reference', 'sectionsText', 'signedAt', 'signedText', 'status', 'statusText']);
+    const stockKeys = new Set<string>(COUNT_STOCK_FIGURE_KEYS);
+    for (const o of [home, home.sections, mine, ...mine.rows]) expect(Object.keys(o).filter((k) => stockKeys.has(k))).toEqual([]);
   });
 
   it('setup, settings and print keys', () => {

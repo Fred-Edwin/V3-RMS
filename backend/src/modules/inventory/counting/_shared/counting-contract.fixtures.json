@@ -475,5 +475,39 @@
     "notCountedNote": "Brown sugar was not counted, so nothing is written for it."
   },
   "approveInput": { "pin": "1234", "idempotencyKey": "7a8b9c0d-1e2f-4a3b-9c4d" },
-  "seenInput": { "lineIds": ["a0000000-0000-4000-8000-000000000010"] }
+  "seenInput": { "lineIds": ["a0000000-0000-4000-8000-000000000010"] },
+  "countsHome": {
+    "openCount": { "id": "c0000000-0000-4000-8000-000000000001", "reference": "CNT-2026-0001", "sectionsText": "Demka Dairy", "counted": 0, "total": 2, "progressText": "0 of 2 counted" },
+    "sections": {
+      "total": 8,
+      "longestAgo": { "id": "5e000000-0000-4000-8000-000000000001", "name": "Samrat Supermarket", "lastCountedAt": "2026-10-05T06:00:00.000Z", "lastCountedText": "3 days ago" }
+    },
+    "signedCount": 12,
+    "wasteToday": 3
+  },
+  "myCountsList": {
+    "rows": [
+      {
+        "id": "c0000000-0000-4000-8000-000000000007",
+        "reference": "CNT-2026-0007",
+        "status": "SUBMITTED",
+        "statusText": "Waiting for review",
+        "sectionsText": "Samrat, Summer",
+        "itemCount": 35,
+        "signedAt": "2026-10-07T04:42:00.000Z",
+        "signedText": "Wed 7 Oct 07:42"
+      },
+      {
+        "id": "c0000000-0000-4000-8000-000000000006",
+        "reference": "CNT-2026-0006",
+        "status": "APPROVED",
+        "statusText": "Approved",
+        "sectionsText": "Others, Packaging",
+        "itemCount": 77,
+        "signedAt": "2026-10-05T13:10:00.000Z",
+        "signedText": "Mon 5 Oct 16:10"
+      }
+    ],
+    "page": { "page": 1, "pageSize": 50, "total": 12 }
+  }
 }

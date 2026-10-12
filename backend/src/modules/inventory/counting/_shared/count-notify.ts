@@ -108,7 +108,7 @@ export const createCountNotifier = (deps: CountNotifierDeps) => ({
 
 // --- The real wiring (Firebase and BullMQ) ---------------------------------------
 
-const send = async (tokens: string[], message: PushMessage): Promise<number> => {
+export const send = async (tokens: string[], message: PushMessage): Promise<number> => {
   if (!firebaseMessaging || !env.VAPID_KEY || tokens.length === 0) return 0;
   await firebaseMessaging.sendEachForMulticast({
     tokens,

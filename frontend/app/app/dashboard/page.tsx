@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote } from 'lucide-react';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
+import { HeadRequisitionsCard } from '@/components/dashboard/HeadRequisitionsCard';
 import { StaleOrderLiabilityCard } from '@/components/dashboard/StaleOrderLiabilityCard';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
@@ -20,6 +21,7 @@ import { orderService } from '@/services/orderService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
+import { LandOnDeliveries } from '@/features/inventory';
 import { useToast } from '@/hooks/useToast';
 import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
@@ -81,7 +83,17 @@ const getGreetingPrefix = (): 'morning' | 'afternoon' | 'evening' => {
   return 'evening';
 };
 
+/** A department head or member with a delivery on the way lands on Deliveries first (Paper chapter 14, B); everyone else sees the dashboard. */
 export default function DashboardPage(): JSX.Element {
+  return (
+    <>
+      <LandOnDeliveries />
+      <DashboardPageBody />
+    </>
+  );
+}
+
+function DashboardPageBody(): JSX.Element {
   const router = useRouter();
   const { toast } = useToast();
   const user = useAuthStore((state) => state.user);
@@ -482,6 +494,8 @@ export default function DashboardPage(): JSX.Element {
           />
         </div>
 
+        <HeadRequisitionsCard />
+
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
         <section>
@@ -548,6 +562,8 @@ export default function DashboardPage(): JSX.Element {
             </div>
           </div>
         )}
+
+        <HeadRequisitionsCard />
 
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 

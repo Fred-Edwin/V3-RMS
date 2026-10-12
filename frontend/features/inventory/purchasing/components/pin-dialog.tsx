@@ -106,6 +106,8 @@ export function PinDialog({ open, onOpenChange, title, subtitle, summary, confir
                 maxLength={PIN_LENGTH}
                 value={pin}
                 onChange={setPin}
+                // The fourth digit signs: no extra tap on the button.
+                onComplete={(value) => void submit(value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -123,11 +125,10 @@ export function PinDialog({ open, onOpenChange, title, subtitle, summary, confir
                 </InputOTPGroup>
               </InputOTP>
             </div>
-            {error ? (
-              <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
-                {error}
-              </p>
-            ) : null}
+            {/* The line keeps its height so the dialog does not jump when a wrong PIN is reported. */}
+            <p role="alert" className="min-h-4 font-wds-sans text-wds-caption text-wds-error-fg">
+              {error}
+            </p>
           </div>
           <div className="flex gap-wds-2 px-wds-5 pb-wds-5 pt-wds-1">
             <Button variant="secondary" className="grow" onClick={() => onOpenChange(false)} disabled={submitting}>

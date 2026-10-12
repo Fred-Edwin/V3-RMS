@@ -1,6 +1,6 @@
 /**
  * Inventory: Counting rebuild
- * FROZEN API CONTRACT: request and response schemas for the 30 counting endpoints (C1 to C30).
+ * FROZEN API CONTRACT: request and response schemas for the 32 counting endpoints (C1 to C32; C31 and C32 are Amendment 2).
  *
  * Source of truth: docs/features/inventory/stock-count-waste-contract.md (the endpoint table, the state machine, the
  * role matrix) and the Paper page "Inventory · Counting redesign (Oct 7)". The front end mirrors this file by hand in
@@ -299,6 +299,57 @@ export const countsListSchema = z.object({
   page: pageInfoSchema,
 });
 export type CountsList = z.infer<typeof countsListSchema>;
+
+// --- C31 home, C32 my counts (Amendment 2, Block 5; Paper steps 52 and 53) ------------------------------------------
+// Both are the caller's OWN data and blind: no key of COUNT_STOCK_FIGURE_KEYS, no stock figure, no difference. cap counts.record
+
+/** C31 GET /counts/home: the Attendant's front door (Paper step 52). */
+export const countsHomeSchema = z.object({
+  /** The caller's own open count, so the home can say "Resume". `counted` and `total` are lines, not stock. */
+  openCount: z
+    .object({ id: uuid, reference: z.string(), sectionsText: z.string(), counted: z.number().int().nonnegative(), total: z.number().int().nonnegative(), progressText: z.string() })
+    .nullable(),
+  sections: z.object({
+    /** "8 sections": sections that hold at least one item. */
+    total: z.number().int().nonnegative(),
+    /** The section counted longest ago, a date and no figure ("Samrat Supermarket last counted 3 days ago"); null when there is no section. */
+    longestAgo: z.object({ id: uuid, name: z.string(), lastCountedAt: isoDateTime.nullable(), lastCountedText: z.string() }).nullable(),
+  }),
+  /** The counts the caller has signed (SUBMITTED or APPROVED), all time: the badge on My counts. */
+  signedCount: z.number().int().nonnegative(),
+  /** Waste entries the caller logged on today's Nairobi day, reversed ones included (the list shows them struck through). */
+  wasteToday: z.number().int().nonnegative(),
+});
+export type CountsHome = z.infer<typeof countsHomeSchema>;
+
+/** C32 GET /counts/mine. Own counts only, whoever the caller is; signed counts only (an open count is on the home). */
+export const myCountsQuerySchema = pageQuerySchema.extend({
+  status: z.enum(['all', 'waiting', 'approved']).default('all'),
+  /** Nairobi days on when the count was signed, both included. With neither given the window is the last 30 days. A count waiting for review always shows. */
+  from: nairobiDate.optional(),
+  to: nairobiDate.optional(),
+});
+export const myCountRowSchema = z.object({
+  id: uuid,
+  reference: z.string(),
+  status: z.enum(['SUBMITTED', 'APPROVED']),
+  /** "Waiting for review", "Approved", "Signed" (a Manager's own count). */
+  statusText: z.string(),
+  /** "Samrat, Summer". */
+  sectionsText: z.string(),
+  /** The number of items on the count (a line count, not stock). */
+  itemCount: z.number().int().nonnegative(),
+  signedAt: isoDateTime,
+  /** "Today 07:42", "Yesterday 16:10", "Mon 12 Oct 16:10". */
+  signedText: z.string(),
+});
+export type MyCountRow = z.infer<typeof myCountRowSchema>;
+export const myCountsListSchema = z.object({
+  rows: z.array(myCountRowSchema),
+  /** `total` is the header's "12 counts". */
+  page: pageInfoSchema,
+});
+export type MyCountsList = z.infer<typeof myCountsListSchema>;
 
 /** C3 GET /counts/flagged: the lines flagged to the Director (Paper step 26). cap counts.read */
 export const flaggedLineSchema = z.object({

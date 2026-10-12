@@ -28,6 +28,11 @@ export type PostStockMovementInput = {
    *  - WASTE: the same rule (a reversed waste row is positive and returns the stock).
    */
   reversesTransactionId?: string;
+  /**
+   * The Branch day number (`DAY-NYR-0044`) a usage or correction entry carries. Allowed only on an ADJUSTMENT linked by `branchDayLineId`;
+   * when given the door stores it and takes no number from the `ADJ` counter. Every other row is numbered or left bare as before.
+   */
+  reference?: string;
 };
 
 /**
@@ -60,6 +65,13 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
   }
   const linkId = input.links[link]!;
 
+  if (input.reference !== undefined) {
+    if (input.type !== 'ADJUSTMENT' || link !== 'branchDayLineId') {
+      throw new ValidationError('Only a Branch day adjustment can carry its own reference');
+    }
+    if (input.reference.trim() === '') throw new ValidationError('The reference cannot be empty');
+  }
+
   const location = await ledgerRepository.findLocationOwner(tx, input.locationId);
   if (!location) throw new ValidationError('The stock location does not exist');
   if (location.type === 'CENTRAL_STORE' && !location.siteIsHub) {
@@ -83,9 +95,9 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     if (rule.reversal === 'ADJUSTMENT' && original.type !== 'ADJUSTMENT') {
       throw new ValidationError('Only an adjustment can be reversed');
     }
-    if (rule.reversal === 'PREP' || rule.reversal === 'WASTE') {
-      // A prep or waste row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
-      const label = rule.reversal === 'PREP' ? 'prep' : 'waste';
+    if (rule.reversal === 'PREP' || rule.reversal === 'WASTE' || rule.reversal === 'DISPATCH') {
+      // A prep, waste or dispatch-out row is reversed by a row of its own type with the opposite sign; a reversal is never reversed again.
+      const label = rule.reversal === 'PREP' ? 'prep' : rule.reversal === 'WASTE' ? 'waste' : 'dispatch';
       if (original.type !== input.type) throw new ValidationError(`A ${label} row can only be reversed by a row of the same type`);
       if (original.reversesTransactionId !== null) throw new ValidationError('A reversal cannot be reversed');
       storedQuantity = reversedPrepQuantity(rule.direction, input.quantity);
@@ -104,7 +116,7 @@ export const postStockMovement = async (tx: TxClient, input: PostStockMovementIn
     if (original.alreadyReversed) throw new ConflictError('This entry has already been reversed');
   }
 
-  const reference = rule.numbered ? await referenceCounterRepository.nextReference(tx, location.siteId, 'ADJ') : null;
+  const reference = input.reference ?? (rule.numbered ? await referenceCounterRepository.nextReference(tx, location.siteId, 'ADJ') : null);
 
   try {
     return await ledgerRepository.create(tx, {

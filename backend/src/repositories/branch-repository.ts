@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import { departmentLinks } from '../modules/inventory/departments/department-links';
 
 export const branchRepository = {
   findAll: async () => {
@@ -63,8 +64,11 @@ export const branchRepository = {
     latitude: number;
     longitude: number;
   }) => {
-    return prisma.site.create({
-      data: { ...data, type: 'BRANCH' },
+    // A new branch gets its code and its five departments in the same transaction (Block 1: departments are data).
+    return prisma.$transaction(async (tx) => {
+      const site = await tx.site.create({ data: { ...data, type: 'BRANCH' } });
+      await departmentLinks.provisionBranch(site, tx);
+      return tx.site.findUniqueOrThrow({ where: { id: site.id } });
     });
   },
 

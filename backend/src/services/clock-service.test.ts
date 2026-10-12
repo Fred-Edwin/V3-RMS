@@ -85,6 +85,7 @@ describe('clockService', () => {
       companyId: 'company-1',
       type: 'BRANCH',
       name: 'Wendo Branch',
+      code: null,
       address: 'Nyeri',
       city: 'Nyeri',
       latitude: new Prisma.Decimal('-0.4167'),

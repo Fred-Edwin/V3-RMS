@@ -21,6 +21,12 @@ Plan: `docs/features/inventory/purchasing-plan.md`.
 | `POST /orders/:id/return` | `orders.approve` | note required |
 | `POST /orders/:id/send` | `orders.approve` or `orders.request` | WhatsApp, print, link, phoned in; a second send changes nothing |
 | `POST /orders/:id/cancel` | `orders.cancel` | reason and own PIN; never after delivery |
+| `GET /collectors` | `orders.approve` or `orders.request` | the picker behind "Who is getting it?": active carriers and the hub's staff, `?q` |
+| `PUT /orders/:id/collected-by` | `orders.approve` or `orders.request` | set, correct or clear who is getting an approved or sent order (audited) |
+| `POST /orders/:id/withdraw` | `orders.request` | the raiser takes back an order before approval: no PIN, kept as CANCELLED with reason `WITHDRAWN` |
+| `POST /orders/:id/remind` | `orders.request` | the raiser reminds the Store Manager (push), at most once every 4 hours |
+
+`approve` and `send` also take an optional `collectedBy` (`{kind: SUPPLIER_DELIVERS}`, `{kind: CARRIER, carrierId}`, `{kind: STAFF, userId}`, `{kind: OTHER, name}`); a second send ignores it. Shapes: `docs/features/inventory/purchasing-attendant-api.md`.
 
 ## Rules worth knowing
 

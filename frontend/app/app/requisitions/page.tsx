@@ -1,5 +1,11 @@
-import { DepartmentLandingScreen } from '@/features/inventory/requisitions';
+import { Suspense } from 'react';
+
+import { HeadHomeScreen } from '@/features/inventory/requisitions';
 
 export default function RequisitionsPage() {
-  return <DepartmentLandingScreen />;
+  return (
+    <Suspense fallback={null}>
+      <HeadHomeScreen />
+    </Suspense>
+  );
 }

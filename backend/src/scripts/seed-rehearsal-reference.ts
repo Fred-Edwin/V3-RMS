@@ -69,14 +69,14 @@ interface PersonSpec {
 
 const HUB = 'Wendo Central Kitchen';
 const PEOPLE: PersonSpec[] = [
-  { email: 'store.manager@wendo.test', name: 'Grace Wanjiku (Store Manager)', role: 'STORE_MANAGER', org: HUB },
-  { email: 'store.attendant@wendo.test', name: 'Peter Mwangi (Store Attendant)', role: 'STORE_ATTENDANT', org: HUB },
-  { email: 'bm.town@wendo.test', name: 'Faith Njeri (BM Nyeri Town)', role: 'MANAGER', org: 'Nyeri Town' },
-  { email: 'bm.highway@wendo.test', name: 'James Kariuki (BM Nyeri Highway)', role: 'MANAGER', org: 'Nyeri Highway' },
-  { email: 'kitchen.head.town@wendo.test', name: 'Kelvin Kings (Kitchen head, Town)', role: 'CHEF', org: 'Nyeri Town', head: 'KITCHEN' },
-  { email: 'barista.head.town@wendo.test', name: 'Victor Maina (Barista head, Town)', role: 'BARISTA', org: 'Nyeri Town', head: 'BARISTA' },
-  { email: 'kitchen.head.highway@wendo.test', name: 'Susan Wairimu (Kitchen head, Highway)', role: 'CHEF', org: 'Nyeri Highway', head: 'KITCHEN' },
-  { email: 'accountant@wendo.test', name: 'Anne Muthoni (Accountant)', role: 'ACCOUNTANT', org: HUB },
+  { email: 'store.manager@wendo.test', name: 'Grace Wanjiku', role: 'STORE_MANAGER', org: HUB },
+  { email: 'store.attendant@wendo.test', name: 'Peter Mwangi', role: 'STORE_ATTENDANT', org: HUB },
+  { email: 'bm.town@wendo.test', name: 'Faith Njeri', role: 'MANAGER', org: 'Nyeri Town' },
+  { email: 'bm.highway@wendo.test', name: 'James Kariuki', role: 'MANAGER', org: 'Nyeri Highway' },
+  { email: 'kitchen.head.town@wendo.test', name: 'Kelvin Kings', role: 'CHEF', org: 'Nyeri Town', head: 'KITCHEN' },
+  { email: 'barista.head.town@wendo.test', name: 'Victor Maina', role: 'BARISTA', org: 'Nyeri Town', head: 'BARISTA' },
+  { email: 'kitchen.head.highway@wendo.test', name: 'Susan Wairimu', role: 'CHEF', org: 'Nyeri Highway', head: 'KITCHEN' },
+  { email: 'accountant@wendo.test', name: 'Anne Muthoni', role: 'ACCOUNTANT', org: HUB },
   { email: 'director@wendo.test', name: 'Wendo Director', role: 'DIRECTOR', org: HUB },
 ];
 

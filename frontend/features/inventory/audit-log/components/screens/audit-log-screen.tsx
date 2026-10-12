@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { useAuthStore } from '@/store/authStore';
 import { PurchasingAuditPanel } from '../../../purchasing/components/purchasing-audit-panel';
 import { DateRangePicker } from '@/components/ui2/date-range-picker';
 import { Skeleton } from '@/components/ui2/skeleton';
@@ -59,6 +60,8 @@ function RowSkeleton() {
 
 /** The record column: the purchase file an order row belongs to, or the count, stock card or ADJ number a derived row points at. */
 function RecordCell({ entry }: { entry: AuditEntry }) {
+  // The Branch Manager's links go to their own pages (a branch day, a dispatch, a discrepancy).
+  const branchManager = useAuthStore((s) => s.role) === 'MANAGER';
   if (entry.purchasing) {
     return (
       <Link href={`/app/inventory/purchasing/${entry.purchasing.orderId}`} className={recordLink}>
@@ -68,7 +71,7 @@ function RecordCell({ entry }: { entry: AuditEntry }) {
   }
   if (entry.record) {
     return (
-      <Link href={recordHref(entry.record)} className={recordLink}>
+      <Link href={recordHref(entry.record, { branchManager })} className={recordLink}>
         {entry.record.label}
       </Link>
     );

@@ -25,6 +25,13 @@ export const stationRoomName = (siteId: string, station: PrepStation): string =>
   `branch:${siteId}:${station.toLowerCase()}`;
 export const userRoomName = (userId: string): string => `user:${userId}`;
 
+/**
+ * The room of the people who read every site's requisitions (the Director has no site of their own, the Central Store roles sit on
+ * the hub): the `inventory:badges` nudge also goes here, so their lists update when any branch changes.
+ */
+export const inventoryAllSitesRoom = 'inventory:all-sites';
+const allSitesReaders: UserRole[] = ['DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER', 'ACCOUNTANT', 'STORE_ATTENDANT'];
+
 interface SocketAuthContext {
   userId: string;
   role: UserRole;
@@ -97,6 +104,8 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
       socket.join(room);
       logger.info({ socketId: socket.id, room, role: auth.role }, 'Auto-joined system-level user to user room');
     }
+
+    if (allSitesReaders.includes(auth.role)) socket.join(inventoryAllSitesRoom);
 
     socket.on('join:branch', (payload: unknown) => {
       const parsedPayload = joinBranchSchema.safeParse(fromWire(payload));

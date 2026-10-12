@@ -922,35 +922,6 @@ export const fcmService = {
     }
   },
 
-  /** Notifies a Branch Manager their branch's discrepancy has been resolved. Fire-and-forget. */
-  sendDiscrepancyResolvedPush: async (
-    branchManagerId: string,
-    payload: { discrepancyId: string; referenceNumber: string },
-  ): Promise<void> => {
-    try {
-      const token = await authRepository.findFcmToken(branchManagerId);
-      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
-
-      await firebaseMessaging.send({
-        token,
-        webpush: {
-          headers: { Urgency: 'normal' },
-          notification: {
-            title: 'Discrepancy resolved',
-            body: `${payload.referenceNumber} has been resolved by the Central Store`,
-            icon: '/android-chrome-192x192.png',
-            badge: '/android-chrome-192x192.png',
-            tag: `discrepancy-resolved-${payload.discrepancyId}`,
-          },
-          fcmOptions: { link: '/app/inventory/discrepancies' },
-        },
-        data: { type: 'discrepancy_resolved', discrepancyId: payload.discrepancyId },
-      });
-    } catch (error) {
-      logger.warn({ error, payload }, 'Failed to send discrepancy resolved FCM push');
-    }
-  },
-
   /** Notifies the Central Store's Store Manager(s) a daily count awaits verification. Fire-and-forget. */
   sendCountSubmittedPush: async (
     hubSiteId: string,
@@ -1014,73 +985,6 @@ export const fcmService = {
       );
     } catch (error) {
       logger.warn({ error, payload }, 'Failed to send count director alert FCM push');
-    }
-  },
-
-  /** Branch day close — a signed line at or above the company-wide alert amount (plan §3). */
-  sendBranchDayDirectorAlertPush: async (payload: {
-    dayId: string;
-    reference: string;
-    branchName: string;
-    alertLineCount: number;
-    largestValueKes: string;
-  }): Promise<void> => {
-    try {
-      if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findDirectorFcmTokens();
-      if (tokens.length === 0) return;
-
-      await Promise.allSettled(
-        tokens.map((token) =>
-          firebaseMessaging!.send({
-            token,
-            webpush: {
-              headers: { Urgency: 'high' },
-              notification: {
-                title: 'Large branch stock gap',
-                body: `${payload.branchName} · ${payload.reference} · ${payload.alertLineCount} line(s) at or above the alert amount · largest KES ${payload.largestValueKes}`,
-                icon: '/android-chrome-192x192.png',
-                badge: '/android-chrome-192x192.png',
-                tag: `branch-day-director-alert-${payload.dayId}`,
-              },
-              fcmOptions: { link: '/app/director' },
-            },
-            data: { type: 'branch_day_director_alert', dayId: payload.dayId },
-          }),
-        ),
-      );
-    } catch (error) {
-      logger.warn({ error, payload }, 'Failed to send branch day director alert FCM push');
-    }
-  },
-
-  /** Next-morning opening — an overnight variance at or above the branch's alert amount (plan §3). */
-  sendOvernightVarianceAlertPush: async (
-    siteId: string,
-    payload: { dayId: string; departmentName: string; alertLineCount: number; largestValueKes: string },
-  ): Promise<void> => {
-    try {
-      if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findFcmTokensByRole(siteId, ['MANAGER']);
-      if (tokens.length === 0) return;
-
-      await firebaseMessaging.sendEachForMulticast({
-        tokens,
-        webpush: {
-          headers: { Urgency: 'high' },
-          notification: {
-            title: 'Overnight stock variance',
-            body: `${payload.departmentName} · ${payload.alertLineCount} line(s) differ from last night's close · largest KES ${payload.largestValueKes}`,
-            icon: '/android-chrome-192x192.png',
-            badge: '/android-chrome-192x192.png',
-            tag: `overnight-variance-${payload.dayId}-${payload.departmentName}`,
-          },
-          fcmOptions: { link: '/app/branch/day' },
-        },
-        data: { type: 'overnight_variance_alert', dayId: payload.dayId },
-      });
-    } catch (error) {
-      logger.warn({ error, payload }, 'Failed to send overnight variance FCM push');
     }
   },
 

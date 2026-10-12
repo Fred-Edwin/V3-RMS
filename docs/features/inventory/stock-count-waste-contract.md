@@ -203,6 +203,8 @@ Base `/api/v1`. Envelope `{ success, data }`. Wire rules in `_shared/wire.ts`. A
 | C28 | `GET /counts/:id/approve-preview` | review | `counts.resolve`, SUBMITTED | `approvePreview` |
 | C29 | `POST /counts/:id/approve` | review | `counts.resolve`, SUBMITTED. Own PIN | `approveInput` → `countDetail`. `LINES_UNDECIDED`, `INVALID_PIN` |
 | C30 | `POST /counts/seen` | review | `counts.acknowledge` | `seenInput` → `{ seen }`. Only lines with `directorFlagged` |
+| C31 | `GET /counts/home` | counts | `counts.record` | `countsHome`. **Amendment 2 (Block 5, owner-approved 9 Oct 2026).** The caller's own open count (Resume), the number of sections and the one counted longest ago (a date, no figure), the counts the caller has signed (all time), today's waste entries (Nairobi day, reversed ones included). Blind. **Registered before `/counts/:id`** |
+| C32 | `GET /counts/mine?from=&to=&status=&page=&pageSize=` | counts | `counts.record`, own only, whoever the caller is | `myCountsList`. **Amendment 2.** Signed counts (`SUBMITTED`, `APPROVED`), newest signed first; `status` is `all`, `waiting` or `approved`; default window the last 30 Nairobi days on the sign day, a `SUBMITTED` count always shows; `page.total` is the header's "12 counts". Blind. **Registered before `/counts/:id`** |
 
 ### 4.2 Stock (`stock/`), all `stock.read`
 

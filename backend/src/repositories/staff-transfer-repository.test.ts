@@ -52,6 +52,7 @@ describe('staffTransferRepository.create — Q4 (department head transferred bet
         siteId: 'org-b',
         isDepartmentHead: false,
         departmentTag: null,
+        departmentId: null,
       },
     });
   });

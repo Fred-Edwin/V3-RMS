@@ -273,3 +273,104 @@ describe('contract: refusals', () => {
     expect(isPurchasingError(await svc.discardOrder(ID).catch((e: unknown) => e), 'ORDER_WRONG_STATE')).toBe(true);
   });
 });
+
+describe('contract: the Store Attendant phone', () => {
+  const base = '/inventory/purchasing';
+
+  it('the Attendant reads call their paths with the query', async () => {
+    answers.push(ok({ restock: { total: 0, out: 0, low: 0 }, needsYou: [], myOrders: { rows: [], total: 0, needYou: 0 }, approver: null, badges: { receiving: 0, restock: 0, myOrders: 0, unreadNotices: 0 }, today: '2026-10-11' }));
+    expect((await svc.getAttendantHome()).today).toBe('2026-10-11');
+    expect(last()).toMatchObject({ method: 'GET', path: `${base}/attendant/home` });
+
+    answers.push(ok({ receiving: 1, restock: 2, myOrders: 3, unreadNotices: 4 }));
+    expect((await svc.getAttendantBadges()).myOrders).toBe(3);
+    expect(last().path).toBe(`${base}/attendant/badges`);
+
+    answers.push(ok({ counts: { all: 0, needs: 0, waiting: 0, overdue: 0 }, filter: 'needs', needsYou: [], waitingOnOthers: [], approver: null }));
+    await svc.getMyOrders({ filter: 'needs', q: 'kag' });
+    expect(last().path).toBe(`${base}/attendant/my-orders?filter=needs&q=kag`);
+
+    answers.push(ok({ range: { from: '2026-09-11', to: '2026-10-11' }, summary: { allTime: 0, inRange: 0 }, page: 2, pageSize: 20, total: 0, months: [] }));
+    await svc.getHistory({ from: '2026-09-11', to: '2026-10-11', status: 'paid', q: 'sam', page: 2, pageSize: 20 });
+    expect(last().path).toBe(`${base}/attendant/history?from=2026-09-11&to=2026-10-11&status=paid&q=sam&page=2&pageSize=20`);
+
+    answers.push(ok({ q: 'sal', counts: { items: 0, suppliers: 0, orders: 0 }, items: [], suppliers: [], orders: [] }));
+    await svc.searchAttendant('sal');
+    expect(last().path).toBe(`${base}/attendant/search?q=sal`);
+
+    answers.push(ok({ supplier: { id: SUPPLIER }, openOrder: null, items: [], lowCount: 0 }));
+    await svc.getAttendantSupplier(SUPPLIER);
+    expect(last().path).toBe(`${base}/attendant/suppliers/${SUPPLIER}`);
+
+    answers.push(ok({ counts: { all: 0, out: 0, low: 0, ok: 0 }, page: 1, pageSize: 20, total: 0, suppliers: [], rows: [], setBy: null }));
+    await svc.getRestockLevels({ status: 'LOW', supplierId: SUPPLIER, page: 1 });
+    expect(last().path).toBe(`${base}/attendant/restock-levels?status=LOW&supplierId=${SUPPLIER}&page=1`);
+
+    answers.push(ok({ counts: { all: 0, unread: 0, needsMe: 0 }, groups: [] }));
+    await svc.getNotices('unread');
+    expect(last().path).toBe(`${base}/attendant/notifications?filter=unread`);
+
+    answers.push(ok({ carriers: [], staff: [] }));
+    await svc.getCollectors('van');
+    expect(last().path).toBe(`${base}/collectors?q=van`);
+  });
+
+  it('marking notices read sends the keys and accepts a 204 with no body', async () => {
+    answers.push(new Response(null, { status: 204 }));
+    await svc.markNoticesRead(['APPROVED:a']);
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/attendant/notifications/read`, body: { keys: ['APPROVED:a'] } });
+
+    answers.push(ok({ marked: 3 }));
+    await svc.markAllNoticesRead();
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/attendant/notifications/read-all` });
+  });
+
+  it('review and send post the list, and the send carries the note', async () => {
+    const lines = [{ inventoryItemId: ID, qty: '6' }];
+    answers.push(ok({ groups: [], unsupplied: [], orderCount: 0, estimatedTotal: '0', approver: null }));
+    await svc.reviewRestockList(lines);
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/restock-list/review`, body: { lines } });
+
+    answers.push(ok({ sent: [], failed: [], unsupplied: [] }));
+    await svc.sendRestockList(lines, 'Please hurry');
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/restock-list/send`, body: { lines, note: 'Please hurry' } });
+  });
+
+  it('collected-by, mark as sent, withdraw and remind use the documented verbs and bodies', async () => {
+    answers.push(ok({ id: ID }));
+    await svc.setCollectedBy(ID, { kind: 'CARRIER', carrierId: SUPPLIER });
+    expect(last()).toMatchObject({ method: 'PUT', path: `${base}/orders/${ID}/collected-by`, body: { collectedBy: { kind: 'CARRIER', carrierId: SUPPLIER } } });
+
+    answers.push(ok({ id: ID }));
+    await svc.sendOrder(ID, 'MANUAL', { kind: 'OTHER', name: 'Wanjiru' });
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/orders/${ID}/send`, body: { via: 'MANUAL', collectedBy: { kind: 'OTHER', name: 'Wanjiru' } } });
+
+    answers.push(ok({ id: ID }));
+    await svc.sendOrder(ID, 'WHATSAPP');
+    expect(last().body).toEqual({ via: 'WHATSAPP' });
+
+    answers.push(ok({ id: ID }));
+    await svc.withdrawOrder(ID);
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/orders/${ID}/withdraw` });
+
+    answers.push(ok({ id: ID }));
+    await svc.remindOrder(ID);
+    expect(last()).toMatchObject({ method: 'POST', path: `${base}/orders/${ID}/remind` });
+  });
+
+  it('the new refusals carry their codes and details', async () => {
+    answers.push(refuse(409, 'REMINDER_TOO_SOON', 'You reminded them a moment ago.', { lastRemindedAt: '2026-10-11T08:20:00.000Z' }));
+    const tooSoon = await svc.remindOrder(ID).catch((e: unknown) => e);
+    expect(isPurchasingError(tooSoon, 'REMINDER_TOO_SOON')).toBe(true);
+    expect((tooSoon as ApiError).details).toEqual({ lastRemindedAt: '2026-10-11T08:20:00.000Z' });
+
+    answers.push(refuse(422, 'COLLECTOR_NOT_FOUND', 'That carrier is not on the list.'));
+    expect(isPurchasingError(await svc.setCollectedBy(ID, { kind: 'CARRIER', carrierId: SUPPLIER }).catch((e: unknown) => e), 'COLLECTOR_NOT_FOUND')).toBe(true);
+
+    answers.push(refuse(422, 'DATE_RANGE_INVALID', 'The last day cannot be after today.'));
+    expect(isPurchasingError(await svc.getHistory({ from: '2026-10-01', to: '2030-01-01' }).catch((e: unknown) => e), 'DATE_RANGE_INVALID')).toBe(true);
+
+    answers.push(refuse(422, 'VALIDATION', 'Enter a PIN'));
+    expect(await svc.markNoticesRead(['x']).catch((e: unknown) => e)).toBeInstanceOf(ApiError);
+  });
+});

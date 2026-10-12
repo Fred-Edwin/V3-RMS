@@ -35,8 +35,9 @@ export type LedgerRule = {
    * `PREP`: a reversal keeps the original's type with the opposite sign, so the caller sends the same positive magnitude and
    * the door flips the direction (PREP_CONSUME reverses to a positive row, PREP_PRODUCE to a negative one).
    * `WASTE`: the same rule as PREP (a reversal keeps the original's type with the opposite sign): a reversed waste row is positive.
+   * `DISPATCH`: the same rule again, used by a cancelled dispatch (Block 2): a reversed DISPATCH_OUT row is positive and puts the stock back.
    */
-  reversal?: 'ADJUSTMENT' | 'PREP' | 'WASTE';
+  reversal?: 'ADJUSTMENT' | 'PREP' | 'WASTE' | 'DISPATCH';
 };
 
 /**
@@ -48,7 +49,7 @@ export const LEDGER_RULES: Partial<Record<InventoryTransactionType, LedgerRule>>
   PREP_CONSUME: { direction: 'OUT', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
   PREP_PRODUCE: { direction: 'IN', links: ['prepRecordId'], numbered: false, reversal: 'PREP' },
   WASTE: { direction: 'OUT', links: ['wasteLogId'], numbered: false, reversal: 'WASTE' },
-  DISPATCH_OUT: { direction: 'OUT', links: ['dispatchLineId'], numbered: false },
+  DISPATCH_OUT: { direction: 'OUT', links: ['dispatchLineId'], numbered: false, reversal: 'DISPATCH' },
   DISPATCH_IN: { direction: 'IN', links: ['dispatchLineId'], numbered: false },
   // A count, a branch-day close, a next-morning opening, or a dispatch discrepancy
   // (transit loss / receiving miscount) each write adjustments.

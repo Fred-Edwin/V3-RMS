@@ -33,10 +33,21 @@ export const OrdersQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
 });
 
+/** "Who is getting it?" (Paper 28D): the supplier delivers, a carrier, a staff member, or a typed name. */
+export const CollectedBySchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('SUPPLIER_DELIVERS') }),
+  z.object({ kind: z.literal('CARRIER'), carrierId: z.string().uuid() }),
+  z.object({ kind: z.literal('STAFF'), userId: z.string().uuid() }),
+  z.object({ kind: z.literal('OTHER'), name: z.string().trim().min(1, 'Write who is getting it.').max(80) }),
+]);
+
 export const IdParamSchema = z.object({ id: z.string().uuid() });
-export const ApproveSchema = z.object({ pin });
+export const ApproveSchema = z.object({ pin, collectedBy: CollectedBySchema.optional() });
 export const ReturnSchema = z.object({ note: z.string().trim().min(1, 'Say why you are sending it back.').max(500) });
-export const SendSchema = z.object({ via: z.enum(['WHATSAPP', 'PRINT', 'LINK', 'MANUAL']) });
+export const SendSchema = z.object({ via: z.enum(['WHATSAPP', 'PRINT', 'LINK', 'MANUAL']), collectedBy: CollectedBySchema.optional() });
+/** `null` clears the choice. */
+export const CollectedByBodySchema = z.object({ collectedBy: CollectedBySchema.nullable() });
+export const CollectorsQuerySchema = z.object({ q: z.string().trim().max(100).optional() });
 export const CancelSchema = z.object({
   reason: z.enum(['ORDERED_BY_MISTAKE', 'SUPPLIER_CANNOT_SUPPLY', 'NO_LONGER_NEEDED', 'OTHER']),
   note: z.string().trim().max(500).nullable().default(null),
@@ -47,3 +58,4 @@ export type OrderInput = z.infer<typeof OrderInputSchema>;
 export type UpdateOrderInput = z.infer<typeof UpdateOrderSchema>;
 export type OrdersQuery = z.infer<typeof OrdersQuerySchema>;
 export type CancelInput = z.infer<typeof CancelSchema>;
+export type CollectedByInput = z.infer<typeof CollectedBySchema>;

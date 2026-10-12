@@ -52,6 +52,7 @@ postStockMovement(tx, {
 - **`siteId` is derived from the location**, not passed in. Central Store rows must be on the hub site, branch department rows on a non-hub site (D-15).
 - **Exactly one source link**, allowed for the type, pointing at a document of that site (a dispatch line may belong to the hub or the receiving branch).
 - **`ADJUSTMENT` gets `ADJ-####`** from the ReferenceCounter, in the same transaction.
+- **A Branch day entry carries the day number instead** (10 Oct 2026, Block 4): `PostStockMovementInput.reference` is allowed only on an `ADJUSTMENT` linked by `branchDayLineId`; when given the door stores it (`DAY-NYR-0044`) and takes nothing from the `ADJ` counter. Any other use is refused. `ledger-door.test.ts` covers it.
 - Errors are `ValidationError` and `ConflictError` with messages a screen can show. `SALE` and `MARKET_RECEIVE` are refused: no flow posts them yet.
 
 | Type | Stored sign | Source link |
@@ -72,9 +73,8 @@ A **waste row can be reversed** (Waste W4, no PIN): `reversal: 'WASTE'`, the sam
 |---|---|---|
 | `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
 | `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
-| `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
 
-Already on the door: **Waste** (`waste/log/` posts, `waste/reverse/` reverses, and the Department Head's `waste/department/`), **Purchasing receiving** (the delivery lines) and **Prep** (`prep/record/` posts runs, `prep/fix/` posts the reversing rows).
+Already on the door: **Branch day** (`branch-day/`: the close's usage entries, a correction and an opening recount), **Waste** (`waste/log/` posts, `waste/reverse/` reverses, and the Department Head's `waste/department/`), **Purchasing receiving** (the delivery lines) and **Prep** (`prep/record/` posts runs, `prep/fix/` posts the reversing rows).
 
 **Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 
@@ -85,8 +85,8 @@ A trigger on `inventory_transactions` makes the database itself refuse `UPDATE` 
 - **Not blocked:** `TRUNCATE` (nothing uses it; dev resets drop the schema). A superuser can still drop the trigger deliberately.
 - **Correcting a mistake on production** is therefore always a new linked row through the door, never an SQL edit.
 
-## Kept for branch day
-`stock-service.ts` exports only `departmentLabel`, marked `// kept for the branch-day refactor: delete when branch day is redone`. Nothing else of the old stock code remains.
+## Nothing of the old stock code remains
+`stock-service.ts` (it held only `departmentLabel`, kept for the Branch day refactor) was deleted with the Branch day rebuild (10 Oct 2026).
 
 ## Coupling
 Reads Counting only through `counting/_shared/count-reads.ts` (and the flagged section filter). Uses `_shared/{central-store-access,blind-rule,wire}`, `repositories/location-repository`. Prep imports `stock/_shared/stock-repository`; Waste imports the door and `stock/_shared`. The door uses `_shared/reference-counter` for the ADJ number.

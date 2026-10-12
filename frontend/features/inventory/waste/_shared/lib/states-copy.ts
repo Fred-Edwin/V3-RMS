@@ -37,6 +37,13 @@ export const WASTE_STATES_COPY = {
     error: 'Could not load your waste. Try again.',
     permission: 'You see your own entries.',
   },
+  /** Step 54, My waste, today and earlier (phone). Replaces step 19's lines; added in Block 5. */
+  myWasteEarlier: {
+    loading: 'Getting your waste',
+    empty: 'You have logged no waste in this period.',
+    error: 'Could not load your waste. Try again.',
+    permission: 'You see your own entries.',
+  },
   /** Step 20, Reverse a wrong entry (phone). */
   reversePhone: {
     loading: 'Reversing',

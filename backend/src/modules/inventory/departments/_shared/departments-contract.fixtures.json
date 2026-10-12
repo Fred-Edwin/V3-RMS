@@ -65,5 +65,6 @@
     "can": { "rename": true, "retire": true, "restore": false }
   },
   "renameDepartmentInput": { "name": "Grounds" },
-  "errorNameTaken": { "success": false, "error": { "code": "DEPARTMENT_NAME_TAKEN", "message": "This branch already has a department called Garden." } }
+  "errorNameTaken": { "success": false, "error": { "code": "DEPARTMENT_NAME_TAKEN", "message": "This branch already has a department called Garden." } },
+  "errorHasOpenSections": { "success": false, "error": { "code": "DEPARTMENT_HAS_OPEN_SECTIONS", "message": "Garden still has a section in an open requisition." } }
 }

@@ -1,17 +1,11 @@
-'use client';
+import { Suspense } from 'react';
 
-import { useSearchParams } from 'next/navigation';
-
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { RequisitionApprovalScreen } from '@/features/inventory/requisitions/components/screens/requisition-approval-screen';
-import { RequisitionsForApprovalMobileScreen } from '@/features/inventory/requisitions/components/screens/requisitions-for-approval-mobile-screen';
+import { RequisitionsListScreen } from '@/features/inventory';
 
 export default function BranchRequisitionsPage() {
-  const searchParams = useSearchParams();
-  const requisitionId = searchParams.get('id') ?? '';
-  const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
-
-  if (!hydrated) return null;
-  if (!isDesktop) return <RequisitionsForApprovalMobileScreen />;
-  return <RequisitionApprovalScreen requisitionId={requisitionId} />;
+  return (
+    <Suspense>
+      <RequisitionsListScreen base="/app/branch/requisitions" mode="queue" />
+    </Suspense>
+  );
 }

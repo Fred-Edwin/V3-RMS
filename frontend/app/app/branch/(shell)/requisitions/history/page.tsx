@@ -1,5 +1,11 @@
-import { RequisitionHistoryScreen } from '@/features/inventory/requisitions/components/screens/requisition-history-screen';
+import { Suspense } from 'react';
 
-export default function BranchRequisitionHistoryPage() {
-  return <RequisitionHistoryScreen />;
+import { RequisitionsListScreen } from '@/features/inventory';
+
+export default function BranchRequisitionsHistoryPage() {
+  return (
+    <Suspense>
+      <RequisitionsListScreen base="/app/branch/requisitions" mode="history" />
+    </Suspense>
+  );
 }

@@ -21,21 +21,34 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead;
   }
 
-  // Milestone Five, Session B — branch-side Deliveries is shared between the
-  // Branch Manager (all departments, confirm-on-behalf) and a Department
-  // Head (own department only, enforced server-side) — both reuse
-  // BranchDesktopShell's sidebar, so this path alone widens past
-  // MANAGER-only. Every other /app/branch/* path (requisitions approval,
-  // etc.) below stays Manager-only.
-  if (pathname.startsWith('/app/branch/deliveries')) {
-    return role === 'MANAGER' || isDepartmentHead;
+  // Block 2 — the department's Deliveries (count, confirm, file, history): a head, or a floor member of a department. Which
+  // department a person may count is decided by the API (`deliveries.count` rule), not here.
+  if (pathname.startsWith('/app/deliveries')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+  }
+
+  // Block 3 — the department's Branch waste phone screens (log, the department's list, reverse): a head, or a floor member of a
+  // department. Which department a person may log for is decided by the API (the department rule), not here.
+  if (pathname.startsWith('/app/waste')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+  }
+
+  // Block 4 — the department's Day (check the opening, count the evening, past days): a head, or a floor member of a department.
+  // Which department a person may count is decided by the API (the department rule), not here.
+  if (pathname === '/app/day' || pathname.startsWith('/app/day/')) {
+    return isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
   // Milestone Six, Session 1 — a Department Head's own-department stock
-  // ledger and Log waste (`1BPY-0`/`1FDY-0`, `1ACM-0`). Department-scoped
-  // server-side (location resolved from the actor); no Manager screen yet.
-  if (pathname.startsWith('/app/branch/ledger') || pathname.startsWith('/app/branch/waste')) {
+  // ledger (`1BPY-0`/`1FDY-0`). Department-scoped server-side (location
+  // resolved from the actor); no Manager screen yet.
+  if (pathname.startsWith('/app/branch/ledger')) {
     return isDepartmentHead;
+  }
+
+  // The printed requisition is read by every desktop role that reads requisitions (the file itself is gated by the API's table).
+  if (pathname.startsWith('/app/branch/requisitions-print') || pathname.startsWith('/app/branch/dispatch-print')) {
+    return role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
   // Milestone Four, Session B — Branch Manager approval workspace
@@ -134,6 +147,19 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     if (pathname.startsWith('/app/inventory/catalog')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
+    // Requisitions (rebuilt, Block 1): every desktop role reads the list and the file; the API's access table decides what each may do.
+    if (pathname.startsWith('/app/inventory/requisitions')) {
+      return isDesktopCentralStoreRole;
+    }
+    // Dispatch (Block 2): packing screens, the Attendant's tabs and the printed notes. The Store Manager and System Admin may also
+    // pack (`dispatch.pack`); the API's table decides every action.
+    if (pathname.startsWith('/app/inventory/dispatch')) {
+      return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT' || role === 'SYSTEM_ADMIN';
+    }
+    // Carriers (Block 2): the Store Manager and System Admin manage it, the other desktop roles read it; the API's table decides.
+    if (pathname.startsWith('/app/inventory/carriers')) {
+      return isDesktopCentralStoreRole;
+    }
     // Purchasing and Receiving (mock-first rebuild): every desktop role reads them, the Attendant works them on the phone.
     if (pathname.startsWith('/app/inventory/purchasing') || pathname.startsWith('/app/inventory/receiving')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
@@ -141,6 +167,16 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     // Prep (rebuilt): every desktop role reads it, the Attendant records runs on the phone; the API decides who may write.
     if (pathname.startsWith('/app/inventory/prep')) {
       return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
+    }
+    // Branch waste (Block 3, desktop): the Branch Manager reads their branch and reverses (W6); Director, Accountant, Store Manager and
+    // System Admin read every branch (W8). The API's table decides which screen and what each may do.
+    if (pathname.startsWith('/app/inventory/branch-waste')) {
+      return isDesktopCentralStoreRole;
+    }
+    // Branch day (Block 4, desktop): the same screens as the Branch Manager's, read only, for the roles without a branch of their own
+    // (Today with a branch picker, History, the day file, the printed day sheet). The API's table decides what each may do.
+    if (pathname.startsWith('/app/inventory/branch-day') || pathname.startsWith('/app/inventory/day-print')) {
+      return isDesktopCentralStoreRole;
     }
     // Stock, Counting and Waste (rebuilt): every desktop role reads every screen; the Attendant counts and logs waste on the phone
     // (Counts, Waste) and may print the blank sheet. The Branch Manager is the `MANAGER` role. The API decides who may write.

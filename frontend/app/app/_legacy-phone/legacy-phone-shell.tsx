@@ -119,30 +119,19 @@ interface LegacyPhoneShellProps {
 export function LegacyPhoneShell({ children, className }: LegacyPhoneShellProps): JSX.Element {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.role);
-  const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
   // Total unread count for the Inbox badge — derived from all three channels
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
 
   const mobileNavConfig = useMemo(() => {
     if (!role || !(role in mobileRoleTabs)) return null;
     const config = mobileRoleTabs[role as MobileRole];
-    // A department head's base-role tabs plus "Dept Shifts" and "Requisitions" overflow entries.
-    const withDeptHead: MobileRoleNavConfig = isDepartmentHead
-      ? {
-          tabs: config.tabs,
-          overflowTabs: [
-            { label: 'Dept Shifts', href: '/app/department/shifts', icon: Calendar },
-            { label: 'Requisitions', href: '/app/requisitions', icon: ClipboardList },
-            ...config.overflowTabs,
-          ],
-        }
-      : config;
+    // A department head is on the one shell now (nav table), so this layout only ever draws a member's or a plain floor role's tabs.
     // Inject unread badge on the Inbox tab
     return {
-      tabs: withDeptHead.tabs.map((t) => (t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t)),
-      overflowTabs: withDeptHead.overflowTabs.map((t) => (t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t)),
+      tabs: config.tabs.map((t) => (t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t)),
+      overflowTabs: config.overflowTabs.map((t) => (t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t)),
     };
-  }, [role, isDepartmentHead, unreadInbox]);
+  }, [role, unreadInbox]);
 
   return (
     <MobileLayout

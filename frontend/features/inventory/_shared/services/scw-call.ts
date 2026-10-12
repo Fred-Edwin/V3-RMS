@@ -22,6 +22,8 @@ export function queryString(params: object | undefined): string {
 
 /** Makes a `callApi` for one service under `base`. */
 export function makeCallApi(base: string) {
+  // The fourth argument (an abort signal) is accepted so callers keep one shape; the client does not use it yet.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return async function callApi<T>(method: HttpMethod, path: string, body?: unknown, _signal?: AbortSignal): Promise<T> {
     const url = `${base}${path}`;
     if (method === 'GET') return apiClient.get<T>(url, token());

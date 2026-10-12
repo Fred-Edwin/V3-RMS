@@ -1,12 +1,10 @@
 /**
- * Inventory Milestone Six, Session 1 — stock position, ledger, waste.
- * Real backend implementation of the frozen contract (`../types/stock`,
- * `../types/waste`). Same token-reading convention as `prep-api-service.ts`.
+ * Inventory Milestone Six, Session 1 — stock position and ledger.
+ * Real backend implementation of the frozen contract (`../types/stock`). Same token-reading convention as `prep-api-service.ts`.
  */
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { AttendantStockSummary, Ledger, LedgerQuery, ListStockQuery, StockList, StockSummary } from '../types/stock';
-import type { CreateWasteInput, CreateWasteResult, WasteItemOptionList, WasteList } from '../../waste/department/types/waste';
 
 function token(): string | undefined {
   return useAuthStore.getState().accessToken ?? undefined;
@@ -31,16 +29,4 @@ export async function getStockSummary(): Promise<StockSummary | AttendantStockSu
 
 export async function getStockLedger(itemId: string, query: LedgerQuery = {}): Promise<Ledger> {
   return apiClient.get<Ledger>(`/inventory/stock/items/${itemId}/ledger${toQueryString(query)}`, token());
-}
-
-export async function listWaste(days = 7): Promise<WasteList> {
-  return apiClient.get<WasteList>(`/inventory/waste?days=${days}`, token());
-}
-
-export async function listWasteItemOptions(search?: string, limit = 20): Promise<WasteItemOptionList> {
-  return apiClient.get<WasteItemOptionList>(`/inventory/waste/items${toQueryString({ search, limit })}`, token());
-}
-
-export async function createWaste(input: CreateWasteInput): Promise<CreateWasteResult> {
-  return apiClient.post<CreateWasteResult>('/inventory/waste', input, token());
 }

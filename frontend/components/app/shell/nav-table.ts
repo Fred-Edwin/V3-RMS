@@ -61,10 +61,10 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox' | 'prep-needs-look';
+export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'discrepancies' | 'deliveries' | 'branch-day-todo' | 'purchasing-receiving' | 'purchasing-restock' | 'purchasing-my-orders';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
-export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags' };
+export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', discrepancies: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
 
 interface Visibility {
   /** Roles that see the row. Never wider than what the route gate lets in. */
@@ -77,6 +77,10 @@ interface Visibility {
   flag?: NavFlag;
   /** Shows only for a department head (the marker on the token), whatever their base role. */
   departmentHead?: boolean;
+  /** Shows only for a department member who is not the head. */
+  departmentMemberOnly?: boolean;
+  /** Hidden for a department head or member, whose own row replaces it (a chef-head sees the head's History, a member the deliveries History, not the floor History). */
+  hideForDepartmentHead?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -107,6 +111,13 @@ export interface NavRow extends Visibility {
   match?: readonly string[];
   /** Which unread count the shell puts on the row. Counts come from each feature's public API, never from here. */
   badge?: NavBadge;
+  /**
+   * Floor staff only: the slot this row takes in the phone bottom bar, per role (1 is the first slot from the left). The bar is these
+   * rows in that order, then a Menu slot that opens the drawer, so at most 4 per role (5 slots with Menu). A role with none has no bar.
+   */
+  quick?: Partial<Record<AppRole, number>>;
+  /** The page has its own sticky action bar (a cart): the bottom bar is hidden on it. */
+  hideBar?: boolean;
   /** Rows that follow the Central Store's preview role (System Admin demo bar) rather than the real role. */
   hub?: boolean;
   /** Replaced by one row per branch the shell fetches (the Director's list). `:id` in the href is filled in. */
@@ -129,6 +140,7 @@ export const NAV_GROUP_LABELS: Readonly<Record<string, string>> = {
   'acc-credit': 'CREDIT ACCOUNTS',
   'acc-comms': 'COMMUNICATIONS',
   'acc-leave': 'LEAVE',
+  branches: 'BRANCHES',
   'adm-admin': 'ADMIN',
   'adm-comms': 'COMMUNICATIONS',
   hr: 'HR',
@@ -157,10 +169,13 @@ const HOUSEKEEPING: AppRole = 'HOUSEKEEPING';
 const DESKTOP_HUB: readonly AppRole[] = [STORE_MANAGER, ACCOUNTANT, DIRECTOR, MANAGER, SYSTEM_ADMIN];
 /** Those, plus the Attendant, who works the Central Store from a phone. */
 const HUB_ALL: readonly AppRole[] = [...DESKTOP_HUB, STORE_ATTENDANT];
-/** The screens still on the old Central Store flow. */
-const OLD_FLOW: readonly AppRole[] = [STORE_MANAGER, STORE_ATTENDANT];
 const ALL_HUMAN: readonly AppRole[] = [WAITER, CHEF, BARISTA, MANAGER, DIRECTOR, ACCOUNTANT, HR_MANAGER, SYSTEM_ADMIN, STEWARD, HOUSEKEEPING, STORE_MANAGER, STORE_ATTENDANT];
 const SHIFT_STAFF: readonly AppRole[] = [WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
+
+// Bottom-bar slots shared by several rows (see `NavRow.quick`). The waiter has no Daily count slot: it stays in the drawer.
+const DAILY_COUNT_SLOT: Partial<Record<AppRole, number>> = { [CHEF]: 2, [BARISTA]: 2, [STEWARD]: 2, [HOUSEKEEPING]: 2 };
+const DELIVERIES_SLOT: Partial<Record<AppRole, number>> = { [WAITER]: 3, [CHEF]: 3, [BARISTA]: 3, [STEWARD]: 3, [HOUSEKEEPING]: 3 };
+const INBOX_SLOT: Partial<Record<AppRole, number>> = { [WAITER]: 4, [CHEF]: 4, [BARISTA]: 4, [STEWARD]: 4, [HOUSEKEEPING]: 4 };
 
 const ico = {
   dashboard: fromLucide(LayoutDashboard),
@@ -201,7 +216,10 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'manage-analytics', label: 'Analytics', group: 'mgr-operations', icon: ico.analytics, oldHref: '/app/manage/reports', roles: [MANAGER] },
   { key: 'manage-inbox', label: 'Inbox', group: 'mgr-operations', icon: ico.inbox, oldHref: '/app/inbox', roles: [MANAGER], badge: 'inbox' },
   { key: 'manage-staff', label: 'Staff', group: 'mgr-manage', icon: ico.staff, oldHref: '/app/manage/staff', roles: [MANAGER] },
-  { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, oldHref: '/app/manage/departments', roles: [MANAGER] },
+  // Paper step 20: Departments in Settings (add, rename, retire). The old heads page stays at /app/manage/departments until its own redo.
+  { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, newHref: '/app/manage/department-settings', roles: [MANAGER] },
+  // Block 2: the Branch Manager reads the carrier list (read only) to see who carries the branch's deliveries.
+  { key: 'manage-carriers', label: 'Carriers', group: 'mgr-manage', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [MANAGER], capability: 'carriers.read' },
   { key: 'manage-menu', label: 'Menu', group: 'mgr-manage', icon: ico.menu, oldHref: '/app/manage/menu', roles: [MANAGER] },
   { key: 'manage-shifts', label: 'Shifts', group: 'mgr-manage', icon: ico.shifts, oldHref: '/app/manage/shifts', roles: [MANAGER] },
   { key: 'manage-delivery-zones', label: 'Delivery Zones', group: 'mgr-manage', icon: ico.delivery, oldHref: '/app/manage/delivery-zones', roles: [MANAGER] },
@@ -213,19 +231,73 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'income-record', label: 'Record Income', group: 'mgr-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [MANAGER] },
   { key: 'income-entries', label: 'Income Entries', group: 'mgr-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [MANAGER] },
   // The Branch workspace is rebuilt: its screens draw their own top bar.
-  { key: 'branch-requisitions', label: 'Requisitions', group: 'mgr-branch', icon: ico.clipboard, newHref: '/app/branch/requisitions', roles: [MANAGER] },
-  { key: 'branch-deliveries', label: 'Deliveries', group: 'mgr-branch', icon: ico.truck, newHref: '/app/branch/deliveries', roles: [MANAGER] },
-  { key: 'branch-day', label: 'Day', group: 'mgr-branch', icon: ico.day, newHref: '/app/branch/day', roles: [MANAGER] },
+  // One Requisitions row with Queue, Discrepancies and History; the Deliveries row is gone (folded into the Queue tabs).
+  {
+    key: 'branch-requisitions',
+    label: 'Requisitions',
+    group: 'mgr-branch',
+    icon: ico.clipboard,
+    roles: [MANAGER],
+    badge: 'requisitions',
+    subItems: [
+      { key: 'queue', label: 'Queue', newHref: '/app/branch/requisitions', roles: [MANAGER], badge: 'requisitions' },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/branch/requisitions/discrepancies', roles: [MANAGER], badge: 'discrepancies' },
+      { key: 'history', label: 'History', newHref: '/app/branch/requisitions/history', roles: [MANAGER] },
+    ],
+  },
+  // Block 4 (Paper B5 to B13): Today (and a department's figures) and History (and the closed day file), the Branch Manager's own branch.
+  {
+    key: 'branch-day',
+    label: 'Day',
+    group: 'mgr-branch',
+    icon: ico.day,
+    roles: [MANAGER],
+    capability: 'branch_day.read',
+    subItems: [
+      // The number of things that block the close (Paper B5 draws it on Today; none when nothing blocks).
+      { key: 'today', label: 'Today', newHref: '/app/branch/day', roles: [MANAGER], badge: 'branch-day-todo' },
+      { key: 'history', label: 'History', newHref: '/app/branch/day/history', roles: [MANAGER], match: ['/app/branch/day/file'] },
+    ],
+  },
+  // Block 3 (Paper W6): the Branch Manager reads the branch's waste with values and reverses any entry.
+  { key: 'branch-waste', label: 'Waste', group: 'mgr-branch', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [MANAGER], capability: 'branch_waste.read' },
+  // Block 4 (gap G25): the same Audit log screen, scoped by the server to the Branch Manager's own branch.
+  { key: 'branch-audit-log', label: 'Audit log', group: 'mgr-branch', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: [MANAGER], capability: 'audit.read' },
 
   // ── Director ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'director-dashboard', label: 'Dashboard', group: 'dir-overview', icon: ico.dashboard, oldHref: '/app/director', roles: [DIRECTOR] },
   { key: 'director-analytics', label: 'Analytics', group: 'dir-overview', icon: ico.analyticsLine, oldHref: '/app/director/analytics', roles: [DIRECTOR] },
   { key: 'director-inbox', label: 'Inbox', group: 'dir-overview', icon: ico.inbox, oldHref: '/app/inbox', roles: [DIRECTOR], badge: 'inbox' },
-  { key: 'director-branch', label: 'Branch', group: 'dir-branches', icon: ico.branch, oldHref: '/app/director/branches/:id', roles: [DIRECTOR], expand: 'branches' },
+  // Block 4 (Paper B16): every branch's day, read only, with a branch picker.
+  {
+    key: 'director-day',
+    label: 'Day',
+    group: 'dir-branches',
+    icon: ico.day,
+    roles: [DIRECTOR],
+    capability: 'branch_day.read_any_branch',
+    subItems: [
+      { key: 'today', label: 'Today', newHref: '/app/inventory/branch-day', roles: [DIRECTOR] },
+      { key: 'history', label: 'History', newHref: '/app/inventory/branch-day/history', roles: [DIRECTOR], match: ['/app/inventory/branch-day/file'] },
+    ],
+  },
+  // Block 3 (Paper W8): every branch's waste, read only.
+  { key: 'director-waste', label: 'Waste', group: 'dir-branches', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [DIRECTOR], capability: 'branch_waste.read_any_branch' },
   { key: 'director-income', label: 'Categories & Entries', group: 'dir-income', icon: ico.tags, oldHref: '/app/director/other-income', roles: [DIRECTOR] },
   { key: 'director-incidents', label: 'Incident Log', group: 'dir-operations', icon: ico.shield, oldHref: '/app/director/incidents', roles: [DIRECTOR] },
   { key: 'director-discounts', label: 'Discounts', group: 'dir-operations', icon: ico.percent, oldHref: '/app/admin/discounts', roles: [DIRECTOR] },
-  { key: 'director-settings', label: 'Branch Settings', group: 'dir-operations', icon: ico.settings, oldHref: '/app/director/settings', roles: [DIRECTOR] },
+  // Branch Settings is an existing page; Departments (Paper G4, read only with a branch picker) sits under it.
+  {
+    key: 'director-settings',
+    label: 'Branch Settings',
+    group: 'dir-operations',
+    icon: ico.settings,
+    roles: [DIRECTOR],
+    subItems: [
+      { key: 'settings', label: 'Settings', oldHref: '/app/director/settings', roles: [DIRECTOR] },
+      { key: 'departments', label: 'Departments', newHref: '/app/director/settings/departments', roles: [DIRECTOR], capability: 'departments.read' },
+    ],
+  },
   { key: 'director-payroll', label: 'Payroll', group: 'dir-operations', icon: ico.payslips, oldHref: '/app/hr/payroll', roles: [DIRECTOR] },
   { key: 'director-corporate', label: 'Corporate Accounts', group: 'dir-credit', icon: ico.departments, oldHref: '/app/director/corporate-accounts', roles: [DIRECTOR], flag: 'credit' },
   { key: 'director-outstanding', label: 'Outstanding Balances', group: 'dir-credit', icon: ico.alert, oldHref: '/app/director/outstanding-balances', roles: [DIRECTOR], flag: 'credit' },
@@ -247,6 +319,21 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'admin-corporate', label: 'Corporate Accounts', group: 'adm-admin', icon: ico.departments, oldHref: '/app/admin/corporate-accounts', roles: [SYSTEM_ADMIN], flag: 'credit' },
   { key: 'admin-inbox', label: 'Inbox', group: 'adm-comms', icon: ico.inbox, oldHref: '/app/inbox', roles: [SYSTEM_ADMIN], badge: 'inbox' },
 
+  // ── Branches (Block 3, Paper W8): the desktop roles without a branch of their own read every branch's waste ─────────────────
+  {
+    key: 'branches-day',
+    label: 'Day',
+    group: 'branches',
+    icon: ico.day,
+    roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN],
+    capability: 'branch_day.read_any_branch',
+    subItems: [
+      { key: 'today', label: 'Today', newHref: '/app/inventory/branch-day', roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN] },
+      { key: 'history', label: 'History', newHref: '/app/inventory/branch-day/history', roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN], match: ['/app/inventory/branch-day/file'] },
+    ],
+  },
+  { key: 'branches-waste', label: 'Waste', group: 'branches', icon: ico.alert, newHref: '/app/inventory/branch-waste', roles: [ACCOUNTANT, STORE_MANAGER, SYSTEM_ADMIN], capability: 'branch_waste.read_any_branch' },
+
   // ── HR Manager ────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'hr-overview', label: 'HR Overview', group: 'hr', icon: ico.dashboard, oldHref: '/app/hr', roles: [HR_MANAGER] },
   { key: 'hr-staff', label: 'Staff Profiles', group: 'hr', icon: ico.staff, oldHref: '/app/hr/staff', roles: [HR_MANAGER] },
@@ -259,24 +346,42 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'hr-inbox', label: 'Inbox', group: 'hr', icon: ico.inbox, oldHref: '/app/inbox', roles: [HR_MANAGER], badge: 'inbox' },
 
   // ── Floor and kitchen staff (the desktop preview, and any desktop session) ───────────────────────────────────────────────
-  { key: 'staff-dashboard', label: 'Dashboard', group: 'staff-nav', icon: ico.dashboard, oldHref: '/app/dashboard', roles: SHIFT_STAFF },
-  { key: 'staff-new-order', label: 'New Order', group: 'staff-nav', icon: ico.orders, oldHref: '/app/orders/new', roles: [WAITER] },
-  { key: 'staff-orders', label: 'Orders', group: 'staff-nav', icon: ico.clipboard, oldHref: '/app/orders', roles: [WAITER] },
-  { key: 'staff-kitchen', label: 'Kitchen', group: 'staff-nav', icon: ico.chef, oldHref: '/app/kitchen', roles: [CHEF] },
-  { key: 'staff-barista', label: 'Barista', group: 'staff-nav', icon: ico.coffee, oldHref: '/app/barista', roles: [BARISTA] },
+  { key: 'staff-dashboard', label: 'Dashboard', group: 'staff-nav', icon: ico.dashboard, oldHref: '/app/dashboard', roles: SHIFT_STAFF, quick: { [STEWARD]: 1, [HOUSEKEEPING]: 1 } },
+  // The phone bottom bar (`quick`): waiter New Order, Orders; chef Kitchen; barista Barista. New Order has its own sticky cart, so no bar there.
+  { key: 'staff-new-order', label: 'New Order', group: 'staff-nav', icon: ico.orders, oldHref: '/app/orders/new', roles: [WAITER], quick: { [WAITER]: 1 }, hideBar: true },
+  { key: 'staff-orders', label: 'Orders', group: 'staff-nav', icon: ico.clipboard, oldHref: '/app/orders', roles: [WAITER], quick: { [WAITER]: 2 } },
+  { key: 'staff-kitchen', label: 'Kitchen', group: 'staff-nav', icon: ico.chef, oldHref: '/app/kitchen', roles: [CHEF], quick: { [CHEF]: 1 } },
+  { key: 'staff-barista', label: 'Barista', group: 'staff-nav', icon: ico.coffee, oldHref: '/app/barista', roles: [BARISTA], quick: { [BARISTA]: 1 } },
   { key: 'staff-shifts', label: 'Shifts', group: 'staff-nav', icon: ico.shifts, oldHref: '/app/shifts', roles: SHIFT_STAFF },
   { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [STEWARD, HOUSEKEEPING] },
   { key: 'staff-payslips', label: 'Payslips', group: 'staff-nav', icon: ico.payslips, oldHref: '/app/payslips', roles: SHIFT_STAFF },
   { key: 'staff-performance', label: 'Performance', group: 'staff-nav', icon: ico.analytics, oldHref: '/app/performance', roles: [WAITER, CHEF, BARISTA] },
-  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA] },
-  { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: [STEWARD, HOUSEKEEPING], badge: 'inbox' },
+  { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA], hideForDepartmentHead: true },
+  { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: SHIFT_STAFF, badge: 'inbox', quick: INBOX_SLOT },
   { key: 'staff-income-record', label: 'Record Income', group: 'staff-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [WAITER] },
   { key: 'staff-income-history', label: 'Income History', group: 'staff-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [WAITER] },
 
   // ── Central Store (every desktop role reads it; the server's permissions table decides what each may open) ──────────────
   // Purchasing and Receiving are one flow on the mock: every desktop role reads it, the phone roles reach it through the order capabilities.
-  { key: 'receiving', label: 'Receiving', group: 'central-store', icon: ReceivingIcon, newHref: '/app/inventory/receiving', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.receive'], hub: true },
-  { key: 'purchasing', label: 'Purchasing', group: 'central-store', icon: PurchasingIcon, newHref: '/app/inventory/purchasing', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.request'], hub: true },
+  { key: 'receiving', label: 'Receiving', group: 'central-store', icon: ReceivingIcon, newHref: '/app/inventory/receiving', roles: HUB_ALL, anyCapability: ['orders.read', 'orders.receive'], hub: true, badge: 'purchasing-receiving' },
+  { key: 'purchasing', label: 'Purchasing', group: 'central-store', icon: PurchasingIcon, newHref: '/app/inventory/purchasing', roles: DESKTOP_HUB, anyCapability: ['orders.read', 'orders.request'], hub: true },
+  // The Store Attendant's Purchasing phone (Paper 28I): the same link with five sub-links. Only one of the two rows shows for a role.
+  {
+    key: 'purchasing',
+    label: 'Purchasing',
+    group: 'central-store',
+    icon: PurchasingIcon,
+    roles: [STORE_ATTENDANT],
+    anyCapability: ['orders.read', 'orders.request'],
+    hub: true,
+    subItems: [
+      { key: 'purchasing-home', label: 'Home', newHref: '/app/inventory/purchasing', roles: [STORE_ATTENDANT] },
+      { key: 'purchasing-restock', label: 'Restock list', newHref: '/app/inventory/purchasing/restock', roles: [STORE_ATTENDANT], badge: 'purchasing-restock' },
+      { key: 'purchasing-my-orders', label: 'My orders', newHref: '/app/inventory/purchasing/my-orders', roles: [STORE_ATTENDANT], badge: 'purchasing-my-orders' },
+      { key: 'purchasing-history', label: 'History', newHref: '/app/inventory/purchasing/history', roles: [STORE_ATTENDANT] },
+      { key: 'purchasing-levels', label: 'Restock levels', newHref: '/app/inventory/purchasing/levels', roles: [STORE_ATTENDANT] },
+    ],
+  },
   {
     key: 'prep',
     label: 'Prep',
@@ -294,8 +399,24 @@ export const NAV_ROWS: readonly NavRow[] = [
       { key: 'history', label: 'History', newHref: '/app/inventory/prep/history', roles: HUB_ALL },
     ],
   },
-  // Discrepancies are resolved from the dispatch queue, so they light Dispatch.
-  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, oldHref: '/app/inventory/dispatch', framed: true, match: ['/app/inventory/discrepancies'], roles: OLD_FLOW, hub: true },
+  // One Requisitions row for the hub desktop roles (it replaces Dispatch for them); the Branch Manager has the Branch group's own row.
+  {
+    key: 'requisitions',
+    label: 'Requisitions',
+    group: 'central-store',
+    icon: ico.clipboard,
+    roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN],
+    capability: 'requisitions.read',
+    hub: true,
+    badge: 'discrepancies',
+    subItems: [
+      { key: 'queue', label: 'Queue', newHref: '/app/inventory/requisitions', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/inventory/requisitions/discrepancies', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN], badge: 'discrepancies' },
+      { key: 'history', label: 'History', newHref: '/app/inventory/requisitions/history', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+    ],
+  },
+  // The Attendant has one Dispatch row (To pack, On the way, Done and the pack screens live under it).
+  { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, newHref: '/app/inventory/dispatch', roles: [STORE_ATTENDANT], hub: true },
   {
     key: 'stock-counts',
     label: 'Stock & counts',
@@ -317,13 +438,29 @@ export const NAV_ROWS: readonly NavRow[] = [
   },
   { key: 'suppliers', label: 'Suppliers', group: 'procurement', icon: SuppliersIcon, newHref: '/app/inventory/suppliers', roles: DESKTOP_HUB, capability: 'suppliers.read', hub: true },
   { key: 'catalog', label: 'Catalog', group: 'procurement', icon: CatalogIcon, newHref: '/app/inventory/catalog', roles: HUB_ALL, capability: 'catalog.read', hub: true },
-  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB, capability: 'audit.read', hub: true },
+  // The Branch Manager has the 'branch-audit-log' row above (the same screen), so the hub row leaves them out: one link, not two.
+  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB.filter((r) => r !== MANAGER), capability: 'audit.read', hub: true },
+  // Carriers (Paper D18, Block 2): the Store Manager and System Admin manage the list, the Director and Accountant read it (the page decides from `can.manage`).
+  { key: 'carriers', label: 'Carriers', group: 'procurement', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [STORE_MANAGER, DIRECTOR, ACCOUNTANT, SYSTEM_ADMIN], capability: 'carriers.read', hub: true },
   // The Store Manager's alone, until a later session moves it onto the table. Not drawn in Paper.
   { key: 'inventory-settings', label: 'Settings', group: 'procurement', icon: SettingsIcon, oldHref: '/app/inventory/settings', framed: true, roles: [STORE_MANAGER], hub: true },
 
   // ── A department head, on top of their own role's links ──────────────────────────────────────────────────────────────────
   { key: 'department-shifts', label: 'Department Shifts', group: 'department', icon: ico.shifts, oldHref: '/app/department/shifts', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, oldHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
+  // The head's Requisitions screens are rebuilt (phone column, own header). Deliveries and Waste stay links to the pages that exist today.
+  { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true, badge: 'deliveries', quick: DELIVERIES_SLOT },
+  // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
+  // Block 4: the Day (check the opening, count tonight) is the row below. Waste follows (Block 3).
+  { key: 'department-day', label: 'Daily count', group: 'department', icon: ico.day, newHref: '/app/day', roles: ALL_HUMAN, departmentHead: true, quick: DAILY_COUNT_SLOT, hideBar: true },
+  { key: 'department-past-days', label: 'Past days', group: 'department', icon: ico.history, newHref: '/app/day/history', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'member-day', label: 'Daily count', group: 'department', icon: ico.day, newHref: '/app/day', roles: SHIFT_STAFF, departmentMemberOnly: true, quick: DAILY_COUNT_SLOT, hideBar: true },
+  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true, badge: 'deliveries', quick: DELIVERIES_SLOT },
+  { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: SHIFT_STAFF, departmentMemberOnly: true },
+  { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
+  // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
+  { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
+  // The head's requisition History is no menu row any more: the Requisitions home carries "Earlier" and "See all history" (11 Oct 2026).
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },
@@ -336,6 +473,8 @@ export interface NavContext {
   /** The role the Central Store acts as: the System Admin's preview role, otherwise `role`. */
   hubRole?: AppRole;
   isDepartmentHead: boolean;
+  /** An active member of a department who is not its head (from `GET /inventory/permissions/me`, `departments`). */
+  isDepartmentMember?: boolean;
   /** `can` from the Central Store permissions table. */
   can: (capability: Capability) => boolean;
   /** `NEXT_PUBLIC_CREDIT_ACCOUNTS_ENABLED`. */
@@ -361,6 +500,9 @@ export interface NavLink {
   framed: boolean;
   match: readonly string[];
   badge?: NavBadge;
+  /** Slot in the phone bottom bar for this person's role, when the row is a quick link. */
+  quick?: number;
+  hideBar?: boolean;
   subItems?: NavLinkSub[];
 }
 
@@ -375,7 +517,9 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
   (rule.flag !== 'credit' || ctx.creditAccounts) &&
-  (!rule.departmentHead || ctx.isDepartmentHead);
+  (!rule.departmentHead || ctx.isDepartmentHead) &&
+  (!rule.departmentMemberOnly || (ctx.isDepartmentMember === true && !ctx.isDepartmentHead)) &&
+  (!rule.hideForDepartmentHead || !(ctx.isDepartmentHead || ctx.isDepartmentMember === true));
 
 /** The badge a person may see: dropped when the badge needs a capability they do not hold. */
 const badgeFor = (badge: NavBadge | undefined, ctx: NavContext): NavBadge | undefined => {
@@ -418,10 +562,29 @@ export function navFor(ctx: NavContext, rows: readonly NavRow[] = NAV_ROWS): Nav
       continue;
     }
 
-    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx) });
+    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx), quick: row.quick?.[actor], hideBar: row.hideBar });
   }
 
   return Array.from(groups.entries()).map(([key, items]) => ({ key, label: NAV_GROUP_LABELS[key] ?? key.toUpperCase(), items }));
+}
+
+/** The phone bottom bar's links for one person: the rows that have a slot for their role, in slot order. Empty means no bar. */
+export function quickLinksFor(groups: readonly NavGroup[]): NavLink[] {
+  return groups
+    .flatMap((group) => group.items)
+    .filter((link) => link.quick !== undefined)
+    .sort((a, b) => (a.quick ?? 0) - (b.quick ?? 0));
+}
+
+/**
+ * Whether the bottom bar shows on this page: only on a page the menu links to, never on a task screen reached from one (a count, a
+ * confirm, a send sheet) or on a row that draws its own sticky bar (`hideBar`), so two bars never stack.
+ */
+export function showsBottomBar(groups: readonly NavGroup[], pathname: string): boolean {
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+  return groups.some((group) =>
+    group.items.some((link) => (link.subItems ? link.subItems.some((sub) => sub.href === path) : link.href === path && !link.hideBar))
+  );
 }
 
 export interface ActiveNav {
@@ -475,16 +638,25 @@ export const hasHubRows = (role: AppRole | null | undefined): boolean => Boolean
 export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname);
 
 /**
- * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone. The floor staff
- * (waiter, chef, barista, steward, housekeeping) are not here: they stay on the legacy bottom tabs until their screens are rebuilt.
+ * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone (and the floor-staff
+ * bottom bar). The floor staff (waiter, chef, barista, steward, housekeeping) are here too, department or not: the department gate was
+ * only for Block One.
  */
-const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT];
+const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT, WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
 const DESKTOP_PREVIEW_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA];
 
-export const usesAppShell = (role: AppRole | null | undefined): boolean => Boolean(role) && SHELL_ROLES.includes(role as AppRole);
+/**
+ * Every human role uses the shell, and a department head or an active department member does whatever their base role (Paper
+ * "Phone menus by role": no bottom tabs). Only the display-only roles are left out.
+ */
+export const usesAppShell = (role: AppRole | null | undefined, isDepartmentHead = false, isDepartmentMember = false): boolean =>
+  Boolean(role) && (SHELL_ROLES.includes(role as AppRole) || isDepartmentHead || isDepartmentMember);
+
+/** The roles whose department membership the layout has to look up before it can pick a frame (heads carry a marker on the token). */
+export const FLOOR_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
 
 /** The sidebar shows for these roles, and for the floor staff only in the desktop preview (a dev flag), next to their bottom tabs. */
-export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean): boolean {
+export function usesDesktopShell(role: AppRole | null | undefined, desktopPreview: boolean, isDepartmentHead = false, isDepartmentMember = false): boolean {
   if (!role) return false;
-  return usesAppShell(role) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
+  return usesAppShell(role, isDepartmentHead, isDepartmentMember) || (desktopPreview && DESKTOP_PREVIEW_ROLES.includes(role));
 }

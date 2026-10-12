@@ -7,11 +7,8 @@ import {
   getStockLedger,
   getStockSummary,
   listStock,
-  listWaste,
-  listWasteItemOptions,
 } from '../services/stock-api-service';
 import type { AttendantStockSummary, Ledger, LedgerQuery, ListStockQuery, StockList, StockSummary } from '../types/stock';
-import type { WasteItemOption, WasteList } from '../../waste/department/types/waste';
 
 export type ResourceStatus = 'loading' | 'error' | 'ready';
 
@@ -78,20 +75,6 @@ export function useStockLedger(itemId: string | null, query: LedgerQuery) {
   const key = itemId ? `${itemId}:${JSON.stringify(query)}` : null;
   const r = useResource<Ledger>(key, () => getStockLedger(itemId as string, query), "Couldn't load the ledger.");
   return { ledger: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
-}
-
-export function useWasteList(days = 7, enabled = true) {
-  const r = useResource<WasteList>(enabled ? `waste:${days}` : null, () => listWaste(days), "Couldn't load waste.");
-  return { waste: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
-}
-
-export function useWasteItemOptions(search: string, enabled = true) {
-  const r = useResource<{ items: WasteItemOption[] }>(
-    enabled ? `waste-items:${search}` : null,
-    () => listWasteItemOptions(search || undefined),
-    "Couldn't load items.",
-  );
-  return { items: r.data?.items ?? [], status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
 }
 
 /** Debounced value — the All items / picker search waits 250ms after the last keystroke (§4.3). */

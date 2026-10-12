@@ -5,6 +5,10 @@ import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-repor
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
 import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
+import { URGENT_ESCALATION_JOB, ensureUrgentEscalationSchedule, escalateUrgentRequisitions } from './requisition-urgent-escalation';
+import { ensureInventoryDeliverySchedule, runInventoryDeliveryJob } from './inventory-delivery-jobs';
+import { ensurePurchasingDueSchedule, runPurchasingDueJob } from './purchasing-due-jobs';
+import { INVENTORY_NOTICE_JOB, inventoryNotify, type HeldNotice } from '../modules/inventory/_shared/notify';
 import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
 import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
 import type { HouseAuthTimeoutJobData } from './house-account-auth-timeout';
@@ -43,6 +47,12 @@ export const notificationWorker = new Worker(
       return;
     }
 
+    // An inventory push held for quiet hours goes out at 05:00 (the one notification layer, inventory/_shared/notify.ts).
+    if (job.name === INVENTORY_NOTICE_JOB) {
+      await inventoryNotify.dispatchHeld(job.data as HeldNotice);
+      return;
+    }
+
     logger.info({ jobId: job.id, name: job.name }, 'Notification job placeholder received');
   },
   {
@@ -69,6 +79,18 @@ export const reportWorker = new Worker(
     if (job.name === 'stale-orders.schedule') {
       const totalFlagged = await flagStaleOrders();
       logger.info({ jobId: job.id, totalFlagged }, 'Stale orders schedule executed');
+      return;
+    }
+
+    // Block 2: the 2-hour "Waiting for the branch" nudge and the 24-hour then daily discrepancy reminder (idempotent claims).
+    if (await runInventoryDeliveryJob(job.name)) return;
+
+    // Purchasing: the 08:00 "delivery due today" and "overdue" pushes to the Store Attendants (notification map rows 24 and 25).
+    if (await runPurchasingDueJob(job.name)) return;
+
+    if (job.name === URGENT_ESCALATION_JOB) {
+      const escalated = await escalateUrgentRequisitions();
+      if (escalated > 0) logger.info({ jobId: job.id, escalated }, 'Urgent requisition escalation executed');
       return;
     }
 
@@ -140,6 +162,15 @@ export const startWorkers = (): void => {
     });
     void ensureStaleOrdersSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register stale orders schedule');
+    });
+    void ensureUrgentEscalationSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register urgent requisition escalation schedule');
+    });
+    void ensureInventoryDeliverySchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the delivery waiting and discrepancy reminder schedule');
+    });
+    void ensurePurchasingDueSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the Purchasing due and overdue schedule');
     });
     void ensureReadyOrderReminderSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register ready order reminder schedule');

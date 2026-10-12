@@ -70,16 +70,6 @@ const ownDepartmentScope = async (actor: Actor): Promise<StockScope> => {
 export const resolveCentralStoreScope = centralStoreScope;
 
 /**
- * Waste: Store Manager / Store Attendant → the Central Store; department
- * head → their own department. Nobody else logs waste this milestone.
- */
-export const resolveWasteScope = async (actor: Actor): Promise<StockScope> => {
-  if (actor.isDepartmentHead) return ownDepartmentScope(actor);
-  if (actor.role === 'STORE_MANAGER' || actor.role === 'STORE_ATTENDANT') return centralStoreScope(actor);
-  throw new ForbiddenError('You may not log waste');
-};
-
-/**
  * Ledger (plan §2.1, §7 #7): Store Manager → Central Store; Branch Manager →
  * one of their own branch's department locations (required); department
  * head → their own department. The Store Attendant never reaches the ledger

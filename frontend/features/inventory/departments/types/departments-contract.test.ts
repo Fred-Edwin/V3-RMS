@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixtures from './departments-contract.fixtures.json';
+import { DEPARTMENT_ERROR_CODES } from './departments-contract';
 import type { DepartmentRow, ListDepartments } from './departments-contract';
 
 const keysOf = (o: object): string[] => Object.keys(o).sort();
@@ -15,5 +16,9 @@ describe('departments contract mirror', () => {
     expect((fixtures.listDepartmentsManager as ListDepartments).rows[1]!.key).toBeNull();
     expect(keysOf(fixtures.listDepartmentsDirector as ListDepartments)).toContain('branches');
     expect(keysOf(fixtures.listDepartmentsManager as ListDepartments)).not.toContain('branches');
+  });
+
+  it('retire is refused while a section is open (Amendment 2)', () => {
+    expect(DEPARTMENT_ERROR_CODES as readonly string[]).toContain(fixtures.errorHasOpenSections.error.code);
   });
 });

@@ -23,7 +23,7 @@ vi.mock('../../../middleware/authenticate', () => ({
     next();
   },
 }));
-vi.mock('./counts/counts-service', () => ({ countsService: { summary: vi.fn(), list: vi.fn(), flagged: vi.fn(), repeatShortfalls: vi.fn(), detail: vi.fn() } }));
+vi.mock('./counts/counts-service', () => ({ countsService: { summary: vi.fn(), list: vi.fn(), flagged: vi.fn(), repeatShortfalls: vi.fn(), detail: vi.fn(), home: vi.fn(), mine: vi.fn() } }));
 vi.mock('./print/print-service', () => ({ printService: { record: vi.fn(), blankSheet: vi.fn() } }));
 vi.mock('./record/record-service', () => ({ recordService: { startOptions: vi.fn(), start: vi.fn(), saveLines: vi.fn(), check: vi.fn(), signPreview: vi.fn(), sign: vi.fn(), setSectionOrder: vi.fn() } }));
 vi.mock('./review/review-service', () => ({ reviewService: { decide: vi.fn(), approvePreview: vi.fn(), approve: vi.fn(), markSeen: vi.fn() } }));
@@ -79,6 +79,8 @@ const endpoints: Endpoint[] = [
   e('C28 GET /counts/:id/approve-preview', ['SM', 'SA'], reviewService, 'approvePreview', (h) => request(app).get(`${base}/counts/${COUNT}/approve-preview`).set(h)),
   e('C29 POST /counts/:id/approve', ['SM', 'SA'], reviewService, 'approve', (h) => request(app).post(`${base}/counts/${COUNT}/approve`).set(h).send({ pin: '1234', idempotencyKey: KEY })),
   e('C30 POST /counts/seen', ['DIR', 'SA'], reviewService, 'markSeen', (h) => request(app).post(`${base}/counts/seen`).set(h).send({ lineIds: [LINE] })),
+  e('C31 GET /counts/home', ['SM', 'SA', 'AT'], countsService, 'home', (h) => request(app).get(`${base}/counts/home`).set(h)),
+  e('C32 GET /counts/mine', ['SM', 'SA', 'AT'], countsService, 'mine', (h) => request(app).get(`${base}/counts/mine`).set(h)),
 ];
 
 const allServices = [countsService, printService, recordService, reviewService, settingsService, setupService] as unknown as Record<string, ReturnType<typeof vi.fn>>[];
@@ -88,9 +90,9 @@ beforeEach(() => {
   for (const service of allServices) for (const fn of Object.values(service)) fn.mockResolvedValue({ detail: {}, replayed: false });
 });
 
-describe('every one of the 30 endpoints is in the grid', () => {
-  it('C1 to C30, once each', () => {
-    expect(endpoints.map((x) => Number(x.id.match(/^C(\d+)/)![1]))).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
+describe('every one of the 32 endpoints is in the grid', () => {
+  it('C1 to C32, once each', () => {
+    expect(endpoints.map((x) => Number(x.id.match(/^C(\d+)/)![1]))).toEqual(Array.from({ length: 32 }, (_, i) => i + 1));
   });
 });
 
@@ -123,6 +125,8 @@ describe('route order: literal paths beat GET /counts/:id', () => {
   const sm = as('STORE_MANAGER');
   it.each([
     ['summary', 'summary', countsService],
+    ['home', 'home', countsService],
+    ['mine', 'mine', countsService],
     ['flagged', 'flagged', countsService],
     ['repeat-shortfalls', 'repeatShortfalls', countsService],
     ['blank-sheet', 'blankSheet', printService],

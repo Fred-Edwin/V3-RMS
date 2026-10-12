@@ -27,11 +27,13 @@ export interface ScwPhoneHeaderProps {
   /** `back` for a task opened from another screen, `menu` for a landing screen (the shell's nav drawer). */
   leading: 'back' | 'menu';
   onBack?: () => void;
+  /** The line after "WENDO RMS ·" (default "HUB"; a branch screen passes the branch name, "NYERI TOWN"). */
+  place?: string;
   className?: string;
 }
 
 /** Paper steps 1 to 7 header: 20 px of space above a 4 px inset, 22/28 title, 13/18 subtitle (`1WGH-0`). */
-export function ScwPhoneHeader({ title, subtitle, leading, onBack, className }: ScwPhoneHeaderProps) {
+export function ScwPhoneHeader({ title, subtitle, leading, onBack, place = 'HUB', className }: ScwPhoneHeaderProps) {
   const initials = useAuthStore((s) => initialsOf(s.user?.name));
   const { open } = useMobileNavDrawer();
   return (
@@ -54,7 +56,7 @@ export function ScwPhoneHeader({ title, subtitle, leading, onBack, className }: 
               </svg>
             )}
           </button>
-          <span className="grow font-wds-mono text-[11px] leading-[14px] tracking-[0.08em] text-wds-espresso-400">WENDO RMS · HUB</span>
+          <span className="grow font-wds-mono text-[11px] leading-[14px] tracking-[0.08em] text-wds-espresso-400">WENDO RMS · {place}</span>
           <span className="flex size-[30px] shrink-0 items-center justify-center rounded-[15px] bg-wds-espresso-800 font-wds-mono text-[11px] leading-[14px] text-wds-sidebar-badge-fg" aria-hidden="true">
             {initials}
           </span>
