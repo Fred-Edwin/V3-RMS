@@ -111,6 +111,13 @@ export interface NavRow extends Visibility {
   match?: readonly string[];
   /** Which unread count the shell puts on the row. Counts come from each feature's public API, never from here. */
   badge?: NavBadge;
+  /**
+   * Floor staff only: the slot this row takes in the phone bottom bar, per role (1 is the first slot from the left). The bar is these
+   * rows in that order, then a Menu slot that opens the drawer, so at most 4 per role (5 slots with Menu). A role with none has no bar.
+   */
+  quick?: Partial<Record<AppRole, number>>;
+  /** The page has its own sticky action bar (a cart): the bottom bar is hidden on it. */
+  hideBar?: boolean;
   /** Rows that follow the Central Store's preview role (System Admin demo bar) rather than the real role. */
   hub?: boolean;
   /** Replaced by one row per branch the shell fetches (the Director's list). `:id` in the href is filled in. */
@@ -164,6 +171,11 @@ const DESKTOP_HUB: readonly AppRole[] = [STORE_MANAGER, ACCOUNTANT, DIRECTOR, MA
 const HUB_ALL: readonly AppRole[] = [...DESKTOP_HUB, STORE_ATTENDANT];
 const ALL_HUMAN: readonly AppRole[] = [WAITER, CHEF, BARISTA, MANAGER, DIRECTOR, ACCOUNTANT, HR_MANAGER, SYSTEM_ADMIN, STEWARD, HOUSEKEEPING, STORE_MANAGER, STORE_ATTENDANT];
 const SHIFT_STAFF: readonly AppRole[] = [WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
+
+// Bottom-bar slots shared by several rows (see `NavRow.quick`). The waiter has no Daily count slot: it stays in the drawer.
+const DAILY_COUNT_SLOT: Partial<Record<AppRole, number>> = { [CHEF]: 2, [BARISTA]: 2, [STEWARD]: 2, [HOUSEKEEPING]: 2 };
+const DELIVERIES_SLOT: Partial<Record<AppRole, number>> = { [WAITER]: 3, [CHEF]: 3, [BARISTA]: 3, [STEWARD]: 3, [HOUSEKEEPING]: 3 };
+const INBOX_SLOT: Partial<Record<AppRole, number>> = { [WAITER]: 4, [CHEF]: 4, [BARISTA]: 4, [STEWARD]: 4, [HOUSEKEEPING]: 4 };
 
 const ico = {
   dashboard: fromLucide(LayoutDashboard),
@@ -334,17 +346,18 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'hr-inbox', label: 'Inbox', group: 'hr', icon: ico.inbox, oldHref: '/app/inbox', roles: [HR_MANAGER], badge: 'inbox' },
 
   // ── Floor and kitchen staff (the desktop preview, and any desktop session) ───────────────────────────────────────────────
-  { key: 'staff-dashboard', label: 'Dashboard', group: 'staff-nav', icon: ico.dashboard, oldHref: '/app/dashboard', roles: SHIFT_STAFF },
-  { key: 'staff-new-order', label: 'New Order', group: 'staff-nav', icon: ico.orders, oldHref: '/app/orders/new', roles: [WAITER] },
-  { key: 'staff-orders', label: 'Orders', group: 'staff-nav', icon: ico.clipboard, oldHref: '/app/orders', roles: [WAITER] },
-  { key: 'staff-kitchen', label: 'Kitchen', group: 'staff-nav', icon: ico.chef, oldHref: '/app/kitchen', roles: [CHEF] },
-  { key: 'staff-barista', label: 'Barista', group: 'staff-nav', icon: ico.coffee, oldHref: '/app/barista', roles: [BARISTA] },
+  { key: 'staff-dashboard', label: 'Dashboard', group: 'staff-nav', icon: ico.dashboard, oldHref: '/app/dashboard', roles: SHIFT_STAFF, quick: { [STEWARD]: 1, [HOUSEKEEPING]: 1 } },
+  // The phone bottom bar (`quick`): waiter New Order, Orders; chef Kitchen; barista Barista. New Order has its own sticky cart, so no bar there.
+  { key: 'staff-new-order', label: 'New Order', group: 'staff-nav', icon: ico.orders, oldHref: '/app/orders/new', roles: [WAITER], quick: { [WAITER]: 1 }, hideBar: true },
+  { key: 'staff-orders', label: 'Orders', group: 'staff-nav', icon: ico.clipboard, oldHref: '/app/orders', roles: [WAITER], quick: { [WAITER]: 2 } },
+  { key: 'staff-kitchen', label: 'Kitchen', group: 'staff-nav', icon: ico.chef, oldHref: '/app/kitchen', roles: [CHEF], quick: { [CHEF]: 1 } },
+  { key: 'staff-barista', label: 'Barista', group: 'staff-nav', icon: ico.coffee, oldHref: '/app/barista', roles: [BARISTA], quick: { [BARISTA]: 1 } },
   { key: 'staff-shifts', label: 'Shifts', group: 'staff-nav', icon: ico.shifts, oldHref: '/app/shifts', roles: SHIFT_STAFF },
   { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [STEWARD, HOUSEKEEPING] },
   { key: 'staff-payslips', label: 'Payslips', group: 'staff-nav', icon: ico.payslips, oldHref: '/app/payslips', roles: SHIFT_STAFF },
   { key: 'staff-performance', label: 'Performance', group: 'staff-nav', icon: ico.analytics, oldHref: '/app/performance', roles: [WAITER, CHEF, BARISTA] },
   { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [WAITER, CHEF, BARISTA], hideForDepartmentHead: true },
-  { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: [STEWARD, HOUSEKEEPING], badge: 'inbox' },
+  { key: 'staff-inbox', label: 'Inbox', group: 'staff-nav', icon: ico.inbox, oldHref: '/app/inbox', roles: SHIFT_STAFF, badge: 'inbox', quick: INBOX_SLOT },
   { key: 'staff-income-record', label: 'Record Income', group: 'staff-income', icon: ico.money, oldHref: '/app/other-income/new', roles: [WAITER] },
   { key: 'staff-income-history', label: 'Income History', group: 'staff-income', icon: ico.history, oldHref: '/app/other-income/history', roles: [WAITER] },
 
@@ -436,13 +449,13 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-shifts', label: 'Department Shifts', group: 'department', icon: ico.shifts, oldHref: '/app/department/shifts', roles: ALL_HUMAN, departmentHead: true },
   // The head's Requisitions screens are rebuilt (phone column, own header). Deliveries and Waste stay links to the pages that exist today.
   { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true, badge: 'deliveries' },
+  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true, badge: 'deliveries', quick: DELIVERIES_SLOT },
   // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
   // Block 4: the Day (check the opening, count tonight) is the row below. Waste follows (Block 3).
-  { key: 'department-day', label: 'Day', group: 'department', icon: ico.day, newHref: '/app/day', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-day', label: 'Daily count', group: 'department', icon: ico.day, newHref: '/app/day', roles: ALL_HUMAN, departmentHead: true, quick: DAILY_COUNT_SLOT, hideBar: true },
   { key: 'department-past-days', label: 'Past days', group: 'department', icon: ico.history, newHref: '/app/day/history', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'member-day', label: 'Day', group: 'department', icon: ico.day, newHref: '/app/day', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true, badge: 'deliveries' },
+  { key: 'member-day', label: 'Daily count', group: 'department', icon: ico.day, newHref: '/app/day', roles: SHIFT_STAFF, departmentMemberOnly: true, quick: DAILY_COUNT_SLOT, hideBar: true },
+  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true, badge: 'deliveries', quick: DELIVERIES_SLOT },
   { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: SHIFT_STAFF, departmentMemberOnly: true },
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
   // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
@@ -487,6 +500,9 @@ export interface NavLink {
   framed: boolean;
   match: readonly string[];
   badge?: NavBadge;
+  /** Slot in the phone bottom bar for this person's role, when the row is a quick link. */
+  quick?: number;
+  hideBar?: boolean;
   subItems?: NavLinkSub[];
 }
 
@@ -546,10 +562,29 @@ export function navFor(ctx: NavContext, rows: readonly NavRow[] = NAV_ROWS): Nav
       continue;
     }
 
-    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx) });
+    add(row.group, { key: row.key, label: row.label, href: hrefOf(row), icon: row.icon, framed, match, badge: badgeFor(row.badge, ctx), quick: row.quick?.[actor], hideBar: row.hideBar });
   }
 
   return Array.from(groups.entries()).map(([key, items]) => ({ key, label: NAV_GROUP_LABELS[key] ?? key.toUpperCase(), items }));
+}
+
+/** The phone bottom bar's links for one person: the rows that have a slot for their role, in slot order. Empty means no bar. */
+export function quickLinksFor(groups: readonly NavGroup[]): NavLink[] {
+  return groups
+    .flatMap((group) => group.items)
+    .filter((link) => link.quick !== undefined)
+    .sort((a, b) => (a.quick ?? 0) - (b.quick ?? 0));
+}
+
+/**
+ * Whether the bottom bar shows on this page: only on a page the menu links to, never on a task screen reached from one (a count, a
+ * confirm, a send sheet) or on a row that draws its own sticky bar (`hideBar`), so two bars never stack.
+ */
+export function showsBottomBar(groups: readonly NavGroup[], pathname: string): boolean {
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+  return groups.some((group) =>
+    group.items.some((link) => (link.subItems ? link.subItems.some((sub) => sub.href === path) : link.href === path && !link.hideBar))
+  );
 }
 
 export interface ActiveNav {
