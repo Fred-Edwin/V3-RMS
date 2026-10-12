@@ -14,6 +14,7 @@ import { usePurchasing } from '../hooks/use-purchasing';
 import type { OrderRow, Stage } from '../types';
 import { ApproveOrderSheet } from './approve-order-sheet';
 import { DotLabel, StageDots, thClass } from './parts';
+import { withRole } from './phone/phone-kit';
 
 const STAGE_FOR_TAB = { approval: 'APPROVAL', receive: 'RECEIVE', invoice: 'INVOICE', pay: 'PAY', closed: 'CLOSED' } as const;
 export type OrdersTabKey = keyof typeof STAGE_FOR_TAB;
@@ -72,7 +73,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
   if (data.total === 0) return <StockEmptyCard title={EMPTY[tab].title} description={EMPTY[tab].description} />;
 
   const suppliers = Array.from(new Map(data.orders.map((o) => [o.supplier.id, o.supplier.name])).entries());
-  const raisers = Array.from(new Map(data.orders.map((o) => [o.raisedBy.id, o.raisedBy.name])).entries());
+  const raisers = Array.from(new Map(data.orders.map((o) => [o.raisedBy.id, withRole(o.raisedBy)])).entries());
   // To receive: what is due first (overdue, then today, then soonest); every other tab keeps newest first.
   const ordered = tab === 'receive' ? [...data.orders].sort((a, b) => (a.dueInDays ?? 999) - (b.dueInDays ?? 999)) : data.orders;
   const rows = ordered.filter(
@@ -124,7 +125,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
           <div className="flex h-[30px] shrink-0 items-center gap-4 border-b border-wds-neutral-950">
             <span className={cn(thClass, 'w-[84px] shrink-0')}>Order</span>
             <span className={cn(thClass, 'grow')}>Supplier</span>
-            <span className={cn(thClass, isReceive ? 'w-[120px]' : 'w-[150px]', 'shrink-0')}>Raised by</span>
+            <span className={cn(thClass, isReceive ? 'w-[120px]' : 'w-[190px]', 'shrink-0')}>Raised by</span>
             <span className={cn(thClass, isReceive ? 'w-14' : 'w-24', 'shrink-0')}>{dateHeader}</span>
             <span className={cn(thClass, 'w-[112px] shrink-0')}>Stage</span>
             {isReceive ? <span className={cn(thClass, 'w-[140px] shrink-0')}>Expected</span> : null}
@@ -152,7 +153,7 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
                   <span className="truncate font-wds-sans text-wds-body-sm leading-4 text-wds-neutral-950">{o.supplier.name}</span>
                   <span className="truncate font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{o.itemSummary}</span>
                 </div>
-                <span className={cn('shrink-0 font-wds-sans text-wds-body-sm text-wds-neutral-950', isReceive ? 'w-[120px]' : 'w-[150px]')}>{o.raisedBy.role === 'Accountant' ? `${o.raisedBy.name} (Accountant)` : o.raisedBy.name}</span>
+                <span className={cn('shrink-0 font-wds-sans text-wds-body-sm text-wds-neutral-950', isReceive ? 'w-[120px]' : 'w-[190px]')}>{withRole(o.raisedBy)}</span>
                 <span className={cn('shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary', isReceive ? 'w-14' : 'w-24')}>
                   {isReceive ? dayMonth(o.sentAt) : whenLabel(tab === 'approval' ? o.submittedAt : (o.sentAt ?? o.submittedAt))}
                 </span>

@@ -8,7 +8,7 @@ import { kes } from '../../lib/format';
 import type { OrderRow } from '../../types';
 import type { Approver, MyOrderRow } from '../../types/attendant';
 import { CompactTracker } from '../compact-tracker';
-import { Card, HIT, Pill, PrimaryButton, SecondaryButton, StatusLine, dayLabel, nameOnly, plural, timeHmm, withRole, type Tone } from './phone-kit';
+import { Card, HIT, Pill, PrimaryButton, SecondaryButton, StatusLine, dayLabel, plural, sinceLabel, withRole, type Tone } from './phone-kit';
 
 export const PURCHASING = '/app/inventory/purchasing';
 export const orderHref = (id: string): string => `${PURCHASING}/${id}`;
@@ -21,7 +21,7 @@ export const daysLate = (o: Pick<OrderRow, 'dueInDays'>): number => Math.max(1, 
 export function statusLine(o: OrderRow, approver: Approver): { tone: Tone; text: string } {
   switch (o.status) {
     case 'AWAITING_APPROVAL':
-      return { tone: 'warning', text: `Waiting for ${withRole(approver)} · since ${timeHmm(o.submittedAt)}` };
+      return { tone: 'warning', text: `Waiting for ${withRole(approver)} · since ${sinceLabel(o.submittedAt)}` };
     case 'RETURNED':
       return { tone: 'warning', text: 'Sent back · edit and resend' };
     case 'APPROVED':

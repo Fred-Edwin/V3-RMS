@@ -67,7 +67,8 @@ export interface PurchasingService {
   updateOrder: (id: string, input: Partial<OrderInput>) => Promise<Order>;
   discardOrder: (id: string) => Promise<void>;
   submitOrder: (id: string) => Promise<Order>;
-  approveOrder: (id: string, pin: string) => Promise<Order>;
+  /** The approver may also say who will collect it; leaving it out keeps the choice for the sender. */
+  approveOrder: (id: string, pin: string, collectedBy?: CollectedByInput) => Promise<Order>;
   returnOrder: (id: string, note: string) => Promise<Order>;
   /** "Mark as sent" is `via: 'MANUAL'`; only the first send takes `collectedBy`. */
   sendOrder: (id: string, via: SendVia, collectedBy?: CollectedByInput) => Promise<Order>;

@@ -11,7 +11,8 @@ import { FormErrorBanner } from '../../_shared/components/stock-states';
 import { useAction } from '../../_shared/hooks/use-async';
 import { useIsNarrow, useOrder } from '../hooks/use-order';
 import { kes, kes2, qty as fmtQty, whenLabel } from '../lib/format';
-import type { OrderLine } from '../types';
+import { useAttendantData } from '../hooks/use-attendant';
+import type { CollectedByInput, OrderLine } from '../types';
 import { CompactTracker } from './compact-tracker';
 import { PinDialog } from './pin-dialog';
 import { withRole } from './phone/phone-kit';
@@ -38,11 +39,16 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
   const [note, setNote] = React.useState('');
   const [noteError, setNoteError] = React.useState(false);
   const [pinOpen, setPinOpen] = React.useState(false);
+  const [collector, setCollector] = React.useState('');
+  const { data: collectors } = useAttendantData(orderId ? 'approve:collectors' : null, (s) => s.getCollectors(), 'We could not load the list of who can collect.');
+  const collectedBy = (): CollectedByInput | undefined =>
+    collector === 'supplier' ? { kind: 'SUPPLIER_DELIVERS' } : collector.startsWith('c:') ? { kind: 'CARRIER', carrierId: collector.slice(2) } : collector.startsWith('s:') ? { kind: 'STAFF', userId: collector.slice(2) } : undefined;
   const returning = useAction((id: string, text: string) => service.returnOrder(id, text), 'We could not send the order back. Try again.');
 
   React.useEffect(() => {
     if (orderId) {
       setNote('');
+      setCollector('');
       setNoteError(false);
       returning.clear();
     }
@@ -60,7 +66,7 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
     }
     const done = await returning.run(order.id, note);
     if (done) {
-      addToast({ variant: 'info', title: `${order.reference} sent back`, description: `${order.raisedBy.name} will see your note.` });
+      addToast({ variant: 'info', title: `${order.reference} sent back`, description: `${withRole(order.raisedBy)} will see your note.` });
       onClose();
       onDone?.();
     }
@@ -138,6 +144,29 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
         />
         {noteError ? <span className="font-wds-sans text-wds-caption text-wds-error-fg">Say why you are sending it back.</span> : null}
       </div>
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel htmlFor="collector">Who will collect it?</FieldLabel>
+        <select
+          id="collector"
+          value={collector}
+          onChange={(e) => setCollector(e.target.value)}
+          className="h-9 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-2.5 font-wds-sans text-wds-body-sm text-wds-neutral-950 outline-none focus-visible:shadow-wds-ring"
+        >
+          <option value="">Decide when it is sent</option>
+          <option value="supplier">The supplier delivers</option>
+          {collectors?.carriers.map((c) => (
+            <option key={c.id} value={`c:${c.id}`}>
+              {c.name}
+            </option>
+          ))}
+          {collectors?.staff.map((s) => (
+            <option key={s.id} value={`s:${s.id}`}>
+              {withRole(s)}
+            </option>
+          ))}
+        </select>
+        <span className="font-wds-sans text-wds-caption text-wds-text-secondary">Optional. The Attendant can still change it before marking the order as sent.</span>
+      </div>
       {isAdmin ? <p className="font-wds-sans text-wds-caption text-wds-text-secondary">You are signed in as System Admin. Approve with your own PIN.</p> : null}
     </>
   );
@@ -175,7 +204,7 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
           summary={{ title: `${order.reference} · ${order.supplier.name}`, detail: `${order.lines.length} line${order.lines.length === 1 ? '' : 's'} · KES ${kes2(order.orderedTotal)}` }}
           confirmLabel="Approve order"
           onSubmit={async (pin) => {
-            const done = await service.approveOrder(order.id, pin);
+            const done = await service.approveOrder(order.id, pin, collectedBy());
             setPinOpen(false);
             addToast({ variant: 'success', title: `${done.reference} approved`, description: 'It is ready to send to the supplier.' });
             onClose();

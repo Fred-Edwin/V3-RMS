@@ -253,18 +253,22 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         </div>
         <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">{line.suggestedQty ? `${fmtQty(line.suggestedQty)} ${line.buyUnit ?? ''}` : '—'}</span>
         <div className="w-[120px] shrink-0">
-          <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
-            <input
-              inputMode="decimal"
-              value={overrides[id]?.qty ?? line.suggestedQty ?? ''}
-              placeholder="—"
-              disabled={!canOrder || !r.hasLine}
-              onChange={(e) => setOv(id, { qty: e.target.value.replace(/[^0-9.]/g, '') })}
-              aria-label={`Order quantity for ${line.itemName}`}
-              className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
-            />
-            <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>
-          </label>
+          {canOrder ? (
+            <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
+              <input
+                inputMode="decimal"
+                value={overrides[id]?.qty ?? line.suggestedQty ?? ''}
+                placeholder="—"
+                disabled={!r.hasLine}
+                onChange={(e) => setOv(id, { qty: e.target.value.replace(/[^0-9.]/g, '') })}
+                aria-label={`Order quantity for ${line.itemName}`}
+                className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
+              />
+              <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>
+            </label>
+          ) : (
+            <span className="font-wds-mono text-wds-caption text-wds-neutral-950">{r.qty > 0 ? `${fmtQty(String(r.qty))} ${line.buyUnit ?? ''}` : '—'}</span>
+          )}
         </div>
         {showPrices ? <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-secondary">{r.price === null ? '—' : kes(r.price)}</span> : null}
         {showPrices ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-neutral-950">{r.total === null ? '—' : kes(r.total)}</span> : null}
