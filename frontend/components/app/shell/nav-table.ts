@@ -638,15 +638,16 @@ export const hasHubRows = (role: AppRole | null | undefined): boolean => Boolean
 export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname);
 
 /**
- * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone. The floor staff
- * (waiter, chef, barista, steward, housekeeping) are not here: they stay on the legacy bottom tabs until their screens are rebuilt.
+ * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone (and the floor-staff
+ * bottom bar). The floor staff (waiter, chef, barista, steward, housekeeping) are here too, department or not: the department gate was
+ * only for Block One.
  */
-const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT];
+const SHELL_ROLES: readonly AppRole[] = [MANAGER, DIRECTOR, SYSTEM_ADMIN, ACCOUNTANT, HR_MANAGER, STORE_MANAGER, STORE_ATTENDANT, WAITER, CHEF, BARISTA, STEWARD, HOUSEKEEPING];
 const DESKTOP_PREVIEW_ROLES: readonly AppRole[] = [WAITER, CHEF, BARISTA];
 
 /**
- * A department head or an active department member uses the shell whatever their base role (Paper "Phone menus by role": no bottom
- * tabs). Floor staff who belong to no department stay on the legacy tabs until their screens are rebuilt.
+ * Every human role uses the shell, and a department head or an active department member does whatever their base role (Paper
+ * "Phone menus by role": no bottom tabs). Only the display-only roles are left out.
  */
 export const usesAppShell = (role: AppRole | null | undefined, isDepartmentHead = false, isDepartmentMember = false): boolean =>
   Boolean(role) && (SHELL_ROLES.includes(role as AppRole) || isDepartmentHead || isDepartmentMember);
