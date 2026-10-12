@@ -79,15 +79,20 @@ function Row({ entry, list }: { entry: Entry; list: ReturnType<typeof useRestock
         <StatusLine tone={out ? 'error' : 'warning'}>{line.onHand !== undefined && line.level !== undefined ? `${Number.parseFloat(line.onHand) < 0 ? '0' : qty(line.onHand)} left · reorder at ${qty(line.level)} ${unit}` : out ? 'Out of stock' : 'Running low'}</StatusLine>
         <p className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{supplier ? `${supplier.name}${line.lastPrice ? ` · KES ${kes(line.lastPrice)} each` : ''}` : 'No supplier yet'}</p>
       </div>
-      <AddOrStepper
-        name={line.itemName}
-        onList={Boolean(onList)}
-        buyUnit={line.buyUnit ?? unit}
-        suggested={suggested}
-        qtyValue={onList?.qty ?? suggested}
-        onAdd={() => list.add(toListLine(entry))}
-        onSet={(n) => list.setQty(line.inventoryItemId, n)}
-      />
+      {!supplier && !onList ? (
+        // Review would leave this item out anyway, so the dead end is shown here instead.
+        <span className="flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border bg-white px-2 text-center font-wds-sans text-[12px] leading-4 text-wds-text-faint">Set a supplier first</span>
+      ) : (
+        <AddOrStepper
+          name={line.itemName}
+          onList={Boolean(onList)}
+          buyUnit={line.buyUnit ?? unit}
+          suggested={suggested}
+          qtyValue={onList?.qty ?? suggested}
+          onAdd={() => list.add(toListLine(entry))}
+          onSet={(n) => list.setQty(line.inventoryItemId, n)}
+        />
+      )}
     </li>
   );
 }
@@ -119,6 +124,8 @@ export function RestockListScreen() {
     return Array.from(map.entries()).sort((a, b) => (a[0] === 'none' ? 1 : b[0] === 'none' ? -1 : a[1].name.localeCompare(b[1].name)));
   }, [matches]);
 
+  // "Add all" works on what is on screen, and skips items with no supplier (they cannot be ordered yet).
+  const addable = (view === 'supplier' ? matches : shown).filter((e) => e.supplier !== null);
   const total = list.summary.total;
   return (
     <PhoneScreen
@@ -155,6 +162,21 @@ export function RestockListScreen() {
           { key: 'supplier', label: 'By supplier' },
         ]}
       />
+      {data && addable.length > 0 ? (
+        <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-white px-5 py-2.5">
+          <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+            {addable.filter((e) => list.get(e.line.inventoryItemId)).length} of {addable.length} on your list
+          </p>
+          <button
+            type="button"
+            onClick={() => addable.forEach((e) => (list.get(e.line.inventoryItemId) ? undefined : list.add(toListLine(e))))}
+            disabled={addable.every((e) => list.get(e.line.inventoryItemId))}
+            className={cn(HIT, 'font-wds-sans text-[13px] font-medium leading-4 text-[var(--wds-primary-btn-start)] outline-none focus-visible:shadow-wds-ring disabled:text-wds-text-faint')}
+          >
+            Add all
+          </button>
+        </div>
+      ) : null}
       {status === 'loading' || status === 'idle' ? (
         <PhoneLoading rows={5} label="Loading the restock list" />
       ) : (

@@ -67,7 +67,10 @@ export function NeedsYouRow({ order, approver }: { order: MyOrderRow; approver: 
       ? { label: 'Send it', href: orderHref(order.id), primary: true }
       : order.need === 'RETURNED'
         ? { label: 'Edit and resend', href: orderHref(order.id), primary: true }
-        : { label: 'Receive', href: receiveHref(order.id), primary: false };
+        : order.dueLabel === 'OVERDUE'
+          ? // The line says "call the supplier", so the button does too; Receive is on the order page one tap away.
+            { label: 'Call supplier', href: callHref(order), primary: true }
+          : { label: 'Receive', href: receiveHref(order.id), primary: false };
   return (
     <li className="flex items-center justify-between gap-3 border-b border-wds-border px-3.5 py-3 last:border-b-0">
       <Link href={orderHref(order.id)} className="min-w-0 flex-1 rounded-wds-sm outline-none focus-visible:shadow-wds-ring">

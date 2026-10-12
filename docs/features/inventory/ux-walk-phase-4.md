@@ -27,11 +27,11 @@ Branch `feat/ux-phase-4`, lane 6. Walked as Store Attendant (phone, 390 wide) an
 | 17 | Receive (steps 30, 31) | Opened for the first time since the tracker change: the 16 px tracker reads correctly on both steps | none needed | checked |
 | 18 | Receive | Header differs from the other phone pages (chevron, "WENDO CENTRAL KITCHEN" eyebrow, not "WENDO RMS · HUB") | Move to the shared header | later (the screen is shared with Branch Manager receiving; needs its own look) |
 | 19 | Home, My orders | "since 15:53" for an order from six days ago has no day | Add the day when not today | later (small; same helper in two list cards) |
-| 20 | Home | Overdue sent order says "call the supplier" but its button is "Receive" | Pick one next action (Call supplier first, Receive secondary) | later, needs a decision (Q2) |
-| 21 | Restock list | Every item needs its own Add tap | "Add all" link | later, needs a decision (Q1) |
-| 22 | Restock list | An item with no supplier has a live Add button and is then left out at Review | Disable Add and say "Set a supplier first" | later, needs a decision (Q3) |
+| 20 | Home | Overdue sent order says "call the supplier" but its button is "Receive" | Button is "Call supplier" (Receive stays one tap away on the order page) | done (owner approved Q2) |
+| 21 | Restock list | Every item needs its own Add tap | "0 of 3 on your list · Add all" row; skips items with no supplier | done (owner approved Q1) |
+| 22 | Restock list | An item with no supplier has a live Add button and is then left out at Review | Shows "Set a supplier first" instead of Add | done (owner approved Q3) |
 | 23 | Approve drawer | The Manager cannot set who collects at approval (the API accepts it) | Collector choice in the drawer | later: new element, needs Paper |
-| 24 | Manager desktop Needs restocking | A supplier dropdown on every row, the table scrolls sideways and the Est. total is cut off | Two-column layout (suppliers left, items right) | later: owner asked for the redesign; needs Paper first (Q4) |
+| 24 | Manager desktop Needs restocking | A supplier dropdown on every row, the table scrolls sideways and the Est. total is cut off | Two-column layout (suppliers left, items right) | next: owner asked for it; draw in Paper first, build only after approval |
 | 25 | Manager desktop lists | "Peter Mwangi (Store Attendant)" uses the bracket form, not Name.Role | One helper across the desktop lists | later (touches many desktop screens) |
 | 26 | Sent order | No expected date is set when the Attendant sends an order | Pre-fill from the supplier's lead time | later: needs a lead-time field (back end) |
 | 27 | Returned order | Per-line "asked for a change" flag; some pushes not on Paper's map | Known, not built (owner ruling) | skipped |
