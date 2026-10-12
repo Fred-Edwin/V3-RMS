@@ -22,7 +22,7 @@ Base `/api/v1/inventory/requisitions` (routes in `requisitions-routes.ts`; the o
 | # | Method and path | Who |
 |---|---|---|
 | R1 | `GET /` `tab`, `branchId?` (hub roles), `q`, `from`, `to`, `status`, `cycle`, `departmentId`, `urgent`, `page`, `pageSize` | `requisitions.read`; a head: own department only, no money |
-| R2 | `GET /badges` | `requisitions.read` or a head |
+| R2 | `GET /badges` | `requisitions.read`, a head, or a department member (deliveries count only) |
 | R4 | `GET /:id/activity` | `requisitions.read` or own-department head |
 | R5 | `GET /:id/documents` | same |
 | R6 | `GET /:id/print` | `requisitions.read` (no money anywhere) |

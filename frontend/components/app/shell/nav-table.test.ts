@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Capability } from '@/features/inventory';
 import { isAllowedPath } from '@/lib/route-access';
 import type { AppRole } from '@/types/auth';
-import { NAV_ROWS, activeFor, isBareRoute, navFor, usesAppShell, usesDesktopShell, type NavContext, type NavGroup, type NavRow } from './nav-table';
+import { NAV_ROWS, activeFor, isBareRoute, navFor, quickLinksFor, showsBottomBar, usesAppShell, usesDesktopShell, type NavContext, type NavGroup, type NavRow } from './nav-table';
 
 const ROLES: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'HR_MANAGER', 'SYSTEM_ADMIN', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER', 'STORE_ATTENDANT'];
 
@@ -463,5 +463,76 @@ describe('Branch day rows (Block 4, Paper B5 to B16)', () => {
       expect(all, role).not.toContain(TODAY);
       expect(isAllowedPath(HUB_TODAY, role, false), role).toBe(false);
     }
+  });
+});
+
+describe('the phone bottom bar for floor staff (Paper "Floor staff bottom bar", 12 Oct)', () => {
+  const FLOOR: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'];
+  const labels = (role: AppRole, over: Partial<NavContext>): string[] => quickLinksFor(navFor(ctxFor(role, over))).map((l) => l.label);
+  const MEMBER: Partial<NavContext> = { isDepartmentMember: true };
+  const HEAD: Partial<NavContext> = { isDepartmentHead: true };
+
+  it('gives a waiter in a department New Order, Orders, Deliveries and Inbox', () => {
+    expect(labels('WAITER', MEMBER)).toEqual(['New Order', 'Orders', 'Deliveries', 'Inbox']);
+    expect(labels('WAITER', HEAD)).toEqual(['New Order', 'Orders', 'Deliveries', 'Inbox']);
+  });
+
+  it('gives a chef or barista their station, Daily count, Deliveries and Inbox', () => {
+    expect(labels('CHEF', MEMBER)).toEqual(['Kitchen', 'Daily count', 'Deliveries', 'Inbox']);
+    expect(labels('CHEF', HEAD)).toEqual(['Kitchen', 'Daily count', 'Deliveries', 'Inbox']);
+    expect(labels('BARISTA', MEMBER)).toEqual(['Barista', 'Daily count', 'Deliveries', 'Inbox']);
+  });
+
+  it('gives a steward or housekeeper Dashboard, Daily count, Deliveries and Inbox', () => {
+    expect(labels('STEWARD', MEMBER)).toEqual(['Dashboard', 'Daily count', 'Deliveries', 'Inbox']);
+    expect(labels('HOUSEKEEPING', MEMBER)).toEqual(['Dashboard', 'Daily count', 'Deliveries', 'Inbox']);
+  });
+
+  for (const role of FLOOR) {
+    for (const [name, over] of [['member', MEMBER], ['head', HEAD]] as Array<[string, Partial<NavContext>]>) {
+      it(`${role} ${name}: at most 4 links (5 slots with Menu), each one a link the drawer shows and the route gate lets in`, () => {
+        const groups = navFor(ctxFor(role, over));
+        const quick = quickLinksFor(groups);
+        expect(quick.length).toBeGreaterThan(0);
+        expect(quick.length).toBeLessThanOrEqual(4);
+        expect(new Set(quick.map((l) => l.quick)).size, 'slots are unique').toBe(quick.length);
+        for (const link of quick) {
+          expect(hrefs(groups), `${link.label} is not in the menu`).toContain(link.href);
+          expect(isAllowedPath(link.href, role, over.isDepartmentHead === true), `${role} sees ${link.href} in the bar but the route gate would bounce them`).toBe(true);
+        }
+      });
+    }
+  }
+
+  it('shows the Deliveries count on the bar link from the same badge as the menu row', () => {
+    const deliveries = quickLinksFor(navFor(ctxFor('CHEF', MEMBER))).find((l) => l.label === 'Deliveries');
+    expect(deliveries?.badge).toBe('deliveries');
+    expect(quickLinksFor(navFor(ctxFor('CHEF', MEMBER))).find((l) => l.label === 'Inbox')?.badge).toBe('inbox');
+  });
+
+  it('gives every desktop role no bar', () => {
+    for (const role of ['MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'HR_MANAGER', 'SYSTEM_ADMIN', 'STORE_MANAGER', 'STORE_ATTENDANT'] as AppRole[]) {
+      expect(quickLinksFor(navFor(ctxFor(role, { can: EVERYTHING }))), role).toEqual([]);
+    }
+  });
+
+  it('shows the bar on a page the menu links to, never on a task screen or on the cart', () => {
+    const groups = navFor(ctxFor('WAITER', MEMBER));
+    expect(showsBottomBar(groups, '/app/orders')).toBe(true);
+    expect(showsBottomBar(groups, '/app/deliveries')).toBe(true);
+    expect(showsBottomBar(groups, '/app/deliveries/history')).toBe(true);
+    expect(showsBottomBar(groups, '/app/orders/new')).toBe(false);
+    expect(showsBottomBar(groups, '/app/deliveries/d1/count')).toBe(false);
+    expect(showsBottomBar(groups, '/app/day/count')).toBe(false);
+    // The Daily count home has its own sticky "Check the opening" button, so the bar steps aside there.
+    expect(showsBottomBar(navFor(ctxFor('CHEF', MEMBER)), '/app/day')).toBe(false);
+    expect(showsBottomBar(navFor(ctxFor('CHEF', HEAD)), '/app/day')).toBe(false);
+  });
+
+  it('renames the department Day link to Daily count and leaves the Branch Manager and Director Day alone', () => {
+    expect(labels('CHEF', MEMBER)).toContain('Daily count');
+    expect(labels('CHEF', MEMBER)).not.toContain('Day');
+    expect(links(navFor(ctxFor('CHEF', HEAD))).some((l) => l.label === 'Day')).toBe(false);
+    expect(links(navFor(ctxFor('MANAGER', { can: EVERYTHING }))).some((l) => l.label === 'Day')).toBe(true);
   });
 });

@@ -10,7 +10,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useCommsStore } from '@/store/commsStore';
 import type { AppRole } from '@/types/auth';
 import { initialsOf as sharedInitialsOf } from '@/lib/initials';
-import { activeFor, hasHubRows, navFor, type ActiveNav, type NavBadge } from './nav-table';
+import { activeFor, hasHubRows, navFor, quickLinksFor, showsBottomBar, type ActiveNav, type NavBadge } from './nav-table';
+import type { NavIcon } from './nav-icons';
 import { roleLabel } from './role-label';
 import type { SidebarNavGroup, SidebarNavUser } from './sidebar-nav';
 
@@ -56,7 +57,22 @@ function orgLabelFor(role: AppRole | null, organizationName: string | null | und
 
 const initialsOf = (name: string | undefined): string => sharedInitialsOf(name) || '—';
 
+export interface ShellBarLink {
+  key: string;
+  label: string;
+  href: string;
+  icon: NavIcon;
+  count?: number;
+}
+
+/** The phone bottom bar: its links (empty for a role with none) and whether the current page shows it. */
+export interface ShellBar {
+  links: ShellBarLink[];
+  visible: boolean;
+}
+
 export interface ShellNav {
+  bar: ShellBar;
   groups: SidebarNavGroup[];
   active: ActiveNav;
   user: SidebarNavUser;
@@ -103,9 +119,9 @@ export function useShellNav(): ShellNav {
     [role, isDepartmentHead, isDepartmentMember, can, branches]
   );
 
-  // The unread count is the only thing added to the table's rows here.
-  const groups = React.useMemo((): SidebarNavGroup[] => {
-    // A zero count draws nothing, so a role without prep.read_flags (count 0) simply has no badge.
+  // The counts are the only thing added to the table's rows here. A zero count draws nothing, so a role without prep.read_flags
+  // (count 0) simply has no badge.
+  const countOf = React.useMemo((): ((badge: NavBadge | undefined) => number | undefined) => {
     const counts: Record<NavBadge, number> = {
       inbox: unreadInbox,
       'prep-needs-look': needsLook,
@@ -117,7 +133,10 @@ export function useShellNav(): ShellNav {
       'purchasing-restock': purchasingBadges?.restock ?? 0,
       'purchasing-my-orders': purchasingBadges?.myOrders ?? 0,
     };
-    const countOf = (badge: NavBadge | undefined): number | undefined => (badge && counts[badge] > 0 ? counts[badge] : undefined);
+    return (badge) => (badge && counts[badge] > 0 ? counts[badge] : undefined);
+  }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges]);
+
+  const groups = React.useMemo((): SidebarNavGroup[] => {
     return tableGroups.map((group) => ({
       key: group.key,
       label: group.label,
@@ -130,7 +149,16 @@ export function useShellNav(): ShellNav {
         subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
       })),
     }));
-  }, [tableGroups, unreadInbox, needsLook, requisitionCount, discrepancyCount, dayTodo, purchasingBadges]);
+  }, [tableGroups, countOf]);
+
+  // The phone bottom bar (floor staff): the table's quick links with the same counts, and whether this page shows it.
+  const bar = React.useMemo(
+    (): ShellBar => ({
+      links: quickLinksFor(tableGroups).map((link) => ({ key: link.key, label: link.label, href: link.href, icon: link.icon, count: countOf(link.badge) })),
+      visible: showsBottomBar(tableGroups, pathname),
+    }),
+    [tableGroups, countOf, pathname]
+  );
 
   const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
 
@@ -139,5 +167,5 @@ export function useShellNav(): ShellNav {
     [user?.name, role]
   );
 
-  return { groups, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName) };
+  return { groups, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName), bar };
 }

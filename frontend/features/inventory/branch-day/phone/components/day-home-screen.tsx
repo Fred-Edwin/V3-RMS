@@ -67,7 +67,7 @@ export function DayHomeScreen() {
 
   return (
     <PhoneColumn>
-      <B2Header title="Day" subtitle={data ? dayLine(data.department.name, data.day.date, data.day.reference) : ''} mono leading="menu" place={place} />
+      <B2Header title="Daily count"subtitle={data ? dayLine(data.department.name, data.day.date, data.day.reference) : ''} mono leading="menu" place={place} />
       {status === 'loading' || status === 'idle' ? (
         <CardsSkeleton text={copy.loading} />
       ) : status === 'error' || !data ? (

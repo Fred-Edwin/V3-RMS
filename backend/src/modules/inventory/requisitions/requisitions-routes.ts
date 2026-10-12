@@ -29,6 +29,17 @@ const capabilityOrHead =
     next();
   };
 
+/** As `capabilityOrHead`, and also a department member (the token carries their department): they have deliveries to count but no table row. */
+const capabilityOrDepartment =
+  (...capabilities: Capability[]) =>
+  (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) throw new UnauthorizedError('Authentication required');
+    if (!req.user.departmentTag && !req.user.isDepartmentHead && !capabilities.some((c) => actorCan(req.user as NonNullable<Request['user']>, c))) {
+      throw new ForbiddenError('You do not have permission to perform this action');
+    }
+    next();
+  };
+
 const capability =
   (...capabilities: Capability[]) =>
   (req: Request, _res: Response, next: NextFunction): void => {
@@ -43,7 +54,7 @@ router.param('id', (_req, _res, next, value: string) => (UUID.test(value) ? next
 
 // --- Lists, badges, home, history (literal paths first; none can be taken for an id) -----------------------------------------
 router.get('/', capabilityOrHead('requisitions.read'), requisitionsController.list); // R1
-router.get('/badges', capabilityOrHead('requisitions.read'), requisitionsController.badges); // R2
+router.get('/badges', capabilityOrDepartment('requisitions.read'), requisitionsController.badges); // R2 (a member gets the deliveries count; the service refuses the rest)
 router.get('/home', capabilityOrHead(), requisitionsController.home); // R7 (a head)
 router.get('/history/mine', capabilityOrHead(), requisitionsController.historyMine); // R9 (a head)
 router.patch('/branches/:branchId/code', capability('branches.set_code'), requisitionsController.setBranchCode); // Amendment 2, System Admin only

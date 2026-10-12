@@ -116,6 +116,27 @@ describe('role by endpoint (the access rows and the department rule)', () => {
   }
 });
 
+describe('R2 GET /badges for a department member (the Deliveries badge on the phone bottom bar)', () => {
+  const member = (departmentTag: string | null) => ({ 'x-test-user': JSON.stringify({ id: '99999999-9999-4999-8999-999999999999', siteId: null, role: 'WAITER', departmentTag }) });
+
+  it('lets a floor member who belongs to a department in (the service then gives them the deliveries count only)', async () => {
+    const res = await request(app).get(`${R}/badges`).set(member('SERVICE'));
+    expect(res.status).toBe(200);
+    expect(requisitionsListService.badges).toHaveBeenCalledTimes(1);
+  });
+
+  it('still refuses a waiter with no department', async () => {
+    const res = await request(app).get(`${R}/badges`).set(member(null));
+    expect(res.status).toBe(403);
+    expect(requisitionsListService.badges).not.toHaveBeenCalled();
+  });
+
+  it('does not open any other requisitions route to a member', async () => {
+    expect((await request(app).get(`${R}/`).set(member('SERVICE'))).status).toBe(403);
+    expect((await request(app).get(`${R}/home`).set(member('SERVICE'))).status).toBe(403);
+  });
+});
+
 describe('authentication, headers and ids', () => {
   it('every endpoint refuses a request with no token (401)', async () => {
     for (const ep of endpoints) expect((await ep.send({})).status).toBe(401);

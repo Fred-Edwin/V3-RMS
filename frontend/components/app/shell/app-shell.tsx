@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { performLogout } from '@/lib/logout';
+import { BottomBar } from './bottom-bar';
 import { MobileTopbar } from './mobile-topbar';
 import { ShellNavDrawer } from './shell-nav-drawer';
 import { SidebarNav } from './sidebar-nav';
@@ -42,7 +43,7 @@ const fallbackScreen = (pathname: string): string => {
 export function AppShell({ mode, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { groups, active, user, orgLabel } = useShellNav();
+  const { groups, active, user, orgLabel, bar } = useShellNav();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const handleSignOut = React.useCallback(async (): Promise<void> => {
@@ -67,14 +68,18 @@ export function AppShell({ mode, children }: AppShellProps) {
           <>
             <Topbar breadcrumb={breadcrumb} hideSearch className="hidden print:hidden lg:flex" />
             {mode === 'responsive' ? (
-              <>
-                <MobileTopbar title={breadcrumb.screen} orgLabel={orgLabel} initials={user.initials} onMenuClick={() => setDrawerOpen(true)} className="lg:hidden print:hidden" />
-                <ShellNavDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
-              </>
+              <MobileTopbar title={breadcrumb.screen} orgLabel={orgLabel} initials={user.initials} onMenuClick={() => setDrawerOpen(true)} className="lg:hidden print:hidden" />
             ) : null}
             <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
           </>
         )}
+        {mode === 'responsive' ? (
+          <>
+            <ShellNavDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
+            {/* Floor staff in a department: their quick links on phones, on the pages the menu links to (not on task screens). */}
+            {bar.links.length > 0 && bar.visible ? <BottomBar links={bar.links} pathname={pathname} onMenuClick={() => setDrawerOpen(true)} className="lg:hidden print:hidden" /> : null}
+          </>
+        ) : null}
       </div>
     </div>
   );
