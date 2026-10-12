@@ -8,7 +8,8 @@ import { Camera, Check, ImageIcon, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import { PhoneErrorNote, PhoneFieldLabel, PhoneHeader, PhonePrimaryButton, PhoneSuccessNote } from '../../../_shared/components/phone-parts';
+import { B2Header } from '../../../_shared/components/block2-phone-parts';
+import { PhoneErrorNote, PhoneFieldLabel, PhonePrimaryButton, PhoneSuccessNote } from '../../../_shared/components/phone-parts';
 import { StockErrorCard } from '../../../_shared/components/stock-states';
 import { useOrder } from '../../hooks/use-order';
 import { kes, qty as fmtQty } from '../../lib/format';
@@ -54,7 +55,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   if (status === 'error') {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <PhoneHeader title="Receive delivery" subtitle="We couldn't open this order" leading="back" onLeading={() => router.push('/app/inventory/purchasing?tab=receive')} />
+        <B2Header title="Receive delivery" subtitle="We couldn't open this order" leading="back" onBack={() => router.push('/app/inventory/purchasing?tab=receive')} place="HUB" />
         <div className="p-6">
           <StockErrorCard title="We couldn't open this order" description={error ?? 'Go back and try again.'} onRetry={() => void reload()} />
         </div>
@@ -64,7 +65,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   if (!order) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <PhoneHeader title="Receive delivery" subtitle="Loading the order…" leading="back" onLeading={() => router.push('/app/inventory/purchasing?tab=receive')} />
+        <B2Header title="Receive delivery" subtitle="Loading the order…" leading="back" onBack={() => router.push('/app/inventory/purchasing?tab=receive')} place="HUB" />
         <div className="flex flex-col gap-3 p-4" aria-busy aria-label="Loading the order">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-20 animate-pulse bg-wds-neutral-100" />
@@ -93,7 +94,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   if (done) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <PhoneHeader title="Delivery received" subtitle={`${done.reference} · ${done.supplier.name}`} leading="back" onLeading={() => router.push('/app/inventory/purchasing?tab=receive')} />
+        <B2Header title="Delivery received" subtitle={`${done.reference} · ${done.supplier.name}`} leading="back" onBack={() => router.push('/app/inventory/purchasing?tab=receive')} place="HUB" />
         <div className="flex flex-col gap-4 p-4">
           <PhoneSuccessNote title="Signed and received">
             The stock is added to the Central Store. {done.lines.filter((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED').length ? 'What was not supplied is dropped from the order. ' : ''}
@@ -110,7 +111,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   if (!order.can.receive) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <PhoneHeader title="Receive delivery" subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={() => router.push(`/app/inventory/purchasing/${order.id}`)} />
+        <B2Header title="Receive delivery" subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onBack={() => router.push(`/app/inventory/purchasing/${order.id}`)} place="HUB" />
         <div className="flex flex-col gap-4 p-4">
           <PhoneErrorNote>
             {order.status === 'DELIVERED' || order.status === 'INVOICED' || order.status === 'CLOSED'
@@ -338,7 +339,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-neutral-100">
       <div className="mx-auto flex w-full max-w-[430px] grow flex-col bg-wds-canvas shadow-wds-md">
-        <PhoneHeader title={step === 1 ? 'Receive delivery' : 'Delivery note'} subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onLeading={back} />
+        <B2Header title={step === 1 ? 'Receive delivery' : 'Delivery note'} subtitle={`${order.reference} · ${order.supplier.name}`} leading="back" onBack={back} place="HUB" />
         <div className="border-b border-wds-border bg-wds-surface px-4 py-3">
           <CompactTracker tracker={order.tracker} />
         </div>

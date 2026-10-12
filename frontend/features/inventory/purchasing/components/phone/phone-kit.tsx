@@ -83,6 +83,14 @@ export const timeHmm = (value: string | Date | null | undefined): string => {
   return `${p.hh}:${String(p.mm).padStart(2, '0')}`;
 };
 
+/** "9:05" for today, "Thu 8 Oct 9:05" for an earlier day (a status line that says "since …"). */
+export const sinceLabel = (value: string | Date | null | undefined): string => {
+  if (!value) return '—';
+  const then = nairobi(value);
+  const now = nairobi(new Date());
+  return then.y === now.y && then.m === now.m && then.d === now.d ? timeHmm(value) : `${dayLabel(value)} ${timeHmm(value)}`;
+};
+
 /** "Thu 8 Oct · 10:30". */
 export const dayAndTime = (value: string | Date | null | undefined): string => (value ? `${dayLabel(value)} · ${timeHHmm(value)}` : '—');
 

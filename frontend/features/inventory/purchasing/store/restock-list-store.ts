@@ -94,7 +94,7 @@ export function useRestockList(): RestockList {
       clear,
       toWire: () => lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: l.qty, ...(l.supplierId ? { supplierId: l.supplierId } : {}) })),
       summary: {
-        suppliers: new Set(lines.map((l) => l.supplierId ?? `none:${l.inventoryItemId}`)).size,
+        suppliers: new Set(lines.flatMap((l) => (l.supplierId ? [l.supplierId] : []))).size,
         total: priced.length === 0 ? null : priced.reduce((sum, l) => sum + Number.parseFloat(l.unitPrice as string) * Number.parseFloat(l.qty), 0),
       },
     };

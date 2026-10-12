@@ -55,7 +55,7 @@ export function HistoryScreen() {
   return (
     <PhoneScreen
       header={
-        <B2Header title="History" subtitle={data ? `${plural(data.summary.allTime, 'order')} · ${presetLabel(range, today)}: ${data.summary.inRange}` : 'Closed and cancelled orders'} leading="back" onBack={back} place="HUB">
+        <B2Header title="History" subtitle={data ? data.summary.allTime === data.summary.inRange ? plural(data.summary.allTime, 'order') : `${plural(data.summary.allTime, 'order')} · ${presetLabel(range, today)}: ${data.summary.inRange}` : 'Closed and cancelled orders'} leading="back" onBack={back} place="HUB">
           <HeaderSearch value={text} onChange={setText} placeholder="Search supplier, item or LPO" label="Search your history" />
         </B2Header>
       }

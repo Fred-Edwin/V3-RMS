@@ -31,7 +31,10 @@ function AwaitingOrder({ order }: { order: PurchaseFile }) {
 
   const onRemind = async (): Promise<void> => {
     const done = await remind.run();
-    if (done) setReminded(timeHmm(new Date()));
+    if (done) {
+      setReminded(timeHmm(new Date()));
+      addToast({ variant: 'success', title: `${who} has been reminded`, description: 'You can remind again in 4 hours.' });
+    }
   };
   // A reminder that was sent a moment ago comes back as a refusal that says when: show the same label as after a send.
   const tooSoon = remind.failure?.code === 'REMINDER_TOO_SOON' ? remind.failure.details : null;
@@ -66,7 +69,7 @@ function AwaitingOrder({ order }: { order: PurchaseFile }) {
       }
     >
       <Banner tone="warning" title={`Waiting for ${who} to approve`}>
-        Sent for approval at {timeHmm(order.submittedAt)}. We will tell you as soon as it is decided.
+        Sent for approval {dayAndTime(order.submittedAt)}. We will tell you as soon as it is decided.
       </Banner>
       <OrderedItems order={order} />
       {order.attendantNote ? (
@@ -75,7 +78,7 @@ function AwaitingOrder({ order }: { order: PurchaseFile }) {
           <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{order.attendantNote}</p>
         </section>
       ) : null}
-      <ActivityList order={order} />
+      <ActivityList order={order} withDay />
       <WithdrawDialog open={confirm} onOpenChange={setConfirm} reference={order.reference} busy={withdraw.saving} error={withdraw.failure?.message ?? null} onConfirm={() => void onWithdraw()} />
     </OrderFrame>
   );
@@ -107,9 +110,13 @@ function SentOrder({ order }: { order: PurchaseFile }) {
         <Banner tone="info" title="Delivery expected today">
           Receive it here when it arrives.
         </Banner>
-      ) : (
+      ) : order.expectedDate ? (
         <Banner tone="info" title={`Delivery expected ${dayLabel(order.expectedDate)}`}>
           We will remind you on the day.
+        </Banner>
+      ) : (
+        <Banner tone="info" title="No delivery date was set">
+          Receive it here when it arrives.
         </Banner>
       )}
       {overdue ? (

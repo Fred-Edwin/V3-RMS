@@ -76,7 +76,7 @@ export function createPurchasingApiService(): PurchasingService {
       await send('DELETE', `${BASE}/orders/${id}`);
     },
     submitOrder: (id) => post(`/orders/${id}/submit`),
-    approveOrder: (id, pin) => post(`/orders/${id}/approve`, { pin }),
+    approveOrder: (id, pin, collectedBy) => post(`/orders/${id}/approve`, collectedBy ? { pin, collectedBy } : { pin }),
     returnOrder: (id, note) => post(`/orders/${id}/return`, { note }),
     sendOrder: (id, via, collectedBy) => post(`/orders/${id}/send`, collectedBy ? { via, collectedBy } : { via }),
     cancelOrder: (id, input) => post(`/orders/${id}/cancel`, input),

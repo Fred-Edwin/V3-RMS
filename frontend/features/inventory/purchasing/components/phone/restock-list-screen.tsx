@@ -79,16 +79,90 @@ function Row({ entry, list }: { entry: Entry; list: ReturnType<typeof useRestock
         <StatusLine tone={out ? 'error' : 'warning'}>{line.onHand !== undefined && line.level !== undefined ? `${Number.parseFloat(line.onHand) < 0 ? '0' : qty(line.onHand)} left · reorder at ${qty(line.level)} ${unit}` : out ? 'Out of stock' : 'Running low'}</StatusLine>
         <p className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{supplier ? `${supplier.name}${line.lastPrice ? ` · KES ${kes(line.lastPrice)} each` : ''}` : 'No supplier yet'}</p>
       </div>
-      <AddOrStepper
-        name={line.itemName}
-        onList={Boolean(onList)}
-        buyUnit={line.buyUnit ?? unit}
-        suggested={suggested}
-        qtyValue={onList?.qty ?? suggested}
-        onAdd={() => list.add(toListLine(entry))}
-        onSet={(n) => list.setQty(line.inventoryItemId, n)}
-      />
+      {!supplier && !onList ? (
+        // Review would leave this item out anyway, so the dead end is shown here instead.
+        <span className="flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border bg-white px-2 text-center font-wds-sans text-[12px] leading-4 text-wds-text-faint">Set a supplier first</span>
+      ) : (
+        <AddOrStepper
+          name={line.itemName}
+          onList={Boolean(onList)}
+          buyUnit={line.buyUnit ?? unit}
+          suggested={suggested}
+          qtyValue={onList?.qty ?? suggested}
+          onAdd={() => list.add(toListLine(entry))}
+          onSet={(n) => list.setQty(line.inventoryItemId, n)}
+        />
+      )}
     </li>
+  );
+}
+
+const EXTRAS_SHOWN = 3;
+
+/** The end of a supplier group (Paper board 3): a quiet row that opens the supplier's other, not-low items in place. */
+function MoreFromSupplier({ supplier, skip, list }: { supplier: { id: string; name: string }; skip: Set<string>; list: ReturnType<typeof useRestockList> }) {
+  const [open, setOpen] = React.useState(false);
+  const [all, setAll] = React.useState(false);
+  const short = supplier.name.split(' ')[0] ?? supplier.name;
+  const { data, status } = useAttendantData(`attendant:catalog:${supplier.id}`, (s) => s.getCatalog({ supplierId: supplier.id, filter: 'all' }), 'We could not load this supplier’s items.');
+  const items = (data?.items ?? []).filter((i) => !skip.has(i.inventoryItemId));
+  if (status === 'ready' && items.length === 0) return null;
+  if (!data) return null;
+  const shown = all ? items : items.slice(0, EXTRAS_SHOWN);
+  return (
+    <div className="border-b border-wds-border bg-white">
+      {open ? (
+        <>
+          <div className="flex items-center justify-between px-5 pb-2 pt-3.5">
+            <Label>{`ALSO FROM ${short.toUpperCase()} · ${items.length}`}</Label>
+            <button type="button" onClick={() => setOpen(false)} className={cn(HIT, 'font-wds-sans text-[13px] font-medium leading-4 text-wds-text-secondary outline-none focus-visible:shadow-wds-ring')}>
+              Hide ⌃
+            </button>
+          </div>
+          <ul className="border-t border-wds-border">
+            {shown.map((i) => {
+              const onList = list.get(i.inventoryItemId);
+              const price = Number.parseFloat(i.price);
+              const priced = Number.isFinite(price) && price > 0;
+              return (
+                <li key={i.inventoryItemId} className={cn('flex items-center justify-between gap-3 border-b border-wds-border px-5 py-3 last:border-b-0', onList ? 'bg-wds-espresso-50' : 'bg-white')}>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <p className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{i.itemName}</p>
+                    <StatusLine tone="success">{i.onHand !== undefined ? `${qty(i.onHand)} left · fine for now` : 'Fine for now'}</StatusLine>
+                    <p className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{priced ? `${supplier.name} · KES ${kes(i.price)} each` : supplier.name}</p>
+                  </div>
+                  {!priced && !onList ? (
+                    <span className="flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border bg-white px-2 text-center font-wds-sans text-[12px] leading-4 text-wds-text-faint">No price yet</span>
+                  ) : onList ? (
+                    <AddOrStepper name={i.itemName} onList buyUnit={i.buyUnit} suggested="1" qtyValue={onList.qty} onAdd={() => undefined} onSet={(n) => list.setQty(i.inventoryItemId, n)} />
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Add ${i.itemName} to your list`}
+                      onClick={() => list.add({ inventoryItemId: i.inventoryItemId, name: i.itemName, qty: '1', buyUnit: i.buyUnit, supplierId: supplier.id, supplierName: supplier.name, unitPrice: i.price || null })}
+                      className={cn(HIT, 'flex h-9 min-w-28 shrink-0 items-center justify-center gap-1.5 border border-wds-border-strong bg-white px-2 font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring [@media(hover:hover)]:hover:bg-wds-neutral-50')}
+                    >
+                      <span aria-hidden="true" className="text-[16px] font-normal leading-[18px] text-[var(--wds-primary-btn-start)]">+</span>
+                      Add
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {items.length > EXTRAS_SHOWN ? (
+            <button type="button" onClick={() => setAll((v) => !v)} className={cn(HIT, 'flex w-full items-center px-5 py-3 text-left font-wds-sans text-[13px] font-medium leading-4 text-[var(--wds-primary-btn-start)] outline-none focus-visible:shadow-wds-ring')}>
+              {all ? 'Show fewer' : `Show ${items.length - EXTRAS_SHOWN} more`}
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} className={cn(HIT, 'flex w-full items-center justify-between px-5 py-3 text-left outline-none focus-visible:shadow-wds-ring')}>
+          <span className="font-wds-sans text-[13px] font-medium leading-4 text-wds-text-secondary">{`More from ${short} · ${plural(items.length, 'more item')}`}</span>
+          <span aria-hidden="true" className="text-wds-text-secondary">⌄</span>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -104,6 +178,7 @@ export function RestockListScreen() {
 
   const all = React.useMemo(() => (data ? flatten(data.groups).sort(byUrgency) : []), [data]);
   const matches = React.useMemo(() => all.filter((e) => !q || e.line.itemName.toLowerCase().includes(q) || (e.supplier?.name.toLowerCase().includes(q) ?? false)), [all, q]);
+  const allLowIds = React.useMemo(() => new Set(all.map((e) => e.line.inventoryItemId)), [all]);
   const out = matches.filter((e) => e.line.status === 'OUT');
   const low = matches.filter((e) => e.line.status === 'LOW');
   const shown = view === 'out' ? out : view === 'low' ? low : matches;
@@ -119,6 +194,8 @@ export function RestockListScreen() {
     return Array.from(map.entries()).sort((a, b) => (a[0] === 'none' ? 1 : b[0] === 'none' ? -1 : a[1].name.localeCompare(b[1].name)));
   }, [matches]);
 
+  // "Add all" works on what is on screen, and skips items with no supplier (they cannot be ordered yet).
+  const addable = (view === 'supplier' ? matches : shown).filter((e) => e.supplier !== null);
   const total = list.summary.total;
   return (
     <PhoneScreen
@@ -155,6 +232,21 @@ export function RestockListScreen() {
           { key: 'supplier', label: 'By supplier' },
         ]}
       />
+      {data && addable.length > 0 ? (
+        <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-white px-5 py-2.5">
+          <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+            {addable.filter((e) => list.get(e.line.inventoryItemId)).length} of {addable.length} on your list
+          </p>
+          <button
+            type="button"
+            onClick={() => addable.forEach((e) => (list.get(e.line.inventoryItemId) ? undefined : list.add(toListLine(e))))}
+            disabled={addable.every((e) => list.get(e.line.inventoryItemId))}
+            className={cn(HIT, 'font-wds-sans text-[13px] font-medium leading-4 text-[var(--wds-primary-btn-start)] outline-none focus-visible:shadow-wds-ring disabled:text-wds-text-faint')}
+          >
+            Add all
+          </button>
+        </div>
+      ) : null}
       {status === 'loading' || status === 'idle' ? (
         <PhoneLoading rows={5} label="Loading the restock list" />
       ) : (
@@ -173,6 +265,7 @@ export function RestockListScreen() {
                       <Row key={e.line.inventoryItemId} entry={e} list={list} />
                     ))}
                   </ul>
+                  {key !== 'none' && !q && data.groups.some((g) => g.supplier?.id === key) ? <MoreFromSupplier supplier={{ id: key, name: group.name }} skip={allLowIds} list={list} /> : null}
                 </section>
               ))
             : null}

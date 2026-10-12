@@ -74,7 +74,8 @@ export function OrderedItems({ order, heading = 'ON THIS ORDER' }: { order: Purc
 /** ACTIVITY: newest first, "09:05 · You sent the order for approval". */
 export function ActivityList({ order, withDay = false }: { order: PurchaseFile; withDay?: boolean }) {
   const me = useAuthStore((s) => s.user?.id);
-  const rows = [...order.activity].sort((a, b) => b.at.localeCompare(a.at));
+  // "saved a draft" always lands the same minute as "sent for approval"; it tells the person nothing, so it is left out here.
+  const rows = order.activity.filter((a) => a.what !== 'saved a draft').sort((a, b) => b.at.localeCompare(a.at));
   if (rows.length === 0) return null;
   return (
     <section aria-labelledby="order-activity" className="flex flex-col gap-2">
