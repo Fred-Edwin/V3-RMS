@@ -59,6 +59,13 @@ export function ReverseDialog({ file, open, onOpenChange, onReversed, returnFocu
     else setPin('');
   };
 
+  // The fourth digit signs once a reason is chosen.
+  React.useEffect(() => {
+    if (open && finding && preset !== '' && pin.length === 4 && !reverse.saving) void submit();
+    // `submit` closes over the current pin; this runs only when the pin reaches four digits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
   if (!finding) return null;
   const profile = FINDING_PROFILE[finding.finding];
   const against = profile.against === 'CARRIER' ? `recorded against ${file.carrier.name}` : profile.against === 'STORE' ? 'recorded against the store' : profile.against === 'RECEIVER' ? 'recorded against the receiver' : 'unexplained';
@@ -95,7 +102,7 @@ export function ReverseDialog({ file, open, onOpenChange, onReversed, returnFocu
         <div className="bg-wds-neutral-50">
           <Box label="What reversing does">
             <p className="font-wds-sans text-[14px] leading-5 text-wds-text-ink">
-              The {n} {what} are put back as they were by a new entry linked to the original. Both entries stay on the file and in the audit log.
+              The {n} of {what} is put back as it was by a new entry linked to the original. Both entries stay on the file and in the audit log.
             </p>
           </Box>
         </div>

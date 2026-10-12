@@ -13,6 +13,8 @@ import {
 } from '@/components/ui';
 import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
 import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApprovalCard';
+import { RequisitionsWaitingCard } from '@/components/dashboard/RequisitionsWaitingCard';
+import { useRequisitionBadges } from '@/features/inventory';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
@@ -23,7 +25,7 @@ import { orderCancellationAuthService } from '@/services/orderCancellationAuthSe
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
-import { BranchDayDashboardCard } from '@/features/inventory';
+import { BranchDayDashboardCard, BranchNeedsAction } from '@/features/inventory';
 import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
@@ -109,6 +111,11 @@ const getClockStatus = (assignment: ShiftAssignment): { label: string; isOverrid
 export default function ManagerDashboardPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const isBranchManager = useAuthStore((state) => state.user?.role === 'MANAGER');
+  const role = useAuthStore((state) => state.role);
+  // Requisitions waiting for the Branch Manager: lists ready to approve, plus lists one department has already sent.
+  const requisitionBadges = useRequisitionBadges(role === 'MANAGER');
+  const requisitionsWaiting = requisitionBadges?.toApprove ?? 0;
   const { activeOrders, isLoading: isLoadingOrders } = useActiveOrders();
 
   const todayDate = useMemo(() => toYmdInTimeZone(new Date(), 'Africa/Nairobi'), []);
@@ -124,7 +131,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
   const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
   const [dayCardShown, setDayCardShown] = useState(false);
-  const isBranchManager = useAuthStore((state) => state.user?.role === 'MANAGER');
+  const [inventoryActionCount, setInventoryActionCount] = useState(0);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCancellationAuths, setPendingCancellationAuths] = useState<OrderCancellationAuthRequest[]>([]);
@@ -549,7 +556,8 @@ export default function ManagerDashboardPage(): JSX.Element {
           Needs your action
         </h2>
         {isBranchManager ? <BranchDayDashboardCard onVisibleChange={setDayCardShown} /> : null}
-        {pendingAuths.length === 0 && pendingLeaveCount === 0 && !dayCardShown && (
+        <RequisitionsWaitingCard count={requisitionsWaiting} />
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && !dayCardShown && inventoryActionCount === 0 && requisitionsWaiting === 0 && (
           <EmptyState
             icon={<CheckCircle size={28} />}
             heading="Nothing pending right now"
@@ -557,6 +565,7 @@ export default function ManagerDashboardPage(): JSX.Element {
             className="rounded-xl border border-stone-200 bg-white py-8"
           />
         )}
+        <BranchNeedsAction enabled={isBranchManager} onCountChange={setInventoryActionCount} />
         <HouseAccountApprovalCard
           pendingAuths={pendingAuths}
           authOverrideSubmittingId={authOverrideSubmittingId}

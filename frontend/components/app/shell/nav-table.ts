@@ -61,10 +61,10 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'branch-day-todo' | 'purchasing-receiving' | 'purchasing-restock' | 'purchasing-my-orders';
+export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'discrepancies' | 'deliveries' | 'branch-day-todo' | 'purchasing-receiving' | 'purchasing-restock' | 'purchasing-my-orders';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
-export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
+export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', discrepancies: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
 
 interface Visibility {
   /** Roles that see the row. Never wider than what the route gate lets in. */
@@ -229,7 +229,7 @@ export const NAV_ROWS: readonly NavRow[] = [
     badge: 'requisitions',
     subItems: [
       { key: 'queue', label: 'Queue', newHref: '/app/branch/requisitions', roles: [MANAGER], badge: 'requisitions' },
-      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/branch/requisitions/discrepancies', roles: [MANAGER] },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/branch/requisitions/discrepancies', roles: [MANAGER], badge: 'discrepancies' },
       { key: 'history', label: 'History', newHref: '/app/branch/requisitions/history', roles: [MANAGER] },
     ],
   },
@@ -395,10 +395,10 @@ export const NAV_ROWS: readonly NavRow[] = [
     roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN],
     capability: 'requisitions.read',
     hub: true,
-    badge: 'requisitions',
+    badge: 'discrepancies',
     subItems: [
-      { key: 'queue', label: 'Queue', newHref: '/app/inventory/requisitions', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN], badge: 'requisitions' },
-      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/inventory/requisitions/discrepancies', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+      { key: 'queue', label: 'Queue', newHref: '/app/inventory/requisitions', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
+      { key: 'discrepancies', label: 'Discrepancies', newHref: '/app/inventory/requisitions/discrepancies', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN], badge: 'discrepancies' },
       { key: 'history', label: 'History', newHref: '/app/inventory/requisitions/history', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN] },
     ],
   },
@@ -425,7 +425,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   },
   { key: 'suppliers', label: 'Suppliers', group: 'procurement', icon: SuppliersIcon, newHref: '/app/inventory/suppliers', roles: DESKTOP_HUB, capability: 'suppliers.read', hub: true },
   { key: 'catalog', label: 'Catalog', group: 'procurement', icon: CatalogIcon, newHref: '/app/inventory/catalog', roles: HUB_ALL, capability: 'catalog.read', hub: true },
-  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: [STORE_MANAGER, ACCOUNTANT, DIRECTOR, SYSTEM_ADMIN], capability: 'audit.read', hub: true },
+  // The Branch Manager has the 'branch-audit-log' row above (the same screen), so the hub row leaves them out: one link, not two.
+  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB.filter((r) => r !== MANAGER), capability: 'audit.read', hub: true },
   // Carriers (Paper D18, Block 2): the Store Manager and System Admin manage the list, the Director and Accountant read it (the page decides from `can.manage`).
   { key: 'carriers', label: 'Carriers', group: 'procurement', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [STORE_MANAGER, DIRECTOR, ACCOUNTANT, SYSTEM_ADMIN], capability: 'carriers.read', hub: true },
   // The Store Manager's alone, until a later session moves it onto the table. Not drawn in Paper.
@@ -435,18 +436,18 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'department-shifts', label: 'Department Shifts', group: 'department', icon: ico.shifts, oldHref: '/app/department/shifts', roles: ALL_HUMAN, departmentHead: true },
   // The head's Requisitions screens are rebuilt (phone column, own header). Deliveries and Waste stay links to the pages that exist today.
   { key: 'department-requisitions', label: 'Requisitions', group: 'department', icon: ico.clipboard, newHref: '/app/requisitions', roles: ALL_HUMAN, departmentHead: true },
-  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true },
+  { key: 'department-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: ALL_HUMAN, departmentHead: true, badge: 'deliveries' },
   // A department member (not a head) has the same two rows (Paper "Phone menus by role"): Deliveries and its History.
   // Block 4: the Day (check the opening, count tonight) is the row below. Waste follows (Block 3).
   { key: 'department-day', label: 'Day', group: 'department', icon: ico.day, newHref: '/app/day', roles: ALL_HUMAN, departmentHead: true },
   { key: 'department-past-days', label: 'Past days', group: 'department', icon: ico.history, newHref: '/app/day/history', roles: ALL_HUMAN, departmentHead: true },
   { key: 'member-day', label: 'Day', group: 'department', icon: ico.day, newHref: '/app/day', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true },
+  { key: 'member-deliveries', label: 'Deliveries', group: 'department', icon: ico.truck, newHref: '/app/deliveries', roles: SHIFT_STAFF, departmentMemberOnly: true, badge: 'deliveries' },
   { key: 'member-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/deliveries/history', roles: SHIFT_STAFF, departmentMemberOnly: true },
   { key: 'department-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: ALL_HUMAN, departmentHead: true },
   // Block 3: a department member logs waste and reads the department's list too (Paper "Phone menus by role").
   { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
-  { key: 'department-history', label: 'History', group: 'department', icon: ico.history, newHref: '/app/requisitions/history', roles: ALL_HUMAN, departmentHead: true },
+  // The head's requisition History is no menu row any more: the Requisitions home carries "Earlier" and "See all history" (11 Oct 2026).
 
   // ── Everyone ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },

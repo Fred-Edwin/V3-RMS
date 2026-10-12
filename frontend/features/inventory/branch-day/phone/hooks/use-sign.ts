@@ -32,14 +32,16 @@ export function useSign<R>(write: (pin: string, idempotencyKey: string) => Promi
     setProblem(null);
   }, []);
 
-  const submit = React.useCallback(() => {
-    if (busy.current || pin.length !== 4) return;
+  // `typed` is the PIN handed over by the box at the fourth digit (the state is one render behind then).
+  const submit = React.useCallback((typed?: string) => {
+    const code = typed ?? pin;
+    if (busy.current || code.length !== 4) return;
     busy.current = true;
     setSaving(true);
     setPinError(null);
     setProblem(null);
     writeRef
-      .current(pin, key())
+      .current(code, key())
       .then((result) => doneRef.current(result))
       .catch((err: unknown) => {
         const code = scwErrorCode(err);

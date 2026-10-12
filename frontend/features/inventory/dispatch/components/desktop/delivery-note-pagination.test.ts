@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { continuedLabel, paginateNote } from './delivery-note-print-screen';
 
-const CLOSING_STORE = 219;
+const CLOSING_STORE = 241;
 
 describe('the continuation line (D17c)', () => {
   it('names the lines a page carries, and says only the count on the signature page that carries none', () => {
@@ -54,8 +54,8 @@ describe('paginateNote (Paper D17, D17c)', () => {
   });
 
   it('the branch copy has a shorter closing block, so it fits more rows on its last page', () => {
-    const store = paginateNote(24, 219);
-    const branch = paginateNote(24, 168);
+    const store = paginateNote(24, 241);
+    const branch = paginateNote(24, 190);
     expect(branch.length).toBeLessThanOrEqual(store.length);
   });
 

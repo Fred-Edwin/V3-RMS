@@ -52,7 +52,7 @@ The head's and members' phone screens (Day, opening, recount, count, sent, past 
 - **Fourth PIN digit signs** on the phone sign screens only (`PinField submitOnFourth`): typing the fourth digit submits; pasting does not; a wrong PIN clears the box and shows the message. Desktop drawers still need the button.
 - **Day card unlocks:** "not applicable" cards (no delivery, a passed opening) show a dash, not a to-do circle.
 - **Desktop:** Today lists openings not checked as one row; the Manager Dashboard shows today's day in "Needs your action" (`DashboardDayCard`); the day file's Items table has a pinned Correct column that opens the drawer on that item; the drawer warns when the new figure is over 5 times the count or moves the value by more than KES 100,000 (`desk/lib/correction-guard.ts`; it never blocks posting).
-- **Landing:** Barista and Kitchen heads and members open Day once per sign-in (`app/app/dashboard/page.tsx`).
+- **Landing:** Barista and Kitchen heads and members open Day once per sign-in, unless a delivery is on the way, which goes to Deliveries first (`LandOnDeliveries` in `_shared/components/land-on-deliveries.tsx`).
 - A hub reader with no branch chosen starts on the first branch that has a day today (`today` in the service).
 
 ## Rules the screens follow

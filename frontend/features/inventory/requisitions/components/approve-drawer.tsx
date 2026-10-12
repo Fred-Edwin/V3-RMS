@@ -10,7 +10,7 @@ import { useAction, useLoader } from '../../_shared/hooks/use-async';
 import { useIdempotencyKey } from '../../_shared/hooks/use-idempotency-key';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
 import type { ApproveResult } from '../_shared/types/requisitions-contract';
-import { changesSentence, errorWords, kes } from '../_shared/lib/requisitions-words';
+import { changesSentence, errorWords, kes, sectionsInPlay } from '../_shared/lib/requisitions-words';
 import { MonoLabel, PinField } from './req-parts';
 
 const SAYS = {
@@ -54,6 +54,13 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
     pinRef.current?.focus();
   };
 
+  // The fourth digit signs: no second tap. A wrong PIN clears the field, so it cannot loop.
+  React.useEffect(() => {
+    if (open && summary.data && pin.length === 4 && !approve.saving) void submit();
+    // `submit` closes over the current pin; this runs only when the pin reaches four digits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
   const data = summary.data;
   const sent = data?.departments.filter((d) => d.status === 'SUBMITTED').length ?? 0;
   const failure = approve.failure ? errorWords(approve.failure.code, 'manager', approve.failure.message, approve.failure.message) : null;
@@ -88,15 +95,15 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 <div className="flex items-end justify-between border-b border-wds-neutral-950 px-5 pb-4 pt-[18px]">
                   <div className="flex flex-col gap-1">
                     <MonoLabel>What you are sending</MonoLabel>
-                    <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} lines</span>
+                    <span className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-wds-text-ink">{data.lineCount} {data.lineCount === 1 ? 'line' : 'lines'}</span>
                   </div>
                   {data.valueKes !== undefined ? <span className="font-wds-mono text-[22px] leading-7 text-wds-text-ink">KES {kes(data.valueKes)}</span> : null}
                 </div>
                 <ul>
-                  {data.departments.map((d) => (
+                  {sectionsInPlay(data.departments).map((d) => (
                     <li key={d.departmentId} className="flex items-center gap-3 border-b border-wds-border px-5 py-3 last:border-b-0">
                       <span className="grow font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{d.departmentName}</span>
-                      <span className="w-[70px] shrink-0 text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
+                      <span className="w-[96px] shrink-0 whitespace-nowrap text-right font-wds-mono text-[13px] leading-4 text-wds-text-secondary">{d.status === 'SKIPPED' ? 'sent without' : `${d.lineCount} ${d.lineCount === 1 ? 'line' : 'lines'}`}</span>
                       {d.valueKes !== undefined ? <span className="w-[90px] shrink-0 text-right font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kes(d.valueKes)}</span> : null}
                     </li>
                   ))}
@@ -113,7 +120,7 @@ export function ApproveDrawer({ requisitionId, open, onOpenChange, onApproved }:
                 <p className="text-wds-text-secondary">{SAYS.told(sent)}</p>
                 {data.signingAs !== 'BRANCH_MANAGER' ? <p className="text-wds-text-secondary">You are signing as {data.signingAs === 'DIRECTOR' ? 'the Director' : 'the System Admin'}. The file records who approved it.</p> : null}
               </div>
-              <PinField ref={pinRef} value={pin} onChange={setPin} invalid={wrongPin} onSubmit={() => void submit()} />
+              <PinField ref={pinRef} value={pin} onChange={setPin} invalid={wrongPin} onSubmit={() => void submit()} label="Your PIN · signs on the 4th digit" />
               {failure ? (
                 <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
                   {failure}

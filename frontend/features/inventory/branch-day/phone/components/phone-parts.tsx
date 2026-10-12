@@ -119,7 +119,7 @@ export function SignFields({ signedBy, sign }: { signedBy: string; sign: SignSta
   return (
     <>
       <SignedByField value={signedBy} />
-      <PinField id="branch-day-pin" inputRef={pinRef} size="paper" submitOnFourth value={sign.pin} onChange={sign.setPin} onSubmit={sign.submit} error={sign.pinError} disabled={sign.saving} />
+      <PinField id="branch-day-pin" inputRef={pinRef} size="paper" value={sign.pin} onChange={sign.setPin} onSubmit={() => sign.submit()} onComplete={(v) => sign.submit(v)} error={sign.pinError} disabled={sign.saving} />
       {sign.problem ? (
         <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
           {sign.problem}
@@ -136,7 +136,7 @@ export interface SignState {
   problem: string | null;
   saving: boolean;
   ready: boolean;
-  submit: () => void;
+  submit: (typedPin?: string) => void;
 }
 
 // --- The count list ------------------------------------------------------------------------------------------------------

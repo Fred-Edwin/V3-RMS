@@ -35,7 +35,7 @@ function Page({ sheet, number, count, cover, children }: { sheet: DaySheet; numb
   return (
     <article
       aria-label={`Page ${number} of ${count}`}
-      className="relative mx-auto mb-4 flex h-[1123px] w-[794px] max-w-full shrink-0 flex-col overflow-hidden break-after-page border border-[#E3E8EE] bg-white font-wds-sans text-[12px] leading-4 text-[#171512] print:mb-0 print:border-0"
+      className="print-exact relative mx-auto mb-4 flex h-[1123px] w-[794px] max-w-full shrink-0 flex-col overflow-hidden break-after-page border border-[#E3E8EE] bg-white font-wds-sans text-[12px] leading-4 text-[#171512] print:mb-0 print:border-0"
     >
       <div aria-hidden className="h-[10px] shrink-0 bg-[#0B2A4A]" />
       <div className={`flex min-h-0 flex-1 flex-col px-12 ${cover ? 'pt-9' : 'pt-[30px]'}`}>

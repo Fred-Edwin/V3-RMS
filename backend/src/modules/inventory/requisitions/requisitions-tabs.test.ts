@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RequisitionStatus } from './_shared/requisitions-contract';
-import { defaultTab, headIsWaited, isWaitingForBranch, tabOf, waitingTab, type DispatchFact } from './requisitions-tabs';
+import { defaultTab, headIsWaited, isPartlySent, isWaitingForBranch, tabOf, waitingTab, type DispatchFact } from './requisitions-tabs';
 
 const NOW = new Date('2026-10-09T12:00:00.000Z');
 const ago = (minutes: number): Date => new Date(NOW.getTime() - minutes * 60_000);
@@ -39,7 +39,9 @@ describe('tabOf (Block 2: one function over the new dispatch statuses)', () => {
     ['some counted, one still on the way', sent(fact('CONFIRMED'), fact('ON_THE_WAY', 30)), 'on-the-way'],
     ['some counted, one waiting', sent(fact('CONFIRMED'), fact('ON_THE_WAY', 600)), 'to-confirm'],
     ['every department counted, nothing open', sent(fact('CONFIRMED'), fact('CLOSED')), 'closed'],
-    ['an open discrepancy wins over everything', sent(fact('CONFIRMED', 600, true), null, fact('ON_THE_WAY', 600)), 'discrepancies'],
+    ['an open gap does not hide a delivery still waiting on another department', sent(fact('CONFIRMED', 600, true), fact('ON_THE_WAY', 600)), 'to-confirm'],
+    ['an open gap does not hide a delivery still on the way', sent(fact('CONFIRMED', 600, true), fact('ON_THE_WAY', 30)), 'on-the-way'],
+    ['an open gap with nothing else moving files under discrepancies', sent(fact('CONFIRMED', 600, true), fact('CONFIRMED')), 'discrepancies'],
     ['no department with lines to pack', sent(), 'to-pack'],
   ] as const)('approved: %s -> %s', (_name, departments, expected) => {
     expect(tab('APPROVED', [...departments])).toBe(expected);
@@ -73,5 +75,12 @@ describe('who is waited for', () => {
     expect(defaultTab('STORE')).toBe('to-pack');
     expect(defaultTab('HEAD')).toBe('collecting');
     expect(defaultTab('NONE')).toBe('collecting');
+  });
+
+  it('isPartlySent: collecting with at least one department sent, and nothing else', () => {
+    expect(isPartlySent('OPEN', ['DRAFT', 'SUBMITTED'])).toBe(true);
+    expect(isPartlySent('OPEN', ['DRAFT', 'NOT_STARTED', 'SKIPPED'])).toBe(false);
+    expect(isPartlySent('PENDING_APPROVAL', ['SUBMITTED', 'SUBMITTED'])).toBe(false);
+    expect(isPartlySent('APPROVED', ['SUBMITTED'])).toBe(false);
   });
 });

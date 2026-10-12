@@ -198,6 +198,7 @@ export function HeadAdditionScreen({ requisitionId }: { requisitionId: string })
       </HeadFooter>
       <SignSheetDialog
         layout="sheet"
+        signOnLastDigit
         open={sendOpen}
         onOpenChange={setSendOpen}
         title={ADDITION_COPY.sheetTitle(added.length)}

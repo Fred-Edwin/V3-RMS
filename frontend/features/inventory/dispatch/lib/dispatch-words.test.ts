@@ -16,8 +16,8 @@ describe('dispatch words (Paper D22)', () => {
   it('writes the gap and drawer titles with a space after the number', () => {
     expect(gapSentence('Milk 1L', '-2')).toBe('Milk 1L is short by 2');
     expect(gapSentence('Milk 1L', '2')).toBe('Milk 1L is over by 2');
-    expect(drawerTitle('Milk 1L', 2, 'SHORT')).toBe('What happened to the 2 milk?');
-    expect(drawerTitle('Milk 1L', 2, 'EXTRA')).toBe('What happened to the 2 extra milk?');
+    expect(drawerTitle('Milk 1L', 2, 'SHORT')).toBe('What happened to the 2 of Milk 1L?');
+    expect(drawerTitle('Milk 1L', 2, 'EXTRA')).toBe('What happened to the 2 extra of Milk 1L?');
   });
 
   it('the Next step card for a held gap: one sentence for one line, "N lines differ" for several', () => {
@@ -35,7 +35,8 @@ describe('dispatch words (Paper D22)', () => {
 
   it('describes the extra findings in the D22 wording', () => {
     const ctx = { sent: '24', counted: '26', gap: 2, item: 'Milk 1L' };
-    expect(findingDescription('PACKED_MORE', 'EXTRA', ctx).body).toContain('The store sent 26 but recorded 24. Store stock goes down by 2.');
+    expect(findingDescription('PACKED_MORE', 'EXTRA', ctx).body).toContain('The branch counted 26 and 24 were sent. Choose this if the store packed 2 more than its note says. Store stock goes down by 2.');
+    expect(findingDescription('PACKED_MORE', 'EXTRA', ctx).body).not.toContain('A loss: no, a packing error');
     expect(findingDescription('BRANCH_COUNTED_WRONG', 'EXTRA', ctx).body).toContain('Only 24 arrived');
     expect(findingDescription('CANT_TELL', 'EXTRA', ctx).body).toContain('unexplained surplus');
   });

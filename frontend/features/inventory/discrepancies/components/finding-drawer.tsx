@@ -45,7 +45,8 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
 
   React.useEffect(() => {
     if (open) {
-      setFinding(file.allowedFindings[0] ?? null);
+      // No cause is chosen for the Store Manager: picking the first one blamed a person before anyone had decided (Paper chapter 14, D).
+      setFinding(null);
       setNote('');
       setPin('');
       record.clear();
@@ -72,6 +73,13 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
     if (result) onRecorded(result);
     else setPin('');
   };
+
+  // The fourth digit signs (once a cause is chosen), as on the Branch Manager's approve drawer.
+  React.useEffect(() => {
+    if (open && finding && pin.length === 4 && !record.saving) void submit();
+    // `submit` closes over the current pin; this runs only when the pin reaches four digits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   const ctx = { sent: file.sentQty, counted: file.countedQty, gap: n, item: file.item.name };
   const failure = record.failure && record.failure.code !== 'INVALID_PIN' ? errorText(record.failure.code, record.failure.message) : null;
@@ -120,7 +128,9 @@ export function FindingDrawer({ file, open, onOpenChange, onRecorded }: { file: 
       </div>
 
       <section aria-label="What this does" aria-live="polite" className="border border-wds-neutral-950">
-        {preview.status === 'error' ? (
+        {!finding ? (
+          <p className="px-4 py-3 font-wds-sans text-[14px] text-wds-text-secondary">Choose what happened to see what it does. Nothing is chosen for you.</p>
+        ) : preview.status === 'error' ? (
           <p className="px-4 py-3 font-wds-sans text-[14px] text-wds-error-fg">Could not load what this finding does. Choose it again to retry.</p>
         ) : !p ? (
           <div aria-hidden className="flex flex-col gap-2 p-4">

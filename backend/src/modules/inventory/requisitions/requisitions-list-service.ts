@@ -28,9 +28,9 @@ import { NAMES_REQUISITION, sentenceOf } from './_shared/requisitions-sentences'
 import { requisitionsListRepository as listRepo, type FactsRecord, type ListFilters } from './requisitions-list-repository';
 import { requisitionsRepository as repo, type RequisitionRecord, type Scope } from './requisitions-repository';
 import { loadCaller, loadFile, readScope, restrictedHead, viewerFor, type Caller } from './requisitions-service';
-import { defaultTab, headIsWaited, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
+import { defaultTab, headIsWaited, isPartlySent, tabOf, waitingTab, type DispatchFact, type DispatchFactStatus, type WaitingFamily } from './requisitions-tabs';
 import { urgentOverHour } from './requisitions-state';
-import { additionStatusMap, cycleLabelOf, cycleOf, fileWire, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
+import { additionStatusMap, changedLineCount, cycleLabelOf, cycleOf, fileWire, firstChangedLine, sectionDetailWire, sectionLines, sectionSummaryWire, sectionValue } from './requisitions-view';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -144,7 +144,8 @@ export const requisitionsListService = {
       return facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
     }
     const wanted = waitingTab(family);
-    return facts.filter((f) => tabFromFacts(f) === wanted).length;
+    // An approver also has a list waiting once one department has sent, though the tab still says Collecting (Amendment 3).
+    return facts.filter((f) => tabFromFacts(f) === wanted || (family === 'APPROVER' && isPartlySent(f.status as RequisitionStatus, f.sections.map((s) => s.status as SectionStatus)))).length;
   },
 
   /**
@@ -175,11 +176,16 @@ export const requisitionsListService = {
     const head = restrictedHead(c);
     const facts = await listRepo.listFacts(scope, { statuses: LIVE, ...(head ? { headDepartmentId: head } : {}) });
     const count = (tab: RequisitionTab): number => facts.filter((f) => tabFromFacts(f) === tab).length;
-    if (family === 'APPROVER') return { requisitions: count('to-approve'), toApprove: count('to-approve'), ...withDeliveries };
+    // Open discrepancies themselves (a dispatch with two differing lines is two), whatever tab their requisition sits in.
+    const openDiscrepancies = facts.reduce((sum, f) => sum + f.dispatches.reduce((inner, d) => inner + d.discrepancies.length, 0), 0);
+    if (family === 'APPROVER') {
+      const partlySent = facts.filter((f) => isPartlySent(f.status as RequisitionStatus, f.sections.map((s) => s.status as SectionStatus))).length;
+      return { requisitions: count('to-approve') + partlySent, toApprove: count('to-approve') + partlySent, discrepancies: openDiscrepancies, ...withDeliveries };
+    }
     if (family === 'STORE') {
       // `dispatch` is the Attendant's Dispatch row: the BRANCHES that have something to pack (Amendment 1 row 16).
       const branches = new Set(facts.filter((f) => tabFromFacts(f) === 'to-pack').map((f) => f.siteId));
-      return { requisitions: count('to-pack'), toPack: count('to-pack'), dispatch: branches.size };
+      return { requisitions: count('to-pack'), toPack: count('to-pack'), discrepancies: openDiscrepancies, dispatch: branches.size };
     }
     if (family === 'HEAD') {
       const mine = facts.filter((f) => headIsWaited(f.status as RequisitionStatus, (f.sections.find((s) => s.departmentId === c.headDepartmentId)?.status ?? 'SUBMITTED') as SectionStatus)).length;
@@ -312,8 +318,14 @@ export const requisitionsListService = {
             sectionStatus: (own?.status ?? 'NOT_STARTED') as SectionStatus,
             lineCount: own ? sectionLines(own, additionStatusMap(r)).length : 0,
             sentAt: iso(own?.submittedAt ?? null),
+            openedAt: r.openedAt.toISOString(),
           };
         }),
+      needsYou: live.flatMap((r) => {
+        const own = r.sections.find((s) => s.departmentId === departmentId);
+        const firstChange = own ? firstChangedLine(own, r) : null;
+        return own && firstChange ? [{ requisitionId: r.id, cycle: cycleOf(r.type), changedCount: changedLineCount(own, r), firstChange }] : [];
+      }),
     };
   },
 
@@ -415,6 +427,7 @@ const rowWire = (rec: RequisitionRecord, tab: RequisitionTab, ctx: RowContext, s
     tab,
     sections: sections.map((s) => ({ departmentId: s.departmentId ?? '', departmentName: s.department?.name ?? '', status: s.status as SectionStatus })),
     lineCount,
+    changedLineCount: sections.reduce((sum, s) => sum + changedLineCount(s, rec), 0),
     ...(ctx.seeValue ? { valueKes: kes(value) } : {}),
     openedAt: rec.openedAt.toISOString(),
     urgent: rec.urgent,

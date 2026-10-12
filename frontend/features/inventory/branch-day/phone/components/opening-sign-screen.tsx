@@ -131,7 +131,7 @@ export function OpeningSignScreen() {
             <SignFields signedBy={signedByText(data.department.name, isHead, userName)} sign={sign} />
           </main>
           <B2Footer>
-            <B2PrimaryButton disabled={!sign.ready} onClick={sign.submit}>
+            <B2PrimaryButton disabled={!sign.ready} onClick={() => sign.submit()}>
               {sign.saving ? 'Recording' : BRANCH_DAY_BUTTONS.recordOpening}
             </B2PrimaryButton>
           </B2Footer>

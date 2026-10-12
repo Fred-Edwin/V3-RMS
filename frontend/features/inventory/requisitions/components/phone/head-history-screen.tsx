@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
 import { REQUISITIONS_KIT_COPY } from '../../_shared/lib/states-copy';
-import { cancelReasonText, HISTORY_COPY } from '../../_shared/lib/phone-words';
+import { cancelReasonText, headStatusText, HISTORY_COPY } from '../../_shared/lib/phone-words';
 import { REQUISITION_STATUSES, REQUISITION_STATUS_TEXT, type HistoryMineRow, type RequisitionStatus } from '../../_shared/types/requisitions-contract';
 import { useHistoryMine } from '../../hooks/use-head-requisitions';
 import { B2TabBar } from '../../../_shared/components/block2-phone-parts';
@@ -162,7 +162,7 @@ function HistoryRow({ row }: { row: HistoryMineRow }) {
           </span>
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{second}</span>
         </div>
-        <StatusChip status={row.status} text={row.statusText} plain />
+        <StatusChip status={row.status} text={headStatusText(row.status, row.statusText, row.sectionStatus)} plain />
       </Link>
     </li>
   );

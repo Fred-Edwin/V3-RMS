@@ -3,7 +3,7 @@ import { clock, dayLabel } from '../../requisitions/_shared/lib/requisitions-wor
 import type { DiscrepancyFile, Finding, GapDirection } from '../../discrepancies/_shared/types/discrepancies-contract';
 import { FINDING_TEXT } from '../../discrepancies/_shared/types/discrepancies-contract';
 import type { CarrierKind, DispatchFile, DispatchStage, Stamp, TrackerStep } from '../_shared/types/dispatch-contract';
-import { itemWord } from '../../_shared/lib/block2-words';
+import { itemWord, plainName } from '../../_shared/lib/block2-words';
 import type { Person } from '../../_shared/types/wire';
 
 /**
@@ -14,9 +14,12 @@ import type { Person } from '../../_shared/types/wire';
 
 export { clock, dayLabel };
 
-export const nameAndTitle = (person: Pick<Person, 'name' | 'roleLabel'>): string => `${person.name} · ${person.roleLabel}`;
+export const nameAndTitle = (person: Pick<Person, 'name' | 'roleLabel'>): string => `${plainName(person.name)} · ${person.roleLabel}`;
 /** "Peter K., Store Attendant" (tracker second lines). */
-export const nameComma = (person: Pick<Person, 'name' | 'roleLabel'>): string => `${person.name}, ${person.roleLabel}`;
+export const nameComma = (person: Pick<Person, 'name' | 'roleLabel'>): string => `${plainName(person.name)}, ${person.roleLabel}`;
+
+/** A money cell: nothing when the caller may not see money, "—" for zero (never "0", which reads as free), else "1,250". */
+export const kesText = (value: string | undefined): string => (value === undefined ? '' : Number(value) === 0 ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 }));
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 const lineWord = (n: number): string => plural(n, 'line', 'lines');
@@ -168,8 +171,8 @@ export function dispatchNextWords(file: DispatchFile): DispatchNextWords {
         return {
           title: `${gapSentence(only.itemName, only.gapQty)}: record what happened`,
           body: over
-            ? `The ${dept} counted ${only.countedQty ?? ''} and ${only.sentQty ?? ''} were sent. Talk to the packer, then record one finding. The ${n} extra are held as unaccounted until you do.`
-            : `The ${dept} counted ${only.countedQty ?? ''} and ${only.sentQty ?? ''} were sent. Talk to the packer and the carrier if you need to, then record one finding. The ${n} ${shortName(only.itemName)} are held until you do.`,
+            ? `The ${dept} counted ${only.countedQty ?? ''} and ${only.sentQty ?? ''} were sent. Talk to the packer, then record one finding. The ${n} extra of ${shortName(only.itemName)} is held as unaccounted until you do.`
+            : `The ${dept} counted ${only.countedQty ?? ''} and ${only.sentQty ?? ''} were sent. Talk to the packer and the carrier if you need to, then record one finding. The ${n} of ${shortName(only.itemName)} is held until you do.`,
           actionLabel: 'Record a finding',
           tone: 'amber',
         };
@@ -179,14 +182,14 @@ export function dispatchNextWords(file: DispatchFile): DispatchNextWords {
     case 'CONFIRMED':
     case 'CLOSED': {
       if (file.items.some((i) => i.discrepancy)) return { title: 'Every gap has a finding', body: `The ${dept} counted ${lineWord(file.lineCount)} and the differences are settled. Both the findings and the counts stay on file.`, actionLabel: null, tone: 'green' };
-      return { title: 'Nothing to do: everything matched', body: `The ${dept} head counted all ${file.lineCount} lines and every count matched what was sent. Their stock is updated, no discrepancy was opened, and this dispatch closed by itself.`, actionLabel: null, tone: 'green' };
+      return { title: 'Nothing to do: everything matched', body: `${file.onBehalf && file.counted ? `${nameAndTitle(file.counted.by)} counted ${file.lineCount === 1 ? 'the line' : `all ${file.lineCount} lines`} for the ${dept}` : `The ${dept} counted ${file.lineCount === 1 ? 'the line' : `all ${file.lineCount} lines`}`} and every count matched what was sent. Their stock is updated, no discrepancy was opened, and this dispatch closed by itself.`, actionLabel: null, tone: 'green' };
     }
     case 'CANCELLED':
       return { title: 'This dispatch was cancelled', body: `${file.cancelled ? `${nameAndTitle(file.cancelled.by)} cancelled it at ${clock(file.cancelled.at)}: ${file.cancelled.reason}. ` : ''}The stock is back in the Central Store and the lines are in To pack. The delivery note is kept, marked void.`, actionLabel: 'Pack again', tone: 'neutral' };
   }
 }
 
-/** "milk" from "Milk 1L": the first word, lower-cased, for "the 2 milk are held". */
+/** The full item name, for "the 2 of Milk 1L is held". */
 const shortName = (itemName: string): string => itemWord(itemName);
 
 // ── The discrepancy file's cards ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -200,9 +203,9 @@ export function discrepancyNextWords(file: DiscrepancyFile): { title: string; bo
   const n = Math.abs(Number(file.gapQty));
   const what = shortName(file.item.name);
   const again = file.reversal !== null;
-  const title = file.direction === 'EXTRA' ? `Record what happened to the ${n} extra ${what}${again ? ', again' : ''}` : `Record what happened to the ${n} ${what}${again ? ', again' : ''}`;
+  const title = file.direction === 'EXTRA' ? `Record what happened to the ${n} extra of ${what}${again ? ', again' : ''}` : `Record what happened to the ${n} of ${what}${again ? ', again' : ''}`;
   const reminder = `A reminder goes to you after ${file.nextStep.facts.reminderAfterHours} hours, then daily.`;
-  if (again && file.reversal) return { title, body: `The earlier finding was reversed at ${clock(file.reversal.reversed.at)} and the ${n} ${what} are held as unaccounted again. Both entries stay on file. ${reminder}` };
+  if (again && file.reversal) return { title, body: `The earlier finding was reversed at ${clock(file.reversal.reversed.at)} and the ${n} of ${what} is held as unaccounted again. Both entries stay on file. ${reminder}` };
   return { title, body: `Opened ${sinceOpened(file.openedAt)} ago. ${reminder} The Director and the Branch Manager have been told.` };
 }
 
@@ -220,7 +223,7 @@ export function findingDescription(finding: Finding, direction: GapDirection, ct
   if (direction === 'EXTRA') {
     switch (finding) {
       case 'PACKED_MORE':
-        return { title: FINDING_TEXT.PACKED_MORE, body: `The store sent ${ctx.counted} but recorded ${ctx.sent}. Store stock goes down by ${n}. Recorded against the store, who packed and who signed. A loss: no, a packing error on its own report line.`, against: 'Recorded against the store, who packed and who signed', loss: 'A loss: no, a packing error on its own report line.' };
+        return { title: FINDING_TEXT.PACKED_MORE, body: `The branch counted ${ctx.counted} and ${ctx.sent} were sent. Choose this if the store packed ${n} more than its note says. Store stock goes down by ${n}. Recorded against the store, who packed and who signed. Not a loss.`, against: 'Recorded against the store, who packed and who signed', loss: 'Not a loss.' };
       case 'BRANCH_COUNTED_WRONG':
         return { title: FINDING_TEXT.BRANCH_COUNTED_WRONG, body: `Only ${ctx.sent} arrived. The department's stock is corrected down by ${n}. Recorded against the receiver. A loss: no.`, against: 'Recorded against the receiver', loss: 'A loss: no.' };
       default:
@@ -229,7 +232,7 @@ export function findingDescription(finding: Finding, direction: GapDirection, ct
   }
   switch (finding) {
     case 'PACKED_SHORT':
-      return { title: FINDING_TEXT.PACKED_SHORT, body: `The store recorded ${ctx.sent} but sent ${ctx.counted}. The ${n} return to store stock. Recorded against the packer; an error, not a loss.`, against: 'Recorded against the packer', loss: 'A loss: no, a packing error.' };
+      return { title: FINDING_TEXT.PACKED_SHORT, body: `The branch counted ${ctx.counted} and ${ctx.sent} were sent. Choose this if the store packed ${n} less than its note says. The ${n} return to store stock. Recorded against the packer. Not a loss.`, against: 'Recorded against the packer', loss: 'Not a loss.' };
     case 'LOST_OR_DAMAGED':
       return { title: FINDING_TEXT.LOST_OR_DAMAGED, body: 'Left the store, never arrived. Written off at cost. Recorded against the carrier. A loss.', against: 'Recorded against the carrier', loss: 'A loss: yes.' };
     case 'BRANCH_COUNTED_WRONG':
@@ -239,9 +242,9 @@ export function findingDescription(finding: Finding, direction: GapDirection, ct
   }
 }
 
-/** The drawer title: "What happened to the 2 milk?" / "What happened to the 2 extra milk?" */
+/** The drawer title: "What happened to the 2 of Milk 1L?" / "What happened to the 2 extra of Milk 1L?" */
 export function drawerTitle(item: string, gap: number, direction: GapDirection): string {
-  return `What happened to the ${gap}${direction === 'EXTRA' ? ' extra' : ''} ${shortName(item)}?`;
+  return `What happened to the ${gap}${direction === 'EXTRA' ? ' extra' : ''} of ${shortName(item)}?`;
 }
 
 /** The sentence under a recorded finding (E1), by finding. */
@@ -250,15 +253,15 @@ export function recordedBody(finding: Finding, ctx: { sent: string; counted: str
   const what = shortName(ctx.item);
   switch (finding) {
     case 'PACKED_SHORT':
-      return `The store recorded ${ctx.sent} but packed ${ctx.counted}. The ${n} ${what} went back into Central Store stock. This is shown as a packing error on its own report line, not as a loss.`;
+      return `The branch counted ${ctx.counted} and ${ctx.sent} were sent. The store packed ${n} less than its note says, so the ${n} of ${what} went back into Central Store stock. Not a loss.`;
     case 'PACKED_MORE':
-      return `The store packed ${ctx.counted} but recorded ${ctx.sent}. Store stock went down by ${n}. This is shown as a packing error on its own report line, not as a loss.`;
+      return `The branch counted ${ctx.counted} and ${ctx.sent} were sent. The store packed ${n} more than its note says, so store stock went down by ${n}. Not a loss.`;
     case 'LOST_OR_DAMAGED':
-      return `The ${n} ${what} left the store and never arrived. They are written off at the cost frozen at dispatch and recorded against the carrier.`;
+      return `The ${n} of ${what} left the store and never arrived. It is written off at the cost frozen at dispatch and recorded against the carrier.`;
     case 'BRANCH_COUNTED_WRONG':
       return `All ${ctx.sent} arrived. The department's stock was corrected by ${n}. Recorded against the receiver; not a loss.`;
     case 'CANT_TELL':
-      return `Nobody could say. The ${n} ${what} are recorded as unexplained, in their own bucket.`;
+      return `Nobody could say. The ${n} of ${what} is recorded as unexplained, in their own bucket.`;
   }
 }
 

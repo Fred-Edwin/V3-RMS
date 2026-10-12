@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixtures from '../types/requisitions-contract.fixtures.json';
 import type { RequisitionFile } from '../types/requisitions-contract';
-import { changesSentence, clock, elapsed, errorWords, fileChip, kes, nextStepWords, trackerWords } from './requisitions-words';
+import { changesSentence, clock, elapsed, errorWords, fileChip, kes, nextStepWords, sectionsInPlay, trackerWords } from './requisitions-words';
 
 const file = fixtures.fileManager as RequisitionFile;
 
@@ -15,8 +15,17 @@ describe('requisitions words', () => {
 
   it('writes the Ready to approve card from Paper', () => {
     const words = nextStepWords(file);
-    expect(words.title).toBe('Everything is in. Ready for your signature.');
+    // The fixture has a skipped department, so the card says how many were sent without instead of "Everything is in".
+    expect(words.title).toBe('Ready for your signature.');
+    expect(words.body).toContain('sent without');
     expect(words.actionLabel).toBe('Approve and sign');
+    const allIn = nextStepWords({ ...file, sections: file.sections.map((s) => ({ ...s, status: 'SUBMITTED' as const })) });
+    expect(allIn.title).toBe('Everything is in. Ready for your signature.');
+  });
+
+  it('shows a zero value as a dash, not as free', () => {
+    expect(kes('0')).toBe('—');
+    expect(kes('0.00')).toBe('—');
   });
 
   it('writes the Collecting card with the missing department', () => {
@@ -53,5 +62,16 @@ describe('requisitions words', () => {
     expect(changesSentence([{ itemName: 'Beef patty 120g', from: '30', to: '24' }, { itemName: 'Flour 25kg', from: '6', to: '4' }])).toBe(
       'You changed 2 lines: Beef patty 120g (30 to 24) and Flour 25kg (6 to 4).',
     );
+  });
+});
+
+describe('sectionsInPlay', () => {
+  it('leaves out the departments the manager sent without, so one department reads as one', () => {
+    const sections = [{ status: 'SKIPPED' }, { status: 'SUBMITTED' }, { status: 'SKIPPED' }, { status: 'SKIPPED' }, { status: 'SKIPPED' }];
+    expect(sectionsInPlay(sections)).toEqual([{ status: 'SUBMITTED' }]);
+  });
+
+  it('never returns an empty list', () => {
+    expect(sectionsInPlay([{ status: 'SKIPPED' }])).toHaveLength(1);
   });
 });

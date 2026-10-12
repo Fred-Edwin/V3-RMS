@@ -69,7 +69,7 @@ export function DeliveriesWaitingScreen() {
                       <RefLink reference={row.reference} href={deliveryFile(row.id)} />
                       <span className="font-wds-sans text-[13px] leading-[18px] text-[#1F5BAE] underline underline-offset-2">· {cycleWord(row.cycle)}</span>
                     </span>
-                    <Chip spec={deliveryChip(row.stage, null)} className="py-[3px]" />
+                    <Chip spec={row.gapCount && row.gapCount > 0 ? { text: `Counted · ${row.gapCount === 1 ? '1 line differs' : `${row.gapCount} lines differ`}`, tone: 'warning' } : deliveryChip(row.stage, null)} className="py-[3px]" />
                   </div>
                   <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
                     {row.lineCount} {row.lineCount === 1 ? 'line' : 'lines'} · counted and signed{row.confirmedAt ? ` at ${timeText(row.confirmedAt)}` : ''}

@@ -353,26 +353,19 @@ export interface PinFieldProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit?: () => void;
+  /** Called with the PIN the moment the fourth digit is typed, so a screen can sign without another tap. */
+  onComplete?: (value: string) => void;
   error?: string | null;
   disabled?: boolean;
   label?: string;
   inputRef?: React.Ref<HTMLInputElement>;
   /** `paper` is the Branch day box (Paper B2, B3b): 10/12 label, 44 high, Geist Mono bullets at 0.3em. Default look unchanged. */
   size?: 'default' | 'paper';
-  /** Typing the fourth digit calls `onSubmit` by itself (the phone sign screens). Pasting or a reload never does; only typing. */
-  submitOnFourth?: boolean;
 }
 
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
-export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default', submitOnFourth = false }: PinFieldProps) {
+export function PinField({ id, value, onChange, onSubmit, onComplete, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
   const paper = size === 'paper';
-  // Set when typing takes the box to four digits; the effect then signs with the newest props.
-  const justCompleted = React.useRef(false);
-  React.useEffect(() => {
-    if (!justCompleted.current) return;
-    justCompleted.current = false;
-    if (submitOnFourth && value.length === 4 && !disabled) onSubmit?.();
-  });
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
@@ -399,9 +392,8 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
         disabled={disabled}
         onChange={(e) => {
           const next = e.target.value.replace(/\D/g, '').slice(0, 4);
-          const typedOne = (e.nativeEvent as InputEvent).inputType === 'insertText';
-          justCompleted.current = typedOne && value.length < 4 && next.length === 4;
           onChange(next);
+          if (next.length === 4 && value.length < 4) onComplete?.(next);
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && onSubmit) {

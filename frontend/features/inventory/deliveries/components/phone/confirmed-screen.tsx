@@ -10,6 +10,7 @@ import { formatQty } from '../../../requisitions/lib/qty';
 import { timeText } from '../../../requisitions/lib/time';
 import type { ConfirmDeliveryResult } from '../../_shared/types/deliveries-contract';
 import { recallConfirmed } from '../../lib/confirm-session';
+import { linesText } from '../../../_shared/lib/block2-words';
 import { DELIVERIES_HOME, deliveryFile } from '../../lib/delivery-routes';
 
 /** Delivery confirmed (Paper D12): the branch's part is done; a gap opens one DSC- for the Store Manager. */
@@ -27,7 +28,7 @@ export function ConfirmedScreen({ id }: { id: string }) {
 
   const gaps = result.discrepancies;
   const first = gaps[0];
-  const gapTitle = gaps.length === 1 && first ? `${first.itemName} is short by ${formatQty(Math.abs(Number(first.gapQty)))}` : `${gaps.length} lines differ`;
+  const gapTitle = gaps.length === 1 && first ? `${first.itemName} is short by ${formatQty(Math.abs(Number(first.gapQty)))}` : `${linesText(gaps.length)} ${gaps.length === 1 ? 'differs' : 'differ'}`;
   const rows = [
     { key: 'p', title: 'Packed and signed', line: timeText(result.signedAt), state: 'DONE' as const },
     ...(result.arrivedAt ? [{ key: 'a', title: 'Arrived', line: timeText(result.arrivedAt), state: 'DONE' as const }] : []),
@@ -40,7 +41,7 @@ export function ConfirmedScreen({ id }: { id: string }) {
       <B2Header title="Delivery confirmed" subtitle={`${result.reference}`} mono leading="menu" place={orgName} />
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto bg-wds-canvas p-5">
         <B2Banner tone="success" title={`Counted and signed at ${timeText(result.confirmedAt)}`}>
-          {result.matchedCount === result.lineCount ? `All ${result.lineCount} lines matched. What you counted is now in your stock.` : `${result.matchedCount} ${result.matchedCount === 1 ? 'line' : 'lines'} matched. What you counted is now in your stock.`}
+          {result.matchedCount === result.lineCount ? `${result.lineCount === 1 ? 'The line matched' : `All ${result.lineCount} lines matched`}. What you counted is now in your stock.` : `${linesText(result.matchedCount)} matched. What you counted is now in your stock.`}
         </B2Banner>
         {gaps.length > 0 ? (
           <B2Banner tone="warning" title={gapTitle} dot={false} footnote={<span className="flex flex-wrap items-center gap-x-2">Opened as {gaps.map((g) => <RefLink key={g.id} reference={g.reference} href={deliveryFile(id)} />)}</span>}>

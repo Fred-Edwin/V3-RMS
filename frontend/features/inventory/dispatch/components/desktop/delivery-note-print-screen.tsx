@@ -19,7 +19,9 @@ const stampDate = (iso: string): string => new Intl.DateTimeFormat('en-GB', { ti
 const signedStamp = (iso: string): string => `${stampDate(iso)}, ${clock(iso)}`;
 const printedStamp = (iso: string): string => `${stampDate(iso).toUpperCase()} ${clock(iso).toUpperCase()}`;
 const shortDay = (iso: string): string => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso)).toUpperCase();
-const who = (p: Person, at: string): string => `${p.name} · ${p.roleLabel} · ${clock(at)}`;
+/** A name without its bracketed note: "Peter Mwangi (Store Attendant)" is "Peter Mwangi". */
+const plainName = (name: string): string => name.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+const who = (p: Person, at: string): string => `${plainName(p.name)} · ${clock(at)}`;
 
 // ── Pagination by fixed row height (a line is never split; every page repeats the header and column headings) ───────────────
 //
@@ -34,8 +36,8 @@ const ROW = 39;
 const VOID_BAND = 26;
 const FIRST_HEAD = 224;
 const CONT_HEAD = 150;
-const CLOSING_STORE = 219;
-const CLOSING_BRANCH = 168;
+const CLOSING_STORE = 241;
+const CLOSING_BRANCH = 190;
 
 export interface NotePage {
   rows: number[];
@@ -90,7 +92,7 @@ function Band({ note }: { note: PrintDispatch }) {
 function PageShell({ note, copy, page, pages, children }: { note: PrintDispatch; copy: DeliveryNoteCopy; page: number; pages: number; children: React.ReactNode }) {
   // Paper D17c: every page after the first has a 20px gap between its blocks (the first page has 22px).
   return (
-    <article className="relative mx-auto mb-4 flex h-[1123px] w-[794px] max-w-full shrink-0 flex-col overflow-hidden break-after-page border border-[#E3E8EE] bg-white font-wds-sans text-[12px] leading-4 text-[#171512] print:mb-0 print:border-0">
+    <article className="print-exact relative mx-auto mb-4 flex h-[1123px] w-[794px] max-w-full shrink-0 flex-col overflow-hidden break-after-page border border-[#E3E8EE] bg-white font-wds-sans text-[12px] leading-4 text-[#171512] print:mb-0 print:border-0">
       <Band note={note} />
       <div aria-hidden className="h-[10px] shrink-0 bg-[#0B2A4A]" />
       <div className={`flex min-h-0 flex-1 flex-col px-12 pt-[30px] ${page === 1 ? 'gap-[22px]' : 'gap-5'}`}>{children}</div>
@@ -228,15 +230,17 @@ function Closing({ note, copy, first }: { note: PrintDispatch; copy: DeliveryNot
       <div className={`flex gap-10 ${first && copy === 'store' ? 'mt-[18px]' : 'mt-2.5'}`}>
         <div className="flex flex-1 flex-col gap-1.5">
           <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>PACKED AND SIGNED BY</span>
-          <span className={`overflow-hidden whitespace-nowrap font-wds-signature ${NAVY} ${signatureSize(signer.name)}`}>{signer.name}</span>
+          <span className={`overflow-hidden whitespace-nowrap font-wds-signature ${NAVY} ${signatureSize(plainName(signer.name))}`}>{plainName(signer.name)}</span>
           <div aria-hidden className={`h-px w-full ${RULE}`} />
+          <span className="text-[12px] leading-4 text-[#171512]">{plainName(signer.name)} · {signer.roleLabel}, Central Store</span>
           <span className={`text-[11px] leading-[14px] ${MUTED}`}>Signed with PIN · {signedStamp(note.signed.at)}</span>
         </div>
         <div className="flex flex-1 flex-col gap-1.5">
           <span className={`font-wds-mono text-[10px] leading-3 tracking-[0.08em] ${MUTED}`}>RECEIVED BY (BRANCH)</span>
           <div className="h-[42px] shrink-0" />
           <div aria-hidden className={`h-px w-full ${RULE}`} />
-          <span className={`text-[11px] leading-[14px] ${MUTED}`}>Name, signature and time</span>
+          <span className={`text-[12px] leading-4 ${MUTED}`}>Name · Role, {note.department.name}, {note.branch.name} branch</span>
+          <span className={`text-[11px] leading-[14px] ${MUTED}`}>Signature and time</span>
         </div>
       </div>
       {copy === 'store' ? (

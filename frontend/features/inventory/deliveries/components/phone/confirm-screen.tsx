@@ -10,7 +10,7 @@ import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2ErrorNote, B2Header, B2PrimaryButton, PinField, ReadField, SectionLabel } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
-import { block2ErrorMessage, couldNotLoad, differenceText, errorCodeOf, itemWord, OFFLINE_COUNT_MESSAGE } from '../../../_shared/lib/block2-words';
+import { block2ErrorMessage, couldNotLoad, differenceText, errorCodeOf, itemWord, OFFLINE_COUNT_MESSAGE, plainName } from '../../../_shared/lib/block2-words';
 import { formatQty } from '../../../requisitions/lib/qty';
 import { COUNT_REASON_TEXT } from '../../../dispatch/_shared/types/dispatch-contract';
 import { useConfirmPreview } from '../../hooks/use-deliveries';
@@ -23,6 +23,7 @@ export function ConfirmScreen({ id }: { id: string }) {
   const router = useRouter();
   const orgName = useAuthStore((s) => s.user?.organizationName ?? '');
   const isHead = useAuthStore((s) => s.isDepartmentHead);
+  const userName = useAuthStore((s) => s.user?.name ?? '');
   const preview = useConfirmPreview(id);
   const data = preview.data;
   const idem = useIdempotencyKey();
@@ -64,17 +65,18 @@ export function ConfirmScreen({ id }: { id: string }) {
   const heldNote = !firstShort
     ? 'What you counted goes into your stock.'
     : shorts.length === 1
-      ? `What you counted goes into your stock. The ${sum(Number(firstShort.gapQty))} ${itemWord(firstShort.itemName)} are held until the Store Manager finds out what happened.`
+      ? `What you counted goes into your stock. The ${sum(Number(firstShort.gapQty))} of ${itemWord(firstShort.itemName)} is held until the Store Manager finds out what happened.`
       : 'What you counted goes into your stock. The missing items are held until the Store Manager finds out what happened.';
   const canConfirm = data.canConfirm && pin.length === 4 && !submitting;
 
-  const confirm = async (): Promise<void> => {
-    if (!canConfirm) return;
+  // `pinValue` is the PIN just typed: the fourth digit signs before the state has caught up.
+  const confirm = async (pinValue: string = pin): Promise<void> => {
+    if (!(data.canConfirm && pinValue.length === 4 && !submitting)) return;
     setSubmitting(true);
     setError(null);
     setPinError(null);
     try {
-      const result = await deliveriesApi.confirm(id, { pin, idempotencyKey: idem.key() });
+      const result = await deliveriesApi.confirm(id, { pin: pinValue, idempotencyKey: idem.key() });
       rememberConfirmed(result);
       idem.renew();
       router.replace(deliveryDone(id));
@@ -108,7 +110,7 @@ export function ConfirmScreen({ id }: { id: string }) {
           </div>
           <div className="flex items-start justify-between gap-3 border-b border-wds-border px-3.5 py-3">
             <div className="flex min-w-0 flex-col gap-px">
-              <p className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{mismatch === 0 ? `All ${data.lineCount} lines match` : `${data.matchingLines.length} ${data.matchingLines.length === 1 ? 'line matches' : 'lines match'}`}</p>
+              <p className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{mismatch === 0 ? (data.lineCount === 1 ? 'The line matches' : `All ${data.lineCount} lines match`) : `${data.matchingLines.length} ${data.matchingLines.length === 1 ? 'line matches' : 'lines match'}`}</p>
               {mismatch > 0 && data.matchingLines.length > 0 ? <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{data.matchingLines.map((l) => l.itemName).join(', ')}</p> : null}
             </div>
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="mt-0.5 shrink-0">
@@ -127,8 +129,8 @@ export function ConfirmScreen({ id }: { id: string }) {
           ))}
         </section>
         <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{heldNote}</p>
-        <ReadField label="Signed by" value={`${data.department.name} Department ${isHead ? 'Head' : 'Member'}`} />
-        <PinField id="confirm-pin" inputRef={pinRef} value={pin} onChange={(v) => { setPin(v); setPinError(null); }} onSubmit={() => void confirm()} error={pinError} disabled={submitting} />
+        <ReadField label="Signed by" value={`${userName ? `${plainName(userName)} · ` : ''}${data.department.name} ${isHead ? 'head' : 'member'}`} />
+        <PinField id="confirm-pin" inputRef={pinRef} value={pin} onChange={(v) => { setPin(v); setPinError(null); }} onSubmit={() => void confirm()} onComplete={(v) => void confirm(v)} error={pinError} disabled={submitting} />
         {error ? <B2ErrorNote>{error}</B2ErrorNote> : null}
         {/* Paper D11: the main button sits at the foot of the content (no bordered footer bar). */}
         <div className="mt-auto">

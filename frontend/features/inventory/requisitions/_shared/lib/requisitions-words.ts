@@ -22,6 +22,8 @@ export const dayAndClock = (iso: string): string => `${dayLabel(iso)} · ${clock
 /** "58,020" (no decimals when whole). */
 export const kes = (value: string): string => {
   const n = Number(value);
+  // A zero value means "no price on this item yet", not "free": a dash says that without a number that reads as real money.
+  if (n === 0) return '—';
   return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : value;
 };
 
@@ -43,6 +45,12 @@ export interface Chip {
 }
 
 /** The chip beside the file's title. An addition waiting and a store that is packing change the Approved chip. */
+/** The sections still part of a requisition: one the manager sent without is out of every count and list (the owner's walk, 11 Oct). */
+export const sectionsInPlay = <T extends { status: string }>(sections: readonly T[]): T[] => {
+  const play = sections.filter((s) => s.status !== 'SKIPPED');
+  return play.length > 0 ? play : [...sections];
+};
+
 export function fileChip(file: Pick<RequisitionFile, 'status' | 'additions' | 'dispatches'>): Chip {
   const status: RequisitionStatus = file.status;
   if (status === 'OPEN') return { text: 'Collecting', tone: 'warning' };
@@ -50,7 +58,7 @@ export function fileChip(file: Pick<RequisitionFile, 'status' | 'additions' | 'd
   if (status === 'CANCELLED') return { text: 'Cancelled', tone: 'neutral' };
   if (status === 'CLOSED') return { text: 'Closed', tone: 'success' };
   if (file.additions.some((a) => a.status === 'PENDING')) return { text: 'Addition waiting', tone: 'warning' };
-  if (file.dispatches.length > 0) return { text: 'Packing and sending', tone: 'info' };
+  if (file.dispatches.length > 0) return { text: file.dispatches.every((d) => d.reference !== null) ? 'On the way' : 'Packing and sending', tone: 'info' };
   return { text: 'Approved · with the store', tone: 'success' };
 }
 
@@ -101,9 +109,12 @@ const plural = (n: number, one: string, many: string): string => `${n} ${n === 1
 export function nextStepWords(file: RequisitionFile): NextStepWords {
   const { action, departmentId, facts } = file.nextStep;
   const department = file.sections.find((s) => s.departmentId === departmentId)?.departmentName ?? 'This department';
+  // Every department that has not sent: the Next step names them all, and the Nudge button tells them all.
+  const missing = file.sections.filter((s) => s.status === 'NOT_STARTED' || s.status === 'DRAFT').map((s) => s.departmentName);
+  const missingNames = missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : (missing[0] ?? department);
   const label = (a: NextStepAction | null): string | null => {
     switch (a) {
-      case 'NUDGE': return `Nudge ${department}`;
+      case 'NUDGE': return missing.length > 3 ? `Nudge the ${missing.length} that have not sent` : `Nudge ${missingNames}`;
       case 'APPROVE_AND_SIGN': return 'Approve and sign';
       case 'APPROVE_ADDITION': return 'Approve addition';
       case 'ADD_TO_THIS_REQUISITION': return 'Add to this requisition';
@@ -137,9 +148,14 @@ export function nextStepWords(file: RequisitionFile): NextStepWords {
     return { title: 'With the Central Store now', body: 'The Store Manager packs each department. You will see each delivery here, and under To pack on the list.', action, actionLabel };
   }
   if (file.status === 'PENDING_APPROVAL') {
+    const skipped = file.sections.filter((s) => s.status === 'SKIPPED').length;
+    const inCount = facts.sectionsTotal - skipped;
     return {
-      title: 'Everything is in. Ready for your signature.',
-      body: `All ${facts.sectionsTotal} sections are in. One signature covers the whole requisition, and the heads are told when you sign.`,
+      title: skipped > 0 ? 'Ready for your signature.' : 'Everything is in. Ready for your signature.',
+      body:
+        skipped > 0
+          ? `${inCount === 1 ? '1 section is' : `${inCount} sections are`} in and the others ${skipped === 1 ? 'was' : 'were'} sent without. One signature covers the whole requisition, and the heads are told when you sign.`
+          : `All ${facts.sectionsTotal} sections are in. One signature covers the whole requisition, and the heads are told when you sign.`,
       action,
       actionLabel,
     };
@@ -147,8 +163,8 @@ export function nextStepWords(file: RequisitionFile): NextStepWords {
   // Collecting.
   if (departmentId) {
     return {
-      title: `${department} hasn't sent yet`,
-      body: `${facts.sectionsIn} of ${facts.sectionsTotal} sections are in, so the others don't have to wait. You can approve once ${department} is in, or send without it.`,
+      title: missing.length > 1 ? `${missingNames} haven't sent yet` : `${department} hasn't sent yet`,
+      body: `${facts.sectionsIn} of ${facts.sectionsTotal} sections are in, so the others don't have to wait. You can approve once ${missing.length > 1 ? `${missingNames} are in, or send without them` : `${department} is in, or send without it`}.`,
       action,
       actionLabel,
     };

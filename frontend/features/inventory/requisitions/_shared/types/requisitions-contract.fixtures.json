@@ -16,6 +16,7 @@
           { "departmentId": "d0000000-0000-4000-8000-000000000005", "departmentName": "Housekeeping", "status": "SKIPPED" }
         ],
         "lineCount": 40,
+        "changedLineCount": 3,
         "valueKes": "58020.00",
         "openedAt": "2026-10-07T10:42:00.000Z",
         "urgent": false,
@@ -52,6 +53,7 @@
           { "departmentId": "d0000000-0000-4000-8000-000000000015", "departmentName": "Housekeeping", "status": "NOT_STARTED" }
         ],
         "lineCount": 22,
+        "changedLineCount": 0,
         "valueKes": "31400.00",
         "openedAt": "2026-10-07T05:10:00.000Z",
         "urgent": true,
@@ -89,6 +91,7 @@
         "tab": "to-pack",
         "sections": [{ "departmentId": "d0000000-0000-4000-8000-000000000001", "departmentName": "Kitchen", "status": "SUBMITTED" }],
         "lineCount": 18,
+        "changedLineCount": 0,
         "openedAt": "2026-10-07T05:30:00.000Z",
         "urgent": false,
         "urgentOverHour": false,
@@ -398,7 +401,10 @@
       "EXTRA": null
     },
     "earlierToday": [
-      { "requisitionId": "a0000000-0000-4000-8000-000000000111", "reference": "REQ-NYR-0111", "cycleLabel": "Morning · Wed 7 Oct", "status": "APPROVED", "statusText": "Approved", "sectionStatus": "SUBMITTED", "lineCount": 18, "sentAt": "2026-10-07T05:50:00.000Z" }
+      { "requisitionId": "a0000000-0000-4000-8000-000000000111", "reference": "REQ-NYR-0111", "cycleLabel": "Morning · Wed 7 Oct", "status": "APPROVED", "statusText": "Approved", "sectionStatus": "SUBMITTED", "lineCount": 18, "sentAt": "2026-10-07T05:50:00.000Z", "openedAt": "2026-10-07T05:30:00.000Z" }
+    ],
+    "needsYou": [
+      { "requisitionId": "a0000000-0000-4000-8000-000000000111", "cycle": "MORNING", "changedCount": 2, "firstChange": { "itemName": "Beef patties", "unit": "pcs", "requestedQty": "20", "approvedQty": "14" } }
     ]
   },
   "homeNoneOpen": {
@@ -407,7 +413,8 @@
     "suggestedLineCount": 0,
     "open": null,
     "openByCycle": { "MORNING": null, "AFTERNOON": null, "EXTRA": null },
-    "earlierToday": []
+    "earlierToday": [],
+    "needsYou": []
   },
   "sectionEdit": {
     "requisitionId": "a0000000-0000-4000-8000-000000000112",

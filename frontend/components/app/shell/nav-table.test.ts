@@ -146,7 +146,7 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
       const groups = hub(navFor(ctxFor(role)));
       // The Branch Manager's Requisitions row is in the Branch group, so only the four hub roles get one here.
       const requisitions = role === 'MANAGER' ? [] : ['requisitions'];
-      // The Branch Manager's Audit log is in the Branch group too, so the Procurement one is left out for them.
+      // The Branch Manager's Audit log is the 'branch-audit-log' row in the Branch group (the same screen), so they get one link, not two.
       const auditLog = role === 'MANAGER' ? [] : ['audit-log'];
       expect(keys(groups), role).toEqual(['receiving', 'purchasing', 'prep', ...requisitions, 'stock-counts', 'suppliers', 'catalog', ...auditLog]);
       // The old-flow stock screens are not theirs until Stock & counts is rebuilt: only Restock levels branches off.

@@ -7,8 +7,14 @@ import type { DeliveryResult, DispatchDoneResult, DispatchStage } from '../../di
  * Titles, not names; a name shows only where a record states who did something ("Name · Title").
  */
 
-/** "bacon" from "Bacon, collar", "milk" from "Milk 1L": the first word, lower-cased, with no trailing comma or full stop, for "the 2 milk are held". */
-export const itemWord = (itemName: string): string => (itemName.trim().split(/\s+/)[0] ?? itemName).replace(/[,.;:]+$/, '').toLowerCase();
+/** A name without its bracketed note: "Peter Mwangi (Store Attendant)" is "Peter Mwangi". */
+export const plainName = (name: string): string => name.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+
+/** "1 line", "3 lines": the count with the right word, never "1 lines". */
+export const linesText = (n: number): string => `${n} ${n === 1 ? 'line' : 'lines'}`;
+
+/** The item's full name with no trailing comma or full stop: "Arrow roots", "Bacon, collar". Sentences read "the 2 of Milk 1L is held". */
+export const itemWord = (itemName: string): string => itemName.trim().replace(/[,.;:]+$/, '');
 
 /** What the count summary calls the lines that differ: "2 short", "1 extra", or "1 short · 1 extra" when both kinds are there. */
 export const differenceText = (directions: ReadonlyArray<'SHORT' | 'EXTRA'>): string => {

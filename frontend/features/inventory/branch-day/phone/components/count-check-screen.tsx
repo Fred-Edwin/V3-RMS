@@ -82,7 +82,7 @@ export function CountCheckScreen() {
             <SignFields signedBy={signedByText(data.department.name, isHead, userName)} sign={sign} />
           </main>
           <B2Footer>
-            <B2PrimaryButton disabled={!sign.ready} onClick={sign.submit}>
+            <B2PrimaryButton disabled={!sign.ready} onClick={() => sign.submit()}>
               {sign.saving ? 'Sending' : BRANCH_DAY_BUTTONS.sendToManager}
             </B2PrimaryButton>
           </B2Footer>

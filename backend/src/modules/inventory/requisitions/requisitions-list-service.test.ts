@@ -259,6 +259,12 @@ describe('R1 who sees what', () => {
     }
   });
 
+  it('a queue row counts the lines an approver changed ("N lines changed")', async () => {
+    const rows = await rowsFor(branchManager);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.changedLineCount).toBe(0); // the fixtures have no changed line
+  });
+
   it('a department member with no head rights and no read right is refused', async () => {
     await expect(requisitionsListService.list(member, query())).rejects.toMatchObject({ statusCode: 403 });
   });
@@ -302,18 +308,23 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
   ];
   beforeEach(() => mocks.list['listFacts']!.mockResolvedValue(live));
 
-  it('approvers wait on To approve: the Branch Manager and the Director', async () => {
-    expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(2);
-    expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(2);
+  it('approvers wait on To approve (w1, w2) and on a list that is partly sent (w5, w6): the Branch Manager and the Director', async () => {
+    expect((await requisitionsListService.list(branchManager, query())).waitingForYou).toBe(4);
+    expect((await requisitionsListService.list(director, query())).waitingForYou).toBe(4);
     // The Branch Manager also gets the branch's deliveries waiting (Block 2); the Director has no branch, so no such key.
-    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 2, toApprove: 2, deliveries: 3 });
-    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 2, toApprove: 2 });
+    expect(await requisitionsListService.badges(branchManager)).toEqual({ requisitions: 4, toApprove: 4, discrepancies: 0, deliveries: 3 });
+    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 4, toApprove: 4, discrepancies: 0 });
+  });
+
+  it('a collecting list with nothing sent yet does not raise the approver badge', async () => {
+    mocks.list['listFacts']!.mockResolvedValue([facts('c1', 'OPEN', KB('DRAFT', 'NOT_STARTED')), facts('c2', 'OPEN', KB('SKIPPED', 'DRAFT'))]);
+    expect(await requisitionsListService.badges(director)).toEqual({ requisitions: 0, toApprove: 0, discrepancies: 0 });
   });
 
   it('the store waits on To pack: the Store Manager and the Attendant', async () => {
     expect((await requisitionsListService.list(storeManager, query())).waitingForYou).toBe(1);
-    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, dispatch: 1 });
+    expect(await requisitionsListService.badges(storeManager)).toEqual({ requisitions: 1, toPack: 1, discrepancies: 0, dispatch: 1 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 1, toPack: 1, discrepancies: 0, dispatch: 1 });
   });
 
   it('the Attendant\'s Dispatch badge counts branches to pack, not requisitions', async () => {
@@ -323,7 +334,7 @@ describe('waitingForYou (the dark badge) and R2 badges', () => {
       facts('r-pack-2', 'APPROVED', KB('SUBMITTED', 'SUBMITTED')), // another branch
       facts('r-sent', 'APPROVED', KB('SUBMITTED', 'SUBMITTED'), [dsp(KITCHEN, 'ON_THE_WAY'), dsp(BARISTA, 'ON_THE_WAY')]), // nothing left to pack
     ]);
-    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, dispatch: 2 });
+    expect(await requisitionsListService.badges(attendant)).toEqual({ requisitions: 3, toPack: 3, discrepancies: 0, dispatch: 2 });
   });
 
   it('a head waits on their own unsent list while the requisition collects', async () => {
@@ -456,7 +467,21 @@ describe('R7 home and R9 history (a head)', () => {
     expect(home.open).toMatchObject({ requisitionId: 'req-a', status: 'OPEN', section: { status: 'DRAFT' }, can: { edit: true } });
     expect(home.openByCycle).toEqual({ MORNING: { requisitionId: 'req-m', status: 'APPROVED' }, AFTERNOON: { requisitionId: 'req-a', status: 'OPEN' }, EXTRA: null });
     expect(home.earlierToday.map((r) => r.requisitionId)).toEqual(['req-m']);
-    expect(home.earlierToday[0]).toMatchObject({ sectionStatus: 'SUBMITTED', lineCount: 2, sentAt: '2026-10-08T07:00:00.000Z' });
+    expect(home.earlierToday[0]).toMatchObject({ sectionStatus: 'SUBMITTED', lineCount: 2, sentAt: '2026-10-08T07:00:00.000Z', openedAt: '2026-10-08T06:00:00.000Z' });
+    expect(home.needsYou).toEqual([]);
+    expect(homeSchema.safeParse(withUuids(home)).error?.issues ?? []).toEqual([]);
+  });
+
+  it('every earlier requisition carries its start time and how many lines the Branch Manager changed (the "Needs you" strip)', async () => {
+    const changed = makeRequisition(
+      'APPROVED',
+      [makeSection('sec-k', KITCHEN, 'Kitchen', 'SUBMITTED', [makeLine('l1', 'i1', 'Milk', 30, { approvedQty: new Prisma.Decimal(20), editedById: 'mgr-1' }), makeLine('l2', 'i2', 'Eggs', 12)])],
+      { type: 'MORNING', id: 'req-m', reference: 'REQ-NYR-0100' },
+    );
+    mocks.list['listTodayForDepartment']!.mockResolvedValue([changed]);
+    const home = await requisitionsListService.home(kitchen, NOW);
+    expect(home.earlierToday[0]).toMatchObject({ requisitionId: 'req-m', openedAt: '2026-10-08T06:00:00.000Z' });
+    expect(home.needsYou).toEqual([{ requisitionId: 'req-m', cycle: 'MORNING', changedCount: 1, firstChange: expect.objectContaining({ requestedQty: '30', approvedQty: '20' }) }]);
     expect(homeSchema.safeParse(withUuids(home)).error?.issues ?? []).toEqual([]);
   });
 

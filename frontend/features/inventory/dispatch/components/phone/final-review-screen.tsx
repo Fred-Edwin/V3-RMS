@@ -11,7 +11,7 @@ import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2ErrorNote, B2Header, B2PrimaryButton, PinField, ReadField, SectionLabel, TextAction } from '../../../_shared/components/block2-phone-parts';
 import { LoadingAnnouncer } from '../../../_shared/components/scw-states';
-import { block2ErrorMessage, couldNotLoad, errorCodeOf } from '../../../_shared/lib/block2-words';
+import { block2ErrorMessage, couldNotLoad, errorCodeOf, linesText, plainName } from '../../../_shared/lib/block2-words';
 import type { ReviewDepartment } from '../../_shared/types/dispatch-contract';
 import { usePackReview } from '../../hooks/use-phone-dispatch';
 import { deliveryNotesText, reviewTotals, shortSummary, signLabel } from '../../lib/pack-logic';
@@ -51,6 +51,7 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
     if (!data || carrierId) return;
     const last = getLastCarrier();
     if (last && data.carriers.some((c) => c.id === last)) setCarrierId(last);
+    else if (data.carriers.length === 1) setCarrierId(data.carriers[0].id);
   }, [data, carrierId]);
 
   const change = (next: Set<string>): void => {
@@ -88,8 +89,9 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
   const noCarrier = carriers.length === 0;
   const canSign = totals.canSend && !noCarrier && carrierId !== '' && pin.length === 4 && !submitting;
 
-  const sign = async (): Promise<void> => {
-    if (!canSign) return;
+  // `pinValue` is the PIN just typed: the fourth digit signs before the state has caught up.
+  const sign = async (pinValue: string = pin): Promise<void> => {
+    if (!(totals.canSend && !noCarrier && carrierId !== '' && pinValue.length === 4 && !submitting)) return;
     setSubmitting(true);
     setError(null);
     setPinError(null);
@@ -97,7 +99,7 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
     try {
       // A department that is not fully ticked stays in To pack: the API wants it named with the ones left out on purpose.
       const staying = Array.from(validLeftOut).concat(data.departments.filter((d) => !d.allTicked).map((d) => d.departmentId));
-      const result = await dispatchPhoneApi.sign(requisitionId, { carrierId, pin, idempotencyKey: idem.key(), ...(staying.length > 0 ? { leaveOut: staying } : {}) });
+      const result = await dispatchPhoneApi.sign(requisitionId, { carrierId, pin: pinValue, idempotencyKey: idem.key(), ...(staying.length > 0 ? { leaveOut: staying } : {}) });
       setLastCarrier(carrierId);
       rememberSent(result);
       idem.renew();
@@ -117,6 +119,18 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
       setSubmitting(false);
     }
   };
+
+  // The data refetches under us once the store has signed; keep to one plain word until the sent screen takes over (F20).
+  if (submitting) {
+    return (
+      <PhoneColumn>
+        <B2Header title="Final review" subtitle={`${data.reference} · ${data.branch.name}`} mono leading="back" onBack={() => undefined} place="CENTRAL STORE" />
+        <div role="status" className="flex flex-1 items-center justify-center bg-wds-canvas px-5">
+          <p className="font-wds-sans text-[15px] leading-5 text-wds-text-secondary">Signing…</p>
+        </div>
+      </PhoneColumn>
+    );
+  }
 
   return (
     <PhoneColumn>
@@ -146,8 +160,8 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
         </section>
 
         <div className="flex gap-3">
-          <ReadField label="Packed by" value={data.packedBy.roleLabel} className="grow basis-0" />
-          <ReadField label="Signed by" value={data.signedBy.roleLabel} className="grow basis-0" />
+          <ReadField label="Packed by" value={`${plainName(data.packedBy.name)} · ${data.packedBy.roleLabel}`} className="grow basis-0" />
+          <ReadField label="Signed by" value={`${plainName(data.signedBy.name)} · ${data.signedBy.roleLabel}`} className="grow basis-0" />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -186,7 +200,7 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
           ) : null}
         </div>
 
-        <PinField id="dispatch-pin" inputRef={pinRef} value={pin} onChange={(v) => { setPin(v); setPinError(null); }} onSubmit={() => void sign()} error={pinError} disabled={submitting} />
+        <PinField id="dispatch-pin" inputRef={pinRef} value={pin} onChange={(v) => { setPin(v); setPinError(null); }} onSubmit={() => void sign()} onComplete={(v) => void sign(v)} error={pinError} disabled={submitting} />
 
         {error ? (
           <div className="flex flex-col gap-1">
@@ -220,7 +234,7 @@ function DepartmentRow({ department: d, left, onLeaveOut, onPutBack }: { departm
           <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-secondary">{d.departmentName}</span>
           <span className="font-wds-sans text-[12px] leading-4 text-wds-warning-fg">Not ready · stays in To pack</span>
         </div>
-        <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} lines</span>
+        <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{linesText(d.lineCount)}</span>
       </li>
     );
   }
@@ -232,7 +246,7 @@ function DepartmentRow({ department: d, left, onLeaveOut, onPutBack }: { departm
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Left out · ships later</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{d.lineCount} lines</span>
+          <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{linesText(d.lineCount)}</span>
           <TextAction onClick={onPutBack} aria-label={`Put ${d.departmentName} back`}>
             Put back
           </TextAction>
