@@ -40,7 +40,8 @@ Paper chapter 9, steps 28A to 28Q (30 and 31, Receive, unchanged). The old tabbe
 |---|---|---|
 | `` | 28A Home (the Attendant only; every desktop role keeps the six tabs) | `home-screen.tsx` |
 | `restock` | 28B Restock list (suggested amounts, stepper, sticky total) | `restock-list-screen.tsx` |
-| `restock/review` | 28C Review and send for approval | `review-screen.tsx` |
+| `new` | New order on the phone (Paper "Training fixes" T9 to T11, 12 Oct 2026): every item, Low-and-out and supplier filters, search, pager, "Set supplier" for an item with none; the Store Manager keeps the desktop New order (`NewOrderRoute` chooses) | `new-order-phone-screen.tsx`, `new-order-route.tsx` |
+| `restock/review` | 28C Review and send for approval (a supplier with an open order asks "Add another?" first; only a missing price blocks a group) | `review-screen.tsx` |
 | `my-orders` | 28F My orders | `my-orders-screen.tsx` |
 | `history` | 28G History and 28G2 date sheet | `history-screen.tsx` |
 | `search` | 28E Search | `search-screen.tsx` |

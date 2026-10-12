@@ -70,13 +70,13 @@ function flatten(groups: NeedsGroup[]): Entry[] {
 const byUrgency = (a: Entry, b: Entry): number => (a.line.status === b.line.status ? a.line.itemName.localeCompare(b.line.itemName) : a.line.status === 'OUT' ? -1 : 1);
 
 /** "Set a supplier" (training fix 9): pick one of the suppliers already on file; the item gets it with no price, and its history names who did it. */
-function SetSupplierSheet({ entry, suppliers, saving, failure, onPick, onClose }: { entry: Entry | null; suppliers: Array<{ id: string; name: string; code: string }>; saving: boolean; failure: string | null; onPick: (supplierId: string) => void; onClose: () => void }) {
+export function SetSupplierSheet({ itemName, suppliers, saving, failure, onPick, onClose }: { itemName: string | null; suppliers: Array<{ id: string; name: string; code: string }>; saving: boolean; failure: string | null; onPick: (supplierId: string) => void; onClose: () => void }) {
   const [text, setText] = React.useState('');
   const shown = suppliers.filter((s) => !text.trim() || s.name.toLowerCase().includes(text.trim().toLowerCase()));
   return (
-    <BottomSheet open={entry !== null} onOpenChange={(o) => (!o ? onClose() : undefined)} label="Set a supplier" className="flex max-h-[80dvh] flex-col gap-3 border-t border-wds-border-strong bg-wds-surface px-5 pb-7 pt-3">
+    <BottomSheet open={itemName !== null} onOpenChange={(o) => (!o ? onClose() : undefined)} label="Set a supplier" className="flex max-h-[80dvh] flex-col gap-3 border-t border-wds-border-strong bg-wds-surface px-5 pb-7 pt-3">
       <SheetGrabber />
-      <Label small>{`SUPPLIER FOR ${(entry?.line.itemName ?? '').toUpperCase()}`}</Label>
+      <Label small>{`SUPPLIER FOR ${(itemName ?? '').toUpperCase()}`}</Label>
       <input type="search" autoComplete="off" aria-label="Search suppliers" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search a supplier" className="h-11 w-full border border-wds-border-strong bg-white px-3 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink outline-none placeholder:text-wds-text-faint focus-visible:border-[var(--wds-primary-btn-start)] focus-visible:shadow-wds-ring" />
       {failure ? <WriteError>{failure}</WriteError> : null}
       <ul className="min-h-0 overflow-y-auto border border-wds-border">
@@ -351,7 +351,7 @@ export function RestockListScreen() {
           ) : null}
         </>
       )}
-      <SetSupplierSheet entry={picking} suppliers={data?.suppliers ?? []} saving={link.saving} failure={link.failure?.message ?? null} onPick={(id) => void onPickSupplier(id)} onClose={() => { setPicking(null); link.clear(); }} />
+      <SetSupplierSheet itemName={picking?.line.itemName ?? null} suppliers={data?.suppliers ?? []} saving={link.saving} failure={link.failure?.message ?? null} onPick={(id) => void onPickSupplier(id)} onClose={() => { setPicking(null); link.clear(); }} />
     </PhoneScreen>
   );
 }

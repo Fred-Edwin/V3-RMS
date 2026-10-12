@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 
-import { NewOrderScreen } from '@/features/inventory/purchasing/components/screens/new-order-screen';
+import { NewOrderRoute } from '@/features/inventory/purchasing/components/phone/new-order-route';
 
 export default function NewOrderPage() {
   return (
     <Suspense>
-      <NewOrderScreen />
+      <NewOrderRoute />
     </Suspense>
   );
 }

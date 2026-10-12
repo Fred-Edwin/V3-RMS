@@ -26,7 +26,7 @@ export const HistoryQuerySchema = z.object({
 export const SearchQuerySchema = z.object({ q: z.string().trim().min(1, 'Type something to search for.').max(60) });
 
 export const RestockLevelsQuerySchema = z.object({
-  status: z.enum(['OUT', 'LOW', 'OK']).optional(),
+  status: z.enum(['OUT', 'LOW', 'OK', 'NEEDS']).optional(),
   supplierId: z.string().uuid().optional(),
   q: q.optional(),
   page,

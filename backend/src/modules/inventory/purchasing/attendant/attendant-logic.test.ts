@@ -136,6 +136,9 @@ describe('Restock levels (Paper 28P)', () => {
 
   it('filters by status, by supplier and by a typed search of the item or the supplier', () => {
     expect(filterLevelRows(rows, { status: 'OUT' })).toHaveLength(2);
+    // "Low and out" together (New order on the phone) is every row that is not fine.
+    expect(filterLevelRows(rows, { status: 'NEEDS' }).every((r) => r.status !== 'OK')).toBe(true);
+    expect(filterLevelRows(rows, { status: 'NEEDS' }).length).toBe(filterLevelRows(rows, { status: 'OUT' }).length + filterLevelRows(rows, { status: 'LOW' }).length);
     expect(filterLevelRows(rows, { supplierId: 'kag' }).map((r) => r.name)).toEqual(['Chicken wings']);
     expect(filterLevelRows(rows, { q: 'SALT' }).map((r) => r.name).sort()).toEqual(['Iodised Salt 1kg', 'Salt Cooking Oil 10ltr']);
     expect(filterLevelRows(rows, { q: 'kagumo' }).map((r) => r.name)).toEqual(['Chicken wings']);
