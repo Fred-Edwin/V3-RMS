@@ -97,9 +97,8 @@ export function useShellNav(): ShellNav {
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
   // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
   // The Branch Manager's own branch asks too (a delivery waiting joins the Queue count; open shortages badge Discrepancies); the server decides what they may see.
-  // A department head asks too, for the Deliveries badge (deliveries waiting for their department). A member does not: the server
-  // answers this call for a head only (403 otherwise), so a member has no Deliveries badge until the backend opens it to them.
-  const requisitionBadges = useRequisitionBadges((hasHubRows(role) && can('requisitions.read')) || role === 'MANAGER' || isDepartmentHead);
+  // A department head or member asks too, for the Deliveries badge (deliveries waiting for their department).
+  const requisitionBadges = useRequisitionBadges((hasHubRows(role) && can('requisitions.read')) || role === 'MANAGER' || isDepartmentHead || isDepartmentMember);
   const requisitionCount = (requisitionBadges?.requisitions ?? 0) + (role === 'MANAGER' ? requisitionBadges?.deliveries ?? 0 : 0);
   const discrepancyCount = requisitionBadges?.discrepancies ?? 0;
   // The Store Attendant's Purchasing counts (Receiving, Restock list, My orders): only someone who raises but cannot approve orders.
