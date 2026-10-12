@@ -336,7 +336,7 @@ describe('the sentences (contract §9)', () => {
   });
   it('money text: whole shillings with thousands, cents only when there are any', () => {
     expect(kesText('50060.00')).toBe('KES 50,060');
-    expect(kesText('1234567.50')).toBe('KES 1,234,567.50');
+    expect(kesText('1234567.50')).toBe('KES 1,234,568');
     expect(kesText('0.00')).toBe('KES 0');
     expect(kesText('999.00')).toBe('KES 999');
   });

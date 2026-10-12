@@ -371,8 +371,8 @@ export const branchDayService = {
     const c = await departmentCaller(actor, query.departmentId, true);
     const day = await ensureToday(c.branchId, now);
     const dept = deptRow(day, c.departmentId);
-    const [figures, lastCloseAt] = await Promise.all([departmentFigures(day, dept, { withYesterday: false }), repo.previousClosedAt(c.branchId, day.businessDate)]);
-    return openingViewOf(day, dept, figures, lastCloseAt);
+    const [figures, lastCloseAt, parentNames] = await Promise.all([departmentFigures(day, dept, { withYesterday: false }), repo.previousClosedAt(c.branchId, day.businessDate), parentNamesOf(dept)]);
+    return openingViewOf(day, dept, figures, lastCloseAt, parentNames);
   },
 
   /** BD3 POST /opening/accept: one tap, no PIN, no ledger row. */
@@ -384,8 +384,8 @@ export const branchDayService = {
     const existing = openingOf(day, dept);
     const view = async (fresh: DayRecord): Promise<OpeningView> => {
       const row = deptRow(fresh, c.departmentId);
-      const [figures, lastCloseAt] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate)]);
-      return openingViewOf(fresh, row, figures, lastCloseAt);
+      const [figures, lastCloseAt, parentNames] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate), parentNamesOf(row)]);
+      return openingViewOf(fresh, row, figures, lastCloseAt, parentNames);
     };
     if (existing) {
       if (existing.idempotencyKey === input.idempotencyKey) return { view: await view(day), replayed: true };
@@ -451,8 +451,8 @@ export const branchDayService = {
     const dept = deptRow(day, c.departmentId);
     const view = async (fresh: DayRecord): Promise<OpeningView> => {
       const row = deptRow(fresh, c.departmentId);
-      const [figures, lastCloseAt] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate)]);
-      return openingViewOf(fresh, row, figures, lastCloseAt);
+      const [figures, lastCloseAt, parentNames] = await Promise.all([departmentFigures(fresh, row, { withYesterday: false }), repo.previousClosedAt(c.branchId, fresh.businessDate), parentNamesOf(row)]);
+      return openingViewOf(fresh, row, figures, lastCloseAt, parentNames);
     };
     const existing = openingOf(day, dept);
     if (existing) {
@@ -628,7 +628,17 @@ export const branchDayService = {
     const branches = await repo.activeBranches();
     let branchId: string;
     if (reader.anyBranch) {
-      const wanted = query.branchId ?? branches[0]?.id;
+      // No branch chosen: start on the first branch that has a day today, so the first screen is not an empty one.
+      let wanted = query.branchId ?? branches[0]?.id;
+      if (!query.branchId) {
+        const today = dayAsDate(nairobiDay(now));
+        for (const b of branches) {
+          if (await repo.findDayByDate(b.id, today)) {
+            wanted = b.id;
+            break;
+          }
+        }
+      }
       if (!wanted || !branches.some((b) => b.id === wanted)) throw new NotFoundError('Branch not found');
       branchId = wanted;
     } else {

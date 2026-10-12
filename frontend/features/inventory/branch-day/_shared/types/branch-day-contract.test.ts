@@ -106,7 +106,7 @@ describe('branch day contract mirror', () => {
     const result = fixtures.openingResult as OpeningResult;
     expect(result.view.check.state).toBe('RECOUNTED');
     expect(result.view.check.differences[0]!.difference).toBe('-1');
-    expect(keysOf(result.view.lines[0]!)).toEqual(['acceptedQty', 'itemId', 'itemName', 'lastNightQty', 'unit']);
+    expect(keysOf(result.view.lines[0]!)).toEqual(['acceptedQty', 'categoryPath', 'itemId', 'itemName', 'lastNightQty', 'unit']);
   });
 
   it('a head or member never receives money, and the blind count carries nothing to count against', () => {
