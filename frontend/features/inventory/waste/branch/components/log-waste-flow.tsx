@@ -107,10 +107,6 @@ export function LogWasteFlow() {
         <BranchHeader leading="back" onBack={() => setStep('pick')} title="Check and log" subtitle={`${count} ${count === 1 ? 'item' : 'items'} · nothing has moved yet`} />
         <div ref={regionRef} tabIndex={-1} aria-label="Check and log" role="region" className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-4 pb-4 pt-4 outline-none">
           {cart.error ? <PhoneErrorNote>{cart.error}</PhoneErrorNote> : null}
-          <p className="flex gap-2.5 border border-wds-warning-border bg-wds-warning-bg px-3.5 py-3 font-wds-sans text-[12px] leading-[17px] text-wds-neutral-700">
-            <span className="mt-[5px] size-1.5 shrink-0 rounded-[3px] bg-wds-warning-fg" aria-hidden />
-            {BRANCH_WASTE_MESSAGES.beforeConfirm}
-          </p>
           <ul className="border border-wds-border bg-wds-surface">
             {cart.lines.map((l) => (
               <li key={l.item.itemId} className="flex h-[60px] items-center gap-3 border-b border-wds-neutral-100 px-3.5 last:border-b-0">
@@ -164,11 +160,9 @@ export function LogWasteFlow() {
         ) : items.status === 'error' && !shown ? (
           <ScwStatePanel kind="error" phone text={BRANCH_WASTE_STATES_COPY.pick.error} onRetry={() => void items.reload()} />
         ) : q === '' ? (
-          <div className="flex flex-col gap-2">
-            <SectionLabel>You often log</SectionLabel>
-            {often.length === 0 ? (
-              <p className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{BRANCH_WASTE_STATES_COPY.pick.empty}</p>
-            ) : (
+          often.length === 0 ? null : (
+            <div className="flex flex-col gap-2">
+              <SectionLabel>You often log</SectionLabel>
               <div className="flex flex-wrap gap-2">
                 {often.map((i) => (
                   <button key={i.itemId} type="button" onClick={() => open(i)} className={cn(hitArea(40), 'border border-wds-border-strong bg-wds-surface px-3.5 py-2.5 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink outline-none transition-[background-color,transform] focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98] [@media(hover:hover)]:hover:bg-wds-neutral-50')}>
@@ -176,8 +170,8 @@ export function LogWasteFlow() {
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )
         ) : results.length === 0 ? (
           <p role="status" className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">No item matches. Check the spelling.</p>
         ) : (

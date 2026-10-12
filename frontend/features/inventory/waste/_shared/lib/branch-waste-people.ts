@@ -2,7 +2,7 @@
 
 /** "Grace Wanjiru" → "Grace W." (a first name and a last initial, as Paper draws other people). */
 export function shortPerson(name: string): string {
-  const [first = '', ...rest] = name.trim().split(/\s+/).filter(Boolean);
+  const [first = '', ...rest] = name.replace(/\s*\(.*$/, '').trim().split(/\s+/).filter(Boolean);
   const last = rest[rest.length - 1];
   return last ? `${first} ${last.charAt(0).toUpperCase()}.` : first;
 }
