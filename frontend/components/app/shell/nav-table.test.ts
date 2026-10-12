@@ -365,11 +365,12 @@ describe('where the shell applies', () => {
     expect(keys(head)).toContain('department-deliveries');
   });
 
-  it('leaves floor staff who belong to no department on the bottom tabs, with the sidebar only in the desktop preview', () => {
-    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) expect(usesAppShell(role), role).toBe(false);
-    expect(usesDesktopShell('WAITER', false)).toBe(false);
-    expect(usesDesktopShell('WAITER', true)).toBe(true);
-    expect(usesDesktopShell('STEWARD', true)).toBe(false);
+  it('puts floor staff in the one shell whether or not they belong to a department', () => {
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
+      expect(usesAppShell(role), role).toBe(true);
+      expect(usesDesktopShell(role, false), role).toBe(true);
+    }
+    expect(usesAppShell('KITCHEN_DISPLAY')).toBe(false);
     expect(usesDesktopShell('KITCHEN_DISPLAY', true)).toBe(false);
   });
 });
