@@ -29,6 +29,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         <Search className="h-3 w-3 shrink-0 text-wds-text-faint" strokeWidth={1.5} aria-hidden />
         <input
           type="text"
+          autoComplete="off"
           ref={ref}
           placeholder={placeholder}
           className="min-w-0 grow bg-transparent font-wds-sans text-wds-body-sm text-wds-text-ink outline-none placeholder:text-wds-text-faint"

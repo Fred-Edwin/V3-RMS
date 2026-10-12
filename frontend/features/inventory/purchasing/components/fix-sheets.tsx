@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { Input } from '@/components/ui2/input';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
@@ -150,13 +151,7 @@ function VoidInvoiceDrawer({ order, open, onOpenChange }: { order: Order; open: 
       )}
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="void-reason">Reason (required)</FieldLabel>
-        <select id="void-reason" value={reason} onChange={(e) => setReason(e.target.value as VoidReason)} className={select}>
-          {VOID_REASONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <Picker id="void-reason" aria-label="Reason" value={reason} onValueChange={(v) => setReason(v as VoidReason)} options={VOID_REASONS.map((r) => ({ value: r.value, label: r.label }))} chips={false} className={select} />
       </div>
       <div className="flex flex-col gap-1.5">
         <FieldLabel>What happens next</FieldLabel>
@@ -259,13 +254,7 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
       />
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="rev-reason">Reason (required)</FieldLabel>
-        <select id="rev-reason" value={reason} onChange={(e) => setReason(e.target.value as ReverseReason)} className={select}>
-          {REVERSE_REASONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <Picker id="rev-reason" aria-label="Reason" value={reason} onValueChange={(v) => setReason(v as ReverseReason)} options={REVERSE_REASONS.map((r) => ({ value: r.value, label: r.label }))} chips={false} className={select} />
         <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" aria-label="Note" className="min-h-14" />
       </div>
       <div className="flex flex-col gap-1.5">

@@ -74,6 +74,7 @@ export function ConfirmDialog({
               </label>
               <input
                 autoFocus
+                autoComplete="off"
                 value={typedValue}
                 onChange={(e) => setTypedValue(e.target.value)}
                 className="flex h-8 w-full items-center rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-sans text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"

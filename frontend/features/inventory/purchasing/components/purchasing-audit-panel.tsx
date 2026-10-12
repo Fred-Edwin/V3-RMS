@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Input } from '@/components/ui2/input';
+import { Picker } from '@/components/ui2/picker';
 import { SkeletonRows, StockEmptyCard, StockErrorCard, TableRowSkeleton } from '../../_shared/components/stock-states';
 import { useLoader } from '../../_shared/hooks/use-async';
 import { usePurchasing } from '../hooks/use-purchasing';
@@ -85,33 +86,15 @@ export function PurchasingAuditPanel({ initialQuery = '' }: { initialQuery?: str
         </label>
         <label className={FIELD}>
           <span className={LABEL}>Person</span>
-          <select value={person} onChange={(e) => setPerson(e.target.value)} className={SELECT} aria-label="Person">
-            <option value="">Anyone</option>
-            {people.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <Picker value={person} onValueChange={setPerson} className={SELECT} aria-label="Person" chips={false} options={[{ value: '', label: 'Anyone' }, ...people.map(([id, name]) => ({ value: id, label: name }))]} />
         </label>
         <label className={FIELD}>
           <span className={LABEL}>Area</span>
-          <select value={area} onChange={(e) => setArea(e.target.value)} className={SELECT} aria-label="Area">
-            <option value="">All areas</option>
-            <option value="Purchasing">Purchasing</option>
-            <option value="Payments">Payments</option>
-          </select>
+          <Picker value={area} onValueChange={setArea} className={SELECT} aria-label="Area" chips={false} options={[{ value: '', label: 'All areas' }, { value: 'Purchasing', label: 'Purchasing' }, { value: 'Payments', label: 'Payments' }]} />
         </label>
         <label className={FIELD}>
           <span className={LABEL}>Action</span>
-          <select value={action} onChange={(e) => setAction(e.target.value)} className={SELECT} aria-label="Action">
-            <option value="">All actions</option>
-            {actions.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
+          <Picker value={action} onValueChange={setAction} className={SELECT} aria-label="Action" chips={false} options={[{ value: '', label: 'All actions' }, ...actions.map((a) => ({ value: a, label: a }))]} />
         </label>
         <label className={FIELD}>
           <span className={LABEL}>From</span>

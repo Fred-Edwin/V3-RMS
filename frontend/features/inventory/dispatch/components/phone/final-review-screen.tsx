@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
+import { Picker } from '@/components/ui2/picker';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
@@ -168,31 +169,20 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
           <label htmlFor="dispatch-carrier" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
             Carried by
           </label>
-          <div className="relative">
-            <select
-              id="dispatch-carrier"
-              value={carrierId}
-              onChange={(e) => {
-                setCarrierId(e.target.value);
-                setError(null);
-              }}
-              disabled={noCarrier || submitting}
-              aria-describedby={noCarrier ? 'dispatch-carrier-note' : undefined}
-              className={cn('h-[46px] w-full appearance-none border border-wds-border-strong bg-white pl-3 pr-9 font-wds-sans text-[15px] leading-5 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:bg-wds-neutral-50', carrierId ? 'text-wds-text-ink' : 'text-wds-text-secondary')}
-            >
-              <option value="" disabled>
-                Choose who carries it
-              </option>
-              {carriers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-              <path d="M3 6L8 11L13 6" fill="none" stroke="var(--wds-neutral-500)" strokeWidth="1.5" />
-            </svg>
-          </div>
+          <Picker
+            id="dispatch-carrier"
+            aria-label="Carried by"
+            value={carrierId}
+            onValueChange={(v) => {
+              setCarrierId(v);
+              setError(null);
+            }}
+            disabled={noCarrier || submitting}
+            options={carriers.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Choose who carries it"
+            chips={false}
+            className="h-[46px] text-[15px]"
+          />
           {noCarrier ? (
             <p id="dispatch-carrier-note" role="status" className="border border-wds-warning-border bg-wds-warning-bg px-3 py-2 font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">
               No carrier is set up. Ask the Store Manager to add one in Settings.

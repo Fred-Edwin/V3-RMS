@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { Picker } from '@/components/ui2/picker';
 import { cn } from '@/lib/cn';
 import type { DepartmentTag, RestockBranchOption, RestockScope } from '../../types';
 import { DEPARTMENT_ORDER } from '../../catalog/lib/item-labels';
@@ -54,22 +55,12 @@ export function WhoseLevelsSwitch({ scope, onScopeChange, branches, branchId, on
         );
       })}
       {isDepartment && branchId ? (
-        <label className="ml-1 flex items-center gap-2">
+        <div className="ml-1 flex items-center gap-2">
           <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-ink">AT</span>
-          <select
-            value={branchId}
-            disabled={disabled}
-            onChange={(e) => onBranchChange(e.target.value)}
-            aria-label="Branch"
-            className="h-[30px] rounded-wds-sm border border-wds-border-strong bg-wds-surface px-2.5 font-wds-sans text-[13px] leading-4 text-wds-text-ink transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-wds-ring disabled:opacity-60"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="w-[170px]">
+            <Picker aria-label="Branch" value={branchId} disabled={disabled} onValueChange={onBranchChange} options={branches.map((b) => ({ value: b.id, label: b.name }))} chips={false} className="h-[30px] rounded-wds-sm text-[13px]" />
+          </div>
+        </div>
       ) : null}
       <span className="ml-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
         {isDepartment

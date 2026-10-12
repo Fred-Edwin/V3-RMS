@@ -7,6 +7,7 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Checkbox } from '@/components/ui2/checkbox';
+import { Picker } from '@/components/ui2/picker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
 import { SearchInput } from '@/components/ui2/search-input';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -461,25 +462,23 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search item or supplier" aria-label="Search item or supplier" shortcutHint="" className="w-[260px]" />
         {view === 'item' ? (
           <>
-            <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-              <span className="text-wds-text-secondary">Supplier:</span>
-              <select value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="bg-transparent outline-none" aria-label="Filter by supplier">
-                <option value="">All</option>
-                {data.suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-              <span className="text-wds-text-secondary">Sort:</span>
-              <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="bg-transparent outline-none" aria-label="Sort by">
-                <option value="urgent">Most urgent first</option>
-                <option value="name">Name</option>
-                <option value="value">Highest value</option>
-              </select>
-            </label>
+            <div className="w-[230px]">
+              <Picker aria-label="Filter by supplier" value={supplierFilter} onValueChange={setSupplierFilter} chips={false} className="h-8 text-wds-body-sm" options={[{ value: '', label: 'Supplier: All' }, ...data.suppliers.map((s) => ({ value: s.id, label: `Supplier: ${s.name}` }))]} />
+            </div>
+            <div className="w-[200px]">
+              <Picker
+                aria-label="Sort by"
+                value={sort}
+                onValueChange={(v) => setSort(v as typeof sort)}
+                chips={false}
+                className="h-8 text-wds-body-sm"
+                options={[
+                  { value: 'urgent', label: 'Sort: Most urgent first' },
+                  { value: 'name', label: 'Sort: Name' },
+                  { value: 'value', label: 'Sort: Highest value' },
+                ]}
+              />
+            </div>
           </>
         ) : null}
         <SegmentedToggle

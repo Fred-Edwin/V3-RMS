@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -146,25 +147,20 @@ export function ApproveOrderSheet({ orderId, onClose, onDone }: { orderId: strin
       </div>
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="collector">Who will collect it?</FieldLabel>
-        <select
+        <Picker
           id="collector"
+          aria-label="Who will collect it"
           value={collector}
-          onChange={(e) => setCollector(e.target.value)}
-          className="h-9 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-2.5 font-wds-sans text-wds-body-sm text-wds-neutral-950 outline-none focus-visible:shadow-wds-ring"
-        >
-          <option value="">Decide when it is sent</option>
-          <option value="supplier">The supplier delivers</option>
-          {collectors?.carriers.map((c) => (
-            <option key={c.id} value={`c:${c.id}`}>
-              {c.name}
-            </option>
-          ))}
-          {collectors?.staff.map((s) => (
-            <option key={s.id} value={`s:${s.id}`}>
-              {withRole(s)}
-            </option>
-          ))}
-        </select>
+          onValueChange={setCollector}
+          chips={false}
+          className="h-9 rounded-wds-sm text-wds-body-sm"
+          options={[
+            { value: '', label: 'Decide when it is sent' },
+            { value: 'supplier', label: 'The supplier delivers' },
+            ...(collectors?.carriers.map((c) => ({ value: `c:${c.id}`, label: c.name })) ?? []),
+            ...(collectors?.staff.map((s) => ({ value: `s:${s.id}`, label: withRole(s) })) ?? []),
+          ]}
+        />
         <span className="font-wds-sans text-wds-caption text-wds-text-secondary">Optional. The Attendant can still change it before marking the order as sent.</span>
       </div>
       {isAdmin ? <p className="font-wds-sans text-wds-caption text-wds-text-secondary">You are signed in as System Admin. Approve with your own PIN.</p> : null}
