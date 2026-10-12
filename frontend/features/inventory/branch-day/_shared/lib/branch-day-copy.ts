@@ -142,7 +142,8 @@ export const blockerCopy = (blocker: Blocker, clock: (iso: string) => string, de
   switch (blocker.kind) {
     case 'DELIVERIES_CONFIRMED': {
       const open = blocker.discrepancies.length;
-      const base = `${numberWord(departmentCount)} departments counted what arrived.`;
+      // The server does not say whether anything was sent, so the line claims nothing about what arrived.
+      const base = 'Nothing is waiting to be counted.';
       return {
         title: 'Every delivery is confirmed',
         line: open === 0 ? base : `${base} ${numberWord(open)} ${open === 1 ? 'discrepancy is' : 'discrepancies are'} open, which does not block the close:`,
@@ -169,6 +170,12 @@ export const blockerCopy = (blocker: Blocker, clock: (iso: string) => string, de
       return { title: `Opening not checked: ${department}`, line: `The ${department} day ran on last night's closing figure. This does not block the close.` };
   }
 };
+
+/** One line for every department whose opening was not checked (Today lists them together, not one row each). */
+export const openingsNotCheckedCopy = (names: readonly string[]): { title: string; line: string } => ({
+  title: names.length === 1 ? `Opening not checked: ${names[0] ?? ''}` : `Openings not checked: ${names.length} departments`,
+  line: `${names.join(', ')} ran on last night's closing figure. This does not block the close.`,
+});
 
 /**
  * The States kit lines per screen, same voice as the other Inventory tables. B18 says "no per-screen states drawn; the States kit is in

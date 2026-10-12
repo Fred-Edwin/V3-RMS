@@ -62,15 +62,19 @@ export function FileTabs<T extends string>({ tabs, active, onChange, panelId, la
  * The strip under a closed day's title (Paper B11): three done items on one line (a 16 green tick and 13/18 text) and an info chip at the
  * right. The last item is weight 500. The chip's words change once the correction window has passed (gap G13).
  */
-export function DayTracker({ items, chip }: { items: readonly string[]; chip: string | null }) {
+export function DayTracker({ items, chip }: { items: readonly (string | { text: string; partial: true })[]; chip: string | null }) {
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border border-wds-border-strong bg-wds-surface px-4 py-3">
-      {items.map((text, i) => (
-        <span key={text} className="flex items-center gap-2">
-          <CheckDisc size={16} strokeWidth={2.4} />
-          <span className={cn('font-wds-sans text-[13px] leading-[18px] text-wds-text-ink', i === items.length - 1 && 'font-medium')}>{text}</span>
-        </span>
-      ))}
+      {items.map((item, i) => {
+        const text = typeof item === 'string' ? item : item.text;
+        return (
+          <span key={text} className="flex items-center gap-2">
+            {/* A step only partly done (3 of 5) gets an amber ring, not a green tick. */}
+            {typeof item === 'string' ? <CheckDisc size={16} strokeWidth={2.4} /> : <span aria-hidden="true" className="size-4 shrink-0 rounded-full border-[1.5px] border-wds-warning-fg" />}
+            <span className={cn('font-wds-sans text-[13px] leading-[18px] text-wds-text-ink', i === items.length - 1 && 'font-medium')}>{text}</span>
+          </span>
+        );
+      })}
       {chip ? <span className="ml-auto border border-wds-info-border bg-wds-info-bg px-2 py-[3px] font-wds-sans text-[12px] leading-4 text-wds-info-fg">{chip}</span> : null}
     </div>
   );

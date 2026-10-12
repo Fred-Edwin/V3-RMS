@@ -147,7 +147,9 @@ function TodayView({ everyBranch, seesMoney, canConfirmOnBehalf }: { everyBranch
   const dateLabel = day ? longDay(day.head.date) : '';
   const countedOnDay = day?.departments.length ?? 0;
   const firstBlocking = day ? day.blockers.findIndex((b) => b.severity === 'BLOCKS') : -1;
-  const heading = day ? blockersHeading(day.canClose, day.summary.todo, day.summary.toKnow) : null;
+  // The openings not checked are listed as one row, so they count as one thing to know about.
+  const openingRows = day ? day.blockers.filter((b) => b.kind === 'OPENING_NOT_CHECKED').length : 0;
+  const heading = day ? blockersHeading(day.canClose, day.summary.todo, day.summary.toKnow - Math.max(0, openingRows - 1)) : null;
 
   const onClosed = (result: CloseDayResult): void => {
     setCloseOpen(false);

@@ -62,7 +62,11 @@ export function CloseDayDrawer({ dayId, branchName, dateLabel, reference, refere
 
   const data = summary.data;
   React.useEffect(() => {
-    if (open && data) pinRef.current?.focus();
+    if (!open || !data) return;
+    pinRef.current?.focus();
+    // The drawer's focus trap moves focus to the close icon as it opens; take it back once that has happened.
+    const t = window.setTimeout(() => pinRef.current?.focus(), 200);
+    return () => window.clearTimeout(t);
   }, [open, data]);
 
   const close = useAction((code: string) => branchDayDeskApi.close(dayId, { pin: code, idempotencyKey: idem.key() }), BRANCH_DAY_ERROR_COPY.DAY_NOT_READY);
