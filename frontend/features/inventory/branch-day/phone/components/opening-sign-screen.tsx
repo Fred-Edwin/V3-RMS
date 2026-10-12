@@ -29,6 +29,7 @@ export function OpeningSignScreen() {
   const { data, status, error, reload } = useOpeningView();
   const orgName = useAuthStore((s) => s.user?.organizationName ?? '');
   const isHead = useAuthStore((s) => s.isDepartmentHead);
+  const userName = useAuthStore((s) => s.user?.name);
   const copy = BRANCH_DAY_STATES_COPY.opening;
   const [preview, setPreview] = React.useState<RecountPreview | null>(null);
   const figures = React.useRef<Record<string, string>>({});
@@ -68,6 +69,7 @@ export function OpeningSignScreen() {
     },
   );
 
+  const [showMatched, setShowMatched] = React.useState(false);
   const ready = status === 'ready' && data && preview;
   const differences = preview?.differences ?? [];
   const matched = preview?.matchedItems ?? [];
@@ -94,15 +96,7 @@ export function OpeningSignScreen() {
               title={plural(preview.itemCount, 'item', 'items')}
               chip={differences.length === 0 ? <CardChip tone="success" text="No difference" /> : <CardChip tone="warning" text={plural(differences.length, 'difference', 'differences')} />}
             >
-              {matched.length > 0 ? (
-                <ReceiptSection>
-                  <p className="flex items-start gap-2 font-wds-sans text-[13px] font-medium leading-[18px] text-wds-text-ink">
-                    <CheckMark />
-                    {plural(matched.length, 'item matches', 'items match')} last night
-                  </p>
-                  <p className="pl-[22px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{matched.join(', ')}</p>
-                </ReceiptSection>
-              ) : null}
+              {/* The differences are what the head signs for, so they come first; the matches are one line, their names a tap away. */}
               {differences.map((d) => (
                 <div key={d.itemId} className="flex flex-col gap-0.5 border-t border-wds-warning-border bg-wds-warning-bg px-4 pb-3 pt-2.5">
                   <p className="font-wds-sans text-[13px] font-medium leading-[18px] text-wds-text-ink">
@@ -113,9 +107,28 @@ export function OpeningSignScreen() {
                   </p>
                 </div>
               ))}
+              {matched.length > 0 ? (
+                <ReceiptSection>
+                  <p className="flex items-start gap-2 font-wds-sans text-[13px] font-medium leading-[18px] text-wds-text-ink">
+                    <CheckMark />
+                    <span className="grow">
+                      {plural(matched.length, 'item matches', 'items match')} last night
+                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={showMatched}
+                      onClick={() => setShowMatched((v) => !v)}
+                      className="-my-3 flex min-h-11 items-center px-1 font-medium text-[var(--wds-primary-btn-start)] underline underline-offset-2 outline-none focus-visible:shadow-wds-ring"
+                    >
+                      {showMatched ? 'Hide them' : 'See them'}
+                    </button>
+                  </p>
+                  {showMatched ? <p className="pl-[22px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{matched.join(', ')}</p> : null}
+                </ReceiptSection>
+              ) : null}
             </ReceiptCard>
             <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{BRANCH_DAY_MESSAGES.openingStartsFromCount}</p>
-            <SignFields signedBy={signedByText(data.department.name, isHead)} sign={sign} />
+            <SignFields signedBy={signedByText(data.department.name, isHead, userName)} sign={sign} />
           </main>
           <B2Footer>
             <B2PrimaryButton disabled={!sign.ready} onClick={sign.submit}>

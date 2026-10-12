@@ -51,14 +51,23 @@ export function RingMarker({ active = false, className }: { active?: boolean; cl
 }
 
 /** B0: a step of the day. `done` is a green tick, `active` the one to do now (caramel fill and edge), `muted` a step that has not come. */
-export function StatusCard({ state, title, sub, children }: { state: 'done' | 'active' | 'muted'; title: string; sub: string; children?: React.ReactNode }) {
+export function StatusCard({ state, title, sub, children }: { state: 'done' | 'active' | 'muted' | 'na'; title: string; sub: string; children?: React.ReactNode }) {
   return (
     <li className={cn('flex items-start gap-3 border px-4 py-3.5', state === 'active' ? cn('border-[var(--wds-primary-btn-start)] bg-wds-caramel-100', CARAMEL_EDGE) : 'border-wds-border-strong bg-wds-surface')}>
-      {state === 'done' ? <DoneDisc className="mt-px" /> : <RingMarker active={state === 'active'} className="mt-0.5" />}
+      {/* `na` is a step with nothing to do (no delivery, an opening that passed): a dash, so it does not read as a to-do. */}
+      {state === 'done' ? (
+        <DoneDisc className="mt-px" />
+      ) : state === 'na' ? (
+        <span aria-hidden="true" className="mt-px flex size-4 shrink-0 items-center justify-center text-wds-text-secondary">
+          <span className="h-[1.5px] w-2.5 bg-current" />
+        </span>
+      ) : (
+        <RingMarker active={state === 'active'} className="mt-0.5" />
+      )}
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className={cn('font-wds-sans text-[15px] leading-5 text-wds-text-ink', state === 'active' ? 'font-semibold' : 'font-medium')}>
           {title}
-          <span className="sr-only">{state === 'done' ? ', done' : state === 'active' ? ', to do now' : ', not yet'}</span>
+          <span className="sr-only">{state === 'done' ? ', done' : state === 'active' ? ', to do now' : state === 'na' ? ', nothing to do' : ', not yet'}</span>
         </p>
         <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{sub}</p>
         {children}
@@ -110,7 +119,7 @@ export function SignFields({ signedBy, sign }: { signedBy: string; sign: SignSta
   return (
     <>
       <SignedByField value={signedBy} />
-      <PinField id="branch-day-pin" inputRef={pinRef} size="paper" value={sign.pin} onChange={sign.setPin} onSubmit={sign.submit} error={sign.pinError} disabled={sign.saving} />
+      <PinField id="branch-day-pin" inputRef={pinRef} size="paper" submitOnFourth value={sign.pin} onChange={sign.setPin} onSubmit={sign.submit} error={sign.pinError} disabled={sign.saving} />
       {sign.problem ? (
         <p role="alert" className="border border-wds-error-border bg-wds-error-bg px-3.5 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
           {sign.problem}
@@ -184,18 +193,43 @@ export const CountBox = React.forwardRef<HTMLInputElement, CountBoxProps>(functi
 export const FOCUS_ROW = cn('focus-within:bg-wds-caramel-100', 'focus-within:shadow-[inset_3px_0_0_0_var(--wds-primary-btn-start)]');
 
 /** B3: "5 of 8 counted" over a 4 px bar. Sits between the header and the list, with an ink rule under it. */
-export function ProgressStrip({ filled, total, percent }: { filled: number; total: number; percent: number }) {
+export function ProgressStrip({
+  filled,
+  total,
+  percent,
+  note = 'Count what is on the shelves',
+  onNextBlank,
+}: {
+  filled: number;
+  total: number;
+  percent: number;
+  note?: string;
+  /** Shows "N still to count" with a button that jumps to the first empty box; left out when the strip has nothing to jump to. */
+  onNextBlank?: () => void;
+}) {
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b border-wds-text-ink bg-wds-surface px-5 pb-3 pt-3.5">
       <div className="flex items-baseline justify-between gap-3">
         <p aria-live="polite" className="font-wds-sans text-[15px] font-semibold leading-5 text-wds-text-ink">
           {filled} of {total} counted
         </p>
-        <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Count what is on the shelves</p>
+        <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{note}</p>
       </div>
       <div role="progressbar" aria-label="Items counted" aria-valuemin={0} aria-valuemax={total} aria-valuenow={filled} className="h-1 w-full bg-wds-neutral-100">
         <div className="h-full bg-wds-text-ink" style={{ width: `${percent}%` }} />
       </div>
+      {onNextBlank && filled < total ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{total - filled} still to count</p>
+          <button
+            type="button"
+            onClick={onNextBlank}
+            className="flex h-8 items-center border border-[var(--wds-primary-btn-start)] px-3 font-wds-sans text-[13px] font-medium leading-[18px] text-[var(--wds-primary-btn-start)] outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-caramel-100 motion-safe:active:scale-[0.97]"
+          >
+            Next blank item ↓
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

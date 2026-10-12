@@ -22,6 +22,7 @@ export function CountCheckScreen() {
   const { data, status, error, reload } = useCountView();
   const orgName = useAuthStore((s) => s.user?.organizationName ?? '');
   const isHead = useAuthStore((s) => s.isDepartmentHead);
+  const userName = useAuthStore((s) => s.user?.name);
   const copy = BRANCH_DAY_STATES_COPY.count;
   const sign = useSign(
     (pin, idempotencyKey) => branchDayPhoneApi.signCount({ pin, idempotencyKey }),
@@ -78,7 +79,7 @@ export function CountCheckScreen() {
               </ReceiptSection>
             </ReceiptCard>
             <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{BRANCH_DAY_MESSAGES.signedByManagerNote}</p>
-            <SignFields signedBy={signedByText(data.department.name, isHead)} sign={sign} />
+            <SignFields signedBy={signedByText(data.department.name, isHead, userName)} sign={sign} />
           </main>
           <B2Footer>
             <B2PrimaryButton disabled={!sign.ready} onClick={sign.submit}>

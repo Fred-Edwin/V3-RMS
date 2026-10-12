@@ -359,17 +359,31 @@ export interface PinFieldProps {
   inputRef?: React.Ref<HTMLInputElement>;
   /** `paper` is the Branch day box (Paper B2, B3b): 10/12 label, 44 high, Geist Mono bullets at 0.3em. Default look unchanged. */
   size?: 'default' | 'paper';
+  /** Typing the fourth digit calls `onSubmit` by itself (the phone sign screens). Pasting or a reload never does; only typing. */
+  submitOnFourth?: boolean;
 }
 
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
-export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
+export function PinField({ id, value, onChange, onSubmit, error, disabled, label = 'Your PIN', inputRef, size = 'default', submitOnFourth = false }: PinFieldProps) {
   const paper = size === 'paper';
+  // Set when typing takes the box to four digits; the effect then signs with the newest props.
+  const justCompleted = React.useRef(false);
+  React.useEffect(() => {
+    if (!justCompleted.current) return;
+    justCompleted.current = false;
+    if (submitOnFourth && value.length === 4 && !disabled) onSubmit?.();
+  });
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
   }, [error, disabled, id]);
+  // The sticky footer on a phone covers the foot of the page: keep the box and its error line above it.
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    wrapRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [error]);
   return (
-    <div className="flex flex-col gap-1.5">
+    <div ref={wrapRef} className="flex scroll-mb-40 flex-col gap-1.5">
       <label htmlFor={id} className={cn('font-wds-mono uppercase tracking-[0.06em] text-wds-text-secondary', paper ? 'text-[10px] leading-3' : 'text-[11px] leading-[14px]')}>
         {label}
       </label>
@@ -383,7 +397,12 @@ export function PinField({ id, value, onChange, onSubmit, error, disabled, label
         pattern="[0-9]*"
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+        onChange={(e) => {
+          const next = e.target.value.replace(/\D/g, '').slice(0, 4);
+          const typedOne = (e.nativeEvent as InputEvent).inputType === 'insertText';
+          justCompleted.current = typedOne && value.length < 4 && next.length === 4;
+          onChange(next);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && onSubmit) {
             e.preventDefault();
