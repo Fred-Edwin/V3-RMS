@@ -370,6 +370,10 @@ export const UpdateSupplierSchema = z
     message: 'At least one field must be provided',
   });
 
+/** "Set a supplier" from the restock list: an item and an existing supplier, nothing else (no price, no pack). */
+export const LinkItemSupplierSchema = z.object({ supplierId: z.string().uuid() }).strict();
+export const ItemIdParamSchema = z.object({ itemId: z.string().uuid() });
+
 export const QuickAddSupplierSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
   phone: z.string().trim().min(1, 'Phone is required').max(40),

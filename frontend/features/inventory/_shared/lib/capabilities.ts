@@ -18,6 +18,7 @@ export const CAPABILITIES = [
   'suppliers.write_payment_methods',
   'suppliers.upload_documents',
   'suppliers.quick_add',
+  'suppliers.link_item',
   'payables.read',
   'payables.record_invoice',
   'payables.record_payment',

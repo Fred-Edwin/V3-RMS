@@ -67,6 +67,7 @@ describe('the Central Store permissions table', () => {
       'prep.read',
       'prep.record',
       'requisitions.read',
+      'suppliers.link_item',
       'suppliers.quick_add',
       'suppliers.read_basic',
       'waste.log',

@@ -171,12 +171,13 @@ describe('the Central Store rows (ported from the old Central Store sidebar tree
     expect(keys(hub(navFor(ctxFor('MANAGER', { can: holds() }))))).toEqual([]);
   });
 
-  it('gives the Store Attendant the five Purchasing sub-links with their badges, and everyone else the plain link', () => {
+  it('gives the Store Attendant the six Purchasing sub-links with their badges, and everyone else the plain link', () => {
     const attendant = hub(navFor(ctxFor('STORE_ATTENDANT', { can: holds('orders.read', 'orders.request') })));
     const purchasing = item(attendant, 'purchasing');
     expect(purchasing?.subItems?.map((s) => [s.label, s.href, s.badge])).toEqual([
       ['Home', '/app/inventory/purchasing', undefined],
       ['Restock list', '/app/inventory/purchasing/restock', 'purchasing-restock'],
+      ['New order', '/app/inventory/purchasing/new', undefined],
       ['My orders', '/app/inventory/purchasing/my-orders', 'purchasing-my-orders'],
       ['History', '/app/inventory/purchasing/history', undefined],
       ['Restock levels', '/app/inventory/purchasing/levels', undefined],

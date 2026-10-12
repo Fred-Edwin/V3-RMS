@@ -62,6 +62,7 @@ router.get('/inventory/suppliers',
 );
 // Registered before `/:id` so "quick" is never read as an id.
 router.post('/inventory/suppliers/quick', requireCapability('suppliers.quick_add'), supplierController.quickAddSupplier);
+router.post('/inventory/items/:itemId/supplier', requireCapability('suppliers.link_item'), supplierController.linkItem);
 router.get('/inventory/suppliers/summary', requireCapability('suppliers.read'), supplierController.getListSummary);
 router.get('/inventory/suppliers/:id', requireCapability('suppliers.read'), supplierController.getSupplierById);
 router.post('/inventory/suppliers', requireCapability('suppliers.write'), supplierController.createSupplier);

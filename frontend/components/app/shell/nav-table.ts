@@ -377,6 +377,7 @@ export const NAV_ROWS: readonly NavRow[] = [
     subItems: [
       { key: 'purchasing-home', label: 'Home', newHref: '/app/inventory/purchasing', roles: [STORE_ATTENDANT] },
       { key: 'purchasing-restock', label: 'Restock list', newHref: '/app/inventory/purchasing/restock', roles: [STORE_ATTENDANT], badge: 'purchasing-restock' },
+      { key: 'purchasing-new', label: 'New order', newHref: '/app/inventory/purchasing/new', roles: [STORE_ATTENDANT] },
       { key: 'purchasing-my-orders', label: 'My orders', newHref: '/app/inventory/purchasing/my-orders', roles: [STORE_ATTENDANT], badge: 'purchasing-my-orders' },
       { key: 'purchasing-history', label: 'History', newHref: '/app/inventory/purchasing/history', roles: [STORE_ATTENDANT] },
       { key: 'purchasing-levels', label: 'Restock levels', newHref: '/app/inventory/purchasing/levels', roles: [STORE_ATTENDANT] },

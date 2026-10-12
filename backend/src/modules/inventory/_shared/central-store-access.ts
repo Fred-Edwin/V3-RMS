@@ -38,6 +38,7 @@ export const CAPABILITIES = [
   'suppliers.write_payment_methods',
   'suppliers.upload_documents',
   'suppliers.quick_add',
+  'suppliers.link_item', // put an EXISTING supplier on an item that has none ("No supplier yet"); no price, no new supplier (owner, 12 Oct 2026)
   // What we owe
   'payables.read',
   'payables.record_invoice',
@@ -251,6 +252,7 @@ export const ROLE_CAPABILITIES: Partial<Record<UserRole, readonly Capability[]>>
     'catalog.add_missing',
     'suppliers.read_basic',
     'suppliers.quick_add',
+    'suppliers.link_item',
     'orders.read',
     'orders.request',
     'orders.receive',

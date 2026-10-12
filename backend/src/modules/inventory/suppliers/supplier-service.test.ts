@@ -591,6 +591,26 @@ describe('supplierService — catalog, pack lines and preferred sync', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
+  // --- Training fix 9: the Attendant sets an existing supplier on an item that has none ------------------
+
+  it('link-item lets the Attendant put an existing supplier on an item with none, and writes the history row under their name', async () => {
+    vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([]);
+    const result = await supplierService.linkItem(attendant, itemId, supplierId);
+    expect(supplierItemRepository.createLine).toHaveBeenCalledWith(hubOrgId, supplierId, itemId, expect.objectContaining({ buyUnit: 'crate' }), tx);
+    expect(itemChangeRepository.record).toHaveBeenCalledWith(tx, expect.objectContaining({ kind: 'SUPPLIER_ADDED', inventoryItemId: itemId, changedById: attendant.id }));
+    expect(result).toMatchObject({ id: lineId, inventoryItemId: itemId });
+  });
+
+  it('link-item refuses an item that already has a supplier', async () => {
+    vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([line()] as never);
+    await expect(supplierService.linkItem(attendant, itemId, supplierId)).rejects.toMatchObject({ code: 'ITEM_HAS_SUPPLIER' });
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+  });
+
+  it('link-item needs the capability: a waiter cannot', async () => {
+    await expect(supplierService.linkItem(waiter, itemId, supplierId)).rejects.toThrow(ForbiddenError);
+  });
+
   // --- B3: put -----------------------------------------------------------------
 
   it('put with a named pack that already exists updates that line (Add several never duplicates)', async () => {
