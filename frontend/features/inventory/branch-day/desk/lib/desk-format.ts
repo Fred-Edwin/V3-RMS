@@ -62,7 +62,8 @@ export function weekdayClock(iso: string): string {
 export function kes(value: string | null | undefined): string {
   if (value === null || value === undefined) return '–';
   const n = Number(value);
-  return Number.isFinite(n) ? nf0.format(Math.round(n)) : value;
+  // The real minus, as in `qty`: one minus glyph across the tables.
+  return Number.isFinite(n) ? `${Math.round(n) < 0 ? MINUS : ''}${nf0.format(Math.abs(Math.round(n)))}` : value;
 }
 
 /** A quantity as Paper draws it: no trailing zeros, the real minus. */

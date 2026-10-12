@@ -14,7 +14,7 @@ import { dayLine, plural, timeText } from '../lib/phone-format';
 import { DAY_COUNT, DAY_OPENING, DAY_SENT, DELIVERIES_HOME } from '../lib/phone-routes';
 import { BodyState, CardsSkeleton, MonoLabel, StatusCard } from './phone-parts';
 
-type CardState = 'done' | 'active' | 'muted';
+type CardState = 'done' | 'active' | 'muted' | 'na';
 
 /** The opening card: done once checked; the one to do in the morning; a muted line when the evening came and it never was. */
 export function openingCard(home: Home): { state: CardState; title: string; sub: string } {
@@ -31,7 +31,7 @@ export function openingCard(home: Home): { state: CardState; title: string; sub:
     return { state: 'done', title: 'Opening checked', sub: `${when}${what}` };
   }
   if (action === 'CHECK_OPENING') return { state: 'active', title: 'Check the opening', sub: 'Last night’s figures are ready. Check the shelves, then accept or recount.' };
-  return { state: 'muted', title: 'Opening not checked', sub: 'The day ran on last night’s closing figure.' };
+  return { state: 'na', title: 'Opening not checked', sub: 'The day ran on last night’s closing figure.' };
 }
 
 export function deliveryCard(home: Home): { state: CardState; title: string; sub: string; waiting: boolean } {
@@ -45,7 +45,7 @@ export function deliveryCard(home: Home): { state: CardState; title: string; sub
     const refs = delivery.dispatches.map((d) => d.reference).join(', ');
     return { state: 'active', title: 'Delivery not counted yet', sub: `${refs || 'A delivery'} left the store and is waiting for your count.`, waiting: true };
   }
-  return { state: 'muted', title: 'No delivery today', sub: 'Nothing has left the store for your department.', waiting: false };
+  return { state: 'na', title: 'No delivery today', sub: 'Nothing has left the store for your department.', waiting: false };
 }
 
 export function eveningCard(home: Home): { state: CardState; title: string; sub: string } {

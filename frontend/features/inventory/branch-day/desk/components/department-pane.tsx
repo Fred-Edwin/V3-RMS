@@ -96,13 +96,13 @@ const HEAD = 'px-1.5 pb-2.5 text-right align-bottom font-wds-mono text-[10px] fo
  * The figures table of Paper B6 and B11: the nine columns and their widths, 58 high rows, the total row and the footnote. Money columns exist
  * only where the lines carry money (`catalog.see_costs`). A corrected line is marked and shows both closing figures.
  */
-export function FiguresTable({ figures, showMoney }: { figures: DepartmentFigures['department']; showMoney: boolean }) {
+export function FiguresTable({ figures, showMoney, onCorrect }: { figures: DepartmentFigures['department']; showMoney: boolean; onCorrect?: (line: FigureLine) => void }) {
   const counted = figures.state === 'COUNTED';
   const waste = figures.waste;
   return (
     <div className="flex min-w-0 flex-col">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] table-fixed border-collapse" aria-label={`${figures.name} figures`}>
+        <table className={cn('w-full table-fixed border-collapse', onCorrect ? 'min-w-[920px]' : 'min-w-[820px]')} aria-label={`${figures.name} figures`}>
           <colgroup>
             <col />
             <col className="w-[72px]" />
@@ -113,6 +113,7 @@ export function FiguresTable({ figures, showMoney }: { figures: DepartmentFigure
             <col className="w-[80px]" />
             {showMoney ? <col className="w-[80px]" /> : null}
             {showMoney ? <col className="w-[106px]" /> : null}
+            {onCorrect ? <col className="w-[100px]" /> : null}
           </colgroup>
           <thead>
             <tr className="border-b border-wds-text-ink">
@@ -125,11 +126,12 @@ export function FiguresTable({ figures, showMoney }: { figures: DepartmentFigure
               <th scope="col" className={HEAD}>Yesterday</th>
               {showMoney ? <th scope="col" className={HEAD}>Used value (KES)</th> : null}
               {showMoney ? <th scope="col" className={cn(HEAD, 'pr-2')}>Closing stock value (KES)</th> : null}
+              {onCorrect ? <th scope="col" className={cn(HEAD, 'sticky right-0 bg-wds-surface pr-2')}><span className="sr-only">Correct</span></th> : null}
             </tr>
           </thead>
           <tbody>
             {figures.lines.map((l) => (
-              <FigureRow key={l.itemId} line={l} showMoney={showMoney} />
+              <FigureRow key={l.itemId} line={l} showMoney={showMoney} onCorrect={onCorrect} />
             ))}
           </tbody>
           <tfoot>
@@ -146,6 +148,7 @@ export function FiguresTable({ figures, showMoney }: { figures: DepartmentFigure
               ) : (
                 <td />
               )}
+              {onCorrect ? <td /> : null}
             </tr>
           </tfoot>
         </table>
@@ -155,7 +158,7 @@ export function FiguresTable({ figures, showMoney }: { figures: DepartmentFigure
   );
 }
 
-function FigureRow({ line, showMoney }: { line: FigureLine; showMoney: boolean }) {
+function FigureRow({ line, showMoney, onCorrect }: { line: FigureLine; showMoney: boolean; onCorrect?: (line: FigureLine) => void }) {
   const zeroValue = line.usedValueKes !== undefined && line.usedValueKes !== null && Number(line.usedValueKes) === 0;
   const corrected = line.correction !== null;
   return (
@@ -177,6 +180,18 @@ function FigureRow({ line, showMoney }: { line: FigureLine; showMoney: boolean }
       <td className={cn(NUM, 'px-1.5 text-wds-text-secondary')}>{qty(line.yesterdayUsedQty)}</td>
       {showMoney ? <td className={cn(NUM, 'px-1.5', zeroValue ? 'text-[#8D8982]' : 'text-wds-text-ink')}>{kes(line.usedValueKes ?? null)}</td> : null}
       {showMoney ? <td className={cn(NUM, 'pl-1.5 pr-2 text-wds-text-ink')}>{kes(line.closingValueKes ?? null)}</td> : null}
+      {onCorrect ? (
+        // Pinned to the right edge, so the button stays in view when the figures scroll sideways.
+        <td className={cn('sticky right-0 py-2 pl-1.5 pr-2 text-right align-middle shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]', corrected ? 'bg-wds-warning-bg' : 'bg-wds-surface')}>
+          <button
+            type="button"
+            onClick={() => onCorrect(line)}
+            className="h-8 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[12px] leading-4 text-wds-text-ink outline-none transition-[background-color,transform] duration-100 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.97] [@media(hover:hover)]:hover:bg-wds-neutral-50"
+          >
+            Correct<span className="sr-only"> {line.itemName}</span>
+          </button>
+        </td>
+      ) : null}
     </tr>
   );
 }

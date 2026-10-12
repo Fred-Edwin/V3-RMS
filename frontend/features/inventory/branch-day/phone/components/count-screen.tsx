@@ -9,10 +9,10 @@ import { B2ErrorNote, B2Footer, B2Header, B2PrimaryButton } from '../../../_shar
 import { BRANCH_DAY_BUTTONS, BRANCH_DAY_STATES_COPY } from '../../_shared/lib/branch-day-copy';
 import { useCountDraft } from '../hooks/use-count-draft';
 import { useCountView } from '../hooks/use-phone-day';
-import { progressOf, stillToCount } from '../lib/count-logic';
+import { changedLines, progressOf, stillToCount } from '../lib/count-logic';
 import { dayLine, plural } from '../lib/phone-format';
 import { DAY_COUNT_CHECK, DAY_HOME, DAY_SENT } from '../lib/phone-routes';
-import { CountList } from './count-list';
+import { CountList, focusNextBlank } from './count-list';
 import { BodyState, ProgressStrip, RowsSkeleton } from './phone-parts';
 
 /** Paper B3: count my department, blind. Nothing is shown to count against. Saves as you type; "Check and sign" opens B3b. */
@@ -29,7 +29,7 @@ export function CountScreen() {
     if (data?.state === 'COUNTED') router.replace(DAY_SENT);
   }, [data, router]);
 
-  const items = React.useMemo(() => (data?.lines ?? []).map((l) => ({ id: l.itemId, name: l.itemName, unit: l.unit })), [data]);
+  const items = React.useMemo(() => (data?.lines ?? []).map((l) => ({ id: l.itemId, name: l.itemName, unit: l.unit, section: l.categoryPath[0] ?? 'No category' })), [data]);
   const progress = progressOf(items.map((i) => i.id), draft.typed);
   const note = stillToCount(progress.blank);
 
@@ -58,9 +58,26 @@ export function CountScreen() {
         <BodyState kind="empty" text={copy.empty ?? ''} />
       ) : (
         <>
-          <ProgressStrip filled={progress.filled} total={progress.total} percent={progress.percent} />
+          <ProgressStrip
+            filled={progress.filled}
+            total={progress.total}
+            percent={progress.percent}
+            onNextBlank={focusNextBlank}
+            note={draft.saveError ? 'Not saved yet' : draft.saving || changedLines(draft.typed, draft.savedRef.current).length > 0 ? 'Saving…' : progress.filled > 0 ? 'Saved' : 'Count what is on the shelves'}
+          />
           {draft.ready ? <CountList items={items} typed={draft.typed} onType={draft.setFigure} mode="count" label="Items to count" /> : <RowsSkeleton text={copy.loading} />}
-          <B2Footer note={note}>
+          <B2Footer
+            note={
+              note ? (
+                <>
+                  {note}{' '}
+                  <button type="button" onClick={focusNextBlank} className="font-medium text-[var(--wds-primary-btn-start)] underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
+                    Show me.
+                  </button>
+                </>
+              ) : null
+            }
+          >
             {draft.saveError ? (
               <B2ErrorNote>
                 {draft.saveError}{' '}

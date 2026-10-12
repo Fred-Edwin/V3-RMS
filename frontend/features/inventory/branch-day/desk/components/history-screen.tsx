@@ -204,7 +204,8 @@ function HistoryTable({ everyBranch, seesMoney }: { everyBranch: boolean; seesMo
 
 /** A money cell: "–" in faint grey while the day is open. */
 function Figure({ value }: { value: string | null | undefined }) {
-  return value === null || value === undefined ? (
+  // Zero money reads "–", as everywhere else.
+  return value === null || value === undefined || Number(value) === 0 ? (
     <span className="font-wds-mono text-[14px] leading-[18px] text-[#8D8982]">–</span>
   ) : (
     <span className="font-wds-mono text-[14px] leading-[18px] text-wds-text-ink">{kes(value)}</span>

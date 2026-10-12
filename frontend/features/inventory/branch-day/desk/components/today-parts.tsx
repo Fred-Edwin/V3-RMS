@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Chip, RefLink } from '../../../_shared/components/block2-phone-parts';
-import { BRANCH_DAY_BUTTONS, blockerCopy, openingChip } from '../../_shared/lib/branch-day-copy';
+import { BRANCH_DAY_BUTTONS, blockerCopy, openingChip, openingsNotCheckedCopy } from '../../_shared/lib/branch-day-copy';
 import type { Blocker, DepartmentTile } from '../../_shared/types/branch-day-contract';
 import { clock12, kes } from '../lib/desk-format';
 import { BlockDisc, CheckDisc, HeadsUpRing, MonoLabel, PRESS } from './day-parts';
@@ -76,10 +76,14 @@ export interface BlockerActions {
  * A blocking row carries its action as a secondary button (gaps G21 and G22), only for who may use it; discrepancy references are links.
  */
 export function BlockerRows({ blockers, departmentCount, actions, discrepancyHref, rowIds }: { blockers: readonly Blocker[]; departmentCount: number; actions: BlockerActions; discrepancyHref: (id: string) => string; rowIds?: boolean }) {
+  // Every "opening not checked" is the same heads-up: one row, with the department names, in the place of the first.
+  const openingNames = blockers.filter((b) => b.kind === 'OPENING_NOT_CHECKED').map((b) => b.department?.name ?? '');
+  const firstOpening = blockers.findIndex((b) => b.kind === 'OPENING_NOT_CHECKED');
   return (
     <ul className="m-0 flex list-none flex-col p-0">
       {blockers.map((blocker, index) => {
-        const copy = blockerCopy(blocker, clock12, departmentCount);
+        if (blocker.kind === 'OPENING_NOT_CHECKED' && index !== firstOpening) return null;
+        const copy = blocker.kind === 'OPENING_NOT_CHECKED' ? openingsNotCheckedCopy(openingNames) : blockerCopy(blocker, clock12, departmentCount);
         const blocks = blocker.severity === 'BLOCKS';
         const department = blocker.department;
         return (

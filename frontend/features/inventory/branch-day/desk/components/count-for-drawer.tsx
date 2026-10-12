@@ -174,6 +174,9 @@ export function CountForDrawer({ department, open, onOpenChange, onSigned }: {
                   <label htmlFor={`count-${l.itemId}`} className="grow font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">
                     {l.itemName}
                     <span className="sr-only">, in {l.unit.toLowerCase()}</span>
+                    <span aria-hidden="true" className="ml-2 font-wds-sans text-[12px] font-normal leading-4 text-wds-text-secondary">
+                      {l.unit}
+                    </span>
                   </label>
                   <input
                     id={`count-${l.itemId}`}

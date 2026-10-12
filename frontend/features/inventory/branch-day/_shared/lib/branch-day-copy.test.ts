@@ -76,7 +76,7 @@ describe('branch day wording (Paper B18)', () => {
     });
     expect(blockerCopy(blocker({ kind: 'DELIVERIES_CONFIRMED', severity: 'OK', discrepancies: [{ id: 'x', reference: 'DSC-NYR-0007' }] }), clock, 5)).toEqual({
       title: 'Every delivery is confirmed',
-      line: 'Five departments counted what arrived. One discrepancy is open, which does not block the close:',
+      line: 'Nothing is waiting to be counted. One discrepancy is open, which does not block the close:',
     });
     expect(
       blockerCopy(

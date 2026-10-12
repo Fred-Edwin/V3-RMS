@@ -111,7 +111,9 @@ function DayFileView({ dayId, everyBranch, seesMoney, canCorrect }: { dayId: str
     { id: 'activity', label: 'Activity', count: data.tabCounts.activity },
   ];
   const trackerItems = [
-    `Openings checked · ${data.tracker.openingsChecked.checked} of ${data.tracker.openingsChecked.total}`,
+    data.tracker.openingsChecked.checked === data.tracker.openingsChecked.total
+      ? `Openings checked · ${data.tracker.openingsChecked.checked} of ${data.tracker.openingsChecked.total}`
+      : { text: `Openings checked · ${data.tracker.openingsChecked.checked} of ${data.tracker.openingsChecked.total}`, partial: true as const },
     `Counted · ${data.tracker.counted.counted} of ${data.tracker.counted.total}${data.tracker.counted.lastAt ? ` by ${clock12(data.tracker.counted.lastAt)}` : ''}`,
     `Closed ${data.tracker.closed.at ? clock12(data.tracker.closed.at) : ''} · signed by ${closedBy?.roleLabel === 'Branch Manager' ? 'the Branch Manager' : (closedBy?.name ?? 'the Branch Manager')}`,
   ];
@@ -263,7 +265,11 @@ function ItemsTab({ dayId, file, seesMoney, canCorrectNow, openerRef, onCorrect 
                 </Button>
               ) : null}
             </div>
-            <FiguresTable figures={department} showMoney={seesMoney && department.totals !== undefined} />
+            <FiguresTable
+              figures={department}
+              showMoney={seesMoney && department.totals !== undefined}
+              onCorrect={canCorrectNow ? (line) => onCorrect({ departmentId: department.id, departmentName: department.name, line }) : undefined}
+            />
           </div>
         )}
       </section>

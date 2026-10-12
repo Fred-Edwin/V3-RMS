@@ -11,6 +11,7 @@ import { useLoader } from '../../../_shared/hooks/use-async';
 import { clockLabel, signedKes } from '../../../counting/_shared/lib/count-format';
 import { BRANCH_WASTE_STATES_COPY } from '../../_shared/lib/branch-waste-copy';
 import { quantityLabel, shortPerson } from '../../_shared/lib/branch-waste-people';
+import type { BranchWasteEntry } from '../../_shared/types/waste-contract';
 import { branchWasteApi } from '../../_shared/services/branch-waste-api';
 import { dayClock, reversalReasonShort } from '../lib/branch-waste-desk-format';
 
@@ -22,7 +23,7 @@ const WRAPS = new Set(['Note', 'Reversal reason']);
  * photo, owner decision 9 Oct). Opens from a row click or Enter, in the W7 facts-table style. The ledger rows appear only when the
  * server sends them (a caller who may see stock); a reversed entry shows who reversed it and why.
  */
-export function EntryDrawer({ entryId, onClose }: { entryId: string | null; onClose: () => void }) {
+export function EntryDrawer({ entryId, onClose, onReverse }: { entryId: string | null; onClose: () => void; onReverse?: (entry: BranchWasteEntry) => void }) {
   const loaded = useLoader(entryId, () => (entryId ? branchWasteApi.detail(entryId) : Promise.reject(new Error('no entry'))), BRANCH_WASTE_STATES_COPY.branchList.error);
   const entry = loaded.data?.entry ?? null;
   const ledger = loaded.data?.ledger;
@@ -97,7 +98,12 @@ export function EntryDrawer({ entryId, onClose }: { entryId: string | null; onCl
           </>
         )}
 
-        <div className="mt-auto flex">
+        <div className="mt-auto flex gap-3">
+          {entry && onReverse && entry.status !== 'REVERSED' && entry.can.reverse ? (
+            <Button type="button" variant="flat" size="dialog" shape="square" className="h-11 px-5 text-[14px] leading-[18px]" onClick={() => onReverse(entry)}>
+              Reverse this entry
+            </Button>
+          ) : null}
           <Button type="button" variant="flat" size="dialog" shape="square" className="h-11 px-5 text-[14px] leading-[18px]" onClick={onClose}>
             Close
           </Button>

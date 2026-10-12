@@ -4,4 +4,5 @@ export { FiguresScreen } from './components/figures-screen';
 export { HistoryScreen } from './components/history-screen';
 export { DayFileScreen } from './components/day-file-screen';
 export { DaySheetPrintScreen } from './components/day-sheet-print-screen';
+export { DashboardDayCard } from './components/dashboard-day-card';
 export { useBranchDayBadge, refreshBranchDayBadge } from './hooks/use-day-badge';

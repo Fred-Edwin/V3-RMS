@@ -22,6 +22,7 @@ import {
   type DepartmentFigures,
   type FigureLine,
 } from '../../_shared/types/branch-day-contract';
+import { farFromCount } from '../lib/correction-guard';
 import { kes, qty } from '../lib/desk-format';
 import { branchDayDeskApi } from '../services/branch-day-desk-api';
 import { MonoLabel, PRESS, PRIMARY_LINK } from './day-parts';
@@ -236,6 +237,12 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
             />
           </div>
         </div>
+
+        {next !== null && line !== null && farFromCount(was, next, line.closingValueKes) ? (
+          <p role="status" className="m-0 border border-wds-warning-border bg-wds-warning-bg px-3 py-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">
+            That is far from the count of {qty(line.closingQty)}. Check the figure.
+          </p>
+        ) : null}
 
         <section aria-label="What changes" aria-live="polite" className="border-t-2 border-wds-text-ink">
           <div className="px-3.5 pb-1 pt-2.5"><MonoLabel>What changes</MonoLabel></div>

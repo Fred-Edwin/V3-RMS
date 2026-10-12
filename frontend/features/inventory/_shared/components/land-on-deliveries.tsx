@@ -18,16 +18,22 @@ export function LandOnDeliveries() {
   const isHead = useAuthStore((s) => s.isDepartmentHead);
   const { isMember } = usePermissions(true);
   const enabled = isHead || isMember;
-  const waiting = useRequisitionBadges(enabled)?.deliveries ?? 0;
+  const role = useAuthStore((s) => s.role);
+  const badges = useRequisitionBadges(enabled);
+  const loaded = badges !== null;
+  const waiting = badges?.deliveries ?? 0;
+  // Barista and Kitchen heads and members start the sign-in on Day when no delivery is waiting (UX walk phase 3, finding 4).
+  const landsOnDay = enabled && (role === 'BARISTA' || role === 'CHEF');
   React.useEffect(() => {
-    if (!enabled || waiting === 0) return;
+    if (!enabled || !loaded) return;
+    if (waiting === 0 && !landsOnDay) return;
     try {
       if (window.sessionStorage.getItem(SEEN_KEY) === '1') return;
       window.sessionStorage.setItem(SEEN_KEY, '1');
     } catch {
       // Storage blocked: land once per page load instead.
     }
-    router.replace('/app/deliveries');
-  }, [enabled, waiting, router]);
+    router.replace(waiting > 0 ? '/app/deliveries' : '/app/day');
+  }, [enabled, loaded, waiting, landsOnDay, router]);
   return null;
 }

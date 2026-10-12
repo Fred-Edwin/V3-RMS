@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CountLine } from '../../_shared/types/branch-day-contract';
-import { changedLines, cleanFigure, groupSections, isFigure, nextRowToCount, progressOf, showCheckNames, stillToCount, unitHint } from './count-logic';
+import { changedLines, cleanFigure, groupSections, isFigure, nextRowToCount, progressOf, showCheckNames, stepFigure, stillToCount, unitHint } from './count-logic';
+
+describe('the stepper', () => {
+  it('starts from blank, adds and takes one, and never goes below zero', () => {
+    expect(stepFigure('', 1)).toBe('1');
+    expect(stepFigure('', -1)).toBe('0');
+    expect(stepFigure('5', 1)).toBe('6');
+    expect(stepFigure('5', -1)).toBe('4');
+    expect(stepFigure('0', -1)).toBe('0');
+    expect(stepFigure('2.5', 1)).toBe('3.5');
+    expect(stepFigure('.', 1)).toBe('1');
+  });
+});
 
 const line = (itemId: string, itemName: string, category: string, countedQty: string | null = null): CountLine => ({ itemId, itemName, unit: 'Bags', categoryPath: [category], countedQty });
 

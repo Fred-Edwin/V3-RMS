@@ -34,9 +34,9 @@ export const describeCountCorrected = (itemName: string, departmentName: string,
 export const describeCorrectionDetail = (reason: CorrectionReason, note: string | null, signedWithPin: boolean): string =>
   [`Reason: ${CORRECTION_REASON_TEXT[reason].toLowerCase()}.`, note ? `Note: ${note}` : null, signedWithPin ? 'Signed with PIN.' : null].filter((s): s is string => s !== null).join(' ');
 
-/** "KES 50,060" for the whole shillings, with cents only when there are any. */
+/** "KES 50,060": whole shillings, rounded, as every other table on the screens reads (no cents). */
 export const kesText = (amount: string): string => {
-  const [whole = '0', cents = '00'] = amount.split('.');
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return cents === '00' ? `KES ${grouped}` : `KES ${grouped}.${cents}`;
+  const rounded = Math.round(Number(amount));
+  const grouped = String(Math.abs(rounded)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${rounded < 0 ? '−' : ''}KES ${grouped}`;
 };

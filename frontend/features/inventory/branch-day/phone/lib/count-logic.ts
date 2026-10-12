@@ -37,7 +37,7 @@ export const typedFrom = (lines: readonly CountLine[]): Record<string, string> =
 export const groupSections = (lines: readonly CountLine[]): { name: string; itemCount: number; names: string[] }[] => {
   const groups: { name: string; itemCount: number; names: string[] }[] = [];
   for (const line of lines) {
-    const name = line.categoryPath[0] ?? 'Items';
+    const name = line.categoryPath[0] ?? 'No category';
     const found = groups.find((g) => g.name === name);
     if (found) {
       found.itemCount += 1;
@@ -57,4 +57,14 @@ export const changedLines = (typed: Readonly<Record<string, string>>, saved: Rea
     .filter((id) => (typed[id] ?? '') !== (saved[id] ?? ''))
     .map((id) => ({ itemId: id, countedQty: isFigure(typed[id]) ? String(typed[id]) : null }));
 
-export const unitHint = (unit: string): string => `Count in ${unit.toLowerCase()}`;
+/**
+ * The − and + beside a count box: one whole unit a tap. From blank, + gives 1 and − gives 0 (a typed zero is a count); it never goes
+ * below zero. A figure with decimals keeps them ("2.5" + 1 = "3.5"), cut to the three the server keeps.
+ */
+export const stepFigure = (value: string | null | undefined, direction: 1 | -1): string => {
+  if (!isFigure(value)) return direction === 1 ? '1' : '0';
+  const next = Math.max(0, Math.round((Number(value) + direction) * 1000) / 1000);
+  return String(next);
+};
+
+export const unitHint =(unit: string): string => `Count in ${unit.toLowerCase()}`;

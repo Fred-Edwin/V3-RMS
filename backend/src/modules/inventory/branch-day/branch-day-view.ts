@@ -77,19 +77,23 @@ export const openingCheckOf = (day: DayRecord, dept: DepartmentRow): OpeningChec
   };
 };
 
-export const openingViewOf = (day: DayRecord, dept: DepartmentRow, figures: DepartmentFigures, lastCloseAt: Date | null): OpeningView => ({
+export const openingViewOf = (day: DayRecord, dept: DepartmentRow, figures: DepartmentFigures, lastCloseAt: Date | null, parentNames: Map<string, string>): OpeningView => ({
   day: dayHeadOf(day),
   department: departmentRefOf(dept),
   itemCount: dept.lines.length,
   lastCloseAt: lastCloseAt ? lastCloseAt.toISOString() : null,
   check: openingCheckOf(day, dept),
-  lines: figures.lines.map((f) => ({
-    itemId: f.line.inventoryItemId,
-    itemName: f.line.inventoryItem.name,
-    unit: f.line.inventoryItem.usageUnit,
-    lastNightQty: qty(f.lastNight),
-    acceptedQty: f.accepted ? qty(f.accepted) : null,
-  })),
+  lines: figures.lines
+    .map((f) => ({ f, path: pathOf(f.line, parentNames) }))
+    .sort((a, b) => groupKey(a.path).localeCompare(groupKey(b.path)) || a.f.line.inventoryItem.name.localeCompare(b.f.line.inventoryItem.name))
+    .map(({ f, path }) => ({
+      itemId: f.line.inventoryItemId,
+      itemName: f.line.inventoryItem.name,
+      unit: f.line.inventoryItem.usageUnit,
+      categoryPath: path,
+      lastNightQty: qty(f.lastNight),
+      acceptedQty: f.accepted ? qty(f.accepted) : null,
+    })),
 });
 
 // --- Deliveries ---------------------------------------------------------------------------------------------------------------------------

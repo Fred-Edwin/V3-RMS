@@ -25,7 +25,7 @@ import { orderCancellationAuthService } from '@/services/orderCancellationAuthSe
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
-import { BranchNeedsAction } from '@/features/inventory';
+import { BranchDayDashboardCard, BranchNeedsAction } from '@/features/inventory';
 import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
@@ -130,6 +130,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
   const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
+  const [dayCardShown, setDayCardShown] = useState(false);
   const [inventoryActionCount, setInventoryActionCount] = useState(0);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
@@ -554,8 +555,9 @@ export default function ManagerDashboardPage(): JSX.Element {
         <h2 className="text-label-md font-semibold uppercase tracking-wider text-stone-500">
           Needs your action
         </h2>
+        {isBranchManager ? <BranchDayDashboardCard onVisibleChange={setDayCardShown} /> : null}
         <RequisitionsWaitingCard count={requisitionsWaiting} />
-        {pendingAuths.length === 0 && pendingLeaveCount === 0 && inventoryActionCount === 0 && requisitionsWaiting === 0 && (
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && !dayCardShown && inventoryActionCount === 0 && requisitionsWaiting === 0 && (
           <EmptyState
             icon={<CheckCircle size={28} />}
             heading="Nothing pending right now"
