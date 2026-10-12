@@ -42,7 +42,7 @@ function Row({ row }: { row: RestockLevelRow }) {
 
 /** 28P: what the hub holds against when to reorder it; read only, the Store Manager sets the levels. */
 export function LevelsScreen() {
-  const back = useGoBack(PURCHASING);
+  const back = useGoBack(PURCHASING, { parent: true });
   const { params, set } = useUrlParams();
   const status = (['OUT', 'LOW', 'OK'].includes(params.get('status') ?? '') ? params.get('status') : undefined) as Status | undefined;
   const supplierId = params.get('supplier') ?? undefined;

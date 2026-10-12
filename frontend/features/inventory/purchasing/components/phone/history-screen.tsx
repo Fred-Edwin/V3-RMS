@@ -44,7 +44,7 @@ function Row({ row }: { row: HistoryRow }) {
 
 /** 28G (and the date sheet, 28G2): every closed or cancelled order, newest first, by month. */
 export function HistoryScreen() {
-  const back = useGoBack(PURCHASING);
+  const back = useGoBack(PURCHASING, { parent: true });
   const { today, range, page, params, setQuery } = usePhoneListParams('last30');
   const status = (STATUSES.includes(params.get('status') as HistoryStatus) ? params.get('status') : 'all') as HistoryStatus;
   const q = (params.get('q') ?? '').trim();

@@ -13,7 +13,7 @@ const FILTERS: MyOrdersFilter[] = ['all', 'needs', 'waiting', 'overdue'];
 
 /** 28F: the Attendant's open orders, split into what needs them and what waits on someone else. */
 export function MyOrdersScreen() {
-  const back = useGoBack(PURCHASING);
+  const back = useGoBack(PURCHASING, { parent: true });
   const { params, set } = useUrlParams();
   const filter = (FILTERS.includes(params.get('filter') as MyOrdersFilter) ? params.get('filter') : 'all') as MyOrdersFilter;
   const q = (params.get('q') ?? '').trim();

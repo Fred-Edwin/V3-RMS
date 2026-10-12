@@ -601,7 +601,9 @@ export const listCarriersSchema = z.object({
 export type ListCarriers = z.infer<typeof listCarriersSchema>;
 
 export const CARRIER_NAME_MAX = 80;
-export const carrierNameSchema = z.string().trim().min(2).max(CARRIER_NAME_MAX);
+/** Why: training (12 Oct 2026) showed carrier names with a stray "··" in front on every screen. Nothing in our code adds it, so a name is cleaned on the way in: no leading dots, dashes or spaces. */
+export const cleanCarrierName = (raw: string): string => raw.replace(/^[\s·•.\-–—_|:]+/, '').trim();
+export const carrierNameSchema = z.string().transform(cleanCarrierName).pipe(z.string().min(2).max(CARRIER_NAME_MAX));
 export const addCarrierInputSchema = z.object({ name: carrierNameSchema, kind: carrierKindSchema }).strict();
 export type AddCarrierInput = z.infer<typeof addCarrierInputSchema>;
 /** One change at a time: rename, or retire (`active: false`), or restore (`active: true`). The response is the `Carrier`. */
