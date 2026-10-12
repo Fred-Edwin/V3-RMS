@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { usePinPad } from '@/components/ui2/number-pad';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui2/input-otp';
 import { usePinStatus } from '@/hooks/usePinStatus';
 import { SetPinForm } from '@/components/app/shell/set-pin-form';
@@ -33,6 +34,8 @@ export function PinDialog({ open, onOpenChange, title, subtitle, summary, confir
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const field = React.useRef<HTMLDivElement>(null);
+  // On a finger the PIN is typed on the app's own number pad; the fourth digit signs (the box's own onComplete does not fire for the pad).
+  const pinPad = usePinPad({ value: pin, onChange: setPin, onDone: (v) => void submit(v) });
   // A signer with no PIN yet sets one first (same step as the shared Sign Sheet), then signs with it straight away.
   const pinStatus = usePinStatus(open);
   const needsPin = pinStatus.hasPin === false;
@@ -103,6 +106,10 @@ export function PinDialog({ open, onOpenChange, title, subtitle, summary, confir
             <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">Enter your PIN</label>
             <div ref={field}>
               <InputOTP
+                ref={(node) => {
+                  pinPad.ref.current = node;
+                }}
+                {...pinPad.inputProps}
                 maxLength={PIN_LENGTH}
                 value={pin}
                 onChange={setPin}

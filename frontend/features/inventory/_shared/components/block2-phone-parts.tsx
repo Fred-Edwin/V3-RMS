@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
+import { useNumberPadField } from '@/components/ui2/number-pad';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../hooks/use-mobile-nav-drawer';
@@ -366,6 +367,16 @@ export interface PinFieldProps {
 /** The four-digit PIN box of D5 and D11: bullets at 18 px, amber edge and a caramel ring when focused, red when the PIN was wrong. */
 export function PinField({ id, value, onChange, onSubmit, onComplete, error, disabled, label = 'Your PIN', inputRef, size = 'default' }: PinFieldProps) {
   const paper = size === 'paper';
+  // On a finger the PIN is typed on the app's own number pad (training rows 8 and 12): the phone keyboard never opens.
+  const pad = useNumberPadField({ label, value, onChange, masked: true, maxLength: 4, actionLabel: 'Sign', onDone: (v) => onComplete?.(v) });
+  const setBox = React.useCallback(
+    (node: HTMLInputElement | null): void => {
+      pad.ref.current = node;
+      if (typeof inputRef === 'function') inputRef(node);
+      else if (inputRef) (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+    },
+    [inputRef, pad.ref],
+  );
   // A wrong PIN clears the box; focus returns to it as soon as it is enabled again (a disabled input cannot take focus).
   React.useEffect(() => {
     if (error && !disabled) document.getElementById(id)?.focus();
@@ -382,14 +393,17 @@ export function PinField({ id, value, onChange, onSubmit, onComplete, error, dis
       </label>
       <input
         id={id}
-        ref={inputRef}
+        ref={setBox}
         type="password"
-        inputMode="numeric"
+        inputMode={pad.inApp ? 'none' : 'numeric'}
+        readOnly={pad.inApp}
         autoComplete="off"
         maxLength={4}
         pattern="[0-9]*"
         value={value}
         disabled={disabled}
+        onFocus={() => pad.open()}
+        onClick={() => pad.open()}
         onChange={(e) => {
           const next = e.target.value.replace(/\D/g, '').slice(0, 4);
           onChange(next);

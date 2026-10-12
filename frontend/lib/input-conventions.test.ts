@@ -39,8 +39,8 @@ const missingAutoComplete = (text: string): number => {
   return n;
 };
 
-// Raw `<input>`/`<textarea>` tags with no autoComplete today (a ratchet: the numbers only go down). The quantity fields among them are
-// replaced by the shared QuantityField, which sets it.
+// Raw `<input>`/`<textarea>` tags with no autoComplete today (a ratchet: the numbers only go down). The phone quantity fields among
+// them were replaced by the shared QuantityField / PadNumberInput (which set it); the rest are desktop forms.
 const AUTOCOMPLETE_BASELINE: Record<string, number> = {
   'features/inventory/branch-day/desk/components/correct-drawer.tsx': 2,
   'features/inventory/catalog/components/category-view.tsx': 1,
@@ -54,8 +54,6 @@ const AUTOCOMPLETE_BASELINE: Record<string, number> = {
   'features/inventory/counting/review/components/review-count-screen.tsx': 1,
   'features/inventory/counting/setup/components/count-settings-drawer.tsx': 3,
   'features/inventory/counting/setup/components/count-setup-screen.tsx': 1,
-  'features/inventory/dispatch/components/phone/pack-department-screen.tsx': 1,
-  'features/inventory/prep/_shared/components/prep-stepper.tsx': 1,
   'features/inventory/prep/recipes/components/recipe-drawer.tsx': 1,
   'features/inventory/purchasing/components/needs-restocking-tab.tsx': 3,
   'features/inventory/purchasing/components/payment-sheet.tsx': 1,
@@ -66,9 +64,7 @@ const AUTOCOMPLETE_BASELINE: Record<string, number> = {
   'features/inventory/purchasing/components/phone/search-screen.tsx': 1,
   'features/inventory/purchasing/components/phone/supplier-screen.tsx': 1,
   'features/inventory/purchasing/components/screens/new-order-screen.tsx': 1,
-  'features/inventory/purchasing/components/screens/receive-screen.tsx': 3,
   'features/inventory/requisitions/components/edit-reason-popover.tsx': 1,
-  'features/inventory/requisitions/components/phone/head-phone-parts.tsx': 1,
   'features/inventory/restock/components/review-dialog.tsx': 1,
   'features/inventory/stock/components/screens/stock-ledger-screen.tsx': 2,
   'features/inventory/suppliers/components/pay-method-views.tsx': 1,

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { LineResultChip } from '../../_shared/components/count-chips';
 import { ScwTopbar } from '../../../_shared/components/scw-topbar';
 import { useCountAutosave } from '../../_shared/hooks/use-count-autosave';
@@ -204,19 +205,18 @@ export function ManagerCountScreen({ initial }: { initial: CountDetail }) {
                             Skipped
                           </button>
                         ) : (
-                          <input
-                            ref={(el) => {
+                          <PadNumberInput
+                            inputRef={(el) => {
                               if (el) inputs.current.set(line.id, el);
                               else inputs.current.delete(line.id);
                             }}
-                            inputMode="decimal"
-                            autoComplete="off"
-                            aria-label={`${line.itemName}, ${line.unit}. Your count`}
+                            label={`${line.itemName}, ${line.unit}. Your count`}
+                            unit={line.unit}
                             value={v.text}
                             onFocus={() => setActiveId(line.id)}
                             onBlur={() => setActiveId((a) => (a === line.id ? null : a))}
-                            onChange={(e) => {
-                              const next = e.target.value.replace(',', '.');
+                            onChange={(raw) => {
+                              const next = raw.replace(',', '.');
                               if (!/^\d*\.?\d{0,4}$/.test(next)) return;
                               write(line.id, next, false);
                             }}

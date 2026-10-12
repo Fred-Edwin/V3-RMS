@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
@@ -246,22 +247,19 @@ function CountRow({ line, value, flagged, onChange, onBlur }: { line: CountLine;
           <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{line.itemName}</span>
           <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Count in {line.unit}</span>
         </label>
-        <input
+        <PadNumberInput
           id={`count-${line.lineId}`}
+          label={`${line.itemName}, count`}
+          unit={line.unit}
           value={value}
-          inputMode="decimal"
-          autoComplete="off"
           placeholder="–"
           aria-invalid={flagged ? true : undefined}
           aria-describedby={flagged ? `count-${line.lineId}-flag` : undefined}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
             onBlur();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
           }}
           className={cn(
             // Paper D8: a 64 x 40 box with a 16/20 number; the whole row is the tap target through its label.

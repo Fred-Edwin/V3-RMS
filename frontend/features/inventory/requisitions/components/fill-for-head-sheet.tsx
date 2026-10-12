@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
-import { Input } from '@/components/ui2/input';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui2/select';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
@@ -111,12 +111,12 @@ export function FillForHeadSheet({ requisitionId, departmentId, departmentName, 
                     <span className="font-wds-sans text-[15px] text-wds-text-ink">
                       {d.itemName} <span className="text-wds-text-secondary">· {d.unit}</span>
                     </span>
-                    <Input
-                      aria-label={`Quantity of ${d.itemName}`}
-                      inputMode="decimal"
+                    <PadNumberInput
+                      label={`Quantity of ${d.itemName}`}
+                      unit={d.unit}
                       value={d.qty}
-                      onChange={(event) => setDrafts((all) => all.map((x, i) => (i === index ? { ...x, qty: event.target.value } : x)))}
-                      className="h-9 text-right font-wds-mono"
+                      onChange={(qty) => setDrafts((all) => all.map((x, i) => (i === index ? { ...x, qty } : x)))}
+                      className="flex h-9 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 text-right font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:border-wds-primary focus-visible:outline-none focus-visible:shadow-wds-ring"
                     />
                     <button type="button" aria-label={`Remove ${d.itemName}`} onClick={() => setDrafts((all) => all.filter((_, i) => i !== index))} className="size-8 text-[18px] text-wds-text-faint outline-none hover:text-wds-text-ink focus-visible:shadow-wds-ring">
                       &times;
