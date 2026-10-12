@@ -5,6 +5,7 @@
 import { ApiError } from '@/types/api';
 import { makeCallApi, queryString } from '../../_shared/services/scw-call';
 import type {
+  CarrierStaffList,
   DispatchFile,
   DispatchMine,
   DispatchMineQuery,
@@ -49,6 +50,8 @@ export interface DispatchPhoneApi {
   file: (id: string) => Promise<DispatchFile>;
   /** P9 */
   mine: (query: DispatchMineQuery) => Promise<DispatchMine>;
+  /** Staff as carrier (training row 1): anyone with a login at the hub or its company, searched by name. */
+  carrierStaff: (q?: string) => Promise<CarrierStaffList>;
 }
 
 export const dispatchPhoneApi: DispatchPhoneApi = {
@@ -59,4 +62,5 @@ export const dispatchPhoneApi: DispatchPhoneApi = {
   sign: (requisitionId, input) => call<SignDispatchResult>('POST', `/pack/${requisitionId}/sign`, input),
   file: (id) => call<DispatchFile>('GET', `/${id}`),
   mine: (query) => call<DispatchMine>('GET', `/mine${queryString(query)}`),
+  carrierStaff: (q) => call<CarrierStaffList>('GET', `/carrier-staff${queryString(q ? { q } : undefined)}`),
 };

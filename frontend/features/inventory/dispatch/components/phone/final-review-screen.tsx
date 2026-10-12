@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
-import { Picker } from '@/components/ui2/picker';
+import { CarrierChoice, type CarrierPick } from './carrier-choice';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useIdempotencyKey } from '../../../_shared/hooks/use-idempotency-key';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
@@ -28,7 +28,8 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
   const idem = useIdempotencyKey();
 
   const [leftOut, setLeftOutState] = React.useState<ReadonlySet<string>>(() => new Set());
-  const [carrierId, setCarrierId] = React.useState('');
+  const [pick, setPick] = React.useState<CarrierPick>({ mode: 'carrier', carrierId: '' });
+  const carrierId = pick.mode === 'carrier' ? pick.carrierId : '';
   const [pin, setPin] = React.useState('');
   const [pinError, setPinError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -49,11 +50,11 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
 
   const carriers = data?.carriers ?? [];
   React.useEffect(() => {
-    if (!data || carrierId) return;
+    if (!data || pick.mode === 'staff' || carrierId) return;
     const last = getLastCarrier();
-    if (last && data.carriers.some((c) => c.id === last)) setCarrierId(last);
-    else if (data.carriers.length === 1) setCarrierId(data.carriers[0].id);
-  }, [data, carrierId]);
+    if (last && data.carriers.some((c) => c.id === last)) setPick({ mode: 'carrier', carrierId: last });
+    else if (data.carriers.length === 1) setPick({ mode: 'carrier', carrierId: data.carriers[0].id });
+  }, [data, carrierId, pick.mode]);
 
   const change = (next: Set<string>): void => {
     setLeftOutState(next);
@@ -87,12 +88,12 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
 
   const totals = reviewTotals(data, validLeftOut);
   const allShipping = data.departments.every((d) => d.allTicked) && validLeftOut.size === 0;
-  const noCarrier = carriers.length === 0;
-  const canSign = totals.canSend && !noCarrier && carrierId !== '' && pin.length === 4 && !submitting;
+  const hasCarrier = pick.mode === 'staff' || carrierId !== '';
+  const canSign = totals.canSend && hasCarrier && pin.length === 4 && !submitting;
 
   // `pinValue` is the PIN just typed: the fourth digit signs before the state has caught up.
   const sign = async (pinValue: string = pin): Promise<void> => {
-    if (!(totals.canSend && !noCarrier && carrierId !== '' && pinValue.length === 4 && !submitting)) return;
+    if (!(totals.canSend && hasCarrier && pinValue.length === 4 && !submitting)) return;
     setSubmitting(true);
     setError(null);
     setPinError(null);
@@ -100,8 +101,8 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
     try {
       // A department that is not fully ticked stays in To pack: the API wants it named with the ones left out on purpose.
       const staying = Array.from(validLeftOut).concat(data.departments.filter((d) => !d.allTicked).map((d) => d.departmentId));
-      const result = await dispatchPhoneApi.sign(requisitionId, { carrierId, pin: pinValue, idempotencyKey: idem.key(), ...(staying.length > 0 ? { leaveOut: staying } : {}) });
-      setLastCarrier(carrierId);
+      const result = await dispatchPhoneApi.sign(requisitionId, { ...(pick.mode === 'staff' ? { carrierUserId: pick.userId } : { carrierId }), pin: pinValue, idempotencyKey: idem.key(), ...(staying.length > 0 ? { leaveOut: staying } : {}) });
+      if (pick.mode === 'carrier') setLastCarrier(carrierId);
       rememberSent(result);
       idem.renew();
       router.replace(packSent(requisitionId));
@@ -166,28 +167,16 @@ export function FinalReviewScreen({ requisitionId }: { requisitionId: string }) 
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="dispatch-carrier" className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">
-            Carried by
-          </label>
-          <Picker
-            id="dispatch-carrier"
-            aria-label="Carried by"
-            value={carrierId}
-            onValueChange={(v) => {
-              setCarrierId(v);
+          <span className="font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-text-secondary">Carried by</span>
+          <CarrierChoice
+            carriers={carriers}
+            value={pick}
+            onChange={(next) => {
+              setPick(next);
               setError(null);
             }}
-            disabled={noCarrier || submitting}
-            options={carriers.map((c) => ({ value: c.id, label: c.name }))}
-            placeholder="Choose who carries it"
-            chips={false}
-            className="h-[46px] text-[15px]"
+            disabled={submitting}
           />
-          {noCarrier ? (
-            <p id="dispatch-carrier-note" role="status" className="border border-wds-warning-border bg-wds-warning-bg px-3 py-2 font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">
-              No carrier is set up. Ask the Store Manager to add one in Settings.
-            </p>
-          ) : null}
         </div>
 
         <PinField id="dispatch-pin" inputRef={pinRef} value={pin} onChange={(v) => { setPin(v); setPinError(null); }} onSubmit={() => void sign()} onComplete={(v) => void sign(v)} error={pinError} disabled={submitting} />

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   addCarrierInputSchema,
   cancelDispatchInputSchema,
+  carrierStaffQuerySchema,
   dispatchMineQuerySchema,
   listCarriersQuerySchema,
   printDispatchQuerySchema,
@@ -14,6 +15,7 @@ import {
 export {
   addCarrierInputSchema,
   cancelDispatchInputSchema,
+  carrierStaffQuerySchema,
   dispatchMineQuerySchema,
   listCarriersQuerySchema,
   printDispatchQuerySchema,

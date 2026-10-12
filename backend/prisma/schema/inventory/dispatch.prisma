@@ -27,14 +27,19 @@ model Carrier {
   kind      CarrierKind
   active    Boolean     @default(true)
   retiredAt DateTime?   @map("retired_at")
+  /// Set when the carrier is a staff member chosen at the final sign (training row 1, 12 Oct 2026): a hidden PERSON carrier, one per
+  /// person per hub, kept so every dispatch, delivery and discrepancy reads its carrier the same way. It never shows in Settings, Carriers.
+  userId    String?     @map("user_id")
   createdAt DateTime    @default(now()) @map("created_at")
   updatedAt DateTime    @updatedAt @map("updated_at")
 
+  staff      User?      @relation("CarrierStaff", fields: [userId], references: [id])
   site       Site       @relation("CarrierSite", fields: [siteId], references: [id])
   dispatches Dispatch[]
   purchaseOrders PurchaseOrder[] @relation("PurchaseOrderCollectedByCarrier")
 
   @@unique([siteId, name])
+  @@unique([siteId, userId])
   @@index([siteId, active])
   @@map("carriers")
 }

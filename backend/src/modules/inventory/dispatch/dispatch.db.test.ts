@@ -272,6 +272,20 @@ describe.skipIf(!enabled)('Dispatch against the real database', () => {
     expect((await prisma.referenceCounter.findUniqueOrThrow({ where: { siteId_prefix: { siteId, prefix: 'DSP' } } })).lastNumber).toBe(1);
   });
 
+  it('training row 1: a staff member can be the carrier; their carrier row is hidden from Settings and the Attendant list, and made once', async () => {
+    const { dispatchRepository } = await import('./dispatch-repository');
+    const person = await dispatchRepository.findEligibleStaff(hubId, storeManager.id);
+    expect(person?.id).toBe(storeManager.id);
+    const first = await dispatchRepository.ensureStaffCarrier(hubId, person!);
+    const second = await dispatchRepository.ensureStaffCarrier(hubId, person!);
+    expect(second.id).toBe(first.id);
+    expect(first).toMatchObject({ kind: 'PERSON', userId: storeManager.id });
+    expect((await carriersService.list(director as never, { status: 'all' })).carriers.map((c) => c.id)).not.toContain(first.id);
+    expect((await dispatchRepository.listActiveCarriers(hubId)).map((c) => c.id)).not.toContain(first.id);
+    expect((await dispatchService.carrierStaff(attendant as never, 'sm')).staff.map((s) => s.id)).toContain(storeManager.id);
+    await prisma.carrier.delete({ where: { id: first.id } });
+  });
+
   it('P6 blind rule: the Branch Manager gets no sent figure, gap, short count or value before the department counts; the store sees them', async () => {
     const id = (await prisma.dispatch.findFirstOrThrow({ where: { requisitionId, departmentId: kitchenId } })).id;
     const branchSide = await dispatchService.getFile(branchManager as never, id);

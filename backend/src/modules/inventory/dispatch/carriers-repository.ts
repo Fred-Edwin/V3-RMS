@@ -5,7 +5,7 @@ import { prisma } from '../../../config/database';
 export const carriersRepository = {
   list: (hubId: string, status: 'active' | 'retired' | 'all') =>
     prisma.carrier.findMany({
-      where: { siteId: hubId, ...(status === 'all' ? {} : { active: status === 'active' }) },
+      where: { siteId: hubId, userId: null, ...(status === 'all' ? {} : { active: status === 'active' }) },
       orderBy: [{ active: 'desc' }, { name: 'asc' }],
     }),
 

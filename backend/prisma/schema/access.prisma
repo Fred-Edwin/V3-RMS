@@ -142,6 +142,7 @@ model User {
   updatedAt                          DateTime                      @updatedAt @map("updated_at")
   deletedAt                          DateTime?                     @map("deleted_at")
   site                               Site?                         @relation(fields: [siteId], references: [id])
+  carrierProfile                     Carrier[]                     @relation("CarrierStaff")
   ordersCreated                      Order[]                       @relation("OrderCreatedBy")
   ordersCancelled                    Order[]                       @relation("OrderCancelledBy")
   orderCancellationRequestsRequested OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")

@@ -216,7 +216,7 @@ export const ordersRepository = {
   ): Promise<{ carriers: Array<{ id: string; name: string; kind: 'PERSON' | 'VEHICLE' | 'COMPANY' }>; staff: Array<{ id: string; name: string; role: string }> }> => {
     const like = q ? { contains: q, mode: 'insensitive' as const } : undefined;
     const [carriers, staff] = await Promise.all([
-      prisma.carrier.findMany({ where: { siteId, active: true, ...(like ? { name: like } : {}) }, orderBy: { name: 'asc' }, select: { id: true, name: true, kind: true } }),
+      prisma.carrier.findMany({ where: { siteId, active: true, userId: null, ...(like ? { name: like } : {}) }, orderBy: { name: 'asc' }, select: { id: true, name: true, kind: true } }),
       prisma.user.findMany({ where: { siteId, isActive: true, deletedAt: null, ...(like ? { name: like } : {}) }, orderBy: { name: 'asc' }, take: 50, select: { id: true, name: true, role: true } }),
     ]);
     return { carriers, staff };

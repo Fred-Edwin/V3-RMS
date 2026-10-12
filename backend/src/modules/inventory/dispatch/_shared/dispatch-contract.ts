@@ -332,14 +332,23 @@ export type Review = z.infer<typeof reviewSchema>;
 
 export const signDispatchInputSchema = z
   .object({
-    carrierId: uuid,
+    /** A carrier from Settings (a vehicle, a person or a courier company)... */
+    carrierId: uuid.optional(),
+    /** ...or a staff member (training row 1, 12 Oct 2026). Exactly one of the two. */
+    carrierUserId: uuid.optional(),
     pin: pinSchema,
     idempotencyKey: idempotencyKeySchema,
     /** Owner decision, 8 Oct: departments left out stay in To pack and ship later with their own short review and signature. */
     leaveOut: z.array(uuid).max(20).optional(),
   })
   .strict()
+  .refine((v) => (v.carrierId === undefined) !== (v.carrierUserId === undefined), 'Choose a carrier or a staff member, not both')
   .refine((v) => new Set(v.leaveOut ?? []).size === (v.leaveOut ?? []).length, 'A department can be left out once');
+
+/** The people the Attendant may choose as carrier (GET /dispatch/carriers/staff). */
+export const carrierStaffQuerySchema = z.object({ q: z.string().trim().max(80).optional() }).strict();
+export const carrierStaffListSchema = z.object({ staff: z.array(z.object({ id: uuid, name: z.string(), role: z.string() })) });
+export type CarrierStaffList = z.infer<typeof carrierStaffListSchema>;
 export type SignDispatchInput = z.infer<typeof signDispatchInputSchema>;
 
 export const signDispatchResultSchema = z.object({

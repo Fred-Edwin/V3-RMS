@@ -23,7 +23,8 @@ The append-only ledger gets no new column. A finding's entries, its reversal and
 | P2 | `GET /dispatch/pack/:requisitionId/departments/:departmentId` | `dispatch.pack` |
 | P3 | `PUT /dispatch/pack/:requisitionId/departments/:departmentId/lines` | `dispatch.pack` |
 | P4 | `GET /dispatch/pack/:requisitionId/review` | `dispatch.pack` |
-| P5 | `POST /dispatch/pack/:requisitionId/sign` | `dispatch.pack` |
+| P5 | `POST /dispatch/pack/:requisitionId/sign` | `dispatch.pack` (carries `carrierId` **or** `carrierUserId`: a staff member becomes a hidden PERSON carrier row, `carriers.user_id`, one per person; never listed in Settings or to the Attendant) |
+| P5b | `GET /dispatch/carrier-staff?q=` | `dispatch.pack` (anyone with a login at the hub or its company, by name) |
 | P6 | `GET /dispatch/:id` | `dispatch.read` |
 | P7 | `GET /dispatch/:id/print?copy=store\|branch` | `dispatch.read` |
 | P8 | `POST /dispatch/:id/cancel` | `dispatch.cancel` |
