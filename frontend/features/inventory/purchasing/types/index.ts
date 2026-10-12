@@ -370,6 +370,8 @@ export interface OrderInput {
   supplierNote: string | null;
   attendantNote: string | null;
   lines: OrderInputLine[];
+  /** Sent after the person confirmed "There is already an open order to this supplier. Add another?". */
+  allowAnotherOpen?: boolean;
 }
 
 export interface ReceiveInput {

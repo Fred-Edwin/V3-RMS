@@ -16,6 +16,8 @@ export const OrderInputSchema = z.object({
   supplierNote: note,
   attendantNote: note,
   lines: z.array(OrderLineSchema).min(1, 'Add at least one item to the order.').max(200),
+  /** Set after the person confirmed "There is already an open order to this supplier. Add another?". Without it the server still refuses (SUPPLIER_ORDER_OPEN). */
+  allowAnotherOpen: z.boolean().optional(),
 });
 
 export const UpdateOrderSchema = z.object({

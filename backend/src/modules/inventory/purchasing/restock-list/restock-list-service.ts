@@ -86,6 +86,7 @@ export const restockListService = {
             expectedDate: null,
             supplierNote: null,
             attendantNote: input.note,
+            allowAnotherOpen: input.allowAnotherOpen,
             lines: group.lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: wanted.get(l.inventoryItemId) ?? l.qty, unitPrice: '' })),
           },
           now,

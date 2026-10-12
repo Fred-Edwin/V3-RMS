@@ -147,7 +147,10 @@ export function createPurchasingApiService(): PurchasingService {
       await post('/attendant/notifications/read-all');
     },
     reviewRestockList: (lines) => post('/restock-list/review', { lines }),
-    sendRestockList: (lines, note) => post('/restock-list/send', { lines, note }),
+    linkItemSupplier: async (inventoryItemId, supplierId) => {
+      await apiClient.post<unknown>(`/inventory/items/${inventoryItemId}/supplier`, { supplierId }, token());
+    },
+    sendRestockList: (lines, note, allowAnotherOpen) => post('/restock-list/send', { lines, note, ...(allowAnotherOpen ? { allowAnotherOpen: true } : {}) }),
     getCollectors: (q) => get(`/collectors${qs({ q })}`),
     setCollectedBy: (orderId, collectedBy) => apiClient.put(`${BASE}/orders/${orderId}/collected-by`, { collectedBy }, token()),
     withdrawOrder: (orderId) => post(`/orders/${orderId}/withdraw`),

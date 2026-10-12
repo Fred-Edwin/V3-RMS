@@ -75,7 +75,13 @@ describe('create', () => {
     expect(purchasingAudit.record).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: 'Saved draft order' }), NOW);
   });
 
-  it('refuses a second open order to the same supplier', async () => {
+  it('saves a second open order to the same supplier once the person confirmed "add another"', async () => {
+    vi.mocked(ordersRepository.findOpenOrder).mockResolvedValue({ id: 'o0', reference: 'LPO-0009' });
+    await ordersService.create(attendant, { ...input, allowAnotherOpen: true }, NOW);
+    expect(ordersRepository.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks before a second open order to the same supplier (409 until confirmed)', async () => {
     vi.mocked(ordersRepository.findOpenOrder).mockResolvedValue({ id: 'o0', reference: 'LPO-0009' });
     await expect(ordersService.create(attendant, input, NOW)).rejects.toMatchObject({ code: 'SUPPLIER_ORDER_OPEN', statusCode: 409, details: { openReference: 'LPO-0009' } });
     expect(ordersRepository.create).not.toHaveBeenCalled();

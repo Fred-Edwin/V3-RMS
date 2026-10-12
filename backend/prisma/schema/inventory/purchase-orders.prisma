@@ -86,7 +86,7 @@ enum PurchasingAuditArea {
 }
 
 /// The purchase file. `reference` (LPO-0044) is given at submit (or at approval of an approver's own draft), so a draft has none.
-/// One order may be open per supplier (DRAFT to SENT): the partial unique index `purchase_orders_one_open_per_supplier` in the migration.
+/// Several orders may be open to one supplier (DRAFT to SENT) since 12 Oct 2026: the screen asks first. The partial index `purchase_orders_open_by_supplier_idx` is in the migration (it was unique before).
 model PurchaseOrder {
   id            String                @id @default(uuid())
   siteId        String                @map("organization_id")

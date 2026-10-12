@@ -11,7 +11,7 @@ const LineSchema = z.object({
 
 export const RestockLinesSchema = z.object({ lines: z.array(LineSchema).min(1, 'Add at least one item to the list.').max(200) });
 
-export const RestockSendSchema = RestockLinesSchema.extend({ note: z.string().trim().max(500).nullable().default(null) });
+export const RestockSendSchema = RestockLinesSchema.extend({ note: z.string().trim().max(500).nullable().default(null), allowAnotherOpen: z.boolean().optional() });
 
 export type RestockLinesInput = z.infer<typeof RestockLinesSchema>;
 export type RestockSendInput = z.infer<typeof RestockSendSchema>;
