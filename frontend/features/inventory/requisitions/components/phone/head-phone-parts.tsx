@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';
 import { initialsOf } from '../../../_shared/components/phone-parts';
@@ -213,15 +214,12 @@ export function Stepper({ itemName, value, onChange, onCommit, onStep, changed =
       <button type="button" className={btn} aria-label={`Fewer ${itemName}`} onClick={() => onStep(-1)} disabled={Number(value) <= 1}>
         <span aria-hidden="true">−</span>
       </button>
-      <input
+      <PadNumberInput
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         onBlur={onCommit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-        }}
-        inputMode="decimal"
-        aria-label={`${itemName} quantity`}
+        onEnter={onCommit}
+        label={`${itemName} quantity`}
         className={cn(
           'h-full w-11 shrink-0 border-x border-wds-border bg-transparent text-center font-wds-mono text-[16px] leading-5 text-wds-text-ink outline-none focus-visible:relative focus-visible:z-10 focus-visible:shadow-wds-ring',
           changed && 'font-semibold',

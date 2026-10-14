@@ -136,6 +136,16 @@ behaviour in the component comment.
 
 The phone's own status bar (clock "9:41", signal, Wi-Fi, battery) belongs to the device, never to the app. **Do not build it, and do not copy it from a Paper phone frame.** Some phone screens in Paper show one as a device-frame decoration, and some front-end sessions built it into real screens with made-up values. A phone screen starts at the app's own header. Clean-up owed: find and remove any fake status bar in `frontend/` (search for hard-coded "9:41" and battery/signal icons in mobile shells and screens), and remove the decoration from the older Paper phone frames the next time each page is touched. New Paper phone frames carry no status bar.
 
+### 7b. Inputs and choice lists (owner decision, 12 Oct 2026, after the Central Store training)
+
+Android and Chrome draw their own lists over our fields (saved entries for a text box, the system list for a `<select>` or `<datalist>`). They cannot be styled, searched or turned off from the page, so:
+
+1. **Every `<input>` and `<textarea>` sets `autoComplete="off"`**, except the login fields (which keep their own value so the phone can fill the saved sign-in). The `ui2` `Input`, `SearchInput` and `Textarea` already do it; a raw tag must say it.
+2. **Never use a native `<select>` or `<datalist>` in new code.** Use the app's own `components/ui2/picker`: a field that opens a list right below it (with a search box when there are more than six choices), or chips when there are four or fewer. `components/ui/` (legacy, frozen) and the legacy screens outside Inventory (`app/app/**`, `components/orders/**`) are the only exceptions, and they go as each is redone.
+3. **`frontend/lib/input-conventions.test.ts` fails the build** on a native select or datalist in new code, and on any `<input>` or `<textarea>` with no `autoComplete` beyond the numbers it records for existing files. That list only goes down: when you touch a file, fix its tags and lower its number.
+4. **Every numeric input on a phone (quantities, prices, amounts, days, account numbers, PINs) uses the in-app number pad** (owner decision, 14 Oct 2026): `QuantityField`, or `PadNumberInput` for any single box (`PAD_INPUT_CLASS` gives it the ui2 `Input` look; `keepZeros` for a code such as an account number), or `PadInputOTP` for PIN boxes, all from `components/ui2/`. A finger opens the pad and never the phone keyboard; a mouse types as before; the pad has a "Use the phone keyboard" switch. 48 px keys, the unit always shown, "same as expected" never on a blind count, errors under the box. Real text (search, names, notes, delivery note numbers, supplier names) uses the phone keyboard. Never write `<input inputMode="decimal">`, `inputMode="numeric"` or `type="number"`. See `docs/features/inventory/training-issues.md`, rows 8 and 12.
+5. **The same test fails the build on a raw numeric `inputMode` or `type="number"`** in `features/`, `components/app/` or `components/ui2/` (a baseline that only shrinks; empty today). Legacy screens outside those folders (`components/other-income`, `app/app/other-income`, `app/app/hr/payroll`) are not yet covered.
+
 ## 8. Config gotcha
 
 A new top-level source folder must be added in the same commit to every config that

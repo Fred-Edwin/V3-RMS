@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { DateRangePicker, type DateRange } from '@/components/ui2/date-range-picker';
+import { Picker } from '@/components/ui2/picker';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
 import { B2Empty, B2Header, B2TabPanel, Chip, ListSkeleton, OutlineChip, PagerBar, RefLink } from '../../../_shared/components/block2-phone-parts';
@@ -241,25 +242,16 @@ function MineTab({ tab, params, setQuery }: { tab: 'on-the-way' | 'done'; params
       {tab === 'done' ? (
         <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-[34px] max-sm:h-[34px] rounded-none px-3 font-wds-sans text-[13px] leading-4" />
       ) : null}
-      <label className="relative flex h-[34px] items-center border border-wds-border-strong bg-wds-surface">
-        <span className="sr-only">Branch</span>
-        <select
+      <div className="w-[190px]">
+        <Picker
           aria-label="Branch"
           value={branchId ?? ''}
-          onChange={(e) => setQuery({ branch: e.target.value || null, page: null })}
-          className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
-        >
-          <option value="">Branch: All</option>
-          {Array.from(known.current.entries()).map(([id, name]) => (
-            <option key={id} value={id}>
-              Branch: {name}
-            </option>
-          ))}
-        </select>
-        <span aria-hidden="true" className="pointer-events-none absolute right-3 text-[9px] text-wds-text-ink">
-          ▾
-        </span>
-      </label>
+          onValueChange={(v) => setQuery({ branch: v || null, page: null })}
+          options={[{ value: '', label: 'Branch: All' }, ...Array.from(known.current.entries()).map(([id, name]) => ({ value: id, label: `Branch: ${name}` }))]}
+          chips={false}
+          className="h-[34px] text-[13px]"
+        />
+      </div>
     </div>
   );
 

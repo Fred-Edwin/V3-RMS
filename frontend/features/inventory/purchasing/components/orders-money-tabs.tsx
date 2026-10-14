@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { SearchInput } from '@/components/ui2/search-input';
 import { SkeletonRows, StockEmptyCard, StockErrorCard, TableRowSkeleton } from '../../_shared/components/stock-states';
 import { useStageOrders } from '../hooks/use-stage-orders';
@@ -41,16 +42,9 @@ function Loading() {
 
 function Select({ label, value, onChange, options, aria }: { label: string; value: string; onChange: (v: string) => void; options: Array<[string, string]>; aria: string }) {
   return (
-    <label className={FILTER}>
-      <span className="text-wds-text-secondary">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="bg-transparent outline-none" aria-label={aria}>
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="w-[210px]">
+      <Picker aria-label={aria} value={value} onValueChange={onChange} chips={false} className="h-8 text-wds-body-sm" options={options.map(([v, text]) => ({ value: v, label: `${label} ${text}` }))} />
+    </div>
   );
 }
 

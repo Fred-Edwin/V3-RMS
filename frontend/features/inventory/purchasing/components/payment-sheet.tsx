@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Input } from '@/components/ui2/input';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { FormErrorBanner } from '../../_shared/components/stock-states';
@@ -160,11 +161,12 @@ function RecordPaymentDrawer({ order, open, onOpenChange }: { order: Order; open
               <div className="flex flex-col gap-1.5">
                 <FieldLabel htmlFor="pay-amount">Amount paid now (KES)</FieldLabel>
                 <div className={cn('flex h-8 items-center border bg-white px-2.5 focus-within:shadow-wds-ring', tooMuch ? 'border-wds-error-fg' : 'border-wds-primary')}>
-                  <input
+                  <PadNumberInput
                     id="pay-amount"
-                    inputMode="decimal"
+                    label="Amount paid now"
+                    unit="KES"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                    onChange={setAmount}
                     aria-invalid={tooMuch || undefined}
                     className="min-w-0 grow bg-transparent font-wds-mono text-wds-body-sm text-wds-neutral-950 outline-none"
                   />

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { SearchInput } from '@/components/ui2/search-input';
 import { StockEmptyCard, StockErrorCard, SkeletonRows, TableRowSkeleton } from '../../_shared/components/stock-states';
 import { useLoader } from '../../_shared/hooks/use-async';
@@ -90,28 +91,12 @@ export function OrdersTab({ tab }: { tab: OrdersTabKey }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order or supplier" aria-label="Search order or supplier" shortcutHint="" className="w-[260px]" />
-        <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-          <span className="text-wds-text-secondary">Supplier:</span>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="bg-transparent outline-none" aria-label="Filter by supplier">
-            <option value="">All</option>
-            {suppliers.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex h-8 items-center gap-1 border border-wds-border-strong bg-white px-3 font-wds-sans text-wds-body-sm text-wds-neutral-950">
-          <span className="text-wds-text-secondary">Raised by:</span>
-          <select value={raisedBy} onChange={(e) => setRaisedBy(e.target.value)} className="bg-transparent outline-none" aria-label="Filter by who raised it">
-            <option value="">Anyone</option>
-            {raisers.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="w-[230px]">
+          <Picker aria-label="Filter by supplier" value={supplierId} onValueChange={setSupplierId} chips={false} className="h-8 text-wds-body-sm" options={[{ value: '', label: 'Supplier: All' }, ...suppliers.map(([id, name]) => ({ value: id, label: `Supplier: ${name}` }))]} />
+        </div>
+        <div className="w-[210px]">
+          <Picker aria-label="Filter by who raised it" value={raisedBy} onValueChange={setRaisedBy} chips={false} className="h-8 text-wds-body-sm" options={[{ value: '', label: 'Raised by: Anyone' }, ...raisers.map(([id, name]) => ({ value: id, label: `Raised by: ${name}` }))]} />
+        </div>
         <span className="ml-auto font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.04em] text-wds-text-secondary">
           {rows.length} order{rows.length === 1 ? '' : 's'}
           {showValue ? ` · KES ${kes(total)}` : ''}

@@ -107,7 +107,9 @@ export interface PurchasingService {
   markNoticesRead: (keys: string[]) => Promise<void>;
   markAllNoticesRead: () => Promise<void>;
   reviewRestockList: (lines: RestockListLine[]) => Promise<RestockReview>;
-  sendRestockList: (lines: RestockListLine[], note: string | null) => Promise<RestockSendResult>;
+  sendRestockList: (lines: RestockListLine[], note: string | null, allowAnotherOpen?: boolean) => Promise<RestockSendResult>;
+  /** "Set a supplier" on an item with none (`suppliers.link_item`): an existing supplier only, no price. The change history names the caller. */
+  linkItemSupplier: (inventoryItemId: string, supplierId: string) => Promise<void>;
   getCollectors: (q?: string) => Promise<CollectorOptions>;
   setCollectedBy: (orderId: string, collectedBy: CollectedByInput | null) => Promise<Order>;
   withdrawOrder: (orderId: string) => Promise<Order>;

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 
+import { useNumberPadField } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import type { SectionStatus } from '../_shared/types/requisitions-contract';
 import type { Chip } from '../_shared/lib/requisitions-words';
@@ -129,6 +130,16 @@ export function UrgentTag() {
 export const PinField = React.forwardRef<HTMLInputElement, { value: string; onChange: (pin: string) => void; invalid?: boolean; onSubmit?: () => void; id?: string; wide?: boolean; label?: string }>(
   ({ value, onChange, invalid, onSubmit, id = 'req-pin', wide = false, label = 'Your PIN' }, ref) => {
     const [focused, setFocused] = React.useState(false);
+    // On a finger the PIN is typed on the app's own number pad (no phone keyboard).
+    const pad = useNumberPadField({ label, value, onChange, masked: true, maxLength: 4, actionLabel: 'Done', onDone: () => onSubmit?.() });
+    const setBox = React.useCallback(
+      (node: HTMLInputElement | null): void => {
+        pad.ref.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref, pad.ref],
+    );
     return (
       <div className="flex flex-col gap-1.5">
         <MonoLabel htmlFor={id} className={wide ? 'text-[11px] leading-[14px]' : undefined}>{label}</MonoLabel>
@@ -150,15 +161,20 @@ export const PinField = React.forwardRef<HTMLInputElement, { value: string; onCh
             );
           })}
           <input
-            ref={ref}
+            ref={setBox}
             id={id}
             type="password"
-            inputMode="numeric"
+            inputMode={pad.inApp ? 'none' : 'numeric'}
+            readOnly={pad.inApp}
             autoComplete="off"
             maxLength={4}
             value={value}
             aria-invalid={invalid || undefined}
-            onFocus={() => setFocused(true)}
+            onClick={() => pad.open()}
+            onFocus={() => {
+              setFocused(true);
+              pad.open();
+            }}
             onBlur={() => setFocused(false)}
             onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 4))}
             onKeyDown={(event) => {

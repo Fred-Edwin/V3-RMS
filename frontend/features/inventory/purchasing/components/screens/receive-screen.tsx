@@ -3,9 +3,11 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Camera, Check, ImageIcon, Minus, Plus } from 'lucide-react';
+import { Camera, Check, ImageIcon } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { PadNumberInput, QuantityField } from '@/components/ui2/quantity-field';
+import { allowsDecimal } from '../../../_shared/lib/units';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
@@ -180,37 +182,16 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
                 {diff > 0 ? (r === 0 ? 'Not supplied' : `${fmtQty(diff)} short`) : 'OK'}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label={`One less ${l.itemName}`}
-                disabled={r <= 0}
-                onClick={() => setGot((p) => ({ ...p, [l.id]: q3(Math.max(0, r - 1)) }))}
-                className="flex size-10 shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface outline-none hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-40"
-              >
-                <Minus className="size-4" />
-              </button>
-              <label className={cn('flex h-10 grow items-center justify-center gap-1.5 border bg-wds-surface px-2 focus-within:shadow-wds-ring', diff > 0 ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
-                <input
-                  inputMode="decimal"
-                  value={got[l.id] ?? l.orderedQty}
-                  onChange={(e) => setGot((p) => ({ ...p, [l.id]: e.target.value.replace(/[^0-9.]/g, '') }))}
-                  aria-label={`Quantity of ${l.itemName} received`}
-                  className="w-16 bg-transparent text-center font-wds-mono text-[18px] text-wds-neutral-950 outline-none"
-                />
-                <span className="font-wds-sans text-[12px] text-wds-text-secondary">{l.buyUnit} received</span>
-              </label>
-              <button
-                type="button"
-                aria-label={`One more ${l.itemName}`}
-                disabled={r >= o}
-                onClick={() => setGot((p) => ({ ...p, [l.id]: q3(Math.min(o, r + 1)) }))}
-                className="flex size-10 shrink-0 items-center justify-center border border-wds-border-strong bg-wds-surface outline-none hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:opacity-40"
-              >
-                <Plus className="size-4" />
-              </button>
-            </div>
-            {r > o ? <p className="font-wds-sans text-[12px] text-wds-error-fg">You cannot receive more than was ordered.</p> : null}
+            <QuantityField
+              label={`${l.itemName} received`}
+              unit={l.buyUnit}
+              decimal={allowsDecimal(l.buyUnit)}
+              value={got[l.id] ?? l.orderedQty}
+              onChange={(v) => setGot((p) => ({ ...p, [l.id]: v }))}
+              expected={l.orderedQty}
+              expectedWord="Same as ordered"
+              error={r > o ? 'You cannot receive more than was ordered.' : null}
+            />
             {diff > 0 ? <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">The missing {l.buyUnit === 'kg' || l.buyUnit === 'pcs' ? 'quantity' : l.buyUnit} is dropped from this order.</p> : null}
             {r > 0 ? (
               <div className="flex flex-col gap-1">
@@ -219,12 +200,13 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
                 </label>
                 <div className={cn('flex h-10 items-center gap-1.5 border bg-white px-2.5 focus-within:shadow-wds-ring', priceInvalid(l) ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
                   <span className="font-wds-mono text-[12px] text-wds-text-secondary">KES</span>
-                  <input
+                  <PadNumberInput
                     id={`price-${l.id}`}
-                    inputMode="decimal"
+                    label={`Price of ${l.itemName}`}
+                    unit={l.buyUnit ? `KES per ${l.buyUnit}` : 'KES'}
                     value={typed[l.id] ?? ''}
-                    onChange={(e) => {
-                      setTyped((p) => ({ ...p, [l.id]: e.target.value.replace(/[^0-9.]/g, '') }));
+                    onChange={(v) => {
+                      setTyped((p) => ({ ...p, [l.id]: v }));
                       setConfirmed((p) => ({ ...p, [l.id]: false }));
                     }}
                     placeholder={showPrices ? kes(l.unitPrice) : 'Same as ordered'}
@@ -273,6 +255,7 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
         <PhoneFieldLabel htmlFor="dn-no">Delivery note number</PhoneFieldLabel>
         <input
           id="dn-no"
+          autoComplete="off"
           value={noteNo}
           onChange={(e) => setNoteNo(e.target.value)}
           placeholder="e.g. DN-77120"

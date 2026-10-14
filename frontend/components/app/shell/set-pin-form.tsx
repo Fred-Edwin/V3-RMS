@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { OTPInput, type SlotProps } from "input-otp";
+import { type SlotProps } from "input-otp";
 import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui2/button";
 import { Input } from "@/components/ui2/input";
+import { PadInputOTP } from "@/components/ui2/input-otp";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
 import { ApiError } from "@/types/api";
@@ -104,15 +105,16 @@ function PinField({
       <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">
         {label}
       </span>
-      <OTPInput
+      <PadInputOTP
         ref={inputRef}
+        padLabel={label}
+        padAction="Done"
         maxLength={PIN_LENGTH}
         value={value}
         onChange={onChange}
         onComplete={onComplete}
         autoFocus={autoFocus}
         disabled={disabled}
-        inputMode="numeric"
         aria-label={label}
         aria-invalid={invalid || undefined}
         containerClassName={cn(

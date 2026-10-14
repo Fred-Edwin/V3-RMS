@@ -5,6 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { OTPInput, type SlotProps } from 'input-otp';
 
 import { cn } from '@/lib/cn';
+import { usePinPad } from '@/components/ui2/number-pad';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
 import { SetPinForm } from '@/components/app/shell/set-pin-form';
@@ -56,7 +57,9 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
   const [pin, setPin] = React.useState('');
   const [dragY, setDragY] = React.useState(0);
   const drag = React.useRef<{ startY: number; startT: number; id: number } | null>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  // On a finger the PIN is typed on the app's own number pad; the fourth digit signs.
+  const pinPad = usePinPad({ value: pin, onChange: setPin, onDone: (v) => onSubmit(v) });
   // No PIN yet → this same sheet becomes the "Set your PIN" step, then signs
   // with the PIN just set (Pre-Demo Fixes, Paper artboard 5a).
   const pinStatus = usePinStatus(open);
@@ -148,7 +151,10 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
 
               <div className="flex flex-col items-center gap-2">
                 <OTPInput
-                  ref={inputRef}
+                  ref={(node) => {
+                    inputRef.current = node;
+                    pinPad.ref.current = node;
+                  }}
                   maxLength={PIN_LENGTH}
                   value={pin}
                   onChange={setPin}
@@ -160,7 +166,7 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
                       onSubmit(pin);
                     }
                   }}
-                  inputMode="numeric"
+                  {...pinPad.inputProps}
                   aria-label="PIN"
                   aria-invalid={error?.kind === 'pin' || undefined}
                   containerClassName="flex justify-center gap-3 py-2 has-[:disabled]:opacity-60"

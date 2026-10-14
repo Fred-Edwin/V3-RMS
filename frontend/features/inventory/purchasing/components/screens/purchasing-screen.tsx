@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Topbar } from '@/components/app/shell/topbar';
 import { Button } from '@/components/ui2/button';
+import { Skeleton } from '@/components/ui2/skeleton';
 import { cn } from '@/lib/cn';
 import { usePurchasing } from '../../hooks/use-purchasing';
 import type { Summary } from '../../types';
@@ -51,6 +52,9 @@ export function PurchasingScreen() {
   // Whoever raises requests but cannot approve them (the Store Attendant in the access table) gets the phone Purchasing home
   // (Paper chapter 9, 28A) instead of the six stage tabs. Decided from capabilities, never from a role name.
   if (ready && can('orders.request') && !can('orders.approve')) return <HomeScreen />;
+  // Until the table arrives we do not know which Purchasing this person gets, so show neither (the desktop tabs would flash, and
+  // fail to load, for an Attendant opening this page on Back).
+  if (!ready) return <div className="flex flex-1 flex-col gap-3 p-6" aria-busy="true" aria-label="Loading Purchasing"><Skeleton className="h-8 w-48" /><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>;
 
   return (
     <>

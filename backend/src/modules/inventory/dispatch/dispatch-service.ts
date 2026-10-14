@@ -17,6 +17,7 @@ import { postStockMovement } from '../stock/ledger/ledger-door';
 import type {
   CancelDispatchInput,
   CancelDispatchResult,
+  CarrierStaffList,
   DispatchFile,
   DispatchMine,
   DispatchMineQuery,
@@ -259,6 +260,12 @@ export const dispatchService = {
   },
 
   /** P4 GET /pack/:requisitionId/review: every department still to pack, short counts and all lines, the carriers and the signer. */
+  /** The people the Attendant may choose as carrier at the final sign (anyone with a login at the hub or its company), searched by name. */
+  carrierStaff: async (actor: Actor, q: string | undefined): Promise<CarrierStaffList> => {
+    const c = await loadCaller(actor);
+    return { staff: await repo.searchStaff(c.hubId, q) };
+  },
+
   review: async (actor: Actor, requisitionId: string): Promise<Review> => {
     const c = await loadCaller(actor);
     const rec = await loadRequisition(requisitionId);
@@ -326,9 +333,17 @@ export const dispatchService = {
 
     const rec = await loadRequisition(requisitionId);
     const holder = await countPin.verifyOwn(actor, input.pin);
-    const carrier = await repo.findCarrier(c.hubId, input.carrierId);
-    if (!carrier) throw new NotFoundError('Carrier not found');
-    if (!carrier.active) throw dispatchError('CARRIER_INACTIVE', 'This carrier has been retired. Pick another.');
+    // A carrier from Settings, or a staff member (a hidden PERSON carrier made the first time that person carries something).
+    let carrier;
+    if (input.carrierUserId) {
+      const person = await repo.findEligibleStaff(c.hubId, input.carrierUserId);
+      if (!person) throw new NotFoundError('That person cannot be chosen as the carrier');
+      carrier = await repo.ensureStaffCarrier(c.hubId, person);
+    } else {
+      carrier = await repo.findCarrier(c.hubId, input.carrierId ?? '');
+      if (!carrier) throw new NotFoundError('Carrier not found');
+      if (!carrier.active) throw dispatchError('CARRIER_INACTIVE', 'This carrier has been retired. Pick another.');
+    }
     const branch = await repo.findBranch(rec.siteId);
     if (!branch?.code) throw new ValidationError('This branch has no code yet, so a dispatch cannot be numbered');
     const store = await storeLocation();

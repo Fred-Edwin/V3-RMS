@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { BottomSheet, SheetGrabber } from '../../../_shared/components/bottom-sheet';
@@ -307,18 +308,12 @@ function SendSheet({ line, departmentName, onClose, onSend }: { line: EffectiveL
                 <path d="M2 7H12" fill="none" stroke="currentColor" strokeWidth="1.6" />
               </svg>
             </button>
-            <input
+            <PadNumberInput
               value={draft}
-              inputMode="decimal"
-              aria-label={`${l.itemName} quantity to send`}
-              onChange={(e) => setDraft(e.target.value.replace(/[^0-9.]/g, ''))}
+              label={`${l.itemName} quantity to send`}
+              onChange={setDraft}
               onBlur={() => setDraft(clampSend(l, toNumber(draft)))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  onSend(l, clampSend(l, toNumber(draft)));
-                }
-              }}
+              onEnter={() => onSend(l, clampSend(l, toNumber(draft)))}
               className="h-11 w-16 border-y border-wds-border-strong bg-transparent text-center font-wds-sans text-[20px] font-semibold leading-6 text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
             />
             <button type="button" className={btn} aria-label="Send more" disabled={value >= max} onClick={() => setDraft(clampSend(l, value + step))}>

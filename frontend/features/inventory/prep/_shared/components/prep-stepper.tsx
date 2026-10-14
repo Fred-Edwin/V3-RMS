@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { useNumberPadField } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import { formatQuantity, parseTypedQuantity, stepQuantity } from '../lib/prep-format';
 
@@ -32,6 +33,8 @@ export function PrepStepper({ value, unit, onChange, label, wide = false, numera
   const sans = numeral === 'sans';
   const [draft, setDraft] = React.useState<string | null>(null);
   const shown = draft ?? formatQuantity(value);
+  // On a finger the amount is typed on the app's own number pad (no phone keyboard).
+  const pad = useNumberPadField({ label: `${label} amount`, unit, value: shown, onChange: setDraft, decimal: true });
 
   const commit = (): void => {
     if (draft !== null) {
@@ -58,13 +61,18 @@ export function PrepStepper({ value, unit, onChange, label, wide = false, numera
       </button>
       <label className={cn('flex h-11 shrink-0 cursor-text items-center justify-center gap-[3px]', 'px-1', wide ? 'min-w-[92px]' : 'min-w-[68px]')}>
         <input
-          inputMode="decimal"
+          ref={pad.ref as React.RefObject<HTMLInputElement>}
+          inputMode={pad.inApp ? 'none' : 'decimal'}
+          readOnly={pad.inApp}
+          autoComplete="off"
           aria-label={`${label} amount`}
           disabled={disabled}
           value={shown}
+          onClick={() => pad.open()}
           onFocus={(e) => {
             setDraft(formatQuantity(value));
-            e.currentTarget.select();
+            if (pad.inApp) pad.open();
+            else e.currentTarget.select();
           }}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}

@@ -5,6 +5,7 @@ import * as React from 'react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Input } from '@/components/ui2/input';
+import { PAD_INPUT_CLASS, PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { FormErrorBanner } from '../../_shared/components/stock-states';
@@ -88,7 +89,7 @@ export function RecordAdvanceSheet({ order, open, onOpenChange }: { order: Order
           </div>
           <div className="flex flex-col gap-1.5">
             <FieldLabel htmlFor="adv-amount">Amount (KES)</FieldLabel>
-            <Input id="adv-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" className="text-right font-wds-mono" autoFocus />
+            <PadNumberInput id="adv-amount" label="Advance amount" unit="KES" value={amount} onChange={setAmount} placeholder="0.00" className={cn(PAD_INPUT_CLASS, 'text-right font-wds-mono')} autoFocus />
             <div className="flex gap-1.5">
               {[25, 50, 100].map((pct) => (
                 <button

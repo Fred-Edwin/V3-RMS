@@ -7,6 +7,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'tex
   ({ className, ...props }, ref) => {
     return (
       <textarea
+        autoComplete="off"
         className={cn(
           'flex min-h-16 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 py-wds-2.5 font-wds-sans text-wds-body text-wds-text-ink transition-colors',
           'placeholder:text-wds-text-muted',

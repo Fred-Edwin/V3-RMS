@@ -34,6 +34,8 @@ export interface KeypadProps {
    */
   look?: 'default' | 'paper';
   className?: string;
+  /** Show the decimal point (weight, volume). Off for counts and PINs: the key is blank. Default on. */
+  showDecimal?: boolean;
 }
 
 const ROWS: string[][] = [
@@ -45,7 +47,7 @@ const ROWS: string[][] = [
 const keyBase =
   'flex h-12 grow basis-0 items-center justify-center border border-wds-border bg-wds-surface font-wds-sans text-[22px] leading-7 text-wds-text-ink outline-none transition-[background-color,transform,box-shadow] duration-100 ease-out focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-50 motion-safe:active:scale-[0.97] active:bg-wds-neutral-100 [@media(hover:hover)]:hover:bg-wds-neutral-50';
 
-export function Keypad({ onDigit, onBackspace, action, disabled = false, look = 'default', className }: KeypadProps) {
+export function Keypad({ onDigit, onBackspace, action, disabled = false, look = 'default', className, showDecimal = true }: KeypadProps) {
   const paper = look === 'paper';
   const keyClass = paper ? cn(keyBase, 'h-[46px]') : keyBase;
   return (
@@ -61,9 +63,14 @@ export function Keypad({ onDigit, onBackspace, action, disabled = false, look = 
           </div>
         ))}
         <div className="flex gap-2">
-          <button type="button" className={keyClass} disabled={disabled} onClick={() => onDigit('.')} aria-label="Decimal point">
-            .
-          </button>
+          {showDecimal ? (
+            <button type="button" className={keyClass} disabled={disabled} onClick={() => onDigit('.')} aria-label="Decimal point">
+              .
+            </button>
+          ) : (
+            // Same 1px border as a key (invisible), or the equal split is 2 px off.
+            <span aria-hidden="true" className="grow basis-0 border border-transparent" />
+          )}
           <button type="button" className={keyClass} disabled={disabled} onClick={() => onDigit('0')}>
             0
           </button>
@@ -94,7 +101,7 @@ export function Keypad({ onDigit, onBackspace, action, disabled = false, look = 
         )}
       >
         <span className="text-[17px] font-semibold leading-[22px]">{action.label}</span>
-        {action.detail ? <span className="font-wds-mono text-wds-caption text-wds-text-secondary">{action.detail}</span> : null}
+        {action.detail ? <span className={cn('font-wds-mono text-wds-caption', action.tone === 'primary' ? 'text-wds-espresso-100' : 'text-wds-text-secondary')}>{action.detail}</span> : null}
       </button>
     </div>
   );

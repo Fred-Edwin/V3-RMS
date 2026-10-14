@@ -4,6 +4,7 @@ import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { DateRangePicker, type DateRange } from '@/components/ui2/date-range-picker';
+import { Picker } from '@/components/ui2/picker';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { useAuthStore } from '@/store/authStore';
 import { PhoneColumn } from '../../../_shared/components/phone-column';
@@ -111,18 +112,9 @@ export function MyDeliveriesList({ withTabs = false }: { withTabs?: boolean }) {
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-wds-canvas p-4">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangePicker label="Date" today={today} value={range} onChange={(r) => setQuery({ from: r?.from ?? null, to: r?.to ?? null, page: null })} buttonClassName="h-[34px] max-sm:h-[34px] rounded-none px-3 font-wds-sans text-[13px] leading-4" />
-          <label className="relative flex h-[34px] items-center border border-wds-border-strong bg-wds-surface">
-            <span className="sr-only">Result</span>
-            <select aria-label="Result" value={result ?? ''} onChange={(e) => setQuery({ result: e.target.value || null, page: null })} className="h-full appearance-none bg-transparent pl-3 pr-8 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring">
-              <option value="">Result: All</option>
-              {DELIVERY_RESULTS.map((r) => (
-                <option key={r} value={r}>
-                  Result: {RESULT_TEXT[r]}
-                </option>
-              ))}
-            </select>
-            <span aria-hidden="true" className="pointer-events-none absolute right-3 text-[9px] text-wds-text-ink">▾</span>
-          </label>
+          <div className="w-[170px]">
+            <Picker aria-label="Result" value={result ?? ''} onValueChange={(v) => setQuery({ result: v || null, page: null })} options={[{ value: '', label: 'Result: All' }, ...DELIVERY_RESULTS.map((r) => ({ value: r, label: `Result: ${RESULT_TEXT[r]}` }))]} chips={false} searchable={false} className="h-[34px] text-[13px]" />
+          </div>
         </div>
         <div className="mt-3 flex flex-col">{body}</div>
         <div className="grow" />

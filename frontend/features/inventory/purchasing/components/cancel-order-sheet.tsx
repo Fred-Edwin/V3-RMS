@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -58,13 +59,7 @@ export function CancelOrderSheet({ order, open, onOpenChange }: { order: Order; 
             </div>
             <div className="flex flex-col gap-1.5">
               <FieldLabel htmlFor="cancel-reason">Reason (required)</FieldLabel>
-              <select id="cancel-reason" value={reason} onChange={(e) => setReason(e.target.value as CancelReason)} className="h-8 rounded-wds-sm border border-wds-border-strong bg-white px-2 font-wds-sans text-wds-body-sm outline-none focus-visible:shadow-wds-ring">
-                {REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+              <Picker id="cancel-reason" aria-label="Reason" value={reason} onValueChange={(v) => setReason(v as CancelReason)} options={REASONS.map((r) => ({ value: r.value, label: r.label }))} chips={false} className="h-8 rounded-wds-sm text-wds-body-sm" />
             </div>
             <div className="flex flex-col gap-1.5">
               <FieldLabel htmlFor="cancel-note">Note</FieldLabel>

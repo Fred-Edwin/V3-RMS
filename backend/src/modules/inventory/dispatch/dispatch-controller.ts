@@ -6,6 +6,7 @@ import {
   addCarrierInputSchema,
   cancelDispatchInputSchema,
   carrierParamsSchema,
+  carrierStaffQuerySchema,
   dispatchMineQuerySchema,
   dispatchParamsSchema,
   listCarriersQuerySchema,
@@ -41,6 +42,11 @@ export const dispatchController = {
     const { requisitionId, departmentId } = packDepartmentParamsSchema.parse(req.params);
     const input = savePackLinesInputSchema.parse(req.body);
     res.status(200).json({ success: true, data: await dispatchService.saveLines(requireActor(req), requisitionId, departmentId, input) });
+  },
+
+  carrierStaff: async (req: Request, res: Response): Promise<void> => {
+    const { q } = carrierStaffQuerySchema.parse(req.query);
+    res.status(200).json({ success: true, data: await dispatchService.carrierStaff(requireActor(req), q) });
   },
 
   review: async (req: Request, res: Response): Promise<void> => {

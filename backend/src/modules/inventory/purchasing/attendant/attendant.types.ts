@@ -160,6 +160,10 @@ export interface RestockLevelRow {
   /** `onHand / level` capped at 1, for the coloured bar. */
   fill: number;
   supplier: { id: string; name: string } | null;
+  /** The unit the item is bought in, the whole units that bring it back to its level, and the last price per unit: null when there is no supplier line. */
+  buyUnit: string | null;
+  suggestedQty: string | null;
+  lastPrice: string | null;
 }
 
 export interface RestockLevelsView {

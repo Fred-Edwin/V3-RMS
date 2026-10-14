@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import { bumpAmount } from '../lib/recipe-form';
 import { PRESS } from '../lib/press';
@@ -28,13 +29,11 @@ export function AmountStepper({ value, unit, onChange, label, invalid = false }:
         −
       </button>
       <label className="flex h-9 min-w-[72px] shrink-0 items-center justify-center gap-1 px-1.5">
-        <input
-          inputMode="decimal"
-          autoComplete="off"
-          aria-label={label}
+        <PadNumberInput
+          label={label}
+          unit={unit}
           value={value}
-          onChange={(e) => {
-            const next = e.target.value.replace(',', '.');
+          onChange={(next) => {
             if (/^\d*\.?\d{0,4}$/.test(next)) onChange(next);
           }}
           className="w-10 min-w-0 bg-transparent text-right font-wds-mono text-[14px] leading-[18px] font-medium text-wds-text-ink outline-none"

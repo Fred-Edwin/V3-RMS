@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Combobox, type ComboboxOption } from '@/components/ui2/combobox';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import type { Category } from '../../types';
 import type { CreateSupplierBody, SupplierDetail, SupplierListRow, SupplierTerms, SupplierType, UpdateSupplierBody } from '../types/supplier';
 import { useAction } from '../../_shared/hooks/use-async';
@@ -254,13 +255,15 @@ export function SupplierFormView({ supplier, categories, onCancel, onSaved }: Su
           </ChoiceChip>
           {terms === 'INVOICE_TO_FOLLOW' ? (
             <span className="ml-2 flex items-center gap-1.5">
-              <input
+              <PadNumberInput
                 name="paymentDays"
-                inputMode="numeric"
-                aria-label="Days to pay"
+                label="Days to pay"
+                unit="days"
+                decimal={false}
+                maxLength={3}
                 value={days}
-                onChange={(e) => {
-                  setDays(e.target.value);
+                onChange={(v) => {
+                  setDays(v);
                   setErrors((p) => ({ ...p, days: undefined }));
                 }}
                 aria-invalid={errors.days ? true : undefined}
@@ -310,14 +313,14 @@ export function SupplierFormView({ supplier, categories, onCancel, onSaved }: Su
               <FieldLabel htmlFor="supplier-credit" hint="optional">
                 Credit limit · KES
               </FieldLabel>
-              <input
+              <PadNumberInput
                 id="supplier-credit"
                 name="creditLimit"
-                inputMode="decimal"
-                autoComplete="off"
+                label="Credit limit"
+                unit="KES"
                 value={creditLimit}
-                onChange={(e) => {
-                  setCreditLimit(e.target.value);
+                onChange={(v) => {
+                  setCreditLimit(v);
                   setErrors((p) => ({ ...p, creditLimit: undefined }));
                 }}
                 aria-invalid={errors.creditLimit ? true : undefined}

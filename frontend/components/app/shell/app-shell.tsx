@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+import { NumberPadHost } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import { performLogout } from '@/lib/logout';
 import { BottomBar } from './bottom-bar';
@@ -57,7 +58,8 @@ export function AppShell({ mode, children }: AppShellProps) {
   );
 
   return (
-    <div className={cn('h-screen min-h-0 w-full bg-wds-canvas print:block print:h-auto', mode === 'desktop' ? 'hidden lg:flex' : 'flex')}>
+    // The height gives way to the number pad while it is open (`--number-pad-h`), so the screen's own bottom bar rests on the keys.
+    <div className={cn('h-[calc(100dvh-var(--number-pad-h,0px))] min-h-0 w-full bg-wds-canvas print:block print:h-auto', mode === 'desktop' ? 'hidden lg:flex' : 'flex')}>
       <div className={cn('print:hidden', mode === 'desktop' ? 'flex' : 'hidden lg:flex')}>
         <SidebarNav groups={groups} activeKey={active.activeKey} activeSubKey={active.activeSubKey} user={user} orgLabel={orgLabel} logoSrc={WENDO_LOGO_SRC} onSignOut={handleSignOut} />
       </div>
@@ -81,6 +83,7 @@ export function AppShell({ mode, children }: AppShellProps) {
           </>
         ) : null}
       </div>
+      <NumberPadHost />
     </div>
   );
 }

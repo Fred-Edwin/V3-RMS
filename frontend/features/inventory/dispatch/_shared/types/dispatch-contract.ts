@@ -286,10 +286,18 @@ export interface Review {
   canSign: boolean;
 }
 
+/** GET /dispatch/carrier-staff: the people the Attendant may choose as carrier. */
+export interface CarrierStaffList {
+  staff: Array<{ id: string; name: string; role: string }>;
+}
+
 // --- P5 POST /dispatch/pack/:requisitionId/sign (D5, D6) -----------------------------------
 
 export interface SignDispatchInput {
-  carrierId: string;
+  /** A carrier from Settings... */
+  carrierId?: string;
+  /** ...or a staff member (training row 1, 12 Oct 2026): exactly one of the two. */
+  carrierUserId?: string;
   pin: string;
   idempotencyKey: string;
   /** Departments left out stay in To pack and ship later with their own short review and signature. */

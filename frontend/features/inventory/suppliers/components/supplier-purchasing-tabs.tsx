@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Input } from '@/components/ui2/input';
+import { Picker } from '@/components/ui2/picker';
 import { StockEmptyCard, StockErrorCard, SkeletonRows, TableRowSkeleton } from '../../_shared/components/stock-states';
 import { useLoader } from '../../_shared/hooks/use-async';
 import { StageDots, thClass } from '../../purchasing/components/parts';
@@ -111,13 +112,9 @@ export function SupplierOrdersTab({
               </button>
             ))}
           </div>
-          <label className="flex h-8 items-center border border-wds-border-strong bg-white px-3 font-wds-sans text-[13px] text-wds-text-ink">
-            <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Date range" className="bg-transparent outline-none">
-              <option value="any">Any date</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
-          </label>
+          <div className="w-[160px]">
+            <Picker value={period} onValueChange={setPeriod} aria-label="Date range" chips={false} className="h-8 text-[13px]" options={[{ value: 'any', label: 'Any date' }, { value: '30', label: 'Last 30 days' }, { value: '90', label: 'Last 90 days' }]} />
+          </div>
           {canOrder && supplierId ? (
             <Button asChild className="h-8 bg-wds-caramel-600 px-4 hover:bg-wds-caramel-700">
               <Link href={`/app/inventory/purchasing/new?supplier=${supplierId}`}>New order from {first}</Link>

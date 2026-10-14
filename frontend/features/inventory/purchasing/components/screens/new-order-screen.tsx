@@ -9,6 +9,8 @@ import { cn } from '@/lib/cn';
 import { Topbar } from '@/components/app/shell/topbar';
 import { Button } from '@/components/ui2/button';
 import { Checkbox } from '@/components/ui2/checkbox';
+import { Picker } from '@/components/ui2/picker';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { SearchInput } from '@/components/ui2/search-input';
 import { Textarea } from '@/components/ui2/textarea';
@@ -62,6 +64,8 @@ export function NewOrderScreen() {
   const [pinOpen, setPinOpen] = React.useState(false);
   const [openOrder, setOpenOrder] = React.useState<{ id: string; reference: string | null } | null>(null);
   const [changing, setChanging] = React.useState(false);
+  const allowAnother = React.useRef(false);
+  const retryAfterConfirm = React.useRef<(() => void) | null>(null);
   const guard = useUnsavedChangesGuard(dirty);
   const touch = (): void => setDirty(true);
 
@@ -86,7 +90,11 @@ export function NewOrderScreen() {
 
   const byId = new Map<string, CatalogItem>((catalog?.items ?? []).map((i) => [i.inventoryItemId, i]));
   const selectedIds = Object.keys(lines).filter((id) => byId.has(id));
-  const total = selectedIds.reduce((t, id) => t + (Number.parseFloat(byId.get(id)?.price || '0') || 0) * (Number.parseFloat(lines[id] ?? '0') || 0), 0);
+  // The Store Manager may type a price over the supplier's (the server only takes a typed price from someone who can approve).
+  const canTypePrice = showPrices && can('orders.approve');
+  const [prices, setPrices] = React.useState<Record<string, string>>({});
+  const priceOf = (id: string): string => (canTypePrice ? prices[id] : undefined) ?? byId.get(id)?.price ?? '';
+  const total = selectedIds.reduce((t, id) => t + (Number.parseFloat(priceOf(id) || '0') || 0) * (Number.parseFloat(lines[id] ?? '0') || 0), 0);
 
   const setQty = (id: string, value: string): void => {
     touch();
@@ -111,7 +119,9 @@ export function NewOrderScreen() {
     expectedDate: date || null,
     supplierNote: note.trim() || null,
     attendantNote: attNote.trim() || null,
-    lines: selectedIds.map((id) => ({ inventoryItemId: id, qty: lines[id] ?? '0', unitPrice: byId.get(id)?.price ?? '' })),
+    lines: selectedIds.map((id) => ({ inventoryItemId: id, qty: lines[id] ?? '0', unitPrice: priceOf(id) })),
+    // Set once the person said "Add another" to the open-order question (training fix 6): the server asks, it does not block.
+    ...(allowAnother.current ? { allowAnotherOpen: true } : {}),
   });
   const valid = supplierId !== '' && selectedIds.length > 0 && selectedIds.every((id) => Number.parseFloat(lines[id] ?? '0') > 0);
 
@@ -126,11 +136,11 @@ export function NewOrderScreen() {
     return o;
   };
 
-  const handleOpenOrder = (e: unknown): boolean => {
-    // A race on the one-open-order rule is refused without the other order's id: that one falls through to the plain message.
+  const handleOpenOrder = (e: unknown, retry: () => void): boolean => {
     if (isPurchasingError(e, 'SUPPLIER_ORDER_OPEN')) {
       const details = errorDetails(e);
       if (typeof details.openOrderId === 'string') {
+        retryAfterConfirm.current = retry;
         setOpenOrder({ id: details.openOrderId, reference: (details.openReference as string | null) ?? null });
         return true;
       }
@@ -146,7 +156,7 @@ export function NewOrderScreen() {
       router.push(`/app/inventory/purchasing/${o.id}`);
       return o;
     } catch (e) {
-      if (handleOpenOrder(e)) return null as unknown as Order;
+      if (handleOpenOrder(e, () => void draft.run())) return null as unknown as Order;
       throw e;
     }
   }, 'We could not save the draft. Try again.');
@@ -160,14 +170,14 @@ export function NewOrderScreen() {
       router.push('/app/inventory/purchasing?tab=approval');
       return sent;
     } catch (e) {
-      if (handleOpenOrder(e)) return null as unknown as Order;
+      if (handleOpenOrder(e, () => void send.run())) return null as unknown as Order;
       throw e;
     }
   }, 'We could not send the order. Try again.');
 
   const approveAndSend = async (pin: string): Promise<void> => {
     const o = await saveDraft().catch((e: unknown) => {
-      if (handleOpenOrder(e)) setPinOpen(false);
+      if (handleOpenOrder(e, () => setPinOpen(true))) setPinOpen(false);
       throw e;
     });
     const approved = await service.approveOrder(o.id, pin);
@@ -236,8 +246,8 @@ export function NewOrderScreen() {
             />
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${supplier?.name.split(' ')[0] ?? ''}’s catalog`} aria-label="Search the catalog" shortcutHint="" className="w-[230px]" />
+              <div className="flex flex-wrap items-center gap-2">
+                <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${supplier?.name.split(' ')[0] ?? ''}’s catalog`} aria-label="Search the catalog" shortcutHint="" className="w-full min-w-full md:w-[230px] md:min-w-0" />
                 <SegmentedToggle
                   label="Which items to show"
                   value={filter}
@@ -266,7 +276,7 @@ export function NewOrderScreen() {
                 />
               ) : (
                 <div className="flex flex-col">
-                  <div className="flex h-8 items-center gap-3 border-b border-wds-neutral-950">
+                  <div className="hidden h-8 items-center gap-3 border-b border-wds-neutral-950 md:flex">
                     <span className="w-6 shrink-0" />
                     <span className={cn(thClass, 'grow')}>Item</span>
                     <span className={cn(thClass, 'w-[118px] shrink-0')}>Stock</span>
@@ -277,38 +287,69 @@ export function NewOrderScreen() {
                   {visible.map((i) => {
                     const on = i.inventoryItemId in lines;
                     return (
-                      <div key={i.inventoryItemId} className="flex h-[54px] items-center gap-3 border-b border-wds-neutral-100">
+                      <div key={i.inventoryItemId} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-wds-neutral-100 py-3 md:h-[54px] md:flex-nowrap md:py-0">
                         <span className="flex w-6 shrink-0 items-center">
-                          <Checkbox checked={on} onCheckedChange={() => toggle(i)} aria-label={`Select ${i.itemName}`} />
+                          {/* Out of the Tab order on purpose: Tab goes quantity, price, next row's quantity (training fix 5). The mouse still ticks it. */}
+                          <Checkbox checked={on} onCheckedChange={() => toggle(i)} aria-label={`Select ${i.itemName}`} tabIndex={-1} />
                         </span>
-                        <div className="flex min-w-0 grow flex-col gap-0.5">
+                        <div className="flex w-[calc(100%-36px)] min-w-0 flex-col gap-0.5 md:w-auto md:grow">
                           <span className="truncate font-wds-sans text-wds-body-sm leading-4 text-wds-neutral-950">{i.itemName}</span>
                           <span className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{i.category}</span>
                         </div>
-                        <div className="flex w-[118px] shrink-0 flex-col gap-0.5">
+                        <div className="ml-9 flex w-[104px] shrink-0 flex-col gap-0.5 md:ml-0 md:w-[118px]">
                           <DotLabel tone={i.status === 'OUT' ? 'error' : i.status === 'LOW' ? 'warning' : 'success'}>{i.status === 'OUT' ? 'Out' : i.status === 'LOW' ? 'Low' : 'OK'}</DotLabel>
                           <span className="font-wds-mono text-[11px] text-wds-text-secondary">
                             {i.onHand !== undefined && i.level !== undefined ? `${fmtQty(i.onHand)} / ${fmtQty(i.level)}` : ''}
                           </span>
                         </div>
-                        <span className="w-24 shrink-0 font-wds-sans text-wds-caption text-wds-text-secondary">{i.soldAs}</span>
-                        {showPrices ? <span className="w-[74px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-neutral-950">{kes(i.price)}</span> : null}
-                        <div className="w-[100px] shrink-0">
-                          {on ? (
-                            <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
-                              <input
-                                inputMode="decimal"
-                                value={lines[i.inventoryItemId] ?? ''}
-                                onChange={(e) => setQty(i.inventoryItemId, e.target.value.replace(/[^0-9.]/g, ''))}
-                                aria-label={`Quantity of ${i.itemName}`}
-                                className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none"
-                              />
-                              <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{i.buyUnit}</span>
-                            </label>
-                          ) : (
-                            <span className="block text-right font-wds-mono text-wds-caption text-wds-text-faint">—</span>
-                          )}
+                        <span className="hidden w-24 shrink-0 font-wds-sans text-wds-caption text-wds-text-secondary md:block">{i.soldAs}</span>
+                        {/* The quantity cell comes first in the page order (so Tab reaches it, then the price) and is shown after the price by `order`. */}
+                        <div className="order-2 w-[100px] shrink-0">
+                          <label className={cn('flex h-7 items-center justify-end gap-1.5 rounded-[2px] border bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring', on ? 'border-wds-border-strong' : 'border-wds-border')}>
+                            <PadNumberInput
+                              label={`Quantity of ${i.itemName}`}
+                              unit={i.buyUnit}
+                              value={lines[i.inventoryItemId] ?? ''}
+                              placeholder={on ? undefined : '—'}
+                              // Clicking the box ticks the row, clearing it unticks (training fix 5).
+                              onFocus={() => {
+                                if (on) return;
+                                toggle(i);
+                                // After the re-render ticking puts the suggested amount in; with a mouse the next keystroke should replace it.
+                                requestAnimationFrame(() => {
+                                  if (document.activeElement instanceof HTMLInputElement) document.activeElement.select();
+                                });
+                              }}
+                              onMouseUp={(e) => e.preventDefault()}
+                              onChange={(next) => {
+                                if (next === '' && on) toggle(i);
+                                else if (on) setQty(i.inventoryItemId, next);
+                                else {
+                                  touch();
+                                  setLines((prev) => ({ ...prev, [i.inventoryItemId]: next }));
+                                }
+                              }}
+                              className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none placeholder:text-wds-text-faint"
+                            />
+                            {on ? <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{i.buyUnit}</span> : null}
+                          </label>
                         </div>
+                        {showPrices ? (
+                          canTypePrice ? (
+                            <PadNumberInput
+                              label={`Price of ${i.itemName}`}
+                              unit={`KES per ${i.buyUnit}`}
+                              value={prices[i.inventoryItemId] ?? i.price ?? ''}
+                              onChange={(v) => {
+                                touch();
+                                setPrices((prev) => ({ ...prev, [i.inventoryItemId]: v }));
+                              }}
+                              className="order-1 h-7 w-[74px] shrink-0 rounded-[2px] border border-wds-border bg-wds-surface px-2 text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
+                            />
+                          ) : (
+                            <span className="order-1 w-[74px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-neutral-950">{kes(i.price)}</span>
+                          )
+                        ) : null}
                       </div>
                     );
                   })}
@@ -342,23 +383,19 @@ export function NewOrderScreen() {
               </div>
               {supplier?.termsLabel ? <span className="font-wds-sans text-[11px] text-wds-text-secondary">{supplier.termsLabel}</span> : null}
               {changing ? (
-                <select
+                <Picker
                   aria-label="Change supplier"
                   value={supplierId}
-                  onChange={(e) => {
-                    setSupplierId(e.target.value);
+                  onValueChange={(v) => {
+                    setSupplierId(v);
                     setLines({});
                     setChanging(false);
                     touch();
                   }}
-                  className="mt-1 h-8 rounded-wds-sm border border-wds-border-strong bg-white px-2 font-wds-sans text-wds-body-sm outline-none focus-visible:shadow-wds-ring"
-                >
-                  {(suppliers.data?.suppliers ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  chips={false}
+                  className="mt-1 h-8 rounded-wds-sm text-wds-body-sm"
+                  options={(suppliers.data?.suppliers ?? []).map((s) => ({ value: s.id, label: s.name }))}
+                />
               ) : null}
             </div>
 
@@ -375,10 +412,10 @@ export function NewOrderScreen() {
                         <span className="truncate font-wds-sans text-wds-body-sm text-wds-neutral-950">{it.itemName}</span>
                         <span className="font-wds-mono text-[11px] text-wds-text-secondary">
                           {fmtQty(lines[id])} {it.buyUnit}
-                          {showPrices ? ` × ${kes(it.price)}` : ''}
+                          {showPrices ? ` × ${kes(priceOf(id))}` : ''}
                         </span>
                       </div>
-                      {showPrices ? <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(q * Number.parseFloat(it.price || '0'))}</span> : null}
+                      {showPrices ? <span className="font-wds-mono text-wds-body-sm text-wds-neutral-950">{kes(q * Number.parseFloat(priceOf(id) || '0'))}</span> : null}
                       <button
                         type="button"
                         onClick={() => toggle(it)}
@@ -514,16 +551,17 @@ export function NewOrderScreen() {
       <ConfirmDialog
         open={openOrder !== null}
         onOpenChange={(o) => (!o ? setOpenOrder(null) : undefined)}
-        title="Another order is still open"
-        description={`${openOrder?.reference ?? 'A draft'} to ${supplier?.name ?? 'this supplier'} is still open. There is one order per supplier, so add your items to that order instead.`}
-        confirmLabel={`Open ${openOrder?.reference ?? 'it'}`}
-        cancelLabel="Close"
+        title="Add another order?"
+        description={`There is already an open order to this supplier (${openOrder?.reference ?? 'a draft'} to ${supplier?.name ?? 'this supplier'}). Add another?`}
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
         destructive={false}
         onConfirm={() => {
-          const id = openOrder?.id;
-          setDirty(false);
+          allowAnother.current = true;
           setOpenOrder(null);
-          if (id) router.push(`/app/inventory/purchasing/${id}`);
+          const retry = retryAfterConfirm.current;
+          retryAfterConfirm.current = null;
+          retry?.();
         }}
       />
     </>

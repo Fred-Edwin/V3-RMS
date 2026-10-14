@@ -3,7 +3,9 @@
 import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Skeleton } from '@/components/ui2/skeleton';
+import { allowsDecimal } from '../../../_shared/lib/units';
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { DrawerShell } from '../../../_shared/components/drawer-shell';
 import { useAction, useLoader } from '../../../_shared/hooks/use-async';
@@ -227,13 +229,14 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                         <label htmlFor={`count-${l.lineId}`} className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{l.itemName}</label>
                         <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Count in {l.unit}</span>
                       </div>
-                      <input
+                      <PadNumberInput
                         id={`count-${l.lineId}`}
-                        inputMode="decimal"
-                        autoComplete="off"
+                        label={`${l.itemName}, count in ${l.unit}`}
+                        unit={l.unit}
+                        decimal={allowsDecimal(l.unit)}
                         value={values[l.lineId] ?? ''}
                         placeholder="—"
-                        onChange={(event) => setValue(l.lineId, event.target.value)}
+                        onChange={(v) => setValue(l.lineId, v)}
                         onBlur={() => void persist([l.lineId])}
                         className="h-9 w-[60px] border border-wds-border-strong bg-wds-surface text-center font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink outline-none placeholder:font-normal placeholder:text-wds-text-faint focus:border-wds-primary focus:shadow-wds-ring"
                       />
@@ -251,13 +254,14 @@ export function ConfirmForDepartmentDrawer({ dispatchId, reference, departmentNa
                 <div key={l.lineId} className="flex flex-col gap-3 border border-wds-error-border bg-wds-error-bg p-4">
                   <div className="flex items-center justify-between gap-4">
                     <label htmlFor={`recount-${l.lineId}`} className="font-wds-sans text-[15px] font-medium text-wds-text-ink">{l.itemName}</label>
-                    <input
+                    <PadNumberInput
                       id={`recount-${l.lineId}`}
-                      inputMode="decimal"
-                      autoComplete="off"
+                      label={`${l.itemName}, count again in ${l.unit}`}
+                      unit={l.unit}
+                      decimal={allowsDecimal(l.unit)}
                       value={values[l.lineId] ?? ''}
                       autoFocus={l.lineId === flagged[0]?.lineId}
-                      onChange={(event) => setValue(l.lineId, event.target.value)}
+                      onChange={(v) => setValue(l.lineId, v)}
                       aria-describedby={`recount-hint-${l.lineId}`}
                       className="h-[46px] w-20 border border-wds-error-fg bg-wds-surface text-center font-wds-mono text-[18px] text-wds-text-ink outline-none focus:shadow-wds-ring"
                     />

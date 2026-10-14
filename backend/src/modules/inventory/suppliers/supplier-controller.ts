@@ -9,6 +9,8 @@ import {
   CreateSupplierItemSchema,
   CreateSupplierSchema,
   DeleteSupplierItemQuerySchema,
+  ItemIdParamSchema,
+  LinkItemSupplierSchema,
   ListSuppliersQuerySchema,
   ListSupplierDocumentsQuerySchema,
   PutSupplierItemSchema,
@@ -174,6 +176,14 @@ export const supplierController = {
     const input = CreateSupplierItemSchema.parse(req.body);
     const data = await supplierService.addItem(actor, id, input);
     res.status(201).json({ success: true, data, message: 'Catalog line added successfully' });
+  },
+
+  linkItem: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { itemId } = ItemIdParamSchema.parse(req.params);
+    const { supplierId } = LinkItemSupplierSchema.parse(req.body);
+    const data = await supplierService.linkItem(actor, itemId, supplierId);
+    res.status(201).json({ success: true, data, message: 'Supplier set' });
   },
 
   listPackMismatches: async (req: Request, res: Response): Promise<void> => {

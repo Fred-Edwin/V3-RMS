@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
 import { useAction } from '../../../_shared/hooks/use-async';
@@ -22,7 +23,7 @@ const RAISING: TrackerItem[] = STEPS.map((step, i) => ({ step, state: i === 0 ? 
 type Outcome = { kind: 'sent' } | { kind: 'failed'; message: string };
 
 function GroupCard({ group, outcome, approver }: { group: ReviewGroup; outcome?: Outcome; approver: Parameters<typeof withRole>[0] }) {
-  const blocked = group.problem !== null;
+  const blocked = group.problem !== null; // an open order only warns (it is confirmed at send); a missing price blocks
   return (
     <li>
       <Card>
@@ -49,7 +50,7 @@ function GroupCard({ group, outcome, approver }: { group: ReviewGroup; outcome?:
           <div className="border-t border-wds-warning-border bg-wds-warning-bg px-3.5 py-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">
             {group.problem === 'SUPPLIER_ORDER_OPEN' && group.openOrder ? (
               <>
-                {group.supplier.name} already has {group.openOrder.reference ?? 'an order'} open, so this one is not sent.{' '}
+                {group.supplier.name} already has {group.openOrder.reference ?? 'an order'} open. Sending adds another order.{' '}
                 <Link href={orderHref(group.openOrder.id)} className="font-medium underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
                   Open it
                 </Link>
@@ -83,16 +84,22 @@ export function ReviewScreen() {
   const wire = React.useMemo(() => list.lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: l.qty, ...(l.supplierId ? { supplierId: l.supplierId } : {}) })), [list.lines]);
   const key = wire.length === 0 ? null : `review:${wire.map((l) => `${l.inventoryItemId}:${l.qty}:${l.supplierId ?? ''}`).join(',')}`;
   const { data, status, error, reload, service } = useAttendantData(key, (s) => s.reviewRestockList(wire), 'We could not review your list.');
-  const send = useAction((lines: typeof wire, text: string | null) => service.sendRestockList(lines, text), 'We could not send the list. Nothing was changed.');
+  const send = useAction((lines: typeof wire, text: string | null, another: boolean) => service.sendRestockList(lines, text, another), 'We could not send the list. Nothing was changed.');
+  const [askAnother, setAskAnother] = React.useState(false);
 
-  const sendable = data?.groups.filter((g) => g.problem === null && outcomes[g.supplier.id]?.kind !== 'sent') ?? [];
+  // A supplier with an open order is still sent, after one question (training fix 6); only a missing price stops a group.
+  const sendable = data?.groups.filter((g) => g.problem !== 'ITEM_SETUP_INCOMPLETE' && outcomes[g.supplier.id]?.kind !== 'sent') ?? [];
   const approverName = data?.approver?.name.split(' ')[0] ?? 'the Store Manager';
   const approverRole = data?.approver ? roleText(data.approver.role) : 'Store Manager';
 
-  const onSend = async (): Promise<void> => {
+  const onSend = async (confirmedAnother = false): Promise<void> => {
     if (!data || sendable.length === 0) return;
+    if (!confirmedAnother && sendable.some((g) => g.openOrder)) {
+      setAskAnother(true);
+      return;
+    }
     const lines = sendable.flatMap((g) => g.lines.map((l) => ({ inventoryItemId: l.inventoryItemId, qty: l.qty, supplierId: g.supplier.id })));
-    const result = await send.run(lines, note.trim() === '' ? null : note.trim());
+    const result = await send.run(lines, note.trim() === '' ? null : note.trim(), sendable.some((g) => g.openOrder !== null));
     if (!result) return;
     const next: Record<string, Outcome> = { ...outcomes };
     for (const s of result.sent) next[s.supplier.id] = { kind: 'sent' };
@@ -127,7 +134,7 @@ export function ReviewScreen() {
                   return sum > 0 ? `KES ${kes(sum)}` : '—';
                 })()}</p>
             </div>
-            <PrimaryButton onClick={() => void onSend()} disabled={sendable.length === 0 || send.saving} aria-busy={send.saving}>
+            <PrimaryButton onClick={() => void onSend(false)} disabled={sendable.length === 0 || send.saving} aria-busy={send.saving}>
               {send.saving ? 'Sending…' : 'Send for approval'}
             </PrimaryButton>
           </PhoneBar>
@@ -179,6 +186,19 @@ export function ReviewScreen() {
           ) : null}
         </div>
       )}
+      <ConfirmDialog
+        open={askAnother}
+        onOpenChange={setAskAnother}
+        title="Add another order?"
+        description="There is already an open order to this supplier. Add another?"
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+        destructive={false}
+        onConfirm={() => {
+          setAskAnother(false);
+          void onSend(true);
+        }}
+      />
     </PhoneScreen>
   );
 }

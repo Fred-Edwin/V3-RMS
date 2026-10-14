@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
 import { Input } from '@/components/ui2/input';
+import { PAD_INPUT_CLASS, PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import { useAction } from '../../_shared/hooks/use-async';
 import { requisitionsApi } from '../_shared/services/requisitions-api';
@@ -87,7 +88,7 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
   const editable = file.can.changeQuantity && section.can.changeQuantity && line.additionId === null;
   const afterApproval = file.status === 'APPROVED';
   const save = useAction((input: { approvedQty: string; reason?: string }) => requisitionsApi.changeQuantity(file.id, line.id, input), 'Could not save the change. Try again.');
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const shownRef = React.useRef<HTMLButtonElement>(null);
   const failure = save.failure ? errorWords(save.failure.code, 'manager', save.failure.message, save.failure.message) : null;
   const next = Number(draft);
@@ -148,12 +149,14 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
       </span>
       <div className="relative">
         {editable && editing ? (
-          <Input
-            ref={inputRef}
-            aria-label={`Approved quantity for ${line.itemName}`}
-            inputMode="decimal"
+          <PadNumberInput
+            inputRef={(node) => {
+              inputRef.current = node;
+            }}
+            label={`Approved quantity for ${line.itemName}`}
+            unit={line.unit}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={setDraft}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 if (!valid || !differs) stop();
@@ -164,7 +167,7 @@ function LineRow({ file, section, line, onChanged }: { file: RequisitionFile; se
                 stop();
               }
             }}
-            className={cn('h-[34px] text-right font-wds-mono text-[14px]', differs && 'border-wds-primary shadow-wds-ring')}
+            className={cn(PAD_INPUT_CLASS, 'h-[34px] text-right font-wds-mono text-[14px]', differs && 'border-wds-primary shadow-wds-ring')}
           />
         ) : editable ? (
           <button

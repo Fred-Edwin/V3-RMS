@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import { formatMoney } from '../lib/item-price';
 import { FieldLabel } from './drawer-parts';
@@ -43,13 +44,13 @@ export function PriceField({ id, name, label, hint, value, onChange, unitText, p
           <span aria-hidden className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">
             KES
           </span>
-          <input
+          <PadNumberInput
             id={id}
             name={name}
-            inputMode="decimal"
-            autoComplete="off"
+            label="Price"
+            unit={unitText ? `KES ${unitText}` : 'KES'}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${id}-error` : undefined}
             placeholder="8,900"

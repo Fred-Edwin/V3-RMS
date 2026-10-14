@@ -30,6 +30,7 @@ const WRITES = [
   'withdrawOrder',
   'remindOrder',
   'sendRestockList',
+  'linkItemSupplier',
   'markNoticesRead',
   'markAllNoticesRead',
 ] as const satisfies ReadonlyArray<keyof PurchasingService>;

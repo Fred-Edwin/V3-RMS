@@ -926,6 +926,32 @@ export const supplierService = {
   },
 
   /**
+   * "Set a supplier" on an item that says "No supplier yet" (restock list, training fix 9): `suppliers.link_item`. Links an EXISTING,
+   * active supplier only, with no price (the Store Manager sets it later), makes it the item's preferred one, and writes the usual
+   * "added" row to the item's history under the actor's name. An item that already has a supplier is refused: changing a supplier
+   * stays `suppliers.write`.
+   */
+  linkItem: async (actor: Actor, inventoryItemId: string, supplierId: string) => {
+    if (!actorCan(actor, 'suppliers.link_item')) throw new ForbiddenError('You cannot set a supplier on an item');
+    const siteId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, siteId);
+    if (supplier.status !== 'ACTIVE') throw new ConflictError('That supplier is not active', 'SUPPLIER_NOT_ACTIVE');
+    const item = await supplierItemLookupRepository.findLiveItem(inventoryItemId, siteId);
+    if (!item) throw new NotFoundError('Inventory item not found');
+    const lineId = await prisma
+      .$transaction(async (tx) => {
+        const lines = await supplierItemRepository.listForItem(inventoryItemId, siteId);
+        if (lines.length > 0) throw new ConflictError('This item already has a supplier', 'ITEM_HAS_SUPPLIER');
+        const created = await supplierItemRepository.createLine(siteId, supplierId, inventoryItemId, { buyUnit: item.buyUnit }, tx);
+        await applyPreferredChoice(siteId, actor, supplierId, inventoryItemId, created.id, true, tx);
+        await recordLineAdded({ siteId, actor, supplier, item }, created, undefined, true, tx);
+        return created.id;
+      })
+      .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
+    return serializeSupplierItem(await requireLine(lineId, supplierId, inventoryItemId, siteId));
+  },
+
+  /**
    * Edit or add on the line key. `lineId` edits that line (a key change onto another line is a 409).
    * Without it: a named pack finds-or-creates the line with exactly that key; no pack named means the
    * supplier's oldest line for the item (created if none) — the pre-pack-lines behaviour.

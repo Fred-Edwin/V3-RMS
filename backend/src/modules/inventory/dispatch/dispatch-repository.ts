@@ -353,7 +353,42 @@ export const dispatchRepository = {
   findCarrier: (hubId: string, id: string, db: Db = prisma) => db.carrier.findFirst({ where: { id, siteId: hubId } }),
 
   /** The carriers the Attendant picks from at the review (they hold no `carriers.read`). */
-  listActiveCarriers: (hubId: string, db: Db = prisma) => db.carrier.findMany({ where: { siteId: hubId, active: true }, orderBy: { name: 'asc' } }),
+  listActiveCarriers: (hubId: string, db: Db = prisma) => db.carrier.findMany({ where: { siteId: hubId, active: true, userId: null }, orderBy: { name: 'asc' } }),
+
+  /** People who may carry a delivery: anyone with a login at the hub or anywhere in its company (a Director or Store Manager has no branch). */
+  searchStaff: async (hubId: string, q: string | undefined, take = 40): Promise<Array<{ id: string; name: string; role: string }>> => {
+    const hub = await prisma.site.findFirst({ where: { id: hubId }, select: { companyId: true } });
+    if (!hub) return [];
+    return prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        OR: [{ siteId: null }, { site: { companyId: hub.companyId } }],
+        ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
+      },
+      orderBy: { name: 'asc' },
+      take,
+      select: { id: true, name: true, role: true },
+    });
+  },
+
+  findEligibleStaff: async (hubId: string, userId: string, db: Db = prisma): Promise<{ id: string; name: string } | null> => {
+    const hub = await db.site.findFirst({ where: { id: hubId }, select: { companyId: true } });
+    if (!hub) return null;
+    return db.user.findFirst({
+      where: { id: userId, isActive: true, deletedAt: null, OR: [{ siteId: null }, { site: { companyId: hub.companyId } }] },
+      select: { id: true, name: true },
+    });
+  },
+
+  /** The hidden PERSON carrier that stands for one staff member (made the first time they carry something). */
+  ensureStaffCarrier: async (hubId: string, user: { id: string; name: string }, db: Db = prisma) => {
+    const existing = await db.carrier.findFirst({ where: { siteId: hubId, userId: user.id } });
+    if (existing) return existing;
+    // The name is the person's; if a Settings carrier already has it, the staff one says so (names are unique per hub).
+    const taken = await db.carrier.findFirst({ where: { siteId: hubId, name: { equals: user.name, mode: 'insensitive' } }, select: { id: true } });
+    return db.carrier.create({ data: { siteId: hubId, userId: user.id, name: taken ? `${user.name} (staff)` : user.name, kind: 'PERSON' } });
+  },
 
   findCategoryNames: async (ids: string[], db: Db = prisma): Promise<Map<string, string>> => {
     if (ids.length === 0) return new Map();

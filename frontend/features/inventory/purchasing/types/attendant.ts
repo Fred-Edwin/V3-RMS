@@ -142,7 +142,8 @@ export interface SupplierPageView {
 }
 
 export interface RestockLevelsQuery {
-  status?: 'OUT' | 'LOW' | 'OK';
+  /** `NEEDS` is Low and out together (New order). */
+  status?: 'OUT' | 'LOW' | 'OK' | 'NEEDS';
   supplierId?: string;
   q?: string;
   page?: number;
@@ -158,6 +159,9 @@ export interface RestockLevelRow {
   usageUnit: string;
   fill: number;
   supplier: { id: string; name: string } | null;
+  buyUnit: string | null;
+  suggestedQty: string | null;
+  lastPrice: string | null;
 }
 
 export interface RestockLevelsView {

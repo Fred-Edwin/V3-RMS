@@ -137,13 +137,18 @@ export const buildLevelRows = (items: readonly LevelItem[], lines: readonly Supp
         usageUnit: item.usageUnit,
         fill: Math.max(0, Math.min(1, Math.round(ratio * 100) / 100)),
         supplier: chosen ? { id: chosen.supplier.id, name: chosen.supplier.name } : null,
+        // What the New order screen needs to put the item on the list: the unit it is bought in, how many would bring it back to its level, the last price.
+        buyUnit: chosen ? (chosen.buyUnit ?? item.buyUnit) : null,
+        suggestedQty: chosen ? defaultBuy(item, byItem.get(item.id) ?? [], item.onHand, item.level).suggestedQty : null,
+        lastPrice: chosen?.lastPrice ? chosen.lastPrice.toString() : null,
       };
     })
     .sort((a, b) => SEVERITY[a.status] - SEVERITY[b.status] || a.fill - b.fill || a.name.localeCompare(b.name));
 };
 
 export interface LevelFilter {
-  status?: 'OUT' | 'LOW' | 'OK';
+  /** `NEEDS` is "Low and out" together (the New order screen's filter). */
+  status?: 'OUT' | 'LOW' | 'OK' | 'NEEDS';
   supplierId?: string;
   q?: string;
 }
@@ -152,7 +157,7 @@ export const filterLevelRows = (rows: readonly RestockLevelRow[], f: LevelFilter
   const q = f.q?.trim().toLowerCase();
   return rows.filter(
     (r) =>
-      (!f.status || r.status === f.status) &&
+      (!f.status || (f.status === 'NEEDS' ? r.status !== 'OK' : r.status === f.status)) &&
       (!f.supplierId || r.supplier?.id === f.supplierId) &&
       (!q || r.name.toLowerCase().includes(q) || (r.supplier?.name.toLowerCase().includes(q) ?? false)),
   );

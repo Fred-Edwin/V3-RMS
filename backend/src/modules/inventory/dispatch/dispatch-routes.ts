@@ -24,6 +24,7 @@ router.param('id', (_req, _res, next, value: string) => (UUID.test(value) ? next
 router.get('/queue', requireCapability('dispatch.pack'), dispatchController.queue); // P1
 router.get('/mine', requireCapability('dispatch.pack'), dispatchController.mine); // P9
 router.get('/pack/:requisitionId/review', requireCapability('dispatch.pack'), dispatchController.review); // P4
+router.get('/carrier-staff', requireCapability('dispatch.pack'), dispatchController.carrierStaff); // staff as carrier (training row 1)
 router.post('/pack/:requisitionId/sign', requireCapability('dispatch.pack'), dispatchController.sign); // P5
 router.get('/pack/:requisitionId/departments/:departmentId', requireCapability('dispatch.pack'), dispatchController.getDepartment); // P2
 router.put('/pack/:requisitionId/departments/:departmentId/lines', requireCapability('dispatch.pack'), dispatchController.saveLines); // P3

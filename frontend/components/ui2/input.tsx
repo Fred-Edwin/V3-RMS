@@ -11,6 +11,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
     return (
       <input
         type={type}
+        autoComplete="off" /* house rule: no browser suggestion list over a field; a login field passes its own value */
         className={cn(
           'flex h-8 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-sans text-wds-body-sm text-wds-text-ink transition-colors',
           'placeholder:text-wds-text-muted',

@@ -116,13 +116,19 @@ export function PhoneScreen({ header, children, bar }: { header: React.ReactNode
   );
 }
 
-/** Back goes to the page we came from; with no history (a link opened cold) it goes to `fallback`. */
-export function useGoBack(fallback: string): () => void {
+/**
+ * Back goes to the page we came from; with no history (a link opened cold) it goes to `fallback`.
+ * A list screen (Restock list, My orders, History, Levels, Search) passes `parent: true`: Back always goes to `fallback`, its parent.
+ * Walking the browser history from a list screen can land on a page that is not part of the Attendant's flow (a sign-in redirect,
+ * another screen that loads differently), so a list screen's Back no longer depends on it.
+ */
+export function useGoBack(fallback: string, options?: { parent?: boolean }): () => void {
   const router = useRouter();
+  const parent = options?.parent ?? false;
   return React.useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+    if (!parent && typeof window !== 'undefined' && window.history.length > 1) router.back();
     else router.push(fallback);
-  }, [router, fallback]);
+  }, [router, fallback, parent]);
 }
 
 // --- Header search -----------------------------------------------------------------------------------------------------------------------

@@ -93,8 +93,6 @@ const buildLines = async (actor: Actor, siteId: string, supplierId: string, inpu
 
 const newLinesTotal = (lines: readonly NewLine[]): Prisma.Decimal => orderedTotal(lines.map((l) => ({ orderedQty: l.orderedQty, unitPrice: l.unitPrice })));
 
-const isUniqueViolation = (error: unknown): boolean => error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
-
 const moveOrThrow = async (tx: Prisma.TransactionClient, siteId: string, o: OrderRecord, transition: Transition): Promise<void> => {
   if (!(await ordersRepository.transition(tx, siteId, o.id, transition))) throw wrongStateError('changed by someone else');
 };
@@ -215,7 +213,8 @@ export const ordersService = {
     const siteId = await requireHubActor(actor);
     const supplier = assertSupplierOrderable(await ordersRepository.findSupplier(siteId, input.supplierId));
     const open = await ordersRepository.findOpenOrder(siteId, supplier.id);
-    if (open) throw purchasingError('SUPPLIER_ORDER_OPEN', `${open.reference ?? 'A draft'} to ${supplier.name} is still open.`, { openOrderId: open.id, openReference: open.reference });
+    // Training fix 6: an open order asks, it no longer blocks. The caller says "yes, add another" with `allowAnotherOpen`.
+    if (open && !input.allowAnotherOpen) throw purchasingError('SUPPLIER_ORDER_OPEN', `${open.reference ?? 'A draft'} to ${supplier.name} is still open.`, { openOrderId: open.id, openReference: open.reference });
     const lines = await buildLines(actor, siteId, supplier.id, input.lines);
     try {
       const id = await prisma.$transaction(async (tx) => {
@@ -238,8 +237,7 @@ export const ordersService = {
       });
       return viewOrder(actor, await load(siteId, id), now);
     } catch (error) {
-      // The database also holds the one-open-order rule, for two people saving at the same moment.
-      if (isUniqueViolation(error)) throw purchasingError('SUPPLIER_ORDER_OPEN', `A draft to ${supplier.name} is still open.`);
+      // (The database no longer holds a one-open-order rule: the confirmation above is the whole rule.)
       throw error;
     }
   },

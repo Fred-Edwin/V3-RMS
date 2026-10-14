@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { useNumberPadField } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import type { OrderStatus } from '../types';
 
@@ -90,12 +91,17 @@ export function DotLabel({ tone, children, className }: { tone: 'warning' | 'err
 
 /** The PIN box inside a drawer (Paper `37`, `38`): four dots, the message under it when the PIN is wrong. */
 export function InlinePin({ value, onChange, error, id, className }: { value: string; onChange: (v: string) => void; error?: string | null; id: string; className?: string }) {
+  const pad = useNumberPadField({ label: 'PIN', value, onChange, masked: true, maxLength: 4, actionLabel: 'Done' });
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <input
         id={id}
+        ref={pad.ref as React.RefObject<HTMLInputElement>}
         type="password"
-        inputMode="numeric"
+        inputMode={pad.inApp ? 'none' : 'numeric'}
+        readOnly={pad.inApp}
+        onFocus={() => pad.open()}
+        onClick={() => pad.open()}
         autoComplete="off"
         maxLength={4}
         value={value}

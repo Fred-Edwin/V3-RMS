@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { useNumberPadField } from '@/components/ui2/number-pad';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { LoadingAnnouncer, ScwStatePanel } from '../../../_shared/components/scw-states';
 import { Chip, PinField, SectionLabel } from '../../../_shared/components/block2-phone-parts';
@@ -169,16 +170,32 @@ export interface CountBoxProps extends Omit<React.InputHTMLAttributes<HTMLInputE
  * The 64 × 40 box a count is typed in (Paper B3, B3c). Empty shows "–" and means not counted; zero must be typed. The whole row is a
  * label, so the touch target is the row (61 high), not just the box.
  */
-export const CountBox = React.forwardRef<HTMLInputElement, CountBoxProps>(function CountBox({ value, onChange, className, ...rest }, ref) {
+export const CountBox = React.forwardRef<HTMLInputElement, CountBoxProps>(function CountBox({ value, onChange, className, onFocus, ...rest }, ref) {
+  // On a finger a count is typed on the app's own number pad, so the phone keyboard never covers the list.
+  const pad = useNumberPadField({ label: String(rest['aria-label'] ?? 'Count'), value, onChange, decimal: true });
+  const setNode = React.useCallback(
+    (node: HTMLInputElement | null): void => {
+      pad.ref.current = node;
+      if (typeof ref === 'function') ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref, pad.ref],
+  );
   return (
     <input
-      ref={ref}
+      ref={setNode}
       type="text"
-      inputMode="decimal"
+      inputMode={pad.inApp ? 'none' : 'decimal'}
+      readOnly={pad.inApp}
       autoComplete="off"
       enterKeyHint="next"
       placeholder="–"
       value={value}
+      onFocus={(e) => {
+        onFocus?.(e);
+        pad.open();
+      }}
+      onClick={() => pad.open()}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
         'h-10 w-16 shrink-0 border border-wds-border-strong bg-white text-center font-wds-sans text-[16px] font-medium leading-5 text-wds-text-ink outline-none transition-shadow duration-100 placeholder:font-normal placeholder:text-[#8D8982] focus:border-[var(--wds-primary-btn-start)] focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',

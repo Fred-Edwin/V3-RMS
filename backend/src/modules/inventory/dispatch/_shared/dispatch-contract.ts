@@ -332,14 +332,23 @@ export type Review = z.infer<typeof reviewSchema>;
 
 export const signDispatchInputSchema = z
   .object({
-    carrierId: uuid,
+    /** A carrier from Settings (a vehicle, a person or a courier company)... */
+    carrierId: uuid.optional(),
+    /** ...or a staff member (training row 1, 12 Oct 2026). Exactly one of the two. */
+    carrierUserId: uuid.optional(),
     pin: pinSchema,
     idempotencyKey: idempotencyKeySchema,
     /** Owner decision, 8 Oct: departments left out stay in To pack and ship later with their own short review and signature. */
     leaveOut: z.array(uuid).max(20).optional(),
   })
   .strict()
+  .refine((v) => (v.carrierId === undefined) !== (v.carrierUserId === undefined), 'Choose a carrier or a staff member, not both')
   .refine((v) => new Set(v.leaveOut ?? []).size === (v.leaveOut ?? []).length, 'A department can be left out once');
+
+/** The people the Attendant may choose as carrier (GET /dispatch/carriers/staff). */
+export const carrierStaffQuerySchema = z.object({ q: z.string().trim().max(80).optional() }).strict();
+export const carrierStaffListSchema = z.object({ staff: z.array(z.object({ id: uuid, name: z.string(), role: z.string() })) });
+export type CarrierStaffList = z.infer<typeof carrierStaffListSchema>;
 export type SignDispatchInput = z.infer<typeof signDispatchInputSchema>;
 
 export const signDispatchResultSchema = z.object({
@@ -601,7 +610,9 @@ export const listCarriersSchema = z.object({
 export type ListCarriers = z.infer<typeof listCarriersSchema>;
 
 export const CARRIER_NAME_MAX = 80;
-export const carrierNameSchema = z.string().trim().min(2).max(CARRIER_NAME_MAX);
+/** Why: training (12 Oct 2026) showed carrier names with a stray "··" in front on every screen. Nothing in our code adds it, so a name is cleaned on the way in: no leading dots, dashes or spaces. */
+export const cleanCarrierName = (raw: string): string => raw.replace(/^[\s·•.\-–—_|:]+/, '').trim();
+export const carrierNameSchema = z.string().transform(cleanCarrierName).pipe(z.string().min(2).max(CARRIER_NAME_MAX));
 export const addCarrierInputSchema = z.object({ name: carrierNameSchema, kind: carrierKindSchema }).strict();
 export type AddCarrierInput = z.infer<typeof addCarrierInputSchema>;
 /** One change at a time: rename, or retire (`active: false`), or restore (`active: true`). The response is the `Carrier`. */

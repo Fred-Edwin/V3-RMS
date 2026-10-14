@@ -5,7 +5,9 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { Picker } from '@/components/ui2/picker';
 import { Input } from '@/components/ui2/input';
+import { PAD_INPUT_CLASS, PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -150,13 +152,7 @@ function VoidInvoiceDrawer({ order, open, onOpenChange }: { order: Order; open: 
       )}
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="void-reason">Reason (required)</FieldLabel>
-        <select id="void-reason" value={reason} onChange={(e) => setReason(e.target.value as VoidReason)} className={select}>
-          {VOID_REASONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <Picker id="void-reason" aria-label="Reason" value={reason} onValueChange={(v) => setReason(v as VoidReason)} options={VOID_REASONS.map((r) => ({ value: r.value, label: r.label }))} chips={false} className={select} />
       </div>
       <div className="flex flex-col gap-1.5">
         <FieldLabel>What happens next</FieldLabel>
@@ -259,13 +255,7 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
       />
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="rev-reason">Reason (required)</FieldLabel>
-        <select id="rev-reason" value={reason} onChange={(e) => setReason(e.target.value as ReverseReason)} className={select}>
-          {REVERSE_REASONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <Picker id="rev-reason" aria-label="Reason" value={reason} onValueChange={(v) => setReason(v as ReverseReason)} options={REVERSE_REASONS.map((r) => ({ value: r.value, label: r.label }))} chips={false} className={select} />
         <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" aria-label="Note" className="min-h-14" />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -371,7 +361,7 @@ function SettleDisputeDrawer({ order, open, onOpenChange }: { order: Order; open
       <p className="font-wds-sans text-wds-caption text-wds-text-secondary">Agree the figure with {first} first, then record it here. The invoice takes the agreed amount and can then be paid.</p>
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="settle-amount">Agreed amount (KES)</FieldLabel>
-        <Input id="settle-amount" inputMode="decimal" value={agreed} onChange={(e) => setAgreed(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" className="font-wds-mono" autoFocus />
+        <PadNumberInput id="settle-amount" label="Agreed amount" unit="KES" value={agreed} onChange={setAgreed} placeholder="0.00" className={cn(PAD_INPUT_CLASS, 'font-wds-mono')} autoFocus />
         <div className="flex gap-1.5">
           {[
             ['Delivered value', delivered],

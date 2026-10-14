@@ -1,16 +1,19 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { B2Header } from '../../../_shared/components/block2-phone-parts';
+import { BottomSheet, SheetGrabber } from '../../../_shared/components/bottom-sheet';
+import { useAction } from '../../../_shared/hooks/use-async';
 import { useAttendantData } from '../../hooks/use-attendant';
 import { kes, qty } from '../../lib/format';
 import { useRestockList, type ListLine } from '../../store/restock-list-store';
 import type { NeedsGroup, NeedsLine } from '../../types';
 import { PURCHASING } from './order-cards';
 import { useUrlParams } from './gate';
-import { FilterChips, HeaderSearch, HIT, Label, PhoneBar, PhoneEmpty, PhoneError, PhoneLoading, PhoneScreen, PrimaryButton, StatusLine, plural, useDebouncedQuery, useGoBack } from './phone-kit';
+import { FilterChips, HeaderSearch, HIT, Label, PhoneBar, PhoneEmpty, PhoneError, PhoneLoading, PhoneScreen, PrimaryButton, StatusLine, WriteError, plural, useDebouncedQuery, useGoBack } from './phone-kit';
 
 interface Entry {
   line: NeedsLine;
@@ -66,7 +69,32 @@ function flatten(groups: NeedsGroup[]): Entry[] {
 
 const byUrgency = (a: Entry, b: Entry): number => (a.line.status === b.line.status ? a.line.itemName.localeCompare(b.line.itemName) : a.line.status === 'OUT' ? -1 : 1);
 
-function Row({ entry, list }: { entry: Entry; list: ReturnType<typeof useRestockList> }) {
+/** "Set a supplier" (training fix 9): pick one of the suppliers already on file; the item gets it with no price, and its history names who did it. */
+export function SetSupplierSheet({ itemName, suppliers, saving, failure, onPick, onClose }: { itemName: string | null; suppliers: Array<{ id: string; name: string; code: string }>; saving: boolean; failure: string | null; onPick: (supplierId: string) => void; onClose: () => void }) {
+  const [text, setText] = React.useState('');
+  const shown = suppliers.filter((s) => !text.trim() || s.name.toLowerCase().includes(text.trim().toLowerCase()));
+  return (
+    <BottomSheet open={itemName !== null} onOpenChange={(o) => (!o ? onClose() : undefined)} label="Set a supplier" className="flex max-h-[80dvh] flex-col gap-3 border-t border-wds-border-strong bg-wds-surface px-5 pb-7 pt-3">
+      <SheetGrabber />
+      <Label small>{`SUPPLIER FOR ${(itemName ?? '').toUpperCase()}`}</Label>
+      <input type="search" autoComplete="off" aria-label="Search suppliers" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search a supplier" className="h-11 w-full border border-wds-border-strong bg-white px-3 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink outline-none placeholder:text-wds-text-faint focus-visible:border-[var(--wds-primary-btn-start)] focus-visible:shadow-wds-ring" />
+      {failure ? <WriteError>{failure}</WriteError> : null}
+      <ul className="min-h-0 overflow-y-auto border border-wds-border">
+        {shown.length === 0 ? <li className="px-3.5 py-4 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">No supplier by that name.</li> : null}
+        {shown.map((s) => (
+          <li key={s.id} className="border-b border-wds-border last:border-b-0">
+            <button type="button" disabled={saving} onClick={() => onPick(s.id)} className="flex min-h-12 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--wds-caramel-500)] disabled:opacity-60">
+              <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{s.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Only suppliers already on file. The Store Manager adds the price later.</p>
+    </BottomSheet>
+  );
+}
+
+function Row({ entry, list, onSetSupplier }: { entry: Entry; list: ReturnType<typeof useRestockList>; onSetSupplier?: (entry: Entry) => void }) {
   const { line, supplier } = entry;
   const onList = list.get(line.inventoryItemId);
   const out = line.status === 'OUT';
@@ -80,8 +108,14 @@ function Row({ entry, list }: { entry: Entry; list: ReturnType<typeof useRestock
         <p className="font-wds-sans text-[11px] leading-[14px] text-wds-text-secondary">{supplier ? `${supplier.name}${line.lastPrice ? ` · KES ${kes(line.lastPrice)} each` : ''}` : 'No supplier yet'}</p>
       </div>
       {!supplier && !onList ? (
-        // Review would leave this item out anyway, so the dead end is shown here instead.
-        <span className="flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border bg-white px-2 text-center font-wds-sans text-[12px] leading-4 text-wds-text-faint">Set a supplier first</span>
+        // Review would leave this item out anyway, so the dead end is shown here instead; who may set a supplier gets a button.
+        onSetSupplier ? (
+          <button type="button" aria-label={`Set a supplier for ${line.itemName}`} onClick={() => onSetSupplier(entry)} className={cn(HIT, 'flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border-strong bg-white px-2 font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring [@media(hover:hover)]:hover:bg-wds-neutral-50')}>
+            Set a supplier
+          </button>
+        ) : (
+          <span className="flex h-9 min-w-28 shrink-0 items-center justify-center border border-wds-border bg-white px-2 text-center font-wds-sans text-[12px] leading-4 text-wds-text-faint">Set a supplier first</span>
+        )
       ) : (
         <AddOrStepper
           name={line.itemName}
@@ -168,13 +202,23 @@ function MoreFromSupplier({ supplier, skip, list }: { supplier: { id: string; na
 
 /** 28B: build the restock list: every item that is out or low, with the amount that brings it back to its level. */
 export function RestockListScreen() {
-  const back = useGoBack(PURCHASING);
+  const back = useGoBack(PURCHASING, { parent: true });
   const { params, set } = useUrlParams();
   const list = useRestockList();
   const view = (['all', 'out', 'low', 'supplier'].includes(params.get('view') ?? '') ? params.get('view') : 'all') as View;
   const [text, setText] = useDebouncedQuery(params.get('q') ?? '', (q) => set({ q: q || null }));
   const q = (params.get('q') ?? '').trim().toLowerCase();
-  const { data, status, error, reload } = useAttendantData('attendant:needs', (s) => s.getNeedsRestocking({ group: 'supplier' }), 'We could not load the restock list.');
+  const { data, status, error, reload, service, can } = useAttendantData('attendant:needs', (s) => s.getNeedsRestocking({ group: 'supplier' }), 'We could not load the restock list.');
+  const canLink = can('suppliers.link_item');
+  const [picking, setPicking] = React.useState<Entry | null>(null);
+  const link = useAction((itemId: string, supplierId: string) => service.linkItemSupplier(itemId, supplierId), 'We could not set the supplier. Try again.');
+  const onPickSupplier = async (supplierId: string): Promise<void> => {
+    if (!picking) return;
+    const done = await link.run(picking.line.inventoryItemId, supplierId);
+    if (done === null) return;
+    setPicking(null);
+    void reload();
+  };
 
   const all = React.useMemo(() => (data ? flatten(data.groups).sort(byUrgency) : []), [data]);
   const matches = React.useMemo(() => all.filter((e) => !q || e.line.itemName.toLowerCase().includes(q) || (e.supplier?.name.toLowerCase().includes(q) ?? false)), [all, q]);
@@ -232,6 +276,10 @@ export function RestockListScreen() {
           { key: 'supplier', label: 'By supplier' },
         ]}
       />
+      <Link href={`${PURCHASING}/new`} className={cn(HIT, 'flex items-center justify-between gap-3 border-b border-wds-border bg-white px-5 py-2.5 font-wds-sans text-[13px] leading-4 outline-none focus-visible:shadow-wds-ring')}>
+        <span className="text-wds-text-secondary">Need something that is not low?</span>
+        <span className="font-medium text-[var(--wds-primary-btn-start)]">New order →</span>
+      </Link>
       {data && addable.length > 0 ? (
         <div className="flex items-center justify-between gap-3 border-b border-wds-border bg-white px-5 py-2.5">
           <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
@@ -262,7 +310,7 @@ export function RestockListScreen() {
                   </div>
                   <ul className="border-t border-wds-border">
                     {group.entries.map((e) => (
-                      <Row key={e.line.inventoryItemId} entry={e} list={list} />
+                      <Row key={e.line.inventoryItemId} entry={e} list={list} onSetSupplier={canLink ? setPicking : undefined} />
                     ))}
                   </ul>
                   {key !== 'none' && !q && data.groups.some((g) => g.supplier?.id === key) ? <MoreFromSupplier supplier={{ id: key, name: group.name }} skip={allLowIds} list={list} /> : null}
@@ -280,7 +328,7 @@ export function RestockListScreen() {
                   </div>
                   <ul className="border-t border-wds-border">
                     {out.map((e) => (
-                      <Row key={e.line.inventoryItemId} entry={e} list={list} />
+                      <Row key={e.line.inventoryItemId} entry={e} list={list} onSetSupplier={canLink ? setPicking : undefined} />
                     ))}
                   </ul>
                 </section>
@@ -294,7 +342,7 @@ export function RestockListScreen() {
                   </div>
                   <ul className="border-t border-wds-border">
                     {low.map((e) => (
-                      <Row key={e.line.inventoryItemId} entry={e} list={list} />
+                      <Row key={e.line.inventoryItemId} entry={e} list={list} onSetSupplier={canLink ? setPicking : undefined} />
                     ))}
                   </ul>
                 </section>
@@ -303,6 +351,7 @@ export function RestockListScreen() {
           ) : null}
         </>
       )}
+      <SetSupplierSheet itemName={picking?.line.itemName ?? null} suppliers={data?.suppliers ?? []} saving={link.saving} failure={link.failure?.message ?? null} onPick={(id) => void onPickSupplier(id)} onClose={() => { setPicking(null); link.clear(); }} />
     </PhoneScreen>
   );
 }

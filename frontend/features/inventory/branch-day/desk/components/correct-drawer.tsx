@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { roleLabel } from '@/components/app/shell/role-label';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { DrawerShell } from '../../../_shared/components/drawer-shell';
@@ -216,22 +217,16 @@ export function CorrectCountDrawer({ dayId, reference, referenceHref, rail, init
           </svg>
           <div className="flex min-w-0 grow basis-0 flex-col gap-1">
             <label htmlFor="correct-new" className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">Closing stock should be</label>
-            <input
+            <PadNumberInput
               id="correct-new"
-              inputMode="decimal"
-              autoComplete="off"
+              label="Closing stock should be"
               value={figure}
               disabled={post.saving || !line}
-              onChange={(e) => {
-                setFigure(e.target.value);
+              onChange={(v) => {
+                setFigure(v);
                 setFormError(null);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void submit();
-                }
-              }}
+              onEnter={() => void submit()}
               aria-invalid={figure !== '' && next === null ? true : undefined}
               className="h-11 w-full border border-wds-border-strong bg-white px-3.5 font-wds-mono text-[18px] leading-[22px] text-wds-text-ink outline-none transition-shadow duration-100 focus:border-wds-selected-edge focus:shadow-[0_0_0_3px_var(--wds-caramel-100)] aria-[invalid=true]:border-wds-error-fg"
             />
