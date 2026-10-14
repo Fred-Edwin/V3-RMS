@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/cn";
 import { Combobox, type ComboboxOption } from "@/components/ui2/combobox";
+import { PadNumberInput } from "@/components/ui2/quantity-field";
 import type {
   CreatePayMethodBody,
   SupplierPayMethod,
@@ -688,15 +689,17 @@ export function ChangePayMethodView({
       {isBank ? (
         <div className="flex flex-col gap-1.5">
           <FieldLabel htmlFor="pm-new-account">New account number</FieldLabel>
-          <input
+          <PadNumberInput
             id="pm-new-account"
             name="accountNumber"
+            label="New account number"
             autoFocus
-            autoComplete="off"
-            inputMode="numeric"
+            decimal={false}
+            keepZeros
+            maxLength={24}
             value={newAccount}
-            onChange={(e) => {
-              setNewAccount(e.target.value);
+            onChange={(v) => {
+              setNewAccount(v);
               update.clear();
             }}
             placeholder={groupAccountNumber("000000000000")}

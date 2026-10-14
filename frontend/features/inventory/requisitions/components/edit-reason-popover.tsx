@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
+import { PAD_INPUT_CLASS, PadNumberInput } from '@/components/ui2/quantity-field';
 import { Textarea } from '@/components/ui2/textarea';
 
 export interface EditReasonPopoverProps {
@@ -53,6 +54,8 @@ export function EditReasonPopover({
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (saving) return;
+      // A key on the in-app number pad belongs to the box being typed into, not an outside press.
+      if (event.target instanceof Element && event.target.closest('[aria-label^="Number pad for"]')) return;
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         onCancel();
       }
@@ -87,13 +90,12 @@ export function EditReasonPopover({
     >
       <div className="flex flex-col gap-wds-1.5">
         <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">Approved quantity</label>
-        <input
-          type="text"
-          inputMode="decimal"
+        <PadNumberInput
+          label="Approved quantity"
           value={approvedQty}
-          onChange={(e) => onApprovedQtyChange(e.target.value)}
+          onChange={onApprovedQtyChange}
           disabled={saving}
-          className="flex h-8 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:opacity-60"
+          className={cn(PAD_INPUT_CLASS, 'font-wds-mono disabled:opacity-60')}
         />
       </div>
       <div className="flex flex-col gap-wds-1.5">

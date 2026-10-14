@@ -79,7 +79,25 @@ const AUTOCOMPLETE_BASELINE: Record<string, number> = {
   'components/app/shell/topbar.tsx': 1, // a comment that mentions the tag
 };
 
+// Files that still set `inputMode` to decimal or numeric by hand, so a phone shows its own keyboard for a number (a ratchet: the
+// list only shrinks, and it is empty today: every numeric box goes through PadNumberInput or useNumberPadField). The pad's own files
+// set it from the pad state (`pad.inApp ? 'none' : ...`), which the pattern below does not match.
+const RAW_NUMERIC_BASELINE: Record<string, number> = {};
+const RAW_NUMERIC = /inputMode=(?:["']|\{\s*["'])(?:decimal|numeric)|type=(?:["']|\{\s*["'])number/g;
+
 describe('input conventions', () => {
+  it('every numeric box uses the in-app number pad (PadNumberInput), never the phone keyboard', () => {
+    const over: string[] = [];
+    for (const dir of SCAN_AUTOCOMPLETE) {
+      for (const f of walk(join(root, dir))) {
+        const n = (read(f).match(RAW_NUMERIC) ?? []).length;
+        const path = rel(f);
+        if (n > (RAW_NUMERIC_BASELINE[path] ?? 0)) over.push(`${path}: ${n} raw numeric input(s) (allowed ${RAW_NUMERIC_BASELINE[path] ?? 0})`);
+      }
+    }
+    expect(over, 'use PadNumberInput (components/ui2/quantity-field) or useNumberPadField for a number; real text keeps the phone keyboard').toEqual([]);
+  });
+
   it('no native select or datalist outside the legacy screens', () => {
     const offenders: string[] = [];
     for (const dir of SCAN_SELECT) {

@@ -12,6 +12,11 @@ describe('padInsert', () => {
     expect(padInsert('0', '7', typing)).toBe('7');
   });
 
+  it('keeps a leading zero in a code (PIN, account number)', () => {
+    expect(padInsert('0', '1', { ...typing, keepZeros: true })).toBe('01');
+    expect(padInsert('', '0', { ...typing, keepZeros: true })).toBe('0');
+  });
+
   it('a fresh (selected) value is replaced by the first key', () => {
     expect(padInsert('34', '5', { ...typing, fresh: true })).toBe('5');
   });

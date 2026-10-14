@@ -68,7 +68,8 @@ export function Keypad({ onDigit, onBackspace, action, disabled = false, look = 
               .
             </button>
           ) : (
-            <span aria-hidden="true" className="grow basis-0" />
+            // Same 1px border as a key (invisible), or the equal split is 2 px off.
+            <span aria-hidden="true" className="grow basis-0 border border-transparent" />
           )}
           <button type="button" className={keyClass} disabled={disabled} onClick={() => onDigit('0')}>
             0

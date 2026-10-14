@@ -24,17 +24,19 @@ export interface PadTyping {
   maxLength: number;
   /** The field was just opened: its whole value is selected, so the next key replaces it. */
   fresh: boolean;
+  /** A code, not a quantity (PIN, account number): a leading 0 stays ("0123"). */
+  keepZeros?: boolean;
 }
 
 /** The value after a key: a digit, or ".". Returns the same string when the key is not allowed. */
-export function padInsert(current: string, key: string, { decimal, maxLength, fresh }: PadTyping): string {
+export function padInsert(current: string, key: string, { decimal, maxLength, fresh, keepZeros }: PadTyping): string {
   const base = fresh ? '' : current;
   if (key === '.') {
     if (!decimal || base.includes('.')) return current;
     return base === '' ? '0.' : `${base}.`;
   }
   if (!/^\d$/.test(key)) return current;
-  const next = base === '0' ? key : `${base}${key}`;
+  const next = base === '0' && !keepZeros ? key : `${base}${key}`;
   return next.length > maxLength ? current : next;
 }
 
@@ -54,6 +56,8 @@ export interface PadEntry {
   maxLength: number;
   /** Show dots instead of digits (a PIN). */
   masked?: boolean;
+  /** A code, not a quantity: a leading 0 stays. Always on for a masked PIN. */
+  keepZeros?: boolean;
   value: string;
   onChange: (value: string) => void;
   /** The key at the right: "Next" for a quantity, the caller's word for a PIN. */
@@ -85,6 +89,19 @@ const subscribe = (l: () => void): (() => void) => {
 const snapshot = (): PadState => state;
 const serverSnapshot = (): PadState => ({ activeId: null, fresh: false, hosts: 0 });
 
+/**
+ * Scroll only when the box is hidden (under the pad or off the top). A box already in view stays put, so opening the pad never
+ * nudges the page; the pad's own height is read from the shell variable it sets.
+ */
+function bringIntoView(el: HTMLElement | null): void {
+  if (!el) return;
+  const padHeight = Number.parseFloat(document.documentElement.style.getPropertyValue('--number-pad-h')) || 0;
+  const rect = el.getBoundingClientRect();
+  const visibleBottom = window.innerHeight - padHeight;
+  if (rect.top >= 0 && rect.bottom <= visibleBottom) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 export const numberPad = {
   /** A field tells the pad its latest value and callbacks (every render). */
   register(entry: PadEntry): void {
@@ -99,12 +116,12 @@ export const numberPad = {
     if (!entries.has(id)) return;
     set({ activeId: id, fresh: true });
     // After the shell has shrunk to make room, bring the field into view above the pad.
-    window.setTimeout(() => entries.get(id)?.element()?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
+    window.setTimeout(() => bringIntoView(entries.get(id)?.element() ?? null), 60);
   },
   /** Bring the open field into view, above the pad (called once the shell has shrunk to make room). */
   reveal(): void {
     const entry = state.activeId ? entries.get(state.activeId) : undefined;
-    entry?.element()?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    bringIntoView(entry?.element() ?? null);
   },
   close(): void {
     if (state.activeId === null) return;
@@ -116,7 +133,7 @@ export const numberPad = {
   press(key: string): void {
     const entry = state.activeId ? entries.get(state.activeId) : undefined;
     if (!entry) return;
-    const next = padInsert(entry.value, key, { decimal: entry.decimal, maxLength: entry.maxLength, fresh: state.fresh });
+    const next = padInsert(entry.value, key, { decimal: entry.decimal, maxLength: entry.maxLength, fresh: state.fresh, keepZeros: entry.keepZeros || entry.masked });
     if (state.fresh) state = { ...state, fresh: false };
     if (next !== entry.value) {
       entry.value = next;
@@ -189,6 +206,7 @@ export interface UseNumberPadFieldOptions {
   decimal?: boolean;
   maxLength?: number;
   masked?: boolean;
+  keepZeros?: boolean;
   actionLabel?: string;
   onDone?: (value: string) => void;
 }
@@ -203,7 +221,7 @@ export function useNumberPadField(options: UseNumberPadFieldOptions) {
   const pad = usePadState();
   const wanted = useInAppPad();
   const inApp = wanted && pad.hosts > 0;
-  const { label, unit, value, onChange, decimal = false, maxLength = 9, masked, actionLabel, onDone } = options;
+  const { label, unit, value, onChange, decimal = false, maxLength = 9, masked, keepZeros, actionLabel, onDone } = options;
   const latest = React.useRef({ onChange, onDone });
   latest.current = { onChange, onDone };
 
@@ -216,13 +234,14 @@ export function useNumberPadField(options: UseNumberPadFieldOptions) {
       decimal,
       maxLength,
       masked,
+      keepZeros,
       value,
       actionLabel,
       onChange: (v) => latest.current.onChange(v),
       onDone: (v) => latest.current.onDone?.(v),
       element: () => ref.current,
     });
-  }, [inApp, id, label, unit, decimal, maxLength, masked, value, actionLabel]);
+  }, [inApp, id, label, unit, decimal, maxLength, masked, keepZeros, value, actionLabel]);
   React.useEffect(() => () => numberPad.unregister(id), [id]);
 
   const open = React.useCallback((): void => {

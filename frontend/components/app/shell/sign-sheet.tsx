@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { OTPInput, type SlotProps } from 'input-otp';
+import { type SlotProps } from 'input-otp';
 import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui2/input-otp';
+import { InputOTPGroup, InputOTPSlot, PadInputOTP } from '@/components/ui2/input-otp';
 import { usePinStatus } from '@/hooks/usePinStatus';
 import { SetPinForm } from './set-pin-form';
 
@@ -192,7 +192,7 @@ export function SignSheetDialog({
                   Enter your PIN
                 </label>
                 <div ref={pinFieldRef}>
-                  <InputOTP
+                  <PadInputOTP
                     maxLength={PIN_LENGTH}
                     value={pin}
                     onChange={setPin}
@@ -210,7 +210,7 @@ export function SignSheetDialog({
                         <InputOTPSlot key={i} index={i} />
                       ))}
                     </InputOTPGroup>
-                  </InputOTP>
+                  </PadInputOTP>
                 </div>
                 {error ? (
                   <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p>
@@ -417,11 +417,10 @@ function CountingSignLayout({
               <div className="flex flex-col gap-2">
                 <label className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{pinLabel}</label>
                 <div ref={pinFieldRef} className={cn(shaking && 'motion-safe:animate-[scw-shake_320ms_ease-in-out]')}>
-                  <OTPInput
+                  <PadInputOTP
                     maxLength={PIN_LENGTH}
                     value={pin}
                     onChange={setPin}
-                    inputMode="numeric"
                     autoComplete="one-time-code"
                     autoFocus
                     disabled={submitting}

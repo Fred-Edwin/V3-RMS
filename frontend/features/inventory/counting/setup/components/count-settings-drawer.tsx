@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -132,13 +133,14 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
                       Worth up to
                     </label>
                     <div className={field(!editRange, editRange && kesBad && Boolean(touched.kes))}>
-                      <input
+                      <PadNumberInput
                         id="range-kes"
-                        inputMode="decimal"
+                        label="Worth up to"
+                        unit="KES"
                         readOnly={!editRange}
                         value={rangeKes}
                         aria-invalid={editRange && kesBad}
-                        onChange={(e) => numeric.test(e.target.value) && setRangeKes(e.target.value)}
+                        onChange={(v) => numeric.test(v) && setRangeKes(v)}
                         onBlur={() => setTouched((t) => ({ ...t, kes: true }))}
                         className={cn('min-w-0 grow bg-transparent font-wds-mono text-[16px] leading-5 outline-none', editRange ? 'text-wds-text-ink' : 'text-wds-text-secondary')}
                       />
@@ -150,13 +152,14 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
                       And at most
                     </label>
                     <div className={field(!editRange, editRange && pctBad && Boolean(touched.pct))}>
-                      <input
+                      <PadNumberInput
                         id="range-pct"
-                        inputMode="decimal"
+                        label="And at most, percent of expected"
+                        unit="%"
                         readOnly={!editRange}
                         value={rangePercent}
                         aria-invalid={editRange && pctBad}
-                        onChange={(e) => numeric.test(e.target.value) && setRangePercent(e.target.value)}
+                        onChange={(v) => numeric.test(v) && setRangePercent(v)}
                         onBlur={() => setTouched((t) => ({ ...t, pct: true }))}
                         className={cn('min-w-0 grow bg-transparent font-wds-mono text-[16px] leading-5 outline-none', editRange ? 'text-wds-text-ink' : 'text-wds-text-secondary')}
                       />
@@ -212,16 +215,14 @@ function Body({ data, status, onReload, onClose }: { data: CountSettings | null;
                 <div className="flex flex-col gap-2 border-t border-wds-border pt-5">
                   <h3 className={cn(labelCls, 'text-wds-warning-fg')}>Director alert · set by you</h3>
                   <div className={field(false, alertBad && Boolean(touched.alert))}>
-                    <input
+                    <PadNumberInput
                       id="alert-kes"
-                      aria-label="Director alert amount in KES"
-                      inputMode="numeric"
-                      value={alertKes === '' ? '' : Number(alertKes).toLocaleString('en-KE')}
+                      label="Director alert amount"
+                      unit="KES"
+                      decimal={false}
+                      value={alertKes}
                       aria-invalid={alertBad}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/[^\d]/g, '');
-                        setAlertKes(raw);
-                      }}
+                      onChange={setAlertKes}
                       onBlur={() => setTouched((t) => ({ ...t, alert: true }))}
                       className="min-w-0 grow bg-transparent font-wds-mono text-[16px] leading-5 text-wds-text-ink outline-none"
                     />

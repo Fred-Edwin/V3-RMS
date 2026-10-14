@@ -6,6 +6,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Combobox } from '@/components/ui2/combobox';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui2/toggle-group';
 import { DrawerHost } from '../../../catalog/components/drawer-parts';
@@ -240,14 +241,12 @@ function RecipeEditor({ detail, pastRunsAverageText, onClose, onSaved }: { detai
               ) : null}
             </div>
             <label className={cn('flex h-10 shrink-0 items-center justify-center gap-[5px] border bg-white px-3', showProblems && check.problems.targetYield ? 'border-wds-error-fg' : 'border-wds-espresso-700')}>
-              <input
-                inputMode="decimal"
-                autoComplete="off"
-                aria-label="Target yield for one batch"
+              <PadNumberInput
+                label="Target yield for one batch"
+                unit={detail.unit}
                 value={form.targetYield}
                 placeholder="0"
-                onChange={(e) => {
-                  const next = e.target.value.replace(',', '.');
+                onChange={(next) => {
                   if (/^\d*\.?\d{0,4}$/.test(next)) update({ targetYield: next });
                 }}
                 className="w-14 min-w-0 bg-transparent text-right font-wds-mono text-[20px] leading-6 text-wds-text-ink outline-none placeholder:text-wds-text-muted"

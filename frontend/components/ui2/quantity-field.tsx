@@ -57,6 +57,10 @@ export const stepValue = (current: string, step: number, direction: 1 | -1): str
   return String(Number(next.toFixed(3)));
 };
 
+/** The ui2 `Input` look, for a `PadNumberInput` standing where an `Input` was: `className={cn(PAD_INPUT_CLASS, 'text-right')}`. */
+export const PAD_INPUT_CLASS =
+  'flex h-8 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-sans text-wds-body-sm text-wds-text-ink transition-colors placeholder:text-wds-text-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-wds-error-fg';
+
 export interface PadNumberInputProps {
   label: string;
   unit?: string;
@@ -71,6 +75,18 @@ export interface PadNumberInputProps {
   onFocus?: () => void;
   onBlur?: () => void;
   onEnter?: () => void;
+  autoFocus?: boolean;
+  name?: string;
+  /** A code made of digits (account number): keeps a leading 0 and never trims. */
+  keepZeros?: boolean;
+  /** A press on the box also reaches the row it sits in unless the screen stops it. */
+  onClick?: React.MouseEventHandler<HTMLInputElement>;
+  /** `data-*` markers a screen looks the box up by (a drawer's first box to focus). */
+  dataAttrs?: Record<`data-${string}`, string | undefined>;
+  /** Shown but not editable (a value only some roles may change): the pad never opens. */
+  readOnly?: boolean;
+  /** A screen that selects the box itself on focus (so the mouse-up must not clear the selection). */
+  onMouseUp?: React.MouseEventHandler<HTMLInputElement>;
   /** A screen with its own keys (Tab to the next count box on a computer). Runs first; Enter still calls `onEnter`. */
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
   /** For a screen that moves focus between boxes itself. */
@@ -83,8 +99,8 @@ export interface PadNumberInputProps {
  * Just the box, for rows too tight for the full `QuantityField` (a delivery count line, a pack line): on a finger it opens the
  * in-app number pad and never the phone keyboard; with a mouse it is an ordinary box. Style it with `className`.
  */
-export function PadNumberInput({ label, unit, value, onChange, decimal = true, maxLength = 9, id, placeholder, disabled, className, onFocus, onBlur, onEnter, onKeyDown, inputRef, ...aria }: PadNumberInputProps) {
-  const pad = useNumberPadField({ label, unit, value, onChange, decimal, maxLength });
+export function PadNumberInput({ label, unit, value, onChange, decimal = true, maxLength = 9, id, placeholder, disabled, className, onFocus, onBlur, onEnter, autoFocus, name, keepZeros, onClick, dataAttrs, readOnly, onMouseUp, onKeyDown, inputRef, ...aria }: PadNumberInputProps) {
+  const pad = useNumberPadField({ label, unit, value, onChange, decimal, maxLength, keepZeros });
   const setNode = React.useCallback(
     (node: HTMLInputElement | null): void => {
       pad.ref.current = node;
@@ -95,20 +111,27 @@ export function PadNumberInput({ label, unit, value, onChange, decimal = true, m
   return (
     <input
       id={id}
+      name={name}
       ref={setNode}
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      autoFocus={autoFocus}
+      onMouseUp={onMouseUp}
       autoComplete="off"
       aria-label={id ? undefined : label}
-      readOnly={pad.inApp}
+      readOnly={pad.inApp || readOnly}
       inputMode={pad.inApp ? 'none' : decimal ? 'decimal' : 'numeric'}
       onFocus={(e) => {
         onFocus?.();
+        if (readOnly) return;
         if (pad.inApp) pad.open();
         else e.currentTarget.select();
       }}
-      onClick={() => pad.open()}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!readOnly) pad.open();
+      }}
       onBlur={onBlur}
       onKeyDown={(e) => {
         onKeyDown?.(e);
@@ -120,6 +143,7 @@ export function PadNumberInput({ label, unit, value, onChange, decimal = true, m
       }}
       onChange={(e) => onChange(clean(e.target.value, decimal))}
       className={cn(className, pad.inApp && 'caret-transparent')}
+      {...dataAttrs}
       {...aria}
     />
   );

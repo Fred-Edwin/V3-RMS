@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import { ApiError, formatApiErrorMessage } from '@/types/api';
 import type { InventoryItemListRow } from '../../types';
@@ -192,15 +193,13 @@ export function AddItemsView({ supplierId, supplierName, soldItemIds, onCancel, 
                   </span>
                 </span>
                 <span className="flex w-[130px] shrink-0 flex-col items-end gap-0.5">
-                  <input
-                    inputMode="decimal"
-                    autoComplete="off"
-                    aria-label={`Price for ${item.name}`}
+                  <PadNumberInput
+                    label={`Price for ${item.name}`}
+                    unit={`KES per ${item.buyUnit}`}
                     placeholder="price"
                     disabled={!on}
                     value={price}
-                    onChange={(e) => {
-                      const value = e.target.value;
+                    onChange={(value) => {
                       setPicked((prev) => ({ ...prev, [item.id]: value }));
                       setPriceErrors((prev) => ({ ...prev, [item.id]: '' }));
                     }}

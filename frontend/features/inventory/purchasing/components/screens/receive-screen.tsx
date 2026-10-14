@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Camera, Check, ImageIcon } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
-import { QuantityField } from '@/components/ui2/quantity-field';
+import { PadNumberInput, QuantityField } from '@/components/ui2/quantity-field';
 import { allowsDecimal } from '../../../_shared/lib/units';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -200,13 +200,13 @@ export function ReceiveScreen({ orderId }: { orderId: string }) {
                 </label>
                 <div className={cn('flex h-10 items-center gap-1.5 border bg-white px-2.5 focus-within:shadow-wds-ring', priceInvalid(l) ? 'border-wds-error-fg' : 'border-wds-border-strong focus-within:border-wds-primary')}>
                   <span className="font-wds-mono text-[12px] text-wds-text-secondary">KES</span>
-                  <input
+                  <PadNumberInput
                     id={`price-${l.id}`}
-                    inputMode="decimal"
-                    autoComplete="off"
+                    label={`Price of ${l.itemName}`}
+                    unit={l.buyUnit ? `KES per ${l.buyUnit}` : 'KES'}
                     value={typed[l.id] ?? ''}
-                    onChange={(e) => {
-                      setTyped((p) => ({ ...p, [l.id]: e.target.value.replace(/[^0-9.]/g, '') }));
+                    onChange={(v) => {
+                      setTyped((p) => ({ ...p, [l.id]: v }));
                       setConfirmed((p) => ({ ...p, [l.id]: false }));
                     }}
                     placeholder={showPrices ? kes(l.unitPrice) : 'Same as ordered'}

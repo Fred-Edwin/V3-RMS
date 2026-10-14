@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Checkbox } from '@/components/ui2/checkbox';
 import { Picker } from '@/components/ui2/picker';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
 import { SearchInput } from '@/components/ui2/search-input';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -304,13 +305,13 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         <div className="w-[120px] shrink-0">
           {canOrder ? (
             <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
-              <input
-                inputMode="decimal"
+              <PadNumberInput
+                label={`Order quantity for ${line.itemName}`}
+                unit={line.buyUnit ?? undefined}
                 value={overrides[id]?.qty ?? line.suggestedQty ?? ''}
                 placeholder="—"
                 disabled={!r.hasLine}
-                onChange={(e) => setOv(id, { qty: e.target.value.replace(/[^0-9.]/g, '') })}
-                aria-label={`Order quantity for ${line.itemName}`}
+                onChange={(v) => setOv(id, { qty: v })}
                 className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
               />
               <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>
@@ -366,13 +367,13 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         <span className="w-[96px] shrink-0 font-wds-mono text-wds-caption text-wds-text-secondary">—</span>
         <div className="w-[120px] shrink-0">
           <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
-            <input
-              inputMode="decimal"
+            <PadNumberInput
+              label={`Order quantity for ${item.itemName}`}
+              unit={item.buyUnit ?? undefined}
               value={q}
               placeholder="—"
               disabled={!priced}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label={`Order quantity for ${item.itemName}`}
+              onChange={setQ}
               className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
             />
             <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{item.buyUnit}</span>
@@ -431,13 +432,13 @@ export function NeedsRestockingTab({ canOrder }: { canOrder: boolean }) {
         </div>
         <div className="w-[120px] shrink-0">
           <label className="flex h-7 items-center justify-end gap-1.5 rounded-[2px] border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring">
-            <input
-              inputMode="decimal"
+            <PadNumberInput
+              label={`Order quantity for ${line.itemName}`}
+              unit={line.buyUnit ?? undefined}
               value={overrides[id]?.qty ?? line.suggestedQty ?? ''}
               placeholder="—"
               disabled={!canOrder || !r.hasLine}
-              onChange={(e) => setOv(id, { qty: e.target.value.replace(/[^0-9.]/g, '') })}
-              aria-label={`Order quantity for ${line.itemName}`}
+              onChange={(v) => setOv(id, { qty: v })}
               className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none disabled:opacity-60"
             />
             <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{line.buyUnit ?? ''}</span>

@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import type { RestockLevelRow, RestockStatus } from '../../types';
 import { formatNumber } from '../../_shared/components/stock-format';
@@ -169,17 +170,14 @@ export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, readOn
                   {row.level === null ? '—' : formatNumber(row.level)}
                 </span>
               ) : (
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
+              <PadNumberInput
+                label={`Restock level for ${row.itemName}`}
+                unit={row.usageUnit}
                 value={text}
-                aria-label={`Restock level for ${row.itemName}, in ${row.usageUnit}`}
                 aria-invalid={invalid || undefined}
-                title={invalid ? parsed.message : undefined}
                 aria-describedby={invalid ? errorId : undefined}
                 placeholder="—"
-                onChange={(e) => onLevelChange(id, e.target.value)}
+                onChange={(v) => onLevelChange(id, v)}
                 className={cn(
                   'h-8 w-[84px] shrink-0 border bg-white px-2 text-center font-wds-mono text-[13px] leading-4 text-wds-text-ink placeholder:text-wds-text-faint',
                   'transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-wds-selected-edge focus-visible:shadow-[0_0_0_1px_var(--wds-selected-edge)]',

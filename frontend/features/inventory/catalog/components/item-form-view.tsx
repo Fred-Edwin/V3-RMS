@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Combobox, type ComboboxOption } from '@/components/ui2/combobox';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import type { Category, DepartmentTag, InventoryItemDetail, InventoryItemListRow, InventoryItemType } from '../../types';
 import { useSaveItem } from '../hooks/use-item-form';
 import { COMMON_UNITS, DEPARTMENT_ORDER, ITEM_TYPE_EXPLAINER, ITEM_TYPE_LABEL, ITEM_TYPE_ORDER } from '../lib/item-labels';
@@ -315,13 +316,12 @@ export function ItemFormView({
             <div className="flex min-w-0 grow basis-0 flex-col gap-1.5">
               <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">One holds</span>
               <div className="relative">
-                <input
-                  inputMode="decimal"
-                  autoComplete="off"
-                  aria-label="One holds"
+                <PadNumberInput
+                  label="One holds"
+                  unit={usage || undefined}
                   name="holds"
                   value={values.holds}
-                  onChange={(e) => set('holds', e.target.value)}
+                  onChange={(v) => set('holds', v)}
                   aria-invalid={errors.holds ? true : undefined}
                   placeholder="50"
                   className={cn(fieldClass, 'font-wds-mono', editing && holdsWas && holdsWas !== values.holds.trim() && 'pr-14')}
@@ -451,13 +451,13 @@ export function ItemFormView({
         </FieldLabel>
         <div className="flex items-center gap-2.5">
           <div className="relative w-[150px] shrink-0">
-            <input
+            <PadNumberInput
               id="item-restock-level"
+              label="Central Store restock level"
+              unit={usage || undefined}
               name="restockLevel"
-              inputMode="decimal"
-              autoComplete="off"
               value={values.restockLevel}
-              onChange={(e) => set('restockLevel', e.target.value)}
+              onChange={(v) => set('restockLevel', v)}
               aria-invalid={errors.restockLevel ? true : undefined}
               placeholder="100"
               className={cn(fieldClass, 'font-wds-mono', usage && 'pr-10')}
@@ -476,13 +476,13 @@ export function ItemFormView({
         </FieldLabel>
         <div className="flex items-center gap-2.5">
           <div className="relative w-[150px] shrink-0">
-            <input
+            <PadNumberInput
               id="item-days-of-cover"
+              label="Days of cover"
+              unit="days"
               name="daysOfCover"
-              inputMode="decimal"
-              autoComplete="off"
               value={values.daysOfCover}
-              onChange={(e) => set('daysOfCover', e.target.value)}
+              onChange={(v) => set('daysOfCover', v)}
               aria-invalid={errors.daysOfCover ? true : undefined}
               placeholder="15"
               className={cn(fieldClass, 'pr-12 font-wds-mono')}

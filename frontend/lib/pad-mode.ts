@@ -4,8 +4,9 @@ import * as React from 'react';
 
 /**
  * Who gets the in-app number pad (owner decision, 12 Oct 2026):
- *  - a coarse pointer (a finger: a phone or a tablet) gets the pad for quantities and PINs, so the phone keyboard never covers a field;
- *  - a fine pointer (a mouse) keeps ordinary typing;
+ *  - a coarse pointer (a finger) on a phone-sized screen (short side under 768 px; owner decision, 14 Oct 2026) gets the pad for every
+ *    number and PIN, so the phone keyboard never covers a field;
+ *  - a tablet (short side 768 px or more) and a fine pointer (a mouse) keep ordinary typing;
  *  - anyone, on any device, may switch the pad off ("Use the phone keyboard"), for screen readers and switch access. The choice is
  *    kept on the device.
  * Real text (search boxes, names, notes, delivery note numbers) always uses the phone keyboard; this only covers numbers.
@@ -60,9 +61,24 @@ export function usePhoneKeyboardPreference(): [boolean, (value: boolean) => void
   return [prefer, set];
 }
 
-/** Whether a number field on this device should use the in-app pad right now. */
+/** True when the screen's short side is under 768 px (a phone, upright or on its side). A tablet keeps the system keyboard. */
+const PHONE_SIZE = '(max-width: 767px), (max-height: 767px)';
+export function usePhoneSizedScreen(): boolean {
+  return React.useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(PHONE_SIZE);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(PHONE_SIZE).matches,
+    () => false,
+  );
+}
+
+/** Whether a number field on this device should use the in-app pad right now: a finger on a phone-sized screen, not switched off. */
 export function useInAppPad(): boolean {
   const coarse = useCoarsePointer();
+  const phone = usePhoneSizedScreen();
   const [prefer] = usePhoneKeyboardPreference();
-  return coarse && !prefer;
+  return coarse && phone && !prefer;
 }

@@ -3,6 +3,8 @@
 import * as React from 'react';
 
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
+import { allowsDecimal } from '../../../_shared/lib/units';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { cn } from '@/lib/cn';
@@ -95,8 +97,7 @@ export function LogWasteDrawer({ open, onOpenChange, onLogged }: { open: boolean
                     <div className="flex items-center justify-between gap-3">
                       <span className="grow truncate font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{l.item.name}</span>
                       <label className="flex h-9 w-[70px] items-center justify-end gap-1 border border-wds-border-strong bg-wds-surface px-2 focus-within:border-wds-selected-edge focus-within:shadow-wds-ring">
-                        <span className="sr-only">Quantity of {l.item.name}</span>
-                        <input inputMode="decimal" value={l.quantity} onChange={(e) => /^\d*\.?\d{0,4}$/.test(e.target.value) && cart.upsert({ ...l, quantity: e.target.value })} aria-invalid={!(Number(l.quantity) > 0)} className="w-8 min-w-0 bg-transparent text-right font-wds-mono text-[14px] outline-none" />
+                        <PadNumberInput label={`Quantity of ${l.item.name}`} unit={l.item.unit} decimal={allowsDecimal(l.item.unit)} value={l.quantity} onChange={(v) => /^\d*\.?\d{0,4}$/.test(v) && cart.upsert({ ...l, quantity: v })} aria-invalid={!(Number(l.quantity) > 0)} className="w-8 min-w-0 bg-transparent text-right font-wds-mono text-[14px] outline-none" />
                         <span className="font-wds-mono text-[13px] text-wds-text-secondary">{l.item.unit}</span>
                       </label>
                       {hasCosts ? <span className="w-12 text-right font-wds-mono text-[14px] text-wds-text-ink">{Math.round(Number(l.quantity || 0) * Number(l.item.unitCost ?? 0)).toLocaleString('en-KE')}</span> : null}

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 import { useAuthStore } from '@/store/authStore';
 import { useAction } from '../../../_shared/hooks/use-async';
@@ -188,11 +189,12 @@ export function AddMissingItemFlow({ items, supplierName, initialQuery = '', onC
                 <div className="flex grow basis-0 flex-col gap-[5px]">
                   <label htmlFor="missing-holds" className="font-wds-sans text-[12px] leading-4 text-wds-text-copy-muted">One holds</label>
                   <div className={cn(field, 'gap-1.5 border focus-within:border-wds-primary focus-within:shadow-wds-ring', showError('holds') ? 'border-wds-error-fg' : 'border-wds-border-strong')}>
-                    <input
+                    <PadNumberInput
                       id="missing-holds"
-                      inputMode="decimal"
+                      label="One holds"
+                      unit={draft.usageUnit || undefined}
                       value={draft.holds}
-                      onChange={(e) => set('holds', e.target.value)}
+                      onChange={(v) => set('holds', v)}
                       placeholder="400"
                       aria-invalid={Boolean(showError('holds'))}
                       className="w-full min-w-0 bg-transparent font-wds-mono text-[15px] outline-none placeholder:text-wds-text-faint"

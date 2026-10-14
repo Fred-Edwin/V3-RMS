@@ -6,6 +6,7 @@ import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui2/sheet';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -107,23 +108,18 @@ function KesField({ form, mobile }: { form: ReturnType<typeof useThresholdsForm>
         )}
       >
         <span className={cn('font-wds-mono text-wds-text-faint', mobile ? 'text-[14px]/[18px]' : 'text-[13px]/4')}>KES</span>
-        <input
+        <PadNumberInput
           id={id}
-          data-thresholds-input
-          inputMode="numeric"
-          autoComplete="off"
+          label="Reason required from"
+          unit="KES"
+          decimal={false}
           value={form.value}
           disabled={form.status !== 'ready'}
           aria-invalid={form.invalid || undefined}
           aria-describedby={`${id}-help`}
-          onChange={(e) => form.setValue(e.target.value.replace(/[^\d]/g, ''))}
+          onChange={form.setValue}
           onBlur={form.touch}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void form.save();
-            }
-          }}
+          onEnter={() => void form.save()}
           className={cn('min-w-0 grow bg-transparent font-wds-mono text-wds-text-ink outline-none', mobile ? 'text-[16px]/5' : 'text-[15px]/[18px]')}
         />
       </div>

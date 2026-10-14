@@ -3,7 +3,9 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { Skeleton } from '@/components/ui2/skeleton';
+import { allowsDecimal } from '../../../_shared/lib/units';
 import { roleLabel } from '@/components/app/shell/role-label';
 import { useAuthStore } from '@/store/authStore';
 import { ErrorState } from '@/components/app/shell/shell-states';
@@ -178,28 +180,24 @@ export function CountForDrawer({ department, open, onOpenChange, onSigned }: {
                       {l.unit}
                     </span>
                   </label>
-                  <input
+                  <PadNumberInput
                     id={`count-${l.itemId}`}
-                    ref={(node) => {
+                    label={`${l.itemName}, in ${l.unit.toLowerCase()}`}
+                    unit={l.unit}
+                    decimal={allowsDecimal(l.unit)}
+                    inputRef={(node) => {
                       boxes.current[l.itemId] = node;
                     }}
-                    data-first-count={i === 0 ? '' : undefined}
-                    inputMode="decimal"
-                    autoComplete="off"
+                    dataAttrs={{ 'data-first-count': i === 0 ? '' : undefined }}
                     placeholder="–"
                     value={text}
                     aria-invalid={bad ? true : undefined}
-                    onChange={(e) => {
-                      setValues((prev) => ({ ...prev, [l.itemId]: e.target.value.replace(/[^\d.]/g, '') }));
+                    onChange={(v) => {
+                      setValues((prev) => ({ ...prev, [l.itemId]: v }));
                       setSaveError(null);
                     }}
                     onBlur={() => void flush()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        nextBox(i);
-                      }
-                    }}
+                    onEnter={() => nextBox(i)}
                     className={cn(
                       'h-9 w-16 shrink-0 border bg-white text-center font-wds-mono text-[16px] leading-5 text-wds-text-ink outline-none transition-shadow duration-100 placeholder:font-wds-sans placeholder:text-[#8D8982]',
                       bad ? 'border-wds-error-fg' : 'border-wds-border-strong focus:border-wds-selected-edge focus:shadow-[0_0_0_3px_var(--wds-caramel-100)]',

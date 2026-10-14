@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Combobox, type ComboboxOption } from '@/components/ui2/combobox';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import type { InventoryItemDetail, Supplier } from '../../types';
 import { useAddSupplierLine } from '../hooks/use-item-form';
 import { COMMON_UNITS } from '../lib/item-labels';
@@ -222,13 +223,12 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
             </div>
             <div className="flex min-w-0 grow basis-0 flex-col gap-1.5">
               <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">One holds ({item.usageUnit})</span>
-              <input
-                inputMode="decimal"
-                autoComplete="off"
-                aria-label={`One holds, in ${item.usageUnit}`}
+              <PadNumberInput
+                label={`One holds, in ${item.usageUnit}`}
+                unit={item.usageUnit}
                 name="packSize"
                 value={packSize}
-                onChange={(e) => setPackSize(e.target.value)}
+                onChange={setPackSize}
                 aria-invalid={errors.packSize ? true : undefined}
                 placeholder="2"
                 className={cn(fieldClass, 'font-wds-mono')}

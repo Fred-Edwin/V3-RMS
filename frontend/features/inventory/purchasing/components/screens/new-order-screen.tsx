@@ -10,6 +10,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { Button } from '@/components/ui2/button';
 import { Checkbox } from '@/components/ui2/checkbox';
 import { Picker } from '@/components/ui2/picker';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { SearchInput } from '@/components/ui2/search-input';
 import { Textarea } from '@/components/ui2/textarea';
@@ -305,21 +306,22 @@ export function NewOrderScreen() {
                         {/* The quantity cell comes first in the page order (so Tab reaches it, then the price) and is shown after the price by `order`. */}
                         <div className="order-2 w-[100px] shrink-0">
                           <label className={cn('flex h-7 items-center justify-end gap-1.5 rounded-[2px] border bg-wds-surface px-2 focus-within:border-wds-primary focus-within:shadow-wds-ring', on ? 'border-wds-border-strong' : 'border-wds-border')}>
-                            <input
-                              inputMode="decimal"
-                              autoComplete="off"
+                            <PadNumberInput
+                              label={`Quantity of ${i.itemName}`}
+                              unit={i.buyUnit}
                               value={lines[i.inventoryItemId] ?? ''}
                               placeholder={on ? undefined : '—'}
                               // Clicking the box ticks the row, clearing it unticks (training fix 5).
-                              onFocus={(e) => {
-                                const box = e.currentTarget;
-                                if (!on) toggle(i);
-                                // After the re-render: ticking puts the suggested amount in, and the next keystroke should replace it.
-                                requestAnimationFrame(() => box.select());
+                              onFocus={() => {
+                                if (on) return;
+                                toggle(i);
+                                // After the re-render ticking puts the suggested amount in; with a mouse the next keystroke should replace it.
+                                requestAnimationFrame(() => {
+                                  if (document.activeElement instanceof HTMLInputElement) document.activeElement.select();
+                                });
                               }}
                               onMouseUp={(e) => e.preventDefault()}
-                              onChange={(e) => {
-                                const next = e.target.value.replace(/[^0-9.]/g, '');
+                              onChange={(next) => {
                                 if (next === '' && on) toggle(i);
                                 else if (on) setQty(i.inventoryItemId, next);
                                 else {
@@ -327,7 +329,6 @@ export function NewOrderScreen() {
                                   setLines((prev) => ({ ...prev, [i.inventoryItemId]: next }));
                                 }
                               }}
-                              aria-label={`Quantity of ${i.itemName}`}
                               className="w-full min-w-0 bg-transparent text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none placeholder:text-wds-text-faint"
                             />
                             {on ? <span className="shrink-0 font-wds-sans text-[11px] text-wds-text-secondary">{i.buyUnit}</span> : null}
@@ -335,16 +336,14 @@ export function NewOrderScreen() {
                         </div>
                         {showPrices ? (
                           canTypePrice ? (
-                            <input
-                              inputMode="decimal"
-                              autoComplete="off"
+                            <PadNumberInput
+                              label={`Price of ${i.itemName}`}
+                              unit={`KES per ${i.buyUnit}`}
                               value={prices[i.inventoryItemId] ?? i.price ?? ''}
-                              onChange={(e) => {
+                              onChange={(v) => {
                                 touch();
-                                setPrices((prev) => ({ ...prev, [i.inventoryItemId]: e.target.value.replace(/[^0-9.]/g, '') }));
+                                setPrices((prev) => ({ ...prev, [i.inventoryItemId]: v }));
                               }}
-                              onFocus={(e) => e.currentTarget.select()}
-                              aria-label={`Price of ${i.itemName}`}
                               className="order-1 h-7 w-[74px] shrink-0 rounded-[2px] border border-wds-border bg-wds-surface px-2 text-right font-wds-mono text-wds-caption text-wds-neutral-950 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
                             />
                           ) : (

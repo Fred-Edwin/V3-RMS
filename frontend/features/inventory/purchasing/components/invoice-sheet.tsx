@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Input } from '@/components/ui2/input';
+import { PAD_INPUT_CLASS, PadNumberInput } from '@/components/ui2/quantity-field';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Textarea } from '@/components/ui2/textarea';
 import { useWdsToastStore } from '@/store/wdsToastStore';
@@ -156,7 +157,7 @@ function AddInvoiceDrawer({ order, open, onOpenChange }: { order: Order; open: b
             </div>
             <div className="flex flex-col gap-1.5">
               <FieldLabel htmlFor="inv-amount">Invoice amount (KES)</FieldLabel>
-              <Input id="inv-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" className="font-wds-mono" />
+              <PadNumberInput id="inv-amount" label="Invoice amount" unit="KES" value={amount} onChange={setAmount} placeholder="0.00" className={cn(PAD_INPUT_CLASS, 'font-wds-mono')} />
               <p className="font-wds-sans text-[11px] leading-[15px] text-wds-text-secondary">
                 {hasAmount && date && terms !== null ? `Due ${fullDate(addDays(date, terms))} (${first}'s terms: ${terms} days). ` : ''}
                 {!hasAmount ? `Delivered value is KES ${kes(delivered)}.${advance > 0 ? ` The advance of KES ${kes(advance)} will be taken off.` : ''}` : ''}

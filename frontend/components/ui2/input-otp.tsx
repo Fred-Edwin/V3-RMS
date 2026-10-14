@@ -5,6 +5,7 @@ import { OTPInput, OTPInputContext } from "input-otp"
 import { Minus } from "lucide-react"
 
 import { cn } from "@/lib/cn"
+import { usePinPad } from "@/components/ui2/number-pad"
 
 const InputOTP = React.forwardRef<
   React.ElementRef<typeof OTPInput>,
@@ -21,6 +22,34 @@ const InputOTP = React.forwardRef<
   />
 ))
 InputOTP.displayName = "InputOTP"
+
+type PadInputOTPProps = React.ComponentPropsWithoutRef<typeof InputOTP> & {
+  /** What the pad says it is typing ("PIN", "New PIN"). */
+  padLabel?: string
+  /** The pad's action key ("Done", "Sign"). */
+  padAction?: string
+}
+
+/** The PIN boxes: on a finger they open the app's own number pad (never the phone keyboard); with a mouse they type as usual. */
+const PadInputOTP = React.forwardRef<React.ElementRef<typeof OTPInput>, PadInputOTPProps>(
+  ({ padLabel = "PIN", padAction = "Done", value = "", onChange, ...rest }, ref) => {
+    const pad = usePinPad({ value, onChange: (v) => onChange?.(v), label: padLabel, actionLabel: padAction })
+    return (
+      <InputOTP
+        {...rest}
+        value={value}
+        onChange={onChange}
+        {...pad.inputProps}
+        ref={(node) => {
+          pad.ref.current = node
+          if (typeof ref === "function") ref(node)
+          else if (ref) ref.current = node
+        }}
+      />
+    )
+  }
+)
+PadInputOTP.displayName = "PadInputOTP"
 
 const InputOTPGroup = React.forwardRef<
   React.ElementRef<"div">,
@@ -75,4 +104,4 @@ const InputOTPSeparator = React.forwardRef<
 ))
 InputOTPSeparator.displayName = "InputOTPSeparator"
 
-export { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator }
+export { InputOTP, PadInputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator }
