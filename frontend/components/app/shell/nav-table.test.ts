@@ -345,6 +345,22 @@ describe('where the shell applies', () => {
     }
   });
 
+  it('keeps every link the floor staff had on the old bottom tabs, in the sidebar, for every waiter whatever their department', () => {
+    for (const [isDepartmentHead, isDepartmentMember] of [[false, false], [true, false], [false, true]] as const) {
+      const waiter = navFor(ctxFor('WAITER', { isDepartmentHead, isDepartmentMember }));
+      for (const [key, href] of [['staff-order-history', '/app/history'], ['staff-leave', '/app/hr/my-leave'], ['staff-payslips', '/app/payslips'], ['staff-performance', '/app/performance'], ['profile', '/app/profile']]) {
+        expect(item(waiter, key)?.href, `waiter head=${isDepartmentHead} member=${isDepartmentMember} ${key}`).toBe(href);
+      }
+    }
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
+      expect(item(navFor(ctxFor(role)), 'staff-leave')?.href, role).toBe('/app/hr/my-leave');
+    }
+    // sidebar only: neither returned link takes a bottom-bar slot
+    const quick = quickLinksFor(navFor(ctxFor('WAITER'))).map((i) => i.key);
+    expect(quick).not.toContain('staff-order-history');
+    expect(quick).not.toContain('staff-leave');
+  });
+
   it('puts a department member in the one shell whatever their floor role, and gives them Deliveries and History', () => {
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
       expect(usesAppShell(role, false, true), role).toBe(true);

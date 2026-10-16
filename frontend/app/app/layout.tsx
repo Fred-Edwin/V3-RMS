@@ -2,16 +2,13 @@
 
 import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/app/shell/app-shell';
-import { FLOOR_ROLES, isBareRoute, usesAppShell, usesDesktopShell } from '@/components/app/shell/nav-table';
+import { FLOOR_ROLES, isBareRoute, usesAppShell } from '@/components/app/shell/nav-table';
 import { usePermissions } from '@/features/inventory';
 import { PourReveal } from '@/components/app/shell/pour-reveal';
-import { env } from '@/lib/env';
-import { ShellProvider } from '@/lib/shell-context';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
 import { useCommsSocket } from '@/hooks/useCommsSocket';
 import { useMessageToast } from '@/hooks/useMessageToast';
-import { LegacyPhoneShell } from './_legacy-phone/legacy-phone-shell';
 
 interface AppShellLayoutProps {
   children: React.ReactNode;
@@ -21,10 +18,8 @@ interface AppShellLayoutProps {
  * Routing only. Which links a role sees lives in `components/app/shell/nav-table.ts`; the sidebar and top bar are `AppShell`.
  * This layout just decides which frame a page gets:
  *   - no role yet, the kitchen/barista display screens, and print documents: the page bare;
- *   - the migrated roles (desktop roles and the Store Attendant): the one shell at every width, a sidebar on desktop and a menu
- *     drawer on phones;
- *   - a department head, or a floor-staff member of a department: the same shell (Paper "Phone menus by role", no bottom tabs);
- *   - floor staff who belong to no department: the legacy bottom-tab phone layout, until their screens are rebuilt.
+ *   - every human role (desktop roles, the Store Attendant and all floor staff): the one shell at every width, a sidebar on desktop
+ *     and a menu drawer on phones, with a short bottom bar for the floor staff.
  */
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
   const pathname = usePathname();
@@ -43,7 +38,6 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
 
   const isDisplayRoute = pathname.startsWith('/app/kitchen') || pathname.startsWith('/app/barista');
   const isDisplayOnlyRole = role === 'KITCHEN_DISPLAY' || role === 'BARISTA_DISPLAY';
-  const isDesktopPreviewEnabled = env.roleDesktopPreview && process.env.NODE_ENV !== 'production';
 
   // Auth/session hydration gate — real wait here is an API refresh-token
   // round trip (~200ms-1s on a normal connection, see authStore's
@@ -75,17 +69,6 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     return <AppShell mode="responsive">{children}</AppShell>;
   }
 
-  if (usesDesktopShell(role, isDesktopPreviewEnabled, isDepartmentHead, isDepartmentMember)) {
-    return (
-      <>
-        {/* Floor staff in the desktop preview: the shell from lg up, the legacy bottom-tab layout below it. */}
-        <AppShell mode="desktop">
-          <ShellProvider value="desktop">{children}</ShellProvider>
-        </AppShell>
-        <LegacyPhoneShell className="lg:hidden">{children}</LegacyPhoneShell>
-      </>
-    );
-  }
-
-  return <LegacyPhoneShell>{children}</LegacyPhoneShell>;
+  // Every human role is in the shell; anything else (an unknown role) gets the page bare.
+  return <>{children}</>;
 }
