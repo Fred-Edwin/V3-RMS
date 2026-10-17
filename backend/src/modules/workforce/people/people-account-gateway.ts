@@ -37,6 +37,8 @@ export interface AccountGateway {
   setActive(userId: string, active: boolean): Promise<void>;
   /** Moves the login to another site through the legacy transfer code (writes StaffTransfer and User.siteId). */
   moveToSite(userId: string, toSiteId: string, authorizedById: string, notes: string): Promise<void>;
+  /** The legacy HR profile id of a login, when it has one (adopting an account keeps the link). */
+  findLegacyProfileId(userId: string): Promise<string | null>;
   /** Legacy leave bridge: while slice 5 is unbuilt, recording a contract still seeds leave balances. */
   assignLegacyContract(userId: string, contractTypeId: string | null, actorId: string): Promise<void>;
   /** The only writer of User.isDepartmentHead and User.departmentTag (5.4). Slice 1b. */
@@ -79,6 +81,11 @@ export const accountGateway: AccountGateway = {
     if (!staff) throw new NotFoundError('Login not found');
     if (staff.siteId === toSiteId) return;
     await staffTransferRepository.create({ userId, fromSiteId: staff.siteId, toSiteId, authorizedById, notes });
+  },
+
+  async findLegacyProfileId(userId) {
+    const profile = await hrRepository.findProfileByUserId(userId);
+    return profile?.id ?? null;
   },
 
   async assignLegacyContract(userId, contractTypeId, actorId) {
