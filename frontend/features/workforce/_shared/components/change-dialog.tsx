@@ -4,9 +4,12 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { cn } from '@/lib/cn';
-import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
+import { SetPinForm } from '@/components/app/shell/set-pin-form';
+import { usePinStatus } from '@/hooks/usePinStatus';
 
 import { DISABLED, FOCUS_RING, MOTION, PRESSED, onHover } from '../lib/interaction';
+import { KeyValueRows, type KeyValueRow } from './key-value-rows';
+import { PIN_LENGTH, PinField } from './pin-field';
 
 /**
  * Dialogs for changing something (Paper "Assign a head for Housekeeping",
@@ -24,10 +27,10 @@ import { DISABLED, FOCUS_RING, MOTION, PRESSED, onHover } from '../lib/interacti
  * `ChangeDialog` puts the two together with the footer: Cancel (outlined) and
  * the one brown button (rule 04).
  *
- * `WorkforcePinDialog` is the PIN step for a signed act (rule 02). It reuses the
- * shell's `SignSheetDialog`, so the PIN boxes, the first-use "set your PIN" step
- * and the number pad are the same as Inventory's. The fourth digit signs; Enter
- * on any other control never does.
+ * `WorkforcePinDialog` is the PIN step for a signed act (rule 02; Paper 1J7K-0):
+ * a summary list, ONE wide dots field (`PinField`), a caption, Cancel and the
+ * brown button. The shell's first-use "set your PIN" form and the phone number
+ * pad are reused. The fourth digit signs; Enter never does.
  */
 
 export function KitDialog({
@@ -39,6 +42,7 @@ export function KitDialog({
   footer,
   busy = false,
   width = 580,
+  plain = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,6 +53,8 @@ export function KitDialog({
   /** While a save is in flight the dialog cannot be dismissed by Escape or the scrim. */
   busy?: boolean;
   width?: number;
+  /** The approval-dialog paint (Paper 1J7K-0): 28/26 padding, no rule under the title, no ×. */
+  plain?: boolean;
 }) {
   const bodyRef = React.useRef<HTMLDivElement>(null);
   // Radix returns focus only to its own Trigger; these dialogs are opened by state, so remember the opener here.
@@ -83,7 +89,7 @@ export function KitDialog({
           )}
           style={{ width }}
         >
-          <div className="flex items-start justify-between border-b border-wds-border px-6 pb-4 pt-5">
+          <div className={cn('flex items-start justify-between', plain ? 'px-7 pt-[26px]' : 'border-b border-wds-border px-6 pb-4 pt-5')}>
             <div className="flex flex-col gap-1">
               <DialogPrimitive.Title className="font-wds-sans text-[20px] font-semibold leading-[26px] tracking-[-0.02em] text-wds-text-ink">
                 {title}
@@ -94,15 +100,17 @@ export function KitDialog({
                 </DialogPrimitive.Description>
               ) : null}
             </div>
-            <DialogPrimitive.Close
-              aria-label="Close"
-              className={cn('-mr-2 -mt-1 flex h-9 w-9 items-center justify-center text-[20px] leading-5 text-wds-text-muted', MOTION, FOCUS_RING, onHover('text-wds-text-ink'))}
-            >
-              <span aria-hidden>×</span>
-            </DialogPrimitive.Close>
+            {plain ? null : (
+              <DialogPrimitive.Close
+                aria-label="Close"
+                className={cn('-mr-2 -mt-1 flex h-9 w-9 items-center justify-center text-[20px] leading-5 text-wds-text-muted', MOTION, FOCUS_RING, onHover('text-wds-text-ink'))}
+              >
+                <span aria-hidden>×</span>
+              </DialogPrimitive.Close>
+            )}
           </div>
-          {children ? <div ref={bodyRef} className="flex flex-col gap-5 px-6 pt-5">{children}</div> : null}
-          {footer ? <div className="flex items-center justify-end gap-2 px-6 py-5">{footer}</div> : null}
+          {children ? <div ref={bodyRef} className={cn('flex flex-col', plain ? 'gap-3.5 px-7 pt-3.5' : 'gap-5 px-6 pt-5')}>{children}</div> : null}
+          {footer ? <div className={cn('flex items-center justify-end', plain ? 'gap-2.5 px-7 pb-[26px] pt-3.5' : 'gap-2 px-6 py-5')}>{footer}</div> : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
@@ -144,22 +152,24 @@ export function OldToNew({ label, from, to }: { label: string; from: string; to:
 /** The kit's two buttons for a dialog footer (38/34 px as drawn): outlined Cancel, the one brown action. */
 export function DialogButton({
   kind,
+  size = 'md',
   className,
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind: 'cancel' | 'primary' | 'danger' }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind: 'cancel' | 'primary' | 'danger'; size?: 'md' | 'lg' }) {
   return (
     <button
       type="button"
       className={cn(
-        'inline-flex h-[34px] items-center justify-center px-4 font-wds-sans text-[13px] leading-4',
+        'inline-flex items-center justify-center px-4 font-wds-sans',
+        size === 'lg' ? 'h-[38px] px-5 text-[14px] leading-[18px]' : 'h-[34px] text-[13px] leading-4',
         MOTION,
         FOCUS_RING,
         PRESSED,
         DISABLED,
         kind === 'cancel' && cn('border border-wds-border-strong bg-transparent text-wds-text-ink', onHover('bg-wds-neutral-50')),
-        kind === 'primary' && cn('rounded-wds-sm bg-wds-primary px-[18px] font-medium text-wds-primary-fg', onHover('bg-wds-primary-hover')),
-        kind === 'danger' && cn('rounded-wds-sm bg-wds-error-fg px-[18px] font-medium text-wds-primary-fg', onHover('opacity-90')),
+        kind === 'primary' && cn('rounded-wds-sm bg-wds-primary font-medium text-wds-primary-fg', size === 'lg' ? 'px-[22px] font-semibold' : 'px-[18px]', onHover('bg-wds-primary-hover')),
+        kind === 'danger' && cn('rounded-wds-sm bg-wds-error-fg font-medium text-wds-primary-fg', size === 'lg' ? 'px-[22px] font-semibold' : 'px-[18px]', onHover('opacity-90')),
         className
       )}
       {...props}
@@ -236,55 +246,107 @@ export function WorkforcePinDialog({
   open,
   onOpenChange,
   title,
-  subtitle,
+  description,
+  summaryRows,
   summary,
+  pinLabel = 'Your PIN, to sign',
+  caption,
   onSubmit,
-  submitting,
+  submitting = false,
   error,
   confirmLabel = 'Sign',
+  cancelLabel = 'Cancel',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  subtitle: string;
-  /** What the signer is about to sign, drawn between the heading and the PIN. */
+  description?: string;
+  /** What the signer is about to sign: label left, value right (Paper 1J7K-0). */
+  summaryRows?: KeyValueRow[];
+  /** Anything else drawn between the summary and the PIN. */
   summary?: React.ReactNode;
+  pinLabel?: string;
+  /** The line under the PIN: who is told, and that it is logged. */
+  caption?: string;
+  /** Called with the PIN when the last digit is typed, or when the button is pressed. Enter never calls it. */
   onSubmit: (pin: string) => void;
   submitting?: boolean;
   error?: string;
   confirmLabel?: string;
+  cancelLabel?: string;
 }) {
-  // Rule 09: Escape returns focus to the button that opened the dialog. The shell's sheet does not do it, so do it here.
-  const openerRef = React.useRef<HTMLElement | null>(null);
-  const wasOpen = React.useRef(false);
-  if (open && !wasOpen.current && typeof document !== 'undefined') {
-    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  }
+  const [pin, setPin] = React.useState('');
+  // Everyone who signs needs a PIN. With none yet, the dialog first asks for one, then signs with it.
+  const pinStatus = usePinStatus(open);
+  const needsPin = pinStatus.hasPin === false;
+  const wasSubmitting = React.useRef(false);
+  const pinWrapRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
-    if (wasOpen.current && !open) {
-      const id = window.setTimeout(() => openerRef.current?.focus(), 0);
-      wasOpen.current = open;
-      return () => window.clearTimeout(id);
-    }
-    wasOpen.current = open;
-    return undefined;
+    if (open) setPin('');
   }, [open]);
+
+  // A rejected PIN clears the field and hands focus back, so the retry can be typed straight away.
+  React.useEffect(() => {
+    if (wasSubmitting.current && !submitting && error) {
+      setPin('');
+      pinWrapRef.current?.querySelector('input')?.focus();
+    }
+    wasSubmitting.current = submitting;
+  }, [submitting, error]);
+
+  const checkingPin = pinStatus.hasPin === null && pinStatus.loading;
+  const ready = pin.length === PIN_LENGTH && !submitting && !checkingPin;
+  const sign = (value: string) => {
+    if (!submitting && !checkingPin && value.length === PIN_LENGTH) onSubmit(value);
+  };
+
   return (
-    <SignSheetDialog
+    <KitDialog
+      plain
       open={open}
       onOpenChange={onOpenChange}
-      title={title}
-      subtitle={subtitle}
-      helperText=""
-      layout="wide"
-      pinLabel="SIGNING PIN"
-      confirmLabel={confirmLabel}
-      signOnLastDigit
-      onSubmit={onSubmit}
-      submitting={submitting}
-      error={error}
+      title={needsPin ? 'Set your signing PIN' : title}
+      description={needsPin ? "You haven't set a PIN yet. Choose 4 digits, then we'll continue to sign." : description}
+      busy={submitting}
+      width={540}
+      footer={
+        needsPin ? undefined : (
+          <>
+            <DialogButton kind="cancel" size="lg" onClick={() => onOpenChange(false)} disabled={submitting}>
+              {cancelLabel}
+            </DialogButton>
+            <DialogButton kind="primary" size="lg" onClick={() => sign(pin)} disabled={!ready}>
+              {submitting ? 'Signing…' : confirmLabel}
+            </DialogButton>
+          </>
+        )
+      }
     >
-      {summary}
-    </SignSheetDialog>
+      {needsPin ? (
+        <SetPinForm
+          className="pb-[26px]"
+          submitLabel="Set PIN & continue"
+          onCancel={() => onOpenChange(false)}
+          onDone={(newPin) => {
+            pinStatus.markSet();
+            onSubmit(newPin);
+          }}
+        />
+      ) : (
+        <>
+          {summaryRows ? <KeyValueRows rows={summaryRows} aria-label="What you are signing" /> : null}
+          {summary}
+          <div ref={pinWrapRef} className="flex flex-col gap-1.5">
+            <span className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{pinLabel}</span>
+            <PinField value={pin} onChange={setPin} label={pinLabel} onComplete={sign} invalid={Boolean(error) && !submitting} disabled={submitting} autoFocus />
+            <p role="alert" className={cn('m-0 font-wds-sans text-[12px] leading-[17px] text-wds-error-fg', !error && 'sr-only')}>
+              {error ?? ''}
+            </p>
+          </div>
+          {caption ? <p className="m-0 font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">{caption}</p> : null}
+        </>
+      )}
+    </KitDialog>
   );
 }

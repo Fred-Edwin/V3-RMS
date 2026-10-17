@@ -87,7 +87,9 @@ const subscribe = (l: () => void): (() => void) => {
   return () => listeners.delete(l);
 };
 const snapshot = (): PadState => state;
-const serverSnapshot = (): PadState => ({ activeId: null, fresh: false, hosts: 0 });
+// One frozen object: React compares server snapshots by identity and warns when each call returns a new one.
+const SERVER_STATE: PadState = { activeId: null, fresh: false, hosts: 0 };
+const serverSnapshot = (): PadState => SERVER_STATE;
 
 /**
  * Scroll only when the box is hidden (under the pad or off the top). A box already in view stays put, so opening the pad never

@@ -54,6 +54,8 @@ import {
   type ReasonValue,
   type WorkforceTagKey,
 } from '..';
+import { Label, Section } from './gallery-parts';
+import { SecretsSection } from './section-secrets';
 
 /**
  * Dev gallery for the Workforce kit: every piece in every state, labelled with
@@ -61,22 +63,6 @@ import {
  * use the mouse and keyboard on the pieces below.
  */
 
-function Section({ id, title, node, note, children }: { id: string; title: string; node: string; note?: string; children: React.ReactNode }) {
-  return (
-    <section id={id} className="mb-14 scroll-mt-6">
-      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-wds-text-ink pb-2">
-        <h2 className="m-0 font-wds-sans text-[17px] font-semibold text-wds-text-ink">{title}</h2>
-        <span className="font-wds-mono text-[11px] text-wds-text-secondary">PAPER {node}</span>
-      </header>
-      {note ? <p className="mb-4 mt-0 max-w-3xl font-wds-sans text-[13px] leading-[19px] text-wds-text-secondary">{note}</p> : null}
-      <div className="flex flex-col gap-6">{children}</div>
-    </section>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 font-wds-mono text-[10px] uppercase tracking-[0.08em] text-wds-text-secondary">{children}</div>;
-}
 
 const TAG_KEYS = Object.keys(WORKFORCE_TAGS) as WorkforceTagKey[];
 
@@ -133,6 +119,7 @@ export function KitGallery() {
           ['date', 'Date field'],
           ['states', 'States kit'],
           ['notifications', 'Notifications'],
+          ['secrets', 'PIN and code'],
         ].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="text-wds-text-secondary underline-offset-2 hover:text-wds-text-ink hover:underline focus-visible:shadow-wds-ring focus-visible:outline-none">
             {label}
@@ -500,8 +487,16 @@ export function KitGallery() {
         <WorkforcePinDialog
           open={pinOpen}
           onOpenChange={setPinOpen}
-          title="Approve the October pay run"
-          subtitle="85 people, net KES 3,168,500. Signed with your PIN and written to the log."
+          title="Approve the October run?"
+          summaryRows={[
+            { label: 'People paid', value: '85', mono: true },
+            { label: 'Net to pay', value: 'KES 3,168,500', mono: true },
+            { label: 'Statutory tables', value: 'Confirmed by you, 19 Oct 09:15', tone: 'success' },
+            { label: 'Prepared by', value: 'Mercy Achieng, not you' },
+          ]}
+          pinLabel="Your PIN, to sign the approval"
+          caption="Mercy Achieng is told to publish. Staff cannot see anything yet. Recorded in the audit log with your name and the time."
+          confirmLabel="Approve"
           onSubmit={() => setPinOpen(false)}
         />
         {undo !== null ? (
@@ -631,6 +626,8 @@ export function KitGallery() {
           </div>
         </div>
       </Section>
+
+      <SecretsSection />
     </main>
   );
 }

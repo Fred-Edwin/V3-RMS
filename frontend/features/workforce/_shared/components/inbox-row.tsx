@@ -42,6 +42,7 @@ export function InboxRow({
   whenExact?: string;
   title: string;
   whoAndWhy?: string;
+  /** Outlined by default (a list has many rows, rule 04). `primary` (brown) is for one lone card on a screen. */
   action?: { label: string; onClick: () => void; emphasis?: 'primary' | 'outlined' };
   /** A quiet dot before the area label, for a row not yet opened (built beyond Paper). */
   unread?: boolean;
@@ -78,9 +79,9 @@ export function InboxRow({
               MOTION,
               FOCUS_RING,
               PRESSED,
-              action.emphasis === 'outlined'
-                ? cn('border border-wds-border-strong text-wds-text-ink', onHover('bg-wds-neutral-50'))
-                : cn('bg-wds-primary text-wds-primary-fg', onHover('bg-wds-primary-hover'))
+              action.emphasis === 'primary'
+                ? cn('bg-wds-primary text-wds-primary-fg', onHover('bg-wds-primary-hover'))
+                : cn('border border-wds-border-strong text-wds-text-ink', onHover('bg-wds-neutral-50'))
             )}
           >
             {action.label}
