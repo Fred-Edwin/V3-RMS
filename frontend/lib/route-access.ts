@@ -120,6 +120,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'ACCOUNTANT';
   }
 
+  // Workforce (Chapter 1 frame): the Home of the five desktop roles that have a Workforce menu. Floor staff get a Home link when Attendance
+  // (slice 3) gives them a clock card; a later slice widens this for My time, My leave and My payslips. Each slice's own routes narrow or widen it here.
+  if (pathname === '/app/workforce' || pathname.startsWith('/app/workforce/')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+  }
+
   if (pathname.startsWith('/app/inventory')) {
     // Central Store access (decisions.md, "Access"). The desktop roles reach every Central Store screen that has been rebuilt to
     // the approved designs; what each of them may DO there comes from the permissions table on the server

@@ -14,17 +14,24 @@ import {
   CreditCard,
   FileText,
   GitBranch,
+  House,
+  Inbox,
   LayoutDashboard,
   LineChart,
   MessageSquare,
+  Network,
   Percent,
+  Plane,
   ScrollText,
   Settings2,
   ShieldAlert,
   ShoppingCart,
+  SlidersVertical,
+  SquareCheckBig,
   Tags,
   Truck,
   UserCircle,
+  UserRound,
   Users,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -61,7 +68,20 @@ import {
  */
 
 export type NavFlag = 'credit';
-export type NavBadge = 'inbox' | 'prep-needs-look' | 'requisitions' | 'discrepancies' | 'deliveries' | 'branch-day-todo' | 'purchasing-receiving' | 'purchasing-restock' | 'purchasing-my-orders';
+export type NavBadge =
+  | 'inbox'
+  | 'prep-needs-look'
+  | 'requisitions'
+  | 'discrepancies'
+  | 'deliveries'
+  | 'branch-day-todo'
+  | 'purchasing-receiving'
+  | 'purchasing-restock'
+  | 'purchasing-my-orders'
+  // Workforce slots (Paper Chapter 1, step 01). The shell draws a count only when a slice feeds it; today none does, so they draw nothing.
+  | 'workforce-waiting'
+  | 'workforce-timesheets'
+  | 'workforce-leave';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
 export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', discrepancies: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
@@ -81,6 +101,8 @@ interface Visibility {
   departmentMemberOnly?: boolean;
   /** Hidden for a department head or member, whose own row replaces it (a chef-head sees the head's History, a member the deliveries History, not the floor History). */
   hideForDepartmentHead?: boolean;
+  /** The row is defined (label, group, who, where) but its page does not exist yet, so it is not shown. The slice that builds the page removes this flag. */
+  notBuilt?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -126,6 +148,11 @@ export interface NavRow extends Visibility {
 }
 
 export const NAV_GROUP_LABELS: Readonly<Record<string, string>> = {
+  'wf-workforce': 'WORKFORCE',
+  'wf-people': 'PEOPLE',
+  'wf-pay': 'PAY',
+  'wf-settings': 'SETTINGS',
+  'wf-me': 'ME',
   'mgr-operations': 'OPERATIONS',
   'mgr-manage': 'MANAGE',
   'mgr-credit': 'CREDIT',
@@ -206,9 +233,64 @@ const ico = {
   analyticsLine: fromLucide(LineChart),
   truck: fromLucide(Truck),
   day: fromLucide(CalendarCheck),
+  home: fromLucide(House),
+  waiting: fromLucide(Inbox),
+  timesheets: fromLucide(SquareCheckBig),
+  organisation: fromLucide(Network),
+  leave: fromLucide(Plane),
+  rules: fromLucide(SlidersVertical),
+  myTime: fromLucide(Clock),
+  me: fromLucide(UserRound),
 };
 
+/** The five desktop roles of the Workforce menu (Paper Chapter 1, step 01). The System Admin has no Workforce menu yet. */
+const WF_HR: AppRole = HR_MANAGER;
+const WF_DESKTOP: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER, ACCOUNTANT, DIRECTOR];
+/** Who sees what, as step 01 draws it. A row with no page yet carries `notBuilt` and stays hidden; each slice drops the flag with its page. */
+const WF_APPROVERS: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER];
+const WF_PEOPLE: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR];
+const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
+
+export const WORKFORCE_ROWS: readonly NavRow[] = [
+  // WORKFORCE
+  { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
+  { key: 'wf-waiting', label: 'Waiting for you', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [...WF_APPROVERS, ACCOUNTANT], badge: 'workforce-waiting', notBuilt: true },
+  { key: 'wf-overdue', label: 'Overdue approvals', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [DIRECTOR], badge: 'workforce-waiting', notBuilt: true },
+  {
+    key: 'wf-schedule',
+    label: 'Schedule',
+    group: 'wf-workforce',
+    icon: ico.shifts,
+    roles: [...WF_APPROVERS, DIRECTOR],
+    notBuilt: true,
+    subItems: [
+      { key: 'rota', label: 'Rota', newHref: '/app/workforce/schedule/rota', roles: [...WF_APPROVERS, DIRECTOR] },
+      { key: 'templates', label: 'Shift templates', newHref: '/app/workforce/schedule/templates', roles: [...WF_APPROVERS, DIRECTOR] },
+    ],
+  },
+  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR], badge: 'workforce-timesheets', notBuilt: true },
+  { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT], notBuilt: true },
+  // PEOPLE
+  { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, notBuilt: true },
+  { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], notBuilt: true },
+  { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
+  { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, notBuilt: true },
+  // PAY (the Branch Manager and Store Manager see no pay)
+  { key: 'wf-pay-runs', label: 'Pay runs', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/pay-runs', roles: WF_PAY, notBuilt: true },
+  { key: 'wf-payslips', label: 'Payslips', group: 'wf-pay', icon: ico.payslips, newHref: '/app/workforce/payslips', roles: WF_PAY, notBuilt: true },
+  // SETTINGS
+  { key: 'wf-rules', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: WF_DESKTOP, notBuilt: true },
+  { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: WF_DESKTOP, notBuilt: true },
+  // ME
+  { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], notBuilt: true },
+  { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, notBuilt: true },
+  { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP, notBuilt: true },
+];
+
 export const NAV_ROWS: readonly NavRow[] = [
+  // ── Workforce (Chapter 1): first for the five desktop roles, as Paper draws it. Legacy rows below stay until each slice moves its own. ──
+  ...WORKFORCE_ROWS,
+
   // ── Branch Manager ────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'manage-dashboard', label: 'Dashboard', group: 'mgr-operations', icon: ico.dashboard, oldHref: '/app/manage/dashboard', roles: [MANAGER] },
   { key: 'manage-orders', label: 'Orders', group: 'mgr-operations', icon: ico.orders, oldHref: '/app/orders', roles: [MANAGER] },
@@ -516,6 +598,7 @@ export interface NavGroup {
 }
 
 const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
+  !rule.notBuilt &&
   rule.roles.includes(actor) &&
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&

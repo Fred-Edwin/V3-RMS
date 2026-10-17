@@ -132,6 +132,10 @@ export function useShellNav(): ShellNav {
       'purchasing-receiving': purchasingBadges?.receiving ?? 0,
       'purchasing-restock': purchasingBadges?.restock ?? 0,
       'purchasing-my-orders': purchasingBadges?.myOrders ?? 0,
+      // Workforce slots: no slice feeds a count yet, so these draw nothing. Slice 4 (approvals) and slice 5 (leave) wire them.
+      'workforce-waiting': 0,
+      'workforce-timesheets': 0,
+      'workforce-leave': 0,
     };
     return (badge) => (badge && counts[badge] > 0 ? counts[badge] : undefined);
   }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges]);

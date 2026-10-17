@@ -24,7 +24,8 @@ const ctxFor = (role: AppRole, over: Partial<NavContext> = {}): NavContext => ({
 const links = (groups: NavGroup[]) => groups.flatMap((g) => g.items);
 const keys = (groups: NavGroup[]): string[] => links(groups).map((i) => i.key);
 const hrefs = (groups: NavGroup[]): string[] => links(groups).flatMap((i) => (i.subItems ? i.subItems.map((s) => s.href) : [i.href]));
-const groupKeys = (groups: NavGroup[]): string[] => groups.map((g) => g.key);
+// The legacy groups only: the Workforce group leads for five roles (see "the Workforce menu" below), and these tests are about the rest.
+const groupKeys = (groups: NavGroup[]): string[] => groups.filter((g) => !g.key.startsWith('wf-')).map((g) => g.key);
 const item = (groups: NavGroup[], key: string) => links(groups).find((i) => i.key === key);
 
 describe('the navigation table never widens access', () => {
@@ -120,7 +121,7 @@ describe('every desktop role keeps every link it had before', () => {
   it('puts the Director\'s Branches group after Overview with only Day and Waste, as Paper draws (no per-branch rows)', () => {
     const groups = navFor(ctxFor('DIRECTOR', { can: holds('branch_day.read_any_branch', 'branch_waste.read_any_branch') }));
     expect(groupKeys(groups).slice(0, 2)).toEqual(['dir-overview', 'dir-branches']);
-    expect(groups[1]?.items.map((i) => i.label)).toEqual(['Day', 'Waste']);
+    expect(groups.filter((g) => !g.key.startsWith('wf-'))[1]?.items.map((i) => i.label)).toEqual(['Day', 'Waste']);
     expect(groupKeys(navFor(ctxFor('DIRECTOR', { can: holds() })))).not.toContain('dir-branches');
   });
 
@@ -552,5 +553,97 @@ describe('the phone bottom bar for floor staff (Paper "Floor staff bottom bar", 
     expect(labels('CHEF', MEMBER)).not.toContain('Day');
     expect(links(navFor(ctxFor('CHEF', HEAD))).some((l) => l.label === 'Day')).toBe(false);
     expect(links(navFor(ctxFor('MANAGER', { can: EVERYTHING }))).some((l) => l.label === 'Day')).toBe(true);
+  });
+});
+
+describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
+  const WF_ROLES: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'];
+  const wfRows = NAV_ROWS.filter((r) => r.key.startsWith('wf-'));
+
+  /** What each role's menu will read once every slice has its page: the Paper sidebars, group by group. */
+  const PAPER: Record<string, Record<string, string[]>> = {
+    HR_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
+    DIRECTOR: { WORKFORCE: ['Home', 'Overdue approvals', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+  };
+
+  /** The menu a role would have with every Workforce page built: the rows with `notBuilt` switched on, from the table itself. */
+  const eventual = (role: AppRole): Record<string, string[]> => {
+    const everything = NAV_ROWS.map((r) => (r.key.startsWith('wf-') ? { ...r, notBuilt: undefined } : r));
+    const out: Record<string, string[]> = {};
+    for (const g of navFor(ctxFor(role, { can: EVERYTHING }), everything)) {
+      if (!g.key.startsWith('wf-')) continue;
+      out[g.label] = g.items.map((i) => i.label);
+    }
+    return out;
+  };
+
+  for (const role of WF_ROLES) {
+    it(`${role}: the table holds exactly the groups and links Paper draws`, () => {
+      expect(eventual(role)).toEqual(PAPER[role]);
+    });
+
+    it(`${role}: shows Workforce first, and only Home until a page exists`, () => {
+      const groups = navFor(ctxFor(role, { can: EVERYTHING }));
+      expect(groups[0]?.key).toBe('wf-workforce');
+      expect(groups[0]?.label).toBe('WORKFORCE');
+      expect(groups[0]?.items.map((i) => i.label)).toEqual(['Home']);
+      expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(1);
+      expect(item(groups, 'wf-home')?.href).toBe('/app/workforce');
+      expect(item(groups, 'wf-home')?.framed).toBe(true);
+    });
+
+    it(`${role}: every Workforce row, built or not, points at a page the route gate lets the role open`, () => {
+      for (const row of wfRows) {
+        if (!row.roles.includes(role)) continue;
+        const targets = row.subItems ? row.subItems.filter((s) => s.roles.includes(role)).map((s) => s.newHref) : [row.newHref];
+        for (const href of targets) expect(isAllowedPath(href ?? '', role, false), `${role} would be bounced from ${href}`).toBe(true);
+      }
+    });
+  }
+
+  it('shows no Workforce Home to the System Admin, the Store Attendant, floor staff or HR-less roles', () => {
+    for (const role of ['SYSTEM_ADMIN', 'STORE_ATTENDANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
+      expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))).filter((k) => k.startsWith('wf-')), role).toEqual([]);
+    }
+    // Not even for a department head: floor staff get a Home when Attendance gives them a clock card.
+    expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual([]);
+  });
+
+  it('keeps every legacy row where it was: the old pages are still linked for each role, in their old order', () => {
+    const legacy = (role: AppRole) => navFor(ctxFor(role, { can: EVERYTHING })).filter((g) => !g.key.startsWith('wf-')).flatMap((g) => g.items.map((i) => i.key));
+    expect(legacy('HR_MANAGER')).toEqual(['hr-overview', 'hr-staff', 'hr-contracts', 'hr-leave', 'hr-leave-calendar', 'hr-attendance', 'hr-shifts', 'hr-payroll', 'hr-inbox', 'profile']);
+    for (const key of ['hr-staff', 'hr-shifts', 'hr-payroll', 'manage-staff', 'manage-shifts', 'manage-payslips', 'director-payroll', 'accountant-leave']) {
+      const row = NAV_ROWS.find((r) => r.key === key);
+      expect(row?.oldHref, key).toBeDefined();
+      expect(row?.newHref, key).toBeUndefined();
+    }
+  });
+
+  it('never shows a pay link to the Branch Manager or the Store Manager', () => {
+    for (const role of ['MANAGER', 'STORE_MANAGER'] as AppRole[]) {
+      expect(eventual(role)['PAY'], role).toBeUndefined();
+      expect(eventual(role)['SETTINGS'], role).toEqual(['Rules', 'Audit log']);
+    }
+  });
+
+  it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {
+    const only = (rows: readonly NavRow[]) => keys(navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }), rows)).filter((k) => k.startsWith('wf-'));
+    const built = NAV_ROWS.map((r) => (r.key === 'wf-conduct' ? { ...r, notBuilt: undefined } : r));
+    expect(only(NAV_ROWS)).toEqual(['wf-home']);
+    expect(only(built)).toEqual(['wf-home', 'wf-conduct']);
+  });
+
+  it('offers a badge slot on Waiting for you, Timesheets and Leave, drawn only when a slice feeds a count', () => {
+    expect(NAV_ROWS.find((r) => r.key === 'wf-waiting')?.badge).toBe('workforce-waiting');
+    expect(NAV_ROWS.find((r) => r.key === 'wf-timesheets')?.badge).toBe('workforce-timesheets');
+    expect(NAV_ROWS.find((r) => r.key === 'wf-leave')?.badge).toBe('workforce-leave');
+  });
+
+  it('lights Home on /app/workforce', () => {
+    const groups = navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }));
+    expect(activeFor(groups, '/app/workforce')).toMatchObject({ activeKey: 'wf-home', framed: true, groupLabel: 'WORKFORCE', label: 'Home' });
   });
 });
