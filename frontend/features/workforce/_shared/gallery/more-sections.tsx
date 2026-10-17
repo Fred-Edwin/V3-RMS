@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { ChoicesSection } from './section-choices';
 import { PagesSection } from './section-pages';
+import { DocumentSection, HomeSection } from './section-home';
 import { PhoneSection } from './section-phone';
 import { ScheduleSection } from './section-schedule';
 import { SecretsSection } from './section-secrets';
@@ -15,6 +16,8 @@ export const MORE_NAV: ReadonlyArray<readonly [string, string]> = [
   ['choices', 'Forms and choices'],
   ['schedule', 'Schedule'],
   ['phone', 'Phone'],
+  ['home', 'Home rows and drawer'],
+  ['document', 'Document'],
 ];
 
 export function MoreSections() {
@@ -26,6 +29,8 @@ export function MoreSections() {
       <ChoicesSection />
       <ScheduleSection />
       <PhoneSection />
+      <HomeSection />
+      <DocumentSection />
     </>
   );
 }

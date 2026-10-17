@@ -36,4 +36,7 @@ export * from './components/choice-controls';
 export * from './components/form-parts';
 export * from './components/schedule-parts';
 export * from './components/phone-parts';
+export * from './components/home-parts';
+export * from './components/workforce-document';
+export * from './lib/document-palette';
 export * from './lib/shift-palette';
