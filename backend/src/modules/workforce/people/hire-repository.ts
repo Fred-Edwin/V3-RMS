@@ -62,7 +62,7 @@ export const hireRepository = {
 
   /** Employee numbers are one series per company: lock the company, take the highest "W-####", add one. */
   async nextEmployeeNumber(tx: Prisma.TransactionClient, companyId: string): Promise<string> {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))::text`;
     const rows = await tx.$queryRaw<{ max: number | null }[]>`
       SELECT max(substring(employee_number FROM 3)::int) AS max
       FROM employees WHERE company_id = ${companyId} AND employee_number ~ '^W-[0-9]+$'`;
