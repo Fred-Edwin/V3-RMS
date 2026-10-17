@@ -60,7 +60,7 @@ describe('workforce layering (contract section 9)', () => {
   });
 
   it('slice 1b: only the head-claims repository (reached through the gateway) writes User.isDepartmentHead', () => {
-    const writers = sources.filter(({ text }) => /data:\s*\{[^}]*isDepartmentHead/.test(text)).map(({ file }) => file);
+    const writers = sources.filter(({ text }) => /user\.(update|updateMany|create|upsert)\(\{[^)]*isDepartmentHead/.test(text)).map(({ file }) => file);
     expect(writers).toEqual(['people/organisation/heads/heads-repository.ts']);
     const gateway = sources.find(({ file }) => file === 'people/people-account-gateway.ts')!.text;
     expect(gateway).toMatch(/headsRepository\.writeClaims/);
