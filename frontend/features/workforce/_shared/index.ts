@@ -34,3 +34,5 @@ export * from './components/callout';
 export * from './components/panel-parts';
 export * from './components/choice-controls';
 export * from './components/form-parts';
+export * from './components/schedule-parts';
+export * from './lib/shift-palette';
