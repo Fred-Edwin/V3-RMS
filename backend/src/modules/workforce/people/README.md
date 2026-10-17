@@ -116,6 +116,12 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 10. **Rate limit note for tests:** the login endpoint allows 10 per minute; scripts that sign in as many roles must wait.
 11. **Wire names:** the API says `organization`, the code says `site`; docs use the wire names.
 
+### Owner decisions on the open questions (17 Oct 2026)
+
+- **Head status on exit or transfer (decision 3 above): accepted.** Until slice 1b, only the head rows end; the `User` flags are not written. Slice 1b writes all head changes in one place.
+- **Pay start: accepted.** Pay does not count before the start day (`payAmountOn` returns nothing earlier). The front end should label a not-yet-started amount "starts <date>" so the profile is not misleading.
+- **Pay 403 versus 404: accepted as built.** Out-of-scope reads answer `404` so a record's existence is not revealed; a role with no pay capability at all answers `403`.
+
 ### Slice 0 changes made here (also logged in `slice-0-contract.md` §12)
 
 `Employee` gains `companyId` (numbers unique per company); `PayProfile.amount` optional plus standard hours; `PayoutMethod` gains `CASH`; `Position` gains `loginRole`, `casualsAllowed` and `DepartmentPosition`; `DepartmentHead` gains `isActing`, `endedById`, `endReason`; `Contract` gains `createdById` and a `ContractType` link; new tables `PayChange`, `EmploymentSpell`, `EmployeeMove`, `FileRequest`, `EmployeeDraft`, `ProbationNote`; `Employee` gains probation and statutory fields; `HrDocument.employeeId`.
