@@ -59,6 +59,13 @@ describe('workforce layering (contract section 9)', () => {
     expect(offenders).toEqual(['people/people-account-gateway.ts']);
   });
 
+  it('slice 1b: only the head-claims repository (reached through the gateway) writes User.isDepartmentHead', () => {
+    const writers = sources.filter(({ text }) => /data:\s*\{[^}]*isDepartmentHead/.test(text)).map(({ file }) => file);
+    expect(writers).toEqual(['people/organisation/heads/heads-repository.ts']);
+    const gateway = sources.find(({ file }) => file === 'people/people-account-gateway.ts')!.text;
+    expect(gateway).toMatch(/headsRepository\.writeClaims/);
+  });
+
   it('people: no prisma import outside a *-repository.ts', () => {
     const offenders = sources.filter(({ file, text }) => file.startsWith('people/') && !isRepository(file) && /config\/database'/.test(text)).map(({ file }) => file);
     expect(offenders).toEqual([]);
@@ -99,7 +106,7 @@ describe('the public door (contract 7.2)', () => {
       'getOnShiftNow', 'isOnLeave', 'getApprovedHours',
     ].sort();
     expect(runtimeExports).toEqual(expected);
-  });
+  }, 30_000); // importing the whole door takes seconds when the full suite is running
 
   it.each([
     ['getOnShiftNow', 3],
