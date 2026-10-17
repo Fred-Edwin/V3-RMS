@@ -118,6 +118,6 @@ registerPeople(); // the real "clocks in" lookup (Workforce slice 1)
 apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceRulesRouter);
 apiRouter.use(workforcePeopleRouter);
-apiRouter.use(workforceOrgRouter); // empty until slice 1b
+apiRouter.use(workforceOrgRouter);
 
 export default apiRouter;

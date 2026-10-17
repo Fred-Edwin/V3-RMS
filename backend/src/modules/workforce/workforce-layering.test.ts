@@ -48,7 +48,7 @@ describe('workforce layering (contract section 9)', () => {
   });
 
   it('every route file runs authenticate before the capability', () => {
-    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts') && file !== 'people/org-routes.ts')) {
+    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts'))) {
       expect(text, file).toMatch(/authenticate/);
     }
   });

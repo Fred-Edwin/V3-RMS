@@ -69,17 +69,9 @@ export const lifecycleRepository = {
 
   activeContracts: (db: Db, employeeId: string) => db.contract.findMany({ where: { employeeId, status: 'ACTIVE' }, select: { id: true } }),
 
-  activeHeadRows: (db: Db, employeeId: string, today: Date) =>
-    db.departmentHead.findMany({ where: { employeeId, ...ACTIVE_HEAD(today) }, select: { id: true, departmentId: true, isActing: true, startsOn: true } }),
-
   userIsActive: async (userId: string): Promise<boolean> => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { isActive: true } });
     return user?.isActive === true;
-  },
-
-  departmentHasHead: async (db: Db, departmentId: string, today: Date): Promise<boolean> => {
-    const found = await db.departmentHead.findFirst({ where: { departmentId, isActing: false, ...ACTIVE_HEAD(today) }, select: { id: true } });
-    return found !== null;
   },
 
   findDepartment: (companyId: string, id: string) =>
@@ -124,13 +116,6 @@ export const lifecycleRepository = {
   // ---- probation notes -------------------------------------------------------------------------
   addNote: (db: Db, data: { employeeId: string; authorId: string; authorKind: string; verdict: string; note: string | null }) =>
     db.probationNote.create({ data, select: { id: true } }),
-
-  // ---- heads (rows only; claims are slice 1b) --------------------------------------------------
-  endHeads: (db: Db, ids: readonly string[], endsOn: Date, endedById: string | null, endReason: string) =>
-    db.departmentHead.updateMany({ where: { id: { in: [...ids] }, endsOn: null }, data: { endsOn, endedById, endReason } }),
-
-  restoreHead: (db: Db, data: { departmentId: string; employeeId: string; startsOn: Date }) =>
-    db.departmentHead.create({ data: { ...data, isActing: false } }),
 
   // ---- spells ----------------------------------------------------------------------------------
   createSpell: (db: Db, data: { employeeId: string; startsOn: Date }) => db.employmentSpell.create({ data, select: { id: true } }),

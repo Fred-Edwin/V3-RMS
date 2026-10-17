@@ -6,7 +6,7 @@ import { staffTransferRepository } from '../../../repositories/staff-transfer-re
 import { assignContract } from '../../../services/hr-service';
 import { staffService } from '../../../services/staff-service';
 import { NotFoundError } from '../../../utils/errors';
-import { NotBuiltYetError } from '../_shared/errors';
+import { headsRepository } from './organisation/heads/heads-repository';
 import type { HireLoginRole } from './people.constants';
 
 export interface NewLogin {
@@ -41,11 +41,14 @@ export interface AccountGateway {
   findLegacyProfileId(userId: string): Promise<string | null>;
   /** Legacy leave bridge: while slice 5 is unbuilt, recording a contract still seeds leave balances. */
   assignLegacyContract(userId: string, contractTypeId: string | null, actorId: string): Promise<void>;
-  /** The only writer of User.isDepartmentHead and User.departmentTag (5.4). Slice 1b. */
+  /**
+   * The only writer of User.isDepartmentHead and User.departmentTag (5.4), inside the caller's transaction. While the
+   * person is a head, the legacy `departmentId` mirror follows the tag, as the old assign code did (undefined = leave it).
+   */
   setHeadClaims(
     tx: Prisma.TransactionClient,
     userId: string,
-    claims: { isDepartmentHead: boolean; departmentTag: DepartmentTag | null },
+    claims: { isDepartmentHead: boolean; departmentTag: DepartmentTag | null; departmentId?: string | null },
   ): Promise<void>;
 }
 
@@ -94,7 +97,7 @@ export const accountGateway: AccountGateway = {
     await assignContract({ id: actorId, role: 'HR_MANAGER', siteId: null }, userId, contractTypeId);
   },
 
-  async setHeadClaims() {
-    throw new NotBuiltYetError('setHeadClaims', 1);
+  async setHeadClaims(tx, userId, claims) {
+    await headsRepository.writeClaims(tx, userId, claims);
   },
 };

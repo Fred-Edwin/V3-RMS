@@ -13,7 +13,7 @@ import type { NairobiDate } from './_shared/time/nairobi-time';
 export { default as workforcePermissionsRouter } from './_shared/permissions-routes';
 export { default as workforceRulesRouter } from './rules/rules-routes';
 export { default as workforcePeopleRouter } from './people/people-routes';
-export { default as workforceOrgRouter } from './people/org-routes'; // empty until slice 1b
+export { default as workforceOrgRouter } from './people/org-routes'; // Organisation: departments, heads, positions (slice 1b)
 
 // People (slice 1)
 export { registerPeople } from './people/register-people';

@@ -34,6 +34,18 @@ export const AUDIT_ACTIONS = {
   'people.exit_undone': ['PEOPLE'],
   'people.rehired': ['PEOPLE'],
   'people.activated': ['PEOPLE'], // by the scheduler: onboarding became active on the start date, channel SYSTEM
+  // slice 1b (Organisation). Names and counts only.
+  'org.department_created': ['PEOPLE'],
+  'org.department_updated': ['PEOPLE'],
+  'org.department_retired': ['PEOPLE'],
+  'org.department_restored': ['PEOPLE'],
+  'org.head_changed': ['PEOPLE'], // assigned, replaced or acting
+  'org.head_ended': ['PEOPLE'],
+  'org.head_claims_reconciled': ['PEOPLE'], // by the scheduler, channel SYSTEM
+  'org.position_created': ['PEOPLE'],
+  'org.position_updated': ['PEOPLE'],
+  'org.position_retired': ['PEOPLE'],
+  'org.position_restored': ['PEOPLE'],
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

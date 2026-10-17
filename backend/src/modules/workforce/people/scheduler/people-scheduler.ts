@@ -4,14 +4,15 @@ import { fromDateColumn, nairobiToday, toDateColumn, type NairobiDate } from '..
 import { draftsRepository } from '../hire/drafts-repository';
 import { lifecycleSweeps } from '../lifecycle/lifecycle-sweeps';
 import { payRepository } from '../pay/pay-repository';
+import { reconcileHeadClaims } from '../organisation/heads/reconcile-head-claims';
 import { DRAFT_KEEP_DAYS } from '../people.constants';
 import { schedulerRepository } from './scheduler-repository';
 
 /**
  * The daily People tasks, run at 00:05 Nairobi. Each is idempotent: it claims its rows with a guarded update, so a second
- * run on the same day changes nothing. `reconcileHeadClaims` belongs to slice 1b with the head assignment it repairs.
+ * run on the same day changes nothing. `reconcileHeadClaims` (slice 1b) repairs head claims that drifted or expired.
  */
-export const PEOPLE_SCHEDULER_TASKS = ['activateStarted', 'finalizeExits', 'applyMoves', 'applyPayChanges', 'expireDrafts'] as const;
+export const PEOPLE_SCHEDULER_TASKS = ['activateStarted', 'finalizeExits', 'applyMoves', 'applyPayChanges', 'reconcileHeadClaims', 'expireDrafts'] as const;
 export type PeopleTask = (typeof PEOPLE_SCHEDULER_TASKS)[number];
 
 export interface TaskReport {
@@ -97,6 +98,7 @@ export async function runPeopleScheduler(today: NairobiDate = nairobiToday(new D
     ['finalizeExits', () => lifecycleSweeps.finalizeDueExits(today, now)],
     ['applyMoves', async () => (await lifecycleSweeps.startDueMoves(today, now)) + (await lifecycleSweeps.endDueLoans(today, now))],
     ['applyPayChanges', () => applyPayChanges(today, now)],
+    ['reconcileHeadClaims', () => reconcileHeadClaims(today)],
     ['expireDrafts', () => expireDrafts(now)],
   ];
   const reports: TaskReport[] = [];
