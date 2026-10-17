@@ -23,7 +23,7 @@ import {
 } from '../people-completeness';
 import { canUndoExit, undoUntil } from '../people-dates';
 import { presentField } from '../people-masking';
-import { REVEALABLE_FIELDS, type ExitReason, type ProbationVerdict } from '../people.constants';
+import { REVEALABLE_FIELDS, type ExitReason, type FileRequestKind, type ProbationVerdict } from '../people.constants';
 import type {
   ContractStatusCode,
   EmployeeActions,
@@ -242,7 +242,9 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     nextSteps.push({ code: 'PROBATION_DECISION', dueOn: probation.endsOn });
   }
   if (row.payType === 'MONTHLY_SALARY' && row.contractStatus !== 'ACTIVE' && status !== 'EXITED') nextSteps.push({ code: 'CREATE_CONTRACT', dueOn: null });
-  for (const request of row.fileRequests) nextSteps.push({ code: 'FILE_REQUEST', dueOn: null, fileRequestId: request.id });
+  for (const request of row.fileRequests) {
+    nextSteps.push({ code: 'FILE_REQUEST', dueOn: null, fileRequestId: request.id, fileRequestKind: request.kind as FileRequestKind, fileRequestAskedOn: nairobiDateOf(request.askedAt) });
+  }
   if (canSeeCompleteness && needsFinishing(gapsOf(states, locked)) && status !== 'EXITED') {
     nextSteps.push({ code: 'FINISH_FILE', dueOn: null });
   }

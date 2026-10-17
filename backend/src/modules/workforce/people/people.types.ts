@@ -97,6 +97,9 @@ export interface NextStep {
   code: 'PROBATION_DECISION' | 'CREATE_CONTRACT' | 'FILE_REQUEST' | 'FINISH_FILE';
   dueOn: DateString | null;
   fileRequestId?: string;
+  /** For FILE_REQUEST: what was asked and when, so a screen can put "Remind" on the right row. */
+  fileRequestKind?: FileRequestKind;
+  fileRequestAskedOn?: DateString;
 }
 
 /** What the caller may do with this file; the screen shows or hides buttons from it. */

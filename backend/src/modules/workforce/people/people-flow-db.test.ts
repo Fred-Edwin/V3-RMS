@@ -197,6 +197,13 @@ describe.skipIf(!enabled)('People flows in the database', () => {
     await expect(m.employeesService.reveal(townManager, employeeId, 'nationalId')).rejects.toMatchObject({ statusCode: 403 });
   });
 
+  it('an asked detail shows in the next steps with what was asked and the day', async () => {
+    await m.employeesService.askForDetail(hr, employeeId, 'NSSF_SHA');
+    const step = (await m.employeesService.getFile(hr, employeeId)).nextSteps.find((s) => s.code === 'FILE_REQUEST');
+    expect(step).toMatchObject({ fileRequestKind: 'NSSF_SHA', fileRequestAskedOn: m.time.nairobiDateOf(new Date()) });
+    expect(step?.fileRequestId).toBeTruthy();
+  });
+
   it('a Branch Manager edits an onboarding file; after activation only HR can', async () => {
     await m.employeesService.update(townManager, employeeId, { personalEmail: 'joy@example.com' });
     await m.runPeopleScheduler(plus(1), at(plus(1))); // the start day arrives
