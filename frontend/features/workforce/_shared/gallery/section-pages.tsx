@@ -77,7 +77,7 @@ export function PagesSection() {
           </Callout>
           <Callout tone="info" title="Early in">Joy clocked in 14 minutes before her shift.</Callout>
           <Callout tone="success" title="All set">Every timesheet for the period is approved.</Callout>
-          <Callout tone="warning" title="This payslip is Joy Chebet's">If you are not Joy Chebet, stop here. Opening someone else's payslip is recorded with your name.</Callout>
+          <Callout tone="warning" title="This payslip is Joy Chebet's">If you are not Joy Chebet, stop here. Opening someone else&apos;s payslip is recorded with your name.</Callout>
           <Callout tone="error" title="Not in yet">Her shift started at 06:00, 42 minutes ago. No clock-in and no message from her.</Callout>
           <Callout variant="dashed" kicker="WHAT PREPARING DOES">Reads the closed timesheets and pay profiles, works out each line, and opens the review with only the unusual lines. It changes nothing for staff.</Callout>
           <Callout variant="bar" tone="error" kicker="RECORDED, NOT LOCKED" title="3 wrong codes were recorded">Nothing is locked, and the payslips stay private. This phone, the time and the person signed in are recorded.</Callout>
