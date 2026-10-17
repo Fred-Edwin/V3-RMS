@@ -138,6 +138,8 @@ describe.skipIf(!enabled)('Departments and positions in the database', () => {
 
   it('a department cannot be retired while people work in it, or lose a position someone holds', async () => {
     await expect(m.departmentsService.retire(hr, dept)).rejects.toMatchObject({ statusCode: 409, code: 'DEPARTMENT_HAS_PEOPLE' });
+    const standard = await m.prisma.department.findFirstOrThrow({ where: { siteId: town.siteId, key: 'KITCHEN' }, select: { id: true } });
+    await expect(m.departmentsService.retire(hr, standard.id)).rejects.toMatchObject({ statusCode: 409, code: 'DEPARTMENT_MANAGED_BY_INVENTORY' });
     await expect(m.departmentsService.update(hr, dept, { positionIds: [town.waiter] })).rejects.toMatchObject({ code: 'POSITION_HELD' });
     const renamed = await m.departmentsService.update(hr, dept, { name: `ZZ Bread ${tag}`, description: null, positionIds: [town.waiter, position] });
     expect(renamed.name).toBe(`ZZ Bread ${tag}`);

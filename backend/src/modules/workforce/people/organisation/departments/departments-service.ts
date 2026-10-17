@@ -115,6 +115,8 @@ export const departmentsService = {
     const ctx = await resolveActor(subject);
     const department = await load(ctx, id, subject);
     if (department.status === 'RETIRED') throw new ConflictError('This department is already retired', 'DEPARTMENT_RETIRED');
+    // The five standard departments are Inventory's too (stock, requisitions); Inventory retires them with its own checks.
+    if (department.key !== null) throw new ConflictError('This department is managed in Inventory', 'DEPARTMENT_MANAGED_BY_INVENTORY');
     await runAudited(async (tx) => {
       const people = await departmentsRepository.peopleCount(ctx.companyId, department.id, tx);
       if (people > 0) throw new ConflictError(`${people} people still work in this department`, 'DEPARTMENT_HAS_PEOPLE', { people });

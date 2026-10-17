@@ -5272,7 +5272,7 @@ One view builder per response decides which keys exist (`count-view.ts`, `stock-
 
 ---
 
-## 35. Workforce — People (slice 1a, BUILT 17 Oct 2026, back end only)
+## 35. Workforce — People and Organisation (slices 1a and 1b, BUILT 17 Oct 2026, back end only)
 
 Source of truth: `backend/src/modules/workforce/people/README.md`. Standard envelope (§1); lists add `pagination: { total, page, perPage, totalPages }`. **Wire names:** the API says `organization` where the code says `site` (`organizationId`, `organizations`). Dates `YYYY-MM-DD` (Nairobi); money is a **string** with up to two decimals. Every route is `authenticate`, then the Workforce subject (head rows, real "clocks in"), then `requireCapability(...)`; never `requireRole`. Out-of-scope reads answer `404`, writes `403`. Error codes beyond the standard ones are `409` with a `code`: `DUPLICATE_NATIONAL_ID`, `DUPLICATE_PHONE`, `EMAIL_IN_USE`, `POSITION_NOT_OFFERED`, `CASUALS_NOT_ALLOWED`, `PROBATION_LIMIT`, `NO_PROBATION`, `CONTRACT_EXISTS`, `ALREADY_EXITED`, `NOT_EXITED`, `UNDO_WINDOW_CLOSED`, `UNDO_WINDOW_OPEN`, `TRANSFER_SCHEDULED`, `PAY_CHANGE_PENDING`, `PAY_CHANGE_NOT_PENDING`, `LOGIN_EXISTS`, `MOVE_NOT_SCHEDULED`, `MOVE_NOT_ACTIVE`; `403` codes `FIELD_NOT_ALLOWED`, `SELF_APPROVAL`, `FILE_LOCKED_FOR_EDIT`, `ROLE_NOT_ALLOWED`.
 
@@ -5310,5 +5310,27 @@ Source of truth: `backend/src/modules/workforce/people/README.md`. Standard enve
 | W23, W24 | `POST .../:id/rehire`, `.../login` | `employee.lifecycle` | rehire only after the undo window; login returns `{ userId }` |
 | W25–W28 | `POST .../:id/file-requests`, `.../file-requests/:requestId/remind`, `.../verify-statutory`, `.../documents` (multipart), `.../reveal` | `employee.write_basic`, `employee.write_sensitive`, `employee.read_sensitive` or `me.file` | reveal returns the clear value of one ID or bank field and writes `people.sensitive_revealed` unless own |
 
-The Organisation endpoints (O1 to O9) and the positions endpoints belong to slice 1b; `workforceOrgRouter` is mounted and empty.
+### 35.3 Organisation: departments, heads and positions (slice 1b, BUILT 17 Oct 2026, back end only)
+
+All routes run `authenticate`, then the Workforce subject (head rows), then `requireCapability`. Success is `{ success: true, data }` (`201` for creates). A read out of the caller's scope answers `404`; a missing capability `403`; a write out of scope `403`. Errors carry a `code`.
+
+| # | Method and path | Capability | Request | Response `data` | Errors |
+|---|---|---|---|---|---|
+| O1 | `GET /workforce/org` | `org.read` | `?includeRetired=true\|false` | `{ organizations: [{ id, name, type, isHub, headsAllowed, gaps, departments: [DepartmentSummary] }], counts: { sites, departments, heads, gaps } }` | 401, 403 |
+| O2 | `GET /workforce/org/departments/:id` | `org.read` | `?page&perPage` (default 1, 50) | `DepartmentView`: summary + `siteName`, `isHub`, `positions`, `peoplePage`, `casualPool` (`dailyRate` only with pay read), `can: { edit, assignHead }` | 400, 401, 403, 404 |
+| O3 | `POST /workforce/org/departments` | `org.write` | `{ siteId, name, description?, positionIds[] }` | `201 DepartmentView` | 400 (`SITE_NOT_AVAILABLE`, `POSITION_NOT_AVAILABLE`), 403, 409 `DEPARTMENT_NAME_TAKEN` |
+| O4 | `PATCH /workforce/org/departments/:id` | `org.write` | any of `{ name, description \| null, positionIds[] }` | `DepartmentView` | 400, 403, 404, 409 (`DEPARTMENT_NAME_TAKEN`, `DEPARTMENT_RETIRED`, `POSITION_HELD`) |
+| O5 | `POST /workforce/org/departments/:id/retire`, `.../restore` | `org.write` | none | `DepartmentView` | 403, 404, 409 (`DEPARTMENT_HAS_PEOPLE`, `DEPARTMENT_MANAGED_BY_INVENTORY`, `DEPARTMENT_RETIRED`, `DEPARTMENT_NOT_RETIRED`) |
+| O6 | `GET /workforce/org/departments/:id/head-candidates` | `org.write_heads` | none | `[{ employeeId, userId, name, positionName, startDate, isActingHere, recommended }]` | 403, 404, 409 (`HUB_HAS_NO_HEADS`, `DEPARTMENT_RETIRED`) |
+| O7 | `POST .../departments/:id/head/preview` | `org.write_heads` | `AssignHead` | `{ department, employee, mode, effectiveOn, returnsOn, endsHeadRoleOf[], claims: { before, after }, impacts[], notified[] }` | as O8 |
+| O8 | `POST .../departments/:id/head` | `org.write_heads` | `{ employeeId, mode: "REPLACE" \| "ACTING", returnsOn?, replaceActing?, reason? }` (ACTING needs `returnsOn`, after today) | `DepartmentView` | 400 (`INVALID_RETURN_DATE`), 403, 404, 409 (`HEAD_NOT_ELIGIBLE` with `details.reason`, `ALREADY_HEAD`, `ACTING_HEAD_EXISTS`, `HUB_HAS_NO_HEADS`, `HEAD_CHANGED_MEANWHILE`) |
+| O9 | `POST .../departments/:id/head/end` | `org.write_heads` | `{ which: "HEAD" \| "ACTING" (default HEAD), reason }` | `DepartmentView` | 403, 404, 409 `NO_HEAD_TO_END` |
+| O10 | `GET /workforce/org/positions` | `org.read` | `?departmentId&includeRetired&q` | `[PositionView]` (`holderCount` company-wide) | 400, 403 |
+| O11 | `GET /workforce/org/positions/:id` | `org.read` | none | `PositionView` + `holders[]` (only those the viewer may see) | 400, 403, 404 |
+| O12 | `POST /workforce/org/positions` | `org.write` (all) | `{ name, defaultTracksTime, loginRole \| null, casualsAllowed, departmentIds[] }` | `201` position with holders | 400, 403, 409 `POSITION_NAME_TAKEN` |
+| O13 | `GET .../positions/:id/impact?defaultTracksTime=` | `org.write` (all) | query | `{ people[], count, impacts[] }` | 400, 403, 404 |
+| O14 | `PATCH .../positions/:id` | `org.write` (all) | any of the O12 fields + `acknowledgedPeople` | position with holders | 400, 403, 404, 409 (`ACKNOWLEDGE_IMPACT` with `details.count`, `POSITION_NAME_TAKEN`, `POSITION_RETIRED`, `POSITION_HELD`) |
+| O15 | `POST .../positions/:id/retire`, `.../restore` | `org.write` (all) | none | position with holders | 403, 404, 409 (`POSITION_HELD` with `details.holders`, `POSITION_RETIRED`, `POSITION_NOT_RETIRED`) |
+
+`DepartmentSummary` is `{ id, siteId (wire: organizationId), name, inventoryTag, description, isActive, people, head, actingHead, hasGap }`; a head is `{ employeeId, userId, name, isActing, since, returnsOn }`. Changing a head writes the head row, `User.isDepartmentHead` / `departmentTag` (for departments with an inventory tag), the audit entry and, after commit, the `department.head_changed` event. Spec and decisions: `backend/src/modules/workforce/people/README.md` and `docs/features/workforce/decisions-1b-backend.md`.
 
