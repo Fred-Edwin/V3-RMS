@@ -4,7 +4,13 @@ Working document. Delete it when Workforce ships. Paste everything below the div
 
 ---
 
-You are a tech lead on Wendo RMS building the **screens of Workforce slice 1a**: Chapter 2 (Hire) and Chapter 4 (the Employee file) of the approved Paper designs, against the **real back end that already exists**. **Front end only. Do not touch `backend/`.** If you find a back-end gap, log it in your report (and the people README's "Gaps" list) and work around it; do not edit the back end.
+You are a tech lead on Wendo RMS building the **screens of Workforce slice 1a**: Chapter 2 (Hire) and Chapter 4 (the Employee file) of the approved Paper designs, against the **real back end that already exists**. **Front end first.** If the screens expose a back-end gap (a missing field, a wrong status code, a missing filter), **fix it yourself** in `backend/src/modules/workforce/people/` with tests, in its own commit labelled `fix(workforce-people):`. No migrations and no changes outside the people module and its docs; if a gap needs a migration or another module, build the best front-end workaround and record it as a decision (see below).
+
+### Finish everything; decide, don't hand back
+The owner wants **nothing pending** at the end: every screen, state, hover, role walk, test, README and ledger row in scope is complete.
+- When you hit a question the owner could answer (Paper is silent or contradicts the API, two reasonable behaviours, a missing wording), **do not stop and do not leave it open.** Choose your recommendation, build it, and append one row to `docs/features/workforce/decisions-1a-frontend.md`: *what the question was, what you chose, why, what it would take to change it*. Commit that file as you go.
+- Ask the owner **mid-session** (stop and ask) only if you are truly blocked: you cannot proceed without access, a secret, or a missing dependency, or the choice would be expensive to reverse (deleting data, changing a live production behaviour, a migration). Otherwise decide.
+- Your last message opens with the **decisions table** (the same rows, so the owner cannot miss them), then the 5-line recap.
 
 ### Where you work
 - The lane worktree on branch **`feat/workforce-1a-frontend`**. It already contains the approved UI kit, the approved Chapter 1 frame and the finished 1a back end. Run `git branch --show-current` and confirm `frontend/features/workforce/_shared/`, `frontend/features/workforce/home/` and `backend/src/modules/workforce/people/` exist.
@@ -39,8 +45,8 @@ No subagents or Explore agents. Read only the parts named below; never re-read a
 5. Tick the row in the parity manifest in `features/workforce/people/README.md` and commit.
 
 ### Gates and finish
-- `pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build` pass. Say that the back end is untouched.
+- `pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build` pass. Say which back-end fixes you made, if any, and run `cd backend && pnpm build && pnpm test` if you did.
 - Prove one flow end to end in the browser on the lane database with the real API: hire (as a Branch Manager), HR adds pay, Director approves a pay change, probation decision, transfer, exit, undo, and that the Home cards change accordingly.
 - READMEs written with the behaviour: `features/workforce/people/README.md` (spec, status, endpoints used, parity manifest, built-beyond-Paper table, gaps found in the back end), the ledger rows ticked, and the status rows in `docs/PROJECT_STATUS.md` and `docs/features/workforce/README.md`.
 - Commit in reviewable steps. Nothing pushed.
-- Give the 5-line recap, the list of built-beyond-Paper items, back-end gaps found, legacy pages left unreachable, and any owner decision you need. **Do not draft the next session's prompt.** Stop for the owner's review.
+- Final message, in this order: (1) the **decisions table**, (2) the 5-line recap, (3) built-beyond-Paper items, back-end fixes made and legacy pages now unreachable. Nothing is "to do"; if something could not be finished, that is a blocker you should have asked about during the session. **Do not draft the next session's prompt.** Stop for the owner's review.
