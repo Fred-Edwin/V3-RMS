@@ -62,7 +62,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
         <DialogNumber label="New basic pay" value={form.amount} onChange={(v) => set({ amount: v })} before="KES" after={`/ ${unit}`} decimal maxLength={9} autoFocus error={shown ? errors.amount : undefined} />
       </div>
       <div className="grid grid-cols-2 items-end gap-3 max-sm:grid-cols-1">
-        <SingleDateField label="Starts on" value={form.startsOn} onChange={(d) => set({ startsOn: d })} minDate={today} maxDate={`${Number(today.slice(0, 4)) + 2}-12-31`} error={shown ? errors.startsOn : undefined} />
+        <SingleDateField plainLabel label="Starts on" value={form.startsOn} onChange={(d) => set({ startsOn: d })} minDate={today} maxDate={`${Number(today.slice(0, 4)) + 2}-12-31`} error={shown ? errors.startsOn : undefined} />
         <DialogPicker label="Reason" value={form.reason} onChange={(v) => set({ reason: v as PayChangeForm['reason'] })} options={reasons} error={shown ? errors.reason : undefined} />
       </div>
       {form.reason === 'OTHER' ? <DialogTextArea label="What is the reason?" value={form.note} onChange={(v) => set({ note: v })} error={shown ? errors.note : undefined} rows={2} /> : null}

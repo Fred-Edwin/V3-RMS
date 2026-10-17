@@ -42,7 +42,7 @@ export function TransferPane({
     <>
       <div className="grid grid-cols-[1fr_190px] gap-3 max-sm:grid-cols-1">
         <DialogPicker label="Moves to" value={form.toSiteId} onChange={(v) => set({ toSiteId: v, toDepartmentId: '', toPositionId: '' })} options={sites} error={errors.toSiteId} />
-        <SingleDateField label="Starts on" value={form.startsOn} onChange={(d) => set({ startsOn: d })} minDate={today} maxDate={`${Number(today.slice(0, 4)) + 1}-12-31`} error={errors.startsOn} />
+        <SingleDateField plainLabel label="Starts on" value={form.startsOn} onChange={(d) => set({ startsOn: d })} minDate={today} maxDate={`${Number(today.slice(0, 4)) + 1}-12-31`} error={errors.startsOn} />
       </div>
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
         <DialogPicker label="Department" value={form.toDepartmentId} onChange={(v) => set({ toDepartmentId: v, toPositionId: '' })} options={departments} disabled={!form.toSiteId} error={errors.toDepartmentId} />

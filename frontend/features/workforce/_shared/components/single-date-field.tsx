@@ -23,9 +23,12 @@ export function SingleDateField({
   helper,
   error,
   className,
+  plainLabel = false,
 }: {
   /** Small caps label over the field, e.g. "STARTS ON". */
   label: string;
+  /** The label in the dialogs' own style ("Starts on", 13 px medium), as Paper draws it inside a dialog. */
+  plainLabel?: boolean;
   value: string | null;
   onChange: (day: string) => void;
   maxDate?: string;
@@ -38,7 +41,11 @@ export function SingleDateField({
   const note = maxDate && maxDate > today ? 'Pick the day it starts.' : minDate ? 'Earlier days can’t be picked.' : 'Later dates can’t be picked.';
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{label}</span>
+      {plainLabel ? (
+        <span className="font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink">{label}</span>
+      ) : (
+        <span className="font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-secondary">{label}</span>
+      )}
       <DateRangePicker
         single
         label={label}

@@ -50,6 +50,22 @@ R1 list, R2 summary, R3 lookups, R4 duplicate-check, R6 me, R7 file, R8 pay (tab
 | `12UL-0`, `SJY-0` | My file, emergency contact, numbers, photo | built as dialogs on one page |
 | Ch 1 | Home cards: Onboarding, No contract yet, Finish hiring, Probation ends, People by branch, Coming up, Company headcount | data wired |
 
+## Finish-up checks (17 Oct 2026)
+
+Run in the browser against the real API (lane ports 3101 / 4101).
+
+| Check | Result |
+|---|---|
+| Branch Manager's hire, typed in the wizard (two steps: Who, Job) | Hired; the file shows pay and ID as "Locked for your role". `?draft=` reopened the saved name, phone and ID. HR's Home moved: Nyeri Town 3 to 4, No contract yet 13 to 14, 14 active. The duplicate-ID check refused a taken ID and cleared on a free one. |
+| Accountant | Pay open, all 14 people, no Add employee, no action buttons. |
+| Store Manager | Own site only (7), Add employee shown, no Job and pay or Documents tab, pay and ID locked. |
+| Department head | The route gate keeps heads and floor staff off the desktop screens until their own screens are drawn (Chapter 1 decision); the API shows a head only their department (2). My file works. |
+| Staff login (store attendant) | Employees bounces to their own landing; My file shows only their own job and IDs; emergency contact and numbers saved by keyboard. |
+| Keyboard and names | 17 dialogs reached by key or script: 14 audited for name, labelled fields, focus in, Esc and focus back. Not audited one by one (same kit): note, verify, login, photo, director decision, rehire. Enter in a field does not submit by design (kit rule). |
+| Paper pass at 1440 | Overview, Edit job, Contract, Send to site, Exit, Change pay, Move compared. Left as built, on purpose: Paper's exit checklist items for final pay and leave (need Payroll and Leave), the contract signing cells (slice 4), Employment as a picker in Edit job (API does not change it here), "she/her" copy. |
+
+Found and fixed: picker had no arrow keys and lost focus on close; draft autosave fired a 404 after a hire; "Finish the file" and the ID chip were offered to roles the server refuses; My file showed two top bars to logins with no Workforce menu; focus fell to the page after a saved own-file dialog; completeness and probation cards were taller than Paper; contract dialog lacked Paper's card; Send to site lacked From and Until; dialog date labels were mono caps instead of Paper's plain labels.
+
 ## Built beyond Paper (undrawn, built in the same style)
 
 | Item | Why |

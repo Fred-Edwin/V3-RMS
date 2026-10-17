@@ -45,6 +45,7 @@ export function EditJobDialog({ file, onClose, done }: FileDialogProps) {
       onOpenChange={(o) => !o && onClose()}
       title={`Edit ${first}'s job`}
       description="Changes take effect today and are kept in the history."
+      width={560}
       busy={action.busy}
       footer={
         <>

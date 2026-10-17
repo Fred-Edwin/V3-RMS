@@ -30,7 +30,7 @@ export function ExitPane({
   return (
     <>
       <div className="grid grid-cols-[190px_1fr] gap-3 max-sm:grid-cols-1">
-        <SingleDateField label="Last day" value={form.lastDay} onChange={(d) => set({ lastDay: d })} minDate={addDays(today, -7)} maxDate={addDays(today, 365)} error={errors.lastDay} />
+        <SingleDateField plainLabel label="Last day" value={form.lastDay} onChange={(d) => set({ lastDay: d })} minDate={addDays(today, -7)} maxDate={addDays(today, 365)} error={errors.lastDay} />
         <DialogPicker label="Reason" value={form.reason} onChange={(v) => set({ reason: v as ExitReason })} options={reasons} error={errors.reason} />
       </div>
       {form.reason === 'OTHER' ? <DialogTextArea label="What is the reason?" value={form.note} onChange={(v) => set({ note: v })} rows={2} error={errors.note} /> : null}

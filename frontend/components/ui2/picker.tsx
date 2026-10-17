@@ -45,6 +45,7 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const listId = React.useId();
   const selected = options.find((o) => o.value === value);
   const withSearch = searchable ?? options.length >= SEARCH_FROM;
@@ -89,7 +90,6 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
   }
 
   const shown = query.trim() ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())) : options;
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const close = (refocus = false): void => {
     setOpen(false);
     setQuery('');

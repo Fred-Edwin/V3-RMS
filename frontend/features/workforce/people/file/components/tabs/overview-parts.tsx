@@ -24,11 +24,11 @@ export function FileRingCard({ file, open }: { file: EmployeeFile; open: OpenDia
     : part === 'IDENTITY' && canWriteSensitive ? 'details'
     : null;
   return (
-    <section aria-label="Completeness of the file" className="flex items-center gap-6 border border-wds-border bg-wds-surface p-6 max-sm:flex-col max-sm:items-start">
-      <CompletenessRing percent={file.completeness.ringPercent} />
-      <div className="flex min-w-0 flex-col gap-2.5">
+    <section aria-label="Completeness of the file" className="flex gap-[22px] border border-wds-border bg-wds-surface px-5 py-[18px] max-sm:flex-col">
+      <CompletenessRing percent={file.completeness.ringPercent} className="shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-[7px]">
         <div className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">{summary.caption}</div>
-        <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+        <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {ringChips(file).map((c) => {
             const target = c.done ? null : fix(c.part);
             const tag = (
@@ -39,7 +39,7 @@ export function FileRingCard({ file, open }: { file: EmployeeFile; open: OpenDia
             return <li key={c.part}>{target ? <button type="button" onClick={() => open(target)} className="cursor-pointer border-0 bg-transparent p-0 outline-none focus-visible:shadow-wds-ring">{tag}</button> : tag}</li>;
           })}
         </ul>
-        <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{summary.note}</p>
+        <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{summary.note}</p>
       </div>
     </section>
   );
@@ -50,23 +50,23 @@ export function ProbationPanel({ file, open }: { file: EmployeeFile; open: OpenD
   const card = probationCard(file);
   if (!card) return null;
   return (
-    <section aria-label="Probation" className="flex flex-col gap-3 border border-t-2 border-wds-border border-t-wds-primary bg-wds-surface px-5 py-4">
+    <section aria-label="Probation" className="flex flex-col gap-3 border border-t-2 border-wds-border border-t-wds-primary bg-wds-surface px-5 py-[18px]">
       <div className="flex items-center justify-between">
         <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">PROBATION</span>
         {file.actions.decideProbation ? (
-          <button type="button" onClick={() => open('probation')} className="border-0 bg-transparent p-0 font-wds-sans text-[14px] leading-[18px] text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+          <button type="button" onClick={() => open('probation')} className="border-0 bg-transparent p-0 font-wds-sans text-[13px] leading-4 text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
             {card.decideBy} →
           </button>
         ) : null}
       </div>
       <div className="flex items-baseline gap-3">
-        <span className={`font-wds-sans text-[32px] font-semibold leading-9 tracking-[-0.02em] ${probationTextClass(card.daysLeft)}`}>Day {card.dayNumber}</span>
-        <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">
+        <span className={`font-wds-sans text-[30px] font-semibold leading-[34px] tracking-[-0.025em] ${probationTextClass(card.daysLeft)}`}>Day {card.dayNumber}</span>
+        <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
           of {card.totalDays} · {card.daysLeft} {card.daysLeft === 1 ? 'day' : 'days'} left
         </span>
       </div>
       <ProbationBar dayNumber={card.dayNumber} totalDays={card.totalDays} />
-      <div className="flex justify-between font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
+      <div className="flex justify-between font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
         <span>Started {formatDayMonth(card.startedOn)}</span>
         <span>{card.report}</span>
         <span>Ends {formatDayMonth(card.endsOn)}</span>
@@ -104,7 +104,7 @@ export function LifeBand({ file }: { file: EmployeeFile }) {
   const events = lifeEvents(file);
   if (events.length === 0) return null;
   return (
-    <section aria-label="Life at Wendo" className="flex min-w-0 flex-col gap-3 overflow-x-auto border border-wds-border bg-wds-surface px-5 py-4">
+    <section aria-label="Life at Wendo" className="flex min-w-0 flex-col gap-2.5 overflow-x-auto border border-wds-border bg-wds-surface px-5 py-3.5">
       <div className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">LIFE AT WENDO</div>
       <LifeTimeline events={events} />
     </section>

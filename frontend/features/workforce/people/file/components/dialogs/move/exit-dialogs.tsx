@@ -60,7 +60,7 @@ export function RehireDialog({ file, onClose, done }: FileDialogProps) {
         </>
       }
     >
-      <SingleDateField label="New start day" value={startsOn} onChange={setStartsOn} minDate={today} maxDate={addDays(today, 365)} error={shown ? error : undefined} />
+      <SingleDateField plainLabel label="New start day" value={startsOn} onChange={setStartsOn} minDate={today} maxDate={addDays(today, 365)} error={shown ? error : undefined} />
       <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">A new probation starts with it, and a new contract is needed. The gap since the last day shows on the timeline.</p>
       <DialogError message={action.error} />
     </KitDialog>
