@@ -6,6 +6,7 @@ import { PeopleByBranch } from '../components/people-by-branch';
 import { defineHomeCard } from '../lib/card-registry';
 import type { AttentionData, KpiData, PeopleData } from './hr-cards';
 import { noSource } from './no-source';
+import { useCompanyHeadcount } from './people-data';
 
 /**
  * The Accountant's and the Director's Homes. Paper draws only the HR and Branch Manager Homes; these two are described by the
@@ -60,6 +61,6 @@ export const companyHeadcountCard = defineHomeCard<PeopleData>({
   anyCapability: ['payrun.reopen'],
   order: 30,
   isEmpty: (d) => d.rows.length === 0,
-  useData: noSource<PeopleData>(),
+  useData: useCompanyHeadcount,
   Card: ({ data }) => <PeopleByBranch rows={data.rows} note={data.note} />,
 });

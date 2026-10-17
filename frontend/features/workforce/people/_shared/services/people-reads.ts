@@ -32,7 +32,35 @@ export interface EmployeePage {
   pagination: Pagination;
 }
 
+const ROSTER_PAGES = 5;
+const ROSTER_TTL_MS = 10_000;
+let rosterCache: { at: number; token: string | undefined; promise: Promise<EmployeeListRow[]> } | null = null;
+
+async function readRoster(): Promise<EmployeeListRow[]> {
+  const rows: EmployeeListRow[] = [];
+  for (let page = 1; page <= ROSTER_PAGES; page += 1) {
+    const envelope = await apiClient.getWithEnvelope<EmployeeListRow[]>(`${BASE}${queryString({ page, perPage: 100 })}`, token());
+    rows.push(...(envelope.data ?? []));
+    if (page >= (envelope.pagination?.totalPages ?? 1)) break;
+  }
+  return rows;
+}
+
 export const peopleReads = {
+  /**
+   * Everyone the viewer may see (up to 500), for the Home cards. Several cards ask at once, so the answer is shared for 10 seconds;
+   * a failed read is not kept.
+   */
+  roster(force = false): Promise<EmployeeListRow[]> {
+    const now = Date.now();
+    if (!force && rosterCache && rosterCache.token === token() && now - rosterCache.at < ROSTER_TTL_MS) return rosterCache.promise;
+    const promise = readRoster();
+    rosterCache = { at: now, token: token(), promise };
+    promise.catch(() => {
+      if (rosterCache?.promise === promise) rosterCache = null;
+    });
+    return promise;
+  },
   /** R1 */
   async list(query: EmployeeListQuery): Promise<EmployeePage> {
     const envelope = await apiClient.getWithEnvelope<EmployeeListRow[]>(`${BASE}${queryString({ ...query })}`, token());

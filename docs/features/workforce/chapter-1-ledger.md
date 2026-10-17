@@ -8,17 +8,17 @@ Status words: **frame built** (the block, its states and its card definition exi
 
 | Card id | Paper | Who sees it (capability) | Data slice | Status |
 |---|---|---|---|---|
-| `workforce.hr-kpis` · KPI strip: Waiting for you, Onboarding, No contract yet, Pay run | `SVM-0` (HR Home `PG2-0`) | `employee.write_sensitive` (HR) | Waiting for you: 4; Onboarding and No contract yet: 1a; Pay run: 6 | frame built |
-| `workforce.hr-attention` · Needs your attention (leave, report, finish hiring, probation ends, no head) | `PME-0` | `employee.write_sensitive` | Finish hiring, Probation ends: 1a; No head for a department: 1b; Report a problem: 4; Leave request: 5 | frame built |
-| `workforce.people-by-branch` · People by branch | `PNM-0` | `employee.write_sensitive` | 1a | frame built |
-| `workforce.coming-up` · Coming up (also the Accountant's and Director's) | `POH-0` | `employee.write_sensitive`, `payrun.approve`, `payrun.reopen` | Leave starting: 5; Probation ends: 1a; Timesheets close: 4; Pay run goes to the Accountant, Payday: 6 | frame built |
+| `workforce.hr-kpis` · KPI strip: Waiting for you, Onboarding, No contract yet, Pay run | `SVM-0` (HR Home `PG2-0`) | `employee.write_sensitive` (HR) | Waiting for you: 4; Onboarding and No contract yet: 1a; Pay run: 6 | Onboarding and No contract yet: **data wired** (1a, 17 Oct 2026); the other cells wait for their slices |
+| `workforce.hr-attention` · Needs your attention (leave, report, finish hiring, probation ends, no head) | `PME-0` | `employee.write_sensitive` | Finish hiring, Probation ends: 1a; No head for a department: 1b; Report a problem: 4; Leave request: 5 | Finish hiring and Probation ends: **data wired** (1a, 17 Oct 2026); the other rows wait for their slices |
+| `workforce.people-by-branch` · People by branch | `PNM-0` | `employee.write_sensitive` | 1a | **data wired** (1a, 17 Oct 2026) |
+| `workforce.coming-up` · Coming up (also the Accountant's and Director's) | `POH-0` | `employee.write_sensitive`, `payrun.approve`, `payrun.reopen` | Leave starting: 5; Probation ends: 1a; Timesheets close: 4; Pay run goes to the Accountant, Payday: 6 | Probation ends: **data wired** (1a, 17 Oct 2026); the other events wait for their slices |
 | `workforce.branch-kpis` · KPI strip: On shift now, Late today, Not in yet, Waiting for you | `SWB-0` (Branch Manager Home `PPM-0`) | `today.act` (Branch Manager, Store Manager) | On shift, Late, Not in: 3; Waiting for you: 4 | frame built |
 | `workforce.today-board` · Department chips, Needs a look, On time and working (the branch right now) | `Q4S-0` | `today.act` | 3 (Attendance); department heads and "No head assigned": 1b | frame built |
 | `workforce.waiting-for-you.desktop` · Waiting for you, approvals one tap each | `PXC-0` | `today.act` | 4 (overtime, Report a problem, casuals); 5 (leave) | frame built |
 | `workforce.payrun-kpis` · The pay run strip (Accountant, Director) | reference table `OPQ-0` (no drawing) | `payrun.approve`, `payrun.reopen` | 6 | frame built |
 | `workforce.payrun-steps` · Pay run steps and rule confirmations (Accountant) | `OPQ-0` | `payrun.approve` | 6 (steps); 7 (rule confirmations) | frame built |
 | `workforce.overdue-approvals` · Overdue approvals (Director) | `OPQ-0` | `payrun.reopen` | 4 and 5 | frame built |
-| `workforce.company-headcount` · Company headcount (Director) | `OPQ-0` | `payrun.reopen` | 1a | frame built |
+| `workforce.company-headcount` · Company headcount (Director) | `OPQ-0` | `payrun.reopen` | 1a | **data wired** (1a, 17 Oct 2026) |
 | `workforce.clock` · The clock card (phone, card 01) | `QH7-0`, `QJA-0` | `time.own` | 3 | frame built |
 | `workforce.waiting-for-you.phone` · Waiting for you on a head's phone (card 02) | `QJV-0` | `overtime.approve`, `casual.record` | 4 (overtime, casuals) | frame built |
 | `workforce.job-cards-slot` · Dashed slot for the job's cards (card 03) | `QHS-0`, `QKK-0` | `time.own` | **Orders redo** (not a Workforce slice); remove the slot when it registers | frame built |

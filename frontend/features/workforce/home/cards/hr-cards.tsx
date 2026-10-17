@@ -5,7 +5,7 @@ import { AttentionList, type AttentionItem } from '../components/attention-list'
 import { ComingUpSection } from '../components/coming-up-section';
 import { PeopleByBranch, type BranchCount } from '../components/people-by-branch';
 import { defineHomeCard } from '../lib/card-registry';
-import { noSource } from './no-source';
+import { useComingUpData, useHrAttention, useHrKpis, usePeopleByBranchData } from './people-data';
 
 /**
  * The HR Manager's Home (Paper Chapter 1 step 02): the strip, "Needs your attention", "People by branch" and "Coming up".
@@ -36,7 +36,7 @@ export const hrKpisCard = defineHomeCard<KpiData>({
   anyCapability: ['employee.write_sensitive'],
   order: 10,
   isEmpty: (d) => d.cells.length === 0,
-  useData: noSource<KpiData>(),
+  useData: useHrKpis,
   Card: ({ data }) => <WorkforceKpiStrip aria-label="The numbers" cells={[...data.cells]} />,
 });
 
@@ -48,7 +48,7 @@ export const hrAttentionCard = defineHomeCard<AttentionData>({
   anyCapability: ['employee.write_sensitive'],
   order: 20,
   isEmpty: (d) => d.items.length === 0,
-  useData: noSource<AttentionData>(),
+  useData: useHrAttention,
   Card: ({ data }) => <AttentionList items={data.items} viewAll={data.viewAll} />,
 });
 
@@ -60,7 +60,7 @@ export const peopleByBranchCard = defineHomeCard<PeopleData>({
   anyCapability: ['employee.write_sensitive'],
   order: 30,
   isEmpty: (d) => d.rows.length === 0,
-  useData: noSource<PeopleData>(),
+  useData: usePeopleByBranchData,
   Card: ({ data }) => <PeopleByBranch rows={data.rows} note={data.note} />,
 });
 
@@ -73,6 +73,6 @@ export const comingUpCard = defineHomeCard<ComingUpData>({
   anyCapability: ['employee.write_sensitive', 'payrun.approve', 'payrun.reopen'],
   order: 90,
   isEmpty: (d) => d.events.length === 0,
-  useData: noSource<ComingUpData>(),
+  useData: useComingUpData,
   Card: ({ data }) => <ComingUpSection events={data.events} />,
 });

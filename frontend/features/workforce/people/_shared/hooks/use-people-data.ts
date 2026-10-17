@@ -1,7 +1,7 @@
 'use client';
 
 import { peopleReads } from '../services/people-reads';
-import type { DocumentRow, EmployeeFile, Lookups, PayChangeRow, PayView, PeopleSummary } from '../types/people-types';
+import type { DocumentRow, EmployeeFile, EmployeeListRow, Lookups, PayChangeRow, PayView, PeopleSummary } from '../types/people-types';
 import { useRemote, type Remote } from './use-remote';
 
 /** The reads the screens share, each as a `Remote`. A screen that needs one calls the hook; none builds a path. */
@@ -9,6 +9,9 @@ import { useRemote, type Remote } from './use-remote';
 export const useLookups = (enabled = true): Remote<Lookups> => useRemote(peopleReads.lookups, 'lookups', enabled);
 
 export const usePeopleSummary = (enabled = true): Remote<PeopleSummary> => useRemote(() => peopleReads.summary(), 'summary', enabled);
+
+/** Everyone the viewer may see, for the Home cards. Shared between cards for a few seconds (see `peopleReads.roster`). */
+export const useRoster = (enabled = true): Remote<EmployeeListRow[]> => useRemote(() => peopleReads.roster(), 'roster', enabled);
 
 export const useEmployeeFile = (id: string | 'me'): Remote<EmployeeFile> =>
   useRemote(() => (id === 'me' ? peopleReads.mine() : peopleReads.file(id)), `file:${id}`);
