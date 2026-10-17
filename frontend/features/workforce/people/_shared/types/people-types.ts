@@ -1,6 +1,7 @@
 /**
  * What the People API sends, as the screens read it. Mirrors `backend/src/modules/workforce/people/people.types.ts`; the server is the
- * authority. Wire names say `organization` where the code says `site`, but this endpoint family already answers `site`.
+ * authority. RESPONSES use the wire names (`organization`, `organizationId`, `organizationName`, `organizations`) where the code says
+ * `site`; these types say what is really on the wire. REQUESTS may use either spelling, so request bodies keep `siteId`.
  */
 
 /** A Nairobi calendar date, YYYY-MM-DD. */
@@ -39,8 +40,8 @@ export interface EmployeeListRow {
   name: string;
   photoUrl: string | null;
   positionName: string | null;
-  siteId: string;
-  siteName: string;
+  organizationId: string;
+  organizationName: string;
   departmentId: string | null;
   departmentName: string | null;
   employment: Employment;
@@ -142,7 +143,7 @@ export interface EmployeeFile {
   contractStatus: ContractStatusCode;
   tracksTime: boolean;
   tracksTimeFromPosition: boolean;
-  site: { id: string; name: string };
+  organization: { id: string; name: string };
   department: { id: string; name: string } | null;
   position: { id: string; name: string } | null;
   reportsTo: { id: string; name: string; isHead: boolean } | null;
@@ -163,7 +164,7 @@ export interface EmployeeFile {
   timeline: TimelineEvent[];
   actions: EmployeeActions;
   loan: { hostSiteName: string; from: DateString; until: DateString | null } | null;
-  scheduledMove: { kind: 'TRANSFER' | 'LOAN'; startsOn: DateString; toSiteName: string } | null;
+  scheduledMove: { kind: 'TRANSFER' | 'LOAN'; startsOn: DateString; toOrganizationName: string } | null;
 }
 
 export interface PayChangeRow {
@@ -228,8 +229,8 @@ export interface DuplicateCheck {
 }
 
 export interface Lookups {
-  sites: { id: string; name: string; type: 'BRANCH' | 'CENTRAL_STORE'; isHub: boolean }[];
-  departments: { id: string; siteId: string; name: string; inventoryTag: string | null; isActive: boolean }[];
+  organizations: { id: string; name: string; type: 'BRANCH' | 'CENTRAL_STORE'; isHub: boolean }[];
+  departments: { id: string; organizationId: string; name: string; inventoryTag: string | null; isActive: boolean }[];
   positions: { id: string; name: string; defaultTracksTime: boolean; loginRole: string | null; casualsAllowed: boolean; departmentIds: string[]; isActive: boolean }[];
   assignableLoginRoles: string[];
   exitReasons: ExitReason[];

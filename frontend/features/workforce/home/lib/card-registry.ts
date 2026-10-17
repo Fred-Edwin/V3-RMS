@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import type { WorkforceCapability } from './capabilities';
+import type { WorkforceCapability } from '../../_shared';
 
 /**
  * The Home card registry (Paper Chapter 1, step 04: "Home is a stack of cards. Every module brings its own."; `docs/ROADMAP.md` rule 8).

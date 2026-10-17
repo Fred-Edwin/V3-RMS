@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { arrangeHome, canSeeCard, defineHomeCard, getHomeCards, inSlot, registerHomeCard, resetHomeCardsForTests, visibleCards, type CardDataState, type HomeCard } from './card-registry';
-import type { WorkforceCapability } from './capabilities';
+import type { WorkforceCapability } from '../../_shared';
 
 const Nothing = () => null;
 

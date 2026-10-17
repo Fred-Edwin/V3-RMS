@@ -87,7 +87,6 @@ describe('every desktop role keeps every link it had before', () => {
       '/app/history',
       '/app/manage/reports',
       '/app/inbox',
-      '/app/manage/staff',
       '/app/manage/department-settings',
       '/app/manage/menu',
       '/app/manage/shifts',
@@ -102,7 +101,7 @@ describe('every desktop role keeps every link it had before', () => {
       '/app/profile',
       '/app/inventory/catalog',
     ],
-    HR_MANAGER: ['/app/hr', '/app/hr/staff', '/app/hr/contract-types', '/app/hr/leave', '/app/hr/leave/calendar', '/app/hr/attendance', '/app/hr/shifts', '/app/hr/payroll', '/app/inbox', '/app/profile'],
+    HR_MANAGER: ['/app/hr', '/app/hr/contract-types', '/app/hr/leave', '/app/hr/leave/calendar', '/app/hr/attendance', '/app/hr/shifts', '/app/hr/payroll', '/app/inbox', '/app/profile'],
     STORE_MANAGER: ['/app/inventory/receiving', '/app/inventory/purchasing', '/app/inventory/prep', '/app/inventory/requisitions', '/app/inventory/suppliers', '/app/inventory/catalog', '/app/inventory/audit-log', '/app/inventory/settings'],
   };
   for (const [role, expected] of Object.entries(had) as Array<[AppRole, string[]]>) {
@@ -585,12 +584,15 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       expect(eventual(role)).toEqual(PAPER[role]);
     });
 
-    it(`${role}: shows Workforce first, and only Home until a page exists`, () => {
+    it(`${role}: shows Workforce first, and only the pages that exist (Home and Employees)`, () => {
       const groups = navFor(ctxFor(role, { can: EVERYTHING }));
       expect(groups[0]?.key).toBe('wf-workforce');
       expect(groups[0]?.label).toBe('WORKFORCE');
-      expect(groups[0]?.items.map((i) => i.label)).toEqual(['Home']);
-      expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(1);
+      // The Accountant's Employees link sits under Workforce; everyone else's sits in People.
+      expect(groups[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : ['Home']);
+      expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(role === 'ACCOUNTANT' ? 1 : 2);
+      if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(['Employees']);
+      expect(item(groups, role === 'ACCOUNTANT' ? 'wf-employees-acc' : 'wf-employees')?.href).toBe('/app/workforce/employees');
       expect(item(groups, 'wf-home')?.href).toBe('/app/workforce');
       expect(item(groups, 'wf-home')?.framed).toBe(true);
     });
@@ -614,8 +616,10 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
 
   it('keeps every legacy row where it was: the old pages are still linked for each role, in their old order', () => {
     const legacy = (role: AppRole) => navFor(ctxFor(role, { can: EVERYTHING })).filter((g) => !g.key.startsWith('wf-')).flatMap((g) => g.items.map((i) => i.key));
-    expect(legacy('HR_MANAGER')).toEqual(['hr-overview', 'hr-staff', 'hr-contracts', 'hr-leave', 'hr-leave-calendar', 'hr-attendance', 'hr-shifts', 'hr-payroll', 'hr-inbox', 'profile']);
-    for (const key of ['hr-staff', 'hr-shifts', 'hr-payroll', 'manage-staff', 'manage-shifts', 'manage-payslips', 'director-payroll', 'accountant-leave']) {
+    // Staff Profiles (HR) and Staff (Branch Manager) moved to Workforce › Employees in slice 1a; their old pages stay on disk, unlinked.
+    expect(legacy('HR_MANAGER')).toEqual(['hr-overview', 'hr-contracts', 'hr-leave', 'hr-leave-calendar', 'hr-attendance', 'hr-shifts', 'hr-payroll', 'hr-inbox', 'profile']);
+    expect(NAV_ROWS.some((r) => r.key === 'hr-staff' || r.key === 'manage-staff')).toBe(false);
+    for (const key of ['hr-shifts', 'hr-payroll', 'manage-shifts', 'manage-payslips', 'director-payroll', 'accountant-leave']) {
       const row = NAV_ROWS.find((r) => r.key === key);
       expect(row?.oldHref, key).toBeDefined();
       expect(row?.newHref, key).toBeUndefined();
@@ -632,8 +636,8 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {
     const only = (rows: readonly NavRow[]) => keys(navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }), rows)).filter((k) => k.startsWith('wf-'));
     const built = NAV_ROWS.map((r) => (r.key === 'wf-conduct' ? { ...r, notBuilt: undefined } : r));
-    expect(only(NAV_ROWS)).toEqual(['wf-home']);
-    expect(only(built)).toEqual(['wf-home', 'wf-conduct']);
+    expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees']);
+    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-conduct']);
   });
 
   it('offers a badge slot on Waiting for you, Timesheets and Leave, drawn only when a slice feeds a count', () => {

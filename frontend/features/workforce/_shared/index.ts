@@ -11,6 +11,9 @@ export * from './lib/states-copy';
 export * from './lib/notification-copy';
 export * from './lib/time';
 export * from './lib/roving';
+export * from './lib/capabilities';
+export * from './hooks/use-workforce-permissions';
+export * from './hooks/use-nav-drawer';
 
 export * from './components/kpi-strip';
 export * from './components/status-tag';

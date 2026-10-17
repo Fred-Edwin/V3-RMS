@@ -6,10 +6,8 @@ import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
 import { Topbar } from '@/components/app/shell/topbar';
 import { useAuthStore } from '@/store/authStore';
 
-import { ErrorBlock, ListSkeleton, initialsOf } from '../../_shared';
+import { ErrorBlock, ListSkeleton, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../_shared';
 import { registerHomeCards } from '../cards';
-import { useWorkforceNavDrawer } from '../hooks/use-nav-drawer';
-import { useWorkforcePermissions } from '../hooks/use-workforce-permissions';
 import { getHomeCards, type HomeSurface } from '../lib/card-registry';
 import { greetingFor, homeClock, homeDate } from '../lib/greeting';
 import { HOME_COPY } from '../lib/home-copy';

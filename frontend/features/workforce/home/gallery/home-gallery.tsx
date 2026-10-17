@@ -18,7 +18,7 @@ import { PhoneBarAction, PhoneHomeBar } from '../components/phone-home-bar';
 import { SectionHeader } from '../components/section-header';
 import { WaitingForYouCard, WaitingForYouColumn } from '../components/waiting-for-you';
 import { arrangeHome, visibleCards, type CardDataState, type HomeSurface } from '../lib/card-registry';
-import type { WorkforceCapability } from '../lib/capabilities';
+import type { WorkforceCapability } from '../../_shared';
 import {
   ACCOUNTANT_STATES,
   BRANCH_BOARD,

@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 
 import { EmptyState, ErrorBlock, ListSkeleton } from '../../_shared';
 import { arrangeHome, inSlot, visibleCards, type ArrangedHome, type CardDataState, type HomeCard, type HomeSurface } from '../lib/card-registry';
-import type { WorkforceCapability } from '../lib/capabilities';
+import type { WorkforceCapability } from '../../_shared';
 import { HOME_COPY } from '../lib/home-copy';
 
 /**

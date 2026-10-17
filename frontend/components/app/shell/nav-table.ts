@@ -271,9 +271,9 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     ],
   },
   { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR], badge: 'workforce-timesheets', notBuilt: true },
-  { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT], notBuilt: true },
+  { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
-  { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, notBuilt: true },
+  { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
   { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], notBuilt: true },
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
   { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, notBuilt: true },
@@ -325,7 +325,6 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'manage-history', label: 'History', group: 'mgr-operations', icon: ico.history, oldHref: '/app/history', roles: [MANAGER] },
   { key: 'manage-analytics', label: 'Analytics', group: 'mgr-operations', icon: ico.analytics, oldHref: '/app/manage/reports', roles: [MANAGER] },
   { key: 'manage-inbox', label: 'Inbox', group: 'mgr-operations', icon: ico.inbox, oldHref: '/app/inbox', roles: [MANAGER], badge: 'inbox' },
-  { key: 'manage-staff', label: 'Staff', group: 'mgr-manage', icon: ico.staff, oldHref: '/app/manage/staff', roles: [MANAGER] },
   // Paper step 20: Departments in Settings (add, rename, retire). The old heads page stays at /app/manage/departments until its own redo.
   { key: 'manage-departments', label: 'Departments', group: 'mgr-manage', icon: ico.departments, newHref: '/app/manage/department-settings', roles: [MANAGER] },
   // Block 2: the Branch Manager reads the carrier list (read only) to see who carries the branch's deliveries.
@@ -446,7 +445,6 @@ export const NAV_ROWS: readonly NavRow[] = [
 
   // ── HR Manager ────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'hr-overview', label: 'HR Overview', group: 'hr', icon: ico.dashboard, oldHref: '/app/hr', roles: [HR_MANAGER] },
-  { key: 'hr-staff', label: 'Staff Profiles', group: 'hr', icon: ico.staff, oldHref: '/app/hr/staff', roles: [HR_MANAGER] },
   { key: 'hr-contracts', label: 'Contract Types', group: 'hr', icon: ico.contracts, oldHref: '/app/hr/contract-types', roles: [HR_MANAGER] },
   { key: 'hr-leave', label: 'Leave Requests', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave', roles: [HR_MANAGER] },
   { key: 'hr-leave-calendar', label: 'Leave Calendar', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave/calendar', roles: [HR_MANAGER] },

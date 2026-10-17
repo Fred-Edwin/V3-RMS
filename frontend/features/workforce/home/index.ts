@@ -3,10 +3,10 @@
  * `defineHomeCard` and the block components it needs. Nothing deeper is imported from outside this folder. See README.md.
  */
 export { WorkforceHome } from './components/home-screen';
-export { WorkforceNavDrawerProvider, useWorkforceNavDrawer } from './hooks/use-nav-drawer';
-export { useWorkforcePermissions } from './hooks/use-workforce-permissions';
+export { WorkforceNavDrawerProvider, useWorkforceNavDrawer } from '../_shared';
+export { useWorkforcePermissions } from '../_shared';
 export { defineHomeCard, registerHomeCard, type CardDataState, type HomeCard, type HomeCardDefinition, type HomeSlot, type HomeSurface } from './lib/card-registry';
-export type { WorkforceCapability } from './lib/capabilities';
+export type { WorkforceCapability } from '../_shared';
 export { HomeButton } from './components/home-button';
 export { SectionHeader } from './components/section-header';
 export { AttentionList, type AttentionItem, type AttentionKind } from './components/attention-list';
