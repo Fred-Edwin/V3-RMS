@@ -5270,3 +5270,45 @@ One view builder per response decides which keys exist (`count-view.ts`, `stock-
 - **Director:** *flagged* = every outside-range line of a count the Manager signs herself, until marked seen; *alert* = any line whose value reaches the alert amount raises a push on that sign or approval, held 22:00 to 05:00 Africa/Nairobi. No inbox row.
 - **Sections:** one `SUPPLIER` section per supplier with items (name and supplier fixed) plus `MANUAL` sections ("Others", "Packaging"); "Not in any section" is computed at read time.
 
+---
+
+## 35. Workforce — People (slice 1a, BUILT 17 Oct 2026, back end only)
+
+Source of truth: `backend/src/modules/workforce/people/README.md`. Standard envelope (§1); lists add `pagination: { total, page, perPage, totalPages }`. **Wire names:** the API says `organization` where the code says `site` (`organizationId`, `organizations`). Dates `YYYY-MM-DD` (Nairobi); money is a **string** with up to two decimals. Every route is `authenticate`, then the Workforce subject (head rows, real "clocks in"), then `requireCapability(...)`; never `requireRole`. Out-of-scope reads answer `404`, writes `403`. Error codes beyond the standard ones are `409` with a `code`: `DUPLICATE_NATIONAL_ID`, `DUPLICATE_PHONE`, `EMAIL_IN_USE`, `POSITION_NOT_OFFERED`, `CASUALS_NOT_ALLOWED`, `PROBATION_LIMIT`, `NO_PROBATION`, `CONTRACT_EXISTS`, `ALREADY_EXITED`, `NOT_EXITED`, `UNDO_WINDOW_CLOSED`, `UNDO_WINDOW_OPEN`, `TRANSFER_SCHEDULED`, `PAY_CHANGE_PENDING`, `PAY_CHANGE_NOT_PENDING`, `LOGIN_EXISTS`, `MOVE_NOT_SCHEDULED`, `MOVE_NOT_ACTIVE`; `403` codes `FIELD_NOT_ALLOWED`, `SELF_APPROVAL`, `FILE_LOCKED_FOR_EDIT`, `ROLE_NOT_ALLOWED`.
+
+`GET /workforce/permissions/me` (§32.1) now also returns `headOfDepartmentIds` and the real `tracksTime`; `isDepartmentHead` is also true for a head by head rows.
+
+### 35.1 Reads (`/workforce/people...`)
+
+| # | Route | Capability | Notes |
+|---|---|---|---|
+| R1 | `GET /workforce/people?filter&q&organizationId&departmentId&page&perPage` | `employee.read_basic` | filters `all`, `needs_finishing`, `no_contract`, `casual_pool`, `on_probation`, `exited`; a Branch/Store Manager sees their own site, a head sees the departments they head; each row carries only the `gaps` the viewer may see |
+| R2 | `GET .../summary` | `employee.read_basic` | counts |
+| R3 | `GET .../lookups` | `employee.read_basic` or `org.read` | `organizations`, departments, positions, exit and pay-change reasons, contract types, the probation rule, `assignableLoginRoles`, `exitUndoDays` |
+| R4 | `GET .../duplicate-check?nationalId&phone&email` | `employee.write_basic` | booleans only, never a name |
+| R5 | `GET .../unlinked-accounts` | `employee.lifecycle` | active human logins with no file (to adopt) |
+| R6 | `GET .../me` | `me.file` | own file, clear values |
+| R7 | `GET .../:id` | `employee.read_basic` or `me.file` | `EmployeeFileView`: sensitive fields omitted with `locked` listing the groups; IDs and bank numbers masked (`•••• 5678`) unless it is the person's own; `completeness`, `probation`, `exit`, `timeline`, `nextSteps` and `actions` (which buttons the viewer may show) |
+| R8 | `GET .../:id/pay` | `payprofile.read` or `me.payprofile` | `PayView` with history, pending change, hourly equivalent; **writes `people.pay_opened`** unless own |
+| R9, R10 | `GET .../:id/documents`, `.../:id/documents/:docId` | `employee.read_sensitive` or `me.file` | list (or `{ locked }`), then `{ url }`; opening writes `people.document_opened` unless own |
+| R11 | `GET .../pay-changes?status=PENDING` | `payprofile.approve` or `payprofile.write` | for the Director's list |
+
+### 35.2 Writes
+
+| # | Route | Capability | Body (Zod in `people-validators.ts`) |
+|---|---|---|---|
+| W1–W4 | `GET/POST/PATCH/DELETE .../drafts[/:id]` | `employee.write_basic` | `DraftBodySchema` (a draft is not a person; the only delete) |
+| W5 | `POST /workforce/people` → `201 { employee, login: { created, reason? }, nextStep }` | `employee.write_basic` | `HireBodySchema`: `who`, `job`, optional `pay` (HR), `statutory` (HR), `login` (HR), `existingUserId` (adopt), `confirmDuplicatePhone`. Pay set at hire is in force at once |
+| W6 | `PATCH .../:id` | `employee.write_basic` / `employee.write_sensitive` | `UpdateEmployeeSchema` (strict; a manager only while the file is `ONBOARDING`) |
+| W7, W8 | `PATCH .../me`, `POST .../:id/photo`, `.../me/photo` | `me.file` / `employee.write_basic` | `PatchMeSchema`; photo multipart `file` (JPEG, PNG, WebP, 5 MB) |
+| W9 | `PUT .../:id/pay-profile` | `payprofile.write` | payout, bank, hours (never the amount); a `reason` when an existing bank account changes |
+| W10, W11 | `POST .../:id/pay-changes`, `POST .../pay-changes/:changeId/decision` | `payprofile.write`, `payprofile.approve` | request, then APPROVE or DECLINE (a decline needs a note); never your own |
+| W12 | `POST .../:id/contract` | `employee.write_sensitive` | `ContractSchema`; completes a waiting probation confirmation |
+| W13, W14 | `POST .../:id/probation-decision`, `.../probation-notes` | `employee.lifecycle`, `probation.note` | CONFIRM, EXTEND (months, reason) or END (returns `{ next: 'EXIT', suggestedLastDay }`, changes nothing) |
+| W15–W18 | `POST .../:id/transfer/preview`, `.../transfer`, `.../loan`, `.../moves/:moveId/cancel`, `.../end` | `employee.lifecycle` | dated; a transfer or loan starting later is applied by the scheduler |
+| W19–W22 | `POST .../:id/exit/preview`, `.../exit`, `PATCH .../exit/checklist`, `POST .../exit/undo` | `employee.lifecycle` | `ExitSchema`; undo to 7 days after the last day, returns the file plus `notRestored[]` |
+| W23, W24 | `POST .../:id/rehire`, `.../login` | `employee.lifecycle` | rehire only after the undo window; login returns `{ userId }` |
+| W25–W28 | `POST .../:id/file-requests`, `.../file-requests/:requestId/remind`, `.../verify-statutory`, `.../documents` (multipart), `.../reveal` | `employee.write_basic`, `employee.write_sensitive`, `employee.read_sensitive` or `me.file` | reveal returns the clear value of one ID or bank field and writes `people.sensitive_revealed` unless own |
+
+The Organisation endpoints (O1 to O9) and the positions endpoints belong to slice 1b; `workforceOrgRouter` is mounted and empty.
+

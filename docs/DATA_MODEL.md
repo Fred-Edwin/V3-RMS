@@ -3132,6 +3132,31 @@ Four new tables, plain id columns and no relations to `users`, `organizations` o
 
 Enums: `RuleGroup`, `AuditCategory`, `AuditChannel`. Triggers and partial indexes are hand-written SQL in the migration (Prisma does not model them, so `prisma migrate diff` shows nothing).
 
+## 9. Workforce People (slice 1a, migration `20261017111315_workforce_people`)
+
+Thirteen tables and seven enums, in `backend/prisma/schema/workforce/people.prisma`. Dates are `@db.Date` holding the Nairobi calendar day; money is `Decimal(12,2)`; the place column is `organization_id`. Every query is scoped by `company_id` (directly or through the employee). Nothing about a person is ever deleted; a `User` with an `Employee` cannot be deleted (restrict). Detail: `backend/src/modules/workforce/people/README.md`.
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `employees` | The employee file | `company_id` + `employee_number` unique (`W-0001`, one series per company); `user_id` unique, null for a casual; `status` ONBOARDING, ACTIVE, ON_LEAVE, SUSPENDED, NOTICE, EXITED; `pay_type` MONTHLY_SALARY or DAILY_RATE; `tracks_time` + `tracks_time_override`; probation dates and extension count; ID, KRA, SHA, NSSF, HELB numbers, DOB, address, emergency contact; `statutory_verified_*`; `legacy_profile_id` links the old HR profile |
+| `contracts` | A contract record (no PDF yet) | check `ends_on >= starts_on`; optional link to the legacy `contract_types` (leave policy hangs off it until slice 5) |
+| `pay_profiles` | One per employee | `amount` optional (set later by HR), standard week/day hours, payout method BANK, MPESA or CASH and the details; check `amount >= 0` |
+| `pay_changes` | Pay history with the Director's decision | PENDING, APPROVED, DECLINED, CANCELLED; unique partial index: one PENDING per employee; `applied_at` set when the profile took the amount |
+| `employment_spells` | One per stay (hire, rehire) | unique partial index: one open spell (`ended_on IS NULL`) per employee; `exit_snapshot` JSON records what the finalise changed so an undo can restore it |
+| `employee_moves` | Transfer or loan (send to another site) | SCHEDULED, ACTIVE, DONE, CANCELLED; unique partial index: one scheduled TRANSFER per employee; loan check: from site differs from to site |
+| `department_heads` | Who heads a department, with dates | substantive or acting; unique partial indexes: one substantive head per department, one open row per employee; written by 1b (backfilled from today's flags now) |
+| `positions` | Job titles, per company | `default_tracks_time`, `login_role`, `casuals_allowed`; unique `(company_id, name)` |
+| `department_positions` | Which departments offer which positions | composite key |
+| `file_requests` | "Ask Joy for her emergency contact" | resolved when the person fills the field |
+| `probation_notes` | Notes by a head, Branch Manager or HR | verdict GOOD or CONCERNS |
+| `employee_drafts` | The Add employee wizard's saved steps | removed on hire; the scheduler drops drafts older than 30 days |
+| `departments` (extended) | Inventory's table (Block 1) | adds `description`; relations to employees, heads, positions; the contract's `inventoryTag` and `isActive` are the existing `key` and `status`; partial unique index `(organization_id, key) WHERE key IS NOT NULL` |
+| `hr_documents` (changed) | Legacy documents | adds `employee_id`; `employee_profile_id` becomes optional |
+
+Enums: `PayType`, `EmploymentStatus`, `ContractStatus`, `PayoutMethod`, `PayChangeStatus`, `MoveKind`, `MoveStatus`.
+
+**Backfill (same migration).** One employee per active human login (not the System Admin, display accounts, inactive or deleted users), numbered `W-####`; an empty pay profile (bank details come across); one spell; a contract where the legacy profile named a type; starter positions; departments from role (a user's `department_id` wins); heads from today's flags. Idempotent; proven by `backend/scripts/proof/people-backfill-proof.sh`.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

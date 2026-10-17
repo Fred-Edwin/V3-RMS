@@ -13,6 +13,7 @@
         "format": "prettier --write .",
         "test": "vitest run",
         "test:watch": "vitest",
+        "proof:people-backfill": "bash scripts/proof/people-backfill-proof.sh",
         "test:workforce-tz": "TZ=UTC vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates && TZ=Africa/Nairobi vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates && TZ=America/Los_Angeles vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate dev",
