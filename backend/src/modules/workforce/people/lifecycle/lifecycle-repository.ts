@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { ContractStatus, EmploymentStatus, MoveKind, MoveStatus } from '@prisma/client';
-import { prisma } from '../../../config/database';
-import type { Db } from './employees-repository';
+import { prisma } from '../../../../config/database';
+import type { Db } from '../employees/employees-repository';
 
 /** Contract, probation, moves, exit, undo and rehire. Every query names the company, directly or through the employee. */
 const ACTIVE_HEAD = (today: Date): Prisma.DepartmentHeadWhereInput => ({

@@ -1,12 +1,12 @@
 import type { Prisma } from '@prisma/client';
-import { logger } from '../../../utils/logger';
-import { runAudited } from '../_shared/audit/audit-writer';
-import type { AuditActor, AuditChannelCode, AuditEntryInput, JsonValue } from '../_shared/audit/audit.types';
-import type { WorkforceEvent } from '../_shared/events';
-import { addDays, fromDateColumn, toDateColumn, type NairobiDate } from '../_shared/time/nairobi-time';
-import { employeesRepository } from './employees-repository';
-import { accountGateway } from './people-account-gateway';
-import { told } from './people-context';
+import { logger } from '../../../../utils/logger';
+import { runAudited } from '../../_shared/audit/audit-writer';
+import type { AuditActor, AuditChannelCode, AuditEntryInput, JsonValue } from '../../_shared/audit/audit.types';
+import type { WorkforceEvent } from '../../_shared/events';
+import { addDays, fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { employeesRepository } from '../employees/employees-repository';
+import { accountGateway } from '../people-account-gateway';
+import { told } from '../people-context';
 import { lifecycleRepository, type LifecycleEmployee, type MoveWithEmployee } from './lifecycle-repository';
 
 /**

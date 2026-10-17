@@ -1,10 +1,10 @@
-import { logger } from '../../../utils/logger';
-import { runAudited } from '../_shared/audit/audit-writer';
-import { fromDateColumn, nairobiToday, toDateColumn, type NairobiDate } from '../_shared/time/nairobi-time';
-import { draftsRepository } from './drafts-repository';
-import { lifecycleSweeps } from './lifecycle-service';
-import { payRepository } from './pay-repository';
-import { DRAFT_KEEP_DAYS } from './people.constants';
+import { logger } from '../../../../utils/logger';
+import { runAudited } from '../../_shared/audit/audit-writer';
+import { fromDateColumn, nairobiToday, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { draftsRepository } from '../hire/drafts-repository';
+import { lifecycleSweeps } from '../lifecycle/lifecycle-sweeps';
+import { payRepository } from '../pay/pay-repository';
+import { DRAFT_KEEP_DAYS } from '../people.constants';
 import { schedulerRepository } from './scheduler-repository';
 
 /**

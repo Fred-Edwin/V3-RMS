@@ -1,5 +1,5 @@
 import type { HrDocumentType, Prisma, UserRole } from '@prisma/client';
-import { prisma } from '../../../config/database';
+import { prisma } from '../../../../config/database';
 
 /**
  * All Prisma access for reading and lightly editing an employee file. Every query carries `companyId` (or, for the few

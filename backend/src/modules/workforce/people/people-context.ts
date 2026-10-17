@@ -2,8 +2,12 @@ import { ForbiddenError } from '../../../utils/errors';
 import { logger } from '../../../utils/logger';
 import type { AuditActor } from '../_shared/audit/audit.types';
 import { getWorkforceNotifier } from '../_shared/events';
+import { nairobiToday, type NairobiDate } from '../_shared/time/nairobi-time';
 import type { AccessSubject } from '../_shared/workforce-access';
-import { employeesRepository } from './employees-repository';
+import { employeesRepository } from './employees/employees-repository';
+
+/** "Today" in Nairobi; `now` is passed in so tests can pick the day. */
+export const todayOf = (now: Date = new Date()): NairobiDate => nairobiToday(now);
 
 export interface ActorCtx {
   subject: AccessSubject;

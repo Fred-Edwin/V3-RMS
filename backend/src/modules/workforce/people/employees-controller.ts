@@ -1,10 +1,13 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError, ValidationError } from '../../../utils/errors';
 import type { AccessSubject } from '../_shared/workforce-access';
-import { employeesService } from './employees-service';
-import { hireService } from './hire-service';
-import { lifecycleService } from './lifecycle-service';
-import { payService } from './pay-service';
+import { employeeSensitiveService } from './employees/employee-sensitive-service';
+import { employeesService } from './employees/employees-service';
+import { hireService } from './hire/hire-service';
+import { exitService } from './lifecycle/exit-service';
+import { movesService } from './lifecycle/moves-service';
+import { probationService } from './lifecycle/probation-service';
+import { payService } from './pay/pay-service';
 import {
   ChangeParamsSchema,
   ContractSchema,
@@ -78,11 +81,11 @@ export const employeesController = {
     ok(res, await payService.view(subjectOf(req), IdParamsSchema.parse(req.params).id));
   },
   documents: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await employeesService.documents(subjectOf(req), IdParamsSchema.parse(req.params).id));
+    ok(res, await employeeSensitiveService.documents(subjectOf(req), IdParamsSchema.parse(req.params).id));
   },
   openDocument: async (req: Request, res: Response): Promise<void> => {
     const { id, docId } = DocumentParamsSchema.parse(req.params);
-    ok(res, await employeesService.openDocument(subjectOf(req), id, docId));
+    ok(res, await employeeSensitiveService.openDocument(subjectOf(req), id, docId));
   },
   payChanges: async (req: Request, res: Response): Promise<void> => {
     ok(res, await payService.listChanges(subjectOf(req), PayChangesQuerySchema.parse(req.query).status));
@@ -119,10 +122,10 @@ export const employeesController = {
   uploadDocument: async (req: Request, res: Response): Promise<void> => {
     const file = fileOf(req);
     const { documentType } = DocumentUploadSchema.parse(req.body);
-    ok(res, await employeesService.uploadDocument(subjectOf(req), IdParamsSchema.parse(req.params).id, { documentType, fileName: file.originalname, buffer: file.buffer }), 201);
+    ok(res, await employeeSensitiveService.uploadDocument(subjectOf(req), IdParamsSchema.parse(req.params).id, { documentType, fileName: file.originalname, buffer: file.buffer }), 201);
   },
   reveal: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await employeesService.reveal(subjectOf(req), IdParamsSchema.parse(req.params).id, RevealSchema.parse(req.body).field));
+    ok(res, await employeeSensitiveService.reveal(subjectOf(req), IdParamsSchema.parse(req.params).id, RevealSchema.parse(req.body).field));
   },
   askForDetail: async (req: Request, res: Response): Promise<void> => {
     ok(res, await employeesService.askForDetail(subjectOf(req), IdParamsSchema.parse(req.params).id, FileRequestSchema.parse(req.body).kind), 201);
@@ -151,44 +154,44 @@ export const employeesController = {
 
   // ---- lifecycle ------------------------------------------------------------------------------
   createContract: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.createContract(subjectOf(req), IdParamsSchema.parse(req.params).id, ContractSchema.parse(req.body)), 201);
+    ok(res, await probationService.createContract(subjectOf(req), IdParamsSchema.parse(req.params).id, ContractSchema.parse(req.body)), 201);
   },
   decideProbation: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.decideProbation(subjectOf(req), IdParamsSchema.parse(req.params).id, ProbationDecisionSchema.parse(req.body)));
+    ok(res, await probationService.decideProbation(subjectOf(req), IdParamsSchema.parse(req.params).id, ProbationDecisionSchema.parse(req.body)));
   },
   probationNote: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.addProbationNote(subjectOf(req), IdParamsSchema.parse(req.params).id, ProbationNoteSchema.parse(req.body)));
+    ok(res, await probationService.addProbationNote(subjectOf(req), IdParamsSchema.parse(req.params).id, ProbationNoteSchema.parse(req.body)));
   },
   previewTransfer: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.previewTransfer(subjectOf(req), IdParamsSchema.parse(req.params).id, TransferSchema.parse(req.body)));
+    ok(res, await movesService.previewTransfer(subjectOf(req), IdParamsSchema.parse(req.params).id, TransferSchema.parse(req.body)));
   },
   transfer: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.transfer(subjectOf(req), IdParamsSchema.parse(req.params).id, TransferSchema.parse(req.body)), 201);
+    ok(res, await movesService.transfer(subjectOf(req), IdParamsSchema.parse(req.params).id, TransferSchema.parse(req.body)), 201);
   },
   loan: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.loan(subjectOf(req), IdParamsSchema.parse(req.params).id, LoanSchema.parse(req.body)), 201);
+    ok(res, await movesService.loan(subjectOf(req), IdParamsSchema.parse(req.params).id, LoanSchema.parse(req.body)), 201);
   },
   cancelMove: async (req: Request, res: Response): Promise<void> => {
     const { id, moveId } = MoveParamsSchema.parse(req.params);
-    ok(res, await lifecycleService.cancelMove(subjectOf(req), id, moveId));
+    ok(res, await movesService.cancelMove(subjectOf(req), id, moveId));
   },
   endMove: async (req: Request, res: Response): Promise<void> => {
     const { id, moveId } = MoveParamsSchema.parse(req.params);
-    ok(res, await lifecycleService.endMove(subjectOf(req), id, moveId));
+    ok(res, await movesService.endMove(subjectOf(req), id, moveId));
   },
   previewExit: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.previewExit(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitSchema.parse(req.body)));
+    ok(res, await exitService.previewExit(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitSchema.parse(req.body)));
   },
   exit: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.exit(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitSchema.parse(req.body)));
+    ok(res, await exitService.exit(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitSchema.parse(req.body)));
   },
   exitChecklist: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.updateExitChecklist(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitChecklistSchema.parse(req.body)));
+    ok(res, await exitService.updateExitChecklist(subjectOf(req), IdParamsSchema.parse(req.params).id, ExitChecklistSchema.parse(req.body)));
   },
   undoExit: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.undoExit(subjectOf(req), IdParamsSchema.parse(req.params).id));
+    ok(res, await exitService.undoExit(subjectOf(req), IdParamsSchema.parse(req.params).id));
   },
   rehire: async (req: Request, res: Response): Promise<void> => {
-    ok(res, await lifecycleService.rehire(subjectOf(req), IdParamsSchema.parse(req.params).id, RehireSchema.parse(req.body)));
+    ok(res, await exitService.rehire(subjectOf(req), IdParamsSchema.parse(req.params).id, RehireSchema.parse(req.body)));
   },
 };

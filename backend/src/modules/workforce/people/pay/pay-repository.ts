@@ -1,6 +1,6 @@
 import type { PayChangeStatus, PayoutMethod, Prisma } from '@prisma/client';
-import { prisma } from '../../../config/database';
-import type { Db } from './employees-repository';
+import { prisma } from '../../../../config/database';
+import type { Db } from '../employees/employees-repository';
 
 /** Pay profile, pay changes and pay history. Every query names the company, directly or through the employee. */
 const EMPLOYEE_BRIEF = { id: true, companyId: true, siteId: true, userId: true, name: true, departmentId: true, status: true, payType: true, department: { select: { key: true } } } as const;

@@ -1,5 +1,5 @@
-import { prisma } from '../../../config/database';
-import type { Db } from './employees-repository';
+import { prisma } from '../../../../config/database';
+import type { Db } from '../employees/employees-repository';
 
 /** Reads and writes for the daily People tasks. Each result names its company so the audit entry is filed correctly. */
 export const schedulerRepository = {

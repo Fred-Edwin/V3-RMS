@@ -19,16 +19,21 @@ describe.skipIf(!enabled)('People flows in the database', () => {
   const monthly = '45500.00';
   const raise = '52750.00';
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loaded lazily; typed by use below
   type Mods = Awaited<ReturnType<typeof load>>;
   const load = async () => {
     const { prisma } = await import('../../../config/database');
     const time = await import('../_shared/time/nairobi-time');
-    const { hireService } = await import('./hire-service');
-    const { employeesService } = await import('./employees-service');
-    const { payService } = await import('./pay-service');
-    const { lifecycleService } = await import('./lifecycle-service');
-    const { runPeopleScheduler } = await import('./people-scheduler');
+    const { hireService } = await import('./hire/hire-service');
+    const { employeesService: reads } = await import('./employees/employees-service');
+    const { employeeSensitiveService } = await import('./employees/employee-sensitive-service');
+    const { payService } = await import('./pay/pay-service');
+    const { probationService } = await import('./lifecycle/probation-service');
+    const { movesService } = await import('./lifecycle/moves-service');
+    const { exitService } = await import('./lifecycle/exit-service');
+    const { runPeopleScheduler } = await import('./scheduler/people-scheduler');
+    // The test bodies talk to "employees" and "lifecycle" as a whole; these compose the split services.
+    const employeesService = { ...reads, ...employeeSensitiveService };
+    const lifecycleService = { ...probationService, ...movesService, ...exitService };
     const { auditRepository } = await import('../_shared/audit/audit-repository');
     const { verifyAuditChain } = await import('../_shared/audit/audit-hash');
     const { getEmployee, getActiveLoans, payAmountOn } = await import('./people-door');

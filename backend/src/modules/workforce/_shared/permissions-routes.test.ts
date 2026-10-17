@@ -17,7 +17,7 @@ vi.mock('../../../middleware/authenticate', () => ({
 }));
 
 // The head rows and the file's "clocks in" come from the repository (slice 1); the test feeds them through a header.
-vi.mock('../people/employees-repository', () => ({
+vi.mock('../people/employees/employees-repository', () => ({
   employeesRepository: {
     loadSubjectFacts: async () => ({ employeeId: null, tracksTime: null, headOfDepartmentIds: factsHeads }),
   },

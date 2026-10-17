@@ -1,7 +1,7 @@
 import type { ContractStatus, EmploymentStatus, PayoutMethod, PayType, Prisma } from '@prisma/client';
-import { prisma } from '../../../config/database';
-import { EMPLOYEE_NUMBER_PREFIX } from './people.constants';
-import type { Db } from './employees-repository';
+import { prisma } from '../../../../config/database';
+import type { Db } from '../employees/employees-repository';
+import { EMPLOYEE_NUMBER_PREFIX } from '../people.constants';
 
 /** Reads and creates for hiring. Every query carries the company (directly or through the site). */
 export interface NewEmployee {

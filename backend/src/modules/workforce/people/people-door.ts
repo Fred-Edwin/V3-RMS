@@ -1,7 +1,7 @@
 import { fromDateColumn, toDateColumn, type NairobiDate } from '../_shared/time/nairobi-time';
-import { employeesRepository } from './employees-repository';
-import { lifecycleRepository } from './lifecycle-repository';
-import { payService } from './pay-service';
+import { employeesRepository } from './employees/employees-repository';
+import { lifecycleRepository } from './lifecycle/lifecycle-repository';
+import { payService } from './pay/pay-service';
 
 /** What the rest of the system may ask about a person (exported through the Workforce door). */
 export interface EmployeeSummary {

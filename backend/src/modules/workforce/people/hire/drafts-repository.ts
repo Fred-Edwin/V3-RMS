@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../../../config/database';
-import type { Db } from './employees-repository';
+import { prisma } from '../../../../config/database';
+import type { Db } from '../employees/employees-repository';
 
 /** Add-employee drafts. A draft belongs to the person who started it; nothing here is a person on file. */
 export const draftsRepository = {

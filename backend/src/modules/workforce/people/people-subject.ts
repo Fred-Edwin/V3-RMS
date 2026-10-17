@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { UnauthorizedError } from '../../../utils/errors';
 import { nairobiToday, toDateColumn } from '../_shared/time/nairobi-time';
 import type { AccessSubject } from '../_shared/workforce-access';
-import { employeesRepository, type SubjectFacts } from './employees-repository';
+import { employeesRepository, type SubjectFacts } from './employees/employees-repository';
 
 export type { SubjectFacts };
 

@@ -1,17 +1,17 @@
 import type { z } from 'zod';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../utils/errors';
-import { runAudited } from '../_shared/audit/audit-writer';
-import { fromDateColumn, nairobiDateOf, parseNairobiDate, toDateColumn, type NairobiDate } from '../_shared/time/nairobi-time';
-import { assertInScope, inScope, lockedGroupsFor, workforceCan, type AccessSubject, type AccessTarget } from '../_shared/workforce-access';
-import { employeesRepository } from './employees-repository';
-import { todayOf } from './employees-service';
-import { resolveActor, told } from './people-context';
-import { maskTail } from './people-masking';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
+import { runAudited } from '../../_shared/audit/audit-writer';
+import { fromDateColumn, nairobiDateOf, parseNairobiDate, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { assertInScope, inScope, lockedGroupsFor, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
+import { employeesRepository } from '../employees/employees-repository';
+import { targetOf } from '../people-access';
+import { resolveActor, told, todayOf } from '../people-context';
+import { maskTail } from '../people-masking';
+import type { PayChangeReason } from '../people.constants';
+import type { PayChangeRow, PayView } from '../people.types';
+import type { PayChangeDecisionSchema, PayChangeSchema, PayProfileSchema } from '../people-validators';
 import { hourlyEquivalent } from './pay-math';
 import { payRepository } from './pay-repository';
-import type { PayChangeReason } from './people.constants';
-import type { PayChangeRow, PayView } from './people.types';
-import type { PayChangeDecisionSchema, PayChangeSchema, PayProfileSchema } from './people-validators';
 
 export type PayProfileBody = z.infer<typeof PayProfileSchema>;
 export type PayChangeBody = z.infer<typeof PayChangeSchema>;
@@ -19,13 +19,6 @@ export type PayDecisionBody = z.infer<typeof PayChangeDecisionSchema>;
 
 type EmployeeBrief = NonNullable<Awaited<ReturnType<typeof payRepository.findEmployee>>>;
 type ChangeRow = Awaited<ReturnType<typeof payRepository.historyOf>>[number];
-
-const targetOf = (e: Pick<EmployeeBrief, 'userId' | 'siteId' | 'departmentId' | 'department'>): AccessTarget => ({
-  userId: e.userId,
-  siteId: e.siteId,
-  departmentId: e.departmentId,
-  departmentTag: e.department?.key ?? null,
-});
 
 const money = (amount: { toFixed(places: number): string }): string => amount.toFixed(2);
 
