@@ -103,7 +103,7 @@ export function LifeBand({ file }: { file: EmployeeFile }) {
   const events = lifeEvents(file);
   if (events.length === 0) return null;
   return (
-    <section aria-label="Life at Wendo" className="flex flex-col gap-3 border border-wds-border bg-wds-surface px-5 py-4">
+    <section aria-label="Life at Wendo" className="flex min-w-0 flex-col gap-3 overflow-x-auto border border-wds-border bg-wds-surface px-5 py-4">
       <div className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">LIFE AT WENDO</div>
       <LifeTimeline events={events} />
     </section>

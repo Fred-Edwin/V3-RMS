@@ -42,7 +42,7 @@ export function MyFileScreen() {
         </div>
       ) : (
         <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-4 pb-10 pt-6">
-          <header className="flex items-center gap-4 bg-wds-neutral-950 px-5 py-5 text-wds-primary-fg">
+          <header className="flex items-center gap-4 bg-wds-sidebar-mid px-5 py-5 text-wds-primary-fg">
             <PersonAvatar name={data.name} size="lg" photoUrl={data.photoUrl} />
             <div className="flex min-w-0 flex-col gap-1">
               <h1 className="m-0 font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em]">{data.name}</h1>
@@ -74,7 +74,7 @@ function Progress({ file }: { file: NonNullable<ReturnType<typeof useEmployeeFil
   return (
     <div className="flex items-center gap-2.5">
       <div role="progressbar" aria-label="File finished" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1 w-40 bg-wds-neutral-800">
-        <div className="h-full bg-wds-caramel-400" style={{ width: `${(done / total) * 100}%` }} />
+        <div className="h-full bg-wds-caramel-300" style={{ width: `${(done / total) * 100}%` }} />
       </div>
       <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] opacity-80">{done} OF {total}</span>
     </div>
