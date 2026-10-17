@@ -2,7 +2,25 @@
 
 The people who work for Wendo, what they are scheduled for, what they worked, and what they are paid. Being redone from scratch in the design lane (`docs/sessions/design-lane-workforce.md`). Nothing is built yet except the foundation.
 
-**Build status:** slice 0 (foundation: access table, time engine, audit writer, rules store; backend only, no screens) **built 6 Oct 2026**, awaiting the owner's approval, on branch `feat/workforce-foundation`. Contract: [slice-0-contract.md](slice-0-contract.md) (as built, frozen). Code: `backend/src/modules/workforce/`. Slices 1 to 7 not started.
+**Build status (17 Oct 2026):** slice 0 (foundation: access table, time engine, audit writer, rules store; backend only, no screens) is **merged to main** (PR #86, 6 Oct 2026). Contract: [slice-0-contract.md](slice-0-contract.md) (as built, frozen). Code: `backend/src/modules/workforce/`. Slices 2 to 7 not started. Slice 1 (People) is next; a contract was drafted for it on branch `feat/workforce-people` (`slice-1-contract.md`, `handoff-slice-1-backend.md`, never merged). **Owner decision, 17 Oct 2026: that draft is kept as reference only, not as a frozen spec, and deleted when slice 1 ships.**
+
+**How slices run (owner decision, 17 Oct 2026).** No contract session and no parallel back end and front end. Each slice is cut into vertical pieces that fit one session, and each piece runs as one back-end session, then one front-end session, one after the other, the owner checking in between. The back-end session's record is the code, its tests, `DATA_MODEL.md`, `API_CONTRACT.md` and the sub-module README. Before the first front-end session there is one session that builds the shared Workforce UI kit (hover, focus and motion rules, the shared components), so screens do not each invent their own.
+
+**Build order.**
+
+| Slice | What | Needs designs |
+|---|---|---|
+| 0 Foundation | Access table, time engine, audit writer, rules store | none (done) |
+| 1a Hire and the file | Employees, contracts, pay profiles, hire, the file, probation, transfer, exit, rehire, the people backfill | Chapters 2, 4 (and the Chapter 1 role homes' people data) |
+| 1b Departments and heads | Organisation page, department pages, positions, assigning and acting heads, the head claims, the dated-change scheduler for heads | Chapter 3 |
+| 2 Rota | Shift templates, build and publish, amend, printed rota | Chapter 5 |
+| 3 Attendance | Clock in and out, undo, shift-end prompt, Today board, fixing time | Chapters 6, 7 |
+| 4 Timesheets, overtime and approvals | Timesheets, Report a problem, overtime, Waiting for you, Rules screens, My time | Chapters 8, 9, 13, 15 |
+| 5 Leave | Request, approve, balances, calendar, minimum cover | Chapter 10 |
+| 6 Payroll | Pay runs, payslips, casual vouchers | Chapter 12 |
+| 7 Conduct, audit and documents | Warnings and appeals, audit log screens, signed documents index | Chapters 11, 14, 17 |
+
+Chapter 16 (When things go wrong) and the Interaction spec and States kit apply to every slice.
 
 ## Where things live
 

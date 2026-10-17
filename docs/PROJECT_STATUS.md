@@ -1,6 +1,6 @@
 # Wendo RMS: where we are
 
-**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 10 Oct 2026 (Branch day back end built). Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
+**The one page to read for the state of the refactor.** Plain English, owner-facing. Last updated 17 Oct 2026 (Workforce status corrected). Whoever finishes a piece of work updates the matching row here in the same change (see "Keeping this current" at the bottom). Details live in the linked docs; this page only says what is done, what is next and what is waiting on whom.
 
 ## The shape of the work
 
@@ -10,8 +10,9 @@ The product is being rebuilt one feature at a time into 10 modules plus Inventor
 |---|---|---|
 | **Shared table (code)** | One table component for every table, built to UI_BUILD_RULES §4a | Built and tested; Stock items, Stock ledger, Catalog, Suppliers, Audit log, Prep history, Discrepancies and Requisition history are on it (branch `feat/shared-table-component`, not pushed). Purchasing tabs and Team still to move; list in [features/inventory/table-audit.md](features/inventory/table-audit.md) |
 | **Inventory (code)** | Purchasing and Receiving on a mock-data front-end, then the rest of the Central Store | Mock Sessions 1 and 2 merged and deployed (#81), and the one shell is merged and deployed (#83). Mock is complete and the client approved it at the demo (6 Oct 2026). Now building the approved Central Store parts live, front-end and back-end (see "Go-live sequence" below) |
-| **Workforce (design)** | Drawing screens in Paper, group by group (branch `docs/workforce-design`, worktree lane-3) | Groups A and B approved. Group C in progress |
-| **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce code depends on it |
+| **Workforce (design)** | All 17 chapters, the Interaction spec, the States kit and the wording table are drawn in Paper (5 Oct 2026) | Groups A and B approved by the owner. Groups C, D and E drawn, owner review in progress (17 Oct 2026) |
+| **Workforce (code)** | Built slice by slice: a back-end session then a front-end session per vertical piece | Slice 0 (foundation, back end only) merged to main (PR #86, 6 Oct 2026). Slice 1a (Hire and the file) is next. Slices 2 to 7 not started. See the Workforce section below |
+| **Platform (code)** | Access and Organisation, Notifications and Audit | Not started. Workforce slice 1 needs two one-line back-relations in `access.prisma` (no column changes) and the Access owner's agreement |
 
 ## Inventory (code lane)
 
@@ -63,20 +64,30 @@ Rules that apply to all of it: [features/inventory/README.md](features/inventory
 
 **Known gaps in Inventory code:** the access table already has the order capabilities, but the old purchasing routes still use old role lists (moved in the Purchasing back-end session); Requisitions, Dispatch and Branch day (and a Department Head's branch waste) still use old `requireRole` lists until each is rebuilt; Stock, Counting, Waste and Prep are on the access table. The code sidebar matches the "geometric" Paper master (checked 5 Oct 2026); the one known difference is the round footer avatar, an owner decision of 15 Sep 2026.
 
-## Workforce (design lane)
+## Workforce
 
-You approve as the designer; the client has not approved yet. No Workforce code is written. Workforce docs live on the `docs/workforce-design` branch in `~/Projects/V3-RMS-lanes/lane-3/docs/features/workforce/` until that branch is merged.
+You approve as the designer; the client has not approved yet. The design docs are merged to main in `docs/features/workforce/` (the Workforce README is the detail page). Paper pages: "Workforce · A. The people", "B. Schedule and time", "C. Leave and conduct", "D. Pay", "E. Trust and shared parts". The Progress Hub (branch `feat/progress-hub`) shows the client these chapters; its copy of the Workforce README says C to E are approved, which main does not yet record. Main is right until the owner says otherwise.
+
+**Design**
 
 | Group | Chapters | Status |
 |---|---|---|
 | A. The people | 1 Role homes, 2 Hire, 3 Departments and heads, 4 Employee file | Approved |
 | B. Schedule and time | 5 Build the rota, 6 A day at work, 7 Today board and fixing time, 8 Timesheets and overtime, 9 My time and Report a problem, plus the shared Notifications kit | Approved |
-| C. Leave and conduct | 10 Leave, 11 Conduct | Chapter 10: 7 steps drawn in Paper, not yet reviewed. Chapter 11 not started |
-| D. Pay | 12 Payroll, 13 Rules | Not started |
-| E. Trust and shared parts | 14 Audit and security, 15 Waiting for you, 16 When things go wrong, Signed documents index | Not started |
-| Module-wide | Interaction spec, states kit, wording table | Not started |
+| C. Leave and conduct | 10 Leave, 11 Conduct | Drawn (cleanup pass done 5 Oct 2026), owner review in progress |
+| D. Pay | 12 Payroll, 13 Rules | Drawn (cleanup pass done 5 Oct 2026), owner review in progress |
+| E. Trust and shared parts | 14 Audit and security, 15 Waiting for you, 16 When things go wrong, 17 Signed documents | Drawn (cleanup pass done 5 Oct 2026), owner review in progress |
+| Module-wide | Interaction spec, states kit, wording table | Drawn, owner review in progress |
 
-**After the designs are approved:** the Workforce build starts in a code lane, on top of the Platform (Access and Organisation) work. Open questions for the owner and the client (petty cash for casuals, holiday rules, overtime multipliers and deduction limits to be confirmed by the accountant or lawyer, statutory deductions) are listed in the Workforce README.
+**Build** (seven slices after slice 0, cut into vertical pieces; each piece is one back-end session then one front-end session, one after the other, no contract session; owner decision 17 Oct 2026. A shared UI kit session comes before the first front end)
+
+| Slice | What | Status |
+|---|---|---|
+| 0 Foundation | Access table, time engine, audit writer, rules store; back end only | Merged to main (PR #86, 6 Oct 2026). Contract frozen as built: [slice-0-contract.md](features/workforce/slice-0-contract.md) |
+| 1 People, in two pieces: 1a Hire and the file, 1b Departments and heads | Employees, contracts, pay profiles, hire, exit, transfer; then departments, positions, heads | 1a back-end session next, on a fresh branch off main. The old contract draft (`feat/workforce-people`) is kept as reference and deleted when slice 1 ships |
+| 2 Rota, 3 Attendance, 4 Timesheets, overtime and approvals, 5 Leave, 6 Payroll, 7 Conduct, audit and documents | See the order in the Workforce README | Not started |
+
+**Before slices build:** the owner finishes reviewing Groups C to E, because slices 5 to 7 depend on them. Open questions for the owner and the client (petty cash for casuals, holiday rules, overtime multipliers and deduction limits to be confirmed by the accountant or lawyer, statutory deductions) are listed in the Workforce README.
 
 ## The other modules
 
@@ -87,7 +98,7 @@ Not started: Menu and Pricing, Communications, Finance and Receivables, Reportin
 - ~~Run the client demo~~ done 6 Oct 2026. Client feedback: remove prices and estimates from the LPO; the Store Attendant also needs desktop screens.
 - Confirm with the client which of these demo choices they settled (list in the demo script; any not recorded stay open): whether a payment bigger than the invoice is allowed, whether the Attendant may see prices, whether the Receiving sidebar link stays next to Purchasing, whether the Branch Manager and Director should be able to settle disputes.
 - Two open Inventory decisions: what a miscount correction does to the ledger, and whether the attendant sees on-hand figures when fulfilling a dispatch ([decisions.md](features/inventory/decisions.md)).
-- Workforce Group C review, as the designer.
+- Workforce Groups C, D and E review, as the designer, and the check after the slice 1a back-end session.
 - Client approval of Central Store role names (not yet given).
 
 ## Keeping this current

@@ -41,7 +41,7 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 | 1 | **Company and Branch foundation** (see next section), run right after Inventory step 1 (the Paper catch-up, design-only, so it conflicts with no code) and before the owner's pending local edits are merged, pushed or deployed | Slot confirmed by the owner, 3 Oct 2026 |
 | 1b | **Stock ledger door** (Inventory): one posting function for stock movements, with tests; each Inventory rebuild then moves its own writes onto it | Needed before the Inventory lane starts; today 9 sub-modules write `inventoryTransaction` directly |
 | 2 | **Access & Organisation + Notifications & Audit**: move the auth core with no behaviour change; rebuild the branch, user and settings screens | Then Assistant layer 1 can start |
-| 3 | **Workforce** (**client priority**, 3 Oct 2026; designs first) | Client ask: schedule staff, record clock-in and shift end, track hours per person, and have worked hours drive overtime pay and deductions. So: schedule and time first, then hours-to-pay, then the people screens. Starts as soon as its first designs are approved |
+| 3 | **Workforce** (**client priority**, 3 Oct 2026; designs first) | Client ask: schedule staff, record clock-in and shift end, track hours per person, and have worked hours drive overtime pay and deductions. The 17 chapters are drawn (5 Oct 2026); slice 0 (foundation) is merged (PR #86, 6 Oct 2026); slice 1 (People) has a drafted contract. The build runs in slices, the order is in [features/workforce/README.md](features/workforce/README.md). Slice order follows the data (people, then rota, clock, timesheets, leave, pay), not the client's headline ask, because every later slice reads the people records |
 | 4 | **Menu & Pricing** | Small; Orders depends on it |
 | 5 | **Communications** | Assistant layer 3 delivers through it |
 | 6 | **Finance & Receivables** | Accounts, Other income, Reconciliation |
@@ -71,7 +71,7 @@ After the pilot came the Company/Branch rename (alone, done, PR #72) and the **s
 | **Code lane A: Inventory** | Purchasing + Receiving, then Prep, then Stock & counts, then Waste, then Requisitions + Dispatch + Branch day once designed. One at a time inside the lane, because Purchasing, Suppliers, Counting and Stock import each other. |
 | **Code lane B: platform, then Workforce** | Access & Organisation + Notifications & Audit first (a move; no design needed, so it does not wait for Workforce designs). Switches to the Workforce build when its first designs are approved. |
 
-Why this shape: the client asked for Workforce to be prioritised, and no Workforce design exists yet, so the designs are the critical path; lane B uses the wait for the Access move, which Workforce builds on. Further lanes (Assistant layer 1 after Access, Menu & Pricing, Communications) start only when a lane frees up.
+Why this shape (as planned 3 Oct 2026; since then the Workforce designs were drawn and the Workforce foundation was built ahead of the Access move, which it does not depend on until slice 1): the client asked for Workforce to be prioritised, and no Workforce design existed then, so the designs were the critical path. Further lanes (Assistant layer 1 after Access, Menu & Pricing, Communications) start only when a lane frees up.
 
 ### Carried forward from the pilot (4 Oct 2026)
 

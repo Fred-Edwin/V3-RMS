@@ -252,6 +252,17 @@ steward, housekeeping) stay on the legacy bottom tabs in `app/app/_legacy-phone/
 screens are rebuilt, then move into the table and that folder is deleted. See
 `docs/sessions/one-shell-navigation.md`.
 
+**Feature 3 — Workforce.** All 17 chapters are designed in Paper (pages "Workforce · A" to "E");
+owner-approved for Groups A and B, Groups C to E under review (17 Oct 2026). Built slice by slice
+(vertical pieces, each one back-end session then one front-end session, run one after the other; no
+contract session; the owner checks between sessions). **Slice 0 (foundation:
+access table, time engine, audit writer, rules store) is merged**, in
+`backend/src/modules/workforce/`. Start at `docs/features/workforce/README.md` (build order, decisions,
+status), then the slice's contract. Same rules as Inventory: access is one table
+(`backend/src/modules/workforce/_shared/workforce-access.ts`, `requireCapability(...)`, never a new
+`requireRole(...)` list); every change goes through the audit writer in the same transaction; all
+workforce time maths goes through the Nairobi helpers in `_shared/time/`, never server-local time.
+
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
 (the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`
