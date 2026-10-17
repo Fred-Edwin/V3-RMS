@@ -12,17 +12,27 @@ import { cn } from "@/lib/cn"
  * heights, borders, and type. Composites consuming this match Paper's column
  * widths and cell content per-column.
  */
+/**
+ * `workforce` look (Paper Employees R3F-0/R3L-0, Shift templates 18BH-0, Audit log 1O9D-0). Additive: a table that never asks
+ * for it is drawn exactly as before. Header 36 px, 11 px mono, secondary grey, one ink rule; rows 56 px (42 px with
+ * `size="compact"`), `neutral-200` between rows; a selected row has a 3 px caramel bar and a warm fill.
+ */
+type TableLook = "default" | "workforce"
+const TableLookContext = React.createContext<TableLook>("default")
+
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto border border-wds-border bg-wds-surface">
-    <table
-      ref={ref}
-      className={cn("w-full caption-bottom font-wds-sans text-wds-body-sm", className)}
-      {...props}
-    />
-  </div>
+  React.HTMLAttributes<HTMLTableElement> & { look?: TableLook }
+>(({ className, look = "default", ...props }, ref) => (
+  <TableLookContext.Provider value={look}>
+    <div className="relative w-full overflow-auto border border-wds-border bg-wds-surface">
+      <table
+        ref={ref}
+        className={cn("w-full caption-bottom font-wds-sans text-wds-body-sm", className)}
+        {...props}
+      />
+    </div>
+  </TableLookContext.Provider>
 ))
 Table.displayName = "Table"
 
@@ -68,35 +78,53 @@ TableFooter.displayName = "TableFooter"
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement> & {
-    /** `two-line` is for rows whose first cell stacks two lines (Branch day History, Paper B10: 67 high). The default is unchanged. */
-    size?: "default" | "two-line"
+    /**
+     * `two-line` is for rows whose first cell stacks two lines (Branch day History, Paper B10: 67 high). The default is unchanged.
+     * `compact` is the Workforce look's 42 px row (Timesheets, Audit log); it only applies inside the `workforce` look.
+     */
+    size?: "default" | "two-line" | "compact"
   }
->(({ className, size = "default", ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      size === "two-line" ? "h-[67px]" : "h-[46px]",
-      "border-b border-wds-neutral-100 transition-colors hover:bg-wds-surface-sunken data-[state=selected]:bg-wds-surface-sunken",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, size = "default", ...props }, ref) => {
+  const workforce = React.useContext(TableLookContext) === "workforce"
+  return (
+    <tr
+      ref={ref}
+      className={cn(
+        workforce
+          ? size === "compact"
+            ? "h-[42px]"
+            : "h-14"
+          : size === "two-line"
+            ? "h-[67px]"
+            : "h-[46px]",
+        workforce
+          ? "border-b border-wds-neutral-200 transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:bg-wds-neutral-50 data-[state=selected]:bg-[color-mix(in_oklab,var(--wds-caramel-100)_55%,white)] data-[state=selected]:shadow-[inset_3px_0_0_var(--wds-caramel-600)]"
+          : "border-b border-wds-neutral-100 transition-colors hover:bg-wds-surface-sunken data-[state=selected]:bg-wds-surface-sunken",
+        className
+      )}
+      {...props}
+    />
+  )
+})
 TableRow.displayName = "TableRow"
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-[34px] px-wds-4 text-left align-middle font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.06em] text-wds-text-ink [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const workforce = React.useContext(TableLookContext) === "workforce"
+  return (
+    <th
+      ref={ref}
+      className={cn(
+        "px-wds-4 text-left align-middle font-wds-mono font-normal uppercase tracking-[0.06em] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        workforce ? "h-9 text-[11px] leading-[14px] text-wds-text-secondary" : "h-[34px] text-[10px] leading-3 text-wds-text-ink",
+        className
+      )}
+      {...props}
+    />
+  )
+})
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<
@@ -127,6 +155,8 @@ const TableCaption = React.forwardRef<
 TableCaption.displayName = "TableCaption"
 
 export {
+  TableLookContext,
+  type TableLook,
   Table,
   TableHeader,
   TableBody,

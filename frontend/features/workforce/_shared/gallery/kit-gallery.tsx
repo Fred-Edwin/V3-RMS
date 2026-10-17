@@ -56,6 +56,7 @@ import {
 } from '..';
 import { Label, Section } from './gallery-parts';
 import { SecretsSection } from './section-secrets';
+import { TableSection } from './section-table';
 
 /**
  * Dev gallery for the Workforce kit: every piece in every state, labelled with
@@ -120,6 +121,7 @@ export function KitGallery() {
           ['states', 'States kit'],
           ['notifications', 'Notifications'],
           ['secrets', 'PIN and code'],
+          ['table', 'Table'],
         ].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="text-wds-text-secondary underline-offset-2 hover:text-wds-text-ink hover:underline focus-visible:shadow-wds-ring focus-visible:outline-none">
             {label}
@@ -628,6 +630,7 @@ export function KitGallery() {
       </Section>
 
       <SecretsSection />
+      <TableSection />
     </main>
   );
 }

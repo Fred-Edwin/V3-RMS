@@ -27,3 +27,4 @@ export * from './components/states';
 export * from './components/inbox-row';
 export * from './components/key-value-rows';
 export * from './components/pin-field';
+export * from './components/table-cells';

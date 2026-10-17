@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { EmptyState, ErrorState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Button } from '../button';
 import { Skeleton } from '../skeleton';
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
+import { TableBody, TableCell, TableHead, TableHeader, TableLookContext, TableRow, type TableLook } from '../table';
 import { TablePager } from './table-pager';
 import { filterKeysOf, type TableFilter, TableToolbar } from './table-toolbar';
 import { hasActiveNarrowing, matchSummary, type TableQuery, totalPages, UNPAGED } from './table-query';
@@ -91,8 +91,10 @@ export interface DataTableProps<Row> {
   look?: 'default' | 'paper';
   /** Classes for the `<table>` itself, e.g. a minimum width so a narrow screen scrolls the table sideways instead of squeezing it. */
   tableClassName?: string;
-  /** `two-line` for rows whose first cell stacks two lines (Branch day History). The default row height is unchanged. */
-  rowSize?: 'default' | 'two-line';
+  /** `two-line` for rows whose first cell stacks two lines (Branch day History). The default row height is unchanged. `compact` is the Workforce 42 px row (needs `tableLook="workforce"`). */
+  rowSize?: 'default' | 'two-line' | 'compact';
+  /** `workforce` draws the header, rows and selected row as Workforce does (see `ui2/table`). Search, filters, pager and URL state are unchanged. */
+  tableLook?: TableLook;
   className?: string;
 }
 
@@ -158,6 +160,7 @@ export function DataTable<Row>({
   look = 'default',
   tableClassName,
   rowSize = 'default',
+  tableLook = 'default',
   className,
 }: DataTableProps<Row>) {
   const filterKeys = React.useMemo(() => filterKeysOf(filters), [filters]);
@@ -222,7 +225,7 @@ export function DataTable<Row>({
         <div className="w-full overflow-x-auto">
           <table aria-label={label} aria-busy={status === 'loading'} className={cn('w-full caption-bottom font-wds-sans text-wds-body-sm', tableClassName)}>
             <TableHeader>
-              <TableRow className="h-[30px] hover:bg-transparent">
+              <TableRow className={cn(tableLook === 'workforce' ? 'h-9' : 'h-[30px]', 'hover:bg-transparent')}>
                 {columns.map((c) => (
                   <TableHead key={c.id} style={c.width ? { width: c.width } : undefined} className={cn(c.align === 'right' && 'text-right', c.className, c.headClassName)}>
                     {c.header}
@@ -308,7 +311,7 @@ export function DataTable<Row>({
       >
         {showMatchLine && result ? matchSummary(result.total, term) : ''}
       </p>
-      {body}
+      <TableLookContext.Provider value={tableLook}>{body}</TableLookContext.Provider>
       {showPager && result ? (
         <TablePager
           page={query.page}
