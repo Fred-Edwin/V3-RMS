@@ -1,5 +1,5 @@
 import type { LifeEvent } from '../../../_shared';
-import { formatDayMonth } from '../../_shared/lib/people-dates';
+import { formatDayMonth, formatDayMonthYear } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, TimelineEvent } from '../../_shared/types/people-types';
 
 /**
@@ -54,6 +54,24 @@ export function eventText(e: TimelineEvent, file: Pick<EmployeeFile, 'position' 
     case 'EXIT':
       return `Left: ${EXIT_WORDS[d.reason as ExitReason] ?? 'Left'}`;
   }
+}
+
+export interface ActivityRow {
+  key: string;
+  when: string;
+  kind: 'Change' | 'Document' | 'Decision';
+  what: string;
+}
+
+const KIND_WORDS: Record<TimelineEvent['kind'], ActivityRow['kind']> = {
+  HIRED: 'Change', REHIRE: 'Change', PAY_CHANGE: 'Change', TRANSFER: 'Change', LOAN: 'Change', CONTRACT: 'Change', EXIT: 'Change', DOCUMENT: 'Document', PROBATION: 'Decision',
+};
+
+/** Every event on the file, newest first. The Activity tab shows these until the Audit log can be read by person. */
+export function activityRows(file: EmployeeFile): ActivityRow[] {
+  return [...file.timeline]
+    .sort((a, b) => b.on.localeCompare(a.on))
+    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, when: formatDayMonthYear(e.on), kind: KIND_WORDS[e.kind], what: eventText(e, file) }));
 }
 
 /** The last `limit` events (default four, the width of the band) in date order, and the probation decision after them. */

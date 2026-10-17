@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 
 import { useAuthStore } from '@/store/authStore';
 
-import { peopleReads } from '../../_shared/services/people-reads';
-import { domainOf, suggestEmails } from '../lib/hire-email';
+import { domainOf, suggestEmails } from '../lib/sign-in-email';
+import { peopleReads } from '../services/people-reads';
 
 /**
  * Sign-in addresses worth offering for this name: built from the company domain (the signed-in person's own), then each one asked of

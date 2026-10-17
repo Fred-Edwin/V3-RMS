@@ -54,6 +54,8 @@ export const peopleReads = {
   pay: (id: string): Promise<PayView> => apiClient.get(`${BASE}/${id}/pay`, token()),
   /** R9 */
   documents: (id: string): Promise<DocumentRow[]> => apiClient.get(`${BASE}/${id}/documents`, token()),
+  /** R10 (audited unless it is the person's own): a short-lived link to the file. */
+  openDocument: (id: string, docId: string): Promise<{ url: string }> => apiClient.get(`${BASE}/${id}/documents/${docId}`, token()),
   /** R11 */
   payChanges: (status: PayChangeRow['status'] = 'PENDING'): Promise<PayChangeRow[]> => apiClient.get(`${BASE}/pay-changes${queryString({ status })}`, token()),
   /** W1 */

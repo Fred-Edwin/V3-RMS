@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EmployeeActions, EmployeeFile, FilePart } from '../../_shared/types/people-types';
-import { finishTarget, hasFinishStep, headerLine, headerTags, nextStepRows, pageActions, probationCard, ringChips, ringSummary, tabsFor, withWendo } from './file-model';
+import type { EmployeeActions, EmployeeFile, FilePart } from '../../../_shared/types/people-types';
+import { finishTarget, hasFinishStep, headerLine, headerTags, nextStepRows, pageActions, probationCard, ringChips, ringSummary, tabsFor, withWendo } from '../file-model';
 
 const NO: EmployeeActions = { editJob: false, changePay: false, transfer: false, sendToSite: false, exit: false, undoExit: false, rehire: false, decideProbation: false, writeNote: false, createContract: false, uploadDocument: false, remind: false, createLogin: false };
 const HR: EmployeeActions = { ...NO, editJob: true, changePay: true, transfer: true, sendToSite: true, exit: true, decideProbation: true, createContract: true, uploadDocument: true, remind: true };

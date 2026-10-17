@@ -107,6 +107,8 @@ export interface NextStep {
   code: 'PROBATION_DECISION' | 'CREATE_CONTRACT' | 'FILE_REQUEST' | 'FINISH_FILE';
   dueOn: DateString | null;
   fileRequestId?: string;
+  fileRequestKind?: FileRequestKind;
+  fileRequestAskedOn?: DateString;
 }
 
 /** What the caller may do with this file; the screen shows or hides buttons from it, never from a role name. */

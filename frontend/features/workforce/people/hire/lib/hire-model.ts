@@ -138,16 +138,4 @@ export function fromDraft(payload: Record<string, unknown>, today: string): Hire
   return out as unknown as HireState;
 }
 
-const WORDS = ['maji', 'kahawa', 'jua', 'mlima', 'simba', 'chai', 'pwani', 'nyota'];
-
-/** "maji-kahawa-4721": two words and four digits, from the browser's random source. */
-export function generateTemporaryPassword(random: (n: number) => number = defaultRandom): string {
-  const word = (): string => WORDS[random(WORDS.length)] ?? 'maji';
-  return `${word()}-${word()}-${String(1000 + random(9000))}`;
-}
-
-function defaultRandom(max: number): number {
-  const buffer = new Uint32Array(1);
-  crypto.getRandomValues(buffer);
-  return (buffer[0] ?? 0) % max;
-}
+export { generateTemporaryPassword } from '../../_shared/lib/temporary-password';

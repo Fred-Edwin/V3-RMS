@@ -6,7 +6,7 @@ import { Button } from '@/components/ui2/button';
 import { cn } from '@/lib/cn';
 
 import type { Lookups } from '../../../_shared/types/people-types';
-import { useEmailSuggestions } from '../../hooks/use-email-suggestions';
+import { useEmailSuggestions } from '../../../_shared/hooks/use-email-suggestions';
 import { loginEmailDefault, loginRolesFor, ROLE_LABELS } from '../../lib/hire-choices';
 import { LOGIN_PANEL } from '../../lib/hire-copy';
 import { generateTemporaryPassword } from '../../lib/hire-model';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { domainOf, suggestEmails } from './hire-email';
+import { domainOf, suggestEmails } from './sign-in-email';
 
 describe('suggested sign-in emails', () => {
   it('builds first.last, first initial and last, then first.last2', () => {

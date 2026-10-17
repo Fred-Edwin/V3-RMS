@@ -1,6 +1,6 @@
 import type { StatusTagTone } from '../../../_shared';
 import { daysBetween, formatDayMonth, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
-import type { EmployeeFile, FilePart } from '../../_shared/types/people-types';
+import type { EmployeeFile, FilePart, FileRequestKind } from '../../_shared/types/people-types';
 
 /**
  * What the employee file shows, worked out from the file the API sent. Pure: components draw these, and every button comes from
@@ -133,7 +133,18 @@ export function withWendo(startDate: string, today: string): { value: string; de
   return { value, detail: `joined ${formatDayMonth(startDate)}` };
 }
 
-export type FileDialogKey = 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'bank' | 'ask' | 'photo';
+export type FileDialogKey =
+  | 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'bank' | 'ask' | 'photo'
+  | 'undo-exit' | 'verify' | 'pay-decision';
+
+/** What a file request asked for, in the words of the checklist ("Emergency contact, asked of Joy on 2 Oct"). */
+export const REQUEST_LABELS: Record<FileRequestKind, string> = {
+  EMERGENCY_CONTACT: 'Emergency contact',
+  NSSF_SHA: 'NSSF and SHA numbers',
+  PHOTO_AND_DETAILS: 'Photo and personal details',
+  ID_NUMBER: 'ID number',
+  BANK_DETAILS: 'Bank details',
+};
 
 export interface NextStepRow {
   key: string;
@@ -149,7 +160,9 @@ export function nextStepRows(file: EmployeeFile): NextStepRow[] {
     if (step.code === 'PROBATION_DECISION') return [{ key: 'probation', title: 'Decide on probation', action: file.actions.decideProbation ? { label: 'Decide', dialog: 'probation' } : null }];
     if (step.code === 'CREATE_CONTRACT') return [{ key: 'contract', title: 'Create the contract', action: file.actions.createContract ? { label: 'Create', dialog: 'contract' } : null }];
     if (step.code === 'FILE_REQUEST') {
-      return [{ key: `request-${step.fileRequestId}`, title: `A detail asked of ${first}`, muted: true, action: file.actions.remind && step.fileRequestId ? { label: 'Remind', dialog: 'ask', requestId: step.fileRequestId } : null }];
+      const what = step.fileRequestKind ? REQUEST_LABELS[step.fileRequestKind] : 'A detail';
+      const when = step.fileRequestAskedOn ? ` on ${formatDayMonth(step.fileRequestAskedOn)}` : '';
+      return [{ key: `request-${step.fileRequestId}`, title: `${what}, asked of ${first}${when}`, muted: true, action: file.actions.remind && step.fileRequestId ? { label: 'Remind', dialog: 'ask', requestId: step.fileRequestId } : null }];
     }
     return [];
   });
@@ -172,7 +185,7 @@ export const hasFinishStep = (file: EmployeeFile): boolean => file.nextSteps.som
 export interface PageAction {
   key: string;
   label: string;
-  dialog: FileDialogKey | 'finish' | 'undo-exit';
+  dialog: FileDialogKey | 'finish';
   primary?: boolean;
 }
 

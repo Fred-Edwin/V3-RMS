@@ -3,4 +3,5 @@
  * this folder. Home cards import the data hooks. See README.md.
  */
 export { EmployeesScreen } from './employees/components/employees-screen';
+export { FileScreen } from './file/components/file-screen';
 export { HireScreen } from './hire/components/hire-screen';
