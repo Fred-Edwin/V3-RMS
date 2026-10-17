@@ -30,6 +30,25 @@ export interface WorkforceEventPayloads {
     notice: RuleChangeNotice;
   };
   'rules.version_confirmed': { versionId: string; group: RuleGroupCode; scope: string; confirmedById: string };
+  // slice 1 (People). None carries an amount or an ID number.
+  'employee.hired': { siteId: string; employeeId: string; userId: string | null; departmentId: string | null; startDate: NairobiDate };
+  'employee.transferred': {
+    employeeId: string;
+    userId: string | null;
+    fromSiteId: string;
+    toSiteId: string;
+    fromDepartmentId: string | null;
+    toDepartmentId: string | null;
+    effectiveOn: NairobiDate;
+  };
+  'employee.loaned': { employeeId: string; userId: string | null; homeSiteId: string; hostSiteId: string; from: NairobiDate; until: NairobiDate | null };
+  'employee.exit_recorded': { employeeId: string; userId: string | null; siteId: string; lastDay: NairobiDate; reason: string };
+  'employee.exit_finalized': { employeeId: string; userId: string | null; siteId: string; lastDay: NairobiDate };
+  'employee.exit_undone': { employeeId: string; userId: string | null; siteId: string };
+  'employee.rehired': { employeeId: string; userId: string | null; siteId: string; startsOn: NairobiDate };
+  'employee.tracks_time_changed': { employeeId: string; userId: string | null; siteId: string; tracksTime: boolean; effectiveOn: NairobiDate };
+  'pay.change_requested': { employeeId: string; payChangeId: string; requestedById: string };
+  'pay.change_decided': { employeeId: string; payChangeId: string; decision: 'APPROVED' | 'DECLINED'; decidedById: string };
 }
 
 export type WorkforceEventName = keyof WorkforceEventPayloads;

@@ -9,6 +9,35 @@ export const AUDIT_ACTIONS = {
   'rules.version_created': ['RULES_OPERATING', 'RULES_PAY'], // PAY when the change touches statutory, multipliers or holiday pay
   'rules.version_confirmed': ['RULES_PAY'],
   'audit.log_viewed': ['LOG_ACCESS'], // written by the slice-7 read side; declared now so the visibility rule is complete
+  // slice 1 (People). Never an amount, ID number, bank number, password or PIN in an entry: field names and "changed" only.
+  'people.hired': ['PEOPLE'],
+  'people.adopted': ['PEOPLE'], // an existing account filed as an employee
+  'people.updated': ['PEOPLE'], // changed fields only; ID fields by name, never value
+  'people.self_updated': ['PEOPLE'], // the person edited their own details
+  'people.login_created': ['PEOPLE'],
+  'people.statutory_verified': ['PEOPLE'],
+  'people.document_uploaded': ['PEOPLE'],
+  'people.payprofile_updated': ['PAY_SETUP'],
+  'people.pay_change_requested': ['PAY_SETUP'],
+  'people.pay_change_decided': ['PAY_SETUP'],
+  'people.pay_change_applied': ['PAY_SETUP'], // by the scheduler, channel SYSTEM
+  'people.contract_created': ['PAY_SETUP'],
+  'people.probation_decided': ['PEOPLE'],
+  'people.probation_noted': ['PEOPLE'],
+  'people.transferred': ['PEOPLE'],
+  'people.transfer_applied': ['PEOPLE'], // by the scheduler, channel SYSTEM
+  'people.loan_created': ['PEOPLE'],
+  'people.loan_ended': ['PEOPLE'],
+  'people.move_cancelled': ['PEOPLE'],
+  'people.exit_recorded': ['PEOPLE'],
+  'people.exit_finalized': ['PEOPLE'], // by the scheduler, channel SYSTEM
+  'people.exit_undone': ['PEOPLE'],
+  'people.rehired': ['PEOPLE'],
+  'people.activated': ['PEOPLE'], // by the scheduler: onboarding became active on the start date, channel SYSTEM
+  // someone looked at something sensitive (written when it is not the person's own)
+  'people.sensitive_revealed': ['SENSITIVE_VIEW'],
+  'people.pay_opened': ['SENSITIVE_VIEW'],
+  'people.document_opened': ['SENSITIVE_VIEW'],
 } as const satisfies Record<string, readonly AuditCategoryCode[]>;
 
 export type AuditActionCode = keyof typeof AUDIT_ACTIONS;

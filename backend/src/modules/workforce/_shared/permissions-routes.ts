@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../../middleware/authenticate';
 import { UnauthorizedError } from '../../../utils/errors';
+import { attachWorkforceSubject } from '../people/people-subject';
 import { CAPABILITIES, ROLE_GRANTS, SCOPES, grantsOf, type AccessSubject, type Capability, type Scope } from './workforce-access';
 import { tracksTime } from './tracks-time';
 
@@ -16,6 +17,8 @@ export const PermissionsMeSchema = z.object({
     isDepartmentHead: z.boolean(),
     departmentTag: z.string().nullable(),
     tracksTime: z.boolean(),
+    /** Slice 1: the departments this person heads today (substantive or acting); the head rows are the truth. */
+    headOfDepartmentIds: z.array(z.string()),
     capabilities: z.array(z.object({ capability: z.enum(CAPABILITIES), scope: z.enum(SCOPES) })),
   }),
 });
@@ -28,13 +31,13 @@ router.use(authenticate);
  * What the signed-in person may do in Workforce: the same table the route guards read, so the front end never keeps a
  * second copy. Demo only: the System Admin may preview another role's row with `?asRole=`; for anyone else it is ignored.
  */
-router.get('/workforce/permissions/me', async (req: Request, res: Response): Promise<void> => {
+router.get('/workforce/permissions/me', attachWorkforceSubject, async (req: Request, res: Response): Promise<void> => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
   const { asRole } = PermissionsQuerySchema.parse(req.query);
   const preview = asRole !== undefined && req.user.role === 'SYSTEM_ADMIN' && asRole in ROLE_GRANTS ? asRole : null;
   const subject: AccessSubject = preview
     ? { id: req.user.id, role: preview as AccessSubject['role'], siteId: req.user.siteId, isDepartmentHead: false }
-    : req.user;
+    : (req.workforceSubject ?? req.user);
   const clocks = await tracksTime(subject);
   const grants = grantsOf({ ...subject, tracksTime: clocks });
   const body: PermissionsMe = {
@@ -42,9 +45,10 @@ router.get('/workforce/permissions/me', async (req: Request, res: Response): Pro
     data: {
       role: subject.role,
       siteId: subject.siteId,
-      isDepartmentHead: subject.isDepartmentHead ?? false,
+      isDepartmentHead: (subject.isDepartmentHead ?? false) || (subject.headOfDepartmentIds?.length ?? 0) > 0,
       departmentTag: subject.departmentTag ?? null,
       tracksTime: clocks,
+      headOfDepartmentIds: [...(subject.headOfDepartmentIds ?? [])],
       capabilities: (Object.entries(grants) as [Capability, Scope][]).map(([capability, scope]) => ({ capability, scope })),
     },
   };
