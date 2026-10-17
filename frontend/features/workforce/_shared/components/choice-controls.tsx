@@ -189,7 +189,7 @@ export function RadioCards({
   value: string | null;
   onChange: (value: string) => void;
   /** 2 puts the cards side by side ("Nyeri Town only | Every site"). */
-  columns?: 1 | 2;
+  columns?: 1 | 2 | 3;
   disabled?: boolean;
   name?: string;
 }) {
@@ -198,7 +198,7 @@ export function RadioCards({
   return (
     <fieldset disabled={disabled} className="m-0 min-w-0 border-0 p-0">
       <ChipLegend style={legendStyle}>{legend}</ChipLegend>
-      <div className={cn('grid gap-2.5', columns === 2 ? 'sm:grid-cols-2' : 'grid-cols-1')}>
+      <div className={cn('grid gap-2.5', columns === 3 ? 'sm:grid-cols-3' : columns === 2 ? 'sm:grid-cols-2' : 'grid-cols-1')}>
         {options.map((o) => {
           const chosen = value === o.value;
           return (
