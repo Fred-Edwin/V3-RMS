@@ -115,6 +115,12 @@ One Workforce menu in the approved geometric sidebar style. A link a role cannot
 
 On a phone there is **no bottom tab bar**. The menu is a drawer (the same menu, in the same style) opened from a slim top bar that shows the brand, the shift pill and the job's one primary action. Its groups are Home, Job, Team (heads only), Inbox and Me (My time with sub-links, My leave, My payslips, Profile and security). Home opens with a warm greeting and the person's photo, then a stack of cards: shift, waiting for you, job cards, team, this week. Rule recorded in `docs/ROADMAP.md` (rule 8). Home is the live board for managers (there is no separate "Today" link).
 
+**Chapter 1 frame decisions (owner, 17 Oct 2026, front end built on `feat/workforce-frame`):** the frame is built and the Home cards leave the page until a slice feeds them (ledger: [chapter-1-ledger.md](chapter-1-ledger.md)).
+
+- **Where a role lands after sign-in changes only when its Home has something to show.** HR, Director and Accountant land on Home when slice 4 gives it a "Waiting for you". Branch Manager and Store Manager land on Home when slice 3 (Attendance) makes the board live. Floor staff keep landing on their working screens until the Orders redo registers job cards. Until each of those, no landing changes.
+- **A Home link for floor staff waits for slice 3**, when their Home has a clock card. The rows are defined in the nav table and hidden (`notBuilt`).
+- **The Branch Manager's phone Home is not drawn in Paper.** Until it is, a Branch Manager on a phone sees Home's empty state; the desktop board is not stacked for phones. Draw it in Paper first (the redraw-then-build rule), then build.
+
 ## Open points carried from the proposal
 
 - The 2 x holiday rate, the overtime multipliers and the legal limits on deductions: the Accountant and the client's lawyer confirm.
