@@ -135,7 +135,7 @@ export function PagesSection() {
         <div>
           <Label>StatBoxes · before and after (green “after”)</Label>
           <StatBoxes
-            variant="times"
+            variant="compare"
             cells={[
               { label: 'RECORDED', value: 'In 05:58 · Out 11:20', detail: '5 h 22 min', tone: 'error' },
               { label: 'AFTER YOUR FIX', value: 'In 05:58 · Out 14:00', detail: '8 h 2 min (7 h 32 paid)', tone: 'success' },

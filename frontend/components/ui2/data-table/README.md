@@ -55,6 +55,14 @@ each filter, and returns `total`. Chip counts come from the same call or a summa
 Both live in `table-query.ts`: the sizes `PER_PAGE_OPTIONS = [25, 50, 100]` with `DEFAULT_PER_PAGE = 50`, and holding the state in the
 URL (`parseTableQuery` / `writeTableQuery`).
 
+## Workforce look
+
+`<DataTable tableLook="workforce">` (and `<Table look="workforce">` for a hand-built table) draws the header, rows and chosen row as
+Workforce does: header 36 px, 11 px mono, `neutral-600` text over a 1 px ink rule; rows 56 px (`rowSize="compact"` is 42 px) with
+`neutral-200` between them; a row with `data-state="selected"` gets a 3 px caramel bar and a warm fill. It is additive: a table that
+does not pass it is drawn exactly as before. Search, filters, the numbered pager and the URL state are the same. The cell helpers
+(`AvatarCell`, `NumberCell`, `StatusText`, `NeedsYouLine`) are in `features/workforce/_shared`.
+
 ## Not covered by unit tests
 
 The repo has no DOM test library (`vitest` runs in node). The rules (URL round-trip, page reset, page list, match splitting) and the

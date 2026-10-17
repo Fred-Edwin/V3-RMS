@@ -10,8 +10,10 @@ import { VALUE_TONE_CLASS, type ValueTone } from './key-value-rows';
  * - `Panel`        a bordered white box: title row (optional count badge or mono caption), body.
  * - `SettingRows`  title + description at the left, the value at the right (Rules 1KFG-0).
  * - `StatBoxes`    bordered cells side by side; `figures` (30 px number, 1JA8-0), `compact` (22 px,
- *                  17WB-0) and `times` (mono, the planned / worked / extra and before / after boxes,
- *                  1CPM-0, 1BBV-0). A cell can be amber (`tone="warning"`) or green (`tone="success"`).
+ *                  17WB-0), `times` (mono 15, the planned / worked / extra boxes, 1CPM-0) and `compare`
+ *                  (mono 20, the recorded / after-your-fix boxes, 1BBV-0). A cell can be amber
+ *                  (`tone="warning"`), green (`tone="success"`) or red: the number is toned in every
+ *                  variant, the cell is filled in `figures`, `times` and `compare` only.
  * - `ChecklistRows` a tick, a title and a grey line (1IRJ-0).
  * - `NoteRows`     left text, right note, optional square marker (17WK-0).
  *
@@ -108,7 +110,7 @@ const CELL_TONE: Record<NonNullable<StatCell['tone']>, { fill: string; text: str
   error: { fill: '', text: 'text-wds-error-fg' },
 };
 
-export function StatBoxes({ cells, variant = 'compact', className }: { cells: StatCell[]; variant?: 'figures' | 'compact' | 'times'; className?: string }) {
+export function StatBoxes({ cells, variant = 'compact', className }: { cells: StatCell[]; variant?: 'figures' | 'compact' | 'times' | 'compare'; className?: string }) {
   return (
     <dl className={cn('m-0 grid auto-cols-fr grid-flow-col border border-wds-border max-sm:grid-flow-row max-sm:auto-rows-auto', className)}>
       {cells.map((c, i) => {
@@ -118,15 +120,17 @@ export function StatBoxes({ cells, variant = 'compact', className }: { cells: St
             key={c.label}
             className={cn(
               'flex min-w-0 flex-col',
-              variant === 'figures' ? 'gap-1 px-5 py-3.5' : variant === 'times' ? 'gap-0.5 px-3.5 py-2.5' : 'gap-[3px] px-3.5 py-3',
+              variant === 'figures' ? 'gap-1 px-5 py-3.5' : variant === 'times' ? 'gap-0.5 px-3.5 py-2.5' : variant === 'compare' ? 'gap-0.5 px-4 py-3' : 'gap-[3px] px-3.5 py-3',
               i > 0 && 'border-l border-wds-border max-sm:border-l-0 max-sm:border-t',
-              tone.fill
+              // Paper fills the cell only in the mono "times" boxes (1CPT-0, 1BC0-0); in the compact boxes only the number is toned (17WG-0).
+              variant !== 'compact' && tone.fill
             )}
           >
             <dt
               className={cn(
                 variant === 'compact' ? 'font-wds-sans text-[12px] leading-4 text-wds-text-secondary' : 'font-wds-mono text-[10px] leading-3 tracking-[0.08em]',
-                c.tone && c.tone !== 'default' && variant !== 'compact' ? tone.text : variant === 'compact' ? undefined : 'text-wds-text-secondary'
+                // In the before/after boxes the red "recorded" side tones only its value (1BBX-0 stays grey).
+                c.tone && c.tone !== 'default' && variant !== 'compact' && !(variant === 'compare' && c.tone === 'error') ? tone.text : variant === 'compact' ? undefined : 'text-wds-text-secondary'
               )}
             >
               {c.label}
@@ -137,12 +141,15 @@ export function StatBoxes({ cells, variant = 'compact', className }: { cells: St
                 variant === 'figures' && 'font-wds-sans text-[30px] font-semibold leading-[34px]',
                 variant === 'compact' && 'font-wds-sans text-[22px] font-semibold leading-7',
                 variant === 'times' && 'font-wds-mono text-[15px] leading-[18px]',
+                variant === 'compare' && 'font-wds-mono text-[20px] leading-6',
                 tone.text
               )}
             >
               {c.value}
             </dd>
-            {c.detail ? <dd className={cn('m-0 font-wds-sans text-[12px] leading-4', c.tone && c.tone !== 'default' ? tone.text : 'text-wds-text-secondary')}>{c.detail}</dd> : null}
+            {c.detail ? (
+              <dd className={cn('m-0 font-wds-sans text-[12px] leading-4', c.tone && c.tone !== 'default' && !(variant === 'compare' && c.tone === 'error') ? tone.text : 'text-wds-text-secondary')}>{c.detail}</dd>
+            ) : null}
           </div>
         );
       })}

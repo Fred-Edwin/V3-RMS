@@ -105,7 +105,7 @@ export function PhoneHero({ name, greeting, subtitle, photoUrl }: { name: string
       <span
         role="img"
         aria-label={name}
-        className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-wds-espresso-100 to-wds-espresso-200 font-wds-sans text-[19px] font-medium leading-6 text-wds-espresso-800 shadow-[0_0_0_2px_var(--wds-sidebar-top),0_0_0_3px_var(--wds-caramel-500)]"
+        className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-wds-espresso-100 to-[color-mix(in_oklab,var(--wds-espresso-200)_75%,var(--wds-espresso-700))] font-wds-sans text-[19px] font-medium leading-6 text-wds-espresso-800 shadow-[0_0_0_2px_var(--wds-sidebar-top),0_0_0_3px_var(--wds-caramel-500)]"
       >
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- small remote avatar

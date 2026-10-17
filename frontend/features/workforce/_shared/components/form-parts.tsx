@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { useNumberPadField } from '@/components/ui2/number-pad';
 
 import { maskClock, parseClock } from '../lib/time';
 
@@ -93,27 +94,38 @@ export function TimeField({
   const [touched, setTouched] = React.useState(false);
   const notReal = touched && value !== '' && parseClock(value) === null;
   const shownError = error ?? (notReal ? 'Use a time like 14:30.' : undefined);
+  // House rule for numbers: on a finger the in-app pad opens (digits only), never the phone keyboard.
+  const pad = useNumberPadField({ label, value: value.replace(/\D/g, ''), onChange: (digits) => onChange(maskClock(digits)), maxLength: 4, keepZeros: true, actionLabel: 'Done' });
+  const settle = (): void => {
+    setTouched(true);
+    const full = parseClock(value);
+    if (full && full !== value) onChange(full);
+  };
   return (
     <FormField label={label} hint={hint} helper={helper} error={shownError} className={className}>
       {({ id, describedBy, invalid }) => (
         <input
           id={id}
+          ref={(node) => {
+            pad.ref.current = node;
+          }}
           type="text"
-          inputMode="numeric"
           autoComplete="off"
           placeholder="hh:mm"
           maxLength={5}
           value={value}
           disabled={disabled}
+          readOnly={pad.inApp}
+          inputMode={pad.inApp ? 'none' : undefined}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
-          onChange={(e) => onChange(maskClock(e.target.value))}
-          onBlur={() => {
-            setTouched(true);
-            const full = parseClock(value);
-            if (full && full !== value) onChange(full);
+          onFocus={() => {
+            if (pad.inApp) pad.open();
           }}
-          className={cn(FIELD_CLASS, 'font-wds-mono text-[13px] leading-4')}
+          onClick={() => pad.open()}
+          onChange={(e) => onChange(maskClock(e.target.value))}
+          onBlur={settle}
+          className={cn(FIELD_CLASS, 'font-wds-mono text-[13px] leading-4', pad.inApp && 'caret-transparent')}
         />
       )}
     </FormField>

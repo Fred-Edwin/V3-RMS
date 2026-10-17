@@ -90,6 +90,11 @@ describe('panels and rows', () => {
     expect(out).toContain('bg-wds-warning-bg');
     expect(out).toContain('bg-wds-success-bg');
   });
+  it('compact boxes tone the number but do not fill the cell', () => {
+    const out = html(h(StatBoxes, { cells: [{ label: 'Left out, need you', value: '2', tone: 'warning' }] }));
+    expect(out).toContain('text-wds-warning-fg');
+    expect(out).not.toContain('bg-wds-warning-bg');
+  });
   it('names the state of a checklist row for a screen reader', () => {
     const out = html(h(ChecklistRows, { rows: [{ title: 'T', state: 'problem' }] }));
     expect(out).toContain('Problem: ');
@@ -151,9 +156,10 @@ describe('form parts', () => {
     expect(out).toContain('Give it a name.');
     expect(out).not.toContain('>h<');
   });
-  it('the time field is a mono box with a numeric keyboard', () => {
+  it('the time field is a mono box that never asks the phone for a numeric keyboard', () => {
     const out = html(h(TimeField, { label: 'Starts', value: '04:00', onChange: noop }));
-    expect(out).toContain('inputMode="numeric"');
+    expect(out).not.toContain('inputMode="numeric"');
     expect(out).toContain('font-wds-mono');
+    expect(out).toContain('value="04:00"');
   });
 });
