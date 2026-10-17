@@ -91,9 +91,13 @@ interface MonthProps {
   onKey: (day: string, e: React.KeyboardEvent<HTMLButtonElement>) => void;
   /** The phone bottom sheet (Paper 28G2): full width, 34 px day cells, a caramel tint for the range, and the heading is read out only (the sheet draws its own month row). */
   sheet?: boolean;
+  /** The latest day that can be picked (default: today). Later days are shown disabled. */
+  limit?: string;
+  /** The earliest day that can be picked (default: no limit). */
+  minDay?: string;
 }
 
-function Month({ year, month, today, range, pending, focusDay, onPick, onHover, onKey, sheet = false }: MonthProps) {
+function Month({ year, month, today, range, pending, focusDay, onPick, onHover, onKey, sheet = false, limit, minDay }: MonthProps) {
   const headingId = React.useId();
   const first = new Date(Date.UTC(year, month, 1));
   const lead = (first.getUTCDay() + 6) % 7;
@@ -112,7 +116,7 @@ function Month({ year, month, today, range, pending, focusDay, onPick, onHover, 
           <div key={w} role="row" className="grid grid-cols-7">
             {week.map((d, i) => {
               if (!d) return <span key={`b${i}`} role="gridcell" aria-hidden="true" />;
-              const future = d > today;
+              const future = d > (limit ?? today) || (minDay !== undefined && d < minDay);
               const endpoint = d === range.from || d === range.to;
               const inside = d > range.from && d < range.to;
               return (
@@ -165,9 +169,19 @@ export interface DateRangePickerProps {
   buttonClassName?: string;
   /** Open as a bottom sheet over a scrim, one month at a time (the Store Attendant's phone lists, Paper 28G2) instead of the dropdown panel. */
   sheet?: boolean;
+  /**
+   * One day, not a range (Workforce Interaction spec rule 13: the date fields in dialogs). A single click picks the day, there is no
+   * To field, and `value` is read and written as `{ from: day, to: day }`. The trigger shows a calendar icon and the full date.
+   */
+  single?: boolean;
+  /** The latest day that can be picked. Defaults to `today`; give a later day for a start date. */
+  maxDate?: string;
+  /** The earliest day that can be picked. Defaults to no limit. */
+  minDate?: string;
 }
 
-export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', showLabel = false, className, buttonClassName, sheet = false }: DateRangePickerProps) {
+export function DateRangePicker({ value, today, onChange, allowAny = false, note = DEFAULT_NOTE, label = 'Date', showLabel = false, className, buttonClassName, sheet = false, single = false, maxDate, minDate }: DateRangePickerProps) {
+  const limit = maxDate ?? today;
   const [open, setOpen] = React.useState(false);
   // Two months side by side from 1024px; one below it (the second would be hidden and could still hold the focus).
   const { matches: wideScreen } = useMediaQuery('(min-width: 1024px)');
@@ -177,7 +191,7 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
   const [anyDraft, setAnyDraft] = React.useState(value === null);
   const [pending, setPending] = React.useState<string | null>(null);
   const [hover, setHover] = React.useState<string | null>(null);
-  const [focusDay, setFocusDay] = React.useState<string>(shownValue.to > today ? today : shownValue.to);
+  const [focusDay, setFocusDay] = React.useState<string>(shownValue.to > limit ? limit : shownValue.to);
   const rootRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -217,9 +231,9 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
       setAnyDraft(appliedAny);
       setPending(null);
       setView(monthOf(appliedFrom));
-      setFocusDay(appliedTo > today ? today : appliedTo);
+      setFocusDay(appliedTo > limit ? limit : appliedTo);
     }
-  }, [open, appliedFrom, appliedTo, appliedAny, today]);
+  }, [open, appliedFrom, appliedTo, appliedAny, limit]);
 
   // The panel opens from the button's left edge; when that would run past the screen's right edge (a button near the right of a
   // narrow screen) it slides left by exactly the overflow. Measured before paint, so it never flashes in the wrong place.
@@ -262,6 +276,11 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
   const pick = (d: string): void => {
     setAnyDraft(false);
     setFocusDay(d);
+    if (single) {
+      setDraft({ from: d, to: d });
+      setPending(null);
+      return;
+    }
     if (!pending) {
       setPending(d);
       setDraft({ from: d, to: d });
@@ -284,8 +303,9 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
 
   /** A key inside the calendar: arrows and friends move the focus (and the month when the day leaves the screen). */
   const onDayKey = (day: string, e: React.KeyboardEvent<HTMLButtonElement>): void => {
-    const target = moveDay(day, e.key, today);
-    if (target === null) return;
+    const moved = moveDay(day, e.key, limit);
+    if (moved === null) return;
+    const target = minDate !== undefined && moved < minDate ? minDate : moved;
     e.preventDefault();
     const tm = monthOf(target);
     const idx = monthIndex(tm);
@@ -326,7 +346,16 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
         onClick={() => (open ? close(true) : setOpen(true))}
         className={cn('flex h-8 items-center gap-2 border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring max-sm:h-11', buttonClassName)}
       >
-        {showLabel ? (
+        {single ? (
+          <>
+            <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" className="shrink-0 text-wds-text-secondary">
+              <rect x="2" y="3" width="12" height="11" rx="1" />
+              <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+            </svg>
+            <span className="sr-only">{label}: </span>
+            {value === null ? 'Pick a date' : longDate(value.from)}
+          </>
+        ) : showLabel ? (
           <span>
             {label}: {value === null ? 'Any time' : presetLabel(value, today)}
           </span>
@@ -336,7 +365,7 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
             {value === null ? 'Any time' : presetLabel(value, today)}
           </>
         )}
-        {showLabel ? <span aria-hidden className="text-[9px] text-wds-text-ink">▾</span> : <span aria-hidden className="text-wds-text-faint">⌄</span>}
+        {single ? null : showLabel ? <span aria-hidden className="text-[9px] text-wds-text-ink">▾</span> : <span aria-hidden className="text-wds-text-faint">⌄</span>}
       </button>
       {open && sheet ? (
         <>
@@ -378,9 +407,9 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
               <div className="flex h-7 items-center justify-between">
                 <button type="button" aria-label="Previous month" onClick={() => step(-1)} className="flex size-11 -ml-3 items-center justify-center font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink outline-none focus-visible:shadow-wds-ring">‹</button>
                 <span aria-hidden className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">{MONTHS[view.m]} {view.y}</span>
-                <button type="button" aria-label="Next month" disabled={monthIndex(view) >= monthIndex(monthOf(today))} onClick={() => step(1)} className="flex size-11 -mr-3 items-center justify-center font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-faint outline-none focus-visible:shadow-wds-ring enabled:text-wds-text-ink disabled:cursor-not-allowed">›</button>
+                <button type="button" aria-label="Next month" disabled={monthIndex(view) >= monthIndex(monthOf(limit))} onClick={() => step(1)} className="flex size-11 -mr-3 items-center justify-center font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-faint outline-none focus-visible:shadow-wds-ring enabled:text-wds-text-ink disabled:cursor-not-allowed">›</button>
               </div>
-              <Month sheet year={view.y} month={view.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} />
+              <Month sheet year={view.y} month={view.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} limit={limit} minDay={minDate} />
             </div>
             <div className="flex items-end justify-between gap-3 border-t border-wds-border pt-3">
               <p className="w-[170px] font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">{spanDays(shown)} days · later dates can’t be picked.</p>
@@ -410,7 +439,7 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
                 Any time
               </button>
             ) : null}
-            {quick.map((q) => {
+            {quick.filter((q) => !single || (q.label === 'Today' && q.r.to <= limit && (minDate === undefined || q.r.from >= minDate))).map((q) => {
               const on = !anyDraft && q.r.from === draft.from && q.r.to === draft.to;
               return (
                 <button key={q.label} type="button" data-quick aria-pressed={on} onClick={() => { setAnyDraft(false); setDraft(q.r); setPending(null); setView(monthOf(q.r.from)); setFocusDay(q.r.to); }} className={cn(quickBtn, on ? 'bg-wds-espresso-50 font-medium text-wds-text-ink' : 'text-wds-text-ink hover:bg-wds-neutral-50')}>
@@ -418,21 +447,27 @@ export function DateRangePicker({ value, today, onChange, allowAny = false, note
                 </button>
               );
             })}
-            <button type="button" data-quick aria-pressed={pending !== null} onClick={() => { setAnyDraft(false); setPending(draft.from); }} className={cn(quickBtn, 'hover:bg-wds-neutral-50', pending ? 'bg-wds-espresso-50 font-medium' : '')}>
-              Pick a date or range
-            </button>
+            {single ? null : (
+              <button type="button" data-quick aria-pressed={pending !== null} onClick={() => { setAnyDraft(false); setPending(draft.from); }} className={cn(quickBtn, 'hover:bg-wds-neutral-50', pending ? 'bg-wds-espresso-50 font-medium' : '')}>
+                Pick a date or range
+              </button>
+            )}
           </div>
           <div className="flex flex-col gap-3 p-4 lg:w-[560px]">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1"><span className="font-wds-mono text-[10px] uppercase leading-3 text-wds-text-secondary">From</span><span className="flex h-9 w-[150px] items-center border-[1.5px] border-wds-selected-edge px-2.5 font-wds-mono text-[13px]">{longDate(shown.from)}</span></div>
-              <span aria-hidden className="pb-2 text-wds-text-secondary">→</span>
-              <div className="flex flex-col gap-1"><span className="font-wds-mono text-[10px] uppercase leading-3 text-wds-text-secondary">To</span><span className="flex h-9 w-[150px] items-center border border-wds-border-strong px-2.5 font-wds-mono text-[13px]">{longDate(shown.to)}</span></div>
-              <span className="grow pb-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">{spanDays(shown)} day{spanDays(shown) === 1 ? '' : 's'} · pick one date for a single day, two for a range</span>
+              <div className="flex flex-col gap-1"><span className="font-wds-mono text-[10px] uppercase leading-3 text-wds-text-secondary">{single ? 'Date' : 'From'}</span><span className="flex h-9 w-[150px] items-center border-[1.5px] border-wds-selected-edge px-2.5 font-wds-mono text-[13px]">{longDate(shown.from)}</span></div>
+              {single ? null : (
+                <>
+                  <span aria-hidden className="pb-2 text-wds-text-secondary">→</span>
+                  <div className="flex flex-col gap-1"><span className="font-wds-mono text-[10px] uppercase leading-3 text-wds-text-secondary">To</span><span className="flex h-9 w-[150px] items-center border border-wds-border-strong px-2.5 font-wds-mono text-[13px]">{longDate(shown.to)}</span></div>
+                </>
+              )}
+              <span className="grow pb-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary" aria-live="polite">{single ? 'Pick the day' : `${spanDays(shown)} day${spanDays(shown) === 1 ? '' : 's'} · pick one date for a single day, two for a range`}</span>
             </div>
             <div className="flex items-start gap-4">
               <div className="mt-[22px] flex flex-col"><button type="button" aria-label="Previous month" onClick={() => step(-1)} className={nav}>‹</button></div>
-              <Month year={view.y} month={view.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} />
-              {wide ? <Month year={next.y} month={next.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} /> : null}
+              <Month year={view.y} month={view.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} limit={limit} minDay={minDate} />
+              {wide ? <Month year={next.y} month={next.m} today={today} range={shown} pending={pending} focusDay={tabDay} onPick={pick} onHover={setHover} onKey={onDayKey} limit={limit} minDay={minDate} /> : null}
               <div className="mt-[22px] flex flex-col"><button type="button" aria-label="Next month" onClick={() => step(1)} className={nav}>›</button></div>
             </div>
             <div className="flex flex-wrap items-end justify-between gap-3 border-t border-wds-border pt-3">
