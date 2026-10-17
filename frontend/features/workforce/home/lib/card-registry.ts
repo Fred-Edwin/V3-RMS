@@ -44,6 +44,8 @@ export interface HomeCardDefinition<T> {
   anyCapability: readonly WorkforceCapability[];
   /** The card's place in Paper's stack (lower first). Also the tie-break between equal urgencies. */
   order: number;
+  /** Desktop `side` cards only: the column's width in px (Paper draws 340 on the HR Home and 360 on the Branch Manager's). Default 340. */
+  sideWidth?: 340 | 360;
   /** Lower is more urgent, on the same scale as `order`. A clock-in that is due returns a number below the shift card's `order`. Default: `order`. */
   urgency?: (data: T) => number;
   /** True when there is nothing to show; the card then disappears. */
@@ -60,6 +62,7 @@ export interface HomeCard {
   slot: HomeSlot;
   anyCapability: readonly WorkforceCapability[];
   order: number;
+  sideWidth: 340 | 360;
   useData: () => CardDataState<unknown>;
   rank: (data: unknown) => number;
   isEmpty: (data: unknown) => boolean;
@@ -74,6 +77,7 @@ export function defineHomeCard<T>(def: HomeCardDefinition<T>): HomeCard {
     slot: def.slot,
     anyCapability: def.anyCapability,
     order: def.order,
+    sideWidth: def.sideWidth ?? 340,
     useData: () => def.useData() as CardDataState<unknown>,
     rank: (data) => (def.urgency ? def.urgency(data as T) : def.order),
     isEmpty: (data) => def.isEmpty(data as T),

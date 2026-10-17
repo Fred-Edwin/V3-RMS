@@ -642,6 +642,21 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     expect(NAV_ROWS.find((r) => r.key === 'wf-leave')?.badge).toBe('workforce-leave');
   });
 
+  it('defines the phone drawer of Paper step 06 for staff and heads (Home, Team for heads, Me), and shows none of it yet', () => {
+    const everything = NAV_ROWS.map((r) => (r.key.startsWith('wf-') ? { ...r, notBuilt: undefined } : r));
+    const wf = (groups: NavGroup[]) => groups.filter((g) => g.key.startsWith('wf-'));
+    const head = wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING }), everything));
+    expect(head.map((g) => g.label)).toEqual(['HOME', 'TEAM', 'ME']);
+    expect(head[1]?.items.map((i) => i.label)).toEqual(['Waiting for you', 'Team today', 'Rota', 'Casuals']);
+    expect(head[2]?.items.map((i) => i.label)).toEqual(['My time', 'My leave', 'My payslips', 'Profile and security']);
+    expect(item(head, 'wf-staff-my-time')?.subItems?.map((s) => s.label)).toEqual(['Hours this week', 'My shifts', 'Overtime', 'My requests']);
+    // A member who is not a head has no Team group.
+    const staff = wf(navFor(ctxFor('WAITER', { can: EVERYTHING }), everything));
+    expect(staff.map((g) => g.label)).toEqual(['HOME', 'ME']);
+    // Today none of it shows: floor staff get a Home link when Attendance gives them a clock card.
+    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING })))).toEqual([]);
+  });
+
   it('lights Home on /app/workforce', () => {
     const groups = navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }));
     expect(activeFor(groups, '/app/workforce')).toMatchObject({ activeKey: 'wf-home', framed: true, groupLabel: 'WORKFORCE', label: 'Home' });

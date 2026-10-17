@@ -18,12 +18,14 @@ export interface FilterChipProps extends Omit<React.ButtonHTMLAttributes<HTMLBut
   selected?: boolean;
   /** `attention` = the warning chip (rows that need a look). */
   tone?: 'default' | 'attention';
+  /** A 6 px square after the count: this group has people who need a look (Paper Q50-0; amber, or red for the worst). */
+  marker?: 'warning' | 'error';
   /** Shown as the tooltip and read out when the chip is disabled. */
   disabledReason?: string;
 }
 
 export const FilterChip = React.forwardRef<HTMLButtonElement, FilterChipProps>(function FilterChip(
-  { label, count, selected = false, tone = 'default', disabledReason, disabled, className, ...props },
+  { label, count, selected = false, tone = 'default', marker, disabledReason, disabled, className, ...props },
   ref
 ) {
   const attention = tone === 'attention';
@@ -59,6 +61,12 @@ export const FilterChip = React.forwardRef<HTMLButtonElement, FilterChipProps>(f
         >
           {count}
         </span>
+      ) : null}
+      {marker ? (
+        <>
+          <span aria-hidden className={cn('size-1.5 shrink-0', marker === 'error' ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} />
+          <span className="sr-only">{marker === 'error' ? 'Someone here is not in' : 'Someone here is late'}</span>
+        </>
       ) : null}
       {disabled && disabledReason ? <span className="sr-only">{disabledReason}</span> : null}
     </button>

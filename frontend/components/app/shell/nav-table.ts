@@ -148,6 +148,8 @@ export interface NavRow extends Visibility {
 }
 
 export const NAV_GROUP_LABELS: Readonly<Record<string, string>> = {
+  'wf-home': 'HOME',
+  'wf-team': 'TEAM',
   'wf-workforce': 'WORKFORCE',
   'wf-people': 'PEOPLE',
   'wf-pay': 'PAY',
@@ -285,6 +287,32 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], notBuilt: true },
   { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, notBuilt: true },
   { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP, notBuilt: true },
+
+  // ── The phone drawer of floor staff and department heads (Paper Chapter 1 step 06: Home, Job, Team, Inbox, Me) ──────────────────
+  // Not shown: the Workforce Home link for floor staff waits for Attendance (slice 3), which gives their Home a clock card. Job and Inbox
+  // are the legacy rows above until the Orders redo. The route gate keeps these roles out of /app/workforce until the slice that builds each page widens it.
+  { key: 'wf-staff-home', label: 'Home', group: 'wf-home', icon: ico.home, newHref: '/app/workforce', roles: SHIFT_STAFF, notBuilt: true },
+  { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
+  { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/team-today', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
+  { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
+  { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
+  {
+    key: 'wf-staff-my-time',
+    label: 'My time',
+    group: 'wf-me',
+    icon: ico.myTime,
+    roles: SHIFT_STAFF,
+    notBuilt: true,
+    subItems: [
+      { key: 'hours', label: 'Hours this week', newHref: '/app/workforce/my-time', roles: SHIFT_STAFF },
+      { key: 'shifts', label: 'My shifts', newHref: '/app/workforce/my-time/shifts', roles: SHIFT_STAFF },
+      { key: 'overtime', label: 'Overtime', newHref: '/app/workforce/my-time/overtime', roles: SHIFT_STAFF },
+      { key: 'requests', label: 'My requests', newHref: '/app/workforce/my-time/requests', roles: SHIFT_STAFF },
+    ],
+  },
+  { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: SHIFT_STAFF, notBuilt: true },
+  { key: 'wf-staff-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: SHIFT_STAFF, notBuilt: true },
+  { key: 'wf-staff-profile', label: 'Profile and security', group: 'wf-me', icon: ico.shield, newHref: '/app/profile', roles: SHIFT_STAFF, notBuilt: true },
 ];
 
 export const NAV_ROWS: readonly NavRow[] = [

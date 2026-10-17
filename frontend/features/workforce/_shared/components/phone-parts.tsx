@@ -223,11 +223,26 @@ export interface WeekBar {
   fraction: number;
   state: 'planned' | 'worked' | 'off';
   today?: boolean;
+  /** Overtime on this day, as a fraction of the 40 px bar, stacked in caramel above the worked bar (Paper QIB-0). */
+  extra?: number;
   /** Spoken: "Monday, 8 hours planned". */
   label: string;
 }
 
-export function WeekBars({ title, range, bars, caption }: { title: string; range: string; bars: readonly WeekBar[]; caption: string }) {
+export function WeekBars({
+  title,
+  range,
+  bars,
+  caption,
+  footer,
+}: {
+  title: string;
+  range: string;
+  bars: readonly WeekBar[];
+  caption?: string;
+  /** In place of `caption`: the ruled footer under the bars, with the week's hours and any overtime waiting (Paper QIM-0). */
+  footer?: React.ReactNode;
+}) {
   return (
     <section aria-label={title} className="flex flex-col gap-3.5 border border-wds-border bg-wds-surface px-5 py-[18px] shadow-[0_10px_24px_-18px_color-mix(in_oklab,var(--wds-neutral-950)_18%,transparent)]">
       <div className="flex items-baseline justify-between">
@@ -237,18 +252,25 @@ export function WeekBars({ title, range, bars, caption }: { title: string; range
       <ul className="m-0 flex h-[60px] list-none items-end justify-between p-0">
         {bars.map((b, i) => (
           <li key={i} className="flex flex-col items-center gap-1.5" aria-label={b.label}>
-            <span
-              aria-hidden
-              className={cn('w-[22px]', b.state === 'off' || b.fraction <= 0 ? 'bg-wds-border-strong' : b.state === 'worked' ? 'bg-wds-success-fg' : 'bg-wds-border-strong')}
-              style={{ height: b.state === 'off' || b.fraction <= 0 ? 2 : Math.round(40 * Math.min(1, b.fraction)) }}
-            />
+            <span aria-hidden className="flex w-[22px] flex-col">
+              {b.extra && b.extra > 0 ? <span className="w-[22px] shrink-0 bg-wds-caramel-500" style={{ height: Math.round(40 * Math.min(1, b.extra)) }} /> : null}
+              <span
+                className={cn(
+                  'w-[22px] shrink-0',
+                  b.state === 'off' || b.fraction <= 0 ? 'bg-wds-border-strong' : b.state === 'worked' ? 'bg-wds-success-fg' : 'bg-wds-border-strong',
+                  // Paper QIJ-0: today's bar wears a 2 px canvas gap and a 3 px edge ring.
+                  b.today && 'shadow-[0_0_0_2px_var(--wds-canvas),0_0_0_3px_var(--wds-selected-edge)]'
+                )}
+                style={{ height: b.state === 'off' || b.fraction <= 0 ? 2 : Math.round(40 * Math.min(1, b.fraction)) }}
+              />
+            </span>
             <span aria-hidden className={cn('font-wds-mono text-[10px] leading-3', b.today ? 'font-semibold text-wds-selected-edge' : 'text-wds-text-secondary')}>
               {b.letter}
             </span>
           </li>
         ))}
       </ul>
-      <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{caption}</p>
+      {footer ? <div className="border-t border-wds-border pt-3">{footer}</div> : <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{caption}</p>}
     </section>
   );
 }
