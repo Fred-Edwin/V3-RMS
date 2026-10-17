@@ -14,7 +14,7 @@ import { DialogError, DialogTextArea } from '../dialog-fields';
 import type { FileDialogProps } from '../file-dialogs';
 
 /** The Director's answer to a pay change (W11). Approving applies it on its start day; declining needs a reason the sender sees. */
-export function PayDecisionDialog({ file, requestId, onClose, done }: FileDialogProps) {
+export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileDialogProps, 'requestId' | 'onClose' | 'done'> & { file: { name: string } }) {
   const [change, setChange] = React.useState<PayChangeRow | null>(null);
   const [decline, setDecline] = React.useState(false);
   const [note, setNote] = React.useState('');

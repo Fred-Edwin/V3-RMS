@@ -11,6 +11,7 @@ import { useLookups, usePeopleSummary } from '../../_shared/hooks/use-people-dat
 import type { EmployeeListRow } from '../../_shared/types/people-types';
 import { employeesKpiCells, employeesSubtitle } from '../lib/summary-copy';
 import { EmployeesTable } from './employees-table';
+import { PendingPayChanges } from './pending-pay-changes';
 
 /**
  * Employees (Paper Chapter 4, R1 and R2; the Chapter 2 entry): the title, the four numbers, then the table. "Add employee" is the one
@@ -54,6 +55,7 @@ export function EmployeesScreen() {
         ) : summary.data ? (
           <WorkforceKpiStrip aria-label="Employee numbers" cells={employeesKpiCells(summary.data, chooseFilter)} />
         ) : null}
+        <PendingPayChanges canDecide={permissions.ready && permissions.can('payprofile.approve')} />
         <EmployeesTable lookups={lookups.data} summary={summary.data} onOpen={open} />
         {scoped ? <p className="m-0 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">You see only your own site, and never the pay columns.</p> : null}
       </div>

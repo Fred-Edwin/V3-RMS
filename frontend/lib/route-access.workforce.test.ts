@@ -15,6 +15,13 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     });
   }
 
+  it('opens the person’s own file for every role, and the employee file only for the desktop roles', () => {
+    for (const role of ALL) {
+      expect(isAllowedPath('/app/workforce/my-file', role, false), `${role} on my-file`).toBe(true);
+      expect(isAllowedPath('/app/workforce/employees/abc', role, false), `${role} on a file`).toBe(WORKFORCE_DESKTOP.includes(role));
+    }
+  });
+
   it('does not let a department head in because of the head marker alone', () => {
     expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(false);
   });

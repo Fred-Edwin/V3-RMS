@@ -1,0 +1,35 @@
+import { describe, expect, it } from 'vitest';
+
+import type { EmployeeFile, FilePart } from '../../_shared/types/people-types';
+import { finishProgress, numbersEmpty, stillToFinish, toEmergencyBody, toNumbersBody, validateEmergency } from './own-file';
+
+const parts = (open: FilePart[]) => (['EMERGENCY_CONTACT', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'PAY'] as FilePart[]).map((part) => ({ part, applicable: true, done: !open.includes(part) }));
+const file = (open: FilePart[], nextSteps: EmployeeFile['nextSteps'] = []): EmployeeFile =>
+  ({ completeness: { ringPercent: 50, checklistPercent: 50, parts: parts(open), checklist: [] }, nextSteps }) as unknown as EmployeeFile;
+const words = (d: string): string => `on ${d}`;
+
+describe('what is still to finish', () => {
+  it('lists the three things the person can add, only the open ones', () => {
+    expect(stillToFinish(file(['NSSF_SHA']), words).map((r) => r.key)).toEqual(['numbers']);
+    expect(stillToFinish(file([]), words)).toEqual([]);
+  });
+  it('says when HR asked', () => {
+    const rows = stillToFinish(file(['EMERGENCY_CONTACT'], [{ code: 'FILE_REQUEST', dueOn: null, fileRequestId: 'r', fileRequestKind: 'EMERGENCY_CONTACT', fileRequestAskedOn: '2026-10-02' }]), words);
+    expect(rows[0]).toMatchObject({ key: 'emergency', detail: 'HR asked for this on on 2026-10-02' });
+  });
+  it('counts progress over the three', () => {
+    expect(finishProgress(file(['NSSF_SHA']))).toEqual({ done: 2, total: 3 });
+  });
+});
+
+describe('the small forms', () => {
+  it('an emergency contact needs a name, a relation and a phone', () => {
+    expect(Object.keys(validateEmergency({ name: '', relation: '', phone: '' }))).toEqual(['name', 'relation', 'phone']);
+    expect(validateEmergency({ name: 'Grace Chebet', relation: 'Parent', phone: '0722 000 111' })).toEqual({});
+    expect(toEmergencyBody({ name: ' Grace Chebet ', relation: 'Parent', phone: '0722 000 111' })).toEqual({ emergencyName: 'Grace Chebet', emergencyRelation: 'Parent', emergencyPhone: '0722 000 111' });
+  });
+  it('sends only the numbers that were typed', () => {
+    expect(toNumbersBody({ nssf: '2018 4471 09', sha: '' })).toEqual({ nssfNumber: '2018 4471 09' });
+    expect(numbersEmpty({ nssf: '', sha: ' ' })).toBe(true);
+  });
+});

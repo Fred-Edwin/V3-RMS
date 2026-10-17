@@ -5,3 +5,4 @@
 export { EmployeesScreen } from './employees/components/employees-screen';
 export { FileScreen } from './file/components/file-screen';
 export { HireScreen } from './hire/components/hire-screen';
+export { MyFileScreen } from './mine/components/my-file-screen';

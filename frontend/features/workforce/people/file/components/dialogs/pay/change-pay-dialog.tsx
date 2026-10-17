@@ -61,7 +61,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
         <span aria-hidden className="pb-2 text-wds-text-faint max-sm:hidden">→</span>
         <DialogNumber label="New basic pay" value={form.amount} onChange={(v) => set({ amount: v })} before="KES" after={`/ ${unit}`} decimal maxLength={9} autoFocus error={shown ? errors.amount : undefined} />
       </div>
-      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+      <div className="grid grid-cols-2 items-end gap-3 max-sm:grid-cols-1">
         <SingleDateField label="Starts on" value={form.startsOn} onChange={(d) => set({ startsOn: d })} minDate={today} maxDate={`${Number(today.slice(0, 4)) + 2}-12-31`} error={shown ? errors.startsOn : undefined} />
         <DialogPicker label="Reason" value={form.reason} onChange={(v) => set({ reason: v as PayChangeForm['reason'] })} options={reasons} error={shown ? errors.reason : undefined} />
       </div>

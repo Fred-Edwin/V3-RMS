@@ -122,6 +122,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
 
   // Workforce (Chapter 1 frame): the Home of the five desktop roles that have a Workforce menu. Floor staff get a Home link when Attendance
   // (slice 3) gives them a clock card; a later slice widens this for My time, My leave and My payslips. Each slice's own routes narrow or widen it here.
+  // The person's own file (slice 1a): everyone with a login opens it, floor staff included. The API shows only their own record.
+  if (pathname === '/app/workforce/my-file' || pathname.startsWith('/app/workforce/my-file/')) {
+    return true;
+  }
+
   if (pathname === '/app/workforce' || pathname.startsWith('/app/workforce/')) {
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
