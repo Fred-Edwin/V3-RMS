@@ -126,15 +126,15 @@ Values come from `get_jsx` / `get_computed_styles`; none was hard-coded in a pie
 | `#1715128C` (55 %) dialog scrim, `#1715124D` drawer shadow | Dialogs, drawer | `neutral-950` at 55 % via `color-mix`; `shadow-wds-drawer` |
 | Paper's focus ring on fields is 12 % espresso | Fields, shift ring | `color-mix` of `primary` at 12 % (the design system's own ring is 40 %) |
 
-## Open questions for the owner
+## Decisions
 
-Pass 1's seven questions are answered (tags kept, notification colours follow the Kind word, Inbox rows outlined, amber uses the nearest tokens, "Life at Wendo" becomes a vertical list on a phone, `/dev` guard added to every page, the last PIN digit signs and Enter never does). New:
+Pass 1's seven questions are answered (tags kept, notification colours follow the Kind word, Inbox rows outlined, amber uses the nearest tokens, "Life at Wendo" becomes a vertical list on a phone, `/dev` guard added to every page, the last PIN digit signs and Enter never does). Pass 2's were settled by the owner on 17 Oct 2026 by accepting the kit's defaults:
 
-1. **Lavender.** Add a token trio for the Early bake shift, or keep the derived mix, which reads close to the Leave grey?
-2. **Navy for documents.** Keep the printed palette in one file, or promote navy, rule and ink to design tokens?
-3. **Audit log header.** Paper's Audit log draws a 10 px, 0.08em header, unlike Employees' 11 px, 0.06em. The Workforce look uses the Employees one everywhere. Redraw the Audit log, or give it its own option?
-4. **Landscape rota print.** The brief said 1123 × 848; Paper draws 1123 × 794 (true A4 landscape). The kit follows Paper.
-5. **Page title size.** The brief said 26 px; Paper draws 24 px (28 px on Rules). The kit follows Paper, with `size="lg"` for the 28.
-6. **Radio card selected edge.** The brief described a 2 px espresso left edge; Paper draws a full 1 px espresso border with the warm fill. The kit follows Paper.
-7. **Timer chip amber.** Not drawn in the screens read. Say what colour it should be if it is needed.
-8. **Drawer first focus.** The × takes focus when the drawer opens (no field inside). Prefer the first action instead?
+1. **Lavender.** No new token; Early bake keeps the derived mix in `lib/shift-palette.ts`. Revisit only if it is hard to tell from Leave in use.
+2. **Navy for documents.** Stays the printed page's own palette in `lib/document-palette.ts`.
+3. **Audit log header.** The Workforce look uses the Employees header (11 px, 0.06em) everywhere; the Audit log is not redrawn.
+4. **Landscape rota print.** 1123 × 794, as Paper draws it.
+5. **Page title size.** 24 px, with `size="lg"` for the 28 px Rules heading, as Paper draws it.
+6. **Radio card selected edge.** Full 1 px espresso border with the warm fill, as Paper draws it.
+7. **Timer chip amber.** The warning and caramel tokens as built; change when a screen draws it.
+8. **Drawer first focus.** The × takes focus on open, as built.
