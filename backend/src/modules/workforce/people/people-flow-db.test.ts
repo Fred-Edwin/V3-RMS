@@ -224,7 +224,7 @@ describe.skipIf(!enabled)('People flows in the database', () => {
     expect(first.find((r) => r.task === 'applyPayChanges')?.changed).toBe(1);
     expect((await m.payService.viewQuiet(hr, employeeId)).amount).toBe(raise);
     const second = await m.runPeopleScheduler(plus(3), at(plus(3)));
-    expect(second.map((r) => r.changed)).toEqual([0, 0, 0, 0, 0]);
+    expect(second.map((r) => r.changed)).toEqual([0, 0, 0, 0, 0, 0]);
   });
 
   it('probation: a confirmation waits for the contract, then completes; extension is limited', async () => {
@@ -255,7 +255,7 @@ describe.skipIf(!enabled)('People flows in the database', () => {
     expect(login.siteId).toBe(highway.siteId);
     expect(await m.prisma.staffTransfer.count({ where: { userId: loginUserId } })).toBe(1);
     const again = await m.runPeopleScheduler(plus(5), at(plus(5)));
-    expect(again.map((r) => r.changed)).toEqual([0, 0, 0, 0, 0]);
+    expect(again.map((r) => r.changed)).toEqual([0, 0, 0, 0, 0, 0]);
     // The person now belongs to Highway: the Town manager no longer sees the file.
     await expect(m.employeesService.getFile(townManager, employeeId)).rejects.toMatchObject({ statusCode: 404 });
   });
@@ -285,7 +285,7 @@ describe.skipIf(!enabled)('People flows in the database', () => {
     expect(exited.contractStatus).toBe('ENDED');
     expect((await m.prisma.user.findUniqueOrThrow({ where: { id: loginUserId }, select: { isActive: true } })).isActive).toBe(false);
     expect(await m.prisma.refreshToken.count({ where: { userId: loginUserId } })).toBe(0);
-    expect((await m.runPeopleScheduler(plus(11), at(plus(11)))).map((r) => r.changed)).toEqual([0, 0, 0, 0, 0]);
+    expect((await m.runPeopleScheduler(plus(11), at(plus(11)))).map((r) => r.changed)).toEqual([0, 0, 0, 0, 0, 0]);
 
     await expect(m.lifecycleService.rehire(hr, employeeId, { startsOn: plus(12) }, at(plus(11)))).rejects.toMatchObject({ code: 'UNDO_WINDOW_OPEN' });
     const undone = await m.lifecycleService.undoExit(hr, employeeId, at(plus(12)));
