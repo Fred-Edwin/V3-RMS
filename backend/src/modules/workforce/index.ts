@@ -1,7 +1,8 @@
 /**
  * The public door of Workforce. Other modules import from here and from nowhere else inside `modules/workforce/`
  * (`.dependency-cruiser.cjs` enforces it). Slice 0 exports what it builds, declares the types for what later slices
- * build, and stubs the four calls that need data from later slices (they throw NotBuiltYetError).
+ * build, and stubs the calls that need data from later slices (they throw NotBuiltYetError). Slice 1 made
+ * `getEmployee` real and added the People exports.
  * Spec: docs/features/workforce/slice-0-contract.md section 7.
  */
 import type { DepartmentTag, UserRole } from '@prisma/client';
@@ -11,6 +12,14 @@ import type { NairobiDate } from './_shared/time/nairobi-time';
 // HTTP: the routers `routes/index.ts` mounts (the one shared touch-point). Amendment 1 in the contract's log.
 export { default as workforcePermissionsRouter } from './_shared/permissions-routes';
 export { default as workforceRulesRouter } from './rules/rules-routes';
+export { default as workforcePeopleRouter } from './people/people-routes';
+export { default as workforceOrgRouter } from './people/org-routes'; // empty until slice 1b
+
+// People (slice 1)
+export { registerPeople } from './people/register-people';
+export { getEmployee, getActiveLoans, payAmountOn, type EmployeeSummary, type ActiveLoan } from './people/people-door';
+export { registerImpactProvider, type ImpactProvider, type ImpactQuery, type ImpactLine, type ImpactKind } from './people/people-hooks';
+export { runPeopleScheduler, PEOPLE_SCHEDULER_TASKS, type TaskReport, type PeopleTask } from './people/scheduler/people-scheduler';
 
 // Access table
 export {
@@ -85,16 +94,6 @@ export interface OnShiftPerson {
   departmentTag: DepartmentTag | null;
   clockedInAt: string;
 }
-export interface EmployeeSummary {
-  employeeId: string;
-  userId: string | null;
-  name: string;
-  siteId: string;
-  departmentId: string | null;
-  positionName: string | null;
-  tracksTime: boolean;
-  status: string;
-}
 export interface ApprovedHours {
   workedMinutes: number;
   overtimeApprovedMinutes: number;
@@ -103,10 +102,6 @@ export interface ApprovedHours {
 /** Slice 3. Who is clocked in now at this place (kitchen and barista displays; behaviour unchanged from today). */
 export async function getOnShiftNow(_unit: { siteId: string; departmentTag?: DepartmentTag }, _role?: UserRole): Promise<OnShiftPerson[]> {
   throw new NotBuiltYetError('getOnShiftNow', 3);
-}
-/** Slice 1. */
-export async function getEmployee(_userId: string): Promise<EmployeeSummary | null> {
-  throw new NotBuiltYetError('getEmployee', 1);
 }
 /** Slice 5. */
 export async function isOnLeave(_userId: string, _date: NairobiDate): Promise<boolean> {

@@ -4,6 +4,7 @@ import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs }
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
 import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
+import { ensurePeopleSchedulerSchedule, PEOPLE_SCHEDULER_JOB, runPeopleSchedulerJob } from './people-scheduler-job';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
 import { URGENT_ESCALATION_JOB, ensureUrgentEscalationSchedule, escalateUrgentRequisitions } from './requisition-urgent-escalation';
 import { ensureInventoryDeliverySchedule, runInventoryDeliveryJob } from './inventory-delivery-jobs';
@@ -73,6 +74,12 @@ export const reportWorker = new Worker(
     if (job.name === 'stale-clock-out.schedule') {
       const totalClosed = await closeStaleClockRecords();
       logger.info({ jobId: job.id, totalClosed }, 'Stale clock-out schedule executed');
+      return;
+    }
+
+    if (job.name === PEOPLE_SCHEDULER_JOB) {
+      const changed = await runPeopleSchedulerJob();
+      logger.info({ jobId: job.id, changed }, 'People scheduler executed');
       return;
     }
 
@@ -159,6 +166,9 @@ export const startWorkers = (): void => {
     });
     void ensureStaleClockOutSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register stale clock-out schedule');
+    });
+    void ensurePeopleSchedulerSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the People scheduler schedule');
     });
     void ensureStaleOrdersSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register stale orders schedule');

@@ -48,9 +48,27 @@ describe('workforce layering (contract section 9)', () => {
   });
 
   it('every route file runs authenticate before the capability', () => {
-    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts'))) {
+    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts') && file !== 'people/org-routes.ts')) {
       expect(text, file).toMatch(/authenticate/);
     }
+  });
+
+  it('people: only people-account-gateway.ts imports legacy services/ or repositories/ (slice 1 contract 6.2)', () => {
+    const legacy = /from\s+'(\.\.\/)+(services|repositories)\//;
+    const offenders = sources.filter(({ file, text }) => file.startsWith('people/') && legacy.test(text)).map(({ file }) => file);
+    expect(offenders).toEqual(['people/people-account-gateway.ts']);
+  });
+
+  it('people: no prisma import outside a *-repository.ts', () => {
+    const offenders = sources.filter(({ file, text }) => file.startsWith('people/') && !isRepository(file) && /config\/database'/.test(text)).map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it('people: every repository query that names a tenant carries companyId or siteId', () => {
+    // A cheap guard: no bare `findMany({})` / `deleteMany({})` / `updateMany({ data` without a where in the People repositories.
+    const unscoped = /\.(findMany|deleteMany|updateMany|count)\(\s*\{?\s*\}?\s*\)/;
+    const offenders = sources.filter(({ file, text }) => file.startsWith('people/') && isRepository(file) && unscoped.test(text)).map(({ file }) => file);
+    expect(offenders).toEqual([]);
   });
 });
 
@@ -60,7 +78,9 @@ describe('the public door (contract 7.2)', () => {
     const runtimeExports = Object.keys(door).sort();
     const expected = [
       // http (amendment 1)
-      'workforcePermissionsRouter', 'workforceRulesRouter',
+      'workforcePermissionsRouter', 'workforceRulesRouter', 'workforcePeopleRouter', 'workforceOrgRouter',
+      // people (slice 1)
+      'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access
       'CAPABILITIES', 'SCOPES', 'ROLE_GRANTS', 'grantsOf', 'scopeOf', 'workforceCan', 'inScope', 'assertInScope', 'assertNotSelf', 'requireCapability',
       'lockedGroupsFor', 'redactSensitive', 'defaultTracksTime', 'tracksTime', 'requireTracksTime', 'setTracksTimeResolver',
@@ -76,14 +96,13 @@ describe('the public door (contract 7.2)', () => {
       // events
       'workforceEvents', 'setWorkforceNotifier',
       // stubs
-      'getOnShiftNow', 'getEmployee', 'isOnLeave', 'getApprovedHours',
+      'getOnShiftNow', 'isOnLeave', 'getApprovedHours',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   });
 
   it.each([
     ['getOnShiftNow', 3],
-    ['getEmployee', 1],
     ['isOnLeave', 5],
     ['getApprovedHours', 4],
   ] as const)('the %s stub throws NotBuiltYetError naming slice %i', async (name, slice) => {

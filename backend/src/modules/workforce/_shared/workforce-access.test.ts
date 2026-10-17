@@ -50,8 +50,10 @@ employee.read_sensitive      -    -    all  -    all  all  -
 employee.write_basic         -    -    -    unit all  -    all
 employee.write_sensitive     -    -    -    -    all  -    -
 employee.lifecycle           -    -    -    -    all  -    all
+probation.note               -    dept -    unit all  -    -
 payprofile.read              -    -    all  -    all  all  -
 payprofile.write             -    -    -    -    all  -    -
+payprofile.approve           -    -    -    -    -    all  -
 org.read                     -    dept -    unit all  all  all
 org.write                    -    -    -    -    all  -    all
 org.write_heads              -    -    -    unit all  -    all
@@ -181,6 +183,41 @@ describe('department heads', () => {
     expect(inScope(head, 'rota.write', { userId: 'x', siteId: 's1', departmentTag: 'BARISTA' })).toBe(false);
     expect(inScope(head, 'rota.write', { userId: 'x', siteId: 's2', departmentTag: 'KITCHEN' })).toBe(false);
   });
+
+  describe('head rows (slice 1): the department ids are the only source of scope', () => {
+    const pastryHead = subject('CHEF', { headOfDepartmentIds: ['d-pastry'], departmentTag: 'PASTRY', isDepartmentHead: true });
+    it('a Pastry head covers Pastry people and no longer Kitchen people', () => {
+      expect(inScope(pastryHead, 'employee.read_basic', { userId: 'x', siteId: 's1', departmentId: 'd-pastry', departmentTag: 'PASTRY' })).toBe(true);
+      expect(inScope(pastryHead, 'employee.read_basic', { userId: 'x', siteId: 's1', departmentId: 'd-kitchen', departmentTag: 'KITCHEN' })).toBe(false);
+    });
+    it('a head of a department with no inventory tag is covered by its id alone', () => {
+      const bakery = subject('WAITER', { headOfDepartmentIds: ['d-bakery'] });
+      expect(scopeOf(bakery, 'employee.read_basic')).toBe('dept');
+      expect(inScope(bakery, 'employee.read_basic', { userId: 'x', siteId: 's1', departmentId: 'd-bakery' })).toBe(true);
+      expect(inScope(bakery, 'employee.read_basic', { userId: 'x', siteId: 's1', departmentId: null })).toBe(false);
+      expect(inScope(bakery, 'employee.read_basic', { userId: 'x', siteId: 's2', departmentId: 'd-bakery' })).toBe(false);
+    });
+    it('no head rows means no head extras', () => {
+      expect(scopeOf(subject('WAITER', { headOfDepartmentIds: [] }), 'employee.read_basic')).toBeNull();
+    });
+    it('claim-only subjects (no head rows loaded) keep the tag-group rule', () => {
+      const claimOnly = subject('CHEF', { isDepartmentHead: true, departmentTag: 'KITCHEN' });
+      expect(inScope(claimOnly, 'employee.read_basic', { userId: 'x', siteId: 's1', departmentId: 'd-x', departmentTag: 'PASTRY' })).toBe(true);
+    });
+    it('the Branch Manager keeps unit scope and the head extra does not narrow it', () => {
+      const manager = subject('MANAGER', { headOfDepartmentIds: ['d-pastry'] });
+      expect(scopeOf(manager, 'employee.read_basic')).toBe('unit');
+    });
+  });
+});
+
+describe('the pay-change split', () => {
+  it('only the Director approves and only HR requests, so nobody approves their own', () => {
+    expect(scopeOf(subject('DIRECTOR'), 'payprofile.approve')).toBe('all');
+    expect(scopeOf(subject('DIRECTOR'), 'payprofile.write')).toBeNull();
+    expect(scopeOf(subject('HR_MANAGER'), 'payprofile.write')).toBe('all');
+    expect(scopeOf(subject('HR_MANAGER'), 'payprofile.approve')).toBeNull();
+  });
 });
 
 describe('tracks time', () => {
@@ -245,6 +282,18 @@ describe('guards', () => {
     });
     it('403 without the capability', () => {
       expect(run(subject('WAITER'), 'rules.read').error).toMatchObject({ statusCode: 403 });
+    });
+    it('prefers req.workforceSubject over req.user when it is set', () => {
+      let called = false;
+      const next: NextFunction = () => {
+        called = true;
+      };
+      const req = {
+        user: subject('WAITER'),
+        workforceSubject: subject('WAITER', { headOfDepartmentIds: ['d1'] }),
+      } as unknown as Request;
+      requireCapability('employee.read_basic')(req, {} as Response, next);
+      expect(called).toBe(true);
     });
     it('passes with the capability, or with any one of several', () => {
       expect(run(subject('MANAGER'), 'rules.read').called).toBe(true);

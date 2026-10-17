@@ -16,6 +16,14 @@ vi.mock('../../../middleware/authenticate', () => ({
   },
 }));
 
+// The head rows and the file's "clocks in" come from the repository (slice 1); the test feeds them through a header.
+vi.mock('../people/employees/employees-repository', () => ({
+  employeesRepository: {
+    loadSubjectFacts: async () => ({ employeeId: null, tracksTime: null, headOfDepartmentIds: factsHeads }),
+  },
+}));
+let factsHeads: string[] = [];
+
 const app = express().use(router);
 app.use((err: { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
   res.status(err.statusCode ?? 500).json({ success: false });
@@ -44,6 +52,17 @@ describe('GET /workforce/permissions/me', () => {
     const res = await get(as('CHEF', { isDepartmentHead: true, departmentTag: 'KITCHEN' }));
     expect(res.body.data).toMatchObject({ isDepartmentHead: true, departmentTag: 'KITCHEN' });
     expect(scopes(res.body)).toMatchObject({ 'rota.write': 'dept', 'me.payslip': 'own', 'time.own': 'own' });
+  });
+
+  it('a head by head rows gets dept scopes and the department ids', async () => {
+    factsHeads = ['dept-1'];
+    try {
+      const res = await get(as('WAITER'));
+      expect(res.body.data).toMatchObject({ isDepartmentHead: true, headOfDepartmentIds: ['dept-1'] });
+      expect(scopes(res.body)).toMatchObject({ 'employee.read_basic': 'dept', 'probation.note': 'dept' });
+    } finally {
+      factsHeads = [];
+    }
   });
 
   it('a person who does not track time has no time.own', async () => {

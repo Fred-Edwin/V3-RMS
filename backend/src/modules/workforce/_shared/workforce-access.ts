@@ -41,8 +41,10 @@ export const CAPABILITIES = [
   'employee.write_basic', // hire basics, job details
   'employee.write_sensitive',
   'employee.lifecycle', // exit, rehire, transfer
+  'probation.note', // a note on someone's probation (slice 1 amendment)
   'payprofile.read', // other people's pay profiles
   'payprofile.write',
+  'payprofile.approve', // approve or decline a pay change (slice 1 amendment)
   'org.read',
   'org.write', // departments and positions
   'org.write_heads', // assign and replace department heads
@@ -124,6 +126,7 @@ const HEAD_EXTRAS: Grants = {
   'leave.acknowledge': 'dept',
   'leave.read': 'dept',
   'employee.read_basic': 'dept',
+  'probation.note': 'dept',
   'org.read': 'dept',
 };
 
@@ -143,6 +146,7 @@ const UNIT_MANAGER: Grants = {
   'leave.approve': 'unit', // never their own; a manager's own request goes to HR
   'employee.read_basic': 'unit',
   'employee.write_basic': 'unit',
+  'probation.note': 'unit',
   'rules.read': 'unit',
   'rules.edit.lateness': 'unit', // own site only: writes a site override
   'rules.edit.overtime': 'unit',
@@ -197,6 +201,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'employee.write_basic': 'all',
     'employee.write_sensitive': 'all',
     'employee.lifecycle': 'all',
+    'probation.note': 'all',
     'payprofile.read': 'all',
     'payprofile.write': 'all',
     'org.read': 'all',
@@ -228,6 +233,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'employee.read_basic': 'all',
     'employee.read_sensitive': 'all',
     'payprofile.read': 'all',
+    'payprofile.approve': 'all',
     'org.read': 'all',
     'rules.read': 'all',
     'rules.edit.lateness': 'all',
@@ -286,6 +292,20 @@ export interface AccessSubject {
   isDepartmentHead?: boolean;
   /** Real value from the employee file (slice 1). When absent the role default (decision D2) applies. */
   tracksTime?: boolean;
+  /**
+   * Slice 1: set by attachWorkforceSubject from the DepartmentHead rows (substantive or acting, active today). When
+   * defined it is the only source of department scope and of head status for Workforce.
+   */
+  headOfDepartmentIds?: readonly string[];
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      /** Set by attachWorkforceSubject (people/people-subject.ts); requireCapability prefers it over req.user. */
+      workforceSubject?: AccessSubject;
+    }
+  }
 }
 
 /** Decision D2: who clocks in when no employee file says otherwise. */
@@ -294,10 +314,13 @@ export const defaultTracksTime = (role: UserRole): boolean =>
 
 const widest = (a: Scope, b: Scope): Scope => (SCOPES.indexOf(a) >= SCOPES.indexOf(b) ? a : b);
 
+const isHead = (subject: AccessSubject): boolean =>
+  subject.isDepartmentHead === true || subject.role === 'DEPARTMENT_HEAD' || (subject.headOfDepartmentIds?.length ?? 0) > 0;
+
 /** Every capability the person holds, with its scope. Base role plus head extras, minus time.own if they do not clock. */
 export const grantsOf = (subject: AccessSubject): Grants => {
   const merged: Grants = { ...(ROLE_GRANTS[subject.role] ?? {}) };
-  if (subject.isDepartmentHead === true || subject.role === 'DEPARTMENT_HEAD') {
+  if (isHead(subject)) {
     for (const [capability, scope] of Object.entries(HEAD_EXTRAS) as [Capability, Scope][]) {
       const current = merged[capability];
       merged[capability] = current ? widest(current, scope) : scope;
@@ -315,6 +338,8 @@ export interface AccessTarget {
   userId: string | null;
   siteId: string | null;
   departmentTag?: DepartmentTag | null;
+  /** Slice 1: the employee's department id (compared with the subject's head rows). */
+  departmentId?: string | null;
 }
 
 const withinScope = (subject: AccessSubject, scope: Scope, target: AccessTarget): boolean => {
@@ -323,14 +348,14 @@ const withinScope = (subject: AccessSubject, scope: Scope, target: AccessTarget)
       return true;
     case 'unit':
       return subject.siteId !== null && target.siteId === subject.siteId;
-    case 'dept':
-      return (
-        subject.siteId !== null &&
-        target.siteId === subject.siteId &&
-        !!subject.departmentTag &&
-        !!target.departmentTag &&
-        sameDepartmentGroup(subject.departmentTag, target.departmentTag)
-      );
+    case 'dept': {
+      if (subject.siteId === null || target.siteId !== subject.siteId) return false;
+      // Slice 1: the head rows are the only source when present (a Pastry head no longer needs Kitchen cover).
+      if (subject.headOfDepartmentIds !== undefined) {
+        return !!target.departmentId && subject.headOfDepartmentIds.includes(target.departmentId);
+      }
+      return !!subject.departmentTag && !!target.departmentTag && sameDepartmentGroup(subject.departmentTag, target.departmentTag);
+    }
     case 'own':
       return target.userId !== null && target.userId === subject.id;
   }
@@ -367,7 +392,7 @@ export const assertNotSelf = (subject: AccessSubject, target: AccessTarget): voi
 export const requireCapability = (...capabilities: Capability[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const subject: AccessSubject = req.user;
+    const subject: AccessSubject = req.workforceSubject ?? req.user;
     if (!capabilities.some((c) => workforceCan(subject, c))) {
       throw new ForbiddenError('You do not have permission to perform this action');
     }
