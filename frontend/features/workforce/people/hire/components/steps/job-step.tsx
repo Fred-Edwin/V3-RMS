@@ -58,7 +58,7 @@ export function JobStep({
               placeholder="Choose the site"
               disabled={sites.length === 1}
               options={sites.map((s) => ({ value: s.id, label: s.name }))}
-              onChange={(e) => setJob({ siteId: e.target.value })}
+              onChange={(v) => setJob({ siteId: v })}
             />
           )}
         </HireField>
@@ -70,7 +70,7 @@ export function JobStep({
               placeholder={state.siteId ? 'Choose the department' : 'Site first'}
               disabled={state.siteId === ''}
               options={departments.map((d) => ({ value: d.id, label: d.name }))}
-              onChange={(e) => setJob({ departmentId: e.target.value })}
+              onChange={(v) => setJob({ departmentId: v })}
             />
           )}
         </HireField>
@@ -82,7 +82,7 @@ export function JobStep({
               placeholder={state.departmentId ? 'Choose the position' : 'Department first'}
               disabled={state.departmentId === ''}
               options={positions.map((p) => ({ value: p.id, label: p.name }))}
-              onChange={(e) => setJob({ positionId: e.target.value })}
+              onChange={(v) => setJob({ positionId: v })}
             />
           )}
         </HireField>
@@ -93,7 +93,7 @@ export function JobStep({
               value={state.reportsToId}
               disabled={state.departmentId === ''}
               options={[{ value: '', label: state.departmentId ? 'No one' : 'Department first' }, ...reports.options.map((o) => ({ value: o.id, label: o.isHead ? `${o.name} · head` : o.name }))]}
-              onChange={(e) => set({ reportsToId: e.target.value })}
+              onChange={(v) => set({ reportsToId: v })}
             />
           )}
         </HireField>

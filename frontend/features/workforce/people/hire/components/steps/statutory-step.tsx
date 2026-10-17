@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { RadioCards } from '../../../../_shared';
 import { firstNameOf } from '../../lib/hire-copy';
-import { HireField, HireInput } from '../hire-field';
+import { HireField, HireInput, NumberField } from '../hire-field';
 import type { StepProps } from './who-step';
 
 /** Step 4, Statutory and bank (Paper `RV0-0`): KRA PIN and the numbers HR has; NSSF and SHA are left for the person to add themselves. */
@@ -35,7 +35,7 @@ export function StatutoryStep({ state, errors, set }: StepProps) {
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
           <HireField label="Bank" error={errors.bankName}>{(ids) => <HireInput ids={ids} value={state.bankName} onChange={(e) => set({ bankName: e.target.value })} />}</HireField>
           <HireField label="Account number" error={errors.accountNumber}>
-            {(ids) => <HireInput ids={ids} mono inputMode="numeric" autoComplete="off" value={state.accountNumber} onChange={(e) => set({ accountNumber: e.target.value })} />}
+            {(ids) => <NumberField ids={ids} code decimal={false} maxLength={20} value={state.accountNumber} onChange={(v) => set({ accountNumber: v })} />}
           </HireField>
         </div>
       ) : null}

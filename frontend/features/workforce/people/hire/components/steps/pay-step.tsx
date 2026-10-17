@@ -5,7 +5,7 @@ import * as React from 'react';
 import { RadioCards } from '../../../../_shared';
 import { PAY_PANEL } from '../../lib/hire-copy';
 import { isCasual } from '../../lib/hire-model';
-import { HireField, HireInput, HireSelect, UnitInput } from '../hire-field';
+import { HireField, HireSelect, NumberField } from '../hire-field';
 import { SwitchRow } from '../switch-row';
 import type { StepProps } from './who-step';
 
@@ -30,21 +30,21 @@ export function PayStep({ state, errors, set, departmentLabel }: StepProps & { d
       />
       <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
         <HireField label={casual ? 'Daily rate' : 'Monthly pay'} error={errors.amount}>
-          {(ids) => <UnitInput ids={ids} before="KES" value={state.amount} onChange={(e) => set({ amount: e.target.value.replace(/[^\d.]/g, '') })} autoFocus />}
+          {(ids) => <NumberField ids={ids} before="KES" maxLength={13} value={state.amount} onChange={(v) => set({ amount: v })} autoFocus />}
         </HireField>
         {casual ? (
           <HireField label="Standard day" error={errors.dayHours}>
-            {(ids) => <UnitInput ids={ids} after="h" value={state.dayHours} onChange={(e) => set({ dayHours: e.target.value.replace(/[^\d.]/g, '') })} />}
+            {(ids) => <NumberField ids={ids} after="h" maxLength={6} value={state.dayHours} onChange={(v) => set({ dayHours: v })} />}
           </HireField>
         ) : (
           <HireField label="Standard week" error={errors.weekHours}>
-            {(ids) => <UnitInput ids={ids} after="h" value={state.weekHours} onChange={(e) => set({ weekHours: e.target.value.replace(/[^\d.]/g, '') })} />}
+            {(ids) => <NumberField ids={ids} after="h" maxLength={6} value={state.weekHours} onChange={(v) => set({ weekHours: v })} />}
           </HireField>
         )}
       </div>
       {casual ? (
         <HireField label="Department pool" helper="The department's head records their days. The Branch Manager approves them.">
-          {(ids) => <HireSelect ids={ids} value="pool" disabled options={[{ value: 'pool', label: departmentLabel }]} />}
+          {(ids) => <HireSelect ids={ids} value="pool" onChange={() => undefined} disabled options={[{ value: 'pool', label: departmentLabel }]} />}
         </HireField>
       ) : (
         <>
@@ -55,7 +55,7 @@ export function PayStep({ state, errors, set, departmentLabel }: StepProps & { d
             onChange={(v) => set({ overtimeEligible: v })}
           />
           <HireField label="Lateness policy" helper="The Director sets lateness rules; they apply from the day they start.">
-            {(ids) => <HireSelect ids={ids} value="default" disabled options={[{ value: 'default', label: PAY_PANEL.latenessDefault }]} />}
+            {(ids) => <HireSelect ids={ids} value="default" onChange={() => undefined} disabled options={[{ value: 'default', label: PAY_PANEL.latenessDefault }]} />}
           </HireField>
         </>
       )}

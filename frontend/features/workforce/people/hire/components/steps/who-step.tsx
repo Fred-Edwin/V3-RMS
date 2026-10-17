@@ -10,7 +10,7 @@ import type { DuplicateCheck } from '../../../_shared/types/people-types';
 import { STEP_NOTES, photoNote } from '../../lib/hire-copy';
 import type { HireState } from '../../lib/hire-model';
 import type { HireErrors } from '../../lib/hire-validation';
-import { HireField, HireInput } from '../hire-field';
+import { HireField, HireInput, NumberField } from '../hire-field';
 
 /** Step 1, Who (Paper `R5O-0`): an optional photo, name, phone, national ID and the email the login will use. */
 export interface StepProps {
@@ -88,14 +88,14 @@ export function WhoStep({
       </HireField>
       <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
         <HireField label="Phone" error={errors.phone}>
-          {(ids) => <HireInput ids={ids} mono type="tel" inputMode="tel" value={state.phone} onChange={(e) => set({ phone: e.target.value })} />}
+          {(ids) => <HireInput ids={ids} mono type="tel" value={state.phone} onChange={(e) => set({ phone: e.target.value })} />}
         </HireField>
         <HireField label="National ID number" error={errors.nationalId}>
-          {(ids) => <HireInput ids={ids} mono inputMode="numeric" value={state.nationalId} onChange={(e) => set({ nationalId: e.target.value })} />}
+          {(ids) => <NumberField ids={ids} code decimal={false} maxLength={20} value={state.nationalId} onChange={(v) => set({ nationalId: v })} />}
         </HireField>
       </div>
       <HireField label="Email" note="needed for their login" error={errors.email}>
-        {(ids) => <HireInput ids={ids} type="email" inputMode="email" value={state.email} onChange={(e) => set({ email: e.target.value })} />}
+        {(ids) => <HireInput ids={ids} type="email" value={state.email} onChange={(e) => set({ email: e.target.value })} />}
       </HireField>
       <DuplicateNotice duplicate={duplicate} confirmed={state.confirmDuplicatePhone} onConfirm={(v) => set({ confirmDuplicatePhone: v })} />
     </>

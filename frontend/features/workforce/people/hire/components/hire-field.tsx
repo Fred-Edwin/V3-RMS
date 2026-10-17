@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 
+import { Picker } from '@/components/ui2/picker';
+import { PadNumberInput } from '@/components/ui2/quantity-field';
 import { cn } from '@/lib/cn';
 
 import { FIELD_CLASS } from '../../../_shared';
@@ -10,6 +12,8 @@ import { FIELD_CLASS } from '../../../_shared';
  * The hire form's field pieces (Paper Chapter 2): a mono capital label over a 40 px field, then the helper or the error. The kit's
  * `FormField` is the dialog form (13 px sentence labels); the wizard draws its labels as Paper does, so it has its own small set.
  * Each control gets its id, `aria-describedby` and `aria-invalid` from the field, so a screen reader reads the label and the error.
+ * Choices use the app's `Picker`, and numbers use the in-app number pad (`PadNumberInput`), never the phone's own list or keyboard
+ * (docs/UI_BUILD_RULES.md "Inputs").
  */
 const LABEL = 'font-wds-mono text-[11px] uppercase leading-[14px] tracking-[0.06em] text-wds-neutral-600';
 const CONTROL = cn(FIELD_CLASS, 'h-10');
@@ -18,6 +22,8 @@ export interface ControlIds {
   id: string;
   describedBy: string | undefined;
   invalid: boolean;
+  /** The label's words, for controls that need an accessible name of their own. */
+  label: string;
 }
 
 export function HireField({
@@ -45,7 +51,7 @@ export function HireField({
         {label}
         {note ? <span className="normal-case"> · {note}</span> : null}
       </label>
-      {children({ id, describedBy: text ? noteId : undefined, invalid: Boolean(error) })}
+      {children({ id, describedBy: text ? noteId : undefined, invalid: Boolean(error), label })}
       {text ? (
         <p id={noteId} role={error ? 'alert' : undefined} className={cn('m-0 font-wds-sans text-[12px] leading-4', error ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>
           {text}
@@ -59,6 +65,7 @@ export function HireInput({ ids, mono = false, className, ...props }: { ids: Con
   return (
     <input
       id={ids.id}
+      autoComplete="off"
       aria-describedby={ids.describedBy}
       aria-invalid={ids.invalid || undefined}
       className={cn(CONTROL, mono && 'font-wds-mono text-[15px] placeholder:font-wds-sans placeholder:text-[14px]', className)}
@@ -67,18 +74,46 @@ export function HireInput({ ids, mono = false, className, ...props }: { ids: Con
   );
 }
 
-/** A field with a unit word before ("KES") or after ("h"), the number in mono. */
-export function UnitInput({ ids, before, after, ...props }: { ids: ControlIds; before?: string; after?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+/** A number box on the in-app pad. `before` ("KES") or `after` ("h") is a unit word drawn inside the field. `code` keeps leading zeros (an ID or account number). */
+export function NumberField({
+  ids,
+  value,
+  onChange,
+  before,
+  after,
+  decimal = true,
+  code = false,
+  maxLength = 12,
+  placeholder,
+  autoFocus,
+}: {
+  ids: ControlIds;
+  value: string;
+  onChange: (value: string) => void;
+  before?: string;
+  after?: string;
+  decimal?: boolean;
+  code?: boolean;
+  maxLength?: number;
+  placeholder?: string;
+  autoFocus?: boolean;
+}) {
   return (
     <div className="relative flex items-center">
-      {before ? <span aria-hidden className="pointer-events-none absolute left-3 font-wds-mono text-[12px] text-wds-text-secondary">{before}</span> : null}
-      <input
+      {before ? <span aria-hidden className="pointer-events-none absolute left-3 z-10 font-wds-mono text-[12px] text-wds-text-secondary">{before}</span> : null}
+      <PadNumberInput
+        label={ids.label}
         id={ids.id}
-        inputMode="decimal"
-        aria-describedby={ids.describedBy}
+        value={value}
+        onChange={onChange}
+        decimal={decimal}
+        keepZeros={code}
+        maxLength={maxLength}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
         aria-invalid={ids.invalid || undefined}
+        aria-describedby={ids.describedBy}
         className={cn(CONTROL, 'font-wds-mono text-[15px]', before && 'pl-[46px]', after && 'pr-8')}
-        {...props}
       />
       {after ? <span aria-hidden className="pointer-events-none absolute right-3 font-wds-mono text-[15px] text-wds-text-ink">{after}</span> : null}
     </div>
@@ -91,30 +126,33 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-/** A native select with the chevron Paper draws. Native keeps the keyboard, the phone picker and the spoken name for free. */
+/** The app's picker, drawn as the hire form's field. Few choices show as chips; more open a list (with a search box past six). */
 export function HireSelect({
   ids,
   options,
   placeholder,
-  ...props
-}: { ids: ControlIds; options: readonly SelectOption[]; placeholder?: string } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  value,
+  onChange,
+  disabled,
+}: {
+  ids: ControlIds;
+  options: readonly SelectOption[];
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
   return (
-    <div className="relative">
-      <select id={ids.id} aria-describedby={ids.describedBy} aria-invalid={ids.invalid || undefined} className={cn(CONTROL, 'appearance-none pr-9')} {...props}>
-        {placeholder ? (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        ) : null}
-        {options.map((o) => (
-          <option key={o.value} value={o.value} disabled={o.disabled}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-wds-text-secondary">
-        <path d="M6 9l6 6 6-6" />
-      </svg>
-    </div>
+    <Picker
+      id={ids.id}
+      aria-label={ids.label}
+      value={value}
+      onValueChange={onChange}
+      options={options.filter((o) => !o.disabled)}
+      placeholder={placeholder}
+      disabled={disabled}
+      chips={false}
+      className={cn(CONTROL, 'text-left')}
+    />
   );
 }

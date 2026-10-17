@@ -65,7 +65,7 @@ export function LoginStep({ state, errors, set, lookups, summary }: StepProps & 
               value={state.loginRole}
               placeholder="Choose"
               options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] ?? r }))}
-              onChange={(e) => set({ loginRole: e.target.value })}
+              onChange={(v) => set({ loginRole: v })}
             />
           )}
         </HireField>
