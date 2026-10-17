@@ -141,6 +141,19 @@ export const employeesRepository = {
     return { employeeId: employee.id, tracksTime: employee.tracksTime, headOfDepartmentIds: employee.heads.map((h) => h.departmentId) };
   },
 
+  /** The file's own "clocks in" for a login, or null when the login has no file. */
+  async tracksTimeOfUser(userId: string): Promise<boolean | null> {
+    const employee = await prisma.employee.findUnique({ where: { userId }, select: { tracksTime: true } });
+    return employee ? employee.tracksTime : null;
+  },
+
+  /** The door's getEmployee: a small summary for other modules. */
+  findSummaryByUserId: (userId: string) =>
+    prisma.employee.findUnique({
+      where: { userId },
+      select: { id: true, userId: true, name: true, siteId: true, departmentId: true, tracksTime: true, status: true, position: { select: { name: true } } },
+    }),
+
   /** The actor's name and company (through their site; a System Admin has no site). */
   findActor: (userId: string) =>
     prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true, siteId: true, site: { select: { companyId: true } } } }),

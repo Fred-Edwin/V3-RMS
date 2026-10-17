@@ -205,6 +205,12 @@ export const staffRepository = {
     return { orders, shiftAssignments, clockRecords };
   },
 
+  /** Workforce slice 1: an account with an employee file is never hard-deleted. */
+  hasEmployeeFile: async (id: string): Promise<boolean> => {
+    const found = await prisma.employee.findUnique({ where: { userId: id }, select: { id: true } });
+    return found !== null;
+  },
+
   hardDelete: async (id: string, siteId?: string) => {
     return prisma.user.deleteMany({
       where: {

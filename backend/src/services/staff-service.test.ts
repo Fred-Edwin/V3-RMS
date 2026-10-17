@@ -14,6 +14,9 @@ vi.mock('../repositories/staff-repository', () => ({
     updatePassword: vi.fn(),
     setActive: vi.fn(),
     clearPin: vi.fn(),
+    hasEmployeeFile: vi.fn(),
+    countDependencies: vi.fn(),
+    hardDelete: vi.fn(),
   },
 }));
 
@@ -213,5 +216,26 @@ describe('staffService.resetPin', () => {
     await staffService.resetPin('att-1', admin);
 
     expect(staffRepository.clearPin).toHaveBeenCalledWith('att-1', hubOrgId, ['STORE_ATTENDANT']);
+  });
+});
+
+describe('staffService.hardDeleteStaff (Workforce slice 1 guard)', () => {
+  it('refuses an account that has an employee file and deletes nothing', async () => {
+    vi.mocked(staffRepository.findById).mockResolvedValue(attendantRow as never);
+    vi.mocked(staffRepository.hasEmployeeFile).mockResolvedValue(true);
+
+    await expect(staffService.hardDeleteStaff('att-1', admin)).rejects.toMatchObject({ statusCode: 409 });
+    expect(staffRepository.hardDelete).not.toHaveBeenCalled();
+  });
+
+  it('still deletes an account with no file and no history', async () => {
+    vi.mocked(staffRepository.findById).mockResolvedValue(attendantRow as never);
+    vi.mocked(staffRepository.hasEmployeeFile).mockResolvedValue(false);
+    vi.mocked(staffRepository.countDependencies).mockResolvedValue({ orders: 0, shiftAssignments: 0, clockRecords: 0 });
+    vi.mocked(staffRepository.hardDelete).mockResolvedValue({ count: 1 } as never);
+
+    await staffService.hardDeleteStaff('att-1', admin);
+
+    expect(staffRepository.hardDelete).toHaveBeenCalled();
   });
 });

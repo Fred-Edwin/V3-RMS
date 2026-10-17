@@ -306,6 +306,10 @@ export const staffService = {
       throw new NotFoundError('Staff account not found');
     }
 
+    if (await staffRepository.hasEmployeeFile(id)) {
+      throw new ConflictError('Cannot delete a staff account that has an employee file. Deactivate instead.');
+    }
+
     const deps = await staffRepository.countDependencies(id, orgScope);
     const reasons: string[] = [];
     if (deps.orders > 0) reasons.push(`${deps.orders} order(s)`);

@@ -1,4 +1,4 @@
-import type { UserRole } from '@prisma/client';
+import type { HrDocumentType, UserRole } from '@prisma/client';
 
 /** All of these are EXAMPLES the owner can change (contract section 11). None is a legal or policy value. */
 export const EMPLOYEE_NUMBER_PREFIX = 'W-';
@@ -38,6 +38,21 @@ export const REVEALABLE_FIELDS = {
 } as const;
 export const REVEALABLE_FIELD_LIST = [...REVEALABLE_FIELDS.ids, ...REVEALABLE_FIELDS.bank] as const;
 export type RevealableField = (typeof REVEALABLE_FIELD_LIST)[number];
+
+/** Every document type (mirrors the HrDocumentType enum; the compiler fails here if the enum gains a value). */
+export const HR_DOCUMENT_TYPES = [
+  'CONTRACT',
+  'ID_COPY',
+  'NATIONAL_ID_FRONT',
+  'NATIONAL_ID_BACK',
+  'CERTIFICATE',
+  'MEDICAL_CERTIFICATE',
+  'INCIDENT_REPORT',
+  'WARNING_LETTER',
+  'OTHER',
+] as const satisfies readonly HrDocumentType[];
+type MissingDocumentTypes = Exclude<HrDocumentType, (typeof HR_DOCUMENT_TYPES)[number]>;
+export const DOCUMENT_TYPES_COMPLETE: [MissingDocumentTypes] extends [never] ? true : never = true;
 
 /** The only documents a person may upload to their own file (the rest are HR-issued). */
 export const SELF_UPLOADABLE_DOCUMENT_TYPES = ['ID_COPY', 'NATIONAL_ID_FRONT', 'NATIONAL_ID_BACK', 'CERTIFICATE', 'MEDICAL_CERTIFICATE', 'OTHER'] as const;

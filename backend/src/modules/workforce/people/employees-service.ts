@@ -586,7 +586,7 @@ export const employeesService = {
     const target = targetOf(row);
     const own = row.userId !== null && row.userId === subject.id;
     if (inScope(subject, 'employee.write_sensitive', target)) {
-      // HR: any type.
+      // HR may upload every document type.
     } else if (own && workforceCan(subject, 'me.file')) {
       if (!(SELF_UPLOADABLE_DOCUMENT_TYPES as readonly string[]).includes(input.documentType)) {
         throw new ForbiddenError(`Document type ${input.documentType} can only be uploaded by HR`, 'FIELD_NOT_ALLOWED');

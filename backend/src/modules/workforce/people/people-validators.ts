@@ -1,9 +1,9 @@
-import { HrDocumentType } from '@prisma/client';
 import { z } from 'zod';
 import {
   EXIT_REASONS,
   FILE_REQUEST_KINDS,
   HIRE_LOGIN_ROLES,
+  HR_DOCUMENT_TYPES,
   PAY_CHANGE_REASONS,
   PROBATION_VERDICTS,
   REVEALABLE_FIELD_LIST,
@@ -158,7 +158,7 @@ export const PatchMeSchema = z
   .refine(notEmpty, 'Nothing to change');
 
 export const RevealSchema = z.strictObject({ field: z.enum(REVEALABLE_FIELD_LIST) });
-export const DocumentUploadSchema = z.strictObject({ documentType: z.enum(HrDocumentType) });
+export const DocumentUploadSchema = z.strictObject({ documentType: z.enum(HR_DOCUMENT_TYPES) });
 export const FileRequestSchema = z.strictObject({ kind: z.enum(FILE_REQUEST_KINDS) });
 
 // ---- pay and contract ----------------------------------------------------------------------
