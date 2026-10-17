@@ -1,0 +1,320 @@
+// ---- Workforce slice 1: People ------------------------------------------------------------
+// Declared in slice-0-contract.md section 2.2 and 2.4, changed here (see backend/src/modules/workforce/people/README.md).
+
+enum PayType {
+  MONTHLY_SALARY
+  DAILY_RATE
+}
+
+enum EmploymentStatus {
+  ONBOARDING
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  NOTICE
+  EXITED
+}
+
+enum ContractStatus {
+  NONE
+  ACTIVE
+  ENDED
+}
+
+enum PayoutMethod {
+  BANK
+  MPESA
+  CASH
+}
+
+enum PayChangeStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum MoveKind {
+  TRANSFER
+  LOAN
+}
+
+enum MoveStatus {
+  SCHEDULED
+  ACTIVE
+  DONE
+  CANCELLED
+}
+
+// `Department` is Inventory's model (inventory/departments.prisma, table `departments`); Workforce adds
+// `description` and the relations `employees`, `heads` and `positions` there. The reference contract's
+// inventoryTag / isActive are the existing `key` / `status`.
+
+model Position {
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  name              String
+  defaultTracksTime Boolean   @default(true) @map("default_tracks_time")
+  loginRole         UserRole? @map("login_role")
+  casualsAllowed    Boolean   @default(true) @map("casuals_allowed")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  employees   Employee[]
+  departments DepartmentPosition[]
+
+  @@unique([companyId, name])
+  @@map("positions")
+}
+
+model DepartmentPosition {
+  departmentId String @map("department_id")
+  positionId   String @map("position_id")
+
+  department Department @relation(fields: [departmentId], references: [id])
+  position   Position   @relation(fields: [positionId], references: [id])
+
+  @@id([departmentId, positionId])
+  @@index([positionId])
+  @@map("department_positions")
+}
+
+model Employee {
+  id                    String           @id @default(uuid())
+  companyId             String           @map("company_id")
+  siteId                String           @map("organization_id")
+  userId                String?          @unique @map("user_id")
+  employeeNumber        String           @map("employee_number")
+  name                  String
+  departmentId          String?          @map("department_id")
+  positionId            String?          @map("position_id")
+  reportsToId           String?          @map("reports_to_id")
+  status                EmploymentStatus @default(ONBOARDING)
+  payType               PayType          @map("pay_type")
+  contractStatus        ContractStatus   @default(NONE) @map("contract_status")
+  tracksTime            Boolean          @default(true) @map("tracks_time")
+  tracksTimeOverride    Boolean          @default(false) @map("tracks_time_override")
+  startDate             DateTime         @map("start_date") @db.Date
+  probationEndsOn       DateTime?        @map("probation_ends_on") @db.Date
+  probationExtensions   Int              @default(0) @map("probation_extensions")
+  probationDecidedOn    DateTime?        @map("probation_decided_on") @db.Date
+  probationConfirmedOn  DateTime?        @map("probation_confirmed_on") @db.Date
+  exitedOn              DateTime?        @map("exited_on") @db.Date
+  photoUrl              String?          @map("photo_url")
+  nationalId            String?          @map("national_id")
+  kraPin                String?          @map("kra_pin")
+  shaNumber             String?          @map("sha_number")
+  nssfNumber            String?          @map("nssf_number")
+  helbNumber            String?          @map("helb_number")
+  dateOfBirth           DateTime?        @map("date_of_birth") @db.Date
+  personalPhone         String?          @map("personal_phone")
+  personalEmail         String?          @map("personal_email")
+  physicalAddress       String?          @map("physical_address")
+  emergencyName         String?          @map("emergency_name")
+  emergencyRelation     String?          @map("emergency_relation")
+  emergencyPhone        String?          @map("emergency_phone")
+  statutoryVerifiedAt   DateTime?        @map("statutory_verified_at")
+  statutoryVerifiedById String?          @map("statutory_verified_by_id")
+  hiredById             String?          @map("hired_by_id")
+  legacyProfileId       String?          @unique @map("legacy_profile_id")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  site           Site              @relation(fields: [siteId], references: [id])
+  user           User?             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  department     Department?       @relation(fields: [departmentId], references: [id])
+  position       Position?         @relation(fields: [positionId], references: [id])
+  reportsTo      Employee?         @relation("EmployeeReportsTo", fields: [reportsToId], references: [id])
+  reports        Employee[]        @relation("EmployeeReportsTo")
+  payProfile     PayProfile?
+  payChanges     PayChange[]
+  contracts      Contract[]
+  heads          DepartmentHead[]
+  spells         EmploymentSpell[]
+  moves          EmployeeMove[]
+  fileRequests   FileRequest[]
+  documents      HrDocument[]
+  probationNotes ProbationNote[]
+
+  @@unique([companyId, employeeNumber])
+  @@index([siteId, status])
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([companyId, nationalId])
+  @@map("employees")
+}
+
+model Contract {
+  id               String         @id @default(uuid())
+  employeeId       String         @map("employee_id")
+  contractTypeId   String?        @map("contract_type_id")
+  startsOn         DateTime       @map("starts_on") @db.Date
+  endsOn           DateTime?      @map("ends_on") @db.Date
+  status           ContractStatus @default(ACTIVE)
+  signedDocumentId String?        @map("signed_document_id")
+  createdById      String?        @map("created_by_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  contractType ContractType? @relation(fields: [contractTypeId], references: [id])
+
+  @@index([employeeId, status])
+  @@map("contracts")
+}
+
+model PayProfile {
+  id                String        @id @default(uuid())
+  employeeId        String        @unique @map("employee_id")
+  amount            Decimal?      @db.Decimal(12, 2)
+  overtimeEligible  Boolean       @default(false) @map("overtime_eligible")
+  standardWeekHours Decimal?      @map("standard_week_hours") @db.Decimal(5, 2)
+  standardDayHours  Decimal?      @map("standard_day_hours") @db.Decimal(4, 2)
+  payoutMethod      PayoutMethod? @map("payout_method")
+  bankName          String?       @map("bank_name")
+  bankBranch        String?       @map("bank_branch")
+  accountName       String?       @map("account_name")
+  accountNumber     String?       @map("account_number")
+  mpesaPhone        String?       @map("mpesa_phone")
+  updatedById       String?       @map("updated_by_id")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("pay_profiles")
+}
+
+model PayChange {
+  id            String          @id @default(uuid())
+  employeeId    String          @map("employee_id")
+  amount        Decimal         @db.Decimal(12, 2)
+  effectiveFrom DateTime        @map("effective_from") @db.Date
+  reason        String
+  status        PayChangeStatus @default(PENDING)
+  requestedById String?         @map("requested_by_id")
+  requestedAt   DateTime        @default(now()) @map("requested_at")
+  decidedById   String?         @map("decided_by_id")
+  decidedAt     DateTime?       @map("decided_at")
+  decisionNote  String?         @map("decision_note")
+  appliedAt     DateTime?       @map("applied_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, effectiveFrom])
+  @@index([status, requestedAt])
+  // Raw SQL in the migration: unique (employee_id) WHERE status = 'PENDING'
+  @@map("pay_changes")
+}
+
+model EmploymentSpell {
+  id              String    @id @default(uuid())
+  employeeId      String    @map("employee_id")
+  startsOn        DateTime  @map("starts_on") @db.Date
+  endedOn         DateTime? @map("ended_on") @db.Date
+  exitReason      String?   @map("exit_reason")
+  exitNote        String?   @map("exit_note")
+  uniformReturned Boolean   @default(false) @map("uniform_returned")
+  exitSnapshot    Json?     @map("exit_snapshot")
+  endedById       String?   @map("ended_by_id")
+  endedAt         DateTime? @map("ended_at")
+  finalizedAt     DateTime? @map("finalized_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, startsOn])
+  // Raw SQL in the migration: unique (employee_id) WHERE ended_on IS NULL
+  @@map("employment_spells")
+}
+
+model EmployeeMove {
+  id               String     @id @default(uuid())
+  employeeId       String     @map("employee_id")
+  kind             MoveKind
+  status           MoveStatus @default(SCHEDULED)
+  fromSiteId       String     @map("from_site_id")
+  toSiteId         String     @map("to_site_id")
+  fromDepartmentId String?    @map("from_department_id")
+  toDepartmentId   String?    @map("to_department_id")
+  toPositionId     String?    @map("to_position_id")
+  toReportsToId    String?    @map("to_reports_to_id")
+  startsOn         DateTime   @map("starts_on") @db.Date
+  endsOn           DateTime?  @map("ends_on") @db.Date
+  summary          Json?
+  createdById      String     @map("created_by_id")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  appliedAt        DateTime?  @map("applied_at")
+  cancelledAt      DateTime?  @map("cancelled_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, startsOn])
+  @@index([status, startsOn])
+  // Raw SQL in the migration: unique (employee_id) WHERE kind = 'TRANSFER' AND status = 'SCHEDULED'
+  @@map("employee_moves")
+}
+
+model DepartmentHead {
+  id           String    @id @default(uuid())
+  departmentId String    @map("department_id")
+  employeeId   String    @map("employee_id")
+  isActing     Boolean   @default(false) @map("is_acting")
+  startsOn     DateTime  @map("starts_on") @db.Date
+  endsOn       DateTime? @map("ends_on") @db.Date
+  assignedById String?   @map("assigned_by_id")
+  endedById    String?   @map("ended_by_id")
+  endReason    String?   @map("end_reason")
+
+  department Department @relation(fields: [departmentId], references: [id])
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([departmentId, endsOn])
+  @@index([employeeId, endsOn])
+  // Raw SQL in the migration: unique (department_id) WHERE ends_on IS NULL AND NOT is_acting;
+  //                           unique (employee_id) WHERE ends_on IS NULL
+  @@map("department_heads")
+}
+
+model FileRequest {
+  id         String    @id @default(uuid())
+  employeeId String    @map("employee_id")
+  kind       String
+  askedById  String    @map("asked_by_id")
+  askedAt    DateTime  @default(now()) @map("asked_at")
+  remindedAt DateTime? @map("reminded_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, resolvedAt])
+  @@map("file_requests")
+}
+
+model ProbationNote {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  authorId   String   @map("author_id")
+  authorKind String   @map("author_kind")
+  verdict    String
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, createdAt])
+  @@map("probation_notes")
+}
+
+model EmployeeDraft {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  createdById String   @map("created_by_id")
+  kind        String
+  step        Int      @default(1)
+  payload     Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, createdById])
+  @@map("employee_drafts")
+}

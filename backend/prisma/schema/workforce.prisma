@@ -118,6 +118,7 @@ model ContractType {
   site     Site?     @relation(fields: [siteId], references: [id])
   leavePolicies    LeavePolicy[]
   employeeProfiles EmployeeProfile[]
+  contracts        Contract[]
 
   @@index([siteId])
   @@map("contract_types")
@@ -231,7 +232,8 @@ model DisciplinaryRecord {
 
 model HrDocument {
   id                   String         @id @default(uuid())
-  employeeProfileId    String         @map("employee_profile_id")
+  employeeProfileId    String?        @map("employee_profile_id")
+  employeeId           String?        @map("employee_id")
   leaveRequestId       String?        @map("leave_request_id")
   disciplinaryRecordId String?        @map("disciplinary_record_id")
   documentType         HrDocumentType @map("document_type")
@@ -240,11 +242,13 @@ model HrDocument {
   uploadedById         String         @map("uploaded_by_id")
   createdAt            DateTime       @default(now()) @map("created_at")
 
-  employeeProfile    EmployeeProfile     @relation(fields: [employeeProfileId], references: [id])
+  employeeProfile    EmployeeProfile?    @relation(fields: [employeeProfileId], references: [id], onDelete: Restrict)
+  employee           Employee?           @relation(fields: [employeeId], references: [id])
   leaveRequest       LeaveRequest?       @relation(fields: [leaveRequestId], references: [id])
   disciplinaryRecord DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
   uploadedBy         User                @relation("HrDocumentUploadedBy", fields: [uploadedById], references: [id])
 
+  @@index([employeeId])
   @@index([employeeProfileId])
   @@index([leaveRequestId])
   @@index([disciplinaryRecordId])
