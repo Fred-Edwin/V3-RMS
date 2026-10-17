@@ -187,7 +187,7 @@ export function ReadOnlyField({ label, value, mono = false, className }: { label
 
 /** The grey words at the left of a dialog footer ("Logged, with your name."). */
 export function FooterNote({ children }: { children: React.ReactNode }) {
-  return <span className="mr-auto font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{children}</span>;
+  return <span className="mr-auto min-w-0 flex-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{children}</span>;
 }
 
 /** The server's refusal, in its own words, inside the dialog. */

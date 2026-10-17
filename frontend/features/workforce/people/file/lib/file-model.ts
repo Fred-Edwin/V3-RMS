@@ -200,6 +200,8 @@ export function pageActions(file: EmployeeFile, tab: FileTabKey): PageAction[] {
   if (file.status === 'EXITED') return a.undoExit ? [{ key: 'undo', label: 'Undo exit', dialog: 'undo-exit', primary: true }] : [];
   const moveOrExit = a.transfer || a.exit;
   if (tab === 'overview') {
+    // On notice (exit recorded, last day not yet passed) the Undo toast is gone after 30 seconds; the button stays while the server allows it.
+    if (a.undoExit) out.push({ key: 'undo', label: 'Undo exit', dialog: 'undo-exit' });
     if (a.sendToSite) out.push({ key: 'loan', label: 'Send to another site', dialog: 'loan' });
     if (moveOrExit) out.push({ key: 'move', label: 'Transfer or exit', dialog: 'move' });
     if (hasFinishStep(file)) out.push({ key: 'finish', label: 'Finish the file', dialog: 'finish', primary: true });

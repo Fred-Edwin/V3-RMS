@@ -31,6 +31,14 @@ const joy = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
     ...over,
   }) as unknown as EmployeeFile;
 
+describe('undo while on notice', () => {
+  it('offers Undo exit on the Overview of a person on notice when the server allows it', () => {
+    const onNotice = joy({ status: 'NOTICE', actions: { ...HR, undoExit: true } });
+    expect(pageActions(onNotice, 'overview').map((a) => a.label)).toContain('Undo exit');
+    expect(pageActions(joy(), 'overview').map((a) => a.label)).not.toContain('Undo exit');
+  });
+});
+
 describe('tabs follow what is locked', () => {
   it('gives HR the seven tabs and a Branch Manager five', () => {
     expect(tabsFor(joy()).map((t) => t.label)).toEqual(['Overview', 'Job and pay', 'Time', 'Leave', 'Documents', 'Conduct', 'Activity']);

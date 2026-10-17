@@ -37,8 +37,8 @@ export function toPayChangeBody(f: PayChangeForm): PayChangeBody {
 }
 
 /** The numbered "who decides" list (Paper `13F3-0`): the sender, the Director, the Accountant. */
-export function payChangeSteps(senderName: string, startsOn: string): string[] {
-  return [`${senderName} sends it`, 'The Director approves it. Until then the old amount applies.', startsOn ? `The Accountant sees the new amount in the ${monthName(startsOn)} pay run` : 'The Accountant sees the new amount in the pay run'];
+export function payChangeSteps(startsOn: string): string[] {
+  return ['You send it', 'The Director approves it. Until then the old amount applies.', startsOn ? `The Accountant sees the new amount in the ${monthName(startsOn)} pay run` : 'The Accountant sees the new amount in the pay run'];
 }
 
 /** The Director's answer (W11): a decline needs a reason. */

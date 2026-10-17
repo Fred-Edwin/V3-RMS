@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { DialogButton, KitDialog, SingleDateField } from '../../../../../_shared';
 import { useLookups } from '../../../../_shared/hooks/use-people-data';
-import { formatKes, nairobiDay } from '../../../../_shared/lib/people-dates';
+import { formatDayMonthYear, formatKes, nairobiDay } from '../../../../_shared/lib/people-dates';
 import { peopleReads } from '../../../../_shared/services/people-reads';
 import { peopleWrites } from '../../../../_shared/services/people-writes';
 import { useFileAction } from '../../../hooks/use-file-action';
@@ -37,7 +37,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
   const send = (): void => {
     setShown(true);
     if (hasErrors(errors)) return;
-    void action.run(() => peopleWrites.requestPayChange(file.id, toPayChangeBody(form)), `Pay change sent to the Director. ${formatKes(form.amount)} from ${form.startsOn}.`).then((ok) => ok);
+    void action.run(() => peopleWrites.requestPayChange(file.id, toPayChangeBody(form)), `Pay change sent to the Director: ${formatKes(form.amount)} from ${formatDayMonthYear(form.startsOn)}.`);
   };
   const reasons = (lookups.data?.payChangeReasons ?? []).map((r) => ({ value: r, label: PAY_REASON_LABELS[r] }));
   const unit = current?.unit ?? 'month';
@@ -69,7 +69,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
       <section aria-label="Who decides" className="flex flex-col gap-2.5 border border-wds-border bg-wds-neutral-50 px-4 py-3.5">
         <h3 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">WHO DECIDES</h3>
         <ol className="m-0 flex list-none flex-col gap-2 p-0">
-          {payChangeSteps('You', form.startsOn).map((s, i) => (
+          {payChangeSteps(form.startsOn).map((s, i) => (
             <li key={s} className="flex items-center gap-2.5 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
               <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-wds-primary text-[11px] leading-none text-wds-primary">{i + 1}</span>
               {s}

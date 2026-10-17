@@ -51,7 +51,9 @@ export function transferLines(preview: MovePreview, first: string): string[] {
 export function toldLine(preview: MovePreview | null, fallback: string): string {
   if (!preview || preview.notified.length === 0) return fallback;
   const names = preview.notified.map((n) => n.name).filter(Boolean);
-  return names.length === 0 ? fallback : `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} told. Written to the audit log with the date.`;
+  if (names.length === 0) return fallback;
+  const who = names.length <= 2 ? names.join(' and ') : `${names[0]} and ${names.length - 1} others`;
+  return `${who} ${names.length === 1 ? 'is' : 'are'} told. Logged.`;
 }
 
 // ---- exit (W19 to W22) ------------------------------------------------------------------------

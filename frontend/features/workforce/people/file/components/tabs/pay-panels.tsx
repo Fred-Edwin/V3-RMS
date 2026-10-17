@@ -62,9 +62,9 @@ export function PayHistory({ history }: { history: PayChangeRow[] }) {
           ) : null}
           {lines.map((l) => (
             <tr key={l.id}>
-              <td className="border-b border-wds-neutral-100 px-4 py-3font-wds-mono text-[13px] leading-4 text-wds-text-ink">{l.from}</td>
-              <td className="border-b border-wds-neutral-100 px-4 py-3font-wds-mono text-[13px] leading-4 text-wds-text-ink">{l.amount}</td>
-              <td className="border-b border-wds-neutral-100 px-4 py-3font-wds-sans text-[13px] leading-4 text-wds-text-ink">{l.by}</td>
+              <td className="border-b border-wds-neutral-100 whitespace-nowrap px-4 py-3 font-wds-mono text-[13px] leading-4 text-wds-text-ink">{l.from}</td>
+              <td className="border-b border-wds-neutral-100 whitespace-nowrap px-4 py-3 font-wds-mono text-[13px] leading-4 text-wds-text-ink">{l.amount}</td>
+              <td className="border-b border-wds-neutral-100 px-4 py-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink">{l.by}</td>
               <td className={cn('border-b border-wds-neutral-100 px-4 py-3 font-wds-sans text-[13px] leading-4', VALUE_TONE_CLASS[l.tone])}>{l.reason}</td>
             </tr>
           ))}

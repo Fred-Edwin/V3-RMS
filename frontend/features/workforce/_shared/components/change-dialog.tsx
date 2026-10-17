@@ -161,7 +161,7 @@ export function DialogButton({
     <button
       type="button"
       className={cn(
-        'inline-flex items-center justify-center px-4 font-wds-sans',
+        'inline-flex shrink-0 items-center justify-center whitespace-nowrap px-4 font-wds-sans',
         size === 'lg' ? 'h-[38px] px-5 text-[14px] leading-[18px]' : 'h-[34px] text-[13px] leading-4',
         MOTION,
         FOCUS_RING,
