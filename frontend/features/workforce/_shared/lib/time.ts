@@ -39,6 +39,38 @@ export function formatDuration(totalMinutes: number): string {
   return rest === 0 ? `${h} h` : `${h} h ${pad2(rest)}`;
 }
 
+/** While typing a clock time: keep digits, at most four, with the colon after the hour ("043" becomes "04:3"). */
+export function maskClock(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+}
+
+/** A finished clock time as "HH:MM", or null if it is not a real time ("430" is "04:30"; "25:00" is null). */
+export function parseClock(raw: string): string | null {
+  const text = raw.trim();
+  let h: string;
+  let m: string;
+  if (text.includes(':')) {
+    const [hh = '', mm = ''] = text.split(':');
+    if (!/^\d{1,2}$/.test(hh) || !/^\d{1,2}$/.test(mm)) return null;
+    h = hh;
+    m = mm.length === 1 ? `${mm}0` : mm;
+  } else {
+    if (!/^\d{1,4}$/.test(text)) return null;
+    if (text.length <= 2) {
+      h = text;
+      m = '00';
+    } else {
+      h = text.slice(0, text.length - 2);
+      m = text.slice(-2);
+    }
+  }
+  const hours = Number(h);
+  const minutes = Number(m);
+  if (hours > 23 || minutes > 59) return null;
+  return `${pad2(hours)}:${pad2(minutes)}`;
+}
+
 /** Whole minutes between two "HH:MM" clock times on the same day; an end before the start counts as the next day. */
 export function minutesBetween(start: string, end: string): number {
   const toMin = (t: string): number => {

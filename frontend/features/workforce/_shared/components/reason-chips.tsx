@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 
 import { FOCUS_RING, MOTION, onHover } from '../lib/interaction';
 import { OTHER_REASON, type ReasonValue } from '../lib/reason';
+import { ChipLegend, type LegendStyle } from './choice-controls';
 
 /**
  * Reason chips: a short list of reasons plus "Other" (rule 06). Real radio
@@ -27,8 +28,14 @@ export function ReasonChips({
   otherPlaceholder = 'Say what happened',
   disabled = false,
   name,
+  legendStyle = 'caps',
+  hint,
 }: {
   legend: string;
+  /** `caps` is the mono heading; `sentence` is a question ("If you decline, say why", 1CQL-0). */
+  legendStyle?: LegendStyle;
+  /** "optional" or "required", after the legend. */
+  hint?: 'optional' | 'required';
   options: ReasonOption[];
   value: ReasonValue;
   onChange: (next: ReasonValue) => void;
@@ -49,7 +56,9 @@ export function ReasonChips({
 
   return (
     <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-2.5 border-0 p-0">
-      <legend className="mb-2.5 p-0 font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">{legend}</legend>
+      <ChipLegend style={legendStyle} hint={hint}>
+        {legend}
+      </ChipLegend>
       <div className="flex flex-wrap gap-2">
         {all.map((o) => {
           const selected = value.choice === o.key;

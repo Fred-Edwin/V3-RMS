@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDuration, formatHms, formatHoursMinutes, formatHoursMinutesUnit, formatMmSs, minutesBetween } from './time';
+import { formatDuration, formatHms, formatHoursMinutes, formatHoursMinutesUnit, formatMmSs, maskClock, minutesBetween, parseClock } from './time';
 
 describe('time formatters', () => {
   it('formats a running clock', () => {
@@ -27,6 +27,24 @@ describe('time formatters', () => {
     expect(formatDuration(120)).toBe('2 h');
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(125)).toBe('2 h 05');
+  });
+
+  it('masks a clock time while typing', () => {
+    expect(maskClock('0')).toBe('0');
+    expect(maskClock('043')).toBe('04:3');
+    expect(maskClock('04:30pm')).toBe('04:30');
+    expect(maskClock('123456')).toBe('12:34');
+  });
+
+  it('reads a finished clock time or says it is not one', () => {
+    expect(parseClock('04:00')).toBe('04:00');
+    expect(parseClock('430')).toBe('04:30');
+    expect(parseClock('4')).toBe('04:00');
+    expect(parseClock('14:5')).toBe('14:50');
+    expect(parseClock('25:00')).toBeNull();
+    expect(parseClock('12:60')).toBeNull();
+    expect(parseClock('abc')).toBeNull();
+    expect(parseClock('')).toBeNull();
   });
 
   it('measures a shift, wrapping past midnight', () => {

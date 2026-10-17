@@ -43,7 +43,7 @@ describe('table cells', () => {
     expect(html(h(NumberCell, null, '41 h 05'))).toContain('font-wds-mono');
   });
   it('colours status words and marks a needs-you line', () => {
-    expect(html(h(StatusText, { tone: 'success' }, 'Approved'))).toContain('text-wds-success-fg');
+    expect(html(h(StatusText, { tone: 'success', children: 'Approved' }))).toContain('text-wds-success-fg');
     expect(html(h(NeedsYouLine, null, 'Needs you'))).toContain('text-wds-warning-fg');
   });
 });

@@ -55,8 +55,7 @@ import {
   type WorkforceTagKey,
 } from '..';
 import { Label, Section } from './gallery-parts';
-import { SecretsSection } from './section-secrets';
-import { TableSection } from './section-table';
+import { MORE_NAV, MoreSections } from './more-sections';
 
 /**
  * Dev gallery for the Workforce kit: every piece in every state, labelled with
@@ -120,8 +119,7 @@ export function KitGallery() {
           ['date', 'Date field'],
           ['states', 'States kit'],
           ['notifications', 'Notifications'],
-          ['secrets', 'PIN and code'],
-          ['table', 'Table'],
+          ...MORE_NAV,
         ].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="text-wds-text-secondary underline-offset-2 hover:text-wds-text-ink hover:underline focus-visible:shadow-wds-ring focus-visible:outline-none">
             {label}
@@ -629,8 +627,7 @@ export function KitGallery() {
         </div>
       </Section>
 
-      <SecretsSection />
-      <TableSection />
+      <MoreSections />
     </main>
   );
 }
