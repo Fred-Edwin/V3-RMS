@@ -17,6 +17,15 @@ The owner wants **nothing pending** at the end: every screen, state, hover, role
 - Lane ports and gates: front end `pnpm exec next dev -p 3101`, API from this worktree's `backend/` on 4101 (the lane database already holds the backfilled employees). Every commit passes `cd frontend && pnpm exec tsc --noEmit && pnpm lint && pnpm test`; `pnpm build` before you report. Seeded logins (password `password123`): `admin@wendo.test`, `director@wendo.test`, `bm.town@wendo.test`, `accountant@wendo.test`, `store.manager@wendo.test`. Find the HR Manager and floor-staff logins in the seed script or with the read-only Postgres MCP. If a role has no login in the lane database, create one in the lane database only and say so.
 - `CLAUDE.md` applies in full: pnpm only; no `any`; **Edit and Write tools only**; one line starting `Why:` before each Edit or Write; a live task list; commit with `git add <explicit paths>` ending with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`; **nothing pushed**; end with a plain-English recap of about 5 lines. Do not touch the owner's main folder, other lanes, or production.
 
+### Keep the code tidy as you build (no refactor afterwards)
+The 1a back end needed a clean-up pass because files grew too long and folders too crowded. Do not repeat that. Build to these limits from the first file:
+- **File size:** a component, hook or service file aims for **250 lines or fewer** and never exceeds **350**. A test file may reach 400. When a file nears 250, split it before adding more: sub-components in their own files, pure helpers in `lib/`, hooks apart from the JSX.
+- **One main component per file**, named for what it is. No catch-all `utils.ts` or `helpers.tsx`: name helper files for their job (`probation-dates.ts`).
+- **Folder size:** no folder holds more than **12 files** (tests count). Past that, group into sub-folders named for what the user does (`file/tabs/`, `file/dialogs/`, `hire/steps/`). Each screen gets a folder of its own; the tabs of the file each get a file inside `file/tabs/`.
+- **Layout:** each sub-module follows `components/`, `hooks/`, `lib/`, `services/`, `types/` with an `index.ts` as its public face; `app/` pages stay thin routing shells; never import another feature's internals.
+- **Reuse before writing:** use the kit, `components/ui2/` and what the frame built; if a piece will be needed by another Workforce screen, add it to the kit's `_shared/` rather than copying it here.
+- **Check as you go:** after each screen run `find frontend/features/workforce/people -name '*.ts*' | xargs wc -l | sort -rn | head -5` and `for d in $(find frontend/features/workforce/people -type d); do echo "$(ls $d | wc -l) $d"; done | sort -rn | head -5`. Fix any breach before the next screen. Run both again before you finish and put the results in the README.
+
 ### Keep the cost down
 No subagents or Explore agents. Read only the parts named below; never re-read a file you already read. While iterating run only the tests of the file you are changing; run the full suite and `pnpm build` once at the end. Commit after each screen so a context compaction loses nothing.
 
@@ -46,6 +55,7 @@ No subagents or Explore agents. Read only the parts named below; never re-read a
 
 ### Gates and finish
 - `pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build` pass. Say which back-end fixes you made, if any, and run `cd backend && pnpm build && pnpm test` if you did.
+- The size checks above show no file over 350 lines and no folder over 12 files (back-end fixes follow the same limits).
 - Prove one flow end to end in the browser on the lane database with the real API: hire (as a Branch Manager), HR adds pay, Director approves a pay change, probation decision, transfer, exit, undo, and that the Home cards change accordingly.
 - READMEs written with the behaviour: `features/workforce/people/README.md` (spec, status, endpoints used, parity manifest, built-beyond-Paper table, gaps found in the back end), the ledger rows ticked, and the status rows in `docs/PROJECT_STATUS.md` and `docs/features/workforce/README.md`.
 - Commit in reviewable steps. Nothing pushed.
