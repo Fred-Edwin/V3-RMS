@@ -89,14 +89,28 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
   }
 
   const shown = query.trim() ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())) : options;
-  const close = (): void => {
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const close = (refocus = false): void => {
     setOpen(false);
     setQuery('');
+    // The list unmounts, so focus would fall to the page; put it back on the field.
+    if (refocus) triggerRef.current?.focus();
+  };
+  // Arrow keys, Home and End move between the options (and from the search box or the field into the list).
+  const moveFocus = (e: React.KeyboardEvent): void => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const items = Array.from(rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"] button') ?? []);
+    if (items.length === 0) return;
+    e.preventDefault();
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    const to = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? Math.min(at + 1, items.length - 1) : Math.max(at - 1, 0);
+    items[to]?.focus();
   };
 
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         aria-label={ariaLabel}
@@ -107,6 +121,11 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
         onClick={() => (open ? close() : setOpen(true))}
         onKeyDown={(e) => {
           if (e.key === 'Escape') close();
+          else if (open) moveFocus(e);
+          else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setOpen(true);
+          }
         }}
         className={cn(
           'flex h-10 w-full items-center justify-between gap-2 border border-wds-border-strong bg-wds-surface px-3 text-left font-wds-sans text-[14px] leading-5 outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:opacity-60',
@@ -120,7 +139,7 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
         </span>
       </button>
       {open ? (
-        <div className="absolute left-0 z-50 mt-1 w-max min-w-full max-w-[85vw] flex max-h-72 flex-col border border-wds-border bg-wds-surface shadow-wds-md" onKeyDown={(e) => (e.key === 'Escape' ? close() : undefined)}>
+        <div className="absolute left-0 z-50 mt-1 w-max min-w-full max-w-[85vw] flex max-h-72 flex-col border border-wds-border bg-wds-surface shadow-wds-md" onKeyDown={(e) => (e.key === 'Escape' ? close(true) : moveFocus(e))}>
           {withSearch ? (
             <input
               type="search"
@@ -141,7 +160,7 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
                   type="button"
                   onClick={() => {
                     onValueChange(o.value);
-                    close();
+                    close(true);
                   }}
                   className={cn(
                     'flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left font-wds-sans text-[14px] leading-5 outline-none focus-visible:bg-wds-neutral-50',

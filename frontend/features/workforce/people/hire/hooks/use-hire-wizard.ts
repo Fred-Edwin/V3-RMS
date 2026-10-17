@@ -40,6 +40,7 @@ export function useHireWizard({ lookups, canSetPay, today, resumeDraftId }: Hire
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const draftId = useRef<string | null>(resumeDraftId);
+  const hired = useRef(false);
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   const loadedFor = useRef<string | null>(null);
 
@@ -98,17 +99,25 @@ export function useHireWizard({ lookups, canSetPay, today, resumeDraftId }: Hire
       setDuplicate(null);
       return;
     }
+    // `stale` stops an earlier answer that arrives late from overwriting the answer for what is typed now.
+    let stale = false;
     const timer = setTimeout(() => {
       peopleReads
         .duplicateCheck({ nationalId: nationalId.length >= 5 ? nationalId : undefined, phone: phone.length >= 7 ? phone : undefined, email: email.includes('@') ? email : undefined })
-        .then(setDuplicate, () => setDuplicate(null));
+        .then(
+          (found) => { if (!stale) setDuplicate(found); },
+          () => { if (!stale) setDuplicate(null); }
+        );
     }, CHECK_DELAY_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [step, state.nationalId, state.phone, state.email]);
 
   // The draft, saved as you go.
   useEffect(() => {
-    if (submitting || state.name.trim() === '') return;
+    if (submitting || hired.current || state.name.trim() === '') return;
     const timer = setTimeout(() => {
       setDraftStatus('saving');
       const body = toDraft(state, stepIndex + 1);
@@ -159,6 +168,7 @@ export function useHireWizard({ lookups, canSetPay, today, resumeDraftId }: Hire
     try {
       const filled = { ...state, loginEmail: loginEmailDefault(state) };
       const result = await peopleWrites.hire(toHireBody(filled, canSetPay, draftId.current ?? undefined));
+      hired.current = true; // the server has consumed the draft, so autosave must not write to it again
       if (photo) await peopleWrites.photo(result.employee.id, photo).catch(() => undefined);
       return result;
     } catch (err) {

@@ -324,6 +324,8 @@ describe('which row the current page lights', () => {
     // A screen reached from a row but without a row of its own, inside the self-framed areas.
     expect(activeFor(storeManager, '/app/inventory/restock-levels').framed).toBe(true);
     expect(activeFor(director, '/app/profile').framed).toBe(false);
+    // My file has no row but draws its own bar for every role, so a login without a Workforce menu is not given a second one.
+    expect(activeFor([], '/app/workforce/my-file').framed).toBe(true);
   });
 
   it('lights nothing for a page with no row (the shell still frames it)', () => {

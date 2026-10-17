@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui2/button';
 import { formatApiErrorMessage } from '@/types/api';
 
-import { EmptyState, ErrorBlock, ListSkeleton, UnderlineTabs, UndoToast } from '../../../_shared';
+import { EmptyState, ErrorBlock, ListSkeleton, UnderlineTabs, UndoToast, useWorkforcePermissions } from '../../../_shared';
 import { PeopleFrame } from '../../_shared/components/people-frame';
 import { useEmployeeFile } from '../../_shared/hooks/use-people-data';
 import { nairobiDay } from '../../_shared/lib/people-dates';
@@ -34,6 +34,7 @@ export function FileScreen({ id }: { id: string }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const file = useEmployeeFile(id);
+  const canWriteSensitive = useWorkforcePermissions().can('employee.write_sensitive');
   const today = React.useMemo(() => nairobiDay(), []);
 
   const requested = params.get('tab');
@@ -84,8 +85,11 @@ export function FileScreen({ id }: { id: string }) {
     );
   }
 
-  const runAction = (a: PageAction): void => open(a.dialog === 'finish' ? (finishTarget(data) ?? 'details') : a.dialog);
-  const actions = pageActions(data, tab);
+  const runAction = (a: PageAction): void => {
+    const target = a.dialog === 'finish' ? finishTarget(data, canWriteSensitive) : a.dialog;
+    if (target) open(target);
+  };
+  const actions = pageActions(data, tab, canWriteSensitive);
   const bar = actions.length > 0 ? <ActionButtons actions={actions} onAction={runAction} /> : null;
   const tabs = tabsFor(data);
   const branchView = data.completeness === null && data.status !== 'EXITED';

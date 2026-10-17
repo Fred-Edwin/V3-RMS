@@ -94,7 +94,7 @@ describe('next steps and buttons come from the actions the server allows', () =>
   });
   it('puts the brown button last on each tab, and only what is allowed', () => {
     expect(pageActions(joy(), 'overview').map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit']);
-    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview').map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Finish the file']);
+    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview', true).map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Finish the file']);
     expect(pageActions(joy(), 'job-pay').map((a) => a.label)).toEqual(['Transfer or exit', 'Change pay']);
     expect(pageActions(joy(), 'documents').map((a) => a.label)).toEqual(['Upload a document', 'Create contract']);
     expect(pageActions(joy({ actions: NO }), 'job-pay')).toEqual([]);
@@ -108,7 +108,14 @@ describe('next steps and buttons come from the actions the server allows', () =>
 describe('Finish the file', () => {
   it('opens the dialog for the first gap', () => {
     expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ BANK: false, CONTRACT: false }) } }))).toBe('bank');
-    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } }))).toBe('details');
+    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } }), true)).toBe('details');
+  });
+  it('does not offer ID or statutory details to someone who may not write them', () => {
+    const idGap = joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } });
+    expect(finishTarget(idGap, false)).toBeNull();
+    const contactGap = joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ EMERGENCY_CONTACT: false }) } });
+    expect(finishTarget(contactGap, false)).toBe('details'); // a manager (editJob) may add the emergency contact
+    expect(finishTarget({ ...contactGap, actions: NO }, false)).toBeNull();
   });
   it('is not offered without a gap it can fix', () => {
     expect(hasFinishStep(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }], completeness: { ringPercent: 100, checklistPercent: 100, checklist: [], parts: parts({}) } }))).toBe(false);

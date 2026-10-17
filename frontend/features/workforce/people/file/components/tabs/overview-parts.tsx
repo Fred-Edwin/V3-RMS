@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
 
-import { CompletenessRing, LifeTimeline, Panel, ProbationBar, StatusTag, probationTextClass } from '../../../../_shared';
+import { CompletenessRing, LifeTimeline, Panel, ProbationBar, StatusTag, probationTextClass, useWorkforcePermissions } from '../../../../_shared';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { formatDayMonth } from '../../../_shared/lib/people-dates';
 import { lifeEvents } from '../../lib/file-timeline';
@@ -13,6 +13,7 @@ export type OpenDialog = (dialog: FileDialogKey, requestId?: string) => void;
 
 /** The ring, the six chips (a gap is a button that opens the fix), and the sentence under them. */
 export function FileRingCard({ file, open }: { file: EmployeeFile; open: OpenDialog }) {
+  const canWriteSensitive = useWorkforcePermissions().can('employee.write_sensitive');
   if (!file.completeness) return null;
   const summary = ringSummary(file);
   const fix = (part: string): FileDialogKey | null =>
@@ -20,7 +21,7 @@ export function FileRingCard({ file, open }: { file: EmployeeFile; open: OpenDia
     : part === 'EMERGENCY_CONTACT' ? (file.actions.remind ? 'ask' : null)
     : part === 'BANK' && file.actions.changePay ? 'bank'
     : part === 'PAY' && file.actions.changePay ? 'change-pay'
-    : part === 'IDENTITY' ? 'details'
+    : part === 'IDENTITY' && canWriteSensitive ? 'details'
     : null;
   return (
     <section aria-label="Completeness of the file" className="flex items-center gap-6 border border-wds-border bg-wds-surface p-6 max-sm:flex-col max-sm:items-start">

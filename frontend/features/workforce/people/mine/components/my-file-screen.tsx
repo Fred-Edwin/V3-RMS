@@ -23,6 +23,11 @@ export function MyFileScreen() {
   const file = useEmployeeFile('me');
   const [form, setForm] = React.useState<OwnForm | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const noticeRef = React.useRef<HTMLParagraphElement>(null);
+  // The row that opened a dialog may be gone once it is saved, so focus would fall to the page; put it on the confirmation.
+  React.useEffect(() => {
+    if (notice) noticeRef.current?.focus();
+  }, [notice]);
   const data = file.data;
   const reload = file.reload;
   const done = React.useCallback(
@@ -50,7 +55,7 @@ export function MyFileScreen() {
               <Progress file={data} />
             </div>
           </header>
-          {notice ? <p role="status" className="m-0 border border-wds-success-border bg-wds-success-bg px-4 py-2.5 font-wds-sans text-[14px] text-wds-success-fg">{notice}</p> : null}
+          {notice ? <p ref={noticeRef} tabIndex={-1} role="status" className="m-0 border border-wds-success-border bg-wds-success-bg px-4 py-2.5 font-wds-sans text-[14px] text-wds-success-fg outline-none">{notice}</p> : null}
           <Finish file={data} open={setForm} />
           <Panel title="Your job" padded={false}>
             <KeyValueRows rows={jobRows(data)} aria-label="Your job" topRule={false} className="[&>div]:px-[18px]" />

@@ -169,18 +169,21 @@ export function nextStepRows(file: EmployeeFile): NextStepRow[] {
 }
 
 /** The first gap that blocks payroll or the rota, as the dialog that fixes it. "Finish the file" opens this. */
-export function finishTarget(file: EmployeeFile): FileDialogKey | null {
+export function finishTarget(file: EmployeeFile, canWriteSensitive = false): FileDialogKey | null {
   const open = (part: FilePart): boolean => file.completeness?.parts.some((p) => p.part === part && p.applicable && !p.done) ?? false;
-  if (open('IDENTITY') || open('NSSF_SHA') || open('EMERGENCY_CONTACT')) return 'details';
+  // ID and statutory numbers are HR's (`employee.write_sensitive`); the emergency contact is a basic field a manager may also edit.
+  if ((open('IDENTITY') || open('NSSF_SHA')) && canWriteSensitive) return 'details';
+  if (open('EMERGENCY_CONTACT') && (canWriteSensitive || file.actions.editJob)) return 'details';
   if (open('PAY') && file.actions.changePay) return 'change-pay';
   if (open('BANK') && file.actions.changePay) return 'bank';
   if (open('LOGIN') && file.actions.createLogin) return 'login';
-  if (open('PHOTO_AND_DETAILS')) return 'ask';
+  if (open('PHOTO_AND_DETAILS') && file.actions.remind) return 'ask';
   if (open('CONTRACT') && file.actions.createContract) return 'contract';
   return null;
 }
 
-export const hasFinishStep = (file: EmployeeFile): boolean => file.nextSteps.some((s) => s.code === 'FINISH_FILE') && finishTarget(file) !== null;
+export const hasFinishStep = (file: EmployeeFile, canWriteSensitive = false): boolean =>
+  file.nextSteps.some((s) => s.code === 'FINISH_FILE') && finishTarget(file, canWriteSensitive) !== null;
 
 export interface PageAction {
   key: string;
@@ -194,7 +197,7 @@ export interface PageAction {
  * "Transfer or exit", "Change pay"; Documents "Upload a document", "Create contract"; an exited file "Undo exit"). A button is here
  * only when `file.actions` allows it; the brown one is always last.
  */
-export function pageActions(file: EmployeeFile, tab: FileTabKey): PageAction[] {
+export function pageActions(file: EmployeeFile, tab: FileTabKey, canWriteSensitive = false): PageAction[] {
   const a = file.actions;
   const out: PageAction[] = [];
   if (file.status === 'EXITED') return a.undoExit ? [{ key: 'undo', label: 'Undo exit', dialog: 'undo-exit', primary: true }] : [];
@@ -204,7 +207,7 @@ export function pageActions(file: EmployeeFile, tab: FileTabKey): PageAction[] {
     if (a.undoExit) out.push({ key: 'undo', label: 'Undo exit', dialog: 'undo-exit' });
     if (a.sendToSite) out.push({ key: 'loan', label: 'Send to another site', dialog: 'loan' });
     if (moveOrExit) out.push({ key: 'move', label: 'Transfer or exit', dialog: 'move' });
-    if (hasFinishStep(file)) out.push({ key: 'finish', label: 'Finish the file', dialog: 'finish', primary: true });
+    if (hasFinishStep(file, canWriteSensitive)) out.push({ key: 'finish', label: 'Finish the file', dialog: 'finish', primary: true });
   }
   if (tab === 'job-pay') {
     if (moveOrExit) out.push({ key: 'move', label: 'Transfer or exit', dialog: 'move' });
