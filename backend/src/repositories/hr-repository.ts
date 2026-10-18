@@ -1,4 +1,11 @@
 import { prisma } from '../config/database';
+import {
+  fromDateColumn,
+  instantAt,
+  nairobiToday,
+  toDateColumn,
+  type ClockTime,
+} from '../modules/workforce/_shared/time/nairobi-time';
 import type {
   EmploymentType,
   LeaveType,
@@ -770,11 +777,13 @@ export async function deleteHrDocument(id: string) {
 
 // ─── HR Dashboard aggregations ────────────────────────────────────────────────
 
+/** Today's Nairobi calendar day as a @db.Date value (UTC midnight), whatever zone the server runs in. */
+function nairobiTodayColumn(): Date {
+  return toDateColumn(nairobiToday(new Date()));
+}
+
 export async function getHrDashboardStats(siteId?: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const today = nairobiTodayColumn();
 
   const orgFilter = siteId ? { siteId } : {};
   const userOrgFilter = siteId ? { user: { siteId } } : {};
@@ -852,8 +861,7 @@ export async function getPendingLeaveRequestsForDashboard(siteId?: string) {
 }
 
 export async function getStaffOnLeaveToday(siteId?: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = nairobiTodayColumn();
 
   return prisma.leaveRequest.findMany({
     where: {
@@ -903,6 +911,14 @@ export interface AttendanceDayRow {
 // Minutes late threshold — clock-in must be within this window to count as on-time
 const LATE_THRESHOLD_MINUTES = 15;
 
+/** Whole minutes from the shift's start (Nairobi clock time on the shift's date) to the clock-in; negative when early. */
+function minutesAfterShiftStart(shiftDate: Date, startTime: string, clockInAt: Date): number {
+  const [hour, minute] = startTime.split(':').map(Number);
+  const midnight = instantAt(fromDateColumn(shiftDate), '00:00' as ClockTime);
+  const shiftStartMs = midnight.getTime() + ((hour ?? 0) * 60 + (minute ?? 0)) * 60000;
+  return Math.floor((clockInAt.getTime() - shiftStartMs) / 60000);
+}
+
 export async function getAttendanceSummary(
   startDate: Date,
   endDate: Date,
@@ -919,6 +935,7 @@ export async function getAttendanceSummary(
     select: {
       userId: true,
       siteId: true,
+      date: true,
       shift: { select: { startTime: true } },
       clockRecord: { select: { clockInAt: true } },
       user: {
@@ -960,11 +977,7 @@ export async function getAttendanceSummary(
     } else {
       row.present++;
       // Compare clock-in time against shift start time
-      const [shiftHour, shiftMin] = a.shift.startTime.split(':').map(Number);
-      const clockIn = new Date(a.clockRecord.clockInAt);
-      const shiftStartMs =
-        new Date(clockIn).setHours(shiftHour ?? 0, shiftMin ?? 0, 0, 0);
-      const diffMinutes = Math.floor((clockIn.getTime() - shiftStartMs) / 60000);
+      const diffMinutes = minutesAfterShiftStart(a.date, a.shift.startTime, new Date(a.clockRecord.clockInAt));
       if (diffMinutes > LATE_THRESHOLD_MINUTES) row.late++;
     }
   }
@@ -1005,10 +1018,7 @@ export async function getStaffAttendanceDetail(
     let minutesLate = 0;
 
     if (clockInAt) {
-      const [shiftHour, shiftMin] = a.shift.startTime.split(':').map(Number);
-      const clockIn = new Date(clockInAt);
-      const shiftStartMs = new Date(clockIn).setHours(shiftHour ?? 0, shiftMin ?? 0, 0, 0);
-      minutesLate = Math.max(0, Math.floor((clockIn.getTime() - shiftStartMs) / 60000));
+      minutesLate = Math.max(0, minutesAfterShiftStart(a.date, a.shift.startTime, new Date(clockInAt)));
       status = minutesLate > LATE_THRESHOLD_MINUTES ? 'LATE' : 'PRESENT';
     }
 
