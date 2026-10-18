@@ -338,6 +338,8 @@ describe('where the shell applies', () => {
     expect(isBareRoute('/app/inventory/purchasing-print/abc')).toBe(true);
     expect(isBareRoute('/app/branch/day-print/abc')).toBe(true);
     expect(isBareRoute('/app/inventory/purchasing/abc')).toBe(false);
+    expect(isBareRoute('/app/workforce/schedule/rota/print')).toBe(true);
+    expect(isBareRoute('/app/workforce/schedule/rota')).toBe(false);
   });
 
   it('puts the desktop roles and the Store Attendant in the one shell at every width (a menu drawer on phones)', () => {

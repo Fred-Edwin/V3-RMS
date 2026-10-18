@@ -129,7 +129,12 @@ export function TemplatesScreen() {
 
   return frame(
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
-      <PageHeader title="Shift templates" subtitle="The shifts you can put on a rota. Break and paid hours live here, so every rota and payslip counts them the same way." />
+      <PageHeader
+        title="Shift templates"
+        subtitle="The shifts you can put on a rota. Break and paid hours live here, so every rota and payslip counts them the same way."
+        // The desktop top bar carries this button from 1024 px; below that the page does.
+        actions={canWrite ? <DialogButton kind="primary" size="lg" className="lg:hidden" onClick={() => setEditing('new')}>Add shift</DialogButton> : undefined}
+      />
       {readsAllSites ? (
         <div className="flex items-center gap-3">
           <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">SITE</span>

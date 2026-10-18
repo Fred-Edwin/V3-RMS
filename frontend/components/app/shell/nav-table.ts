@@ -754,7 +754,7 @@ export function activeFor(groups: readonly NavGroup[], pathname: string): Active
 export const hasHubRows = (role: AppRole | null | undefined): boolean => Boolean(role) && NAV_ROWS.some((row) => row.hub && role !== null && role !== undefined && row.roles.includes(role));
 
 /** Print documents are bare pages: no sidebar, no top bar. */
-export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname);
+export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname) || /^\/app\/workforce\/schedule\/rota\/print(\/|$)/.test(pathname);
 
 /**
  * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone (and the floor-staff

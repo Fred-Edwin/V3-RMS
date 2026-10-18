@@ -40,6 +40,8 @@ See every piece in every state at **`/dev/workforce-kit`** (a dev page; every pa
 | **Home rows and drawer** | `components/home-parts.tsx` | `AttentionRow`, `MiniBar`, `WorkforceDrawer` (on `ui2/sheet`), `DrawerSection`. |
 | **Printed document** | `components/workforce-document.tsx`, `lib/document-palette.ts` | `WorkforceDocument` (A4 794 × 1123 or landscape 1123 × 794: navy bar, header, body, signature "Signed with PIN", QR, footer), `DocHeading`, `DocParagraph`, `DocumentCanvas`. |
 
+Added in slice 2 (Rota): **`WorkforceFrame`** (`components/workforce-frame.tsx`: the top bar, compact bar and canvas every Workforce screen sits in; People's `PeopleFrame` re-exports it), **`useRemote` and `useAction`** (`hooks/`, moved from People), `useWorkforcePermissions().scopeOf(capability)`, an empty-cell variant on `ShiftGrid` (a quiet button that opens a picker) with `data-row` / `data-day` on cells, `DocumentCanvas width`, and **`signatureName`**: a printed signature shows only the first and second name (brackets dropped), the full name stays in the line under it.
+
 Rules enforced inside the pieces (not left to screens): one brown button per screen (the dialog and wizard footers have the only one; lists use outlined), a button a role may not use is hidden (an action is passed only if allowed; the pieces never render a greyed role-blocked action, and a chip becomes a button only when the screen passes `onSelect`), Escape closes a dialog or drawer and gives focus back to the opener, the first field has focus when a dialog opens, and Enter never completes a signed act (no `<form>`; the PIN field signs on its last digit).
 
 No piece holds a role name. Words come in as props or from `states-copy.ts` / `notification-copy.ts`.

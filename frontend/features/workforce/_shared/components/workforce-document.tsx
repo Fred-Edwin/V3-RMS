@@ -23,6 +23,14 @@ import { DOC_COLOURS, DOC_PAGE, type DocOrientation } from '../lib/document-pale
 
 const SERIF = "'Times New Roman', Times, serif";
 
+/**
+ * The cursive signature shows only the first and second name, so a long name never takes over the page. Anything in brackets is
+ * dropped ("Faith Njeri (BM Nyeri Town)" signs as "Faith Njeri"); the full name stays in the plain line under it.
+ */
+export function signatureName(full: string): string {
+  return full.replace(/\([^)]*\)/g, ' ').trim().split(/\s+/).slice(0, 2).join(' ');
+}
+
 export interface DocumentSignature {
   /** "Faith Njeri": shown in the signature font. */
   name: string;
@@ -99,7 +107,7 @@ export function WorkforceDocument({
             {signature ? (
               <div className="flex w-[300px] shrink-0 flex-col gap-[5px]">
                 <span className="font-wds-signature text-[38px] leading-[42px]" style={{ color: DOC_COLOURS.navy }}>
-                  {signature.name}
+                  {signatureName(signature.name)}
                 </span>
                 <div className="h-px shrink-0" style={{ backgroundColor: DOC_COLOURS.ink }} />
                 <span className="text-[14px] leading-[18px]">{signature.roleLine}</span>
@@ -141,11 +149,11 @@ export function DocParagraph({ children, muted = false }: { children: React.Reac
 }
 
 /** The grey desk the page sits on, with an optional Print button (hidden when printing). */
-export function DocumentCanvas({ children, onPrint, printLabel = 'Print' }: { children: React.ReactNode; /** Pass only if the viewer may print. */ onPrint?: () => void; printLabel?: string }) {
+export function DocumentCanvas({ children, onPrint, printLabel = 'Print', width = 794 }: { children: React.ReactNode; /** Pass only if the viewer may print. */ onPrint?: () => void; printLabel?: string; /** The page's width, so the Print button sits over its right edge (1123 for landscape). */ width?: number }) {
   return (
     <div className="min-h-screen bg-wds-neutral-100 py-6 print:bg-white print:py-0">
       {onPrint ? (
-        <div className="mx-auto mb-4 flex w-[794px] max-w-full items-center justify-end px-1 print:hidden">
+        <div className="mx-auto mb-4 flex max-w-full items-center justify-end px-1 print:hidden" style={{ width }}>
           <button type="button" onClick={onPrint} className="h-8 rounded-wds-sm bg-wds-primary px-4 font-wds-sans text-[13px] font-medium text-wds-primary-fg outline-none focus-visible:shadow-wds-ring">
             {printLabel}
           </button>

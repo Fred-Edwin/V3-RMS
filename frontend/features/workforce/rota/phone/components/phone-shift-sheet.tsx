@@ -26,6 +26,7 @@ export function PhoneShiftSheet({
   return (
     <section aria-label={title} className="flex flex-col gap-2.5 border border-wds-border bg-wds-surface p-3.5">
       <h3 className="m-0 font-wds-sans text-[12px] font-normal leading-4 text-wds-text-secondary">{title}</h3>
+      {options.length === 0 ? <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">No shifts are set up for this team yet. Add them in Shift templates on a computer.</p> : null}
       <div className="grid grid-cols-2 gap-2">
         {options.map((t) => (
           <button

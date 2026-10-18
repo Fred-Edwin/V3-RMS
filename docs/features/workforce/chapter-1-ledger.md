@@ -23,7 +23,7 @@ Status words: **frame built** (the block, its states and its card definition exi
 | `workforce.waiting-for-you.phone` · Waiting for you on a head's phone (card 02) | `QJV-0` | `overtime.approve`, `casual.record` | 4 (overtime, casuals) | frame built |
 | `workforce.job-cards-slot` · Dashed slot for the job's cards (card 03) | `QHS-0`, `QKK-0` | `time.own` | **Orders redo** (not a Workforce slice); remove the slot when it registers | frame built |
 | `workforce.team-today` · Service team today (phone, card 04) | `QKM-0` | `today.read` | 3 (Attendance); heads: 1b | frame built |
-| `workforce.this-week` · This week: hours, overtime waiting (phone, card 05) | `QHU-0`, `QLM-0` | `time.own` | 2 (planned bars), 3 (worked), 4 (overtime waiting) | frame built |
+| `workforce.this-week` · This week: hours, overtime waiting (phone, card 05) | `QHU-0`, `QLM-0` | `time.own` | 2 (planned bars), 3 (worked), 4 (overtime waiting) | Planned hours per day and the week's total: **data wired** (2, 18 Oct 2026, from `GET /workforce/rota/mine`); worked hours and overtime waiting wait for slices 3 and 4 |
 
 Unblocked outside the cards: the **shift pill** in the phone top bar (slice 3, a `TimerChip`) and the **job's primary action** in the same bar (the Orders redo, a `PhoneBarAction`); the **search box and the page's action** in the desktop top bar ("Add employee", "Build the rota": slices 1a and 2). All four are slots; none is drawn until its owner passes it.
 
@@ -35,7 +35,7 @@ Every row exists with its label, group, icon, link and who sees it. Only **Home*
 |---|---|---|---|---|
 | Home | HR, Branch Manager, Store Manager, Accountant, Director | frame | none | **shown** |
 | Waiting for you (Overdue approvals for the Director) | HR, BM, SM, Accountant, Director | 4 | `workforce-waiting` | row defined, hidden |
-| Schedule › Rota, Shift templates | HR, BM, SM, Director | 2 | none | row defined, hidden |
+| Schedule › Rota, Shift templates | HR, BM, SM, Director | 2 | none | pages built (slice 2); rows hidden behind the one switch `SHOW_SCHEDULE_LINKS` (off) in `nav-table.ts` until Attendance moves the clock onto the new rota; the pages open by address |
 | Timesheets | HR, BM, SM, Director | 4 | `workforce-timesheets` | row defined, hidden |
 | Employees (under Workforce for the Accountant) | HR, BM, SM, Director; Accountant | 1a | none | row defined, hidden |
 | Organisation | HR, BM, Director | 1b | none | **shown** (1b, 18 Oct 2026; Positions is a tab inside it) |

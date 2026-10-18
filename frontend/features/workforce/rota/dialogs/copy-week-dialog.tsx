@@ -80,7 +80,7 @@ export function CopyWeekDialog({
       {data ? (
         <>
           <StatBoxes
-            variant="figures"
+            variant="compact"
             cells={[
               { label: 'Shifts copied', value: data.shiftsCopied },
               { label: 'People', value: data.people },

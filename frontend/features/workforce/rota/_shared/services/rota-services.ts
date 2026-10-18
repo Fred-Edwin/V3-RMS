@@ -36,8 +36,13 @@ export interface WeekQuery {
 
 export const rotaReads = {
   /** T1 */
-  templates: (query: { siteId?: string; weekStart?: string; includeRetired?: boolean } = {}): Promise<TemplateView[]> =>
-    apiClient.get(`${BASE}/templates${queryString({ siteId: query.siteId, weekStart: query.weekStart, includeRetired: query.includeRetired ? true : undefined })}`, token()),
+  templates: async (query: { siteId?: string; weekStart?: string; includeRetired?: boolean } = {}): Promise<TemplateView[]> => {
+    const answer = await apiClient.get<{ templates: TemplateView[]; weekStart: string }>(
+      `${BASE}/templates${queryString({ siteId: query.siteId, weekStart: query.weekStart, includeRetired: query.includeRetired ? true : undefined })}`,
+      token()
+    );
+    return answer.templates;
+  },
   /** G1 */
   week: (query: WeekQuery): Promise<WeekView> => apiClient.get(`${BASE}/week${queryString({ weekStart: query.weekStart, siteId: query.siteId, departmentId: query.departmentId })}`, token()),
   /** G2 */

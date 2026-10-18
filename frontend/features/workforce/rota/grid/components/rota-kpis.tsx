@@ -18,7 +18,7 @@ export function RotaKpis({ week, departmentId, departmentName, onNeedsLook }: { 
       cells={[
         { key: 'shifts', label: scope, value: String(n.shifts), detail: `${n.people} ${n.people === 1 ? 'person' : 'people'} this week` },
         { key: 'look', label: 'NEEDS A LOOK', value: String(n.needsLook), detail: n.lookPhrase, actionable: n.needsLook > 0, onSelect: n.needsLook > 0 ? onNeedsLook : undefined },
-        { key: 'hours', label: 'HOURS PLANNED', value: hoursUnit(n.plannedMinutes), detail: week.cost && departmentId === ALL_DEPARTMENTS ? `${week.cost.amount} est. cost` : `across ${n.people} ${n.people === 1 ? 'person' : 'people'}` },
+        { key: 'hours', label: 'HOURS PLANNED', value: hoursUnit(n.plannedMinutes), detail: week.cost && departmentId === ALL_DEPARTMENTS ? `KES ${Math.round(Number(week.cost.amount)).toLocaleString('en-KE')} est. cost` : `across ${n.people} ${n.people === 1 ? 'person' : 'people'}` },
         { key: 'leave', label: 'ON LEAVE', value: String(n.onLeave), detail: 'approved, shown in grey' },
       ]}
     />

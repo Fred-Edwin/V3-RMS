@@ -82,7 +82,7 @@ export function PrintScreen({ weekStart, siteId, departmentId }: { weekStart: st
   if (!data) return <ListSkeleton rows={6} label="Preparing the rota" className="m-8" />;
   const number = rotaNumber(data.weekStart);
   return (
-    <DocumentCanvas onPrint={() => window.print()} printLabel="Print the rota">
+    <DocumentCanvas onPrint={() => window.print()} printLabel="Print the rota" width={1123}>
       <style>{PAGE_RULE}</style>
       <WorkforceDocument
         orientation="landscape"

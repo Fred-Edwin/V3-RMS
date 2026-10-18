@@ -1,6 +1,6 @@
 # Workforce · Rota (slice 2)
 
-**Status:** back end built 18 Oct 2026 on branch `feat/workforce-2-rota` (cut from `feat/workforce-1b-heads`); not merged or pushed. No screens yet. Every choice is in [decisions-2-rota-backend.md](../../../../../docs/features/workforce/decisions-2-rota-backend.md).
+**Status:** back end built 18 Oct 2026 on branch `feat/workforce-2-rota` (cut from `feat/workforce-1b-heads`); not merged or pushed. The screens are built on `feat/workforce-2-rota-frontend` (`frontend/features/workforce/rota/`). Every choice is in [decisions-2-rota-backend.md](../../../../../docs/features/workforce/decisions-2-rota-backend.md).
 
 ## What it does
 

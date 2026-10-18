@@ -133,7 +133,7 @@ export function RotaGridView({
     const note = personNote(person, warnings);
     const isHead = headNameOf(person.departmentId) === person.name;
     const role = isHead ? 'Head' : (person.positionName ?? '');
-    const sub = note ?? (departmentId === ALL_DEPARTMENTS ? [departmentName(person.departmentId), role].filter(Boolean).join(' · ') : role);
+    const sub = note ?? (departmentId === ALL_DEPARTMENTS ? Array.from(new Set([departmentName(person.departmentId), role].filter(Boolean))).join(' · ') : role);
     return {
       id: person.employeeId,
       name: person.name,

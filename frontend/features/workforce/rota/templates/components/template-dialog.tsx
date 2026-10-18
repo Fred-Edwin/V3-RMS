@@ -144,7 +144,12 @@ export function TemplateDialog({
         onChange={(v) => set({ breakMinutes: Number(v) })}
         trailing={<span className="ml-auto font-wds-sans text-[13px] leading-4 text-wds-text-ink">Paid hours: {paid === null ? '–' : hoursUnit(paid)}</span>}
       />
-      <ShiftSwatchPicker value={form.tone} onChange={(tone) => set({ tone })} />
+      <div className="flex flex-col gap-2.5">
+        <span aria-hidden className="font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink">
+          Colour on the rota
+        </span>
+        <ShiftSwatchPicker value={form.tone} onChange={(tone) => set({ tone })} />
+      </div>
       <RadioCards
         legend="Who can use it"
         columns={2}
