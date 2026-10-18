@@ -3,12 +3,14 @@
 import * as React from 'react';
 
 import { ClockCard } from '../../_shared';
+import { ClockHomeCard, type Board, type MyDay } from '../../attendance';
+import { LiveTeamCard } from '../components/live-team-card';
 import { JobCardsSlot, ServiceTeamCard, WeekCard } from '../components/phone-cards';
 import { WaitingForYouCard } from '../components/waiting-for-you';
 import { defineHomeCard } from '../lib/card-registry';
+import { useClockCardData, useTeamCardData, useWeekCardData } from './attendance-data';
 import type { WaitingData } from './branch-cards';
 import { noSource } from './no-source';
-import { useThisWeekCard } from './rota-data';
 
 /**
  * The phone Home cards (Paper step 05), in the order the stack draws them: 01 the shift (the clock card), 02 Waiting for you,
@@ -20,16 +22,23 @@ export type ClockCardData = Parameters<typeof ClockCard>[0];
 export type TeamCardData = Parameters<typeof ServiceTeamCard>[0];
 export type WeekCardData = Parameters<typeof WeekCard>[0];
 
-export const clockCard = defineHomeCard<ClockCardData>({
+/** The clock card's data: the live "my day" (the real page) or Paper's example props (the gallery). */
+export type ClockSlot = { fixture: ClockCardData } | { live: { day: MyDay; reload: () => void } };
+export type TeamSlot = { fixture: TeamCardData } | { live: { board: Board; reload: () => void } };
+
+export const clockCard = defineHomeCard<ClockSlot>({
   id: 'workforce.clock',
   title: 'Your shift',
   surfaces: ['phone'],
   slot: 'main',
   anyCapability: ['time.own'],
   order: 10,
-  isEmpty: () => false,
-  useData: noSource<ClockCardData>(),
-  Card: ({ data }) => <ClockCard {...data} />,
+  // Past the end of the day's shifts with nothing to say, the card leaves; a shift the phone closed still shows its notice.
+  isEmpty: (d) => ('live' in d ? !d.live.day.current && d.live.day.notices.length === 0 : false),
+  // A shift that is about to end or has ended rises above the other cards.
+  urgency: (d) => ('live' in d && d.live.day.current?.state === 'PROMPT_DUE' ? 1 : 10),
+  useData: useClockCardData,
+  Card: ({ data }) => ('live' in data ? <ClockHomeCard day={data.live.day} reload={data.live.reload} /> : <ClockCard {...data.fixture} />),
 });
 
 export const waitingPhoneCard = defineHomeCard<WaitingData>({
@@ -58,16 +67,16 @@ export const jobCardsCard = defineHomeCard<{ text?: string }>({
   Card: ({ data }) => <JobCardsSlot text={data.text} />,
 });
 
-export const teamTodayCard = defineHomeCard<TeamCardData>({
+export const teamTodayCard = defineHomeCard<TeamSlot>({
   id: 'workforce.team-today',
   title: 'Your team today',
   surfaces: ['phone'],
   slot: 'main',
   anyCapability: ['today.read'],
   order: 40,
-  isEmpty: (d) => d.rows.length === 0 && d.lateCount === 0 && d.notInCount === 0,
-  useData: noSource<TeamCardData>(),
-  Card: ({ data }) => <ServiceTeamCard {...data} />,
+  isEmpty: (d) => ('live' in d ? d.live.board.people.length === 0 : d.fixture.rows.length === 0 && d.fixture.lateCount === 0 && d.fixture.notInCount === 0),
+  useData: useTeamCardData,
+  Card: ({ data }) => ('live' in data ? <LiveTeamCard board={data.live.board} reload={data.live.reload} /> : <ServiceTeamCard {...data.fixture} />),
 });
 
 export const weekCard = defineHomeCard<WeekCardData>({
@@ -78,6 +87,6 @@ export const weekCard = defineHomeCard<WeekCardData>({
   anyCapability: ['time.own'],
   order: 50,
   isEmpty: (d) => d.bars.length === 0,
-  useData: useThisWeekCard,
+  useData: useWeekCardData,
   Card: ({ data }) => <WeekCard {...data} />,
 });

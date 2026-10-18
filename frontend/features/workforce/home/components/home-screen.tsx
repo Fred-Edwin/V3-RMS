@@ -7,6 +7,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { useAuthStore } from '@/store/authStore';
 
 import { ErrorBlock, ListSkeleton, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../_shared';
+import { ShiftPill, useAttendanceOn } from '../../attendance';
 import { registerHomeCards } from '../cards';
 import { getHomeCards, type HomeSurface } from '../lib/card-registry';
 import { greetingFor, homeClock, homeDate } from '../lib/greeting';
@@ -57,10 +58,14 @@ export function WorkforceHome() {
   const name = user?.name ?? '';
   const orgName = user?.organizationName ?? 'Wendo RMS';
   const branchView = permissions.can('today.act');
+  const role = useAuthStore((s) => s.role);
+  const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
+  // LIVE shows on the branch heading once the new clock is on for the branch; until then the Home is exactly what it was.
+  const attendanceOn = useAttendanceOn(role, isDepartmentHead);
 
   const heading =
     surface === 'phone' ? undefined : branchView ? (
-      <BranchNowHeader title={`${orgName}, right now`} subtitle={`${homeDate(now)}, ${homeClock(now)}.`} live={false} />
+      <BranchNowHeader title={`${orgName}, right now`} subtitle={`${homeDate(now)}, ${homeClock(now)}.`} live={attendanceOn} />
     ) : (
       <div className="flex flex-col gap-1.5">
         <h1 className="m-0 font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">{greetingFor(now, name)}</h1>
@@ -76,6 +81,7 @@ export function WorkforceHome() {
         <PhoneHomeBar
           kicker={`WENDO RMS · ${orgLabelOf(user?.organizationName)}`}
           onMenu={openMenu}
+          shiftPill={permissions.can('time.own') ? <ShiftPill /> : undefined}
           name={name}
           greeting={greetingFor(now, name)}
           subtitle={`${homeDate(now)} · ${orgName}`}

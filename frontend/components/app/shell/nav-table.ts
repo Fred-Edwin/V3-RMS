@@ -103,6 +103,8 @@ interface Visibility {
   hideForDepartmentHead?: boolean;
   /** The row is defined (label, group, who, where) but its page does not exist yet, so it is not shown. The slice that builds the page removes this flag. */
   notBuilt?: boolean;
+  /** Shows only when the new clock is on for the person's branch (`NavContext.attendanceOn`). */
+  needsAttendance?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -253,16 +255,16 @@ const WF_APPROVERS: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER];
 const WF_PEOPLE: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR];
 const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
 
-/**
- * The one switch for the Schedule links (Rota, Shift templates, and a head's Rota). They stay hidden from every role until Attendance
- * (slice 3) moves the clock onto the new rota, so nobody plans a week the clock does not read yet. The pages work by address meanwhile
- * (the route gate lets the permitted roles in), so the owner can review them. Flip it to `true` and nothing else changes.
+/*
+ * The Schedule rows, the Today board and the floor staff's Home link carry `needsAttendance`: they show only for a person whose branch has
+ * the new clock switched on (`NavContext.attendanceOn`, from the Attendance switch). A branch that is off sees none of them, so nobody plans
+ * a week the clock does not read yet. The pages still open by address for the roles the route gate lets in.
  */
-export const SHOW_SCHEDULE_LINKS = true;
 
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE
   { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
+  { key: 'wf-today', label: 'Today board', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/today', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
   { key: 'wf-waiting', label: 'Waiting for you', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [...WF_APPROVERS, ACCOUNTANT], badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-overdue', label: 'Overdue approvals', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [DIRECTOR], badge: 'workforce-waiting', notBuilt: true },
   {
@@ -271,7 +273,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     group: 'wf-workforce',
     icon: ico.shifts,
     roles: [...WF_APPROVERS, DIRECTOR],
-    notBuilt: !SHOW_SCHEDULE_LINKS,
+    needsAttendance: true,
     subItems: [
       { key: 'rota', label: 'Rota', newHref: '/app/workforce/schedule/rota', roles: [...WF_APPROVERS, DIRECTOR] },
       { key: 'templates', label: 'Shift templates', newHref: '/app/workforce/schedule/templates', roles: [...WF_APPROVERS, DIRECTOR] },
@@ -298,10 +300,10 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // ── The phone drawer of floor staff and department heads (Paper Chapter 1 step 06: Home, Job, Team, Inbox, Me) ──────────────────
   // Not shown: the Workforce Home link for floor staff waits for Attendance (slice 3), which gives their Home a clock card. Job and Inbox
   // are the legacy rows above until the Orders redo. The route gate keeps these roles out of /app/workforce until the slice that builds each page widens it.
-  { key: 'wf-staff-home', label: 'Home', group: 'wf-home', icon: ico.home, newHref: '/app/workforce', roles: SHIFT_STAFF, notBuilt: true },
+  { key: 'wf-staff-home', label: 'Home', group: 'wf-home', icon: ico.home, newHref: '/app/workforce', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true },
   { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
-  { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/team-today', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
-  { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, notBuilt: !SHOW_SCHEDULE_LINKS },
+  { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/today', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
+  { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
   { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
   {
     key: 'wf-staff-my-time',
@@ -599,6 +601,8 @@ export interface NavContext {
   creditAccounts: boolean;
   /** The Director's branches, for the rows that expand. */
   branches?: ReadonlyArray<{ id: string; name: string }>;
+  /** The new clock is on for the person's branch (for a company-wide role, for any branch they can see). Absent means off. */
+  attendanceOn?: boolean;
 }
 
 export interface NavLinkSub {
@@ -632,6 +636,7 @@ export interface NavGroup {
 
 const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   !rule.notBuilt &&
+  (!rule.needsAttendance || ctx.attendanceOn === true) &&
   rule.roles.includes(actor) &&
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&
@@ -718,7 +723,7 @@ export interface ActiveNav {
 const under = (pathname: string, prefix: string): boolean => pathname === prefix || pathname.startsWith(`${prefix}/`);
 
 /** Paths whose pages always draw their own top bar, even when no row matches them (screens reached from a row, phone-first task routes). */
-const SELF_FRAMED_PREFIXES: readonly string[] = ['/app/inventory', '/app/branch', '/app/workforce/my-file'];
+const SELF_FRAMED_PREFIXES: readonly string[] = ['/app/inventory', '/app/branch', '/app/workforce/my-file', '/app/workforce/attendance'];
 
 /** Which row (and sub-link) the current path lights: the longest matching prefix wins, so `/app/director/analytics` beats `/app/director`. */
 export function activeFor(groups: readonly NavGroup[], pathname: string): ActiveNav {

@@ -67,6 +67,8 @@ export interface LookRow {
   late?: { grace: number; minutes: number };
   /** Grey tile for someone not in; the name's own tile for someone who came late. */
   tile?: 'muted' | 'name';
+  /** Opens the person (the board's side drawer). The name becomes a button. */
+  onOpen?: () => void;
 }
 
 export function NeedsALook({ rows, shiftLine, className }: { rows: readonly LookRow[]; shiftLine?: string; className?: string }) {
@@ -82,10 +84,17 @@ export function NeedsALook({ rows, shiftLine, className }: { rows: readonly Look
             >
               {initialsOf(row.name)}
             </span>
-            <div className="flex w-[170px] shrink-0 flex-col">
-              <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{row.name}</span>
-              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{row.role}</span>
-            </div>
+            {row.onOpen ? (
+              <button type="button" onClick={row.onOpen} aria-label={`Open ${row.name}`} className={cn('flex min-h-11 w-[170px] shrink-0 flex-col justify-center text-left', FOCUS_RING)}>
+                <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{row.name}</span>
+                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{row.role}</span>
+              </button>
+            ) : (
+              <div className="flex w-[170px] shrink-0 flex-col">
+                <span className="font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{row.name}</span>
+                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{row.role}</span>
+              </div>
+            )}
             <span className={cn('w-[150px] shrink-0 font-wds-sans text-[13px] leading-4', row.tone === 'error' ? 'text-wds-error-fg' : 'text-wds-warning-fg')}>{row.status}</span>
             {row.late ? (
               <div role="img" aria-label={`Late ${row.late.minutes} minutes`} className="flex h-1.5 min-w-[84px] grow basis-0 bg-wds-neutral-100">

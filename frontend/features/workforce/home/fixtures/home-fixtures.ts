@@ -205,7 +205,7 @@ export const HR_STATES: Record<string, CardDataState<unknown>> = {
 };
 export const BRANCH_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.branch-kpis': ready(BRANCH_KPIS),
-  'workforce.today-board': ready(BRANCH_BOARD),
+  'workforce.today-board': ready({ fixture: BRANCH_BOARD }),
   'workforce.waiting-for-you.desktop': ready(BRANCH_WAITING),
 };
 export const ACCOUNTANT_STATES: Record<string, CardDataState<unknown>> = {
@@ -220,14 +220,14 @@ export const DIRECTOR_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.coming-up': ready(PAYRUN_COMING_UP),
 };
 export const STAFF_STATES: Record<string, CardDataState<unknown>> = {
-  'workforce.clock': ready(CLOCK_ON_SHIFT),
+  'workforce.clock': ready({ fixture: CLOCK_ON_SHIFT }),
   'workforce.job-cards-slot': ready(JOB_SLOT),
   'workforce.this-week': ready(WEEK_STAFF),
 };
 export const HEAD_STATES: Record<string, CardDataState<unknown>> = {
-  'workforce.clock': ready({ ...CLOCK_ON_SHIFT, timer: formatHms(4 * 3600 + 38 * 60 + 40), caption: 'In at 06:04. Your shift ends in 3 h 22 m.' }),
+  'workforce.clock': ready({ fixture: { ...CLOCK_ON_SHIFT, timer: formatHms(4 * 3600 + 38 * 60 + 40), caption: 'In at 06:04. Your shift ends in 3 h 22 m.' } }),
   'workforce.waiting-for-you.phone': ready(HEAD_WAITING),
   'workforce.job-cards-slot': ready(JOB_SLOT),
-  'workforce.team-today': ready(HEAD_TEAM),
+  'workforce.team-today': ready({ fixture: HEAD_TEAM }),
   'workforce.this-week': ready(WEEK_HEAD),
 };

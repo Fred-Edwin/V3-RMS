@@ -16,6 +16,8 @@ export type WorkforceCapability =
   | 'today.act'
   | 'timesheet.read'
   | 'timesheet.approve'
+  | 'time.fix'
+  | 'attendance.switch'
   | 'overtime.approve'
   | 'clock_mistake.resolve'
   | 'casual.record'

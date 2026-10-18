@@ -3,11 +3,13 @@
 import * as React from 'react';
 
 import { WorkforceKpiStrip } from '../../_shared';
+import type { Board } from '../../attendance';
 import { DepartmentChips, NeedsALook, OnTimeByDepartment, type DepartmentChip, type DepartmentLine, type LookRow } from '../components/branch-board';
+import { LiveBoard } from '../components/live-board';
 import { WaitingForYouColumn, type WaitingItem } from '../components/waiting-for-you';
 import { defineHomeCard } from '../lib/card-registry';
+import { useBoardCardData, useBranchKpis, useWaitingCardData } from './attendance-data';
 import type { KpiData } from './hr-cards';
-import { noSource } from './no-source';
 
 /**
  * The Branch Manager's and Store Manager's Home, "the branch right now" (Paper step 03): the strip, the board (department chips,
@@ -22,6 +24,9 @@ export interface BoardData {
   /** "Morning · 06:00 to 14:00 · 31 rostered". */
   shiftLine?: string;
 }
+
+/** The board card's data: the live board (the real page) or Paper's example (the gallery). */
+export type BoardSlot = { fixture: BoardData } | { live: { board: Board; reload: () => void } };
 
 function BoardCard({ data }: { data: BoardData }) {
   const [department, setDepartment] = React.useState('all');
@@ -46,20 +51,20 @@ export const branchKpisCard = defineHomeCard<KpiData>({
   anyCapability: ['today.act'],
   order: 10,
   isEmpty: (d) => d.cells.length === 0,
-  useData: noSource<KpiData>(),
+  useData: useBranchKpis,
   Card: ({ data }) => <WorkforceKpiStrip aria-label="The branch right now" cells={[...data.cells]} />,
 });
 
-export const todayBoardCard = defineHomeCard<BoardData>({
+export const todayBoardCard = defineHomeCard<BoardSlot>({
   id: 'workforce.today-board',
   title: 'Today board',
   surfaces: ['desktop'],
   slot: 'main',
   anyCapability: ['today.act'],
   order: 20,
-  isEmpty: (d) => d.looks.length === 0 && d.departments.length === 0,
-  useData: noSource<BoardData>(),
-  Card: BoardCard,
+  isEmpty: (d) => ('live' in d ? d.live.board.people.length === 0 : d.fixture.looks.length === 0 && d.fixture.departments.length === 0),
+  useData: useBoardCardData,
+  Card: ({ data }) => ('live' in data ? <LiveBoard board={data.live.board} reload={data.live.reload} /> : <BoardCard data={data.fixture} />),
 });
 
 export interface WaitingData {
@@ -76,6 +81,6 @@ export const waitingDesktopCard = defineHomeCard<WaitingData>({
   anyCapability: ['today.act'],
   order: 30,
   isEmpty: (d) => d.items.length === 0,
-  useData: noSource<WaitingData>(),
+  useData: useWaitingCardData,
   Card: ({ data }) => <WaitingForYouColumn items={data.items} openAll={data.openAll} />,
 });

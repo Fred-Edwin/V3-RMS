@@ -139,6 +139,21 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
 
+  // Attendance (slice 3). The Today board is for the roles that read it (and a department head, for their own people); the per-site
+  // switch is the Director's and the System Admin's. Both pages show nothing for a branch whose new clock is off.
+  if (pathname === '/app/workforce/today' || pathname.startsWith('/app/workforce/today/')) {
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
+  }
+  if (pathname === '/app/workforce/attendance/switch') {
+    return role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
+  // The Home of the floor staff and department heads: their clock card. The menu shows the link only on a branch with the new clock on;
+  // a branch that is off has no clock card, so the page would only say that nothing needs them.
+  if (pathname === '/app/workforce' && (isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_ATTENDANT')) {
+    return true;
+  }
+
   if (pathname === '/app/workforce' || pathname.startsWith('/app/workforce/')) {
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }

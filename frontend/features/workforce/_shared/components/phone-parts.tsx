@@ -170,7 +170,7 @@ export function ClockCard({
   shiftLabel: string;
   /** "NOT IN YET" or "ON SHIFT". */
   statusLabel: string;
-  statusTone?: 'muted' | 'on';
+  statusTone?: 'muted' | 'on' | 'warning';
   /** "00:12:00": make it with `formatHms`. */
   timer: string;
   caption: string;
@@ -188,8 +188,8 @@ export function ClockCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-wds-mono text-[11px] leading-[14px] tracking-[0.06em] text-wds-primary">{shiftLabel}</span>
-        <span className={cn('flex items-center gap-1.5 font-wds-mono text-[11px] leading-[14px] tracking-[0.06em]', statusTone === 'on' ? 'text-wds-success-fg' : 'text-wds-primary')}>
-          {statusTone === 'on' ? <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-wds-success-fg" /> : null}
+        <span className={cn('flex items-center gap-1.5 font-wds-mono text-[11px] leading-[14px] tracking-[0.06em]', statusTone === 'on' ? 'text-wds-success-fg' : statusTone === 'warning' ? 'text-wds-warning-fg' : 'text-wds-primary')}>
+          {statusTone !== 'muted' ? <span aria-hidden className={cn('h-[7px] w-[7px] rounded-full', statusTone === 'on' ? 'bg-wds-success-fg' : 'bg-wds-warning-fg')} /> : null}
           {statusLabel}
         </span>
       </div>

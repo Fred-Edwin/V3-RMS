@@ -4,6 +4,7 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
+import { useAttendanceOn } from '@/features/workforce/attendance';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -92,6 +93,8 @@ export function useShellNav(): ShellNav {
   // A floor member also asks (the call is open to any signed-in person) so the shell knows whether they belong to a department.
   const { can, isMember: isDepartmentMember } = usePermissions(hasHubRows(role) || isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING');
   const branches = useBranches(role === 'DIRECTOR');
+  // Whether the new clock is on for this person's branch: the Schedule rows, the Today board and the floor staff's Home link wait for it.
+  const attendanceOn = useAttendanceOn(role, isDepartmentHead);
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
@@ -115,8 +118,9 @@ export function useShellNav(): ShellNav {
         can,
         creditAccounts: env.creditAccounts,
         branches,
+        attendanceOn,
       }),
-    [role, isDepartmentHead, isDepartmentMember, can, branches]
+    [role, isDepartmentHead, isDepartmentMember, can, branches, attendanceOn]
   );
 
   // The counts are the only thing added to the table's rows here. A zero count draws nothing, so a role without prep.read_flags

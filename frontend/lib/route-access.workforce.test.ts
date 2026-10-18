@@ -7,7 +7,7 @@ const ALL: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA
 const WORKFORCE_DESKTOP: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'];
 
 describe('route gate: /app/workforce (Chapter 1 frame)', () => {
-  for (const path of ['/app/workforce', '/app/workforce/waiting']) {
+  for (const path of ['/app/workforce/waiting']) {
     it(`${path} opens for the five desktop Workforce roles and nobody else`, () => {
       for (const role of ALL) {
         expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
@@ -31,8 +31,25 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforce/organisationx', 'WAITER', false)).toBe(false);
   });
 
-  it('does not let a department head in because of the head marker alone', () => {
-    expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(false);
+  it('opens the Home for floor staff and department heads (their clock card), and nothing else under Workforce', () => {
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT'] as AppRole[]) {
+      expect(isAllowedPath('/app/workforce', role, false), `${role} on Home`).toBe(true);
+      expect(isAllowedPath('/app/workforce/waiting', role, false), `${role} on waiting`).toBe(false);
+      expect(isAllowedPath('/app/workforce/employees/abc', role, false), `${role} on a file`).toBe(false);
+    }
+    expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(true);
+    expect(isAllowedPath('/app/workforce/waiting', 'WAITER', true)).toBe(false);
+    expect(isAllowedPath('/app/workforce', 'SYSTEM_ADMIN', false)).toBe(false);
+  });
+
+  it('opens the Today board for the roles that read it and a head, and the switch for the Director and the System Admin only', () => {
+    const READS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'];
+    for (const role of ALL) {
+      expect(isAllowedPath('/app/workforce/today', role, false), `${role} on today`).toBe(READS.includes(role));
+      expect(isAllowedPath('/app/workforce/today', role, true), `head ${role} on today`).toBe(true);
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, false), `${role} on the switch`).toBe(role === 'DIRECTOR' || role === 'SYSTEM_ADMIN');
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, true), `head ${role} on the switch`).toBe(role === 'DIRECTOR' || role === 'SYSTEM_ADMIN');
+    }
   });
 
   it('opens the Rota pages for the desktop roles and for a department head, and shift templates for the desktop roles only', () => {
