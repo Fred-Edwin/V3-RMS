@@ -133,6 +133,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
   }
 
+  // The Rota (slice 2): a department head plans their own team on a phone, so the Rota pages (the grid and its printed page) open for a
+  // head as well as the five desktop roles. Shift templates stay with the desktop roles. The API decides what each person can do.
+  if (pathname === '/app/workforce/schedule/rota' || pathname.startsWith('/app/workforce/schedule/rota/')) {
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+  }
+
   if (pathname === '/app/workforce' || pathname.startsWith('/app/workforce/')) {
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }

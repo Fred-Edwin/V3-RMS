@@ -253,6 +253,13 @@ const WF_APPROVERS: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER];
 const WF_PEOPLE: readonly AppRole[] = [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR];
 const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
 
+/**
+ * The one switch for the Schedule links (Rota, Shift templates, and a head's Rota). They stay hidden from every role until Attendance
+ * (slice 3) moves the clock onto the new rota, so nobody plans a week the clock does not read yet. The pages work by address meanwhile
+ * (the route gate lets the permitted roles in), so the owner can review them. Flip it to `true` and nothing else changes.
+ */
+export const SHOW_SCHEDULE_LINKS = false;
+
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE
   { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
@@ -264,7 +271,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     group: 'wf-workforce',
     icon: ico.shifts,
     roles: [...WF_APPROVERS, DIRECTOR],
-    notBuilt: true,
+    notBuilt: !SHOW_SCHEDULE_LINKS,
     subItems: [
       { key: 'rota', label: 'Rota', newHref: '/app/workforce/schedule/rota', roles: [...WF_APPROVERS, DIRECTOR] },
       { key: 'templates', label: 'Shift templates', newHref: '/app/workforce/schedule/templates', roles: [...WF_APPROVERS, DIRECTOR] },
@@ -294,7 +301,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-staff-home', label: 'Home', group: 'wf-home', icon: ico.home, newHref: '/app/workforce', roles: SHIFT_STAFF, notBuilt: true },
   { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/team-today', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
-  { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
+  { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, notBuilt: !SHOW_SCHEDULE_LINKS },
   { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
   {
     key: 'wf-staff-my-time',

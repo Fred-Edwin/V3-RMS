@@ -8,6 +8,7 @@ import { WaitingForYouCard } from '../components/waiting-for-you';
 import { defineHomeCard } from '../lib/card-registry';
 import type { WaitingData } from './branch-cards';
 import { noSource } from './no-source';
+import { useThisWeekCard } from './rota-data';
 
 /**
  * The phone Home cards (Paper step 05), in the order the stack draws them: 01 the shift (the clock card), 02 Waiting for you,
@@ -77,6 +78,6 @@ export const weekCard = defineHomeCard<WeekCardData>({
   anyCapability: ['time.own'],
   order: 50,
   isEmpty: (d) => d.bars.length === 0,
-  useData: noSource<WeekCardData>(),
+  useData: useThisWeekCard,
   Card: ({ data }) => <WeekCard {...data} />,
 });

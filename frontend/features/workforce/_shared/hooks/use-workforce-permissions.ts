@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 
-import type { WorkforceCapability, WorkforcePermissionsPayload } from '../lib/capabilities';
+import type { WorkforceCapability, WorkforcePermissionsPayload, WorkforceScope } from '../lib/capabilities';
 
 /**
  * What the signed-in person may do in Workforce, from the server's access table (`GET /workforce/permissions/me`). The front end
@@ -20,6 +20,7 @@ interface Answer {
   userId: string;
   status: Status;
   capabilities: ReadonlySet<WorkforceCapability>;
+  scopes: ReadonlyMap<WorkforceCapability, WorkforceScope>;
   isDepartmentHead: boolean;
   tracksTime: boolean;
 }
@@ -36,10 +37,10 @@ export function useWorkforcePermissions() {
     apiClient.get<WorkforcePermissionsPayload>('/workforce/permissions/me', accessToken).then(
       (data) => {
         if (cancelled) return;
-        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime });
+        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), scopes: new Map(data.capabilities.map((c) => [c.capability, c.scope] as const)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime });
       },
       () => {
-        if (!cancelled) setAnswer({ userId, status: 'error', capabilities: new Set(), isDepartmentHead: false, tracksTime: false });
+        if (!cancelled) setAnswer({ userId, status: 'error', capabilities: new Set(), scopes: new Map(), isDepartmentHead: false, tracksTime: false });
       }
     );
     return () => {
@@ -50,13 +51,16 @@ export function useWorkforcePermissions() {
   const mine = answer !== null && answer.userId === userId ? answer : null;
   const capabilities = mine?.capabilities;
   const can = useCallback((capability: WorkforceCapability): boolean => capabilities?.has(capability) ?? false, [capabilities]);
+  const scopes = mine?.scopes;
+  /** The reach the server gave a capability: 'all' (every site), 'unit' (one site), 'dept' (their departments) or 'own'. */
+  const scopeOf = useCallback((capability: WorkforceCapability): WorkforceScope | null => scopes?.get(capability) ?? null, [scopes]);
   const retry = useCallback(() => {
     setAnswer(null);
     setAttempt((n) => n + 1);
   }, []);
 
   return useMemo(
-    () => ({ can, ready: mine?.status === 'ready', failed: mine?.status === 'error', isDepartmentHead: mine?.isDepartmentHead ?? false, tracksTime: mine?.tracksTime ?? false, retry }),
-    [can, mine?.status, mine?.isDepartmentHead, mine?.tracksTime, retry]
+    () => ({ can, scopeOf, ready: mine?.status === 'ready', failed: mine?.status === 'error', isDepartmentHead: mine?.isDepartmentHead ?? false, tracksTime: mine?.tracksTime ?? false, retry }),
+    [can, scopeOf, mine?.status, mine?.isDepartmentHead, mine?.tracksTime, retry]
   );
 }

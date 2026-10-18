@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Capability } from '@/features/inventory';
 import { isAllowedPath } from '@/lib/route-access';
 import type { AppRole } from '@/types/auth';
-import { NAV_ROWS, activeFor, isBareRoute, navFor, quickLinksFor, showsBottomBar, usesAppShell, usesDesktopShell, type NavContext, type NavGroup, type NavRow } from './nav-table';
+import { NAV_ROWS, SHOW_SCHEDULE_LINKS, activeFor, isBareRoute, navFor, quickLinksFor, showsBottomBar, usesAppShell, usesDesktopShell, type NavContext, type NavGroup, type NavRow } from './nav-table';
 
 const ROLES: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'HR_MANAGER', 'SYSTEM_ADMIN', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER', 'STORE_ATTENDANT'];
 
@@ -636,6 +636,20 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       expect(eventual(role)['PAY'], role).toBeUndefined();
       expect(eventual(role)['SETTINGS'], role).toEqual(['Rules', 'Audit log']);
     }
+  });
+
+  it('keeps the Schedule links (Rota, Shift templates, a head’s Rota) behind one switch that is off', () => {
+    expect(SHOW_SCHEDULE_LINKS).toBe(false);
+    const rows = NAV_ROWS.filter((r) => r.key === 'wf-schedule' || r.key === 'wf-head-rota');
+    expect(rows).toHaveLength(2);
+    for (const r of rows) expect(r.notBuilt, r.key).toBe(true);
+    // Hidden from every role today, shown to the five desktop roles (and a head) once the switch is on.
+    for (const role of ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'] as AppRole[]) {
+      expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))), role).not.toContain('wf-schedule');
+      const on = NAV_ROWS.map((r) => (r.key === 'wf-schedule' ? { ...r, notBuilt: undefined } : r));
+      expect(item(navFor(ctxFor(role, { can: EVERYTHING }), on), 'wf-schedule')?.subItems?.map((s) => s.href), role).toEqual(['/app/workforce/schedule/rota', '/app/workforce/schedule/templates']);
+    }
+    expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING })))).not.toContain('wf-head-rota');
   });
 
   it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {

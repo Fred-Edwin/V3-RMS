@@ -21,7 +21,7 @@ export function ScheduleSection() {
   const [swatch, setSwatch] = React.useState<ShiftTone>('earlyBake');
   const [dept, setDept] = React.useState('Barista');
   const [cell, setCell] = React.useState('nothing yet');
-  const grid = ROWS.map((r) => ({ ...r, cells: r.cells.map((c) => (c ? { ...c, onSelect: () => setCell(`${r.name}: ${c.label}`) } : null)) }));
+  const grid = ROWS.map((r) => ({ ...r, cells: r.cells.map((c) => (c && 'label' in c ? { ...c, onSelect: () => setCell(`${r.name}: ${c.label}`) } : c)) }));
   return (
     <Section id="schedule" title="17 · Shift chips, grid, swatches, two-line row" node="16G6-0 / 16FP-0 / 18XZ-0 / 19AL-0 / 16EK-0" note="The grid is presentational: cells come in as props and a cell is a button only when the screen passes onSelect. Mid-day and Early bake are token approximations (README, token gaps).">
       <div>

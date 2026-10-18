@@ -45,7 +45,7 @@ export function ShiftChip({
   /** "Morning": draws "Changed from Morning" under the chip. */
   changedFrom?: string;
   /** Present only when the viewer may change the shift; without it the chip is plain text. */
-  onSelect?: () => void;
+  onSelect?: (opener: HTMLElement) => void;
   disabled?: boolean;
   ariaLabel?: string;
   className?: string;
@@ -61,7 +61,7 @@ export function ShiftChip({
     className
   );
   const chip = onSelect ? (
-    <button type="button" onClick={onSelect} disabled={disabled} aria-pressed={chosen} aria-label={ariaLabel} className={cn(box, MOTION, FOCUS_RING, PRESSED, 'disabled:pointer-events-none disabled:opacity-60', onHover('brightness-[0.97]'))}>
+    <button type="button" onClick={(e) => onSelect(e.currentTarget)} disabled={disabled} aria-pressed={chosen} aria-label={ariaLabel} className={cn(box, MOTION, FOCUS_RING, PRESSED, 'disabled:pointer-events-none disabled:opacity-60', onHover('brightness-[0.97]'))}>
       {label}
     </button>
   ) : (
@@ -161,8 +161,16 @@ export interface ShiftGridCell {
   changedFrom?: string;
   chosen?: boolean;
   ariaLabel?: string;
-  /** Only when the viewer may edit this cell. */
-  onSelect?: () => void;
+  /** Only when the viewer may edit this cell. Receives the chip, so a popover can anchor to it. */
+  onSelect?: (opener: HTMLElement) => void;
+}
+
+/** A day with no shift. Without `onSelect` it is the plain dash; with it, a quiet button that opens the same picker as a chip. */
+export interface ShiftGridEmptyCell {
+  empty: true;
+  chosen?: boolean;
+  ariaLabel?: string;
+  onSelect?: (opener: HTMLElement) => void;
 }
 
 export interface ShiftGridRow {
@@ -173,7 +181,7 @@ export interface ShiftGridRow {
   /** Amber for a note that needs a look ("Also at Highway Sat"). */
   subTone?: 'default' | 'warning';
   /** One entry per day; `null` is a day off (drawn "—"). */
-  cells: ReadonlyArray<ShiftGridCell | null>;
+  cells: ReadonlyArray<ShiftGridCell | ShiftGridEmptyCell | null>;
   hours: string;
 }
 
@@ -238,8 +246,24 @@ export function ShiftGrid({
               {days.map((d, i) => {
                 const c = r.cells[i] ?? null;
                 return (
-                  <td key={d} className="text-center align-middle">
-                    {c ? (
+                  <td key={d} data-row={r.id} data-day={i} className="text-center align-middle">
+                    {c && 'empty' in c ? (
+                      c.onSelect ? (
+                        <button
+                          type="button"
+                          onClick={(e) => c.onSelect?.(e.currentTarget)}
+                          aria-label={c.ariaLabel ?? `${r.name}, ${d}, no shift`}
+                          aria-pressed={c.chosen ?? false}
+                          className={cn('inline-flex h-[26px] w-[74px] items-center justify-center border border-transparent font-wds-sans text-[13px] leading-4 text-wds-neutral-400', MOTION, FOCUS_RING, PRESSED, onHover('border-wds-neutral-400 border-dashed'), c.chosen && RING)}
+                        >
+                          —
+                        </button>
+                      ) : (
+                        <span aria-label={c.ariaLabel ?? `${r.name}, ${d}, no shift`} className="font-wds-sans text-[13px] leading-4 text-wds-neutral-400">
+                          —
+                        </span>
+                      )
+                    ) : c ? (
                       <ShiftChip tone={c.tone} label={c.label} long={c.long} flagged={c.flagged} changedFrom={c.changedFrom} chosen={c.chosen} ariaLabel={c.ariaLabel ?? `${r.name}, ${d}, ${c.label}`} onSelect={c.onSelect} />
                     ) : (
                       <span aria-label={`${r.name}, ${d}, no shift`} className="font-wds-sans text-[13px] leading-4 text-wds-neutral-400">

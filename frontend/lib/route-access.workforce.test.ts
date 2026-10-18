@@ -35,6 +35,19 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(false);
   });
 
+  it('opens the Rota pages for the desktop roles and for a department head, and shift templates for the desktop roles only', () => {
+    for (const path of ['/app/workforce/schedule/rota', '/app/workforce/schedule/rota/print']) {
+      for (const role of ALL) {
+        expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
+        expect(isAllowedPath(path, role, true), `head ${role} on ${path}`).toBe(true);
+      }
+    }
+    for (const role of ALL) {
+      expect(isAllowedPath('/app/workforce/schedule/templates', role, true), `head ${role} on templates`).toBe(WORKFORCE_DESKTOP.includes(role));
+    }
+    expect(isAllowedPath('/app/workforce/schedule/rotax', 'WAITER', true)).toBe(false);
+  });
+
   it('does not match a path that only starts with the same letters', () => {
     expect(isAllowedPath('/app/workforcex', 'HR_MANAGER', false)).toBe(false);
   });

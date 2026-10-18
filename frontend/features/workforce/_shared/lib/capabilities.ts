@@ -11,6 +11,7 @@ export type WorkforceCapability =
   | 'time.own'
   | 'rota.read'
   | 'rota.write'
+  | 'rota.template_write'
   | 'today.read'
   | 'today.act'
   | 'timesheet.read'
