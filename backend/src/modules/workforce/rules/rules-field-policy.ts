@@ -55,7 +55,7 @@ export const RULE_FIELD_POLICY: Policy = {
     holidays: { edit: 'rules.edit.holidays', site: false, confirm: { scope: 'holidays.dates', capability: 'rules.confirm.holiday_list' } },
     payMultiplier: { edit: 'rules.edit.holidays', site: false, confirm: { scope: 'holidays.pay_rate', capability: 'rules.confirm.pay_rates' } },
   },
-  WEEK_AND_BREAKS: groupEdit('rules.edit.week_breaks', ['weekStartsOn', 'timesheetPeriod']) as Policy['WEEK_AND_BREAKS'],
+  WEEK_AND_BREAKS: groupEdit('rules.edit.week_breaks', ['weekStartsOn', 'timesheetPeriod', 'timesheetCutoff']) as Policy['WEEK_AND_BREAKS'],
 };
 
 /** Who is told when a version is created (decision D11). The service resolves these to people; delivery is a later slice. */

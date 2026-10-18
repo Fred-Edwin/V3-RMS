@@ -1,0 +1,197 @@
+// ---- Workforce slice 4a: Timesheets, overtime and requests -------------------------------------
+// New tables only. Rows exist only for sites whose attendance switch is on. The legacy payslip and attendance tables are
+// never altered. Nothing here stores money: payroll (slice 6) decides pay from the approved minutes. See
+// backend/src/modules/workforce/timesheets/README.md.
+
+enum TimesheetPeriodState {
+  OPEN
+  CLOSING // the close has been claimed and is being finished (a crashed close is resumed by the sweep)
+  CLOSED
+}
+
+enum TimesheetCloseKind {
+  AUTO // at the cut-off
+  EARLY // a manager brought it forward
+}
+
+enum TimesheetStatus {
+  MATCHED // matches the rota but the day is not over yet
+  AUTO_APPROVED // matched the rota within the grace, approved by the system
+  NEEDS_LOOK // an exception: a person decides
+  APPROVED // a person decided
+  HELD // a person held it back (or it was carried to the next period still open)
+}
+
+enum OvertimeStatus {
+  AUTO_AUTHORISED // fully covered by the service tail
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum TimeRequestKind {
+  CLOCK_TIME_WRONG
+  WORKED_NOT_RECORDED
+  ROTA_WRONG
+  OVERTIME_MISSING
+  PAY_OTHER // pay questions go to HR
+  CLOCKED_OUT_BY_MISTAKE
+}
+
+enum TimeRequestState {
+  WAITING
+  APPROVED
+  DECLINED
+  WITHDRAWN
+}
+
+/// One pay period of one site. The window is the days this timesheet covers (the rule's period, cut at the cut-off day).
+model TimesheetPeriod {
+  id           String               @id @default(uuid())
+  siteId       String               @map("organization_id")
+  startDate    DateTime             @map("start_date") @db.Date
+  endDate      DateTime             @map("end_date") @db.Date // inclusive; the cut-off day
+  label        String
+  cutoffAt     DateTime             @map("cutoff_at") // the instant the period closes by itself (Nairobi time)
+  state        TimesheetPeriodState @default(OPEN)
+  reportNumber Int                  @default(autoincrement()) @map("report_number") // TSH-000n
+  closeKind    TimesheetCloseKind?  @map("close_kind")
+  closedAt     DateTime?            @map("closed_at")
+  closedById   String?              @map("closed_by_id")
+  signedById   String?              @map("signed_by_id") // the manager who signed the report with their PIN
+  signedAt     DateTime?            @map("signed_at")
+  reopenedAt   DateTime?            @map("reopened_at")
+  reopenedById String?              @map("reopened_by_id")
+  reopenReason String?              @map("reopen_reason")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  site  Site            @relation(fields: [siteId], references: [id])
+  days  TimesheetDay[]
+  weeks TimesheetWeek[]
+  items OvertimeItem[]
+
+  @@unique([siteId, startDate])
+  @@index([siteId, state])
+  @@index([state, cutoffAt])
+  @@map("timesheet_periods")
+}
+
+/// One person's day, computed from the rota and the clock events. The numbers are re-computed while the period is open;
+/// a decision (APPROVED, HELD) stays until the evidence under it changes.
+model TimesheetDay {
+  id                  String          @id @default(uuid())
+  periodId            String          @map("period_id")
+  siteId              String          @map("organization_id")
+  employeeId          String          @map("employee_id")
+  shiftDate           DateTime        @map("shift_date") @db.Date
+  status              TimesheetStatus
+  reasons             String[] // why it needs a look: LATE, LEFT_EARLY, ABSENT, EDITED, AUTO_CLOSED, OPEN_SHIFT, OVERTIME, CHANGED_AFTER_APPROVAL, ...
+  scheduledMinutes    Int             @default(0) @map("scheduled_minutes")
+  workedMinutes       Int             @default(0) @map("worked_minutes")
+  minutesLate         Int             @default(0) @map("minutes_late")
+  minutesAfterGrace   Int             @default(0) @map("minutes_after_grace")
+  leftEarlyMinutes    Int             @default(0) @map("left_early_minutes")
+  afterEndMinutes     Int             @default(0) @map("after_end_minutes")
+  evidenceHash        String          @map("evidence_hash") // the inputs a decision rests on; a change reopens a decided day
+  lateExcused         Boolean         @default(false) @map("late_excused")
+  decidedById         String?         @map("decided_by_id") // null while the system approved it
+  decidedAt           DateTime?       @map("decided_at")
+  decisionReason      String?         @map("decision_reason")
+  carriedFromPeriodId String?         @map("carried_from_period_id") // set when a closing period moved this open day on
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  period   TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  site     Site            @relation(fields: [siteId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, shiftDate])
+  @@index([periodId, status])
+  @@index([siteId, shiftDate])
+  @@map("timesheet_days")
+}
+
+/// A person's week inside a period (cut at the period boundary). Status follows the days; no week sign-off exists.
+model TimesheetWeek {
+  id               String          @id @default(uuid())
+  periodId         String          @map("period_id")
+  siteId           String          @map("organization_id")
+  employeeId       String          @map("employee_id")
+  weekStart        DateTime        @map("week_start") @db.Date
+  status           TimesheetStatus
+  scheduledMinutes Int             @default(0) @map("scheduled_minutes")
+  workedMinutes    Int             @default(0) @map("worked_minutes")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  period   TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  site     Site            @relation(fields: [siteId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, weekStart, periodId])
+  @@index([periodId, status])
+  @@map("timesheet_weeks")
+}
+
+/// Time worked after the shift end that someone may authorise. Approving authorises the time only; payroll decides pay.
+model OvertimeItem {
+  id                 String         @id @default(uuid())
+  periodId           String         @map("period_id")
+  siteId             String         @map("organization_id")
+  employeeId         String         @map("employee_id")
+  shiftDate          DateTime       @map("shift_date") @db.Date
+  rawMinutes         Int            @map("raw_minutes")
+  serviceTailMinutes Int            @default(0) @map("service_tail_minutes")
+  autoMinutes        Int            @default(0) @map("auto_minutes") // covered without a decision
+  needsMinutes       Int            @default(0) @map("needs_minutes") // a person decides these
+  authorisedMinutes  Int            @default(0) @map("authorised_minutes") // what payroll may use
+  status             OvertimeStatus
+  evidence           Json // counts only: open work at the end, orders taken in the extra time, tickets cleared
+  limits             Json // weekly cap, the week's total, branch budget and use, and whether a head may decide it
+  decidedById        String?        @map("decided_by_id")
+  decidedAt          DateTime?      @map("decided_at")
+  decisionReason     String?        @map("decision_reason")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  period   TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  site     Site            @relation(fields: [siteId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, shiftDate])
+  @@index([periodId, status])
+  @@index([siteId, status])
+  @@map("overtime_items")
+}
+
+/// Report a problem and "clocked out by mistake": what a person says a recorded time should be. Never edits time itself;
+/// an approved clock request creates a linked correction through the attendance fix door.
+model TimeRequest {
+  id              String           @id @default(uuid())
+  siteId          String           @map("organization_id")
+  employeeId      String           @map("employee_id")
+  kind            TimeRequestKind
+  shiftDate       DateTime         @map("shift_date") @db.Date
+  state           TimeRequestState @default(WAITING)
+  note            String
+  recorded        Json // what the system holds now (before)
+  requested       Json // what the person says it should be (after)
+  waitingOnRole   String           @map("waiting_on_role") // BRANCH_MANAGER, STORE_MANAGER, DEPARTMENT_HEAD, HR_MANAGER, SYSTEM_ADMIN
+  waitingOnUserId String?          @map("waiting_on_user_id")
+  escalatedAt     DateTime?        @map("escalated_at")
+  decidedById     String?          @map("decided_by_id")
+  decidedAt       DateTime?        @map("decided_at")
+  decisionReason  String?          @map("decision_reason")
+  answerAfter     Json?            @map("answer_after") // what the timesheet says after the answer
+  appliedEventId  String?          @map("applied_event_id") // the clock correction an approval created
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  site     Site     @relation(fields: [siteId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([siteId, state, createdAt])
+  @@index([employeeId, state])
+  @@index([state, createdAt])
+  @@map("time_requests")
+}
