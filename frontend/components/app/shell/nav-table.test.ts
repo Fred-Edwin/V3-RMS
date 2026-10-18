@@ -624,9 +624,12 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   }
 
   it('shows no Workforce Home to the System Admin, the Store Attendant, floor staff or HR-less roles', () => {
-    for (const role of ['SYSTEM_ADMIN', 'STORE_ATTENDANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
+    for (const role of ['STORE_ATTENDANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
       expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))).filter((k) => k.startsWith('wf-')), role).toEqual([]);
     }
+    // The System Admin has no Workforce Home; its one Workforce row is the switch for the new clock, and nobody else has it.
+    expect(keys(navFor(ctxFor('SYSTEM_ADMIN', { can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual(['wf-attendance-switch']);
+    for (const role of ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] as AppRole[]) expect(keys(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-attendance-switch');
     // With the new clock off, a department head gets nothing new either.
     expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual([]);
   });

@@ -140,12 +140,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
   }
 
   // Attendance (slice 3). The Today board is for the roles that read it (and a department head, for their own people); the per-site
-  // switch is the Director's and the System Admin's. Both pages show nothing for a branch whose new clock is off.
+  // switch is the System Admin's alone (owner, 18 Oct 2026). Both pages show nothing for a branch whose new clock is off.
   if (pathname === '/app/workforce/today' || pathname.startsWith('/app/workforce/today/')) {
     return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
   if (pathname === '/app/workforce/attendance/switch') {
-    return role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+    return role === 'SYSTEM_ADMIN';
   }
 
   // The Home of the floor staff and department heads: their clock card. The menu shows the link only on a branch with the new clock on;

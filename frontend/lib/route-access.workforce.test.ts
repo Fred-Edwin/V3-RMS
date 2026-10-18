@@ -42,13 +42,13 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforce', 'SYSTEM_ADMIN', false)).toBe(false);
   });
 
-  it('opens the Today board for the roles that read it and a head, and the switch for the Director and the System Admin only', () => {
+  it('opens the Today board for the roles that read it and a head, and the switch for the System Admin only', () => {
     const READS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'];
     for (const role of ALL) {
       expect(isAllowedPath('/app/workforce/today', role, false), `${role} on today`).toBe(READS.includes(role));
       expect(isAllowedPath('/app/workforce/today', role, true), `head ${role} on today`).toBe(true);
-      expect(isAllowedPath('/app/workforce/attendance/switch', role, false), `${role} on the switch`).toBe(role === 'DIRECTOR' || role === 'SYSTEM_ADMIN');
-      expect(isAllowedPath('/app/workforce/attendance/switch', role, true), `head ${role} on the switch`).toBe(role === 'DIRECTOR' || role === 'SYSTEM_ADMIN');
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, false), `${role} on the switch`).toBe(role === 'SYSTEM_ADMIN');
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, true), `head ${role} on the switch`).toBe(role === 'SYSTEM_ADMIN');
     }
   });
 

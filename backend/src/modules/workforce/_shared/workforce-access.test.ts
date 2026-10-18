@@ -36,7 +36,7 @@ rota.template_write          -    -    -    unit all  all  all
 today.read                   -    dept -    unit all  all  all
 today.act                    -    dept -    unit -    -    all
 time.fix                     -    -    -    unit all  -    all
-attendance.switch            -    -    -    -    -    all  all
+attendance.switch            -    -    -    -    -    -    all
 timesheet.read               -    dept all  unit all  all  all
 timesheet.approve            -    dept -    unit all  -    all
 overtime.approve             -    dept -    unit all  -    all

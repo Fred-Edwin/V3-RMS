@@ -234,7 +234,6 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rota.read': 'all',
     'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
     'today.read': 'all',
-    'attendance.switch': 'all', // the owner pilots one branch at a time; the Director decides when a site moves
     'timesheet.read': 'all',
     'casual.read': 'all',
     'leave.read': 'all',
@@ -268,7 +267,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'today.read': 'all',
     'today.act': 'all',
     'time.fix': 'all',
-    'attendance.switch': 'all',
+    'attendance.switch': 'all', // the owner pilots one branch at a time; only the System Admin moves a site (owner, 18 Oct 2026)
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
     'overtime.approve': 'all',

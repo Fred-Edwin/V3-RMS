@@ -264,6 +264,8 @@ const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE
   { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
+  // The per-branch switch for the new clock: the System Admin's alone (owner, 18 Oct 2026). It has no Home, so this is its one Workforce row.
+  { key: 'wf-attendance-switch', label: 'Attendance clock', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
   { key: 'wf-today', label: 'Today board', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/today', roles: [WF_HR, DIRECTOR], needsAttendance: true },
   { key: 'wf-waiting', label: 'Waiting for you', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [...WF_APPROVERS, ACCOUNTANT], badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-overdue', label: 'Overdue approvals', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [DIRECTOR], badge: 'workforce-waiting', notBuilt: true },

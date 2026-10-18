@@ -3,7 +3,6 @@ import { branchKpisCard, todayBoardCard, waitingDesktopCard } from './branch-car
 import { comingUpCard, hrAttentionCard, hrKpisCard, peopleByBranchCard } from './hr-cards';
 import { clockCard, jobCardsCard, teamTodayCard, waitingPhoneCard, weekCard } from './phone-cards-defs';
 import { companyHeadcountCard, overdueApprovalsCard, payRunKpisCard, payRunStepsCard } from './payrun-cards';
-import { attendanceSwitchCard } from './switch-card';
 
 /**
  * Every Home card that exists. A slice adds its card by writing its definition in `cards/` and listing it here; the page needs no
@@ -22,7 +21,6 @@ export const HOME_CARDS = [
   overdueApprovalsCard,
   companyHeadcountCard,
   comingUpCard,
-  attendanceSwitchCard,
   // Phone, in Paper's order
   clockCard,
   waitingPhoneCard,
