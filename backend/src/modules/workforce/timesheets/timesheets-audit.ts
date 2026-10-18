@@ -2,6 +2,9 @@ import type { AuditActor, AuditChannelCode, AuditEntryInput, JsonValue } from '.
 
 export { SYSTEM_ACTOR, eventOf } from '../attendance/attendance-audit';
 
+/** A plain object as audit JSON (undefined fields drop out). */
+export const asJson = (value: Record<string, unknown>): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue;
+
 export interface TimesheetEntryArgs {
   companyId: string;
   siteId: string;

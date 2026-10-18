@@ -64,9 +64,10 @@ export const timesheetDaysRepository = {
   inRange: async (siteId: string, from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<DayRow[]> =>
     (await db.timesheetDay.findMany({ where: { siteId, shiftDate: { gte: toDateColumn(from), lte: toDateColumn(to) } } })).map(toDayRow),
 
-  byId: async (siteId: string, id: string, db: Db = prisma): Promise<DayRow | null> => {
-    const row = await db.timesheetDay.findFirst({ where: { id, siteId } });
-    return row ? toDayRow(row) : null;
+  /** By id wherever it is, with its site; the caller checks the viewer's scope (404 if not). */
+  byIdAnywhere: async (id: string, db: Db = prisma): Promise<(DayRow & { siteId: string }) | null> => {
+    const row = await db.timesheetDay.findUnique({ where: { id } });
+    return row ? { ...toDayRow(row), siteId: row.siteId } : null;
   },
 
   byPersonDate: async (siteId: string, employeeId: string, date: NairobiDate, db: Db = prisma): Promise<DayRow | null> => {
@@ -115,7 +116,7 @@ export const timesheetDaysRepository = {
     await tx.timesheetDay.upsert({
       where: { employeeId_shiftDate: { employeeId: write.employeeId, shiftDate: data.shiftDate } },
       create: { ...data, ...(typeof decision === 'object' ? change : {}) },
-      update: { ...data, ...change },
+      update: { ...data, carriedFromPeriodId: null, ...change },
     });
   },
 
@@ -137,6 +138,8 @@ export const timesheetDaysRepository = {
       });
     }
   },
+
+  deleteWeeks: (tx: Db, periodId: string, employeeId: string) => tx.timesheetWeek.deleteMany({ where: { periodId, employeeId } }),
 
   weeksOf: (periodId: string, siteId: string, employeeId: string, db: Db = prisma) =>
     db.timesheetWeek.findMany({ where: { periodId, siteId, employeeId }, orderBy: { weekStart: 'asc' } }),

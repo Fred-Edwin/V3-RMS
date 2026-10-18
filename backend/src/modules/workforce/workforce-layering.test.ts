@@ -102,6 +102,8 @@ describe('the public door (contract 7.2)', () => {
       'workforcePermissionsRouter', 'workforceRulesRouter', 'workforcePeopleRouter', 'workforceOrgRouter', 'workforceRotaRouter', 'carryOverLegacyRota',
       // attendance (slice 3)
       'workforceAttendanceRouter', 'refuseLegacyClockWhenSwitched', 'sweepAutoClose', 'setPeriodClosedCheck', 'getOnShiftNow',
+      // timesheets (slice 4a)
+      'workforceTimesheetsRouter', 'registerTimesheets', 'sweepTimesheets', 'getApprovedHours',
       // people (slice 1)
       'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access
@@ -119,16 +121,37 @@ describe('the public door (contract 7.2)', () => {
       // events
       'workforceEvents', 'setWorkforceNotifier',
       // stubs
-      'isOnLeave', 'getApprovedHours',
+      'isOnLeave',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   }, 30_000); // importing the whole door takes seconds when the full suite is running
 
-  it.each([
-    ['isOnLeave', 5],
-    ['getApprovedHours', 4],
-  ] as const)('the %s stub throws NotBuiltYetError naming slice %i', async (name, slice) => {
+  it.each([['isOnLeave', 5]] as const)('the %s stub throws NotBuiltYetError naming slice %i', async (name, slice) => {
     const door = (await import('./index')) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
     await expect(door[name]!({ siteId: 's' }, '2026-10-06')).rejects.toMatchObject({ statusCode: 501, code: 'NOT_BUILT_YET', message: expect.stringContaining(`slice ${slice}`) });
+  });
+});
+
+describe('timesheets (slice 4a)', () => {
+  const own = sources.filter(({ file }) => file.startsWith('timesheets/'));
+
+  it('only timesheet repositories touch the timesheet tables', () => {
+    const tables = /\.(timesheetPeriod|timesheetDay|timesheetWeek|overtimeItem|timeRequest)\./;
+    expect(own.filter(({ file, text }) => tables.test(text) && !isRepository(file)).map(({ file }) => file)).toEqual([]);
+  });
+
+  it('never writes the legacy payslip, attendance or clock tables', () => {
+    const legacy = /\.(clockRecord|shiftAssignment|payslip|attendance|leaveRequest)\.(create|update|upsert|delete)/;
+    expect(own.filter(({ text }) => legacy.test(text)).map(({ file }) => file)).toEqual([]);
+  });
+
+  it('never stores money: no pay, rate, amount or total column in the timesheet schema', () => {
+    const schema = readFileSync(join(root, '../../../prisma/schema/workforce/timesheets.prisma'), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\/\/.*$/gm, '');
+    expect(schema).not.toMatch(/\b(pay|rate|amount|salary|wage|money|deduction|price)\w*\s+(Decimal|Float|Int)\b/i);
+    expect(schema).not.toMatch(/Decimal/);
+  });
+
+  it('the period-closed check is registered only through the hook (no second path around it)', () => {
+    expect(own.filter(({ text }) => /setPeriodClosedCheck/.test(text)).map(({ file }) => file)).toEqual(['timesheets/register-timesheets.ts']);
   });
 });

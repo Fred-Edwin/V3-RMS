@@ -43,10 +43,19 @@ export const overtimeRepository = {
   inRange: async (siteId: string, from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<OvertimeRow[]> =>
     (await db.overtimeItem.findMany({ where: { siteId, shiftDate: { gte: toDateColumn(from), lte: toDateColumn(to) } } })).map(toOvertimeRow),
 
-  byId: async (siteId: string, id: string, db: Db = prisma): Promise<OvertimeRow | null> => {
-    const row = await db.overtimeItem.findFirst({ where: { id, siteId } });
+  /** By id wherever it is, with its site; the caller checks the viewer's scope (404 if not). */
+  byIdAnywhere: async (id: string, db: Db = prisma): Promise<(OvertimeRow & { siteId: string }) | null> => {
+    const row = await db.overtimeItem.findUnique({ where: { id } });
+    return row ? { ...toOvertimeRow(row), siteId: row.siteId } : null;
+  },
+
+  byPersonDate: async (siteId: string, employeeId: string, date: NairobiDate, db: Db = prisma): Promise<OvertimeRow | null> => {
+    const row = await db.overtimeItem.findFirst({ where: { siteId, employeeId, shiftDate: toDateColumn(date) } });
     return row ? toOvertimeRow(row) : null;
   },
+
+  allInPeriod: async (periodId: string, siteId: string, db: Db = prisma): Promise<OvertimeRow[]> =>
+    (await db.overtimeItem.findMany({ where: { periodId, siteId }, orderBy: { shiftDate: 'asc' } })).map(toOvertimeRow),
 
   ofPerson: async (siteId: string, employeeId: string, from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<OvertimeRow[]> =>
     (await db.overtimeItem.findMany({ where: { siteId, employeeId, shiftDate: { gte: toDateColumn(from), lte: toDateColumn(to) } }, orderBy: { shiftDate: 'asc' } })).map(toOvertimeRow),

@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq';
 import { bullMqConnection, notificationQueue, reportQueue, commsQueue } from '../config/queues';
 import { ATTENDANCE_AUTO_CLOSE_JOB, ensureAttendanceAutoCloseSchedule, runAttendanceAutoCloseJob } from './attendance-auto-close-job';
+import { TIMESHEETS_SWEEP_JOB, ensureTimesheetsSweepSchedule, runTimesheetsSweepJob } from './timesheets-sweep-job';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
@@ -80,6 +81,11 @@ export const reportWorker = new Worker(
 
     if (job.name === ATTENDANCE_AUTO_CLOSE_JOB) {
       await runAttendanceAutoCloseJob();
+      return;
+    }
+
+    if (job.name === TIMESHEETS_SWEEP_JOB) {
+      await runTimesheetsSweepJob();
       return;
     }
 
@@ -175,6 +181,9 @@ export const startWorkers = (): void => {
     });
     void ensureAttendanceAutoCloseSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the attendance auto-close schedule');
+    });
+    void ensureTimesheetsSweepSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the timesheets sweep schedule');
     });
     void ensurePeopleSchedulerSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the People scheduler schedule');
