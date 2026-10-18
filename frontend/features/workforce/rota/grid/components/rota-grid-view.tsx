@@ -6,7 +6,7 @@ import { ShiftGrid, type ShiftGridRow } from '../../../_shared';
 import { cellChangeFor } from '../lib/grid-keys';
 import { dragDates } from '../../_shared/lib/rota-edits';
 import { columnHead, longDay, weekLabel } from '../../_shared/lib/rota-dates';
-import { cellLabelOf, hoursNumber, templateFits, toneOfColour } from '../../_shared/lib/shift-look';
+import { cellNameOf, hoursNumber, templateFits, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, cellWarnings, footerRow, personNote } from '../../_shared/lib/week-view';
 import type { GridPerson, RotaWarning, TemplateView, WeekView } from '../../_shared/types/rota-types';
 import { CellPopover } from './cell-popover';
@@ -152,10 +152,10 @@ export function RotaGridView({
         if (first) {
           return {
             tone: toneOfColour(first.colour),
-            label: cellLabelOf(first) + (shifts.length > 1 ? ` +${shifts.length - 1}` : ''),
+            label: cellNameOf(first) + (shifts.length > 1 ? ` +${shifts.length - 1}` : ''),
             flagged: warned.length > 0 || shifts.length > 1,
             chosen,
-            ariaLabel: [`${spoken}, ${first.name}`, ...warned.map((w) => w.message)].join('. '),
+            ariaLabel: [`${spoken}, ${first.name} ${timeRangeWords(first)}`, ...warned.map((w) => w.message)].join('. '),
             onSelect: open,
           };
         }

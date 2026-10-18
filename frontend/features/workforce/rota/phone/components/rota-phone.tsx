@@ -11,7 +11,7 @@ import { PendingDialogs } from '../../dialogs/pending-dialogs';
 import { useRotaSelection } from '../../grid/hooks/use-rota-selection';
 import { dayOfMonth, longDay, weekdayName, weekPhoneRange } from '../../_shared/lib/rota-dates';
 import { NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
-import { cellLabelOf, templateFits, toneOfColour } from '../../_shared/lib/shift-look';
+import { cellNameOf, templateFits, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, listedDepartments, peopleIn } from '../../_shared/lib/week-view';
 import type { WeekView } from '../../_shared/types/rota-types';
 import { PhoneShiftSheet } from './phone-shift-sheet';
@@ -95,7 +95,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
                   <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{role}</span>
                 </span>
                 {first ? (
-                  <ShiftChip tone={toneOfColour(first.colour)} label={cellLabelOf(first)} onSelect={open} ariaLabel={`${p.name}, ${first.name}. Change shift`} />
+                  <ShiftChip tone={toneOfColour(first.colour)} label={cellNameOf(first)} onSelect={open} ariaLabel={`${p.name}, ${first.name} ${first.startTime} to ${first.endTime}. Change shift`} />
                 ) : p.leaveDates.includes(date) ? (
                   <ShiftChip tone="leave" label="Leave" onSelect={open} ariaLabel={`${p.name}, on leave. Pick a shift`} />
                 ) : canWrite ? (

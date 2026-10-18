@@ -53,7 +53,7 @@ export function ShiftChip({
   const paint = SHIFT_PAINT[tone];
   const box = cn(
     'inline-flex h-[26px] items-center justify-center border',
-    long ? 'px-3' : 'w-[74px]',
+    long ? 'px-3' : 'w-[74px] overflow-hidden text-ellipsis whitespace-nowrap px-1',
     tone === 'leave' ? 'font-wds-sans text-[12px] leading-4' : 'font-wds-mono text-[11px] leading-[14px]',
     paint.chip,
     flagged && 'border-2 border-wds-caramel-600',

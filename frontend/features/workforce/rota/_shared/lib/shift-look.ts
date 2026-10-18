@@ -38,7 +38,10 @@ export const hoursUnit = (minutes: number): string => `${hoursNumber(minutes)} h
 export const timeRangeWords = (t: Pick<TemplateView, 'startTime' | 'endTime'>): string => `${t.startTime} to ${t.endTime}`;
 export const timeRangeMono = (t: Pick<TemplateView, 'startTime' | 'endTime'>): string => `${t.startTime}–${t.endTime}`;
 
-export const cellLabelOf = (t: Pick<TemplateView, 'startTime' | 'endTime'>): string => shiftCellLabel(t.startTime, t.endTime);
+/** What a rota cell says: the shift's name ("Morning"). Its hours are in the picker, the tooltip and the spoken label. */
+export const cellNameOf = (t: Pick<TemplateView, 'name'>): string => t.name;
+
+export const cellLabelOf =(t: Pick<TemplateView, 'startTime' | 'endTime'>): string => shiftCellLabel(t.startTime, t.endTime);
 
 /** The shift's name for a sentence ("Morning"), or "day off". */
 export const shiftName = (templates: ReadonlyMap<string, TemplateView>, shifts: readonly GridShift[]): string =>

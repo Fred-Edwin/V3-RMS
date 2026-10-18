@@ -258,7 +258,7 @@ const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
  * (slice 3) moves the clock onto the new rota, so nobody plans a week the clock does not read yet. The pages work by address meanwhile
  * (the route gate lets the permitted roles in), so the owner can review them. Flip it to `true` and nothing else changes.
  */
-export const SHOW_SCHEDULE_LINKS = false;
+export const SHOW_SCHEDULE_LINKS = true;
 
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE

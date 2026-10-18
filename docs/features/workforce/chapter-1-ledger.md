@@ -35,7 +35,7 @@ Every row exists with its label, group, icon, link and who sees it. Only **Home*
 |---|---|---|---|---|
 | Home | HR, Branch Manager, Store Manager, Accountant, Director | frame | none | **shown** |
 | Waiting for you (Overdue approvals for the Director) | HR, BM, SM, Accountant, Director | 4 | `workforce-waiting` | row defined, hidden |
-| Schedule › Rota, Shift templates | HR, BM, SM, Director | 2 | none | pages built (slice 2); rows hidden behind the one switch `SHOW_SCHEDULE_LINKS` (off) in `nav-table.ts` until Attendance moves the clock onto the new rota; the pages open by address |
+| Schedule › Rota, Shift templates | HR, BM, SM, Director | 2 | none | pages built (slice 2); **rows shown** (owner, 18 Oct 2026) behind the one switch `SHOW_SCHEDULE_LINKS` (on) in `nav-table.ts`; a department head also sees a Rota row |
 | Timesheets | HR, BM, SM, Director | 4 | `workforce-timesheets` | row defined, hidden |
 | Employees (under Workforce for the Accountant) | HR, BM, SM, Director; Accountant | 1a | none | row defined, hidden |
 | Organisation | HR, BM, Director | 1b | none | **shown** (1b, 18 Oct 2026; Positions is a tab inside it) |

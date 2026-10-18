@@ -15,7 +15,7 @@ Chapter 5 of the approved Paper designs ("Build the rota", steps 1 to 10), on th
 | `print/` | The printed rota: one landscape A4 page from the print data |
 | `_shared/` | Types, one service per endpoint, the data hooks, the editor hook (autosave), pure helpers (dates, shift look, week view, edits, words) |
 
-Public face: `index.ts`. Route shells: `app/app/workforce/schedule/{rota,rota/print,templates}/page.tsx`. Home card: `home/cards/rota-data.ts` feeds the phone "This week" card with planned hours from `GET /workforce/rota/mine`. Navigation: the Schedule rows exist in `nav-table.ts` and are hidden for every role behind `SHOW_SCHEDULE_LINKS = false` until Attendance (slice 3) moves the clock onto the new rota; the pages open by address.
+Public face: `index.ts`. Route shells: `app/app/workforce/schedule/{rota,rota/print,templates}/page.tsx`. Home card: `home/cards/rota-data.ts` feeds the phone "This week" card with planned hours from `GET /workforce/rota/mine`. Navigation: the Schedule rows exist in `nav-table.ts` and are shown behind one switch, `SHOW_SCHEDULE_LINKS = true` (owner decision, 18 Oct 2026; Schedule for HR, the managers and the Director, a Rota row for a department head). Rota cells show the shift's name; hours are in the picker, the tooltip and the spoken label.
 
 ## Rules the screens follow
 

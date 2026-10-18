@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { DOC_COLOURS, DocumentCanvas, EmptyState, ErrorBlock, ListSkeleton, SHIFT_PAINT, WorkforceDocument, useWorkforcePermissions } from '../../../_shared';
 import { usePrintedRota } from '../../_shared/hooks/use-rota-data';
 import { columnHead, printedDay, printedStamp, weekLongRange } from '../../_shared/lib/rota-dates';
-import { cellLabelOf, hoursNumber, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
+import { hoursNumber, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
 import type { PrintedRota } from '../../_shared/types/rota-types';
 
 /** Landscape A4 is the page's own size when it is printed; the browser's margins go because the document draws its own. */
@@ -53,7 +53,7 @@ function RotaTable({ rota }: { rota: PrintedRota }) {
                     ) : (
                       shifts.map((s, i) => (
                         <span key={i} className={cn('mx-auto mb-px block h-[18px] w-[100px] max-w-full border text-[13px] leading-[16px]', SHIFT_PAINT[toneOfColour(s.colour)].chip)}>
-                          {cellLabelOf(s)}
+                          {s.name}
                         </span>
                       ))
                     )}
