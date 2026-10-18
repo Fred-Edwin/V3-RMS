@@ -43,12 +43,12 @@ Out-of-scope reads and writes on another branch answer 404; a head outside their
 | Department head | yes | own departments | own departments | no | own departments | no |
 | Branch / Store Manager | no | own site | own site | own site | own site | no |
 | HR Manager | no | all | no | all (and closed periods) | all | no |
-| Director | no | all (read) | no | no | all | yes |
+| Director | no | all (read) | no | no | all | no |
 | System Admin | no | all | all | all | all | yes |
 
 ## The switch and rollback
 
-Default is off: no row for a site means the legacy clock is authoritative and nothing changes. `PUT /workforce/attendance/switch {siteId, enabled}` (Director or System Admin):
+Default is off: no row for a site means the legacy clock is authoritative and nothing changes. `PUT /workforce/attendance/switch {siteId, enabled}` (System Admin only, owner decision 18 Oct 2026; the Director cannot):
 
 - **On:** refused (409) while anyone is clocked in on the old clock today; otherwise today's finished legacy records are carried as `LEGACY` events and the four legacy clock routes answer 409 for that site.
 - **Off:** today's new-engine clocks that sit on a carried legacy assignment are inserted as legacy records (marked, so a later switch-on never carries them back); the legacy routes work again at once. Anyone whose shift exists only in the new rota is listed in `notMirrored`.
