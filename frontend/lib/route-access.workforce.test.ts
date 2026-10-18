@@ -22,6 +22,15 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     }
   });
 
+  it('opens Organisation and a department only for HR, the Branch Manager and the Director (the roles whose menu draws it)', () => {
+    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'DIRECTOR'];
+    for (const path of ['/app/workforce/organisation', '/app/workforce/organisation/abc']) {
+      for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(OPENS.includes(role));
+    }
+    expect(isAllowedPath('/app/workforce/organisationx', 'HR_MANAGER', false)).toBe(true); // falls under the general Workforce rule, which only the five desktop roles pass
+    expect(isAllowedPath('/app/workforce/organisationx', 'WAITER', false)).toBe(false);
+  });
+
   it('does not let a department head in because of the head marker alone', () => {
     expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(false);
   });

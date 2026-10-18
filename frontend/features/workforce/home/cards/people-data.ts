@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { attentionRows, comingUpRows, nairobiDay, onboardingCount, peopleByBranch, usePeopleSummary, useRoster } from '@/features/workforce/people';
+import { attentionRows, comingUpRows, gapRows, nairobiDay, onboardingCount, peopleByBranch, useOrgOverview, usePeopleSummary, useRoster } from '@/features/workforce/people';
 
 import type { CardDataState } from '../lib/card-registry';
 import type { AttentionData, ComingUpData, KpiData, PeopleData } from './hr-cards';
@@ -51,7 +51,22 @@ const attention = (rows: Parameters<typeof attentionRows>[0], today: string, ope
   items: attentionRows(rows, today).slice(0, 6).map((r) => ({ key: r.key, kind: r.kind, title: r.title, detail: r.detail, age: r.age, late: r.late, action: { label: r.action, onClick: () => open(`/app/workforce/employees/${r.employeeId}`) } })),
   viewAll: { label: 'View all employees', onClick: () => open('/app/workforce/employees') },
 });
-export const useHrAttention = (): CardDataState<AttentionData> => useRosterCard(attention);
+const useAttentionFromRoster = (): CardDataState<AttentionData> => useRosterCard(attention);
+
+/** Slice 1a's rows (Finish hiring, Probation ends) plus slice 1b's "No head for <department>", gaps first because a gap stops approvals. */
+export function useHrAttention(): CardDataState<AttentionData> {
+  const base = useAttentionFromRoster();
+  const org = useOrgOverview(false);
+  const router = useRouter();
+  const orgData = org.data;
+  return useMemo((): CardDataState<AttentionData> => {
+    if (base.status !== 'ready') return base;
+    const gaps = orgData
+      ? gapRows(orgData).map((g) => ({ key: g.key, kind: 'setup' as const, title: g.title, detail: g.detail, age: g.age, late: true, action: { label: g.action, onClick: () => router.push(`/app/workforce/organisation/${g.departmentId}`) } }))
+      : [];
+    return { status: 'ready', data: { ...base.data, items: [...gaps, ...base.data.items].slice(0, 6) } };
+  }, [base, orgData, router]);
+}
 
 const byBranch = (rows: Parameters<typeof peopleByBranch>[0]): PeopleData => ({ rows: peopleByBranch(rows) });
 export const usePeopleByBranchData = (): CardDataState<PeopleData> => useRosterCard(byBranch);

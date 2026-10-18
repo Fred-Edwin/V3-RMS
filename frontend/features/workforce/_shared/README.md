@@ -22,6 +22,7 @@ See every piece in every state at **`/dev/workforce-kit`** (a dev page; every pa
 | Reason chips | `components/reason-chips.tsx`, `lib/reason.ts` | A short list plus "Other". `legendStyle="sentence"` and `hint="required"` give the question form ("If you decline, say why"). |
 | Dialogs | `components/change-dialog.tsx` | `KitDialog` (shell; `plain` is the approval-dialog paint), `ChangeSummary`, `OldToNew`, `DialogButton` (`size="lg"` is 38 px), `ChangeDialog`, and **`WorkforcePinDialog`**: a summary list, one dots field, a caption, Cancel and the brown button. |
 | PIN field, code boxes | `components/pin-field.tsx` | **`PinField`**: one wide bordered field with a dot per digit, for a signed act (the last digit calls `onComplete`; Enter never does; the phone number pad is kept). **`CodeBoxes`**: four boxes with red borders on a wrong code, for the payslip code. |
+| Person radio list | `components/person-radio-list.tsx` | A short list of people to pick one from (avatar, name, grey line, "Recommended"), real radios. Added in slice 1b for "Assign a head". |
 | Key-value rows | `components/key-value-rows.tsx` | Label left, value right under an ink rule; mono values, tone, old to new. |
 | Undo toast | `components/undo-toast.tsx`, `lib/undo.ts` | The 30 second Undo after an answer. |
 | Single-day date field | `components/single-date-field.tsx` | A date field in a dialog (approved picker, single-day mode). |

@@ -586,14 +586,17 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       expect(eventual(role)).toEqual(PAPER[role]);
     });
 
-    it(`${role}: shows Workforce first, and only the pages that exist (Home and Employees)`, () => {
+    it(`${role}: shows Workforce first, and only the pages that exist (Home, Employees, and Organisation where Paper draws it)`, () => {
       const groups = navFor(ctxFor(role, { can: EVERYTHING }));
       expect(groups[0]?.key).toBe('wf-workforce');
       expect(groups[0]?.label).toBe('WORKFORCE');
       // The Accountant's Employees link sits under Workforce; everyone else's sits in People.
       expect(groups[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : ['Home']);
       expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(role === 'ACCOUNTANT' ? 1 : 2);
-      if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(['Employees']);
+      const hasOrganisation = role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
+      if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation'] : ['Employees']);
+      if (hasOrganisation) expect(item(groups, 'wf-organisation')?.href).toBe('/app/workforce/organisation');
+      else expect(item(groups, 'wf-organisation')).toBeUndefined();
       expect(item(groups, role === 'ACCOUNTANT' ? 'wf-employees-acc' : 'wf-employees')?.href).toBe('/app/workforce/employees');
       expect(item(groups, 'wf-home')?.href).toBe('/app/workforce');
       expect(item(groups, 'wf-home')?.framed).toBe(true);
@@ -638,8 +641,8 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {
     const only = (rows: readonly NavRow[]) => keys(navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }), rows)).filter((k) => k.startsWith('wf-'));
     const built = NAV_ROWS.map((r) => (r.key === 'wf-conduct' ? { ...r, notBuilt: undefined } : r));
-    expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees']);
-    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-conduct']);
+    expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees', 'wf-organisation']);
+    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-conduct']);
   });
 
   it('offers a badge slot on Waiting for you, Timesheets and Leave, drawn only when a slice feeds a count', () => {

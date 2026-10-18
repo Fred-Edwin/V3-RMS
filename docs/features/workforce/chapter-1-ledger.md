@@ -9,7 +9,7 @@ Status words: **frame built** (the block, its states and its card definition exi
 | Card id | Paper | Who sees it (capability) | Data slice | Status |
 |---|---|---|---|---|
 | `workforce.hr-kpis` · KPI strip: Waiting for you, Onboarding, No contract yet, Pay run | `SVM-0` (HR Home `PG2-0`) | `employee.write_sensitive` (HR) | Waiting for you: 4; Onboarding and No contract yet: 1a; Pay run: 6 | Onboarding and No contract yet: **data wired** (1a, 17 Oct 2026); the other cells wait for their slices |
-| `workforce.hr-attention` · Needs your attention (leave, report, finish hiring, probation ends, no head) | `PME-0` | `employee.write_sensitive` | Finish hiring, Probation ends: 1a; No head for a department: 1b; Report a problem: 4; Leave request: 5 | Finish hiring and Probation ends: **data wired** (1a, 17 Oct 2026); the other rows wait for their slices |
+| `workforce.hr-attention` · Needs your attention (leave, report, finish hiring, probation ends, no head) | `PME-0` | `employee.write_sensitive` | Finish hiring, Probation ends: 1a; No head for a department: 1b; Report a problem: 4; Leave request: 5 | Finish hiring and Probation ends: **data wired** (1a, 17 Oct 2026); No head for a department: **data wired** (1b, 18 Oct 2026); the other rows wait for their slices |
 | `workforce.people-by-branch` · People by branch | `PNM-0` | `employee.write_sensitive` | 1a | **data wired** (1a, 17 Oct 2026) |
 | `workforce.coming-up` · Coming up (also the Accountant's and Director's) | `POH-0` | `employee.write_sensitive`, `payrun.approve`, `payrun.reopen` | Leave starting: 5; Probation ends: 1a; Timesheets close: 4; Pay run goes to the Accountant, Payday: 6 | Probation ends: **data wired** (1a, 17 Oct 2026); the other events wait for their slices |
 | `workforce.branch-kpis` · KPI strip: On shift now, Late today, Not in yet, Waiting for you | `SWB-0` (Branch Manager Home `PPM-0`) | `today.act` (Branch Manager, Store Manager) | On shift, Late, Not in: 3; Waiting for you: 4 | frame built |
@@ -38,7 +38,7 @@ Every row exists with its label, group, icon, link and who sees it. Only **Home*
 | Schedule › Rota, Shift templates | HR, BM, SM, Director | 2 | none | row defined, hidden |
 | Timesheets | HR, BM, SM, Director | 4 | `workforce-timesheets` | row defined, hidden |
 | Employees (under Workforce for the Accountant) | HR, BM, SM, Director; Accountant | 1a | none | row defined, hidden |
-| Organisation | HR, BM, Director | 1b | none | row defined, hidden |
+| Organisation | HR, BM, Director | 1b | none | **shown** (1b, 18 Oct 2026; Positions is a tab inside it) |
 | Leave | HR, BM, SM, Director | 5 | `workforce-leave` | row defined, hidden |
 | Conduct | HR, BM, SM, Director | 7 | none | row defined, hidden |
 | Pay runs, Payslips | HR, Accountant, Director | 6 | none | row defined, hidden |

@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
 import { Topbar, type TopbarBreadcrumb } from '@/components/app/shell/topbar';
+import type { SearchInputProps } from '@/components/ui2/search-input';
 import { cn } from '@/lib/cn';
 import { useAuthStore } from '@/store/authStore';
 
@@ -18,11 +19,14 @@ export function PeopleFrame({
   breadcrumb,
   phoneTitle,
   actions,
+  searchProps,
   label,
   className,
   children,
 }: {
   breadcrumb: TopbarBreadcrumb;
+  /** A search box in the top bar (Positions draws one). Left out, the bar has none. */
+  searchProps?: SearchInputProps;
   /** Name of the screen in the compact bar. */
   phoneTitle: string;
   actions?: React.ReactNode;
@@ -36,7 +40,7 @@ export function PeopleFrame({
   const org = (user?.organizationName ?? 'COMPANY').toUpperCase();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <Topbar breadcrumb={breadcrumb} hideSearch actions={actions} className="hidden lg:flex" />
+      <Topbar breadcrumb={breadcrumb} hideSearch={!searchProps} searchProps={searchProps} actions={actions} className="hidden lg:flex" />
       <MobileTopbar title={phoneTitle} orgLabel={org} initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="lg:hidden" />
       <main aria-label={label} className={cn('min-h-0 flex-1 overflow-y-auto bg-wds-canvas', className)}>
         {children}

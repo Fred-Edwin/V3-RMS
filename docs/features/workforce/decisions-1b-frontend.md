@@ -1,0 +1,21 @@
+# Slice 1b front end: decisions made without the owner
+
+Each row is a question the session met, what it chose, why, and what changing it would take. Nothing here blocked the work.
+
+| # | Question | Chosen | Why | To change it |
+|---|---|---|---|---|
+| 1 | The lane Redis container was stopped, so the API would not start. | Started `wendo-lane-1-redis` (this lane's own container). Nothing else was touched. | The API needs Redis. | None. |
+| 2 | Who may open the Organisation pages? The API also lets the Store Manager and the System Admin read some of it. | The route gate opens `/app/workforce/organisation` for HR, Branch Manager and Director only, the three roles whose menu Paper draws it for. | Paper draws no Organisation row for the others, and the System Admin has no Workforce menu (1a decision 7). | `lib/route-access.ts` and `roles` on the `wf-organisation` row. |
+| 3 | Paper puts "Heads on leave" and "Waiting on the head" figures on both screens. | A dash and "arrives with Leave" / "arrives with Approvals". The department people table's Today column is a dash. | Those figures come from slices 3 to 5. Never an invented number. | Replace the cells when those slices exist. |
+| 4 | Paper's Add department has an optional Head picker. | The head line is a note: approvals go to the Branch Manager until a head is named from the department's page. | A new department has nobody in it, so nobody could be chosen. | Add the picker if departments can be created with people. |
+| 5 | A department with an acting head but no head: is it a gap? | Not a gap (the server's rule). The Head card says "No head" and that an acting head covers; it is absent from Home's gap rows. | The brief: a gap is no head and no acting head. | Server rule in `departments` view builder. |
+| 6 | Paper's department page has "Replace head" and "Name an acting head" only. | Also "End head", "End acting head" and "Change acting head", shown only when they apply and the server's `can.assignHead` is true. | O9 and the promote case are in scope; the buttons follow the server. | Remove the buttons in `heads/components/head-card.tsx`. |
+| 7 | Ending a head needs a reason. | Reason chips (moving to another role, stepping down, restructuring) plus "Other". | The kit's rule for a change that asks why. | `END_REASONS` in `heads/lib/head-copy.ts`. |
+| 8 | "Positions in it · pick or add" and "+ New position" in Add department. | The dashed chip adds a plain position (clocks in, casuals allowed) right away; it can be refined on the Positions tab. Shown only to someone with `org.write`. | Positions are company-wide and HR-only to write. | `position-chips.tsx`. |
+| 9 | Changing "clocks in" on a position. | A second step lists how many people are affected (O13), with a tick when the count is above zero; that count is sent as `acknowledgedPeople`. | The server refuses otherwise (`ACKNOWLEDGE_IMPACT`). | `positions/components/dialogs/position-dialog.tsx`. |
+| 10 | Retired departments and positions. | A "Show retired" link under each list; a retired department opens and can be brought back. | Otherwise restore could not be reached. | Remove the link. |
+| 11 | The Positions tab search. | A search box in the top bar (as Paper draws), filtering by name on the server. | Paper puts it there; `PeopleFrame` gained an optional `searchProps`. | `positions-tab.tsx`. |
+| 12 | Paper writes "she/her" in the head dialogs. | First names and "they/their". | A wrong guess misgenders a real person. | `heads/lib/head-copy.ts`. |
+| 13 | The date picker caps at today unless told otherwise. | The acting head's return day passes a one-year `maxDate` and a next-day `minDate`. | Found in the browser: every future day was disabled. | None. |
+| 14 | The legacy department and head pages. | Left on disk and in the menu (see the final report); only the Organisation row was added. | Legacy rows (`/app/manage/department-settings`, Director's Departments, `/app/manage/departments`) belong to Inventory's department work. | Move or remove those rows once Inventory agrees. |
+| 15 | A stray test department was created in the lane database by an admin permission check. | Retired it through the API (lane database only). | Departments cannot be deleted. | None. |

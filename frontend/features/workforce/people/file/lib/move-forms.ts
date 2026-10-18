@@ -1,6 +1,7 @@
+import { impactText } from '../../_shared/lib/impact-text';
 import { addDays, formatDayMonth, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
 import type { ExitBody, LoanBody, RehireBody, TransferBody } from '../../_shared/types/people-requests';
-import type { EmployeeFile, ExitReason, ImpactLine, Lookups, MovePreview } from '../../_shared/types/people-types';
+import type { EmployeeFile, ExitReason, Lookups, MovePreview } from '../../_shared/types/people-types';
 import { hasErrors, monthName, type Errors } from './dialog-forms';
 
 /** The Move dialog (transfer or exit), Send to another site, and Rehire: their forms, checks, bodies and the "what changes" lines. */
@@ -32,11 +33,7 @@ export const toTransferBody = (f: TransferForm): TransferBody => ({
 });
 export const transferReady = (f: TransferForm, file: Pick<EmployeeFile, 'organization' | 'department'>, today: string): boolean => !hasErrors(validateTransfer(f, file, today));
 
-/** A line from a later slice's impact ("5 shifts removed"): the code in words until that slice writes its own sentence. */
-export function impactText(line: ImpactLine): string {
-  const words = line.code.toLowerCase().replace(/_/g, ' ');
-  return line.count === null ? words : `${line.count} ${words}`;
-}
+export { impactText };
 
 export const longDate = (date: string): string => `${Number(date.split('-')[2])} ${monthName(date)}`;
 
