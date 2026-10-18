@@ -1,7 +1,7 @@
-import { ConflictError, NotFoundError } from '../../../../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import { nairobiToday } from '../../_shared/time/nairobi-time';
-import type { AccessSubject } from '../../_shared/workforce-access';
+import { scopeOf, type AccessSubject } from '../../_shared/workforce-access';
 import { resolveActor } from '../../people/people-context';
 import { eventOf, timeEntry } from '../attendance-audit';
 import { daysRepository } from '../days/days-repository';
@@ -38,6 +38,18 @@ async function siteOr404(siteId: string) {
 export async function getSwitch(siteId: string): Promise<SwitchView> {
   const site = await siteOr404(siteId);
   return viewOf(siteId, site.name, await switchRepository.get(siteId));
+}
+
+/**
+ * S3: the switch of every site the caller can read the board for (a company-wide role sees all active sites, everyone else just
+ * their own). The menu uses it to show the new pages only where a site is on, and the Director's switch screen lists it.
+ */
+export async function listSwitches(subject: AccessSubject): Promise<SwitchView[]> {
+  const scope = scopeOf(subject, 'today.read');
+  if (scope === null || scope === 'own') throw new ForbiddenError('You do not have permission to perform this action');
+  if (scope !== 'all' && !subject.siteId) throw new ForbiddenError('You do not have permission to perform this action');
+  const rows = await switchRepository.sitesWithSwitch(scope === 'all' ? null : [subject.siteId as string]);
+  return rows.map(({ site, row }) => viewOf(site.id, site.name, row));
 }
 
 /**

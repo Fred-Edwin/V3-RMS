@@ -29,7 +29,7 @@ vi.mock('./board/clock-for-service', () => ({ clockForSomeone: answer }));
 vi.mock('./fixes/fixes-service', () => ({ applyFix: answer, previewFix: answer }));
 vi.mock('./fixes/history-service', () => ({ dayHistory: answer }));
 vi.mock('./lateness/lateness-service', () => ({ latenessReport: answer }));
-vi.mock('./switch/switch-service', () => ({ getSwitch: answer, setSwitch: answer }));
+vi.mock('./switch/switch-service', () => ({ getSwitch: answer, setSwitch: answer, listSwitches: answer }));
 
 import router from './attendance-routes';
 
@@ -61,6 +61,7 @@ const cases: Case[] = [
   { method: 'get', path: `${A}/lateness?from=2026-10-01&to=2026-10-12`, capability: 'timesheet.read', status: 200 },
   { method: 'get', path: `${A}/switch?siteId=${id}`, capability: 'today.read', status: 200 },
   { method: 'put', path: `${A}/switch`, body: { siteId: id, enabled: true }, capability: 'attendance.switch', status: 200 },
+  { method: 'get', path: `${A}/switch/sites`, capability: 'today.read', status: 200 },
 ];
 // A role that holds the capability and one that does not.
 const WITH: Record<Cap, string> = { 'time.own': 'WAITER', 'today.read': 'MANAGER', 'today.act': 'MANAGER', 'timesheet.read': 'MANAGER', 'time.fix': 'HR_MANAGER', 'attendance.switch': 'DIRECTOR' };
@@ -83,7 +84,8 @@ describe('Attendance routes', () => {
   it.each(cases)('$method $path: answers in the envelope', async (c) => {
     const res = await call(c, as(WITH[c.capability]));
     expect(res.status).toBe(c.status);
-    expect(res.body).toEqual({ success: true, data: { ok: true } });
+    // S3 wraps its list as { sites }, every other route returns the service answer as is.
+    expect(res.body).toEqual({ success: true, data: c.path.endsWith('/switch/sites') ? { sites: { ok: true } } : { ok: true } });
   });
 
   it('400 for bad bodies and queries, and nothing reaches a service', async () => {

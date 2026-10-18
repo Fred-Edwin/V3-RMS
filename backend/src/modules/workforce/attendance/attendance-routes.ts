@@ -34,5 +34,6 @@ router.get(`${A}/lateness`, ...base, requireCapability('timesheet.read'), latene
 
 router.get(`${A}/switch`, ...base, requireCapability('today.read'), site.get); // S1
 router.put(`${A}/switch`, ...base, requireCapability('attendance.switch'), site.set); // S2
+router.get(`${A}/switch/sites`, ...base, requireCapability('today.read'), site.list); // S3
 
 export default router;

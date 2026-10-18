@@ -19,6 +19,17 @@ export const switchRepository = {
   isEnabled: async (siteId: string, db: Db = prisma): Promise<boolean> =>
     (await db.attendanceSiteSwitch.findUnique({ where: { siteId }, select: { enabled: true } }))?.enabled === true,
 
+  /** Every active site (or just the ones named) with its switch row, for the lists that show the whole company at once. */
+  sitesWithSwitch: async (siteIds: readonly string[] | null, db: Db = prisma) => {
+    const sites = await db.site.findMany({
+      where: { isActive: true, ...(siteIds ? { id: { in: [...siteIds] } } : {}) },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    const rows = await db.attendanceSiteSwitch.findMany({ where: { siteId: { in: sites.map((s) => s.id) } } });
+    return sites.map((site) => ({ site, row: rows.find((r) => r.siteId === site.id) ?? null }));
+  },
+
   /** Every site that is on, for the auto-close sweep. */
   enabledSiteIds: async (db: Db = prisma): Promise<string[]> =>
     (await db.attendanceSiteSwitch.findMany({ where: { enabled: true }, select: { siteId: true } })).map((row) => row.siteId),

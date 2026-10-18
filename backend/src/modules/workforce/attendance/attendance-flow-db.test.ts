@@ -123,6 +123,12 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
 
   it('with the switch off nothing changes: no new clock, the legacy guard lets the legacy clock through', async () => {
     expect(await m.getSwitch(townId)).toMatchObject({ enabled: false });
+    // S3: the Director sees every site with its switch, a branch manager only their own.
+    const all = await m.listSwitches(director);
+    expect(all.length).toBeGreaterThan(1);
+    expect(all.every((s) => !s.enabled)).toBe(true);
+    expect((await m.listSwitches(townManager)).map((s) => s.siteId)).toEqual([townId]);
+    expect((await m.listSwitches(chef)).map((s) => s.siteId)).toEqual([townId]);
     expect(await m.myDay(chef, at('06:20'))).toMatchObject({ enabled: false, current: null });
     await expect(m.clockIn(chef, tap(), at('06:20'))).rejects.toMatchObject({ code: 'ATTENDANCE_NOT_ENABLED' });
     let passed = 0;
