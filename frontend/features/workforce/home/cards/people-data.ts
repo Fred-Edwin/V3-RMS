@@ -21,9 +21,13 @@ function useRosterCard<T>(build: (rows: ReturnType<typeof useRoster>['data'] & o
   const data = roster.data;
   const retry = roster.reload;
   const built = useMemo(() => (data ? build(data, nairobiDay(), (path) => router.push(path)) : null), [data, build, router]);
-  if (roster.status === 'error' && !data) return { status: 'error', retry };
-  if (!built) return loading;
-  return { status: 'ready', data: built };
+  const failed = roster.status === 'error' && !data;
+  // One object until the answer changes: the Home page compares answers by identity, so a fresh object each render would loop forever.
+  return useMemo((): CardDataState<T> => {
+    if (failed) return { status: 'error', retry };
+    if (!built) return loading;
+    return { status: 'ready', data: built };
+  }, [failed, retry, built]);
 }
 
 const hrKpis = (rows: Parameters<typeof onboardingCount>[0]): KpiData => ({
@@ -59,13 +63,19 @@ export function useHrAttention(): CardDataState<AttentionData> {
   const org = useOrgOverview(false);
   const router = useRouter();
   const orgData = org.data;
+  // `base` is a new object on every render, so depend on its parts: the answer must keep the same identity until something changes,
+  // or the page re-arranges on every render and loops (CLAUDE.md, Frontend Hook Stability Rules).
+  const baseData = base.status === 'ready' ? base.data : null;
+  const baseState = base.status === 'ready' ? null : base;
   return useMemo((): CardDataState<AttentionData> => {
-    if (base.status !== 'ready') return base;
+    if (!baseData) return baseState ?? { status: 'loading' };
     const gaps = orgData
       ? gapRows(orgData).map((g) => ({ key: g.key, kind: 'setup' as const, title: g.title, detail: g.detail, age: g.age, late: true, action: { label: g.action, onClick: () => router.push(`/app/workforce/organisation/${g.departmentId}`) } }))
       : [];
-    return { status: 'ready', data: { ...base.data, items: [...gaps, ...base.data.items].slice(0, 6) } };
-  }, [base, orgData, router]);
+    return { status: 'ready', data: { ...baseData, items: [...gaps, ...baseData.items].slice(0, 6) } };
+    // `baseState` is only read when `baseData` is null; its status is what matters, so it is keyed by `base.status` and `base.status === 'error'` retry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseData, base.status, orgData, router]);
 }
 
 const byBranch = (rows: Parameters<typeof peopleByBranch>[0]): PeopleData => ({ rows: peopleByBranch(rows) });
