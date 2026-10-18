@@ -49,7 +49,7 @@ import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 import carriersRoutes from '../modules/inventory/dispatch/carriers-routes';
 import deliveriesRoutes from '../modules/inventory/deliveries/deliveries-routes';
 import discrepanciesRoutes from '../modules/inventory/discrepancies/discrepancies-routes';
-import { registerPeople, workforceOrgRouter, workforcePeopleRouter, workforcePermissionsRouter, workforceRulesRouter } from '../modules/workforce';
+import { registerPeople, workforceOrgRouter, workforcePeopleRouter, workforcePermissionsRouter, workforceRotaRouter, workforceRulesRouter } from '../modules/workforce';
 
 const apiRouter = Router();
 
@@ -119,5 +119,6 @@ apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceRulesRouter);
 apiRouter.use(workforcePeopleRouter);
 apiRouter.use(workforceOrgRouter);
+apiRouter.use(workforceRotaRouter);
 
 export default apiRouter;

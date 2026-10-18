@@ -19,6 +19,18 @@ echo "== copy $SRC_DB -> $PROOF_DB"
 psql "$ADMIN_URL" -X -q -c "DROP DATABASE IF EXISTS \"$PROOF_DB\"" -c "CREATE DATABASE \"$PROOF_DB\""
 pg_dump "$DB_URL" | grep -v '^SET transaction_timeout' | psql "$PROOF_URL" -X -q -v ON_ERROR_STOP=1 >/dev/null
 
+echo "== put the copy back to before the migration (drop the new rota tables) and add legacy fixtures"
+q -c 'DROP TABLE IF EXISTS rota_entries, rota_weeks, shift_template_departments, shift_templates CASCADE' \
+  -c 'DROP TYPE IF EXISTS "RotaStatus", "RotaPublicationKind"' >/dev/null
+q -c "INSERT INTO shifts (id, organization_id, name, start_time, end_time, is_active, updated_at)
+      SELECT 'proof-morning-' || o.id, o.id, 'Morning', '06:00', '14:00', true, now() FROM organizations o WHERE o.type = 'BRANCH' LIMIT 1" \
+  -c "INSERT INTO shifts (id, organization_id, name, start_time, end_time, is_active, updated_at)
+      SELECT 'proof-night-' || o.id, o.id, 'Night', '22:00', '06:00', true, now() FROM organizations o WHERE o.type = 'BRANCH' LIMIT 1" \
+  -c "INSERT INTO shift_assignments (id, organization_id, shift_id, user_id, date, updated_at)
+      SELECT 'proof-asg-' || e.id || '-' || d, e.organization_id, s.id, e.user_id, (CURRENT_DATE + d), now()
+      FROM employees e JOIN shifts s ON s.organization_id = e.organization_id AND s.id LIKE 'proof-morning-%', generate_series(1, 5) d
+      WHERE e.user_id IS NOT NULL AND e.tracks_time" >/dev/null
+
 legacy() {
   q -c "SELECT 'shifts ' || count(*) || ' ' || coalesce(md5(string_agg(s::text, '' ORDER BY id)), 'none') FROM shifts s" \
     -c "SELECT 'shift_assignments ' || count(*) || ' ' || coalesce(md5(string_agg(a::text, '' ORDER BY id)), 'none') FROM shift_assignments a" \

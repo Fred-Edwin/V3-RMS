@@ -21,7 +21,7 @@ describe('workforceEvents', () => {
 
   it('only listeners of that event are called', () => {
     const other = vi.fn();
-    const off = workforceEvents.on('rota.published', other);
+    const off = workforceEvents.on('rota.shifts_changed', other);
     workforceEvents.emit('payroll.published', { siteId: 's1', payRunId: 'p1', publishedById: 'u1' });
     off();
     expect(other).not.toHaveBeenCalled();
