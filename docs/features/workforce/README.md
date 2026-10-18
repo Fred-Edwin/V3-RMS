@@ -119,6 +119,8 @@ On a phone there is **no bottom tab bar**. The menu is a drawer (the same menu, 
 
 - **Where a role lands after sign-in changes only when its Home has something to show.** HR, Director and Accountant land on Home when slice 4 gives it a "Waiting for you". Branch Manager and Store Manager land on Home when slice 3 (Attendance) makes the board live. Floor staff keep landing on their working screens until the Orders redo registers job cards. Until each of those, no landing changes.
 - **A Home link for floor staff waits for slice 3**, when their Home has a clock card. The rows are defined in the nav table and hidden (`notBuilt`).
+
+**Pilot branch (owner, 18 Oct 2026): Nyeri Town.** Attendance (slice 3) is switched on per site, default off. Nyeri Town is switched on first, and the Schedule menu rows (Rota, Shift templates) and the floor-staff Home link are shown there first. Other sites follow only after the owner has watched Nyeri Town for real use. The same applies to Payroll (slice 6), which also pilots at Nyeri Town.
 - **The Branch Manager's phone Home is not drawn in Paper.** Until it is, a Branch Manager on a phone sees Home's empty state; the desktop board is not stacked for phones. Draw it in Paper first (the redraw-then-build rule), then build.
 
 ## Open points carried from the proposal
