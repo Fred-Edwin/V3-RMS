@@ -121,7 +121,7 @@ const seed = (over: Partial<Row> & { group: string; values: unknown }): Row => {
 
 const lateness = (over: Record<string, unknown> = {}) => ({ ...RULE_DEFAULTS.LATENESS, ...over });
 const siteLateness = (over: Record<string, unknown> = {}) => {
-  const { deductionCapPercentOfPay: _cap, ...rest } = RULE_DEFAULTS.LATENESS;
+  const rest = Object.fromEntries(Object.entries(RULE_DEFAULTS.LATENESS).filter(([key]) => key !== 'deductionCapPercentOfPay'));
   return { ...rest, ...over };
 };
 const create = (actor: string, over: Record<string, unknown> = {}) =>

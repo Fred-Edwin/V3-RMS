@@ -304,15 +304,6 @@ export interface AccessSubject {
   headOfDepartmentIds?: readonly string[];
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      /** Set by attachWorkforceSubject (people/people-subject.ts); requireCapability prefers it over req.user. */
-      workforceSubject?: AccessSubject;
-    }
-  }
-}
-
 /** Decision D2: who clocks in when no employee file says otherwise. */
 export const defaultTracksTime = (role: UserRole): boolean =>
   ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'DEPARTMENT_HEAD', 'STORE_ATTENDANT', 'ACCOUNTANT'].includes(role);

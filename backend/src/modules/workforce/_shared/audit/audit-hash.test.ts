@@ -77,8 +77,7 @@ describe('verifyAuditChain', () => {
   it('a wrong prevHash fails', () => {
     const entries = chain(3);
     const forged = { ...entries[1]!, prevHash: 'f'.repeat(64) };
-    const { id: _id, hash: _hash, ...rest } = forged;
-    entries[1] = { ...forged, hash: hashEntry(rest) }; // internally consistent, but not linked to entry 1
+    entries[1] = { ...forged, hash: hashEntry(forged) }; // internally consistent, but not linked to entry 1
     expect(verifyAuditChain(entries)).toEqual({ ok: false, atSeq: 2n, problem: 'PREV_HASH_MISMATCH' });
   });
 

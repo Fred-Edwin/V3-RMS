@@ -59,8 +59,7 @@ export function verifyAuditChain(entries: readonly AuditEntryRecord[], start?: {
     if (entry.seq === lastSeq && checked > 0) return { ok: false, atSeq: entry.seq, problem: 'DUPLICATE_SEQ' };
     if (entry.seq !== lastSeq + 1n) return { ok: false, atSeq: entry.seq, problem: 'GAP' };
     if (entry.prevHash !== lastHash) return { ok: false, atSeq: entry.seq, problem: 'PREV_HASH_MISMATCH' };
-    const { id: _id, hash: _hash, ...rest } = entry;
-    if (hashEntry(rest) !== entry.hash) return { ok: false, atSeq: entry.seq, problem: 'HASH_MISMATCH' };
+    if (hashEntry(entry) !== entry.hash) return { ok: false, atSeq: entry.seq, problem: 'HASH_MISMATCH' };
     lastSeq = entry.seq;
     lastHash = entry.hash;
     checked += 1;

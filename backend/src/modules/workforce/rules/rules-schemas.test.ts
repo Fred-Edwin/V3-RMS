@@ -96,7 +96,7 @@ describe('field policy', () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(Object.keys(parsed.data).sort()).toEqual(siteFields);
     for (const field of siteFields) {
-      const { [field]: _removed, ...without } = full;
+      const without = Object.fromEntries(Object.entries(full).filter(([key]) => key !== field));
       expect(RULE_SITE_SCHEMAS[group].safeParse(without).success, `without ${field}`).toBe(false);
     }
   });
