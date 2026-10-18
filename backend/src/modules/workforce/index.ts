@@ -15,6 +15,7 @@ export { default as workforceRulesRouter } from './rules/rules-routes';
 export { default as workforcePeopleRouter } from './people/people-routes';
 export { default as workforceOrgRouter } from './people/org-routes'; // Organisation: departments, heads, positions (slice 1b)
 export { default as workforceRotaRouter } from './rota/rota-routes'; // Rota: shift templates, the week grid, edits (slice 2)
+export { carryOverLegacyRota } from './rota/legacy/legacy-carry-over'; // the repeatable legacy-to-rota copy (slice 2)
 
 // People (slice 1)
 export { registerPeople } from './people/register-people';

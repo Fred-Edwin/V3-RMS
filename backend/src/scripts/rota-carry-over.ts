@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { prisma } from '../config/database';
-import { carryOverLegacyRota } from '../modules/workforce/rota/legacy/legacy-carry-over';
+import { carryOverLegacyRota } from '../modules/workforce';
 
 /** Workforce slice 2: copy the legacy shifts and upcoming assignments into the new rota. Safe to run again. */
 const run = async (): Promise<void> => {
