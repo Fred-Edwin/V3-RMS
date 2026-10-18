@@ -38,6 +38,20 @@ describe('workforce layering (contract section 9)', () => {
     expect(uses).toEqual(['prisma.$transaction']);
   });
 
+  it('attendance: the clock-edit escape hatch (workforce.allow_clock_edits) never appears in production source', () => {
+    expect(sources.filter(({ text }) => /allow_clock_edits/.test(text)).map(({ file }) => file)).toEqual([]);
+  });
+
+  it('attendance: only the legacy-clock repository touches the legacy clock tables', () => {
+    const offenders = sources.filter(({ file, text }) => file.startsWith('attendance/') && /\.clockRecord\.|\.shiftAssignment\./.test(text) && file !== 'attendance/legacy/legacy-clock-repository.ts').map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it('attendance: no attendance code writes to a clock event except through clock-repository.ts (events are only inserted)', () => {
+    const offenders = sources.filter(({ file, text }) => file.startsWith('attendance/') && /clockEvent\.(update|updateMany|delete|deleteMany|upsert)\(/.test(text)).map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
   it('no any', () => {
     const pattern = /(:\s*any\b|<any>|\bas any\b|\bany\[\]|Array<any>)/;
     expect(sources.filter(({ text }) => pattern.test(text)).map(({ file }) => file)).toEqual([]);
@@ -86,6 +100,8 @@ describe('the public door (contract 7.2)', () => {
     const expected = [
       // http (amendment 1)
       'workforcePermissionsRouter', 'workforceRulesRouter', 'workforcePeopleRouter', 'workforceOrgRouter', 'workforceRotaRouter', 'carryOverLegacyRota',
+      // attendance (slice 3)
+      'workforceAttendanceRouter', 'refuseLegacyClockWhenSwitched', 'sweepAutoClose', 'setPeriodClosedCheck', 'getOnShiftNow',
       // people (slice 1)
       'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access
@@ -103,13 +119,12 @@ describe('the public door (contract 7.2)', () => {
       // events
       'workforceEvents', 'setWorkforceNotifier',
       // stubs
-      'getOnShiftNow', 'isOnLeave', 'getApprovedHours',
+      'isOnLeave', 'getApprovedHours',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   }, 30_000); // importing the whole door takes seconds when the full suite is running
 
   it.each([
-    ['getOnShiftNow', 3],
     ['isOnLeave', 5],
     ['getApprovedHours', 4],
   ] as const)('the %s stub throws NotBuiltYetError naming slice %i', async (name, slice) => {

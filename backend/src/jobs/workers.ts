@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
-import { bullMqConnection, notificationQueue, reportQueue, authQueue, commsQueue } from '../config/queues';
+import { bullMqConnection, notificationQueue, reportQueue, commsQueue } from '../config/queues';
+import { ATTENDANCE_AUTO_CLOSE_JOB, ensureAttendanceAutoCloseSchedule, runAttendanceAutoCloseJob } from './attendance-auto-close-job';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
@@ -74,6 +75,11 @@ export const reportWorker = new Worker(
     if (job.name === 'stale-clock-out.schedule') {
       const totalClosed = await closeStaleClockRecords();
       logger.info({ jobId: job.id, totalClosed }, 'Stale clock-out schedule executed');
+      return;
+    }
+
+    if (job.name === ATTENDANCE_AUTO_CLOSE_JOB) {
+      await runAttendanceAutoCloseJob();
       return;
     }
 
@@ -166,6 +172,9 @@ export const startWorkers = (): void => {
     });
     void ensureStaleClockOutSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register stale clock-out schedule');
+    });
+    void ensureAttendanceAutoCloseSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the attendance auto-close schedule');
     });
     void ensurePeopleSchedulerSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the People scheduler schedule');
