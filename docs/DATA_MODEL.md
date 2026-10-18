@@ -3188,6 +3188,20 @@ Three new tables and three enums in `backend/prisma/schema/workforce/attendance.
 
 Back-relations added in `access.prisma` (`Site`), `workforce/people.prisma` (`Employee`) and `workforce/rota.prisma` (`RotaEntry`); no column changes.
 
+## 12. Workforce Timesheets (slice 4a, migration `20261018161040_workforce_timesheets`)
+
+Schema file `prisma/schema/workforce/timesheets.prisma`. Additive: five tables and six enums, no existing table or column changes (proof: `scripts/proof/timesheets-migration-proof.sh`). Rows exist only for sites whose attendance switch is on. **No table holds money**: payroll (slice 6) turns approved minutes into pay.
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `timesheet_periods` | One pay period of one site | Unique `(organization_id, start_date)`. `end_date` is the cut-off day; `cutoff_at` is the instant it closes by itself (Nairobi time). `state` `OPEN`, `CLOSING`, `CLOSED`; `close_kind` `AUTO`, `EARLY`; `report_number` (serial, shown as TSH-000n); `signed_by_id`, `signed_at` (PIN signature); `reopened_*` with `reopen_reason`. |
+| `timesheet_days` | One person's day, computed from the rota and the clock events | Unique `(employee_id, shift_date)`. `status` `MATCHED`, `AUTO_APPROVED`, `NEEDS_LOOK`, `APPROVED`, `HELD`; `reasons[]` (`LATE`, `LEFT_EARLY`, `ABSENT`, `EDITED`, `AUTO_CLOSED`, `OPEN_SHIFT`, `PHONE_CLOCK`, `UNSCHEDULED`, `OVERTIME`, `CHANGED_AFTER_APPROVAL`); minutes columns; `evidence_hash` (a person's decision stays only while it is unchanged); `late_excused`; `decided_*`; `carried_from_period_id`. |
+| `timesheet_weeks` | A person's week inside a period | Unique `(employee_id, week_start, period_id)`. Follows the days; there is no week sign-off. |
+| `overtime_items` | Time after the shift end that someone may authorise | Unique `(employee_id, shift_date)`. `raw`, `service_tail`, `auto`, `needs`, `authorised` minutes; `status` `AUTO_AUTHORISED`, `PENDING`, `APPROVED`, `DECLINED`; `evidence` and `limits` JSON (counts and minutes only). |
+| `time_requests` | Report a problem and "clocked out by mistake" | `kind` (`CLOCK_TIME_WRONG`, `WORKED_NOT_RECORDED`, `ROTA_WRONG`, `OVERTIME_MISSING`, `PAY_OTHER`, `CLOCKED_OUT_BY_MISTAKE`); `state` `WAITING`, `APPROVED`, `DECLINED`, `WITHDRAWN`; `recorded` and `requested` JSON (before and after); `waiting_on_role`, `waiting_on_user_id`, `escalated_at`; `answer_after` JSON; `applied_event_id` (the clock correction an approval made). |
+
+Rule addition: `WEEK_AND_BREAKS.timesheetCutoff { daysBeforePeriodEnd, time }` (default 2 days, 18:00), a default in the schema so existing stored rules still parse. Back-relations added in `access.prisma` (`Site`) and `workforce/people.prisma` (`Employee`).
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

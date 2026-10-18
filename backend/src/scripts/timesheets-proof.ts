@@ -12,10 +12,7 @@
  */
 import 'dotenv/config';
 import { prisma } from '../config/database';
-import { auditRepository } from '../modules/workforce/_shared/audit/audit-repository';
-import { verifyAuditChain } from '../modules/workforce/_shared/audit/audit-hash';
-import { instantAt, parseClockTime, toDateColumn, weekStart, type NairobiDate } from '../modules/workforce/_shared/time/nairobi-time';
-import { sweepTimesheets } from '../modules/workforce';
+import { instantAt, parseClockTime, sweepTimesheets, toDateColumn, verifyAuditChain, weekStart, type AuditCategoryCode, type AuditEntryRecord, type NairobiDate } from '../modules/workforce';
 import { hashPassword, hashPin } from '../utils/password';
 
 const API = `${process.env['API'] ?? 'http://localhost:4102'}/api/v1`;
@@ -198,7 +195,8 @@ async function up(): Promise<void> {
   check('the audit entry for the signature never holds the PIN', !JSON.stringify(await prisma.auditEntry.findMany({ where: { companyId, action: 'timesheet.period_signed' }, orderBy: { seq: 'desc' }, take: 1, select: { before: true, after: true, reason: true } })).includes(PIN));
 
   out('\n== 6. integrity, then the branch goes back to off');
-  const chain = verifyAuditChain(await auditRepository.listEntries(companyId, 0n, 1_000_000));
+  const entries = await prisma.auditEntry.findMany({ where: { companyId }, orderBy: { seq: 'asc' } });
+  const chain = verifyAuditChain(entries.map((row) => ({ ...row, category: row.category as AuditCategoryCode, channel: row.channel as AuditEntryRecord['channel'], before: row.before as AuditEntryRecord['before'], after: row.after as AuditEntryRecord['after'] })));
   check('the audit chain verifies', chain.ok === true, JSON.stringify(chain, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
   check('no legacy row changed (shifts, assignments, clock records, payslips)', (await legacy()) === legacyBefore, `${legacyBefore} -> ${await legacy()}`);
   await expectStatus('Director switches Nyeri Town off', DIRECTOR, 'PUT', '/workforce/attendance/switch', 200, { siteId: townId, enabled: false });
