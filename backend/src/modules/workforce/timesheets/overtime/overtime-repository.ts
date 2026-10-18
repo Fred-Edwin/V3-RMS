@@ -1,0 +1,99 @@
+import type { OvertimeItem, OvertimeStatus, Prisma } from '@prisma/client';
+import { prisma } from '../../../../config/database';
+import { fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import type { Db } from '../../attendance/days/days-repository';
+import type { OvertimeLimits, OvertimeRow } from '../timesheets.types';
+
+export const toOvertimeRow = (row: OvertimeItem): OvertimeRow => ({
+  id: row.id,
+  periodId: row.periodId,
+  employeeId: row.employeeId,
+  shiftDate: fromDateColumn(row.shiftDate),
+  rawMinutes: row.rawMinutes,
+  serviceTailMinutes: row.serviceTailMinutes,
+  autoMinutes: row.autoMinutes,
+  needsMinutes: row.needsMinutes,
+  authorisedMinutes: row.authorisedMinutes,
+  status: row.status,
+  evidence: row.evidence as OvertimeRow['evidence'],
+  limits: row.limits as unknown as OvertimeLimits,
+  decidedById: row.decidedById,
+  decidedAt: row.decidedAt,
+  decisionReason: row.decisionReason,
+});
+
+export interface OvertimeWrite {
+  periodId: string;
+  siteId: string;
+  employeeId: string;
+  shiftDate: NairobiDate;
+  rawMinutes: number;
+  serviceTailMinutes: number;
+  autoMinutes: number;
+  needsMinutes: number;
+  authorisedMinutes: number;
+  status: OvertimeStatus;
+  evidence: OvertimeRow['evidence'];
+  limits: OvertimeLimits;
+  clearDecision: boolean;
+}
+
+/** Rows of `overtime_items`. Every query carries the site. */
+export const overtimeRepository = {
+  inRange: async (siteId: string, from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<OvertimeRow[]> =>
+    (await db.overtimeItem.findMany({ where: { siteId, shiftDate: { gte: toDateColumn(from), lte: toDateColumn(to) } } })).map(toOvertimeRow),
+
+  byId: async (siteId: string, id: string, db: Db = prisma): Promise<OvertimeRow | null> => {
+    const row = await db.overtimeItem.findFirst({ where: { id, siteId } });
+    return row ? toOvertimeRow(row) : null;
+  },
+
+  ofPerson: async (siteId: string, employeeId: string, from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<OvertimeRow[]> =>
+    (await db.overtimeItem.findMany({ where: { siteId, employeeId, shiftDate: { gte: toDateColumn(from), lte: toDateColumn(to) } }, orderBy: { shiftDate: 'asc' } })).map(toOvertimeRow),
+
+  page: async (siteId: string, periodId: string | null, statuses: readonly OvertimeStatus[], skip: number, take: number, db: Db = prisma) => {
+    const where: Prisma.OvertimeItemWhereInput = { siteId, status: { in: [...statuses] }, ...(periodId ? { periodId } : {}) };
+    const [rows, total] = await Promise.all([
+      db.overtimeItem.findMany({
+        where,
+        include: { employee: { select: { id: true, name: true, userId: true, siteId: true, departmentId: true, department: { select: { name: true } } } } },
+        orderBy: [{ shiftDate: 'asc' }],
+        skip,
+        take,
+      }),
+      db.overtimeItem.count({ where }),
+    ]);
+    return { rows: rows.map((row) => ({ item: toOvertimeRow(row), person: row.employee })), total };
+  },
+
+  upsert: async (tx: Db, write: OvertimeWrite): Promise<void> => {
+    const { clearDecision, shiftDate, limits, evidence, ...rest } = write;
+    const data = { ...rest, shiftDate: toDateColumn(shiftDate), limits: limits as unknown as Prisma.InputJsonValue, evidence: evidence as unknown as Prisma.InputJsonValue };
+    const decision = clearDecision ? { decidedById: null, decidedAt: null, decisionReason: null } : {};
+    await tx.overtimeItem.upsert({ where: { employeeId_shiftDate: { employeeId: write.employeeId, shiftDate: data.shiftDate } }, create: data, update: { ...data, ...decision } });
+  },
+
+  /** Takes an item away when the day no longer holds overtime (a fix shortened it) and nobody had decided it. */
+  removeUndecided: (tx: Db, siteId: string, employeeId: string, date: NairobiDate) =>
+    tx.overtimeItem.deleteMany({ where: { siteId, employeeId, shiftDate: toDateColumn(date), status: { in: ['PENDING', 'AUTO_AUTHORISED'] } } }),
+
+  decide: (tx: Db, id: string, data: { status: OvertimeStatus; authorisedMinutes: number; decidedById: string; decidedAt: Date; decisionReason: string | null }) =>
+    tx.overtimeItem.update({ where: { id }, data }),
+
+  /** Minutes already authorised or waiting in a period, for the branch budget. */
+  usedInPeriod: async (periodId: string, siteId: string, db: Db = prisma): Promise<number> => {
+    const rows = await db.overtimeItem.aggregate({ where: { periodId, siteId, status: { not: 'DECLINED' } }, _sum: { autoMinutes: true, needsMinutes: true } });
+    return (rows._sum.autoMinutes ?? 0) + (rows._sum.needsMinutes ?? 0);
+  },
+
+  /** Open items of a closing period, to hand to HR. */
+  pendingIn: async (periodId: string, siteId: string, db: Db = prisma): Promise<OvertimeRow[]> =>
+    (await db.overtimeItem.findMany({ where: { periodId, siteId, status: 'PENDING' } })).map(toOvertimeRow),
+
+  moveToPeriod: (tx: Db, ids: readonly string[], periodId: string) => tx.overtimeItem.updateMany({ where: { id: { in: [...ids] } }, data: { periodId } }),
+
+  summaryByPeriod: async (periodId: string, siteId: string, db: Db = prisma) => {
+    const rows = await db.overtimeItem.groupBy({ by: ['status'], where: { periodId, siteId }, _sum: { authorisedMinutes: true, needsMinutes: true }, _count: true });
+    return rows.map((row) => ({ status: row.status, count: row._count, authorisedMinutes: row._sum.authorisedMinutes ?? 0, needsMinutes: row._sum.needsMinutes ?? 0 }));
+  },
+};

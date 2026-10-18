@@ -40,6 +40,8 @@ attendance.switch            -    -    -    -    -    all  all
 timesheet.read               -    dept all  unit all  all  all
 timesheet.approve            -    dept -    unit all  -    all
 overtime.approve             -    dept -    unit all  -    all
+timesheet.close              -    -    -    unit all  -    all
+timesheet.reopen             -    -    -    -    all  -    -
 clock_mistake.resolve        -    -    -    unit -    -    all
 casual.record                -    dept -    -    -    -    -
 casual.approve               -    -    -    unit -    -    -
