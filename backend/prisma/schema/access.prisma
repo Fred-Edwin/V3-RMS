@@ -102,6 +102,9 @@ model Site {
   employees                    Employee[]
   shiftTemplates               ShiftTemplate[]
   rotaWeeks                    RotaWeek[]
+  clockEvents                  ClockEvent[]
+  attendanceSwitch             AttendanceSiteSwitch?
+  shiftEndAnswers              ShiftEndAnswer[]
 
   @@index([companyId])
   @@map("organizations")

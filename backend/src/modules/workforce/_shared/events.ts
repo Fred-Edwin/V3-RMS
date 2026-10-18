@@ -9,6 +9,47 @@ export interface WorkforceEventPayloads {
   'rota.shifts_changed': { siteId: string; employeeId: string; userId: string | null; dates: NairobiDate[]; changeCount: number; changedById: string };
   'clock.in': { siteId: string; employeeId: string; userId: string | null; shiftAssignmentId: string | null; occurredAt: string; source: 'PHONE' | 'HEAD' | 'MANAGER' | 'SYSTEM' };
   'clock.out': { siteId: string; employeeId: string; userId: string | null; shiftAssignmentId: string | null; occurredAt: string; closedBy: 'OUT' | 'AUTO_OUT' };
+  // slice 3 (Attendance). The two `clock.*` events above stay declared for the kitchen and barista displays' future use;
+  // Attendance emits these richer ones. None carries a pay figure.
+  'attendance.clocked_in': {
+    siteId: string;
+    employeeId: string;
+    userId: string | null;
+    rotaEntryId: string | null;
+    shiftDate: NairobiDate;
+    occurredAt: string;
+    source: 'PHONE' | 'HEAD' | 'MANAGER' | 'SYSTEM' | 'LEGACY';
+    minutesLate: number;
+    countsAsLate: boolean;
+  };
+  'attendance.clocked_out': {
+    siteId: string;
+    employeeId: string;
+    userId: string | null;
+    rotaEntryId: string | null;
+    shiftDate: NairobiDate;
+    occurredAt: string;
+    closedBy: 'OUT' | 'AUTO_OUT';
+    leftEarlyMinutes: number;
+    afterEndMinutes: number;
+  };
+  'attendance.undone': { siteId: string; employeeId: string; userId: string | null; shiftDate: NairobiDate; undid: 'IN' | 'OUT' };
+  'attendance.late': { siteId: string; employeeId: string; userId: string | null; rotaEntryId: string | null; shiftDate: NairobiDate; minutesLate: number; minutesAfterGrace: number };
+  'attendance.stayed_on': { siteId: string; employeeId: string; userId: string | null; rotaEntryId: string; shiftDate: NairobiDate; reasonCode: string; estimateMinutes: number | null };
+  'attendance.auto_closed': { siteId: string; employeeId: string; userId: string | null; rotaEntryId: string | null; shiftDate: NairobiDate; closedAt: string; cause: 'NO_ANSWER' | 'FORGOT' };
+  'attendance.fixed': {
+    siteId: string;
+    employeeId: string;
+    userId: string | null;
+    shiftDate: NairobiDate;
+    fixedById: string;
+    kind: 'EDIT' | 'ADD' | 'VOID' | 'CLOCK_FOR';
+    workedMinutesBefore: number;
+    workedMinutesAfter: number;
+    afterEndMinutesBefore: number;
+    afterEndMinutesAfter: number;
+  };
+  'attendance.switch_changed': { siteId: string; enabled: boolean; changedById: string };
   'overtime.requested': { siteId: string; employeeId: string; overtimeRequestId: string; minutesRequested: number };
   'timesheet.approved': { siteId: string; periodId: string; employeeId: string | null; approvedById: string; scope: 'LINE' | 'PERIOD' };
   'payroll.published': { siteId: string; payRunId: string; publishedById: string };

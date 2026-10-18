@@ -23,6 +23,8 @@ export const CAPABILITIES = [
   'rota.template_write', // add, change and retire shift templates (company-wide ones need scope all)
   'today.read',
   'today.act', // clock for someone, mark absent, extend a shift
+  'time.fix', // correct a clock event or add a missing one, always with a reason (slice 3 amendment)
+  'attendance.switch', // turn a site's new clock on or off (slice 3 amendment)
   // time
   'timesheet.read',
   'timesheet.approve',
@@ -138,6 +140,7 @@ const UNIT_MANAGER: Grants = {
   'rota.template_write': 'unit',
   'today.read': 'unit',
   'today.act': 'unit',
+  'time.fix': 'unit',
   'timesheet.read': 'unit',
   'timesheet.approve': 'unit',
   'overtime.approve': 'unit',
@@ -193,6 +196,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rota.write': 'all', // also builds the Accountant's rota (decision D18)
     'rota.template_write': 'all',
     'today.read': 'all',
+    'time.fix': 'all',
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
     'overtime.approve': 'all',
@@ -230,6 +234,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rota.read': 'all',
     'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
     'today.read': 'all',
+    'attendance.switch': 'all', // the owner pilots one branch at a time; the Director decides when a site moves
     'timesheet.read': 'all',
     'casual.read': 'all',
     'leave.read': 'all',
@@ -262,6 +267,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rota.template_write': 'all',
     'today.read': 'all',
     'today.act': 'all',
+    'time.fix': 'all',
+    'attendance.switch': 'all',
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
     'overtime.approve': 'all',
@@ -302,15 +309,6 @@ export interface AccessSubject {
    * defined it is the only source of department scope and of head status for Workforce.
    */
   headOfDepartmentIds?: readonly string[];
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      /** Set by attachWorkforceSubject (people/people-subject.ts); requireCapability prefers it over req.user. */
-      workforceSubject?: AccessSubject;
-    }
-  }
 }
 
 /** Decision D2: who clocks in when no employee file says otherwise. */

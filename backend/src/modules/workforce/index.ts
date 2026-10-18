@@ -5,7 +5,6 @@
  * `getEmployee` real and added the People exports.
  * Spec: docs/features/workforce/slice-0-contract.md section 7.
  */
-import type { DepartmentTag, UserRole } from '@prisma/client';
 import { NotBuiltYetError } from './_shared/errors';
 import type { NairobiDate } from './_shared/time/nairobi-time';
 
@@ -16,6 +15,12 @@ export { default as workforcePeopleRouter } from './people/people-routes';
 export { default as workforceOrgRouter } from './people/org-routes'; // Organisation: departments, heads, positions (slice 1b)
 export { default as workforceRotaRouter } from './rota/rota-routes'; // Rota: shift templates, the week grid, edits (slice 2)
 export { carryOverLegacyRota } from './rota/legacy/legacy-carry-over'; // the repeatable legacy-to-rota copy (slice 2)
+export { default as workforceAttendanceRouter } from './attendance/attendance-routes'; // Attendance: clock, Today board, fixes, lateness, the switch (slice 3)
+export { refuseLegacyClockWhenSwitched } from './attendance/switch/legacy-clock-guard'; // the four legacy clock routes answer 409 for a switched site
+export { sweepAutoClose } from './attendance/prompt/auto-close-service'; // the minute job: closes unanswered and forgotten shifts
+export { setPeriodClosedCheck, type PeriodClosedCheck } from './attendance/fixes/period-lock'; // slice 4 registers the closed-period answer
+export { getOnShiftNow } from './attendance/board/on-shift-now';
+export type { OnShiftPerson } from './attendance/attendance.types';
 
 // People (slice 1)
 export { registerPeople } from './people/register-people';
@@ -89,21 +94,9 @@ export {
 } from './_shared/events';
 
 // Calls that need later slices: declared now, stubbed (they throw NotBuiltYetError)
-export interface OnShiftPerson {
-  userId: string;
-  name: string;
-  role: UserRole;
-  departmentTag: DepartmentTag | null;
-  clockedInAt: string;
-}
 export interface ApprovedHours {
   workedMinutes: number;
   overtimeApprovedMinutes: number;
-}
-
-/** Slice 3. Who is clocked in now at this place (kitchen and barista displays; behaviour unchanged from today). */
-export async function getOnShiftNow(_unit: { siteId: string; departmentTag?: DepartmentTag }, _role?: UserRole): Promise<OnShiftPerson[]> {
-  throw new NotBuiltYetError('getOnShiftNow', 3);
 }
 /** Slice 5. */
 export async function isOnLeave(_userId: string, _date: NairobiDate): Promise<boolean> {

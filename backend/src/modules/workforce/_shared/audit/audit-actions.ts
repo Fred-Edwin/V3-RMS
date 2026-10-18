@@ -54,6 +54,16 @@ export const AUDIT_ACTIONS = {
   'rota.cells_changed': ['TIME'], // set, clear and fill; the reason is required for today and tomorrow
   'rota.week_copied': ['TIME'], // "start from last week"
   'rota.legacy_carried': ['TIME'], // the carry-over from the legacy shifts, channel SYSTEM
+  // slice 3 (Attendance). Times, shift names and reasons; never a pay figure.
+  'attendance.clocked_in': ['TIME'],
+  'attendance.clocked_out': ['TIME'], // also an early leave, with its reason chip
+  'attendance.undone': ['TIME'], // the person undid their own tap inside the window
+  'attendance.shift_end_answered': ['TIME'], // "Stay on" with its reason
+  'attendance.auto_closed': ['TIME'], // no answer to the prompt, or a forgotten clock-out; channel SYSTEM
+  'attendance.clocked_for': ['TIME'], // a head or manager clocked someone in or out, with a reason
+  'attendance.time_fixed': ['TIME'], // a correction: before and after, and why
+  'attendance.switch_changed': ['TIME'], // a site's new clock was turned on or off
+  'attendance.legacy_carried': ['TIME'], // today's legacy clock records copied across at switch-on, or back at switch-off
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

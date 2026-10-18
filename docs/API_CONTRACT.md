@@ -5355,3 +5355,25 @@ Base `/api/v1/workforce/rota`. Every route: `authenticate`, `attachWorkforceSubj
 
 `WeekView` is `{ siteId, weekStart, today, days[{ date, isPast, people, byDepartment }], departments[{ id, name, people, shifts, headName }], templates[], people[{ employeeId, name, departmentId, positionName, cells{ date: [{ entryId, templateId, overrideReason }] }, leaveDates[], plannedMinutes, contractMinutes }], totals, warnings[{ code: LEAVE \| THIN_COVERAGE \| WEEKLY_HOURS \| DOUBLE_SHIFT, employeeId, departmentId, date, message, detail }], cost: { amount, basis } \| null, can: { write, writeTemplates, readCost } }`. `cost` is absent (null) unless the caller reads everyone's pay (HR, Director). A clash is `{ employeeId, name, date, kind: ON_LEAVE \| LOANED_OUT \| NOT_EMPLOYED \| SHIFT_UNAVAILABLE, detail }`.
 
+
+## 37. Workforce — Attendance (slice 3, BUILT 18 Oct 2026, back end only)
+
+Base `/api/v1/workforce/attendance`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`; scope is checked in the service on the person. Another branch answers 404; a role or head without the capability or department answers 403. Detail, errors and who sees what: `backend/src/modules/workforce/attendance/README.md`; choices: `docs/features/workforce/decisions-3-attendance-backend.md`.
+
+| # | Method and path | Capability | Body or query | Success |
+|---|---|---|---|---|
+| C1 | `GET /me` | `time.own` | | `MyDayView` (`enabled:false` while the branch is on the old clock) |
+| C2 | `POST /clock-in` | `time.own` | `{ clientEventId, rotaEntryId?, deviceAt?, sentAt?, latitude?, longitude? }` | 201 (200 on a retry) `{ replayed, event, undoUntil, lateness }` |
+| C3 | `POST /clock-out` | `time.own` | as C2 + `reasonCode?`, `reason?` (required before the scheduled end) | 201 / 200 `{ replayed, event, undoUntil, leftEarlyMinutes }` |
+| C4 | `POST /undo` | `time.own` | `{ clientEventId }` | `{ replayed, undid }` |
+| C5 | `POST /shift-end` | `time.own` | `{ rotaEntryId, answer: 'STAY_ON', reasonCode, estimateMinutes? }` | 201 / 200 |
+| B1 | `GET /board` | `today.read` | `siteId?`, `date?` | `BoardView` (tiles, departments, people, attention) |
+| B2 | `POST /clock-for` | `today.act` | `{ employeeId, type: IN\|OUT, at, reason, rotaEntryId? }` | 201 |
+| F1 | `GET /day` | `timesheet.read` | `employeeId`, `date` | `DayHistory` (every event with its status) |
+| F2 | `POST /fixes/preview` | `time.fix` | as F3 | `{ before, after }` in minutes |
+| F3 | `POST /fixes` | `time.fix` | `{ action: EDIT\|ADD\|VOID, employeeId, date, eventId? / type?, at?, reason, rotaEntryId? }` | 201 `{ eventId, before, after }` |
+| L1 | `GET /lateness` | `timesheet.read` | `from`, `to`, `siteId?`, `employeeId?`, `includeOnTime?` | `{ lines[], summary[] }` |
+| S1 | `GET /switch` | `today.read` | `siteId?` | `{ enabled, enabledAt }` |
+| S2 | `PUT /switch` | `attendance.switch` | `{ siteId, enabled }` | `{ enabled, carriedFromLegacy, mirroredToLegacy, notMirrored }`; 409 `OPEN_LEGACY_CLOCK_IN` |
+
+While a site's switch is on, the four legacy routes `POST /clock/in`, `/clock/out`, `/clock/undo-out` and `/clock/override` answer 409 `CLOCK_MOVED_TO_NEW_ATTENDANCE` for that site and change nothing; for every other site they behave as before.
