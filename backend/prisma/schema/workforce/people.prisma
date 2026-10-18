@@ -136,6 +136,7 @@ model Employee {
   fileRequests   FileRequest[]
   documents      HrDocument[]
   probationNotes ProbationNote[]
+  rotaEntries    RotaEntry[]
 
   @@unique([companyId, employeeNumber])
   @@index([siteId, status])

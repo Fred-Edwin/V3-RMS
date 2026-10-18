@@ -6,6 +6,7 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   sites     Site[]
+  shiftTemplates ShiftTemplate[]
 
   @@map("companies")
 }
@@ -99,6 +100,8 @@ model Site {
   branchDays                   BranchDay[]
   departments                  Department[]
   employees                    Employee[]
+  shiftTemplates               ShiftTemplate[]
+  rotaWeeks                    RotaWeek[]
 
   @@index([companyId])
   @@map("organizations")
