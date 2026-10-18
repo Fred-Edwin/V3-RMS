@@ -83,7 +83,11 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
     const [asgB, asgC] = [await asg(baristaUser!.id), await asg(chefUser!.id)];
     const recB = await m.prisma.clockRecord.create({ data: { siteId: townId, shiftAssignmentId: asgB.id, userId: baristaUser!.id, clockInAt: at('06:02'), clockInMethod: 'GPS' } }); // still open: blocks switching on
     const weekRow = async (departmentId: string) => {
-      const w = await m.prisma.rotaWeek.create({ data: { siteId: townId, departmentId, weekStart: m.time.toDateColumn(m.time.weekStart(today, 1)) } });
+      // A lane database may already hold this week (someone built a rota there): reuse it and leave it alone at the end.
+      const weekStart = m.time.toDateColumn(m.time.weekStart(today, 1));
+      const existing = await m.prisma.rotaWeek.findFirst({ where: { siteId: townId, departmentId, weekStart } });
+      if (existing) return existing.id;
+      const w = await m.prisma.rotaWeek.create({ data: { siteId: townId, departmentId, weekStart } });
       weeks.push(w.id);
       return w.id;
     };
