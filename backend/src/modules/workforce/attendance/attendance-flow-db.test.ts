@@ -229,7 +229,7 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
     await expect(m.applyFix(highwayManager, fix, at('16:00'))).rejects.toMatchObject({ statusCode: 404 });
     m.setPeriodClosedCheck(async () => true);
     await expect(m.applyFix(townManager, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
-    expect(await m.previewFix(hr, fix, at('16:00'))).toMatchObject({ after: { afterEndMinutes: 80 } }); // HR may, after close
+    await expect(m.previewFix(hr, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_CLOSED' }); // slice 4a: nobody, HR included; HR reopens the period first
     m.setPeriodClosedCheck(null);
 
     const applied = await m.applyFix(townManager, fix, at('16:00'));

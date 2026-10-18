@@ -48,7 +48,7 @@ export function resolveDay(stored: Pick<DayRow, 'status' | 'evidenceHash'> | nul
   return { status, reasons, decision: keep ? 'KEEP' : 'CLEAR' };
 }
 
-/** A week follows its days: any exception first, then held, then still in progress; no week sign-off exists. */
+/** A week follows its days. An exception wins first, then held, then still in progress; no week sign-off exists. */
 export function weekStatus(days: readonly TimesheetStatus[]): TimesheetStatus {
   if (days.includes('NEEDS_LOOK')) return 'NEEDS_LOOK';
   if (days.includes('HELD')) return 'HELD';
