@@ -24,7 +24,7 @@ export const PatternSchema = z.object({
   ...common,
   employeeIds: z.array(idField).min(1).max(100),
   weekStart: nairobiDateField,
-  byWeekday: z.record(z.enum(['1', '2', '3', '4', '5', '6', '7']), idField.nullable()),
+  byWeekday: z.partialRecord(z.enum(['1', '2', '3', '4', '5', '6', '7']), idField.nullable()),
 });
 
 export type SetCellsBody = z.infer<typeof SetCellsSchema>;
