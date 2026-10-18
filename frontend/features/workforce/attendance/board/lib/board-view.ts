@@ -108,7 +108,7 @@ export function departmentRows(board: Board): DepartmentRowItem[] {
 /** The four numbers under the greeting. "On leave" waits for the Leave slice, so it shows a dash and says so. */
 export function kpiCells(board: Board, go?: { late: () => void; notIn: () => void }): WorkforceKpiCell[] {
   const { onShift, late, notIn, onLeave } = board.tiles;
-  const firstStart = board.people.flatMap((p) => p.shifts).map((s) => s.startTime).sort()[0];
+  const firstStart = board.people.flatMap((p) => p.shifts).filter((s) => s.state === 'NOT_IN' || s.state === 'MISSED').map((s) => s.startTime).sort()[0];
   return [
     { key: 'on-shift', label: 'ON SHIFT NOW', value: `${onShift.count} of ${onShift.expected}`, detail: board.asOf ? `expected by ${board.asOf}` : 'expected so far' },
     { key: 'late', label: 'LATE TODAY', value: String(late.count), detail: late.count > 0 ? `${late.minutesPastGrace} min past grace in all` : 'nobody late', actionable: late.count > 0 && !!go, onSelect: late.count > 0 ? go?.late : undefined },

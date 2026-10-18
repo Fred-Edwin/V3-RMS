@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { WorkforceKpiStrip } from '../../_shared';
 import type { Board } from '../../attendance';
@@ -64,7 +65,18 @@ export const todayBoardCard = defineHomeCard<BoardSlot>({
   order: 20,
   isEmpty: (d) => ('live' in d ? d.live.board.people.length === 0 : d.fixture.looks.length === 0 && d.fixture.departments.length === 0),
   useData: useBoardCardData,
-  Card: ({ data }) => ('live' in data ? <LiveBoard board={data.live.board} reload={data.live.reload} /> : <BoardCard data={data.fixture} />),
+  // The Home board is the manager's Today board; the full page (past days, everyone rostered) is one link away.
+  Card: ({ data }) =>
+    'live' in data ? (
+      <div className="flex flex-col gap-4">
+        <LiveBoard board={data.live.board} reload={data.live.reload} />
+        <Link href="/app/workforce/today" className="self-start font-wds-sans text-[13px] leading-4 text-wds-primary hover:underline">
+          See everyone today →
+        </Link>
+      </div>
+    ) : (
+      <BoardCard data={data.fixture} />
+    ),
 });
 
 export interface WaitingData {

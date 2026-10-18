@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { useAuthStore } from '@/store/authStore';
 
-import { Callout, ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, useRemote, useWorkforcePermissions } from '../../_shared';
+import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, useRemote, useWorkforcePermissions } from '../../_shared';
 import { attendanceReads, kpiCells, liveLine, useBoard } from '../../attendance';
 import { addDays, nairobiToday } from '../../rota';
 import { LiveBoard } from './live-board';
@@ -26,7 +26,6 @@ export function TodayScreen() {
     return asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked <= today ? asked : today;
   });
   const [siteId, setSiteId] = React.useState<string | undefined>(undefined);
-  const [message, setMessage] = React.useState<string | null>(null);
   const user = useAuthStore((s) => s.user);
   const wide = permissions.scopeOf('today.read') === 'all';
   const sites = useRemote(() => attendanceReads.switches(), 'today-sites', permissions.ready && wide);
@@ -46,7 +45,7 @@ export function TodayScreen() {
   ) : board.data ? (
     <>
       <WorkforceKpiStrip aria-label="The branch on this day" cells={kpiCells(board.data)} />
-      <LiveBoard board={board.data} reload={board.reload} onMessage={setMessage} everyone initialReview={review && reviewEmployee ? { employeeId: reviewEmployee, entryId: review, date: params.get('date') ?? date } : undefined} />
+      <LiveBoard board={board.data} reload={board.reload} everyone initialReview={review && reviewEmployee ? { employeeId: reviewEmployee, entryId: review, date: params.get('date') ?? date } : undefined} />
     </>
   ) : null;
 
@@ -61,11 +60,6 @@ export function TodayScreen() {
         />
         {wide && sites.data && sites.data.length > 1 ? (
           <ChoiceChips legend="Branch" legendStyle="caps" size="sm" value={chosen ?? null} onChange={setSiteId} options={sites.data.map((s) => ({ value: s.organizationId, label: s.organizationName }))} />
-        ) : null}
-        {message ? (
-          <Callout tone="success" role="status" size="sm">
-            {message}
-          </Callout>
         ) : null}
         {body}
       </div>

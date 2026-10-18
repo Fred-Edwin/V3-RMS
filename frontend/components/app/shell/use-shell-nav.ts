@@ -4,7 +4,7 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
-import { useAttendanceOn } from '@/features/workforce/attendance';
+import { useAttendanceOn } from '@/features/workforce/attendance/shell';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';

@@ -40,7 +40,8 @@ export const attendanceReads = {
   /** S1 */
   switchOf: (siteId?: string): Promise<SwitchView> => apiClient.get(`${BASE}/switch${query({ siteId })}`, token()),
   /** S3 */
-  switches: async (): Promise<SwitchView[]> => (await apiClient.get<{ sites: SwitchView[] }>(`${BASE}/switch/sites`, token())).sites,
+  // The server's `sites` is named `organizations` on the wire (wire-names), like every other site field.
+  switches: async (): Promise<SwitchView[]> => (await apiClient.get<{ organizations: SwitchView[] }>(`${BASE}/switch/sites`, token())).organizations,
 };
 
 export const attendanceWrites = {

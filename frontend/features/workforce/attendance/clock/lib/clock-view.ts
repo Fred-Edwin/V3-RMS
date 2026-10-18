@@ -52,6 +52,10 @@ const secondsBetween = (fromMs: number, toMs: number): number => Math.max(0, Mat
 
 /** Hour labels under the bar, every two hours from the start, and the end. "06 08 10 12 14". */
 export function tickLabels(startTime: string, endTime: string): string[] {
+  const minutesOf = (t: string): number => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const span = (minutesOf(endTime) - minutesOf(startTime) + 1440) % 1440;
+  // A short shift has no two-hour marks to show: the two clock times are the labels.
+  if (span < 120) return [startTime, endTime];
   const start = Number(startTime.slice(0, 2));
   let end = Number(endTime.slice(0, 2));
   if (end <= start) end += 24;

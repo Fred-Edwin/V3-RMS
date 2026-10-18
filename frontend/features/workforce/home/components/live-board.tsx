@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { useWorkforcePermissions } from '../../_shared';
+import { Callout, useWorkforcePermissions } from '../../_shared';
 import { ClockForDialog, ClosedShiftFlow, EditTimeFlow, PersonDrawer, chipItems, departmentRows, lookItems, type Board, type BoardShift, type LookItem } from '../../attendance';
 import { DepartmentChips, NeedsALook, OnTimeByDepartment, type LookRow } from './branch-board';
 import { EveryoneList } from './everyone-list';
@@ -24,13 +24,11 @@ type Open =
 export function LiveBoard({
   board,
   reload,
-  onMessage,
   everyone = false,
   initialReview,
 }: {
   board: Board;
   reload: () => void;
-  onMessage?: (message: string) => void;
   /** The Today page also lists everyone rostered, under the board. */
   everyone?: boolean;
   /** Opens the "set the real finish" question at once (the Home's Waiting for you links here). */
@@ -40,6 +38,7 @@ export function LiveBoard({
   const [department, setDepartment] = React.useState('all');
   const [open, setOpen] = React.useState<Open | null>(initialReview ? { kind: 'closed', ...initialReview } : null);
   const [snoozed, setSnoozed] = React.useState<ReadonlySet<string>>(new Set());
+  const [note, setNote] = React.useState<string | null>(null);
   const canAct = permissions.can('today.act');
   const canFix = permissions.can('time.fix');
   const canRead = permissions.can('timesheet.read');
@@ -52,7 +51,7 @@ export function LiveBoard({
   };
   const done = (message: string): void => {
     setOpen(null);
-    onMessage?.(message);
+    setNote(message);
     reload();
   };
 
@@ -76,6 +75,11 @@ export function LiveBoard({
   const person = open?.kind === 'person' ? personOf(open.employeeId) : undefined;
   return (
     <div className="flex flex-col gap-5">
+      {note ? (
+        <Callout tone="success" role="status" size="sm">
+          {note}
+        </Callout>
+      ) : null}
       <DepartmentChips chips={chips} value={department} onChange={setDepartment} />
       {items.length > 0 ? (
         <NeedsALook rows={items.map(lookRow)} shiftLine="Not in and late first" />

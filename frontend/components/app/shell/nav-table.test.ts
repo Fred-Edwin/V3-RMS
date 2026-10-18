@@ -568,10 +568,11 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
 
   /** What each role's menu will read once every slice has its page: the Paper sidebars, group by group. */
   const PAPER: Record<string, Record<string, string[]>> = {
-    // "Today board" is the Attendance row (slice 3); Paper's sidebar does not draw it, the brief adds it.
+    // "Today board" is the Attendance row (slice 3); Paper's sidebar does not draw it. Only HR and the Director have it: the Branch Manager's
+    // and Store Manager's Home already is the board (owner, 18 Oct 2026), with a "See everyone today" link to the full page.
     HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    STORE_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
     ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
     DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Timesheets'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
   };
@@ -601,7 +602,8 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       expect(groups[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : ['Home']);
       // With it on, the roles Paper draws Schedule for get Schedule and the Today board.
       const on = navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }));
-      expect(on[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : ['Home', 'Today board', 'Schedule']);
+      const hasBoardRow = role === 'HR_MANAGER' || role === 'DIRECTOR';
+      expect(on[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : hasBoardRow ? ['Home', 'Today board', 'Schedule'] : ['Home', 'Schedule']);
       expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(role === 'ACCOUNTANT' ? 1 : 2);
       const hasOrganisation = role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
       if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation'] : ['Employees']);
@@ -663,7 +665,9 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     for (const role of ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'] as AppRole[]) {
       expect(item(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true })), 'wf-schedule')?.subItems?.map((s) => s.href), role).toEqual(['/app/workforce/schedule/rota', '/app/workforce/schedule/templates']);
       expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))), `${role} with the clock off`).not.toContain('wf-schedule');
-      expect(item(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true })), 'wf-today')?.href, role).toBe('/app/workforce/today');
+      const todayRow = item(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true })), 'wf-today');
+      if (role === 'HR_MANAGER' || role === 'DIRECTOR') expect(todayRow?.href, role).toBe('/app/workforce/today');
+      else expect(todayRow, `${role}'s Home is the board`).toBeUndefined();
     }
     expect(keys(navFor(ctxFor('ACCOUNTANT', { can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-schedule');
     // A head sees the Rota only: shifts are defined by HR and the Branch Manager.

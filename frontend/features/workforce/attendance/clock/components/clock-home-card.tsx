@@ -28,7 +28,7 @@ export function ClockHomeCard({ day, reload }: { day: MyDay; reload: () => void 
   const [leaving, setLeaving] = React.useState(false);
   const entry = day.current;
   const firstName = (user?.name ?? '').split(/\s+/)[0] ?? '';
-  const site = day.siteName ?? 'your branch';
+  const site = day.organizationName ?? 'your branch';
 
   // The prompt shows the moment the end passes; ask the server at once so the leftovers and the real state arrive without the 30 s wait.
   const promptAhead = entry?.state === 'ON_SHIFT' && nowMs >= Date.parse(entry.endsAt);

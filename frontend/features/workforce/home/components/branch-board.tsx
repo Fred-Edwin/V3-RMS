@@ -51,6 +51,20 @@ export function DepartmentChips({ chips, value, onChange, search }: { chips: rea
   );
 }
 
+// (the Branch Manager reaches the full Today page from the "See everyone today" link under the Home board)
+/** What the little bars mean, said once above the list: light is the grace that is allowed, dark is the time past it, a full bar is 30 minutes or more. */
+export function LateBarKey() {
+  return (
+    <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-wds-border py-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+      <span aria-hidden className="inline-block h-1.5 w-4 bg-wds-caramel-300" />
+      grace allowed
+      <span aria-hidden className="ml-2 inline-block h-1.5 w-4 bg-wds-warning-fg" />
+      past the grace
+      <span className="ml-2">A full bar is 30 minutes or more.</span>
+    </p>
+  );
+}
+
 export type LookTone = 'error' | 'warning';
 
 export interface LookRow {
@@ -75,6 +89,7 @@ export function NeedsALook({ rows, shiftLine, className }: { rows: readonly Look
   return (
     <section aria-label="Needs a look" className={cn('flex min-w-0 flex-col', className)}>
       <SectionHeader title="Needs a look" count={rows.length} caption={shiftLine} size="sm" />
+      {rows.some((r) => r.late) ? <LateBarKey /> : null}
       <ul className="m-0 flex list-none flex-col p-0">
         {rows.map((row) => (
           <li key={row.key} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 border-b border-wds-border py-1.5">
@@ -97,7 +112,7 @@ export function NeedsALook({ rows, shiftLine, className }: { rows: readonly Look
             )}
             <span className={cn('w-[150px] shrink-0 font-wds-sans text-[13px] leading-4', row.tone === 'error' ? 'text-wds-error-fg' : 'text-wds-warning-fg')}>{row.status}</span>
             {row.late ? (
-              <div role="img" aria-label={`Late ${row.late.minutes} minutes`} className="flex h-1.5 min-w-[84px] grow basis-0 bg-wds-neutral-100">
+              <div role="img" aria-label={`${row.late.minutes} minutes past the grace`} title={`${row.late.minutes} minutes past the grace`} className="flex h-1.5 min-w-[84px] grow basis-0 bg-wds-neutral-100">
                 <div className="h-1.5 bg-wds-caramel-300" style={{ width: `${row.late.grace}%` }} />
                 <div className="h-1.5 bg-wds-warning-fg" style={{ width: `${Math.min(100 - row.late.grace, Math.round((row.late.minutes / 30) * 100))}%` }} />
               </div>

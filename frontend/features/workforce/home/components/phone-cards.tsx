@@ -83,6 +83,7 @@ export function ServiceTeamCard({
           </div>
         </div>
       </div>
+      {rows.some((r) => r.late) ? <p className="m-0 border-t border-wds-border px-5 pt-2.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Bar: light is grace allowed, dark is time past the grace. A full bar is 30 minutes or more.</p> : null}
       <ul className="m-0 flex list-none flex-col p-0">
         {rows.map((row) => (
           <li key={row.key} className="flex items-center justify-between gap-3 border-t border-wds-border px-5 py-3">
@@ -91,7 +92,7 @@ export function ServiceTeamCard({
               <span className={cn('font-wds-sans text-[12px] leading-4', row.tone === 'error' ? 'text-wds-error-fg' : 'text-wds-warning-fg')}>{row.status}</span>
             </div>
             {row.late ? (
-              <div role="img" aria-label={`Late ${row.late.minutes} minutes`} className="flex h-1.5 w-[84px] shrink-0 bg-wds-neutral-100">
+              <div role="img" aria-label={`${row.late.minutes} minutes past the grace`} title={`${row.late.minutes} minutes past the grace`} className="flex h-1.5 w-[84px] shrink-0 bg-wds-neutral-100">
                 <div className="h-1.5 bg-wds-caramel-300" style={{ width: `${row.late.grace}%` }} />
                 <div className="h-1.5 bg-wds-warning-fg" style={{ width: `${Math.min(100 - row.late.grace, Math.round((row.late.minutes / 30) * 100))}%` }} />
               </div>

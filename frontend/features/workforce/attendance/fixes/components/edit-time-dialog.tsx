@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { Callout, ChoiceChips, DialogButton, EMPTY_REASON, FIELD_CLASS, KitDialog, ReasonChips, maskClock, reasonText, useAction, type ReasonValue } from '../../../_shared';
+import { Callout, ChoiceChips, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
 import { longDayWords } from '../../_shared/lib/nairobi-clock';
 import { attendanceWrites } from '../../_shared/services/attendance-services';
 import type { DayHistory, FixView } from '../../_shared/types/attendance-types';
@@ -108,16 +108,7 @@ export function EditTimeDialog({
               </span>
               <span role="cell" className="flex w-[130px] shrink-0 items-center">
                 {editing ? (
-                  <input
-                    aria-label={`New time for ${row.label.toLowerCase()}`}
-                    value={change.hm}
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="14:30"
-                    maxLength={5}
-                    onChange={(e) => setChange({ action: 'EDIT', eventId: row.id, hm: maskClock(e.target.value) })}
-                    className={cn(FIELD_CLASS, 'h-8 w-[100px] font-wds-mono text-[14px]')}
-                  />
+                  <TimeField label="New time" value={change.hm} onChange={(hm) => setChange({ action: 'EDIT', eventId: row.id, hm })} className="w-[110px]" />
                 ) : removing ? (
                   <span className="font-wds-sans text-[13px] leading-4 text-wds-error-fg">removed</span>
                 ) : (
@@ -137,7 +128,7 @@ export function EditTimeDialog({
         {change?.action === 'ADD' ? (
           <div role="row" className="flex min-h-11 items-center gap-3 border-t border-wds-neutral-100 bg-wds-caramel-100/55 px-3.5 py-1.5">
             <ChoiceChips legend="Which event is missing?" legendStyle="sentence" size="sm" value={change.type} onChange={(v) => setChange({ ...change, type: v === 'OUT' ? 'OUT' : 'IN' })} options={[{ value: 'IN', label: 'Clock in' }, { value: 'OUT', label: 'Clock out' }]} />
-            <input aria-label="Time of the missing event" value={change.hm} inputMode="numeric" autoComplete="off" placeholder="14:30" maxLength={5} onChange={(e) => setChange({ ...change, hm: maskClock(e.target.value) })} className={cn(FIELD_CLASS, 'h-8 w-[100px] font-wds-mono text-[14px]')} />
+            <TimeField label="Time of the missing event" value={change.hm} onChange={(hm) => setChange({ ...change, hm })} className="w-[140px]" />
           </div>
         ) : null}
       </div>

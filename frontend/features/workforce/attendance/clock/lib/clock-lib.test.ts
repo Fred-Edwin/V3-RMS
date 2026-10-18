@@ -35,7 +35,7 @@ const entry = (over: Partial<MyEntry> = {}): MyEntry => ({
 const dayOf = (current: MyEntry, serverNow = at('10:10')): MyDay => ({
   enabled: true,
   serverNow,
-  siteName: 'Nyeri Town',
+  organizationName: 'Nyeri Town',
   current,
   today: [current],
   next: null,
@@ -91,6 +91,7 @@ describe('the clock card phases', () => {
   it('the hour labels run every two hours from the start to the end', () => {
     expect(tickLabels('06:00', '14:00')).toEqual(['06', '08', '10', '12', '14']);
     expect(tickLabels('22:00', '06:00')).toEqual(['22', '00', '02', '04', '06']);
+    expect(tickLabels('19:15', '19:50')).toEqual(['19:15', '19:50']);
   });
 
   it('the shift pill is grey before, green during, amber near the end, and absent when done', () => {

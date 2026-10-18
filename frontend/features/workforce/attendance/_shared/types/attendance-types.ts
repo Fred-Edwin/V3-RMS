@@ -54,7 +54,8 @@ export interface MyDay {
   enabled: boolean;
   serverNow: string;
   date?: string;
-  siteName?: string;
+  /** `siteName` on the server; every site field is named `organization…` on the wire. */
+  organizationName?: string;
   rules?: { clockInOpensMinutesBefore: number; undoWindowSeconds: number; shiftEndHeadsUpMinutes: number; shiftEndPromptRepeatMinutes: number; autoCloseAfterMinutes: number };
   current: MyEntry | null;
   today: MyEntry[];

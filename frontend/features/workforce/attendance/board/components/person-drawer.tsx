@@ -88,7 +88,7 @@ export function PersonDrawer({
             <Row label="Shift" value={shift ? `${shift.templateName} ${shift.startTime} to ${shift.endTime}` : 'None'} />
             <Row label="Clocked in" value={shift?.clockedInAt ? hmOf(shift.clockedInAt) : 'Not yet'} />
             <Row label="Clocked out" value={shift?.clockedOutAt ? hmOf(shift.clockedOutAt) : '—'} />
-            {shift?.recordedForBy ? <Row label="Recorded by" value={shift.recordedForBy} /> : null}
+            {shift?.recordedForBy ? <Row label="Clock-in entered by" value="A manager, not their phone" /> : null}
             {canReadTime ? <Row label="Late in the last 30 days" value={lateness.status === 'ready' ? (lateDays ? `${lateDays.lateDays} ${lateDays.lateDays === 1 ? 'day' : 'days'}, ${lateDays.minutesAfterGrace} min past grace` : 'Not late') : '…'} /> : null}
             <Row label="Leave" value="Arrives with Leave" />
           </dl>

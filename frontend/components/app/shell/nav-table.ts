@@ -264,7 +264,7 @@ const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE
   { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
-  { key: 'wf-today', label: 'Today board', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/today', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
+  { key: 'wf-today', label: 'Today board', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/today', roles: [WF_HR, DIRECTOR], needsAttendance: true },
   { key: 'wf-waiting', label: 'Waiting for you', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [...WF_APPROVERS, ACCOUNTANT], badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-overdue', label: 'Overdue approvals', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [DIRECTOR], badge: 'workforce-waiting', notBuilt: true },
   {
