@@ -5334,3 +5334,24 @@ All routes run `authenticate`, then the Workforce subject (head rows), then `req
 
 `DepartmentSummary` is `{ id, siteId (wire: organizationId), name, inventoryTag, description, isActive, people, head, actingHead, hasGap }`; a head is `{ employeeId, userId, name, isActing, since, returnsOn }`. Changing a head writes the head row, `User.isDepartmentHead` / `departmentTag` (for departments with an inventory tag), the audit entry and, after commit, the `department.head_changed` event. Spec and decisions: `backend/src/modules/workforce/people/README.md` and `docs/features/workforce/decisions-1b-backend.md`.
 
+## 36. Workforce — Rota (slice 2, BUILT 18 Oct 2026, back end only)
+
+Base `/api/v1/workforce/rota`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`; scope is checked in the service. **There is no publish or amend step:** every edit is saved at once, live to staff, and audited (one entry per request, no pay figures). A person is told once, after 5 minutes without a further change to their shifts (`rota.shifts_changed`, delivery only logs until Notifications). Dates are Nairobi `YYYY-MM-DD`; a week starts on the Rules "week starts on" day. Wire names say `organization` where the code says `site`. Spec: `backend/src/modules/workforce/rota/README.md`; decisions: `docs/features/workforce/decisions-2-rota-backend.md`.
+
+| # | Method and path | Capability | Body or query | Success | Errors |
+|---|---|---|---|---|---|
+| T1 | `GET /templates` | `rota.read` | `siteId?`, `weekStart?`, `includeRetired?` | `{ templates: TemplateView[], weekStart }` | 403, 404 |
+| T2 | `POST /templates` | `rota.template_write` | `{ siteId (null = company-wide), name, letter?, colour, startTime, endTime, unpaidBreakMinutes?, departmentIds? }` | 201 `TemplateView` | 400 `OVERNIGHT_SHIFT`, `BREAK_TOO_LONG`, `DEPARTMENT_NOT_AVAILABLE`; 403; 409 `TEMPLATE_NAME_TAKEN`, `TEMPLATE_LETTER_TAKEN` |
+| T3 | `PATCH /templates/:id` | `rota.template_write` | any of the T2 fields, `reason?` | `TemplateView` (a new version when past days used the old times) | 400; 403; 404; 409 `REASON_REQUIRED`, `TEMPLATE_RETIRED` |
+| T4 | `POST /templates/:id/retire` | `rota.template_write` | none | `TemplateView` | 403, 404, 409 `TEMPLATE_IN_USE` (`details.upcoming`), `TEMPLATE_RETIRED` |
+| T5 | `POST /templates/:id/restore` | `rota.template_write` | none | `TemplateView` | 403, 404, 409 `TEMPLATE_NOT_RETIRED`, `TEMPLATE_SUPERSEDED` |
+| G1 | `GET /week` | `rota.read` (unit, dept or all) | `weekStart`, `siteId?`, `departmentId?` | `WeekView` | 400 `WEEK_START_INVALID`, `WEEK_OUT_OF_RANGE`; 403; 404 |
+| G2 | `GET /week/print` | `rota.read` | as G1 | `PrintedRota` (no cost) | as G1 |
+| G3 | `GET /mine` | `rota.read` | `from?`, `to?` | `{ from, to, shifts: MyShift[] }` | 404 (no employee file) |
+| G4 | `PUT /cells` | `rota.write` | `{ siteId?, changes: [{ employeeId, date, templateIds[] }], reason?, overrideReason? }` | `{ changedCells, peopleAffected, leaveOverrides }` | 400 `TEMPLATE_NOT_AVAILABLE`, `EMPLOYEE_NOT_ON_ROTA`, `WEEK_OUT_OF_RANGE`; 403; 404; 409 `PAST_DAY_READ_ONLY`, `REASON_REQUIRED` (`details.dates`), `LEAVE_OVERRIDE_REQUIRED` (`details.cells`) |
+| G5 | `POST /fill`, `POST /pattern` | `rota.write` | `{ siteId?, employeeIds[], dates[], templateId \| null, reason?, overrideReason? }`; `{ employeeIds[], weekStart, byWeekday: { 1..7: templateId \| null } }` | as G4 | as G4 |
+| G6 | `POST /copy/preview` | `rota.write` | `{ siteId?, weekStart, departmentId? }` | `{ weekStart, copiedFrom, shiftsCopied, people, kept, skippedPast, clashes[], reasonRequired }`; writes nothing | 400, 403 |
+| G7 | `POST /copy` | `rota.write` | as G6, `reason?` | `{ changedCells, peopleAffected, leaveOverrides, clashes[], kept }` | 409 `NOTHING_TO_COPY`, `REASON_REQUIRED`, `PAST_DAY_READ_ONLY` |
+
+`WeekView` is `{ siteId, weekStart, today, days[{ date, isPast, people, byDepartment }], departments[{ id, name, people, shifts, headName }], templates[], people[{ employeeId, name, departmentId, positionName, cells{ date: [{ entryId, templateId, overrideReason }] }, leaveDates[], plannedMinutes, contractMinutes }], totals, warnings[{ code: LEAVE \| THIN_COVERAGE \| WEEKLY_HOURS \| DOUBLE_SHIFT, employeeId, departmentId, date, message, detail }], cost: { amount, basis } \| null, can: { write, writeTemplates, readCost } }`. `cost` is absent (null) unless the caller reads everyone's pay (HR, Director). A clash is `{ employeeId, name, date, kind: ON_LEAVE \| LOANED_OUT \| NOT_EMPLOYED \| SHIFT_UNAVAILABLE, detail }`.
+

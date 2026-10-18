@@ -46,6 +46,14 @@ export const AUDIT_ACTIONS = {
   'org.position_updated': ['PEOPLE'],
   'org.position_retired': ['PEOPLE'],
   'org.position_restored': ['PEOPLE'],
+  // slice 2 (Rota). Names, shift names and dates only; never a pay figure. One entry per request, never one per cell.
+  'rota.template_created': ['TIME'],
+  'rota.template_updated': ['TIME'],
+  'rota.template_retired': ['TIME'],
+  'rota.template_restored': ['TIME'],
+  'rota.cells_changed': ['TIME'], // set, clear and fill; the reason is required for today and tomorrow
+  'rota.week_copied': ['TIME'], // "start from last week"
+  'rota.legacy_carried': ['TIME'], // the carry-over from the legacy shifts, channel SYSTEM
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

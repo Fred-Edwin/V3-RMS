@@ -29,6 +29,8 @@ model Department {
   branchDayDepartments BranchDayDepartment[]
   departmentOpenings   DepartmentOpening[]
   employees            Employee[]
+  shiftTemplates       ShiftTemplateDepartment[]
+  rotaWeeks            RotaWeek[]
   heads                DepartmentHead[]
   positions            DepartmentPosition[]
 

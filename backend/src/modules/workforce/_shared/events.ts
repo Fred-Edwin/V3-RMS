@@ -5,7 +5,8 @@ import type { RuleGroupCode } from '../rules/rules-schemas';
 import type { NairobiDate } from './time/nairobi-time';
 
 export interface WorkforceEventPayloads {
-  'rota.published': { siteId: string; departmentId: string | null; weekStart: NairobiDate; publishedById: string; changedAfterPublish: boolean };
+  // slice 2: the rota has no publish step; one event per affected person after a quiet period (rota/changes/)
+  'rota.shifts_changed': { siteId: string; employeeId: string; userId: string | null; dates: NairobiDate[]; changeCount: number; changedById: string };
   'clock.in': { siteId: string; employeeId: string; userId: string | null; shiftAssignmentId: string | null; occurredAt: string; source: 'PHONE' | 'HEAD' | 'MANAGER' | 'SYSTEM' };
   'clock.out': { siteId: string; employeeId: string; userId: string | null; shiftAssignmentId: string | null; occurredAt: string; closedBy: 'OUT' | 'AUTO_OUT' };
   'overtime.requested': { siteId: string; employeeId: string; overtimeRequestId: string; minutesRequested: number };

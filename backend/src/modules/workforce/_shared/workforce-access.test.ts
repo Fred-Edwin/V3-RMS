@@ -32,6 +32,7 @@ me.payprofile                own  -    own  own  own  own  -
 time.own                     own  -    own  -    -    -    -
 rota.read                    own  dept own  unit all  all  all
 rota.write                   -    dept -    unit all  -    all
+rota.template_write          -    -    -    unit all  all  all
 today.read                   -    dept -    unit all  all  all
 today.act                    -    dept -    unit -    -    all
 timesheet.read               -    dept all  unit all  all  all

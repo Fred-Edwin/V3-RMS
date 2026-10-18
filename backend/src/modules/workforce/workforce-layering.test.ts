@@ -85,7 +85,7 @@ describe('the public door (contract 7.2)', () => {
     const runtimeExports = Object.keys(door).sort();
     const expected = [
       // http (amendment 1)
-      'workforcePermissionsRouter', 'workforceRulesRouter', 'workforcePeopleRouter', 'workforceOrgRouter',
+      'workforcePermissionsRouter', 'workforceRulesRouter', 'workforcePeopleRouter', 'workforceOrgRouter', 'workforceRotaRouter', 'carryOverLegacyRota',
       // people (slice 1)
       'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access

@@ -19,7 +19,8 @@ export const CAPABILITIES = [
   'time.own', // clock in/out/undo, My time, Report a problem (removed when the person does not track time)
   // rota and the day
   'rota.read',
-  'rota.write', // edit and publish
+  'rota.write', // edit the rota (every edit is live at once; there is no publish step)
+  'rota.template_write', // add, change and retire shift templates (company-wide ones need scope all)
   'today.read',
   'today.act', // clock for someone, mark absent, extend a shift
   // time
@@ -134,6 +135,7 @@ const UNIT_MANAGER: Grants = {
   ...OWN_FILE,
   'rota.read': 'unit',
   'rota.write': 'unit',
+  'rota.template_write': 'unit',
   'today.read': 'unit',
   'today.act': 'unit',
   'timesheet.read': 'unit',
@@ -189,6 +191,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     ...OWN_FILE,
     'rota.read': 'all',
     'rota.write': 'all', // also builds the Accountant's rota (decision D18)
+    'rota.template_write': 'all',
     'today.read': 'all',
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
@@ -225,6 +228,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
   DIRECTOR: {
     ...OWN_FILE,
     'rota.read': 'all',
+    'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
     'today.read': 'all',
     'timesheet.read': 'all',
     'casual.read': 'all',
@@ -255,6 +259,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     // no "me.*": the System Admin has no payslip, no file and no clock (decisions D2, D15)
     'rota.read': 'all',
     'rota.write': 'all',
+    'rota.template_write': 'all',
     'today.read': 'all',
     'today.act': 'all',
     'timesheet.read': 'all',

@@ -1,0 +1,87 @@
+// ---- Workforce slice 2: Rota ----------------------------------------------------------------
+// New tables only. The legacy `shifts`, `shift_assignments` and `clock_records` are untouched and stay authoritative for
+// the clock until slice 3. There is no draft and no publish step: every edit is live at once and audited
+// (owner decision, 18 Oct 2026). See backend/src/modules/workforce/rota/README.md.
+
+model ShiftTemplate {
+  id                 String    @id @default(uuid())
+  companyId          String    @map("company_id")
+  siteId             String?   @map("organization_id") // null = company-wide
+  name               String
+  letter             String?   @db.VarChar(1) // the keyboard letter on the grid
+  colour             String // a key of the kit's shift palette (rota.constants.ts)
+  startTime          String    @map("start_time") // "HH:MM" Nairobi, never later than the end (no overnight shifts)
+  endTime            String    @map("end_time")
+  unpaidBreakMinutes Int       @default(0) @map("unpaid_break_minutes")
+  isActive           Boolean   @default(true) @map("is_active")
+  retiredAt          DateTime? @map("retired_at")
+  supersededById     String?   @map("superseded_by_id") // set when a time change made a successor (shifts already on the rota keep their times)
+  legacyShiftId      String?   @unique @map("legacy_shift_id")
+  createdById        String?   @map("created_by_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  company     Company                   @relation(fields: [companyId], references: [id])
+  site        Site?                     @relation(fields: [siteId], references: [id])
+  departments ShiftTemplateDepartment[] // none = every department
+  entries     RotaEntry[]
+
+  @@index([companyId, siteId])
+  @@map("shift_templates")
+}
+
+model ShiftTemplateDepartment {
+  templateId   String @map("template_id")
+  departmentId String @map("department_id")
+
+  template   ShiftTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  department Department    @relation(fields: [departmentId], references: [id])
+
+  @@id([templateId, departmentId])
+  @@index([departmentId])
+  @@map("shift_template_departments")
+}
+
+/// One site's rota for one department and one week. A container only: it has no status.
+model RotaWeek {
+  id                String    @id @default(uuid())
+  siteId            String    @map("organization_id")
+  departmentId      String?   @map("department_id") // null = people with no department
+  weekStart         DateTime  @map("week_start") @db.Date
+  carriedFromLegacy Boolean   @default(false) @map("carried_from_legacy")
+  touchedAt         DateTime? @map("touched_at") // first edit made in the new rota; a carried week is only re-copied while this is null
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  site       Site        @relation(fields: [siteId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  entries    RotaEntry[]
+
+  @@index([siteId, weekStart])
+  // Raw SQL in the migration: unique (organization_id, department_id, week_start) WHERE department_id IS NOT NULL;
+  //                           unique (organization_id, week_start) WHERE department_id IS NULL
+  @@map("rota_weeks")
+}
+
+/// One shift on one person's day. A person may have two (a double shift, which only warns). Live as soon as it is saved.
+model RotaEntry {
+  id                 String   @id @default(uuid())
+  weekId             String   @map("week_id")
+  siteId             String   @map("organization_id")
+  employeeId         String   @map("employee_id")
+  date               DateTime @db.Date
+  templateId         String   @map("template_id")
+  overrideReason     String?  @map("override_reason") // why a warned cell was kept (approved leave)
+  setById            String?  @map("set_by_id")
+  legacyAssignmentId String?  @unique @map("legacy_assignment_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  week     RotaWeek      @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  template ShiftTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([employeeId, date, templateId])
+  @@index([weekId])
+  @@index([siteId, date])
+  @@index([employeeId, date])
+  @@map("rota_entries")
+}
