@@ -6,12 +6,13 @@ import { addDays, nairobiToday } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { daysRepository } from '../../attendance/days/days-repository';
 import { resolveActor } from '../../people/people-context';
-import { refreshPeriod, weekRulesFor } from '../assemble/assemble-service';
+import { switchRepository } from '../../attendance/switch/switch-repository';
+import { currentPeriodFresh, refreshPeriod, weekRulesFor } from '../assemble/assemble-service';
 import { timesheetDaysRepository } from '../days/timesheet-days-repository';
 import { rebuildWeeks } from '../days/weeks';
 import { overtimeRepository } from '../overtime/overtime-repository';
 import { SYSTEM_ACTOR, eventOf, timesheetEntry } from '../timesheets-audit';
-import { viewerFor } from '../timesheets-scope';
+import { writerFor } from '../timesheets-scope';
 import type { PeriodRow } from '../timesheets.types';
 import { periodsRepository } from './periods-repository';
 import { periodForViewer } from './periods-service';
@@ -77,7 +78,7 @@ async function closeNow(period: PeriodRow, closer: Closer, allowCarry: boolean, 
  */
 export async function closePeriodEarly(subject: AccessSubject, id: string, body: CloseBody, now: Date = new Date()): Promise<PeriodRow> {
   const { period: found } = await periodForViewer(subject, id);
-  viewerFor(subject, 'timesheet.close', found.siteId);
+  writerFor(subject, 'timesheet.close', found.siteId);
   if (found.state === 'CLOSED') throw new ConflictError('This period is already closed.', 'ALREADY_CLOSED');
   if (nairobiToday(now) < found.end) throw new ConflictError('A period can be closed early only on its last day.', 'TOO_EARLY');
   await refreshPeriod(found, now, true);
@@ -90,6 +91,14 @@ export async function closePeriodEarly(subject: AccessSubject, id: string, body:
 /** The job: closes every period whose cut-off has passed (Nairobi time) and finishes any close that was claimed but not completed. */
 export async function sweepPeriods(now: Date = new Date()): Promise<{ closed: number }> {
   let closed = 0;
+  // Every switched branch always has its current period, and the system's own approvals are never more than ten minutes old.
+  for (const siteId of await switchRepository.enabledSiteIds()) {
+    try {
+      await currentPeriodFresh(siteId, now);
+    } catch (error) {
+      logger.error({ err: error, siteId }, 'timesheet refresh failed');
+    }
+  }
   for (const period of await periodsRepository.dueToClose(now)) {
     try {
       await refreshPeriod(period, now, true);

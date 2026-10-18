@@ -6,7 +6,7 @@ import type { AccessSubject } from '../../_shared/workforce-access';
 import { resolveActor } from '../../people/people-context';
 import { refreshPeriod, weekRulesFor } from '../assemble/assemble-service';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
-import { viewerFor } from '../timesheets-scope';
+import { writerFor } from '../timesheets-scope';
 import type { PeriodRow } from '../timesheets.types';
 import { pinRepository } from './pin-repository';
 import { periodsRepository } from './periods-repository';
@@ -19,7 +19,7 @@ import type { ReopenBody, SignBody } from './periods-validators';
  */
 export async function reopenPeriod(subject: AccessSubject, id: string, body: ReopenBody, now: Date = new Date()): Promise<PeriodRow> {
   const { period } = await periodForViewer(subject, id);
-  viewerFor(subject, 'timesheet.reopen', period.siteId);
+  writerFor(subject, 'timesheet.reopen', period.siteId);
   if (period.state !== 'CLOSED') throw new ConflictError('Only a closed period can be reopened.', 'NOT_CLOSED');
   const ctx = await resolveActor(subject);
   const week = await weekRulesFor(period.siteId, period.end);
@@ -57,7 +57,7 @@ export async function reopenPeriod(subject: AccessSubject, id: string, body: Reo
  */
 export async function signReport(subject: AccessSubject, id: string, body: SignBody, now: Date = new Date()): Promise<PeriodRow> {
   const { period } = await periodForViewer(subject, id);
-  viewerFor(subject, 'timesheet.close', period.siteId);
+  writerFor(subject, 'timesheet.close', period.siteId);
   if (period.state !== 'CLOSED') throw new ConflictError('Only a closed period can be signed.', 'NOT_CLOSED');
   if (period.signedById) throw new ConflictError('This report is signed already.', 'ALREADY_SIGNED');
   const hash = await pinRepository.hashOf(subject.id);

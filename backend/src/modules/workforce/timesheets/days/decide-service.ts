@@ -8,6 +8,7 @@ import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { weekRulesFor } from '../assemble/assemble-service';
 import { periodsRepository } from '../periods/periods-repository';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
+import { assertCan } from '../timesheets-scope';
 import type { DayRow } from '../timesheets.types';
 import type { DecisionBody } from './days-validators';
 import { timesheetDaysRepository } from './timesheet-days-repository';
@@ -32,6 +33,7 @@ const statusFor = (outcome: DecisionBody['outcome']): DayRow['status'] => (outco
  * read-only. Writes the audit entry in the same transaction; the person is told.
  */
 export async function decideDay(subject: AccessSubject, dayId: string, body: DecisionBody, now: Date = new Date()): Promise<DayRow> {
+  assertCan(subject, 'timesheet.approve');
   const row = await timesheetDaysRepository.byIdAnywhere(dayId);
   if (!row) throw new NotFoundError('Day not found');
   const person = await personInScope(subject, 'timesheet.approve', row.employeeId, 'write');

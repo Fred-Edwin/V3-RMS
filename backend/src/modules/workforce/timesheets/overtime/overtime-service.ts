@@ -8,7 +8,7 @@ import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { refreshPeriod } from '../assemble/assemble-service';
 import { periodsRepository } from '../periods/periods-repository';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
-import { viewerFor } from '../timesheets-scope';
+import { assertCan, viewerFor } from '../timesheets-scope';
 import type { OvertimeRow } from '../timesheets.types';
 import { overtimeRepository } from './overtime-repository';
 import type { OvertimeDecisionBody, OvertimeListQuery } from './overtime-validators';
@@ -43,6 +43,7 @@ export async function listOvertime(subject: AccessSubject, query: OvertimeListQu
  * HR decides, with a reason. Nobody decides their own. A closed period is read-only.
  */
 export async function decideOvertime(subject: AccessSubject, itemId: string, body: OvertimeDecisionBody, now: Date = new Date()): Promise<OvertimeRow> {
+  assertCan(subject, 'overtime.approve');
   const item = await overtimeRepository.byIdAnywhere(itemId);
   if (!item) throw new NotFoundError('Overtime not found');
   const person = await personInScope(subject, 'overtime.approve', item.employeeId, 'write');

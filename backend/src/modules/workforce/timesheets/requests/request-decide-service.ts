@@ -3,10 +3,12 @@ import { runAudited } from '../../_shared/audit/audit-writer';
 import { scopeOf, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { personInScope } from '../../attendance/attendance-scope';
 import { resolveActor, told } from '../../people/people-context';
-import { refreshPeriod } from '../assemble/assemble-service';
+import { refreshPeriod, weekRulesFor } from '../assemble/assemble-service';
 import { timesheetDaysRepository } from '../days/timesheet-days-repository';
+import { rebuildWeeks } from '../days/weeks';
 import { periodsRepository } from '../periods/periods-repository';
 import { asJson, eventOf, timesheetEntry } from '../timesheets-audit';
+import { assertCan } from '../timesheets-scope';
 import { applyClockRequest } from './clock-apply';
 import { isClockKind } from './requests-rules';
 import { requestsRepository } from './requests-repository';
@@ -36,6 +38,7 @@ function assertMayAnswer(subject: AccessSubject, request: RequestRow): void {
  * before and after. A closed period refuses the correction (HR reopens it first). Nobody answers their own.
  */
 export async function decideRequest(subject: AccessSubject, id: string, body: RequestDecisionBody, now: Date = new Date()): Promise<RequestView> {
+  assertCan(subject, 'timesheet.approve');
   const request = await requestsRepository.findAnywhere(id);
   if (!request) throw new NotFoundError('Request not found');
   const person = await personInScope(subject, 'timesheet.approve', request.employeeId, 'write');
@@ -57,7 +60,15 @@ export async function decideRequest(subject: AccessSubject, id: string, body: Re
     day: day ? { status: day.status, workedMinutes: day.workedMinutes, minutesLate: day.minutesLate } : null,
   };
 
+  // The person answering has seen the correction, so a day that now differs only by that edit needs no second decision.
+  const settle = applied !== null && applied.eventIds.length > 0 && day !== null && day.status === 'NEEDS_LOOK' && day.reasons.every((r) => r === 'EDITED');
+  const weekStartsOn = settle ? (await weekRulesFor(request.siteId, request.shiftDate)).weekStartsOn : 1;
+
   await runAudited(async (tx) => {
+    if (settle && day) {
+      await timesheetDaysRepository.decide(tx, day.id, { status: 'APPROVED', decidedById: subject.id, decidedAt: now, decisionReason: 'Request accepted' });
+      await rebuildWeeks(tx, day.periodId, request.siteId, request.employeeId, weekStartsOn);
+    }
     const claimed = await requestsRepository.answer(tx, request.id, {
       state: approving ? 'APPROVED' : 'DECLINED',
       decidedById: subject.id,
