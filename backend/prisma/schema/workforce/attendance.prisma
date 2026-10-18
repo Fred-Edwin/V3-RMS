@@ -1,0 +1,98 @@
+// ---- Workforce slice 3: Attendance ------------------------------------------------------------
+// New tables only. The legacy `shifts`, `shift_assignments` and `clock_records` are never altered. A site clocks with the
+// new tables only while its row in `attendance_site_switches` says enabled (default: no row = off). See
+// backend/src/modules/workforce/attendance/README.md.
+
+enum ClockEventType {
+  IN
+  OUT
+  AUTO_OUT // the phone closed the shift at its scheduled end (no answer to the shift-end prompt, or a forgotten clock-out)
+  CORRECTION // a new row that replaces (or, with voids_corrected, cancels) another event; nothing is ever edited
+}
+
+enum ClockEventSource {
+  PHONE // the person's own tap
+  HEAD // a department head clocked them
+  MANAGER // a Branch or Store Manager, HR or the System Admin clocked or fixed it
+  SYSTEM // closed by the job
+  LEGACY // carried over from the legacy clock when a site was switched on
+}
+
+enum ShiftEndAnswerKind {
+  STAY_ON
+  FINISH_NOW
+}
+
+/// A clock fact. Append-only (trigger in the migration): an undo or a fix is a new CORRECTION row pointing at the old one.
+model ClockEvent {
+  id                  String           @id @default(uuid())
+  siteId              String           @map("organization_id")
+  employeeId          String           @map("employee_id")
+  rotaEntryId         String?          @map("rota_entry_id") // the rostered shift this event belongs to; null when none (a fix on a free day, or the shift was removed from the rota later)
+  shiftDate           DateTime         @map("shift_date") @db.Date // the Nairobi day the event counts for; survives a rota edit that removes the entry
+  type                ClockEventType
+  source              ClockEventSource
+  occurredAt          DateTime         @map("occurred_at") // the moment that counts (server-trusted)
+  deviceAt            DateTime?        @map("device_at") // what the phone said it was when tapped
+  serverAt            DateTime         @default(now()) @map("server_at")
+  skewMinutes         Int?             @map("skew_minutes") // device minus server estimate; flagged when larger than the rule, never trusted
+  skewFlagged         Boolean          @default(false) @map("skew_flagged")
+  clientEventId       String?          @map("client_event_id") // idempotency key from the phone: a retry cannot create a second event
+  correctsEventId     String?          @map("corrects_event_id")
+  voidsCorrected      Boolean          @default(false) @map("voids_corrected")
+  latitude            Decimal?         @db.Decimal(10, 7)
+  longitude           Decimal?         @db.Decimal(10, 7)
+  distanceMetres      Int?             @map("distance_metres")
+  reasonCode          String?          @map("reason_code") // a chip: UNWELL, EMERGENCY, SENT_HOME, OTHER, NO_ANSWER, FORGOT, ...
+  reason              String?
+  recordedById        String?          @map("recorded_by_id") // the head or manager who recorded it for someone
+  legacyClockRecordId String?          @map("legacy_clock_record_id") // set on events carried over from the legacy clock
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  site      Site       @relation(fields: [siteId], references: [id])
+  employee  Employee   @relation(fields: [employeeId], references: [id])
+  rotaEntry RotaEntry? @relation(fields: [rotaEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, clientEventId])
+  @@unique([legacyClockRecordId, type])
+  @@index([siteId, occurredAt])
+  @@index([employeeId, occurredAt])
+  @@index([employeeId, shiftDate])
+  @@index([siteId, shiftDate])
+  @@index([rotaEntryId])
+  @@index([correctsEventId])
+  // Raw SQL in the migration: the append-only trigger (UPDATE, DELETE and TRUNCATE refused), and a CHECK that a CORRECTION names what it corrects.
+  @@map("clock_events")
+}
+
+/// The per-site switch. No row, or enabled = false, means the legacy clock is authoritative for that site.
+model AttendanceSiteSwitch {
+  siteId      String    @id @map("organization_id")
+  enabled     Boolean   @default(false)
+  enabledAt   DateTime? @map("enabled_at") // when it was last switched on; carry-over reads legacy records from this day
+  changedAt   DateTime  @default(now()) @map("changed_at")
+  changedById String?   @map("changed_by_id")
+
+  site Site @relation(fields: [siteId], references: [id])
+
+  @@map("attendance_site_switches")
+}
+
+/// The answer to the shift-end prompt. One per rostered shift. (Finishing now is also a clock-out; this keeps the stay-on reason.)
+model ShiftEndAnswer {
+  id              String             @id @default(uuid())
+  siteId          String             @map("organization_id")
+  employeeId      String             @map("employee_id")
+  rotaEntryId     String             @unique @map("rota_entry_id")
+  answer          ShiftEndAnswerKind
+  reasonCode      String?            @map("reason_code") // BUSY, COVERING, CLOSING, MANAGER_ASKED
+  estimateMinutes Int?               @map("estimate_minutes")
+  answeredAt      DateTime           @default(now()) @map("answered_at")
+
+  site      Site      @relation(fields: [siteId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  rotaEntry RotaEntry @relation(fields: [rotaEntryId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, answeredAt])
+  @@map("shift_end_answers")
+}

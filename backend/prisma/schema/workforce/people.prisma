@@ -137,6 +137,8 @@ model Employee {
   documents      HrDocument[]
   probationNotes ProbationNote[]
   rotaEntries    RotaEntry[]
+  clockEvents    ClockEvent[]
+  shiftEndAnswers ShiftEndAnswer[]
 
   @@unique([companyId, employeeNumber])
   @@index([siteId, status])

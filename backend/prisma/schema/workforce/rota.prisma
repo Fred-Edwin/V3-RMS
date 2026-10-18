@@ -78,6 +78,8 @@ model RotaEntry {
   week     RotaWeek      @relation(fields: [weekId], references: [id], onDelete: Cascade)
   employee Employee      @relation(fields: [employeeId], references: [id])
   template ShiftTemplate @relation(fields: [templateId], references: [id])
+  clockEvents    ClockEvent[]
+  shiftEndAnswer ShiftEndAnswer?
 
   @@unique([employeeId, date, templateId])
   @@index([weekId])
