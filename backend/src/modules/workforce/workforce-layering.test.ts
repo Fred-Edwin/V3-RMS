@@ -48,7 +48,7 @@ describe('workforce layering (contract section 9)', () => {
   });
 
   it('every route file runs authenticate before the capability', () => {
-    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts') && file !== 'people/org-routes.ts')) {
+    for (const { file, text } of sources.filter(({ file }) => file.endsWith('-routes.ts'))) {
       expect(text, file).toMatch(/authenticate/);
     }
   });
@@ -57,6 +57,13 @@ describe('workforce layering (contract section 9)', () => {
     const legacy = /from\s+'(\.\.\/)+(services|repositories)\//;
     const offenders = sources.filter(({ file, text }) => file.startsWith('people/') && legacy.test(text)).map(({ file }) => file);
     expect(offenders).toEqual(['people/people-account-gateway.ts']);
+  });
+
+  it('slice 1b: only the head-claims repository (reached through the gateway) writes User.isDepartmentHead', () => {
+    const writers = sources.filter(({ text }) => /user\.(update|updateMany|create|upsert)\(\{[^)]*isDepartmentHead/.test(text)).map(({ file }) => file);
+    expect(writers).toEqual(['people/organisation/heads/heads-repository.ts']);
+    const gateway = sources.find(({ file }) => file === 'people/people-account-gateway.ts')!.text;
+    expect(gateway).toMatch(/headsRepository\.writeClaims/);
   });
 
   it('people: no prisma import outside a *-repository.ts', () => {
@@ -99,7 +106,7 @@ describe('the public door (contract 7.2)', () => {
       'getOnShiftNow', 'isOnLeave', 'getApprovedHours',
     ].sort();
     expect(runtimeExports).toEqual(expected);
-  });
+  }, 30_000); // importing the whole door takes seconds when the full suite is running
 
   it.each([
     ['getOnShiftNow', 3],

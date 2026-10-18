@@ -3155,6 +3155,12 @@ Thirteen tables and seven enums, in `backend/prisma/schema/workforce/people.pris
 
 Enums: `PayType`, `EmploymentStatus`, `ContractStatus`, `PayoutMethod`, `PayChangeStatus`, `MoveKind`, `MoveStatus`.
 
+**Slice 1b (Departments and heads) adds no table, column or migration.** It is the first writer of `department_heads`, `positions`, `department_positions` and the Organisation fields of `departments`, and it changes who writes two `users` columns:
+
+- `department_heads`: `ends_on` is the last day (inclusive) and the database refuses `ends_on < starts_on`, so a row that starts and is ended on the same day is **deleted** rather than ended. An acting row is created with `ends_on` already set (the day before the head returns). `end_reason` holds a code: `REPLACED`, `HEAD_APPOINTED`, `ENDED_BY_USER`, `EXIT`, `TRANSFER`. An open row is one with `ends_on` null or in the future.
+- `users.is_department_head` and `users.department_tag` are written only by the Workforce account gateway from the head rows, in the same transaction as the change, and are true only for a head of a department that has a `key` (the five standard departments). While a person is such a head `users.department_id` follows the tagged department (the old assign code did the same); when they stop it is left as it is.
+- `positions` and `departments` are never deleted, only retired (`is_active` false, `status` RETIRED); `department_positions` rows are added and removed as a department's or a position's list changes (refused while someone in that department holds the position).
+
 **Backfill (same migration).** One employee per active human login (not the System Admin, display accounts, inactive or deleted users), numbered `W-####`; an empty pay profile (bank details come across); one spell; a contract where the legacy profile named a type; starter positions; departments from role (a user's `department_id` wins); heads from today's flags. Idempotent; proven by `backend/scripts/proof/people-backfill-proof.sh`.
 
 ---

@@ -5,8 +5,10 @@ import { runAudited } from '../../_shared/audit/audit-writer';
 import { fromDateColumn, parseNairobiDate, toDateColumn } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
+import type { WorkforceEvent } from '../../_shared/events';
 import { employeesRepository } from '../employees/employees-repository';
 import { employeesService } from '../employees/employees-service';
+import { restoreHeadRows } from '../organisation/heads/head-undo';
 import { accountGateway } from '../people-account-gateway';
 import { resolveActor, told, todayOf } from '../people-context';
 import { canUndoExit, probationEnd, undoUntil } from '../people-dates';
@@ -129,6 +131,7 @@ export const exitService = {
     if (finalized && emp.userId && snapshot.loginDeactivated) await accountGateway.setActive(emp.userId, true);
     try {
       await runAudited(async (tx) => {
+        let headEvents: WorkforceEvent[] = [];
         await lifecycleRepository.reopenSpell(tx, spell.id);
         await lifecycleRepository.setStatus(tx, emp.id, emp.companyId, snapshot.statusBefore as LifecycleEmployee['status'], {
           exitedOn: null,
@@ -136,10 +139,9 @@ export const exitService = {
         });
         if (finalized) {
           if (snapshot.contractIds.length > 0) await lifecycleRepository.restoreContracts(tx, snapshot.contractIds);
-          for (const head of snapshot.heads) {
-            if (await lifecycleRepository.departmentHasHead(tx, head.departmentId, toDateColumn(today))) notRestored.push('HEAD_ROLE');
-            else await lifecycleRepository.restoreHead(tx, { departmentId: head.departmentId, employeeId: emp.id, startsOn: toDateColumn(today) });
-          }
+          const heads = await restoreHeadRows(tx, emp, snapshot.heads, today, ctx.subject.id, now);
+          if (heads.notRestored > 0) notRestored.push('HEAD_ROLE');
+          headEvents = heads.events;
           if (snapshot.cancelledMoveIds.length > 0) notRestored.push('SCHEDULED_MOVES');
         }
         return {
@@ -157,7 +159,7 @@ export const exitService = {
               after: { notRestored: [...new Set(notRestored)] },
             },
           ],
-          events: [{ name: 'employee.exit_undone' as const, occurredAt: now.toISOString(), payload: { employeeId: emp.id, userId: emp.userId, siteId: emp.siteId } }],
+          events: [...headEvents, { name: 'employee.exit_undone' as const, occurredAt: now.toISOString(), payload: { employeeId: emp.id, userId: emp.userId, siteId: emp.siteId } }],
         };
       });
     } catch (error) {

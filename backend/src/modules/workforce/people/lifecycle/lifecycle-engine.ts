@@ -3,8 +3,9 @@ import { logger } from '../../../../utils/logger';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { AuditActor, AuditChannelCode, AuditEntryInput, JsonValue } from '../../_shared/audit/audit.types';
 import type { WorkforceEvent } from '../../_shared/events';
-import { addDays, fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import { employeesRepository } from '../employees/employees-repository';
+import { endAllHeadRows } from '../organisation/heads/head-sync';
 import { accountGateway } from '../people-account-gateway';
 import { told } from '../people-context';
 import { lifecycleRepository, type LifecycleEmployee, type MoveWithEmployee } from './lifecycle-repository';
@@ -52,19 +53,21 @@ export const parseSnapshot = (value: unknown): ExitSnapshot | null => {
 
 const asJson = (snapshot: ExitSnapshot): Prisma.InputJsonValue => snapshot as unknown as Prisma.InputJsonValue;
 
-/** The last day a head role covers when it ends today: yesterday, but never before the day it started. */
-export const headEndDate = (startsOn: NairobiDate, today: NairobiDate): NairobiDate => {
-  const yesterday = addDays(today, -1);
-  return startsOn <= yesterday ? yesterday : startsOn;
-};
-
-const endEmployeeHeads = async (tx: Prisma.TransactionClient, employeeId: string, today: NairobiDate, doer: Doer, reason: string): Promise<{ departmentId: string; startsOn: string }[]> => {
-  const heads = await lifecycleRepository.activeHeadRows(tx, employeeId, toDateColumn(today));
-  for (const head of heads) {
-    const startsOn = fromDateColumn(head.startsOn);
-    await lifecycleRepository.endHeads(tx, [head.id], toDateColumn(headEndDate(startsOn, today)), doer.actor.id, reason);
-  }
-  return heads.filter((h) => !h.isActing).map((h) => ({ departmentId: h.departmentId, startsOn: fromDateColumn(h.startsOn) }));
+/**
+ * Ends the person's head rows (slice 1b: through the one head-claims writer, so the claims follow and
+ * `department.head_changed` is emitted after commit). Returns the substantive roles for the exit snapshot.
+ */
+const endEmployeeHeads = async (
+  tx: Prisma.TransactionClient,
+  emp: Pick<LifecycleEmployee, 'id' | 'userId' | 'companyId'>,
+  today: NairobiDate,
+  doer: Doer,
+  reason: string,
+  now: Date,
+): Promise<{ heads: { departmentId: string; startsOn: string }[]; events: WorkforceEvent[] }> => {
+  const ended = await endAllHeadRows(tx, emp, today, doer.actor.id, reason, now);
+  const heads = ended.rows.filter((h) => !h.isActing).map((h) => ({ departmentId: h.departmentId, startsOn: fromDateColumn(h.startsOn) }));
+  return { heads, events: ended.events };
 };
 
 const entry = (companyId: string, siteId: string, doer: Doer, e: Pick<AuditEntryInput, 'action' | 'subjectId' | 'subjectUserId' | 'after' | 'reason'> & { subjectType?: string }): AuditEntryInput => ({
@@ -109,7 +112,7 @@ export async function applyTransfer(move: MoveWithEmployee, today: NairobiDate, 
         reportsToId,
         ...(position && !emp.tracksTimeOverride ? { tracksTime: position.defaultTracksTime } : {}),
       });
-      const endedHeads = await endEmployeeHeads(tx, emp.id, today, doer, 'TRANSFER');
+      const endedHeads = await endEmployeeHeads(tx, emp, today, doer, 'TRANSFER', now);
       return {
         result: null,
         entries: [
@@ -117,10 +120,11 @@ export async function applyTransfer(move: MoveWithEmployee, today: NairobiDate, 
             action,
             subjectId: emp.id,
             subjectUserId: emp.userId,
-            after: { kind: 'TRANSFER', fromSiteId: move.fromSiteId, toSiteId: move.toSiteId, toDepartmentId: move.toDepartmentId, effectiveOn: fromDateColumn(move.startsOn), headRolesEnded: endedHeads.length },
+            after: { kind: 'TRANSFER', fromSiteId: move.fromSiteId, toSiteId: move.toSiteId, toDepartmentId: move.toDepartmentId, effectiveOn: fromDateColumn(move.startsOn), headRolesEnded: endedHeads.heads.length },
           }),
         ],
         events: [
+          ...endedHeads.events,
           {
             name: 'employee.transferred',
             occurredAt: now.toISOString(),
@@ -209,7 +213,7 @@ export async function finalizeExitFor(emp: LifecycleEmployee | null, today: Nair
     await runAudited(async (tx) => {
       const contracts = await lifecycleRepository.activeContracts(tx, emp.id);
       if (contracts.length > 0) await lifecycleRepository.endContracts(tx, contracts.map((c) => c.id));
-      const heads = await endEmployeeHeads(tx, emp.id, today, doer, 'EXIT');
+      const { heads, events: headEvents } = await endEmployeeHeads(tx, emp, today, doer, 'EXIT', now);
       const moveIds = await lifecycleRepository.scheduledMoveIds(tx, emp.id);
       if (moveIds.length > 0) await lifecycleRepository.cancelMoves(tx, moveIds, now);
       await lifecycleRepository.setStatus(tx, emp.id, emp.companyId, 'EXITED', contracts.length > 0 ? { contractStatus: 'ENDED' } : {});
@@ -227,6 +231,7 @@ export async function finalizeExitFor(emp: LifecycleEmployee | null, today: Nair
           }),
         ],
         events: [
+          ...headEvents,
           { name: 'employee.exit_finalized', occurredAt: now.toISOString(), payload: { employeeId: emp.id, userId: emp.userId, siteId: emp.siteId, lastDay: fromDateColumn(spell.endedOn!) } } satisfies WorkforceEvent,
         ],
       };

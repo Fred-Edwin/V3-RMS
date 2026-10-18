@@ -1,6 +1,6 @@
 # Workforce · People (slice 1a: Hire and the file)
 
-**Status:** back end built (17 Oct 2026), on branch `feat/workforce-1a-employees`, not merged. No screens yet: the front end is a separate, later session. Slice 1b (departments, positions, assigning heads, the Organisation endpoints) is not built; its router (`org-routes.ts`) is mounted and empty.
+**Status:** slice 1a (hire and the file) back end built 17 Oct 2026 on branch `feat/workforce-1a-employees`; slice 1b (departments, positions, heads, the Organisation endpoints, the head claims) back end built 17 Oct 2026 on branch `feat/workforce-1b-heads`, cut from 1a. Neither is merged or pushed. No screens yet: the front end is a separate, later session. Every 1b decision is in [decisions-1b-backend.md](../../../../docs/features/workforce/decisions-1b-backend.md).
 
 People is the employee file: who works here, their job, pay, contract, probation, moves, exit and rehire. It replaces the old HR profile and Staff screens one piece at a time. The old contract draft (`feat/workforce-people`, `slice-1-contract.md`) was reference only; this README records what was actually built and where it differs.
 
@@ -56,6 +56,31 @@ Wire names say `organization` (the API's `wire-names` layer): a response has `or
 
 Out of scope reads answer `404`; out of scope writes `403`. A Branch Manager asking for another person's pay gets `404`; a role with no pay capability at all gets `403`.
 
+## Organisation endpoints (slice 1b: all `authenticate`, `attachWorkforceSubject`, `requireCapability`)
+
+| # | Route | Capability | Notes |
+|---|---|---|---|
+| O1 | `GET /workforce/org` (`?includeRetired`) | `org.read` | Sites, their departments, heads, gaps and four counts. Scope trims what is listed. |
+| O2 | `GET /workforce/org/departments/:id` (`?page&perPage`) | `org.read` | Head, acting head, a page of people, the casual pool (rates only with pay read). `can` says what the caller may do. |
+| O3 | `POST /workforce/org/departments` | `org.write` | `{ siteId, name, description?, positionIds[] }`. 409 `DEPARTMENT_NAME_TAKEN`. |
+| O4 | `PATCH /workforce/org/departments/:id` | `org.write` | Name, description, offered positions. |
+| O5 | `POST .../departments/:id/retire`, `.../restore` | `org.write` | 409 `DEPARTMENT_HAS_PEOPLE`; the five standard departments: 409 `DEPARTMENT_MANAGED_BY_INVENTORY`. |
+| O6 | `GET .../departments/:id/head-candidates` | `org.write_heads` | Eligible people, longest tenure first; one `recommended`. |
+| O7 | `POST .../departments/:id/head/preview` | `org.write_heads` | What changes: rows ended, claims before and after, impacts from later slices, who is told. Writes nothing. |
+| O8 | `POST .../departments/:id/head` | `org.write_heads` | `{ employeeId, mode: REPLACE \| ACTING, returnsOn?, replaceActing?, reason? }`. 409 `HEAD_NOT_ELIGIBLE`, `ALREADY_HEAD`, `ACTING_HEAD_EXISTS`, `HUB_HAS_NO_HEADS`, `INVALID_RETURN_DATE` (400). |
+| O9 | `POST .../departments/:id/head/end` | `org.write_heads` | `{ which: HEAD \| ACTING, reason }`. 409 `NO_HEAD_TO_END`. |
+| O10 to O11 | `GET /workforce/org/positions` (`?departmentId&includeRetired&q`), `.../positions/:id` | `org.read` | Holder names only for those the viewer may see. |
+| O12 | `POST /workforce/org/positions` | `org.write` | Company-wide write (HR, System Admin). |
+| O13 | `GET .../positions/:id/impact?defaultTracksTime=` | `org.write` | People who would switch, and machine-readable impacts. |
+| O14 | `PATCH .../positions/:id` | `org.write` | Changing "clocks in" needs `acknowledgedPeople` = the impact count (409 `ACKNOWLEDGE_IMPACT`). |
+| O15 | `POST .../positions/:id/retire`, `.../restore` | `org.write` | 409 `POSITION_HELD` lists holders. |
+
+Out of scope reads (O1, O2, O11) answer `404`; a role with no organisation capability answers `403`; out of scope writes `403`.
+
+**Who sees what in the organisation:** HR and the System Admin read and write everything; the Director reads everything (writes nothing); a Branch Manager or Store Manager reads their own site and may name or end heads there (not add departments or positions); a department head reads their own departments only; the Accountant and staff have no access. The Central Store never has heads.
+
+**The head claims (one place).** `User.isDepartmentHead` and `departmentTag` are written only through `accountGateway.setHeadClaims` (`organisation/heads/head-sync.ts` calls it), inside the transaction of every flow that changes a head row: assign, replace, acting, end, exit, transfer, undo exit and the nightly `reconcileHeadClaims`. The claim is true only for a head of a department with an inventory tag. `department.head_changed` is emitted after commit with the previous and new head. `workforce-layering.test.ts` fails if any other file writes the claim.
+
 ## Who sees what
 
 | Viewer | Pay, bank, ids, documents | Hire | Exit, transfer, rehire |
@@ -70,7 +95,7 @@ Out of scope reads answer `404`; out of scope writes `403`. A Branch Manager ask
 
 ## Scheduler (`scheduler/people-scheduler.ts`, job `people.scheduler`, 00:05 Nairobi)
 
-`activateStarted`, `finalizeExits`, `applyMoves` (due transfers, loans starting and ending), `applyPayChanges`, `expireDrafts`. Each claims its rows with a guarded update, so a second run on the same day changes nothing. Entries it writes have channel `SYSTEM`. `reconcileHeadClaims` belongs to slice 1b.
+`activateStarted`, `finalizeExits`, `applyMoves` (due transfers, loans starting and ending), `applyPayChanges`, `reconcileHeadClaims` (slice 1b: recomputes the head claims of everyone with a claim or an open head row; one `org.head_claims_reconciled` entry per company when something changed), `expireDrafts`. Each claims its rows with a guarded update, so a second run on the same day changes nothing. Entries it writes have channel `SYSTEM`.
 
 ## Layout
 
@@ -83,7 +108,19 @@ people/
   pay/                          pay service and repository, pay maths (cents, no floats)
   lifecycle/                    probation + contract, moves (transfer, loan), exit (exit, undo, rehire), engine, sweeps
   scheduler/                    the daily tasks and their repository
+  organisation/                 slice 1b: org-controller, org-scope (access checks), org-validators, org.types
+    departments/                repository, read service (O1, O2), write service (O3 to O5), view builders
+    heads/                      repository, plan + eligibility rules, assign/end service, head-sync (the claims),
+                                head-undo, reconcile-head-claims (scheduler task)
+    positions/                  repository and service (O10 to O15)
+  org-routes.ts                 the Organisation router (mounted since 1a)
 ```
+
+**Files of 1a touched by 1b (all small):** `people-account-gateway.ts` (`setHeadClaims` implemented), `lifecycle/lifecycle-engine.ts`, `lifecycle/exit-service.ts` and `lifecycle/lifecycle-repository.ts` (head ending, claims and events moved to `organisation/heads`; the old `activeHeadRows`, `endHeads`, `restoreHead`, `departmentHasHead` and `headEndDate` are gone), `scheduler/people-scheduler.ts` (sixth task), `org-routes.ts`, `people-flow-db.test.ts` (six scheduler tasks), `workforce-layering.test.ts`, `_shared/audit/audit-actions.ts`, `workforce/index.ts` (a comment), `routes/index.ts` (a comment).
+
+**Size check (17 Oct 2026):** new 1b source files are at most 190 lines (`positions-service.ts`) and the new folders hold at most 10 files (`organisation/`, `heads/` 9). Left from before 1b and not touched: `people/` holds 23 files, `employees/employees-service.ts` is 371 lines, `employees-repository.ts` 342, `_shared/time` 15 files, `rules` 13 files.
+
+**Overlap with the legacy department endpoints** (`routes/department-routes.ts`, `services/department-service.ts`, `repositories/department-repository.ts`) is left running: they also write the two head claims by hand. Until the Organisation screen replaces the old department page, the two writers can disagree; the nightly reconcile corrects the claim from the head rows (it does not read the legacy flags). The old `/staff-transfers` code still clears a head marker on a login move.
 
 Rules held by `workforce-layering.test.ts`: Prisma only in `*-repository.ts` (the audit writer's `$transaction` is the one named exception); only `people-account-gateway.ts` imports legacy `services/` or `repositories/`; no `requireRole(`; no `any`.
 
@@ -106,8 +143,8 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 
 1. **`Department` is not a new table.** Inventory's `departments` (Block 1) is extended: `description` added, relations `employees`, `heads`, `positions`. The contract's `inventoryTag` and `isActive` are the existing `key` and `status`. The tag-uniqueness index is on `(organization_id, key)`. The backfill uses the departments Inventory already created and prefers a user's `department_id` over the role rule.
 2. **Account creation by HR** uses the contract's fallback: after Workforce checks `employee.lifecycle`, the gateway calls `staffService.createStaff` as a system actor. Access has not changed `createStaff`.
-3. **Exit and transfer end a person's head rows but do not write the `User` claims or emit `department.head_changed`.** That is slice 1b (with assigning heads and `reconcileHeadClaims`). The head row is ended the day before (never before it started). Undo restores the head role only if the department has no head.
-4. **Five scheduler tasks, not six** (`reconcileHeadClaims` is 1b). An extra audit action, `people.activated`, records onboarding becoming active (one entry per company per run, never per person).
+3. **Exit and transfer end a person's head rows.** In 1a this did not write the `User` claims or emit `department.head_changed`; **slice 1b now does both in the same transaction** (see "The head claims" above). The head row is ended the day before; a row that started today is removed. Undo restores the head role only if the department has no head.
+4. **Six scheduler tasks** (`reconcileHeadClaims` arrived with 1b). An extra audit action, `people.activated`, records onboarding becoming active (one entry per company per run, never per person).
 5. **A loan starting by the scheduler writes no audit entry of its own**; the creation entry already records its start date. A loan ending writes `people.loan_ended`.
 6. **Pay set at hire** creates an `APPROVED` `HIRING` pay change dated the start day, and the profile shows the amount at once. `payAmountOn` therefore returns nothing before the start date.
 7. **File-request and "told" notifications** only log (the Notifier is a later slice).
