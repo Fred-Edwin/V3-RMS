@@ -37,7 +37,6 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
   let townId = '';
   let companyId = '';
   let chef: Subject;
-  let barista: Subject;
   let hr: Subject;
   let director: Subject;
   let accountant: Subject;
@@ -68,7 +67,6 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
     const chefEmp = await m.prisma.employee.findFirstOrThrow({ where: { userId: chefUser!.id } });
     const baristaEmp = await m.prisma.employee.findFirstOrThrow({ where: { userId: baristaUser!.id } });
     chef = { id: chefUser!.id, role: 'CHEF', siteId: townId, headOfDepartmentIds: [chefEmp.departmentId as string] };
-    barista = { id: baristaUser!.id, role: 'BARISTA', siteId: townId, headOfDepartmentIds: [baristaEmp.departmentId as string] };
     hr = { id: admin!.id, role: 'HR_MANAGER', siteId: null, headOfDepartmentIds: [] };
     director = { id: dir!.id, role: 'DIRECTOR', siteId: dir!.siteId, headOfDepartmentIds: [] };
     accountant = { id: acc!.id, role: 'ACCOUNTANT', siteId: acc!.siteId, headOfDepartmentIds: [] };

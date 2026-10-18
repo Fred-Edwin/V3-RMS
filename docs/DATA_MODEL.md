@@ -3176,6 +3176,18 @@ Four new tables in `backend/prisma/schema/workforce/rota.prisma`; additive only.
 
 Back-relations added in `access.prisma` (`Company`, `Site`), `inventory/departments.prisma` (`Department`) and `workforce/people.prisma` (`Employee`); no column changes. Minimum cover for the thin-coverage warning is the Rules store's Leave `minimumCover`, not a table here.
 
+## 11. Workforce Attendance (slice 3, migration `20261018143401_workforce_attendance`)
+
+Three new tables and three enums in `backend/prisma/schema/workforce/attendance.prisma`; additive only. The legacy `shifts`, `shift_assignments` and `clock_records` are not changed. A site clocks with these tables only while its row in `attendance_site_switches` says `enabled` (no row = off).
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `clock_events` | A clock fact: in, out, auto-out, or a correction | `organization_id`, `employee_id`, `rota_entry_id` (null on delete of the entry: `ON DELETE SET NULL`), `shift_date` (the Nairobi day, kept when the entry goes), `type` (`IN`, `OUT`, `AUTO_OUT`, `CORRECTION`), `source` (`PHONE`, `HEAD`, `MANAGER`, `SYSTEM`, `LEGACY`), `occurred_at` (the moment that counts), `device_at`, `server_at`, `skew_minutes`, `skew_flagged`, `client_event_id` (unique with `employee_id`: idempotency), `corrects_event_id`, `voids_corrected`, `latitude`, `longitude`, `distance_metres`, `reason_code`, `reason`, `recorded_by_id`, `legacy_clock_record_id` (unique with `type`). Raw SQL: **append-only trigger** (update, delete and truncate refused; only the foreign key may null `rota_entry_id`), and a CHECK that a `CORRECTION` names `corrects_event_id`. |
+| `attendance_site_switches` | The per-site switch | `organization_id` (primary key), `enabled` (default false), `enabled_at`, `changed_at`, `changed_by_id`. |
+| `shift_end_answers` | The answer to the shift-end prompt | One per `rota_entry_id` (unique). `answer` (`STAY_ON`, `FINISH_NOW`), `reason_code`, `estimate_minutes`. |
+
+Back-relations added in `access.prisma` (`Site`), `workforce/people.prisma` (`Employee`) and `workforce/rota.prisma` (`RotaEntry`); no column changes.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*
