@@ -3163,6 +3163,19 @@ Enums: `PayType`, `EmploymentStatus`, `ContractStatus`, `PayoutMethod`, `PayChan
 
 **Backfill (same migration).** One employee per active human login (not the System Admin, display accounts, inactive or deleted users), numbered `W-####`; an empty pay profile (bank details come across); one spell; a contract where the legacy profile named a type; starter positions; departments from role (a user's `department_id` wins); heads from today's flags. Idempotent; proven by `backend/scripts/proof/people-backfill-proof.sh`.
 
+## 10. Workforce Rota (slice 2, migration `20261018132257_workforce_rota`)
+
+Four new tables in `backend/prisma/schema/workforce/rota.prisma`; additive only. The legacy `shifts`, `shift_assignments` and `clock_records` are not changed and stay authoritative for the clock until slice 3. **There is no draft or published state** (owner decision, 18 Oct 2026): a saved entry is live. Dates are `@db.Date` holding the Nairobi day; times are Nairobi `HH:MM`; the place column is `organization_id`.
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `shift_templates` | A shift staff can be put on | `company_id`, `organization_id` (null = company-wide), `name`, `letter`, `colour` (a key of the kit palette), `start_time`, `end_time`, `unpaid_break_minutes`, `is_active`, `retired_at`, `superseded_by_id` (a time change after past use makes a new row), `legacy_shift_id` (unique, carry-over). Raw SQL: `start_time < end_time` (no overnight), break 0 to 240. |
+| `shift_template_departments` | Limits a shift to departments | None = every department. |
+| `rota_weeks` | A container per site, department and week | No status. `carried_from_legacy`, `touched_at` (first edit in the new rota; a carried week is only re-copied while null). Raw SQL: unique `(organization_id, department_id, week_start)` where the department is set, and `(organization_id, week_start)` where it is null. |
+| `rota_entries` | One shift on one person's day | `week_id`, `organization_id`, `employee_id`, `date`, `template_id`, `override_reason` (approved-leave override), `set_by_id`, `legacy_assignment_id` (unique). Unique `(employee_id, date, template_id)`; two entries on a day is a double shift (a warning). A cleared cell deletes the row; the audit entry keeps the history. |
+
+Back-relations added in `access.prisma` (`Company`, `Site`), `inventory/departments.prisma` (`Department`) and `workforce/people.prisma` (`Employee`); no column changes. Minimum cover for the thin-coverage warning is the Rules store's Leave `minimumCover`, not a table here.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*
