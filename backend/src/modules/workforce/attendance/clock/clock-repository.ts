@@ -53,7 +53,7 @@ const SELECT = {
 export const clockRepository = {
   /** Serialises everything one person's taps do, so two phones or a double tap cannot both pass the same check. Held to the end of the transaction. */
   lockEmployee: async (tx: Prisma.TransactionClient, employeeId: string): Promise<void> => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`clock:${employeeId}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`clock:${employeeId}`}))`;
   },
 
   insert: async (tx: Prisma.TransactionClient, data: NewEvent): Promise<EventRow> =>

@@ -52,8 +52,10 @@ describe('a rostered shift through its day (06:00 to 14:00, clock-in opens 30 mi
     expect(done.hours.afterEndMinutes).toBe(2);
     const auto = day([ev('IN', '05:58'), ev('AUTO_OUT', '14:00', { source: 'SYSTEM', reasonCode: 'NO_ANSWER' })], '15:00');
     expect(auto).toMatchObject({ state: 'AUTO_CLOSED', closedBy: 'AUTO_OUT' });
-    expect(auto.flags.autoClosed).toBe(true);
-    expect(auto.flags.fixed).toBe(false);
+    expect(auto.flags).toMatchObject({ autoClosed: true, reviewed: false, fixed: false });
+    const autoOut = ev('AUTO_OUT', '14:00', { source: 'SYSTEM' });
+    const put = ev('CORRECTION', '15:00', { correctsEventId: autoOut.id, source: 'MANAGER', recordedById: 'm1' });
+    expect(day([ev('IN', '05:58'), autoOut, put], '16:00').flags).toMatchObject({ autoClosed: true, reviewed: true, fixed: true });
   });
 
   it('leaving early is counted, with the break taken off worked time', () => {

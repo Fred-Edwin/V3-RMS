@@ -157,7 +157,7 @@ export function buildBoard(args: { siteId: string; date: NairobiDate; people: re
   const attention = people.flatMap((person) =>
     [yesterday, date].flatMap((day) =>
       buildPersonDay(person, day, data, rules, now)
-        .entries.filter((e) => e.flags.autoClosed && !e.flags.fixed)
+        .entries.filter((e) => e.flags.autoClosed && !e.flags.reviewed)
         .map((e) => ({ kind: 'AUTO_CLOSED' as const, employeeId: person.id, name: person.name, entryId: e.entryId, date: day, templateName: e.templateName, closedAt: e.clockedOutAt?.toISOString() ?? null })),
     ),
   );

@@ -94,7 +94,11 @@ export interface EntryDay {
   answer: AnswerRow | null;
   /** The last tap that can still be undone: its kind and the instant the window closes. Null when none. */
   undo: { kind: 'IN' | 'OUT'; eventId: string; until: Date } | null;
-  flags: { skew: boolean; autoClosed: boolean; fixed: boolean; recordedForBy: string | null };
+  /**
+   * autoClosed: the phone closed it. reviewed: a manager put that close right (a correction points at it). fixed: a manager
+   * or head touched the day in any way (clocked someone, corrected a time). The person's own undo is none of these.
+   */
+  flags: { skew: boolean; autoClosed: boolean; reviewed: boolean; fixed: boolean; recordedForBy: string | null };
 }
 
 /** The day of one person at one site: their shifts and any clock time that belongs to no shift. */

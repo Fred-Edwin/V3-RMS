@@ -14,7 +14,7 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "proof:people-backfill": "bash scripts/proof/people-backfill-proof.sh",
-        "test:workforce-tz": "TZ=UTC vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates && TZ=Africa/Nairobi vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates && TZ=America/Los_Angeles vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates",
+        "test:workforce-tz": "TZ=UTC vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates src/modules/workforce/attendance/days src/modules/workforce/attendance/clock src/modules/workforce/attendance/board src/modules/workforce/attendance/fixes src/modules/workforce/attendance/prompt && TZ=Africa/Nairobi vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates src/modules/workforce/attendance/days src/modules/workforce/attendance/clock src/modules/workforce/attendance/board src/modules/workforce/attendance/fixes src/modules/workforce/attendance/prompt && TZ=America/Los_Angeles vitest run src/modules/workforce/_shared/time src/modules/workforce/people/people-dates src/modules/workforce/attendance/days src/modules/workforce/attendance/clock src/modules/workforce/attendance/board src/modules/workforce/attendance/fixes src/modules/workforce/attendance/prompt",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate dev",
         "prisma:studio": "prisma studio",

@@ -68,6 +68,8 @@ export function buildEntryDay(entry: EntryRow, events: readonly EventRow[], answ
   const opens = start.getTime() - rules.attendance.clockInOpensMinutesBefore * MS_PER_MINUTE;
   const state = stateOf({ hasClock: pairs.length > 0, open, autoClosed, answer, now: now.getTime(), opens, start: start.getTime(), end: end.getTime() });
   const recordedBy = ordered.find((e) => e.source === 'HEAD' || e.source === 'MANAGER');
+  const autoOutIds = new Set(ordered.filter((e) => e.type === 'AUTO_OUT').map((e) => e.id));
+  const reviewed = ordered.some((e) => e.type === 'CORRECTION' && e.correctsEventId !== null && autoOutIds.has(e.correctsEventId));
 
   return {
     entryId: entry.id,
@@ -91,6 +93,7 @@ export function buildEntryDay(entry: EntryRow, events: readonly EventRow[], answ
     flags: {
       skew: ordered.some((e) => e.skewFlagged),
       autoClosed,
+      reviewed,
       fixed: ordered.some((e) => (e.type === 'CORRECTION' && e.source !== 'PHONE') || e.source === 'HEAD' || e.source === 'MANAGER'),
       recordedForBy: recordedBy?.recordedById ?? null,
     },

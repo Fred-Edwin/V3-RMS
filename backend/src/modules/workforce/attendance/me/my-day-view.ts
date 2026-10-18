@@ -95,6 +95,6 @@ export function weekBars(person: PersonRow, weekFirst: NairobiDate, weekLast: Na
 /** Shifts the phone closed on the person that nobody has put right yet: the "Your shift was closed at 14:00" screen. */
 export function noticesOf(days: readonly EntryDay[]): MyNotice[] {
   return days
-    .filter((d) => d.flags.autoClosed && !d.flags.fixed && d.clockedOutAt)
+    .filter((d) => d.flags.autoClosed && !d.flags.reviewed && d.clockedOutAt)
     .map((d) => ({ type: 'AUTO_CLOSED' as const, entryId: d.entryId, date: d.date, templateName: d.templateName, endTime: d.shift.endTime, closedAt: (d.clockedOutAt as Date).toISOString() }));
 }
