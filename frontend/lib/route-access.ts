@@ -148,6 +148,19 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'SYSTEM_ADMIN';
   }
 
+  // Timesheets and Requests (slice 4a): the roles that read timesheets (the managers, HR, the Director, the Accountant to read) and a
+  // department head for their own department. The API decides what each can do; a branch whose new clock is off shows an empty page.
+  const under = (prefix: string): boolean => pathname === prefix || pathname.startsWith(`${prefix}/`);
+  if (under('/app/workforce/timesheets') || under('/app/workforce/requests')) {
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+  }
+
+  // My time, My rota and My requests (slice 4a): everyone who clocks in, the floor staff and the Store Attendant included, and the desktop
+  // roles' own time. The System Admin has no clock.
+  if (under('/app/workforce/my-time')) {
+    return role !== 'SYSTEM_ADMIN';
+  }
+
   // The Home of the floor staff and department heads: their clock card. The menu shows the link only on a branch with the new clock on;
   // a branch that is off has no clock card, so the page would only say that nothing needs them.
   if (pathname === '/app/workforce' && (isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_ATTENDANT')) {

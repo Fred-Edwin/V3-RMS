@@ -18,6 +18,9 @@ export { PersonDrawer } from './board/components/person-drawer';
 export { chipItems, departmentRows, kpiCells, liveLine, lookItems, type LookItem } from './board/lib/board-view';
 export { ClockForDialog } from './fixes/components/clock-for-dialog';
 export { ClosedShiftFlow, EditTimeFlow } from './fixes/components/fix-flows';
+export { EditTimeDialog } from './fixes/components/edit-time-dialog';
+export { useDayHistory } from './fixes/hooks/use-day-data';
+export { dateOf, longDayWords } from './_shared/lib/nairobi-clock';
 
 // The switch
 export { SwitchScreen } from './switch/components/switch-screen';

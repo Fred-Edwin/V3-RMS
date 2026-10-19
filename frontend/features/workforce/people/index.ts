@@ -3,6 +3,8 @@
  * this folder. Home cards import the data hooks. See README.md.
  */
 export { useRoster, usePeopleSummary } from './_shared/hooks/use-people-data';
+export { peopleReads } from './_shared/services/people-reads';
+export type { Lookups } from './_shared/types/people-types';
 export { attentionRows, comingUpRows, onboardingCount, peopleByBranch, type AttentionRow, type BranchCountRow, type ComingUpRow } from './_shared/lib/home-people';
 export { nairobiDay } from './_shared/lib/people-dates';
 export { useOrgOverview } from './organisation/_shared/hooks/use-org-data';

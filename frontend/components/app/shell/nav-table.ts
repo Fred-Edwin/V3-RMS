@@ -281,7 +281,9 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'templates', label: 'Shift templates', newHref: '/app/workforce/schedule/templates', roles: [...WF_APPROVERS, DIRECTOR] },
     ],
   },
-  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR], badge: 'workforce-timesheets', notBuilt: true },
+  // Timesheets and Requests (slice 4a): shown only where the branch's new clock is on, like the Schedule rows. The Accountant reads Timesheets and acts on nothing.
+  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR, ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/timesheets'] },
+  { key: 'wf-requests', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
   { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
   { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
@@ -295,7 +297,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-rules', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: WF_DESKTOP, notBuilt: true },
   { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: WF_DESKTOP, notBuilt: true },
   // ME
-  { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], notBuilt: true },
+  { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
   { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, notBuilt: true },
   { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP, notBuilt: true },
 
@@ -306,18 +308,20 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/today', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
   { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
+  { key: 'wf-head-timesheets', label: 'Timesheets', group: 'wf-team', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true, match: ['/app/workforce/timesheets'] },
   { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
+  // My time (slice 4a): hours and days, my rota, and the requests I have sent. Only where the branch's new clock is on.
   {
     key: 'wf-staff-my-time',
     label: 'My time',
     group: 'wf-me',
     icon: ico.myTime,
     roles: SHIFT_STAFF,
-    notBuilt: true,
+    needsAttendance: true,
+    match: ['/app/workforce/my-time'],
     subItems: [
-      { key: 'hours', label: 'Hours this week', newHref: '/app/workforce/my-time', roles: SHIFT_STAFF },
-      { key: 'shifts', label: 'My shifts', newHref: '/app/workforce/my-time/shifts', roles: SHIFT_STAFF },
-      { key: 'overtime', label: 'Overtime', newHref: '/app/workforce/my-time/overtime', roles: SHIFT_STAFF },
+      { key: 'hours', label: 'Hours this month', newHref: '/app/workforce/my-time', roles: SHIFT_STAFF },
+      { key: 'rota', label: 'My rota', newHref: '/app/workforce/my-time/rota', roles: SHIFT_STAFF },
       { key: 'requests', label: 'My requests', newHref: '/app/workforce/my-time/requests', roles: SHIFT_STAFF },
     ],
   },
@@ -761,7 +765,7 @@ export function activeFor(groups: readonly NavGroup[], pathname: string): Active
 export const hasHubRows = (role: AppRole | null | undefined): boolean => Boolean(role) && NAV_ROWS.some((row) => row.hub && role !== null && role !== undefined && row.roles.includes(role));
 
 /** Print documents are bare pages: no sidebar, no top bar. */
-export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname) || /^\/app\/workforce\/schedule\/rota\/print(\/|$)/.test(pathname);
+export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname) || /^\/app\/workforce\/schedule\/rota\/print(\/|$)/.test(pathname) || /^\/app\/workforce\/timesheets\/report(\/|$)/.test(pathname);
 
 /**
  * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone (and the floor-staff
