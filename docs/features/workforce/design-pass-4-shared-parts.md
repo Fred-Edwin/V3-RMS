@@ -11,11 +11,28 @@
 | Waiting for you and Overdue approvals | **Both removed.** Replaced by numbered **menu badges** on each link and a **"Needs you" card on each Home** whose rows open the page where the decision is made. The Director's overdue list becomes a card on the Director's Home (reminders only). Leave is decided on the Leave page, overtime and clock fixes in Timesheets and the Today board, payroll steps in Payroll, appeals in Conduct. |
 | Department head approvals | **A department head approves nothing**: no overtime authorising (the earlier 30-minute allowance is dropped) and no missed clock-in decisions. The Branch Manager (own site) decides both. The head's phone keeps the team rota and who is on shift. |
 
-## Still to decide
+## Also decided (owner accepted the recommendations, 19 Oct 2026; nothing is open)
 
-- **Clock fixes and Report a problem on approved or locked months** (conflict 2). Recommendation: before the site's manager approves the month, the Branch Manager fixes it alone; after approval and until Paid, HR or the Accountant corrects the one payslip (reason, PIN, version 2); after Paid, the developer or next month's line. This removes the "after the window needs the System Admin" rule.
+- **Clock fixes and Report a problem on approved or locked months** (conflict 2): before the site's manager approves the month, the Branch Manager fixes it alone; after approval and until Paid, HR or the Accountant corrects the one payslip (reason, PIN, version 2); after Paid, the developer or next month's line. This removes the "after the window needs the System Admin" rule.
 - Menu: only Branch Managers and Store Managers keep a separate Timesheets link; HR, the Accountant and the Director read timesheets inside Payroll.
 - Sample month: 86 people everywhere (the "85 paid, 1 left out" example moves to a different case).
+
+## More decisions (owner, 19 Oct 2026)
+
+- **Nobody is signed out automatically for inactivity.** The "Session ended" message, the 30 minute idle rule and the "keeps unsent typing" row are removed from Chapter 16 and the Interaction spec.
+- **The UI never explains how the system knows a phone.** No "private marker" wording on any screen; the explainer card is deleted. The first sign-in only asks "Is this your phone?". The mechanism stays in developer docs only.
+
+## Done in Paper (19 Oct 2026)
+
+- **Chapter 14:** Area filter on the log, new payroll and timesheet events, rows re-timed to the September story; System Admin replaces the Director in the account-security alerts (steps 3 to 6 and the visibility table); steps reordered: 2 Activity on my record (tall header, filter chips, flagged entry, one entry opened), 3 Your phones (first sign-in, My phones, Remove this phone), 4 Someone else opened your payslip.
+- **Chapter 15:** the Waiting for you page and Overdue approvals are gone. It is now "Needs you on Home": the Branch Manager, HR, Accountant and Director Home cards, states, and a "what changed" step. The head's phone step is deleted.
+- **Chapter 16:** Session ended card and row removed; new rows for a site not approving timesheets, a paid month, a corrected payslip after the bank file, a wrong PIN, a request on an approved month, a padlocked Change; payslip alerts go to the System Admin.
+- **Chapter 17:** index shows PAY-2026-09 (summary and register), PS-0987 version 2, CPS-0318 and TSH-0019; QR check fixed; retention decided at 7 years.
+- **Chapter 4 (Add employee):** M-Pesa and Cash removed from "Paid out by"; bank only.
+- **Chapter 9:** Report a problem goes to the Branch Manager; after approval, tell HR. **Chapter 12 step 36:** the payslip button is now "Questions? Call HR" (no in-app problem pathway).
+- **Menu sweep:** the "Waiting for you" and "Overdue approvals" rows were removed from the Workforce frames (pages A, B, C, D and E, about 130 frames); the Home card titles that said "Waiting for you" now say "Needs you". The Director's "Overdue approvals" row is gone too.
+- **Still to do in Paper:** (1) the separate Timesheets menu link still shows for HR, the Accountant and the Director in the older embedded menus; the navigation table in code is the authority (only Branch and Store Managers get it), so the Paper menus are not redrawn one by one; (2) check the Chapter 1 Home frames for the new "Needs you" card content (only the label changed); (3) the System Admin's own alert on desktop (Chapter 14 step 6 card) is still described, not drawn.
+- **Known side effect:** one menu-row fragment in a Chapter 13 frame was removed by mistake during the sweep and is not visible in the checked frames; if a Chapter 13 sidebar looks off, redraw that row.
 
 ## Changes to draw
 
