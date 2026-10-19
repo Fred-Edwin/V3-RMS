@@ -29,6 +29,8 @@ export interface RuleChangeProps {
   useCompanyRuleFor?: string[];
   /** Show "Applies to" (Every site / One site). Only for a viewer of the company rule, on rows a site may own. */
   appliesTo?: boolean;
+  /** The row is always a company rule (leave types), even when the page is looking at one site. */
+  companyScope?: boolean;
   /** An extra note before the PIN ("Saving confirms these rates."). */
   note?: React.ReactNode;
   /** For a week-start change the new first day, so a wrong start day reads "Pick a Sunday". */
@@ -43,7 +45,7 @@ const newKey = (): string => (typeof crypto !== 'undefined' && 'randomUUID' in c
 
 /** The shared Change dialog (Paper steps 02 and 08, Chapter 10 steps 19 and 20). It owns the day, the reason and the PIN; the row owns the value. */
 export function RuleChangeDialog(props: RuleChangeProps) {
-  const { page, title, helper, pairs, extra, values, draftMessage, useCompanyRuleFor, appliesTo = false, note, weekStartName, onSaved, onStale, onClose } = props;
+  const { page, title, helper, pairs, extra, values, draftMessage, useCompanyRuleFor, appliesTo = false, companyScope = false, note, weekStartName, onSaved, onStale, onClose } = props;
   const online = useOnline();
   const pinStatus = usePinStatus(true);
   const needsPin = pinStatus.hasPin === false;
@@ -58,7 +60,7 @@ export function RuleChangeDialog(props: RuleChangeProps) {
   const [stale, setStale] = React.useState(false);
   const attempt = React.useRef<{ sig: string; key: string } | null>(null);
 
-  const viewingSite = page.organizationId;
+  const viewingSite = companyScope ? null : page.organizationId;
   const showApplies = appliesTo && viewingSite === null && page.organizations.length > 0;
   const siteId = viewingSite ?? (showApplies && scope === 'one' ? chosenSite : null);
   const waitingForSite = showApplies && scope === 'one' && chosenSite === null;
