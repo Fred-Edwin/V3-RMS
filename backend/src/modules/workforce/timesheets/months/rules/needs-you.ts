@@ -1,4 +1,4 @@
-import type { DayReason, DayRow, OvertimeRow, RequestRow } from '../timesheets.types';
+import type { DayReason, DayRow, OvertimeRow, RequestRow } from '../../timesheets.types';
 
 /** A shift left open or closed by the phone: the manager fixes the clock-out. */
 const CLOCK_FIX_REASONS: readonly DayReason[] = ['OPEN_SHIFT', 'AUTO_CLOSED'];

@@ -143,7 +143,7 @@ export function planTimesheet(input: PlanInput): Plan {
         JSON.stringify(item.limits) === JSON.stringify(write.limits) &&
         JSON.stringify(item.evidence) === JSON.stringify(write.evidence);
       if (!same) plan.overtime.push(write);
-      if ((next.status === 'APPROVED' || next.status === 'DECLINED') && item?.decidedById && item.decidedAt) {
+      if ((next.status === 'APPROVED' || next.status === 'APPROVED_PART' || next.status === 'DECLINED') && item?.decidedById && item.decidedAt) {
         answer = { by: item.decidedById, at: item.decidedAt, reason: item.decisionReason };
       }
     } else if (storedOvertime.has(k)) {

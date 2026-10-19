@@ -1,18 +1,18 @@
-import { NotFoundError } from '../../../../utils/errors';
-import { eachDay, type NairobiDate } from '../../_shared/time/nairobi-time';
-import type { AccessSubject } from '../../_shared/workforce-access';
-import { attendanceRulesFor } from '../../attendance/days/day-rules';
-import { daysRepository } from '../../attendance/days/days-repository';
-import { personInScope } from '../../attendance/attendance-scope';
-import { periodsRepository } from '../periods/periods-repository';
-import type { DayRow, OvertimeRow, RequestRow } from '../timesheets.types';
+import { NotFoundError } from '../../../../../utils/errors';
+import { eachDay, type NairobiDate } from '../../../_shared/time/nairobi-time';
+import type { AccessSubject } from '../../../_shared/workforce-access';
+import { attendanceRulesFor } from '../../../attendance/days/day-rules';
+import { daysRepository } from '../../../attendance/days/days-repository';
+import { personInScope } from '../../../attendance/attendance-scope';
+import { periodsRepository } from '../../periods/periods-repository';
+import type { DayRow, OvertimeRow, RequestRow } from '../../timesheets.types';
+import { assertRangeInMonth, monthForViewer, type MonthContext } from '../month-context';
+import { loadMonthData, sliceRange, type MonthData } from '../month-data';
+import type { PersonDaysQuery, PersonQuery } from '../months-validators';
+import { personMonthRows, sortPeople, withinRange, type PersonMonthRow } from '../people-rows';
+import { dayNeed, requestNeed } from '../rules/needs-you';
 import { dayResult, type DayResultKey, type GlanceKind } from './day-result';
-import { assertRangeInMonth, monthForViewer, type MonthContext } from './month-context';
-import { loadMonthData, sliceRange, type MonthData } from './month-data';
-import { personMonthRows, sortPeople, withinRange, type PersonMonthRow } from './people-rows';
 import { dayFactsOf, type PersonDayFacts } from './person-day-facts';
-import { dayNeed, requestNeed } from './needs-you';
-import type { PersonDaysQuery, PersonQuery } from './months-validators';
 
 interface PersonInMonth {
   ctx: MonthContext;

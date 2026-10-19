@@ -1,4 +1,4 @@
-import type { DayResultKey } from '../months/day-result';
+import type { DayResultKey } from '../months/people/day-result';
 import { hoursMinutes, spoken } from '../approval/decided-by';
 
 /** Hours in a table cell: `h:mm`, no thousands (176:00, 0:35). */

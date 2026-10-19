@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { day, item, request } from './month-fixtures';
+import { day, item, request } from '../month-fixtures';
 import { blockingTotal, dayNeed, needsYou, requestNeed, settledWithMonth } from './needs-you';
 
 describe('what blocks approving the month (D2)', () => {

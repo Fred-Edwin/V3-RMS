@@ -21,7 +21,7 @@ export { sweepAutoClose } from './attendance/prompt/auto-close-service'; // the 
 export { setPeriodClosedCheck, type PeriodClosedCheck } from './attendance/fixes/period-lock'; // slice 4 registers the closed-period answer
 export { default as workforceTimesheetsRouter } from './timesheets/timesheets-routes'; // Timesheets, overtime and requests (slice 4a)
 export { registerTimesheets } from './timesheets/register-timesheets'; // the closed-period answer for attendance fixes
-export { sweepTimesheets } from './timesheets/timesheets-sweep'; // the ten-minute job: closes periods at the cut-off, escalates old requests
+export { sweepTimesheets } from './timesheets/timesheets-sweep'; // the ten-minute job: refreshes open months, escalates old requests (closes nothing)
 export { getApprovedHours, type ApprovedHours } from './timesheets/approved-hours'; // reporting and payroll read approved hours only, never raw clock events
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';

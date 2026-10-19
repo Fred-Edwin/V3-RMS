@@ -154,7 +154,7 @@ const POLICY_WORDS: Record<string, string> = { RECORD_ONLY: 'recorded only; payr
 const ruleLines = (rules: readonly RuleUsed[], key: RuleUsed['key']): string[] => {
   const rule = rules.find((r) => r.key === key);
   if (!rule) return [];
-  const version = `Version ${rule.version}${rule.siteVersion ? `, site override ${rule.siteVersion}` : ''}${rule.effectiveFrom ? `, from ${rule.effectiveFrom}` : ''}`;
+  const version = rule.version === 0 && !rule.siteVersion ? 'Standard values (no version set)' : `Version ${rule.version}${rule.siteVersion ? `, site override ${rule.siteVersion}` : ''}${rule.effectiveFrom ? `, from ${rule.effectiveFrom}` : ''}`;
   if (key === 'OVERTIME') {
     const cap = rule.facts.weeklyCapMinutes;
     return [`Service tail ${rule.facts.serviceTailMinutes} min`, cap === null || cap === undefined ? 'No weekly cap' : `Weekly cap ${Number(cap) / 60} h`, version];

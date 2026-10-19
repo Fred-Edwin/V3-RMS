@@ -1,6 +1,6 @@
 import type { NairobiDate } from '../../_shared/time/nairobi-time';
 import type { DayRow, OvertimeRow } from '../timesheets.types';
-import { dayNeed } from '../months/needs-you';
+import { dayNeed } from '../months/rules/needs-you';
 
 export interface Decider {
   name: string;

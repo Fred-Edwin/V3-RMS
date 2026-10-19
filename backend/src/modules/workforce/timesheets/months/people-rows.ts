@@ -1,6 +1,6 @@
 import type { NairobiDate } from '../../_shared/time/nairobi-time';
 import type { DayRow, OvertimeRow, RequestRow } from '../timesheets.types';
-import { dayNeed, requestNeed } from './needs-you';
+import { dayNeed, requestNeed } from './rules/needs-you';
 
 export interface PersonFacts {
   id: string;

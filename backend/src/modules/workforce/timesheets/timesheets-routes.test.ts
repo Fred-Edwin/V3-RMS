@@ -21,7 +21,7 @@ vi.mock('../people/employees/employees-repository', () => ({
 const answer = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 const file = vi.hoisted(() => vi.fn(async () => ({ buffer: Buffer.from('%PDF-1.3'), filename: 'Timesheet-Nyeri-Town-2026-09.pdf', contentType: 'application/pdf', documentNumber: 'TSH-0009' })));
 vi.mock('./months/months-service', () => ({ listMonths: answer, getMonth: answer, listPeople: answer }));
-vi.mock('./months/person-month', () => ({ personDrawer: answer, personDays: answer }));
+vi.mock('./months/people/person-month', () => ({ personDrawer: answer, personDays: answer }));
 vi.mock('./approval/approve-service', () => ({ approveMonth: answer }));
 vi.mock('./exports/exports-service', () => ({ exportMonth: file }));
 vi.mock('./days/person-service', () => ({ dayDetail: answer }));

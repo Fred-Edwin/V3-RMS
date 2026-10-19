@@ -4,7 +4,7 @@ import { overtimeRepository } from '../overtime/overtime-repository';
 import type { OvertimeRow, PeriodRow, RequestRow } from '../timesheets.types';
 import { monthsRepository } from './months-repository';
 import { chipCounts, filterPeople, monthTotals, personMonthRows, withinRange, type DayWithPerson, type PersonMonthRow } from './people-rows';
-import { needsYou, type NeedsYouCounts } from './needs-you';
+import { needsYou, type NeedsYouCounts } from './rules/needs-you';
 
 /** Everything the month page reads, loaded once: at most about 200 people by 31 days, so the work is done in memory and only paged on the way out. */
 export interface MonthData {

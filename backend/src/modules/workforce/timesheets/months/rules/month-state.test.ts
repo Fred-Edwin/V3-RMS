@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nairobiToday, parseNairobiDate } from '../../_shared/time/nairobi-time';
+import { nairobiToday, parseNairobiDate } from '../../../_shared/time/nairobi-time';
 import { firstApprovalDay, isMonthKey, monthBounds, monthKeyOf, monthLabelOf, monthStateOf } from './month-state';
 
 const d = parseNairobiDate;

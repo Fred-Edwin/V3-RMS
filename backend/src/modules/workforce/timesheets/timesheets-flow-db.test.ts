@@ -23,7 +23,7 @@ describe.skipIf(!enabled)('Timesheets flows in the database', () => {
     return {
       prisma,
       time: await import('../_shared/time/nairobi-time'),
-      ...(await import('./months/months-service')), ...(await import('./months/person-month')), ...(await import('./approval/approve-service')),
+      ...(await import('./months/months-service')), ...(await import('./months/people/person-month')), ...(await import('./approval/approve-service')),
       ...(await import('./exports/exports-service')), ...(await import('./days/decide-service')), ...(await import('./overtime/overtime-service')),
       ...(await import('./overtime/overtime-detail-service')), ...(await import('./overtime/overtime-note-service')),
       ...(await import('./requests/requests-service')), ...(await import('./requests/request-decide-service')), ...(await import('./requests/escalation-service')),

@@ -1,4 +1,4 @@
-import { addDays, monthKey, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { addDays, monthKey, type NairobiDate } from '../../../_shared/time/nairobi-time';
 
 export type MonthState = 'OPEN' | 'TO_APPROVE' | 'APPROVED';
 

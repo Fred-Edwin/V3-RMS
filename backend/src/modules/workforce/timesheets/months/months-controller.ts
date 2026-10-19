@@ -6,7 +6,7 @@ import { exportMonth } from '../exports/exports-service';
 import { exportBody } from '../exports/exports-validators';
 import { getMonth, listMonths, listPeople } from './months-service';
 import { monthParams, monthQuery, monthsQuery, peopleQuery, personDaysQuery, personParams, personQuery } from './months-validators';
-import { personDays, personDrawer } from './person-month';
+import { personDays, personDrawer } from './people/person-month';
 
 export const monthsController = {
   list: async (req: Request, res: Response): Promise<void> => {

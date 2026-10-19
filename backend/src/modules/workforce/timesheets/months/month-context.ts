@@ -5,7 +5,7 @@ import { currentPeriod, refreshPeriod } from '../assemble/assemble-service';
 import { periodsRepository } from '../periods/periods-repository';
 import { viewerFor, type Viewer } from '../timesheets-scope';
 import type { PeriodRow } from '../timesheets.types';
-import { isMonthKey, monthBounds, monthKeyOf, monthStateOf, type MonthState } from './month-state';
+import { isMonthKey, monthBounds, monthKeyOf, monthStateOf, type MonthState } from './rules/month-state';
 
 export interface MonthContext {
   period: PeriodRow;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseNairobiDate } from '../../_shared/time/nairobi-time';
-import { day } from './month-fixtures';
+import { parseNairobiDate } from '../../../_shared/time/nairobi-time';
+import { day } from '../month-fixtures';
 import { soFar } from './so-far';
 
 const today = parseNairobiDate('2026-10-19');

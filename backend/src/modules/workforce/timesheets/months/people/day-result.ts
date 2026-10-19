@@ -1,5 +1,5 @@
-import type { DayRow, OvertimeRow, RequestRow } from '../timesheets.types';
-import { dayNeed, requestNeed } from './needs-you';
+import type { DayRow, OvertimeRow, RequestRow } from '../../timesheets.types';
+import { dayNeed, requestNeed } from '../rules/needs-you';
 
 export type DayResultKey =
   | 'REST'

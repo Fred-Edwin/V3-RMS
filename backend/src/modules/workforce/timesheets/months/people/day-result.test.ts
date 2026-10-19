@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayResult } from './day-result';
-import { day, item, request } from './month-fixtures';
+import { day, item, request } from '../month-fixtures';
 
 describe('one word per day, the most urgent first', () => {
   it('a date with no stored day is a rest day', () => {

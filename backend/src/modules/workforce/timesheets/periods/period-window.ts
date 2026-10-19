@@ -17,7 +17,7 @@ export interface PeriodWindow {
 
 type Rules = Pick<WeekAndBreaksRules, 'timesheetPeriod'>;
 
-/** Rule: window = the rule period; approvable from the day after the last day. Feeds on: week.timesheetPeriod. */
+/** Rule: window = the rule period; approvable from the day after the last day. Feeds on: the WEEK_AND_BREAKS period rule. */
 export function windowForDay(date: NairobiDate, rules: Rules): PeriodWindow {
   const period = periodContaining(date, rules.timesheetPeriod);
   return { start: period.start, end: period.end, label: period.label, cutoffAt: instantAt(addDays(period.end, 1), parseClockTime('00:00')) };

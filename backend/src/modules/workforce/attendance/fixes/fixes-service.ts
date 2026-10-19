@@ -73,7 +73,7 @@ export async function previewFix(subject: AccessSubject, input: FixInput, now: D
 /**
  * Fixing time (Chapter 7). The correction is a new row that points at the old one, so the old value stays visible in the
  * history; nothing is edited or deleted. The reason is required, the audit entry holds before and after (times only),
- * a closed pay period is refused unless the actor is HR, and the person is told.
+ * a day in an approved month is refused for everyone (PERIOD_APPROVED; HR corrects the payslip), and the person is told.
  */
 export async function applyFix(subject: AccessSubject, input: FixInput, now: Date = new Date()): Promise<FixResult> {
   const ctx = await resolveActor(subject);

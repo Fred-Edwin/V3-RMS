@@ -95,6 +95,17 @@ describe('planTimesheet: a week with one late day and one overtime day', () => {
     expect(settled.weeks[0]?.status).toBe('APPROVED');
   });
 
+  it('a part answer and a "none" answer settle the day exactly as approve-all does, and the part is kept while the minutes stay the same', () => {
+    const decidedAt = new Date('2026-10-12T09:00:00Z');
+    for (const [status, authorisedMinutes] of [['APPROVED_PART', 30], ['DECLINED', 0]] as const) {
+      const overtime = itemOf(plan.overtime[0]!, { status, authorisedMinutes, decidedById: 'mgr', decidedAt, decisionReason: 'Only the rush' });
+      const stored = plan.days.map((d) => storedOf(d, d.shiftDate === '2026-10-06' ? { status: 'APPROVED', decidedById: 'mgr', decidedAt, decisionReason: null } : {}));
+      const settled = planTimesheet(base({ storedDays: stored, storedOvertime: [overtime] }));
+      expect(settled.days.find((d) => d.shiftDate === '2026-10-08')).toMatchObject({ status: 'APPROVED', reasons: [] });
+      expect(settled.overtime.every((o) => o.status === status && !o.clearDecision && o.authorisedMinutes === authorisedMinutes)).toBe(true); // the answer stands
+    }
+  });
+
   it('a person decision on the late day is kept while nothing under it changes', () => {
     const decidedAt = new Date('2026-10-12T09:00:00Z');
     const stored = plan.days.map((d) => storedOf(d, d.shiftDate === '2026-10-06' ? { status: 'APPROVED', decidedById: 'mgr', decidedAt, decisionReason: null } : {}));

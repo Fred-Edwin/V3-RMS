@@ -1,5 +1,5 @@
-import type { NairobiDate } from '../../_shared/time/nairobi-time';
-import type { DayRow } from '../timesheets.types';
+import type { NairobiDate } from '../../../_shared/time/nairobi-time';
+import type { DayRow } from '../../timesheets.types';
 
 export interface SoFar {
   workedMinutes: number;

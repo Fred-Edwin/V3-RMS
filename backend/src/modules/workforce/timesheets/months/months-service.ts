@@ -7,12 +7,12 @@ import { viewerFor } from '../timesheets-scope';
 import type { PeriodRow } from '../timesheets.types';
 import { assertRangeInMonth, capabilitiesOf, monthForViewer, type MonthCapabilities } from './month-context';
 import { chipCounts, loadMonthData, monthTotals, needsYouOf, sliceRange } from './month-data';
-import { firstApprovalDay, monthKeyOf, monthLabelOf, monthStateOf, type MonthState } from './month-state';
 import { monthsRepository } from './months-repository';
-import { blockingTotal, needsYou, type NeedsYouCounts } from './needs-you';
 import { filterPeople, sortPeople, type MonthTotals, type PersonMonthRow } from './people-rows';
+import { firstApprovalDay, monthKeyOf, monthLabelOf, monthStateOf, type MonthState } from './rules/month-state';
+import { blockingTotal, needsYou, type NeedsYouCounts } from './rules/needs-you';
+import { soFar } from './rules/so-far';
 import { rulesUsedFor, type RuleUsed } from './rules-used';
-import { soFar } from './so-far';
 import type { MonthQuery, MonthsQuery, PeopleQuery } from './months-validators';
 
 export const documentCode = (n: number | null): string | null => (n === null ? null : `TSH-${String(n).padStart(4, '0')}`);

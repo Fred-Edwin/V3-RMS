@@ -1,7 +1,7 @@
-import type { NairobiDate } from '../../_shared/time/nairobi-time';
-import type { AttendanceRuleSet, DayData } from '../../attendance/attendance.types';
-import { buildEntryDay } from '../../attendance/days/day-model';
-import { groupDay } from '../../attendance/days/person-day';
+import type { NairobiDate } from '../../../_shared/time/nairobi-time';
+import type { AttendanceRuleSet, DayData } from '../../../attendance/attendance.types';
+import { buildEntryDay } from '../../../attendance/days/day-model';
+import { groupDay } from '../../../attendance/days/person-day';
 
 /** What the clock says about one person's day, beside what the rota promised. */
 export interface PersonDayFacts {

@@ -6,7 +6,7 @@ import { daysRepository } from '../../attendance/days/days-repository';
 import { personInScope } from '../../attendance/attendance-scope';
 import { weekRulesFor } from '../assemble/assemble-service';
 import type { Decider } from '../approval/decided-by';
-import { dayFactsOf } from '../months/person-day-facts';
+import { dayFactsOf } from '../months/people/person-day-facts';
 import { periodsRepository } from '../periods/periods-repository';
 import { decisionCapability } from '../timesheets-scope';
 import type { OvertimeRow } from '../timesheets.types';

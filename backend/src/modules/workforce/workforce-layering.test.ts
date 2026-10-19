@@ -136,7 +136,7 @@ describe('timesheets (slice 4a)', () => {
   const own = sources.filter(({ file }) => file.startsWith('timesheets/'));
 
   it('only timesheet repositories touch the timesheet tables', () => {
-    const tables = /\.(timesheetPeriod|timesheetDay|timesheetWeek|overtimeItem|timeRequest)\./;
+    const tables = /\.(timesheetPeriod|timesheetDay|timesheetWeek|timesheetExport|overtimeItem|timeRequest)\./;
     expect(own.filter(({ file, text }) => tables.test(text) && !isRepository(file)).map(({ file }) => file)).toEqual([]);
   });
 
