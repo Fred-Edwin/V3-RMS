@@ -1,5 +1,5 @@
 import { runAudited } from '../../_shared/audit/audit-writer';
-import { nairobiToday, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { addDays, nairobiToday, weekStart, type NairobiDate } from '../../_shared/time/nairobi-time';
 import { attendanceRulesFor } from '../../attendance/days/day-rules';
 import { daysRepository } from '../../attendance/days/days-repository';
 import { switchRepository } from '../../attendance/switch/switch-repository';
@@ -42,17 +42,24 @@ export async function refreshPeriod(period: PeriodRow, now: Date, force = false)
   const to = today < period.end ? today : period.end;
   if (to < period.start) return;
 
-  const [data, site, rules, overtime, week] = await Promise.all([
-    daysRepository.loadDayData(period.siteId, period.start, to, null),
+  const week = await weekRulesFor(period.siteId, to);
+  // Weekly rules look at the whole Monday to Sunday week, so the days of a week that runs into the neighbouring period
+  // are read too (never past today); only the days inside this period are built and written.
+  const readFrom = weekStart(period.start, week.weekStartsOn);
+  const readTo = [addDays(weekStart(period.end, week.weekStartsOn), 6), today].reduce((a, b) => (a < b ? a : b));
+  const wideTo = readTo > to ? readTo : to;
+  const [data, site, rules, overtime] = await Promise.all([
+    daysRepository.loadDayData(period.siteId, readFrom, wideTo, null),
     daysRepository.siteFacts(period.siteId),
     attendanceRulesFor(period.siteId, to),
     getEffectiveRuleGroup(period.siteId, to, 'OVERTIME'),
-    weekRulesFor(period.siteId, to),
   ]);
   if (!site) return;
   const ids = [...new Set([...data.entries.map((e) => e.employeeId), ...data.events.map((e) => e.employeeId)])];
   const people = await daysRepository.peopleByIds(period.siteId, ids);
-  const days = personDaysOf(people, data, period.start, to, rules, now);
+  const allDays = personDaysOf(people, data, readFrom, wideTo, rules, now);
+  const days = allDays.filter((day) => day.date >= period.start && day.date <= to);
+  const neighbourDays = allDays.filter((day) => day.date < period.start || day.date > period.end);
   const [evidence, storedDays, storedOvertime] = await Promise.all([
     evidenceFor(period.siteId, days, rules.lateness.graceMinutes),
     timesheetDaysRepository.inRange(period.siteId, period.start, to),
@@ -65,6 +72,7 @@ export async function refreshPeriod(period: PeriodRow, now: Date, force = false)
     today,
     weekStartsOn: week.weekStartsOn,
     days,
+    neighbourDays,
     evidence,
     storedDays,
     storedOvertime,

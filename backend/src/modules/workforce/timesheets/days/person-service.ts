@@ -10,12 +10,13 @@ import { periodForViewer } from '../periods/periods-service';
 import { requestsRepository } from '../requests/requests-repository';
 import type { DayRow, OvertimeRow, PeriodRow, RequestRow } from '../timesheets.types';
 import { timesheetDaysRepository } from './timesheet-days-repository';
+import { weekView, type WeekView } from './weeks';
 
 export interface PersonPeriodView {
   period: PeriodRow;
   person: { id: string; name: string; departmentName: string | null };
   days: DayRow[];
-  weeks: { weekStart: string; status: string; scheduledMinutes: number; workedMinutes: number }[];
+  weeks: WeekView[];
   overtime: OvertimeRow[];
   requests: RequestRow[];
 }
@@ -36,7 +37,7 @@ export async function personPeriod(subject: AccessSubject, periodId: string, emp
     period: found,
     person: { id: person.id, name: person.name, departmentName: person.departmentName },
     days: days.filter(({ person: p }) => p.id === person.id).map(({ day }) => day),
-    weeks: weeks.map((w) => ({ weekStart: w.weekStart.toISOString().slice(0, 10), status: w.status, scheduledMinutes: w.scheduledMinutes, workedMinutes: w.workedMinutes })),
+    weeks: weeks.map((w) => weekView(w, found)),
     overtime: overtime.filter((item) => item.employeeId === person.id),
     requests,
   };

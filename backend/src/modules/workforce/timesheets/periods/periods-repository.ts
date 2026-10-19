@@ -1,6 +1,6 @@
 import type { Prisma, TimesheetPeriod, TimesheetPeriodState } from '@prisma/client';
 import { prisma } from '../../../../config/database';
-import { fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { addDays, fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { Db } from '../../attendance/days/days-repository';
 import type { PeriodRow } from '../timesheets.types';
 import type { PeriodWindow } from './period-window';
@@ -57,10 +57,20 @@ export const periodsRepository = {
     return row ? toPeriodRow(row) : null;
   },
 
+  /**
+   * The period for a window, created on first use. A window never overlaps an earlier period: when a closed period (for
+   * example an old four-week one) already covers its first days, the new period starts the day after that one.
+   */
   ensure: async (siteId: string, window: PeriodWindow, db: Db = prisma): Promise<PeriodRow> => {
+    const earlier = await db.timesheetPeriod.findFirst({
+      where: { siteId, startDate: { lt: toDateColumn(window.start) }, endDate: { gte: toDateColumn(window.start) } },
+      orderBy: { endDate: 'desc' },
+    });
+    const earlierEnd = earlier ? fromDateColumn(earlier.endDate) : null;
+    const start: NairobiDate = earlierEnd !== null && earlierEnd < window.end ? addDays(earlierEnd, 1) : window.start;
     const row = await db.timesheetPeriod.upsert({
-      where: { siteId_startDate: { siteId, startDate: toDateColumn(window.start) } },
-      create: { siteId, startDate: toDateColumn(window.start), endDate: toDateColumn(window.end), label: window.label, cutoffAt: window.cutoffAt },
+      where: { siteId_startDate: { siteId, startDate: toDateColumn(start) } },
+      create: { siteId, startDate: toDateColumn(start), endDate: toDateColumn(window.end), label: window.label, cutoffAt: window.cutoffAt },
       update: {},
     });
     return toPeriodRow(row);

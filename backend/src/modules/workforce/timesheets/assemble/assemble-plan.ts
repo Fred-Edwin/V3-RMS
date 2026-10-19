@@ -21,6 +21,8 @@ export interface PlanInput {
   today: NairobiDate;
   weekStartsOn: IsoWeekday;
   days: readonly PersonDay[];
+  /** Days of the neighbouring period that share a Monday to Sunday week with this one: they count towards the weekly cap only. */
+  neighbourDays?: readonly PersonDay[];
   /** Per rostered shift (entry id): what the person was doing in the extra time. */
   evidence: ReadonlyMap<string, ShiftEvidence>;
   storedDays: readonly DayRow[];
@@ -78,8 +80,16 @@ export function planTimesheet(input: PlanInput): Plan {
     if (result) assessed.set(key(day.person.id, day.date), { day, result });
   }
 
-  // Overtime limits need the week's total and the branch's use, so they are worked out over everything first.
+  // Overtime limits need the week's total and the branch's use, so they are worked out over everything first. A week that
+  // runs into the neighbouring period counts its days there too (read-only: they add to the week's total, nothing is written).
   const weekOvertime = new Map<string, number>();
+  for (const day of input.neighbourDays ?? []) {
+    const openWork = new Map(day.entries.map((entry) => [entry.entryId, false] as const));
+    const result = assessDay({ date: day.date, today: input.today, entries: day.entries, unscheduledCount: day.unscheduled.length, openWork, rules });
+    if (!result?.overtime) continue;
+    const k = `${day.person.id}|${weekStart(day.date, weekStartsOn)}`;
+    weekOvertime.set(k, (weekOvertime.get(k) ?? 0) + result.overtime.rawMinutes);
+  }
   let branchUsed = 0;
   for (const { day, result } of assessed.values()) {
     if (!result.overtime) continue;

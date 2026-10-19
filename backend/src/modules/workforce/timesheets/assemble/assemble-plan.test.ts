@@ -114,6 +114,19 @@ describe('planTimesheet: a week with one late day and one overtime day', () => {
     expect(tail.overtime[0]?.evidence).toMatchObject({ ordersTaken: 3, openWorkAtEnd: true });
   });
 
+  it('a part week: overtime on days in the neighbouring period counts towards the weekly cap but is never written', () => {
+    // Thu 8 Oct is this period's last day; Fri 9 Oct belongs to the next period and had 100 minutes over.
+    const thursday = week.filter((d) => d.date === '2026-10-08');
+    const neighbour = [personDay(addDays(MONDAY, 4), '06:00', '15:40')];
+    const withNeighbour = planTimesheet(base({ days: thursday, neighbourDays: neighbour, rules: { ...PLAN_RULES, weeklyCapMinutes: 120 } }));
+    expect(withNeighbour.overtime).toHaveLength(1);
+    expect(withNeighbour.overtime[0]).toMatchObject({ shiftDate: '2026-10-08', rawMinutes: 40 });
+    expect(withNeighbour.overtime[0]?.limits).toMatchObject({ weekMinutes: 140, overCapMinutes: 20, insideAllowance: false });
+    expect(withNeighbour.days.map((d) => d.shiftDate)).toEqual(['2026-10-08']);
+    const alone = planTimesheet(base({ days: thursday, rules: { ...PLAN_RULES, weeklyCapMinutes: 120 } }));
+    expect(alone.overtime[0]?.limits).toMatchObject({ weekMinutes: 40, overCapMinutes: 0 });
+  });
+
   it('nothing is invented for a day with no rota and no clock', () => {
     expect(planTimesheet(base({ days: [] })).days).toEqual([]);
   });

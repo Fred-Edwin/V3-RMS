@@ -6,8 +6,10 @@
  *         before and after, the escalation to HR, the close at the cut-off, a refused fix, HR's reopen, the early close,
  *         the PIN signature, the audit chain, the legacy tables unchanged. It leaves the data for inspection.
  *   down  removes everything `up` made and puts the switch back as it was (the audit entries stay: the log is append-only).
- * The week is the one before the last cut-off (5 to 9 October); its period is created by hand with a cut-off one hour away
- * and then brought to the past, so the job can close it the way the clock would.
+ * The period is October 2026 (a calendar month), created by the API when the branch is switched on. The week 5 to 9 October
+ * is clocked, with a clean day on the 1st and on the last day (31 October), and a part week (26 Oct to 1 Nov) whose overtime
+ * on 29 October must read the days after the month end. The job closes the period at 18:00 on 2 November (the sweep is run
+ * directly with that time), the way the clock would.
  * Usage: API=http://localhost:4102 pnpm exec tsx src/scripts/timesheets-proof.ts up|down
  */
 import 'dotenv/config';
@@ -95,19 +97,23 @@ async function up(): Promise<void> {
   const lena = await mk(2, 'Lena', null);
   const template = await prisma.shiftTemplate.create({ data: { companyId, siteId: townId, name: `${TAG} Shift`, colour: 'BLUE', startTime: '06:00', endTime: '14:00', unpaidBreakMinutes: 0 } });
   const at = (date: NairobiDate, clock: string) => instantAt(date, parseClockTime(clock));
-  const lenaWeek: [number, string, string][] = [[5, '05:58', '14:01'], [6, '06:20', '14:00'], [7, '06:00', '14:02'], [8, '06:00', '14:40'], [9, '05:55', '14:00']];
-  const waiterWeek: [number, string, string][] = [[5, '06:00', '14:00'], [6, '05:57', '14:00'], [7, '06:00', '14:03'], [8, '06:01', '14:00'], [9, '06:00', '11:20']];
+  const FIRST = '2026-10-01' as NairobiDate; // the first day of the month
+  const LAST = '2026-10-31' as NairobiDate; // the last day of the month
+  const OVER = '2026-10-29' as NairobiDate; // Lena, 40 minutes over, in the part week 26 Oct to 1 Nov
+  const NEXT_MONTH = '2026-11-01' as NairobiDate; // the same week, in November: 100 minutes over
+  const lenaWeek: [NairobiDate, string, string][] = [[day(5), '05:58', '14:01'], [day(6), '06:20', '14:00'], [day(7), '06:00', '14:02'], [day(8), '06:00', '14:40'], [day(9), '05:55', '14:00'], [OVER, '06:00', '14:40'], [NEXT_MONTH, '06:00', '15:40']];
+  const waiterWeek: [NairobiDate, string, string][] = [[FIRST, '06:00', '14:00'], [day(5), '06:00', '14:00'], [day(6), '05:57', '14:00'], [day(7), '06:00', '14:03'], [day(8), '06:01', '14:00'], [day(9), '06:00', '11:20'], [LAST, '06:00', '14:00']];
   for (const [emp, plan] of [[lena, lenaWeek], [waiter, waiterWeek]] as const) {
-    for (const [n, inAt, outAt] of plan) {
-      const weekOn = { siteId: townId, departmentId: service.id, weekStart: toDateColumn(weekStart(day(n), 1)) };
+    for (const [date, inAt, outAt] of plan) {
+      const weekOn = { siteId: townId, departmentId: service.id, weekStart: toDateColumn(weekStart(date, 1)) };
       const week = (await prisma.rotaWeek.findFirst({ where: weekOn, select: { id: true } })) ?? (await prisma.rotaWeek.create({ data: weekOn, select: { id: true } }));
-      const entry = await prisma.rotaEntry.create({ data: { weekId: week.id, siteId: townId, employeeId: emp.id, date: toDateColumn(day(n)), templateId: template.id } });
+      const entry = await prisma.rotaEntry.create({ data: { weekId: week.id, siteId: townId, employeeId: emp.id, date: toDateColumn(date), templateId: template.id } });
       for (const [type, clk] of [['IN', inAt], ['OUT', outAt]] as const) {
-        await prisma.clockEvent.create({ data: { siteId: townId, employeeId: emp.id, rotaEntryId: entry.id, shiftDate: toDateColumn(day(n)), type, source: 'PHONE', occurredAt: at(day(n), clk), serverAt: at(day(n), clk) } });
+        await prisma.clockEvent.create({ data: { siteId: townId, employeeId: emp.id, rotaEntryId: entry.id, shiftDate: toDateColumn(date), type, source: 'PHONE', occurredAt: at(date, clk), serverAt: at(date, clk) } });
       }
     }
   }
-  out('a week (Mon 5 to Fri 9 Oct) is clocked: Lena late on Tuesday and 40 minutes over on Thursday; the waiter clocked out at 11:20 on Friday');
+  out('clocked: Mon 5 to Fri 9 Oct (Lena late on Tuesday and 40 minutes over on Thursday; the waiter out at 11:20 on Friday), a clean day on 1 Oct and on 31 Oct, and the part week 26 Oct to 1 Nov (Lena 40 minutes over on 29 Oct, 100 over on 1 Nov)');
 
   for (const email of [HR, BM, HIGHWAY, STORE, DIRECTOR, ACCOUNTANT, KITCHEN_HEAD, WAITER, MANAGER]) await login(email);
 
@@ -117,20 +123,22 @@ async function up(): Promise<void> {
   await expectStatus('Director switches Nyeri Town on', DIRECTOR, 'PUT', '/workforce/attendance/switch', 200, { siteId: townId, enabled: true });
 
   out('\n== 2. the period, and who sees what');
-  const past = { siteId: townId, startDate: toDateColumn('2026-09-19' as NairobiDate), endDate: toDateColumn('2026-10-16' as NairobiDate), label: '21 Sep to 18 Oct 2026', cutoffAt: new Date(Date.now() + 3_600_000) };
-  const period = await prisma.timesheetPeriod.create({ data: past });
+  await expectStatus('Branch Manager lists the periods (the month is created on first use)', BM, 'GET', `${T}/periods?siteId=${townId}`, 200);
+  const period = await prisma.timesheetPeriod.findFirstOrThrow({ where: { siteId: townId, startDate: toDateColumn(FIRST) } });
+  check('the period is October 2026: 1 Oct to 31 Oct, closing 2 Nov 18:00 Nairobi', period.label === 'October 2026' && period.endDate.toISOString().slice(0, 10) === LAST && period.cutoffAt.toISOString() === '2026-11-02T15:00:00.000Z', JSON.stringify(period));
   const P = `${T}/periods/${period.id}`;
   const view = await expectStatus('Branch Manager opens the period', BM, 'GET', `${P}?pageSize=100`, 200);
   const rows = ((view.body.data?.['people'] as { rows: Body[] })?.rows ?? []) as { employeeId: string; name: string; status: string; needsLookDays: number; overtimePendingMinutes: number }[];
   const lenaRow = rows.find((r) => r.employeeId === lena.id);
   const waiterRow = rows.find((r) => r.employeeId === waiter.id);
   check('Lena needs a look (late Tuesday, overtime Thursday); the waiter needs a look (left early Friday)', lenaRow?.needsLookDays === 2 && lenaRow.overtimePendingMinutes === 40 && waiterRow?.needsLookDays === 1, JSON.stringify([lenaRow, waiterRow]));
-  check('the matching days approved themselves: 7 of the 10', (await prisma.timesheetDay.count({ where: { employeeId: { in: [lena.id, waiter.id] }, status: 'AUTO_APPROVED' } })) === 7);
+  check('the matching days approved themselves: 7 of the 10 in the clocked week', (await prisma.timesheetDay.count({ where: { employeeId: { in: [lena.id, waiter.id] }, status: 'AUTO_APPROVED', shiftDate: { gte: toDateColumn(day(5)), lte: toDateColumn(day(9)) } } })) === 7);
+  check('the day on the 1st is in the month period', (await prisma.timesheetDay.findFirstOrThrow({ where: { employeeId: waiter.id, shiftDate: toDateColumn(FIRST) } })).periodId === period.id);
   for (const [who, status] of [[HR, 200], [DIRECTOR, 200], [ACCOUNTANT, 200], [KITCHEN_HEAD, 200], [STORE, 404], [HIGHWAY, 404], [WAITER, 403]] as const) await expectStatus('period', who, 'GET', P, status);
   const headView = await call(KITCHEN_HEAD, 'GET', `${P}?pageSize=100`);
   check('a Kitchen head sees none of the Service people', (((headView.body.data?.['people'] as { rows: Body[] })?.rows) ?? []).every((r) => r['employeeId'] !== lena.id));
   const mine = await expectStatus('the waiter reads their own time', WAITER, 'GET', `${T}/me/time?periodId=${period.id}`, 200);
-  check('My time holds only the waiter\'s days', ((mine.body.data?.['days'] as { employeeId: string }[]) ?? []).every((d) => d.employeeId === waiter.id) && ((mine.body.data?.['days'] as unknown[]) ?? []).length === 5);
+  check('My time holds only the waiter\'s days', ((mine.body.data?.['days'] as { employeeId: string }[]) ?? []).every((d) => d.employeeId === waiter.id) && ((mine.body.data?.['days'] as unknown[]) ?? []).length === 6);
   await expectStatus('My rota', WAITER, 'GET', `${T}/me/rota?from=2026-10-05&to=2026-10-09`, 200);
   for (const who of [BM, HR]) await expectStatus('person view', who, 'GET', `${P}/people/${lena.id}`, 200);
   await expectStatus('another branch cannot open a person', HIGHWAY, 'GET', `${P}/people/${lena.id}`, 404);
@@ -172,9 +180,14 @@ async function up(): Promise<void> {
   await expectStatus('HR declines it with a reason', HR, 'POST', `${T}/requests/${second.body.data?.['id']}/decision`, 200, { outcome: 'DECLINE', reason: 'The rota shows you on' });
 
   out('\n== 5. the cut-off: closing, a refused fix, HR\'s reopen, closing early, the signature');
-  check('before the cut-off nothing closes', (await sweepTimesheets()).closed === 0 && (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).state === 'OPEN');
-  await prisma.timesheetPeriod.update({ where: { id: period.id }, data: { cutoffAt: new Date(Date.now() - 60_000) } });
-  check('after the cut-off the job closes it by itself', (await sweepTimesheets()).closed === 1 && (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).closeKind === 'AUTO');
+  const BEFORE = new Date('2026-11-02T14:59:59Z'); // 17:59:59 in Nairobi on the 2nd day after October ends
+  const CUTOFF = new Date('2026-11-02T15:00:00Z'); // 18:00:00 in Nairobi
+  check('at 17:59:59 on 2 Nov nothing closes', (await sweepTimesheets(BEFORE)).closed === 0 && (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).state === 'OPEN');
+  check('at 18:00 on 2 Nov the job closes it by itself', (await sweepTimesheets(CUTOFF)).closed === 1 && (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).closeKind === 'AUTO');
+  check('the day on the last day (31 Oct) landed in October and stayed there', (await prisma.timesheetDay.findFirstOrThrow({ where: { employeeId: waiter.id, shiftDate: toDateColumn(LAST) } })).periodId === period.id);
+  const partWeekItem = await prisma.overtimeItem.findFirstOrThrow({ where: { employeeId: lena.id, shiftDate: toDateColumn(OVER) } });
+  check('the part week read the days after the month end: 29 Oct (40) + 1 Nov (100) = 140 minutes for the cap', (partWeekItem.limits as { weekMinutes?: number }).weekMinutes === 140, JSON.stringify(partWeekItem.limits));
+  check('1 Nov is in November, not October', (await prisma.timesheetDay.findFirstOrThrow({ where: { employeeId: lena.id, shiftDate: toDateColumn(NEXT_MONTH) } })).periodId !== period.id);
   const lenaOut = await prisma.clockEvent.findFirstOrThrow({ where: { employeeId: lena.id, shiftDate: toDateColumn(day(5)), type: 'OUT' } });
   const fix = { employeeId: lena.id, date: day(5), action: 'EDIT', eventId: lenaOut.id, at: at(day(5), '14:00').toISOString(), reason: 'A late fix' };
   await expectStatus('a clock fix in the closed period is refused', BM, 'POST', '/workforce/attendance/fixes', 409, fix);
@@ -184,8 +197,9 @@ async function up(): Promise<void> {
   check('numbered, closed automatically, no pay figure', /^TSH-\d{4}$/.test(String(report.body.data?.['number'])) && JSON.stringify(report.body.data).includes('"automatically":true') && !/amount|salary|rate/i.test(JSON.stringify(report.body.data)));
   await expectStatus('HR reopens with a reason', HR, 'POST', `${P}/reopen`, 200, { reason: 'Lena\'s Monday clock-out needs a fix' });
   await expectStatus('the same fix now previews', BM, 'POST', '/workforce/attendance/fixes/preview', 200, fix);
-  await expectStatus('the Branch Manager closes early', BM, 'POST', `${P}/close`, 200, { confirmCarry: false });
-  check('the close is recorded as early', (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).closeKind === 'EARLY');
+  await expectStatus('closing early is refused before the last day', BM, 'POST', `${P}/close`, 409, { confirmCarry: false });
+  const reopenedCutoff = (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).cutoffAt;
+  check('the reopened period closes again by itself at the next cut-off', (await sweepTimesheets(new Date(reopenedCutoff.getTime() + 60_000))).closed === 1 && (await prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: period.id } })).state === 'CLOSED');
   await expectStatus('a wrong PIN signs nothing', MANAGER, 'POST', `${P}/sign`, 401, { pin: '0000' });
   await expectStatus('the Accountant cannot sign', ACCOUNTANT, 'POST', `${P}/sign`, 403, { pin: PIN });
   await expectStatus('the Branch Manager signs with their PIN', MANAGER, 'POST', `${P}/sign`, 200, { pin: PIN });

@@ -5,6 +5,7 @@ import { daysRepository } from '../../attendance/days/days-repository';
 import { switchRepository } from '../../attendance/switch/switch-repository';
 import { currentPeriodFresh, refreshPeriod } from '../assemble/assemble-service';
 import { timesheetDaysRepository } from '../days/timesheet-days-repository';
+import { weekView, type WeekView } from '../days/weeks';
 import { overtimeRepository } from '../overtime/overtime-repository';
 import { periodsRepository } from '../periods/periods-repository';
 import { requestsRepository } from '../requests/requests-repository';
@@ -17,7 +18,7 @@ export interface MyTimeView {
   period: PeriodRow | null;
   periods: PeriodRow[];
   days: (DayRow & { overtime: Pick<OvertimeRow, 'status' | 'authorisedMinutes' | 'needsMinutes' | 'rawMinutes'> | null; requests: Pick<RequestRow, 'id' | 'kind' | 'state'>[] })[];
-  weeks: { weekStart: string; status: string; scheduledMinutes: number; workedMinutes: number }[];
+  weeks: WeekView[];
   /** Hours only. Overtime still waiting is shown as pending and is not paid until someone authorises it. */
   totals: { plannedMinutes: number; workedMinutes: number; lateMinutes: number; overtimeAuthorisedMinutes: number; overtimePendingMinutes: number };
   openRequests: number;
@@ -61,7 +62,7 @@ export async function myTime(subject: AccessSubject, query: MyTimeQuery, now: Da
         requests: requests.filter((r) => r.shiftDate === day.shiftDate).map((r) => ({ id: r.id, kind: r.kind, state: r.state })),
       };
     }),
-    weeks: weeks.map((w) => ({ weekStart: w.weekStart.toISOString().slice(0, 10), status: w.status, scheduledMinutes: w.scheduledMinutes, workedMinutes: w.workedMinutes })),
+    weeks: weeks.map((w) => weekView(w, period)),
     totals: {
       plannedMinutes: mineDays.reduce((sum, d) => sum + d.scheduledMinutes, 0),
       workedMinutes: mineDays.reduce((sum, d) => sum + d.workedMinutes, 0),

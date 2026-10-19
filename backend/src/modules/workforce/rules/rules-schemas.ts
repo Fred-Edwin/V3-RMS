@@ -156,11 +156,15 @@ export const WeekAndBreaksRulesSchema = z
       z.object({ kind: z.literal('FIXED_WEEKS'), weeks: z.number().int().min(1).max(8), anchorDate: nairobiDate }),
       z.object({ kind: z.literal('CALENDAR_MONTH') }),
     ]),
-    // Slice 4a: the period closes by itself this many days before its last day, at this Nairobi time (Chapter 8: closes
-    // Friday 16 Oct for a period ending Sunday 18 Oct). Days after it belong to the next timesheet. 0 = the last day.
+    // Slice 4a: the period closes by itself this many days AFTER its last day, at this Nairobi time (October closes on
+    // 2 Nov at 18:00), so the last days are complete when a manager reviews. An older stored value (daysBeforePeriodEnd)
+    // is dropped on parse and the default applies.
     timesheetCutoff: z
-      .object({ daysBeforePeriodEnd: z.number().int().min(0).max(7), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) })
-      .default({ daysBeforePeriodEnd: 2, time: '18:00' }),
+      .object({
+        daysAfterPeriodEnd: z.number().int().min(0).max(7).default(2),
+        time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default('18:00'),
+      })
+      .default({ daysAfterPeriodEnd: 2, time: '18:00' }),
   })
   .refine(
     (v) => {

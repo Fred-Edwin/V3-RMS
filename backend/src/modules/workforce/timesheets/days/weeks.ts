@@ -1,8 +1,29 @@
 import type { TimesheetStatus } from '@prisma/client';
-import { weekStart, type IsoWeekday, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { addDays, weekStart, type IsoWeekday, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { Db } from '../../attendance/days/days-repository';
 import { weekStatus } from './day-merge';
 import { timesheetDaysRepository } from './timesheet-days-repository';
+
+export interface WeekView {
+  weekStart: string;
+  status: string;
+  scheduledMinutes: number;
+  workedMinutes: number;
+  /** The Monday to Sunday week runs into the neighbouring period; this row counts only this period's days. */
+  partWeek: boolean;
+}
+
+/** A stored week row as the API shows it. Weekly rules still read the whole week (see assemble-service). */
+export function weekView(row: { weekStart: Date; status: string; scheduledMinutes: number; workedMinutes: number }, period: { start: NairobiDate; end: NairobiDate }): WeekView {
+  const start = row.weekStart.toISOString().slice(0, 10);
+  return {
+    weekStart: start,
+    status: row.status,
+    scheduledMinutes: row.scheduledMinutes,
+    workedMinutes: row.workedMinutes,
+    partWeek: start < period.start || addDays(start as NairobiDate, 6) > period.end,
+  };
+}
 
 /**
  * A person's weeks in a period follow their stored days (no week sign-off exists). Used after a person's decision and

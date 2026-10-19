@@ -132,8 +132,8 @@ describe.skipIf(!enabled)('Timesheets flows in the database', () => {
     expect(list.enabled).toBe(true);
     const period = list.periods.find((p) => p.start <= D(5) && p.end >= D(9))!;
     periodId = period.id;
-    expect(period).toMatchObject({ state: 'OPEN', end: '2026-10-16' });
-    expect(period.cutoffAt.toISOString()).toBe('2026-10-16T15:00:00.000Z'); // 18:00 in Nairobi
+    expect(period).toMatchObject({ state: 'OPEN', start: '2026-10-01', end: '2026-10-31', label: 'October 2026' });
+    expect(period.cutoffAt.toISOString()).toBe('2026-11-02T15:00:00.000Z'); // 18:00 in Nairobi on the 2nd day after the month ends
 
     const view = await m.getPeriod(townManager, periodId, query() as never, NOW);
     const lena = view.people.rows.find((r) => r.employeeId === ids.lena)!;
@@ -219,9 +219,9 @@ describe.skipIf(!enabled)('Timesheets flows in the database', () => {
   });
 
   it('the period closes at the Nairobi cut-off and not a second before, then refuses fixes', async () => {
-    expect(await m.sweepPeriods(new Date('2026-10-16T14:59:59Z'))).toEqual({ closed: 0 }); // 17:59:59 in Nairobi
-    expect(await m.sweepPeriods(new Date('2026-10-16T15:00:00Z'))).toEqual({ closed: 1 }); // 18:00:00 in Nairobi (it is 15:00 in UTC)
-    expect(await m.sweepPeriods(new Date('2026-10-16T15:10:00Z'))).toEqual({ closed: 0 }); // a second sweep does nothing
+    expect(await m.sweepPeriods(new Date('2026-11-02T14:59:59Z'))).toEqual({ closed: 0 }); // 17:59:59 in Nairobi on 2 Nov
+    expect(await m.sweepPeriods(new Date('2026-11-02T15:00:00Z'))).toEqual({ closed: 1 }); // 18:00:00 in Nairobi (it is 15:00 in UTC)
+    expect(await m.sweepPeriods(new Date('2026-11-02T15:10:00Z'))).toEqual({ closed: 0 }); // a second sweep does nothing
     expect(await m.prisma.timesheetPeriod.findUniqueOrThrow({ where: { id: periodId } })).toMatchObject({ state: 'CLOSED', closeKind: 'AUTO' });
     const fix = { action: 'ADD' as const, employeeId: ids.lena, date: D(5), type: 'OUT' as const, at: at(D(5), '14:00'), reason: 'A late fix' };
     await expect(m.applyFix(townManager, fix, NOW)).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
@@ -237,15 +237,15 @@ describe.skipIf(!enabled)('Timesheets flows in the database', () => {
   it('only HR reopens, with a reason; a wrong PIN signs nothing; the manager can close early', async () => {
     await expect(m.reopenPeriod(townManager, periodId, { reason: 'I want to' }, NOW)).rejects.toMatchObject({ statusCode: 403 });
     await expect(m.signReport(townManager, periodId, { pin: '0000' }, NOW)).rejects.toMatchObject({ code: 'INVALID_PIN' });
-    const reopened = await m.reopenPeriod(hr, periodId, { reason: 'Dan\'s clock-out was missed' }, new Date('2026-10-16T16:00:00Z'));
+    const reopened = await m.reopenPeriod(hr, periodId, { reason: 'Dan\'s clock-out was missed' }, new Date('2026-11-02T16:00:00Z'));
     expect(reopened).toMatchObject({ state: 'OPEN', reopenReason: 'Dan\'s clock-out was missed' });
     await expect(m.reopenPeriod(hr, periodId, { reason: 'Again' }, NOW)).rejects.toMatchObject({ code: 'NOT_CLOSED' });
     const out = await m.prisma.clockEvent.findFirstOrThrow({ where: { employeeId: ids.lena, shiftDate: m.time.toDateColumn(D(5)), type: 'OUT' } });
     await expect(m.previewFix(townManager, { action: 'EDIT', employeeId: ids.lena, date: D(5), eventId: out.id, at: at(D(5), '14:00'), reason: 'Now allowed' }, NOW)).resolves.toBeDefined();
     await expect(m.closePeriodEarly(townManager, periodId, { confirmCarry: false }, new Date('2026-10-14T09:00:00Z'))).rejects.toMatchObject({ code: 'TOO_EARLY' });
-    const early = await m.closePeriodEarly(townManager, periodId, { confirmCarry: false }, new Date('2026-10-16T09:00:00Z'));
+    const early = await m.closePeriodEarly(townManager, periodId, { confirmCarry: false }, new Date('2026-10-31T09:00:00Z'));
     expect(early).toMatchObject({ state: 'CLOSED', closeKind: 'EARLY', closedById: townManager.id });
-    await expect(m.closePeriodEarly(townManager, periodId, { confirmCarry: false }, new Date('2026-10-16T09:30:00Z'))).rejects.toMatchObject({ code: 'ALREADY_CLOSED' });
+    await expect(m.closePeriodEarly(townManager, periodId, { confirmCarry: false }, new Date('2026-10-31T09:30:00Z'))).rejects.toMatchObject({ code: 'ALREADY_CLOSED' });
     expect(seen).toEqual(expect.arrayContaining(['timesheet.period_closed', 'timesheet.period_reopened']));
   });
 

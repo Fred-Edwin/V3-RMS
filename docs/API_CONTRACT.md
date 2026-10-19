@@ -5380,7 +5380,7 @@ While a site's switch is on, the four legacy routes `POST /clock/in`, `/clock/ou
 
 ## 38. Workforce — Timesheets, overtime and requests (slice 4a, BUILT 18 Oct 2026, back end only)
 
-Base `/api/v1/workforce/timesheets`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`; scope is checked in the service. Success envelope `{ success: true, data }`. A write without the capability is 403; another branch is 404. Timesheets exist only for branches whose attendance switch is on (`GET /periods` answers `{ enabled: false }` otherwise). Lists take `page` and `pageSize` (5 to 100). **No response carries a pay figure.**
+Base `/api/v1/workforce/timesheets`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`; scope is checked in the service. Success envelope `{ success: true, data }`. A write without the capability is 403; another branch is 404. Timesheets exist only for branches whose attendance switch is on (`GET /periods` answers `{ enabled: false }` otherwise). **A period is one calendar month** (changed 19 Oct 2026): `period.start` the 1st, `period.end` the last day, `period.cutoffAt` 18:00 Nairobi on the 2nd day after it (October closes 2 Nov). A week that runs into the neighbouring month appears in each period's `weeks[]` (person view and My time) with `partWeek: true` and only that period's days; its overtime `limits.weekMinutes` counts the whole Monday to Sunday week. Lists take `page` and `pageSize` (5 to 100). **No response carries a pay figure.**
 
 | # | Method and path | Capability | Body or query | Success |
 |---|---|---|---|---|
