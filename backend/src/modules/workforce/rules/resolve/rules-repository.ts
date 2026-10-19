@@ -11,6 +11,9 @@ export type Db = Prisma.TransactionClient | typeof prisma;
 
 export type RuleVersionRow = RuleVersion & { confirmations: RuleConfirmation[]; withdrawal: RuleVersionWithdrawal | null };
 
+/** The plain (non-transaction) client, for the plan's read-only pre-flight; services pass it on and never query it themselves. */
+export const readDb: Db = prisma;
+
 export const withDetails = { confirmations: { orderBy: { confirmedAt: 'asc' as const } }, withdrawal: true };
 
 /** A withdrawn version is skipped by every question about what is in force or what comes next. */

@@ -1,5 +1,4 @@
 import { ZodError } from 'zod';
-import { prisma } from '../../../../config/database';
 import { AppError } from '../../../../utils/errors';
 import type { NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
@@ -9,6 +8,7 @@ import { impactRows } from '../plan/plan-impact';
 import { resolveNotice, toldCounts } from '../plan/plan-notice';
 import type { ImpactRow } from '../plan/plan.types';
 import { actorCompany } from '../resolve/rules-context';
+import { readDb } from '../resolve/rules-repository';
 import { confirmCapabilityOf, requireGroup } from '../rules-values';
 import { requestOf } from './versions-create';
 import type { ChangeBody } from './versions-validators';
@@ -59,7 +59,7 @@ export async function previewVersion(actor: AccessSubject, groupInput: string, b
   const group = requireGroup(groupInput);
   const request = requestOf(body);
   try {
-    const plan = await planChange(actor, group, request, prisma, now);
+    const plan = await planChange(actor, group, request, readDb, now);
     const notice = await resolveNotice(plan.companyId, plan.siteId, actor, plan.audiences);
     return {
       canSave: true,
@@ -82,7 +82,7 @@ export async function previewVersion(actor: AccessSubject, groupInput: string, b
   } catch (error) {
     const errors = asErrors(error);
     const { companyId } = await actorCompany(actor);
-    const window = await startWindow(companyId, group, request.siteId, [], now, prisma);
+    const window = await startWindow(companyId, group, request.siteId, [], now, readDb);
     return {
       canSave: false,
       errors,

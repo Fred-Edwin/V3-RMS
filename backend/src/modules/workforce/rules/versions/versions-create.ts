@@ -1,5 +1,4 @@
 import type { Prisma, RuleGroup } from '@prisma/client';
-import { prisma } from '../../../../config/database';
 import { ConflictError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { JsonValue } from '../../_shared/audit/audit.types';
@@ -11,7 +10,7 @@ import { planChange } from '../plan/plan-build';
 import { resolveNotice } from '../plan/plan-notice';
 import type { ChangeRequest, PlannedChange } from '../plan/plan.types';
 import { actorCompany } from '../resolve/rules-context';
-import { rulesRepository, type RuleVersionRow } from '../resolve/rules-repository';
+import { readDb, rulesRepository, type RuleVersionRow } from '../resolve/rules-repository';
 import type { RuleGroupCode } from '../rules-schemas';
 import type { RuleChangeNotice } from '../rules.types';
 import { requireGroup } from '../rules-values';
@@ -68,7 +67,7 @@ export async function createVersion(actor: AccessSubject, groupInput: string, bo
     const existing = await rulesRepository.findByKey(companyId, key);
     if (existing) return replayOf(actor, group, existing, request.siteId);
   }
-  await planChange(actor, group, request, prisma, now);
+  await planChange(actor, group, request, readDb, now);
   const signature = await verifySignerPin(actor.id, body.pin, now.getTime());
 
   const outcome = await runAudited<{ row: RuleVersionRow; plan: PlannedChange | null; notice: RuleChangeNotice }>(async (tx: Prisma.TransactionClient) => {
