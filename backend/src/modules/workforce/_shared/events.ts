@@ -52,7 +52,16 @@ export interface WorkforceEventPayloads {
   'attendance.switch_changed': { siteId: string; enabled: boolean; changedById: string };
   'overtime.requested': { siteId: string; employeeId: string; overtimeRequestId: string; minutesRequested: number };
   'timesheet.approved': { siteId: string; periodId: string; employeeId: string | null; approvedById: string; scope: 'LINE' | 'PERIOD' };
-  'payroll.published': { siteId: string; payRunId: string; publishedById: string };
+  // slice 4a (Timesheets). Minutes and names only, never a pay figure.
+  'timesheet.period_closed': { siteId: string; periodId: string; kind: 'AUTO' | 'EARLY'; closedById: string | null; carriedDays: number; carriedOvertime: number };
+  'timesheet.period_reopened': { siteId: string; periodId: string; reopenedById: string };
+  'timesheet.day_decided': { siteId: string; periodId: string; employeeId: string; userId: string | null; shiftDate: NairobiDate; outcome: 'ACCEPT' | 'EXCUSE' | 'HOLD'; decidedById: string };
+  'overtime.decided': { siteId: string; employeeId: string; userId: string | null; shiftDate: NairobiDate; outcome: 'APPROVED' | 'DECLINED'; authorisedMinutes: number; decidedById: string };
+  'time_request.created': { siteId: string; requestId: string; employeeId: string; userId: string | null; kind: string; waitingOnRole: string; waitingOnUserId: string | null };
+  'time_request.decided': { siteId: string; requestId: string; employeeId: string; userId: string | null; kind: string; outcome: 'APPROVED' | 'DECLINED'; decidedById: string };
+  'time_request.escalated': { siteId: string; requestId: string; employeeId: string; userId: string | null; kind: string; waitingDays: number };
+  'time_request.withdrawn': { siteId: string; requestId: string; employeeId: string };
+  'payroll.published':{ siteId: string; payRunId: string; publishedById: string };
   'department.head_changed': {
     siteId: string;
     departmentId: string;

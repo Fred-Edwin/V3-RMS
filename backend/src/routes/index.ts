@@ -49,7 +49,17 @@ import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 import carriersRoutes from '../modules/inventory/dispatch/carriers-routes';
 import deliveriesRoutes from '../modules/inventory/deliveries/deliveries-routes';
 import discrepanciesRoutes from '../modules/inventory/discrepancies/discrepancies-routes';
-import { registerPeople, workforceAttendanceRouter, workforceOrgRouter, workforcePeopleRouter, workforcePermissionsRouter, workforceRotaRouter, workforceRulesRouter } from '../modules/workforce';
+import {
+  registerPeople,
+  registerTimesheets,
+  workforceAttendanceRouter,
+  workforceOrgRouter,
+  workforcePeopleRouter,
+  workforcePermissionsRouter,
+  workforceRotaRouter,
+  workforceRulesRouter,
+  workforceTimesheetsRouter,
+} from '../modules/workforce';
 
 const apiRouter = Router();
 
@@ -121,5 +131,7 @@ apiRouter.use(workforcePeopleRouter);
 apiRouter.use(workforceOrgRouter);
 apiRouter.use(workforceRotaRouter);
 apiRouter.use(workforceAttendanceRouter);
+registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
+apiRouter.use(workforceTimesheetsRouter);
 
 export default apiRouter;

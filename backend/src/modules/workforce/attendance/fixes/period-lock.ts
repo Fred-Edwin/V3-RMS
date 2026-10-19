@@ -16,9 +16,9 @@ export const setPeriodClosedCheck = (next: PeriodClosedCheck | null): void => {
   check = next ?? neverClosed;
 };
 
-export async function assertPeriodOpen(subject: AccessSubject, args: { siteId: string; employeeId: string; date: NairobiDate }): Promise<void> {
-  if (subject.role === 'HR_MANAGER') return;
+/** Slice 4a: nobody fixes a day in a closed period, HR included; HR reopens the period first, with a reason (the audit trail). */
+export async function assertPeriodOpen(_subject: AccessSubject, args: { siteId: string; employeeId: string; date: NairobiDate }): Promise<void> {
   if (await check(args)) {
-    throw new ConflictError('That pay period is closed. Only HR can change it, with a reason.', 'PERIOD_CLOSED', { date: args.date });
+    throw new ConflictError('That pay period is closed. HR can reopen it, with a reason.', 'PERIOD_CLOSED', { date: args.date });
   }
 }

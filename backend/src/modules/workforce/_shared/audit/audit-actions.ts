@@ -64,6 +64,17 @@ export const AUDIT_ACTIONS = {
   'attendance.time_fixed': ['TIME'], // a correction: before and after, and why
   'attendance.switch_changed': ['TIME'], // a site's new clock was turned on or off
   'attendance.legacy_carried': ['TIME'], // today's legacy clock records copied across at switch-on, or back at switch-off
+  // slice 4a (Timesheets). Minutes, dates and reasons; never a pay figure.
+  'timesheet.auto_approved': ['TIME'], // the system approved days and weeks that matched the rota; channel SYSTEM
+  'timesheet.day_decided': ['TIME'], // accept, excuse lateness or hold, with a reason
+  'timesheet.overtime_decided': ['TIME'], // authorises the time only; payroll decides pay
+  'timesheet.period_closed': ['TIME'], // at the cut-off (channel SYSTEM) or early by a manager; open items carried on
+  'timesheet.period_reopened': ['TIME'], // HR, with a reason
+  'timesheet.period_signed': ['TIME'], // the manager signed the report with their PIN
+  'timesheet.request_created': ['TIME'], // Report a problem or clocked out by mistake
+  'timesheet.request_decided': ['TIME'], // accepted (with the correction made) or declined with a reason
+  'timesheet.request_withdrawn': ['TIME'],
+  'timesheet.request_escalated': ['TIME'], // no answer for 3 days: moved to HR; channel SYSTEM
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

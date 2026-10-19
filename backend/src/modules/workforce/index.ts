@@ -19,6 +19,10 @@ export { default as workforceAttendanceRouter } from './attendance/attendance-ro
 export { refuseLegacyClockWhenSwitched } from './attendance/switch/legacy-clock-guard'; // the four legacy clock routes answer 409 for a switched site
 export { sweepAutoClose } from './attendance/prompt/auto-close-service'; // the minute job: closes unanswered and forgotten shifts
 export { setPeriodClosedCheck, type PeriodClosedCheck } from './attendance/fixes/period-lock'; // slice 4 registers the closed-period answer
+export { default as workforceTimesheetsRouter } from './timesheets/timesheets-routes'; // Timesheets, overtime and requests (slice 4a)
+export { registerTimesheets } from './timesheets/register-timesheets'; // the closed-period answer for attendance fixes
+export { sweepTimesheets } from './timesheets/timesheets-sweep'; // the ten-minute job: closes periods at the cut-off, escalates old requests
+export { getApprovedHours, type ApprovedHours } from './timesheets/approved-hours'; // reporting and payroll read approved hours only, never raw clock events
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 
@@ -94,15 +98,7 @@ export {
 } from './_shared/events';
 
 // Calls that need later slices: declared now, stubbed (they throw NotBuiltYetError)
-export interface ApprovedHours {
-  workedMinutes: number;
-  overtimeApprovedMinutes: number;
-}
 /** Slice 5. */
 export async function isOnLeave(_userId: string, _date: NairobiDate): Promise<boolean> {
   throw new NotBuiltYetError('isOnLeave', 5);
-}
-/** Slice 4. Reporting reads approved hours only, never raw clock events. */
-export async function getApprovedHours(_userId: string, _period: { start: NairobiDate; end: NairobiDate }): Promise<ApprovedHours> {
-  throw new NotBuiltYetError('getApprovedHours', 4);
 }

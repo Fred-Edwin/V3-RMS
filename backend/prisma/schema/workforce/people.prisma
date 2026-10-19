@@ -139,6 +139,10 @@ model Employee {
   rotaEntries    RotaEntry[]
   clockEvents    ClockEvent[]
   shiftEndAnswers ShiftEndAnswer[]
+  timesheetDays   TimesheetDay[]
+  timesheetWeeks  TimesheetWeek[]
+  overtimeItems   OvertimeItem[]
+  timeRequests    TimeRequest[]
 
   @@unique([companyId, employeeNumber])
   @@index([siteId, status])

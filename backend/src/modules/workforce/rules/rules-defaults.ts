@@ -38,5 +38,9 @@ export const RULE_DEFAULTS: RuleValues = {
   },
   STATUTORY: { tables: [] }, // ships empty; the Accountant types and confirms before the first pay run
   HOLIDAYS: { enabled: false, payMultiplier: null, holidays: [] }, // off by default (decision D5)
-  WEEK_AND_BREAKS: { weekStartsOn: 1, timesheetPeriod: { kind: 'FIXED_WEEKS', weeks: 4, anchorDate: '2026-09-21' } }, // Monday; the anchor is the owner's sample period
+  WEEK_AND_BREAKS: {
+    weekStartsOn: 1,
+    timesheetPeriod: { kind: 'CALENDAR_MONTH' }, // owner decision 19 Oct 2026; FIXED_WEEKS stays parseable for stored rules
+    timesheetCutoff: { daysAfterPeriodEnd: 2, time: '18:00' }, // October closes on 2 Nov at 18:00 Nairobi
+  },
 };

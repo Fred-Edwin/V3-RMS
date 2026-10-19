@@ -29,6 +29,8 @@ export const CAPABILITIES = [
   'timesheet.read',
   'timesheet.approve',
   'overtime.approve',
+  'timesheet.close', // close a period early and sign its report (slice 4a amendment)
+  'timesheet.reopen', // HR reopens a closed period, with a reason (slice 4a amendment)
   'clock_mistake.resolve',
   'casual.record',
   'casual.approve',
@@ -144,6 +146,7 @@ const UNIT_MANAGER: Grants = {
   'timesheet.read': 'unit',
   'timesheet.approve': 'unit',
   'overtime.approve': 'unit',
+  'timesheet.close': 'unit',
   'clock_mistake.resolve': 'unit', // Store Manager resolves the Store Attendants' (decision D8)
   'casual.approve': 'unit',
   'casual.read': 'unit',
@@ -200,6 +203,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
     'overtime.approve': 'all',
+    'timesheet.close': 'all',
+    'timesheet.reopen': 'all',
     'casual.read': 'all',
     'leave.read': 'all',
     'leave.approve': 'all',
@@ -271,6 +276,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'timesheet.read': 'all',
     'timesheet.approve': 'all',
     'overtime.approve': 'all',
+    'timesheet.close': 'all',
     'clock_mistake.resolve': 'all',
     'leave.read': 'all',
     'leave.approve': 'all',

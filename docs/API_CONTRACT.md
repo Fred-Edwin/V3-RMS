@@ -5377,3 +5377,33 @@ Base `/api/v1/workforce/attendance`. Every route: `authenticate`, `attachWorkfor
 | S2 | `PUT /switch` | `attendance.switch` | `{ siteId, enabled }` | `{ enabled, carriedFromLegacy, mirroredToLegacy, notMirrored }`; 409 `OPEN_LEGACY_CLOCK_IN` |
 
 While a site's switch is on, the four legacy routes `POST /clock/in`, `/clock/out`, `/clock/undo-out` and `/clock/override` answer 409 `CLOCK_MOVED_TO_NEW_ATTENDANCE` for that site and change nothing; for every other site they behave as before.
+
+## 38. Workforce — Timesheets, overtime and requests (slice 4a, BUILT 18 Oct 2026, back end only)
+
+Base `/api/v1/workforce/timesheets`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`; scope is checked in the service. Success envelope `{ success: true, data }`. A write without the capability is 403; another branch is 404. Timesheets exist only for branches whose attendance switch is on (`GET /periods` answers `{ enabled: false }` otherwise). **A period is one calendar month** (changed 19 Oct 2026): `period.start` the 1st, `period.end` the last day, `period.cutoffAt` 18:00 Nairobi on the 2nd day after it (October closes 2 Nov). A week that runs into the neighbouring month appears in each period's `weeks[]` (person view and My time) with `partWeek: true` and only that period's days; its overtime `limits.weekMinutes` counts the whole Monday to Sunday week. Lists take `page` and `pageSize` (5 to 100). **No response carries a pay figure.**
+
+| # | Method and path | Capability | Body or query | Success |
+|---|---|---|---|---|
+| T1 | `GET /periods` | `timesheet.read` | `siteId?` | `{ enabled, periods[] }` (the current period is created on first read) |
+| T2 | `GET /periods/:id` | `timesheet.read` | `search?`, `departmentId?`, `filter?` (`ALL`, `NEEDS_LOOK`, `LATE`), `page`, `pageSize` | `{ period, summary, weeks, carriedInDays, counts, people: { rows, page, pageSize, total } }`; exceptions first |
+| T4 | `GET /periods/:id/people/:employeeId` | `timesheet.read` | | `{ period, person, days[], weeks[], overtime[], requests[] }` |
+| T5 | `GET /days/:id` | `timesheet.read` | | `{ day, person, history, overtime (with evidence, limits, ordersValue), requests }` |
+| T6 | `POST /days/:id/decision` | `timesheet.approve` | `{ outcome: ACCEPT, reason? }` or `{ outcome: EXCUSE\|HOLD, reason }` | the day. 409 `PERIOD_CLOSED`, `NOTHING_TO_DECIDE`, `OVERTIME_UNDECIDED`, `NOT_LATE`, `EXCUSE_WINDOW_OVER` |
+| O1 | `GET /overtime` | `timesheet.read` | `siteId?`, `periodId?`, `status` (`PENDING`, `DECIDED`, `ALL`), paging | `{ rows[] (each with person, evidence, limits, overdue), total }` |
+| O2 | `POST /overtime/:id/decision` | `overtime.approve` | `{ outcome: APPROVE, minutes?, reason? }` or `{ outcome: DECLINE, reason }` | the item. Authorises the time only. 403 `OVERTIME_NEEDS_MANAGER` (a head beyond the allowance); 409 `ALREADY_DECIDED`, `REASON_REQUIRED_OVER_LIMIT`, `PERIOD_CLOSED` |
+| P1 | `GET /periods/:id/report` | `timesheet.read` | | the landscape report TSH-000n: `{ number, site, period, summary, rows[], closed, signatures, carriedOnDays, carriedOnOvertime }` |
+| P2 | `POST /periods/:id/sign` | `timesheet.close` | `{ pin }` (the signer's own 4-digit PIN) | the period. 401 `INVALID_PIN`; 409 `NOT_CLOSED`, `ALREADY_SIGNED` |
+| P3 | `POST /periods/:id/close` | `timesheet.close` | `{ confirmCarry? }` | the period, closed early. Only on the last day or after. 409 `TOO_EARLY`, `ALREADY_CLOSED`, `OPEN_ITEMS` (send `confirmCarry: true` to hand what is open to the next period for HR) |
+| P4 | `POST /periods/:id/reopen` | `timesheet.reopen` | `{ reason }` | the period, open again with a new cut-off. 409 `NOT_CLOSED` |
+| R1 | `GET /requests` | `timesheet.read` | `siteId?`, `state` (`WAITING`, `ANSWERED`, `ALL`), `search?`, paging | the inbox, oldest waiting first |
+| R2 | `POST /requests/:id/decision` | `timesheet.approve` | `{ outcome: APPROVE, reason? }` or `{ outcome: DECLINE, reason }` | the request with `answerAfter`. An accepted clock request makes the correction through the attendance fix door. 403 `HR_ONLY`, `MISTAKE_NOT_YOURS`, `CANNOT_FIX_TIME`; 409 `ALREADY_ANSWERED`, `PERIOD_CLOSED` |
+| R3 | `GET /requests/:id` | `timesheet.read` or `time.own` | | the request (its owner, or a reader in scope) |
+| R4 | `GET /me/requests` | `time.own` | `state?` (`OPEN`, `ALL`) | `{ requests[] }` with `waitingOnName`, `waitingDays`, `escalatedToHr`, `answerAfter` |
+| R5 | `POST /me/requests` | `time.own` | one of six kinds, see below | 201 the request (a second identical open request returns the first) |
+| R6 | `POST /me/requests/:id/withdraw` | `time.own` | | the request. 409 `NOT_WAITING` |
+| M1 | `GET /me/time` | `time.own` | `periodId?` | `{ enabled, period, periods, days[], weeks[], totals, openRequests }`, own record only |
+| M2 | `GET /me/rota` | `time.own` | `from?`, `to?` (up to 62 days; default today and 13 days) | `{ enabled, from, to, shifts[] }` |
+
+R5 bodies (all carry `date` and a one-line `note`): `CLOCK_TIME_WRONG { type: IN\|OUT, at }`, `WORKED_NOT_RECORDED { clockIn, clockOut }`, `CLOCKED_OUT_BY_MISTAKE { at? }` (no time takes the clock-out away), `ROTA_WRONG`, `OVERTIME_MISSING { minutes? }`, `PAY_OTHER`. Errors: 409 `ATTENDANCE_NOT_ENABLED`, `NOTHING_TO_REVERSE`; 400 `DATE_IN_FUTURE`, `DATE_TOO_OLD` (over 45 days).
+
+The scheduled task `timesheets.sweep` (every 10 minutes, Nairobi time) closes periods past their cut-off and moves requests unanswered for 3 days to HR. A closed period refuses attendance fixes (`PERIOD_CLOSED` on `POST /workforce/attendance/fixes`, HR included; HR reopens first). The door gains `getApprovedHours(userId, period)` (approved minutes only).

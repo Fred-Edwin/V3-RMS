@@ -105,6 +105,11 @@ model Site {
   clockEvents                  ClockEvent[]
   attendanceSwitch             AttendanceSiteSwitch?
   shiftEndAnswers              ShiftEndAnswer[]
+  timesheetPeriods             TimesheetPeriod[]
+  timesheetDays                TimesheetDay[]
+  timesheetWeeks               TimesheetWeek[]
+  overtimeItems                OvertimeItem[]
+  timeRequests                 TimeRequest[]
 
   @@index([companyId])
   @@map("organizations")
