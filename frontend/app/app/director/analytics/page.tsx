@@ -151,6 +151,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [itemsSortKey, setItemsSortKey] = useState<'revenue' | 'quantitySold'>('revenue');
   const [itemsSortDir, setItemsSortDir] = useState<'desc' | 'asc'>('desc');
+  const [itemsSearch, setItemsSearch] = useState('');
 
   // ── Discounts (tab 7) ─────────────────────────────────────────────────────
   const [discountsBranchId, setDiscountsBranchId] = useState<string>('');
@@ -785,23 +786,29 @@ export default function DirectorAnalyticsPage(): JSX.Element {
 
   // ── Items sort ────────────────────────────────────────────────────────────
 
+  const itemsSearchTerm = itemsSearch.trim().toLowerCase();
+
   const sortedTopItems = useMemo(() => {
     if (!itemsData) return [];
-    return [...itemsData.topItems].sort((a, b) => {
-      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
-      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
-      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-  }, [itemsData, itemsSortKey, itemsSortDir]);
+    return itemsData.topItems
+      .filter((i) => !itemsSearchTerm || i.name.toLowerCase().includes(itemsSearchTerm) || i.categoryName.toLowerCase().includes(itemsSearchTerm))
+      .sort((a, b) => {
+        const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
+        const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
+        return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
+      });
+  }, [itemsData, itemsSortKey, itemsSortDir, itemsSearchTerm]);
 
   const sortedBottomItems = useMemo(() => {
     if (!itemsData) return [];
-    return [...itemsData.bottomItems].sort((a, b) => {
-      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
-      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
-      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-  }, [itemsData, itemsSortKey, itemsSortDir]);
+    return itemsData.bottomItems
+      .filter((i) => !itemsSearchTerm || i.name.toLowerCase().includes(itemsSearchTerm) || i.categoryName.toLowerCase().includes(itemsSearchTerm))
+      .sort((a, b) => {
+        const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
+        const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
+        return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
+      });
+  }, [itemsData, itemsSortKey, itemsSortDir, itemsSearchTerm]);
 
   const handleItemsSort = useCallback((key: 'revenue' | 'quantitySold') => {
     if (itemsSortKey === key) {
@@ -1203,6 +1210,17 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-label-sm text-stone-500">Search</span>
+                <input
+                  type="search"
+                  placeholder="Search item or category…"
+                  aria-label="Search items"
+                  value={itemsSearch}
+                  onChange={(e) => setItemsSearch(e.target.value)}
+                  className="h-[34px] w-52 rounded-md border border-stone-200 bg-white px-3 text-body-sm text-stone-800 shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber"
+                />
+              </div>
               <Select
                 label="Branch"
                 value={itemsBranchId}
