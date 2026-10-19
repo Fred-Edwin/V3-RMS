@@ -5,13 +5,13 @@ import * as React from 'react';
 import { useAuthStore } from '@/store/authStore';
 
 import { Callout, ClockCard, PhoneButton } from '../../../_shared';
-import { dayWords, hmOf } from '../../_shared/lib/nairobi-clock';
+import { dateOf, dayWords, hmOf } from '../../_shared/lib/nairobi-clock';
 import type { MyDay } from '../../_shared/types/attendance-types';
 import { useClockActions } from '../hooks/use-clock-actions';
 import { useServerNow } from '../hooks/use-my-day';
 import { CLOCK_COPY } from '../lib/clock-copy';
 import { clockCardModel } from '../lib/clock-view';
-import { ClosedNotices, HeadsUpNote, UndoNote, WaitingToSend } from './clock-notes';
+import { ClosedNotices, HeadsUpNote, ReportProblemLink, UndoNote, WaitingToSend } from './clock-notes';
 import { LeavingEarlyPrompt } from './leaving-early-prompt';
 import { ShiftEndPrompt } from './shift-end-prompt';
 
@@ -83,7 +83,14 @@ export function ClockHomeCard({ day, reload }: { day: MyDay; reload: () => void 
       <UndoNote entry={entry} nowMs={nowMs} busy={actions.busy} onUndo={() => void actions.undo()} />
       {model.phase === 'HEADS_UP' ? <HeadsUpNote entry={entry} minutes={headsUpMinutes} /> : null}
       <ClosedNotices notices={day.notices} />
-      {entry.clockedOutAt && model.phase === 'DONE' ? <p className="m-0 px-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Clocked out at {hmOf(entry.clockedOutAt)} by mistake? Ask your manager; they can put it right.</p> : null}
+      {entry.clockedOutAt && model.phase === 'DONE' ? (
+        <p className="m-0 px-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+          Clocked out at {hmOf(entry.clockedOutAt)} by mistake?{' '}
+          <ReportProblemLink date={dateOf(entry.clockedOutAt)} className="font-medium text-wds-primary underline underline-offset-2">
+            Report a problem
+          </ReportProblemLink>
+        </p>
+      ) : null}
 
       {leaving ? (
         <LeavingEarlyPrompt

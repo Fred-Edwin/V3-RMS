@@ -8,3 +8,4 @@ export { PrintRoute } from './print/components/print-route';
 export { useMyShifts } from './_shared/hooks/use-rota-data';
 export { weekPlan, type WeekPlanDay } from './_shared/lib/my-week';
 export { addDays, mondayOf, nairobiToday } from './_shared/lib/rota-dates';
+export { toneOfColour } from './_shared/lib/shift-look';

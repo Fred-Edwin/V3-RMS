@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { Callout, PhoneButton, formatMmSs } from '../../../_shared';
-import { hmOf } from '../../_shared/lib/nairobi-clock';
+import { dateOf, hmOf } from '../../_shared/lib/nairobi-clock';
 import type { MyEntry, MyNotice } from '../../_shared/types/attendance-types';
 import type { QueuedTap } from '../lib/offline-queue';
 import { CLOCK_COPY } from '../lib/clock-copy';
@@ -63,12 +64,21 @@ export function WaitingToSend({ queued, site, notSaved }: { queued: readonly Que
   );
 }
 
-/** A shift the phone closed (Paper step 5, right). "I worked longer" is a request that arrives with slice 4; until then the words say where to go. */
+/** The way into Report a problem for a day (Timesheets, slice 4a): "Clocked out by mistake?" and "I worked longer" both end here. */
+export function ReportProblemLink({ date, className, children }: { date: string; className?: string; children: React.ReactNode }) {
+  return (
+    <Link href={`/app/workforce/my-time/report?date=${date}`} className={className ?? 'font-wds-sans text-[13px] font-medium text-wds-primary underline underline-offset-2'}>
+      {children}
+    </Link>
+  );
+}
+
+/** A shift the phone closed (Paper step 5, right). "I worked longer" is a Report a problem. */
 export function ClosedNotices({ notices }: { notices: readonly MyNotice[] }) {
   return (
     <>
       {notices.map((n) => (
-        <Callout key={n.entryId} tone="warning" variant="bar" title={CLOCK_COPY.closedTitle(hmOf(n.closedAt))}>
+        <Callout key={n.entryId} tone="warning" variant="bar" title={CLOCK_COPY.closedTitle(hmOf(n.closedAt))} action={<ReportProblemLink date={dateOf(n.closedAt)}>Report a problem</ReportProblemLink>}>
           {CLOCK_COPY.closedBody}
         </Callout>
       ))}

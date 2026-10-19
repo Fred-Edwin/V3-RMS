@@ -109,4 +109,10 @@ export function requestTitle(kind: RequestKind, requested: Record<string, unknow
 
 export const REQUEST_STATE_WORDS: Record<RequestState, string> = { WAITING: 'WAITING', APPROVED: 'APPROVED', DECLINED: 'NOT APPROVED', WITHDRAWN: 'WITHDRAWN' };
 
-export const weekdayOf = (day: string): string => WEEKDAY_ONLY.format(noon(day));
+const STAMP_DAY = nairobi({ day: 'numeric', month: 'short', year: 'numeric' });
+/** "3 Nov 2026, 09:12" for an instant, in Nairobi time. */
+export const stampOf = (iso: string): string => `${STAMP_DAY.format(new Date(iso))}, ${hmOf(iso)}`;
+
+export const ROLE_WORDS: Record<string, string> = { MANAGER: 'Branch Manager', STORE_MANAGER: 'Store Manager', HR_MANAGER: 'HR Manager', SYSTEM_ADMIN: 'System Admin', DIRECTOR: 'Director', ACCOUNTANT: 'Accountant' };
+
+export const weekdayOf =(day: string): string => WEEKDAY_ONLY.format(noon(day));

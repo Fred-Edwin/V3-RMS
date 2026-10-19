@@ -26,14 +26,14 @@ export const STAY_ON_ESTIMATES: readonly ChoiceOption[] = [
 export const CLOCK_COPY = {
   locationNote: (site: string): string => `Your phone checks you are at ${site}.`,
   undoTitle: (kind: 'IN' | 'OUT', at: string): string => (kind === 'IN' ? `Clocked in at ${at}` : `Clocked out at ${at}`),
-  undoNote: 'Tapped by mistake? Undo removes it and nothing is recorded. After two minutes, ask your manager.',
+  undoNote: 'Tapped by mistake? Undo removes it and nothing is recorded. After two minutes, report it from My time.',
   headsUpTitle: (end: string): string => `Your shift ends at ${end}`,
   headsUpBody: (minutes: number): string => `In ${minutes} minutes your phone will ask you to finish or stay on. Wrap up what you are doing.`,
   noSignalTitle: (kind: 'IN' | 'OUT', at: string): string => `Saved on this phone: clocked ${kind === 'IN' ? 'in' : 'out'} ${at}`,
   noSignalBody: 'There is no signal here. Your tap is kept with the exact time, and it is sent the moment you are online. You do not need to tap again.',
   notSaved: 'This phone could not keep your tap. Try again when you have a signal, or tell your manager.',
   closedTitle: (at: string): string => `Your shift was closed at ${at}`,
-  closedBody: 'You did not answer the end-of-shift question within 15 minutes, so the shift was closed at its end and marked for your manager to check. If you worked longer, ask your manager to put it right.',
+  closedBody: 'You did not answer the end-of-shift question within 15 minutes, so the shift was closed at its end and marked for your manager to check. If you worked longer, report it and your manager will put it right.',
   switchedOff: 'Your branch still uses the old clock.',
 } as const;
 

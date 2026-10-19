@@ -237,6 +237,9 @@ export type NewRequest =
   | { kind: 'PAY_OTHER'; date: string; note: string };
 
 export interface MyDay extends Day {
+  /** The first shift's clock-in and clock-out as ISO instants; null when not clocked. */
+  clockIn: string | null;
+  clockOut: string | null;
   overtime: Pick<Overtime, 'status' | 'authorisedMinutes' | 'needsMinutes' | 'rawMinutes'> | null;
   requests: { id: string; kind: RequestKind; state: RequestState }[];
 }
