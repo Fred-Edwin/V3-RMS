@@ -51,6 +51,7 @@ import deliveriesRoutes from '../modules/inventory/deliveries/deliveries-routes'
 import discrepanciesRoutes from '../modules/inventory/discrepancies/discrepancies-routes';
 import {
   registerPeople,
+  registerPayroll,
   registerTimesheets,
   workforceAttendanceRouter,
   workforceOrgRouter,
@@ -133,6 +134,7 @@ apiRouter.use(workforceOrgRouter);
 apiRouter.use(workforceRotaRouter);
 apiRouter.use(workforceAttendanceRouter);
 registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
+registerPayroll(); // a branch with an unpaid payroll month cannot switch its new clock off (Workforce Segment 2A)
 apiRouter.use(workforceTimesheetsRouter);
 apiRouter.use(workforcePayrollRouter);
 

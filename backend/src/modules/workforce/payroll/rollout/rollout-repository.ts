@@ -10,4 +10,10 @@ export const rolloutRepository = {
     ]);
     return { switchEnabled: switchRow?.enabled ?? false, switchEnabledAt: switchRow?.enabledAt ?? null, firstPayrollMonth: first?.monthKey ?? null };
   },
+
+  /** The payroll months that include the site and are not paid. (Part 2 adds the PAID state; until then every month holds the site.) */
+  async unpaidMonthKeys(siteId: string): Promise<string[]> {
+    const rows = await prisma.payrollMonth.findMany({ where: { includedSiteIds: { has: siteId } }, select: { monthKey: true, state: true }, orderBy: { monthKey: 'asc' } });
+    return rows.filter((row) => (row.state as string) !== 'PAID').map((row) => row.monthKey);
+  },
 };

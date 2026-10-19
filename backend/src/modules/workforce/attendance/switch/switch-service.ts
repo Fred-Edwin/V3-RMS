@@ -6,6 +6,7 @@ import { resolveActor } from '../../people/people-context';
 import { eventOf, timeEntry } from '../attendance-audit';
 import { daysRepository } from '../days/days-repository';
 import { carryLegacyIn, mirrorBack, openLegacyClockIns } from './switch-carry';
+import { assertMaySwitchOff } from './switch-off-check';
 import { switchRepository, type SwitchRow } from './switch-repository';
 
 export interface SwitchView {
@@ -77,6 +78,7 @@ export async function setSwitch(subject: AccessSubject, siteId: string, enabled:
       }
       carried = (await carryLegacyIn(tx, siteId, today)).carried;
     } else {
+      await assertMaySwitchOff(siteId); // Payroll: not while a month that includes this site is unpaid
       const result = await mirrorBack(tx, siteId, today);
       mirrored = result.mirrored;
       notMirrored = result.notMirrored;

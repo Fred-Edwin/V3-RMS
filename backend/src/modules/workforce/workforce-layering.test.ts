@@ -105,7 +105,7 @@ describe('the public door (contract 7.2)', () => {
       // timesheets (slice 4a)
       'workforceTimesheetsRouter', 'registerTimesheets', 'sweepTimesheets', 'getApprovedHours',
       // payroll (segment 2A)
-      'isSitePeriodOnNewPayroll', 'workforcePayrollRouter', 'sweepPayroll', 'refreshPayrollEstimates',
+      'isSitePeriodOnNewPayroll', 'registerPayroll', 'workforcePayrollRouter', 'sweepPayroll', 'refreshPayrollEstimates',
       // people (slice 1)
       'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access
