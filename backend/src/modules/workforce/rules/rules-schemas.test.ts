@@ -164,7 +164,7 @@ describe('field policy', () => {
 
   it('pay fields are flagged: the multiplier, the cap, casual rates, statutory tables and the holiday rate', () => {
     const pay = GROUPS.flatMap((group) => Object.entries<{ pay?: boolean }>(RULE_FIELD_POLICY[group]).filter(([, p]) => p.pay === true).map(([field]) => `${group}.${field}`));
-    expect(pay.sort()).toEqual(['CASUAL_WORK.defaultDailyRate', 'CASUAL_WORK.rates', 'HOLIDAYS.payMultiplier', 'LATENESS.deductionCapPercentOfPay', 'OVERTIME.multipliers', 'STATUTORY.tables']);
+    expect(pay.sort()).toEqual(['CASUAL_WORK.defaultDailyRate', 'CASUAL_WORK.rates', 'HOLIDAYS.payMultiplier', 'LATENESS.deductionCapPercentOfPay', 'LEAVE.unpaidDayDivisor', 'OVERTIME.multipliers', 'STATUTORY.tables']);
   });
 
   it('only lateness, overtime and leave (minimum cover) can be overridden by a site', () => {

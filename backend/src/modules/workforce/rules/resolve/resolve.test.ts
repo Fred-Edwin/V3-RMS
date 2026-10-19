@@ -125,7 +125,7 @@ describe('isPayConfirmed', () => {
 });
 
 describe('getEffective (HTTP read)', () => {
-  it('STATUTORY is locked without payrun.read, open with it', async () => {
+  it('STATUTORY is locked without payroll.read, open with it', async () => {
     const asManager = await getEffective(as('bm1'), 's1', date('2026-10-06'));
     expect(asManager.groups.find((g) => g.group === 'STATUTORY')).toEqual({ group: 'STATUTORY', locked: true });
     const asAccountant = await getEffective(as('acc'), 's1', date('2026-10-06'));

@@ -74,11 +74,16 @@ export const CAPABILITIES = [
   'rules.confirm.statutory',
   'rules.confirm.holiday_list',
   // pay
-  'payrun.read',
-  'payrun.prepare',
-  'payrun.approve',
-  'payrun.publish',
-  'payrun.reopen',
+  'payroll.read', // the Payroll page and the statutory tables card (replaces payrun.read)
+  'payroll.review', // HR: tick lines, add adjustments, leave people out, recalculate, send to the Accountant
+  'payroll.approve', // Accountant: approve with a PIN, send back
+  'payroll.publish', // HR (part 2)
+  'payroll.pay', // Accountant: bank file, mark paid (part 2)
+  'payroll.correct', // HR and Accountant (part 2)
+  'payroll.export', // Accountant, HR, Director (part 2)
+  'payroll.remind', // HR, Accountant, Director: remind a site that has not approved
+  'payroll.estimate.read', // the Director's estimate of the open month
+  'payroll.approve_site_late', // Director: approve a site's timesheet month for it, 5 days after month end (P4)
   // conduct
   'discipline.read_own',
   'discipline.read',
@@ -193,8 +198,13 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rules.edit.holiday_pay': 'all',
     'rules.confirm.pay_rates': 'all',
     'rules.confirm.statutory': 'all',
-    'payrun.read': 'all',
-    'payrun.approve': 'all',
+    'payroll.read': 'all',
+    'payroll.approve': 'all',
+    'payroll.pay': 'all',
+    'payroll.correct': 'all',
+    'payroll.export': 'all',
+    'payroll.remind': 'all',
+    'payroll.estimate.read': 'all',
     'audit.read.pay_run_decide': 'all',
     'audit.read.rules_pay': 'all',
   },
@@ -226,9 +236,13 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'org.write_heads': 'all',
     'rules.read': 'all',
     'rules.edit.leave_types': 'all',
-    'payrun.read': 'all',
-    'payrun.prepare': 'all',
-    'payrun.publish': 'all',
+    'payroll.read': 'all',
+    'payroll.review': 'all',
+    'payroll.publish': 'all',
+    'payroll.correct': 'all',
+    'payroll.export': 'all',
+    'payroll.remind': 'all',
+    'payroll.estimate.read': 'all',
     'discipline.read': 'all',
     'discipline.issue': 'all',
     'audit.read.people': 'all',
@@ -265,9 +279,11 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rules.edit.holidays': 'all',
     'rules.edit.week_breaks': 'all',
     'rules.confirm.holiday_list': 'all',
-    'payrun.read': 'all',
-    'payrun.publish': 'all',
-    'payrun.reopen': 'all',
+    'payroll.read': 'all',
+    'payroll.export': 'all',
+    'payroll.remind': 'all',
+    'payroll.estimate.read': 'all',
+    'payroll.approve_site_late': 'all',
     'discipline.read': 'all',
     ...ALL_AUDIT_READS,
   },
@@ -293,11 +309,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'org.write_heads': 'all',
     'rules.read': 'all',
     'rules.edit.min_cover': 'all', // reads every tab; changes minimum cover only (1B, decision D6)
-    'payrun.read': 'all',
-    'payrun.prepare': 'all',
-    'payrun.approve': 'all',
-    'payrun.publish': 'all',
-    'payrun.reopen': 'all',
+    'payroll.read': 'all',
+    'payroll.estimate.read': 'all',
     'audit.read.security': 'all',
     'audit.read.rules_operating': 'all',
     'audit.read.rules_pay': 'all',

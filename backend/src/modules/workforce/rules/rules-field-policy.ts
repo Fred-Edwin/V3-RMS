@@ -46,6 +46,7 @@ export const RULE_FIELD_POLICY: Policy = {
   } as Policy['ATTENDANCE'],
   LEAVE: {
     ...fields('rules.edit.leave_types', ['leaveTypes', 'defaultPolicy']),
+    unpaidDayDivisor: { edit: 'rules.edit.leave_types', site: false, pay: true, nextMonth: true },
     minimumCover: { edit: 'rules.edit.min_cover', site: true },
   } as Policy['LEAVE'],
   PROBATION: fields('rules.edit.probation', ['defaultMonths', 'maxExtensions', 'maxExtensionMonths', 'reminderDaysBeforeEnd', 'reportDays']) as Policy['PROBATION'],

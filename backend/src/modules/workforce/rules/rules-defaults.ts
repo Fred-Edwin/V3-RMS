@@ -26,6 +26,7 @@ export const RULE_DEFAULTS: RuleValues = {
     ],
     defaultPolicy: {},
     minimumCover: {},
+    unpaidDayDivisor: 30,
   },
   PROBATION: { defaultMonths: 3, maxExtensions: 1, maxExtensionMonths: 3, reminderDaysBeforeEnd: 14, reportDays: [45, 80] },
   CASUAL_WORK: { defaultDailyRate: null, rates: [], pettyCashHolder: { mode: 'BRANCH_MANAGER' }, latenessReducesPayout: true },

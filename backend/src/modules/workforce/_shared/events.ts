@@ -62,6 +62,12 @@ export interface WorkforceEventPayloads {
   'time_request.escalated': { siteId: string; requestId: string; employeeId: string; userId: string | null; kind: string; waitingDays: number };
   'time_request.withdrawn': { siteId: string; requestId: string; employeeId: string };
   'payroll.published':{ siteId: string; payRunId: string; publishedById: string };
+  // Segment 2A (Payroll part 1). Never a pay figure. `monthKey` is YYYY-MM; the month is company wide.
+  'payroll.month_calculated': { monthKey: string; runNumber: number; headcount: number; calculatedById: string | null; blocking: number };
+  'payroll.month_sent': { monthKey: string; sentById: string };
+  'payroll.month_sent_back': { monthKey: string; sentBackById: string; reason: string };
+  'payroll.month_approved': { monthKey: string; approvedById: string; documentNumber: string; headcount: number };
+  'payroll.site_reminded': { monthKey: string; siteId: string; remindedById: string };
   'department.head_changed': {
     siteId: string;
     departmentId: string;

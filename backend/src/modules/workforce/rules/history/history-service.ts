@@ -39,13 +39,13 @@ export interface HistoryQuery {
 const toldRoles = (group: RuleGroupCode): { role: string }[] => [...new Set(toldAudiencesOf(group).map((audience) => AUDIENCE_ROLE[audience]))].map((role) => ({ role }));
 
 /**
- * Every change to a tab, newest first, one page at a time. Needs rules.read; STATUTORY comes back locked without payrun.read.
+ * Every change to a tab, newest first, one page at a time. Needs rules.read; STATUTORY comes back locked without payroll.read.
  * A holder limited to one site reads the company rule and their own site, and nothing else (another site is a 404).
  */
 export async function listHistory(actor: AccessSubject, groupInput: string, query: HistoryQuery, now: Date = new Date()): Promise<HistoryPage | LockedRuleGroup> {
   if (!workforceCan(actor, 'rules.read')) throw new ForbiddenError('You do not have permission to perform this action');
   const group = requireGroup(groupInput);
-  if (group === 'STATUTORY' && !workforceCan(actor, 'payrun.read')) return { group, locked: true };
+  if (group === 'STATUTORY' && !workforceCan(actor, 'payroll.read')) return { group, locked: true };
   const { companyId } = await actorCompany(actor);
   const site = query.siteId ? await assertCanReadSite(actor, query.siteId, companyId) : null;
   if (query.siteId && !isSiteGroup(group)) throw new NotFoundError('This tab has no site rules');
@@ -54,7 +54,7 @@ export async function listHistory(actor: AccessSubject, groupInput: string, quer
   const pageRows = rows.slice(0, query.pageSize);
   const previousOf = (row: (typeof rows)[number]) => rows.find((candidate) => candidate.version === row.version - 1) ?? null;
   const views = await toViews(companyId, group, query.siteId, pageRows, previousOf, now);
-  const mayReadPay = workforceCan(actor, 'payrun.read');
+  const mayReadPay = workforceCan(actor, 'payroll.read');
   const told = toldRoles(group);
 
   const items = views.map((view, index): HistoryItem => {

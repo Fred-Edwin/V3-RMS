@@ -82,11 +82,16 @@ rules.edit.week_breaks       -    -    -    -    -    all  -
 rules.confirm.pay_rates      -    -    all  -    -    -    -
 rules.confirm.statutory      -    -    all  -    -    -    -
 rules.confirm.holiday_list   -    -    -    -    -    all  -
-payrun.read                  -    -    all  -    all  all  all
-payrun.prepare               -    -    -    -    all  -    all
-payrun.approve               -    -    all  -    -    -    all
-payrun.publish               -    -    -    -    all  all  all
-payrun.reopen                -    -    -    -    -    all  all
+payroll.read                 -    -    all  -    all  all  all
+payroll.review               -    -    -    -    all  -    -
+payroll.approve              -    -    all  -    -    -    -
+payroll.publish              -    -    -    -    all  -    -
+payroll.pay                  -    -    all  -    -    -    -
+payroll.correct              -    -    all  -    all  -    -
+payroll.export               -    -    all  -    all  all  -
+payroll.remind               -    -    all  -    all  all  -
+payroll.estimate.read        -    -    all  -    all  all  all
+payroll.approve_site_late    -    -    -    -    -    all  -
 discipline.read_own          own  -    own  own  own  own  -
 discipline.read              -    -    -    unit all  all  -
 discipline.issue             -    -    -    unit all  -    -
@@ -308,7 +313,7 @@ describe('guards', () => {
     });
     it('passes with the capability, or with any one of several', () => {
       expect(run(subject('MANAGER'), 'rules.read').called).toBe(true);
-      expect(run(subject('MANAGER'), 'payrun.approve', 'rules.read').called).toBe(true);
+      expect(run(subject('MANAGER'), 'payroll.approve', 'rules.read').called).toBe(true);
     });
   });
 });
@@ -446,11 +451,11 @@ describe('Rules permissions table (1B, section 14)', () => {
     expect(policy['WEEK_AND_BREAKS']?.['timesheetPeriod']?.edit).toBeNull();
   });
 
-  it('Statutory: the Accountant changes and confirms; the Director, HR and System Admin read it; a manager has no payrun.read and gets the locked card', () => {
+  it('Statutory: the Accountant changes and confirms; the Director, HR and System Admin read it; a manager has no payroll.read and gets the locked card', () => {
     row('STATUTORY', 'tables', { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'P' });
     expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.statutory')).toBe('all');
-    for (const role of ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT'] as UserRole[]) expect(scopeOf(subject(role), 'payrun.read'), role).toBe('all');
-    for (const role of ['MANAGER', 'STORE_MANAGER'] as UserRole[]) expect(scopeOf(subject(role), 'payrun.read'), role).toBeNull();
+    for (const role of ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT'] as UserRole[]) expect(scopeOf(subject(role), 'payroll.read'), role).toBe('all');
+    for (const role of ['MANAGER', 'STORE_MANAGER'] as UserRole[]) expect(scopeOf(subject(role), 'payroll.read'), role).toBeNull();
   });
 
   it('Holidays list: the Director changes and confirms it', () => {

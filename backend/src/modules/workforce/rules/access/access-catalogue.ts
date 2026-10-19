@@ -38,7 +38,7 @@ export const ROWS: Record<RuleGroupCode, RowDef[]> = {
     { id: 'rounding', fields: ['roundingMinutes', 'roundingMode'], fixed: true },
   ],
   LEAVE: [
-    { id: 'leaveTypes', fields: ['leaveTypes', 'defaultPolicy'], short: 'leave types' },
+    { id: 'leaveTypes', fields: ['leaveTypes', 'defaultPolicy', 'unpaidDayDivisor'], short: 'leave types' },
     { id: 'minimumCover', fields: ['minimumCover'], short: 'minimum cover' },
   ],
   PROBATION: [

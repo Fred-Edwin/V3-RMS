@@ -79,6 +79,18 @@ export const AUDIT_ACTIONS = {
   'timesheet.request_decided': ['TIME'], // accepted (with the correction made) or declined with a reason
   'timesheet.request_withdrawn': ['TIME'],
   'timesheet.request_escalated': ['TIME'], // no answer for 3 days: moved to HR; channel SYSTEM
+  // Segment 2A (Payroll, part 1). Counts, document numbers and reasons; never a PIN or a bank account number. Totals appear only as counts of people.
+  'payroll.calculated': ['PAY_RUN_PREPARE'], // run n, headcount; by the system (SYSTEM) or HR
+  'payroll.review_checked': ['PAY_RUN_PREPARE'], // a review line ticked or un-ticked (one entry per request, also for "tick all of a kind")
+  'payroll.adjustment_added': ['PAY_RUN_PREPARE'], // kind, label, who; the amount is stored on the adjustment, not here
+  'payroll.adjustment_removed': ['PAY_RUN_PREPARE'],
+  'payroll.person_left_out': ['PAY_RUN_PREPARE'],
+  'payroll.sent_to_accountant': ['PAY_RUN_PREPARE'],
+  'payroll.sent_back': ['PAY_RUN_DECIDE'], // the Accountant's reason, no figures
+  'payroll.approved': ['PAY_RUN_DECIDE'], // document number, hand-check flag
+  'payroll.hand_check_confirmed': ['PAY_RUN_DECIDE'],
+  'payroll.site_approved_late': ['PAY_RUN_DECIDE'], // the Director approved a site's timesheet month for it (P4)
+  'payroll.reminder_sent': ['PAY_RUN_PREPARE'],
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

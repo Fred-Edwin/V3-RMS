@@ -75,7 +75,7 @@ const pendingOf = (rows: (RuleVersionRow | null)[], group: RuleGroupCode, today:
 export async function getRulesPage(actor: AccessSubject, groupInput: string, requestedSiteId: string | null, now: Date = new Date()): Promise<RulesPage | LockedRuleGroup> {
   if (!workforceCan(actor, 'rules.read')) throw new ForbiddenError('You do not have permission to perform this action');
   const group = requireGroup(groupInput);
-  if (group === 'STATUTORY' && !workforceCan(actor, 'payrun.read')) return { group, locked: true };
+  if (group === 'STATUTORY' && !workforceCan(actor, 'payroll.read')) return { group, locked: true };
   const { companyId } = await actorCompany(actor);
 
   const unitOnly = scopeOf(actor, 'rules.read') === 'unit';
@@ -126,7 +126,7 @@ export async function getRulesPage(actor: AccessSubject, groupInput: string, req
           const keys = Object.keys(asValues(row.values));
           if (!name || !row.siteId || keys.length === 0) return [];
           const company = (companyResolved ?? resolved).values as unknown as Record<string, unknown>;
-          return [{ siteId: row.siteId, siteName: name, summary: summariseChange(group, keys, company, pick(asValues(row.values), keys), workforceCan(actor, 'payrun.read')) }];
+          return [{ siteId: row.siteId, siteName: name, summary: summariseChange(group, keys, company, pick(asValues(row.values), keys), workforceCan(actor, 'payroll.read')) }];
         })
     : [];
 
@@ -147,7 +147,7 @@ export async function getRulesPage(actor: AccessSubject, groupInput: string, req
           id: scheduled.id,
           version: scheduled.version,
           effectiveFrom: fromDateColumn(scheduled.effectiveFrom),
-          changedSummary: summariseChange(group, scheduledFields, inForceValues, asValues(scheduled.values), workforceCan(actor, 'payrun.read')),
+          changedSummary: summariseChange(group, scheduledFields, inForceValues, asValues(scheduled.values), workforceCan(actor, 'payroll.read')),
         }
       : null,
     pendingConfirmations: pendingOf([chain[0] ?? null, companyScheduled], group, today),

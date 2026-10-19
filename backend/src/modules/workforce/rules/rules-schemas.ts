@@ -97,6 +97,7 @@ export const LeaveBase = z.object({
   leaveTypes: z.array(leaveType).min(1),
   defaultPolicy: z.record(z.string(), z.number().min(0).max(366)), // leave type code to days, used until a contract is assigned
   minimumCover: z.record(z.string(), z.number().int().min(0)), // department id to the fewest people on at once; only ever a warning
+  unpaidDayDivisor: z.number().int().min(20).max(31).default(30), // payroll P11: one unpaid day = basic ÷ this
 });
 const leaveConsistent = (v: z.infer<typeof LeaveBase>) =>
   new Set(v.leaveTypes.map((t) => t.code)).size === v.leaveTypes.length &&
@@ -186,6 +187,15 @@ export const StatutoryRulesSchema = z
         name: z.string().min(1).max(80),
         bands: z.array(band).refine(bandsContiguous, 'Bands must start at 0, follow one another with no gap, and only the last has no upper limit'),
         note: z.string().max(500).nullable(),
+        // Segment 2A (payroll engine, P7). The engine reads these and never the code or the name. Older stored tables read with the defaults.
+        kind: z.enum(['BANDS', 'RATE', 'OTHER']).default('BANDS'), // BANDS progressive; RATE one percentage with an optional floor and ceiling on the amount
+        base: z.enum(['GROSS', 'BASIC', 'TAXABLE', 'BASIC_PLUS_ALLOWANCES']).default('GROSS'),
+        reducesTaxable: z.boolean().default(false), // the employee share is allowable against taxable pay
+        isIncomeTax: z.boolean().default(false), // the relief below is subtracted from this table's tax
+        employerRatePercent: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/).nullable().default(null), // employer share, a cost only
+        reliefMonthly: money.nullable().default(null), // personal relief, only read when isIncomeTax
+        floorAmount: money.nullable().default(null), // RATE: the least the amount can be (when the base is above 0)
+        ceilingAmount: money.nullable().default(null), // RATE: the most the amount can be
       }),
     ),
   })
