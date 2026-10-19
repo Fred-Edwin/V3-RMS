@@ -5,6 +5,7 @@ import { inScope, scopeOf, type AccessSubject } from '../../_shared/workforce-ac
 import { daysRepository } from '../../attendance/days/days-repository';
 import { switchRepository } from '../../attendance/switch/switch-repository';
 import { resolveActor, told } from '../../people/people-context';
+import { periodsRepository } from '../periods/periods-repository';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
 import { viewerFor } from '../timesheets-scope';
 import { loadSnapshot, recordedOf } from './day-snapshot';
@@ -49,7 +50,9 @@ export async function createRequest(subject: AccessSubject, body: CreateRequestB
   const snapshot = await loadSnapshot(person.siteId, person.id, date, now);
   if (body.kind === 'CLOCKED_OUT_BY_MISTAKE' && !snapshot.entry?.clockedOutAt) throw new ConflictError('There is no clock-out on that day to take away.', 'NOTHING_TO_REVERSE');
 
-  const role = firstApprover(body.kind, subject.role);
+  // A day in an approved month goes straight to HR (D29): the manager can no longer change it; HR corrects the payslip.
+  const monthApproved = (await periodsRepository.approvedCovering(person.siteId, date)) !== null;
+  const role = monthApproved ? 'HR_MANAGER' : firstApprover(body.kind, subject.role);
   const candidates = await requestsRepository.approverCandidates(role === 'HR_MANAGER' ? null : person.siteId, [role]);
   const waitingOnUserId = candidates[0]?.id ?? null;
   const ctx = await resolveActor(subject);
@@ -138,6 +141,6 @@ export async function requestInbox(subject: AccessSubject, query: InboxQuery, no
     page: query.page,
     pageSize: query.pageSize,
     total: page.total,
-    canAct: scopeOf(subject, 'timesheet.approve') !== null,
+    canAct: scopeOf(subject, 'time_request.answer') !== null,
   };
 }

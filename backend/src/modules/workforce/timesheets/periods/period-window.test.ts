@@ -5,7 +5,6 @@ import { WeekAndBreaksRulesSchema } from '../../rules/rules-schemas';
 import { windowAfter, windowForDay } from './period-window';
 
 const d = parseNairobiDate;
-// Default rule: one calendar month, closing at 18:00 Nairobi on the 2nd day after the month ends.
 const rules = RULE_DEFAULTS.WEEK_AND_BREAKS;
 
 describe('timesheet period window (calendar month)', () => {
@@ -14,8 +13,13 @@ describe('timesheet period window (calendar month)', () => {
     expect([w.start, w.end, w.label]).toEqual(['2026-10-01', '2026-10-31', 'October 2026']);
   });
 
-  it('closes October on 2 Nov at 18:00 Nairobi (15:00 UTC)', () => {
-    expect(windowForDay(d('2026-10-05'), rules).cutoffAt.toISOString()).toBe('2026-11-02T15:00:00.000Z');
+  it('can first be approved at 00:00 Nairobi on 1 Nov (21:00 UTC on 31 Oct)', () => {
+    expect(windowForDay(d('2026-10-05'), rules).cutoffAt.toISOString()).toBe('2026-10-31T21:00:00.000Z');
+  });
+
+  it('does not read the retired cut-off rule at all', () => {
+    const odd = { ...rules, timesheetCutoff: { daysAfterPeriodEnd: 9, time: '23:59' } };
+    expect(windowForDay(d('2026-10-05'), odd).cutoffAt.toISOString()).toBe('2026-10-31T21:00:00.000Z');
   });
 
   it('moves no day between periods: the 1st and the last day stay in their own month', () => {
@@ -27,7 +31,7 @@ describe('timesheet period window (calendar month)', () => {
   it('handles February and a year change', () => {
     expect(windowForDay(d('2028-02-10'), rules).end).toBe('2028-02-29');
     const dec = windowForDay(d('2026-12-25'), rules);
-    expect(dec.cutoffAt.toISOString()).toBe('2027-01-02T15:00:00.000Z');
+    expect(dec.cutoffAt.toISOString()).toBe('2026-12-31T21:00:00.000Z');
     expect(windowAfter(dec, rules).start).toBe('2027-01-01');
   });
 
@@ -42,20 +46,14 @@ describe('timesheet period window (calendar month)', () => {
     expect(windowForDay(nairobiToday(instant), rules).label).toBe('November 2026');
   });
 
-  it('does not depend on the server time zone: the cut-off is the same instant', () => {
-    expect(windowForDay(d('2026-10-05'), rules).cutoffAt.getTime()).toBe(Date.UTC(2026, 10, 2, 15, 0, 0));
+  it('does not depend on the server time zone: the instant is the same', () => {
+    expect(windowForDay(d('2026-10-05'), rules).cutoffAt.getTime()).toBe(Date.UTC(2026, 9, 31, 21, 0, 0));
   });
 
-  it('a cut-off on the last day itself is allowed (0 days after)', () => {
-    const same = { ...rules, timesheetCutoff: { daysAfterPeriodEnd: 0, time: '23:59' } };
-    expect(windowForDay(d('2026-10-05'), same).cutoffAt.toISOString()).toBe('2026-10-31T20:59:00.000Z');
-  });
-
-  it('keeps a stored four-week rule valid and cuts it into whole windows with the same cut-off', () => {
+  it('keeps a stored four-week rule valid and cuts it into whole windows', () => {
     const old = WeekAndBreaksRulesSchema.parse({ weekStartsOn: 1, timesheetPeriod: { kind: 'FIXED_WEEKS', weeks: 4, anchorDate: '2026-09-21' }, timesheetCutoff: { daysBeforePeriodEnd: 2, time: '18:00' } });
-    expect(old.timesheetCutoff).toEqual({ daysAfterPeriodEnd: 2, time: '18:00' });
     const w = windowForDay(d('2026-10-05'), old);
     expect([w.start, w.end]).toEqual(['2026-09-21', '2026-10-18']);
-    expect(w.cutoffAt.toISOString()).toBe('2026-10-20T15:00:00.000Z');
+    expect(w.cutoffAt.toISOString()).toBe('2026-10-18T21:00:00.000Z');
   });
 });

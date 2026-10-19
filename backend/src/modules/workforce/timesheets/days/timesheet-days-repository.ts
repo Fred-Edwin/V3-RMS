@@ -124,9 +124,9 @@ export const timesheetDaysRepository = {
   decide: (tx: Db, id: string, data: { status: TimesheetStatus; decidedById: string; decidedAt: Date; decisionReason: string | null; lateExcused?: boolean }) =>
     tx.timesheetDay.update({ where: { id }, data }),
 
-  /** The closing period hands its open days to the next period; they stay held until someone answers. */
-  carry: (tx: Db, ids: readonly string[], toPeriodId: string, fromPeriodId: string) =>
-    tx.timesheetDay.updateMany({ where: { id: { in: [...ids] } }, data: { periodId: toPeriodId, carriedFromPeriodId: fromPeriodId, status: 'HELD' } }),
+  /** Approving the month settles the days that only carry facts (late, left early, absent, edited): they count as approved with it. */
+  approveWithMonth: (tx: Db, ids: readonly string[], by: string, at: Date) =>
+    tx.timesheetDay.updateMany({ where: { id: { in: [...ids] }, status: 'NEEDS_LOOK' }, data: { status: 'APPROVED', decidedById: by, decidedAt: at, decisionReason: 'Approved with the month' } }),
 
   replaceWeeks: async (tx: Db, periodId: string, siteId: string, employeeId: string, weeks: readonly { weekStart: NairobiDate; status: TimesheetStatus; scheduledMinutes: number; workedMinutes: number }[]) => {
     for (const week of weeks) {

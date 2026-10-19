@@ -68,9 +68,12 @@ export const AUDIT_ACTIONS = {
   'timesheet.auto_approved': ['TIME'], // the system approved days and weeks that matched the rota; channel SYSTEM
   'timesheet.day_decided': ['TIME'], // accept, excuse lateness or hold, with a reason
   'timesheet.overtime_decided': ['TIME'], // authorises the time only; payroll decides pay
-  'timesheet.period_closed': ['TIME'], // at the cut-off (channel SYSTEM) or early by a manager; open items carried on
-  'timesheet.period_reopened': ['TIME'], // HR, with a reason
-  'timesheet.period_signed': ['TIME'], // the manager signed the report with their PIN
+  'timesheet.period_closed': ['TIME'], // RETIRED (Segment 1A): the automatic or early close; old entries stay readable
+  'timesheet.period_reopened': ['TIME'], // RETIRED (Segment 1A): HR reopen; old entries stay readable
+  'timesheet.period_signed': ['TIME'], // RETIRED (Segment 1A): the report PIN signature; old entries stay readable
+  'timesheet.month_approved': ['TIME'], // the site's manager approved the month with a PIN: hours, overtime, document number, never pay
+  'timesheet.overtime_noted': ['TIME'], // a department head's one-line note on an overtime item (evidence, not a decision)
+  'timesheet.exported': ['TIME'], // a month was exported as PDF or Excel: who, format, month, range, document number or draft
   'timesheet.request_created': ['TIME'], // Report a problem or clocked out by mistake
   'timesheet.request_decided': ['TIME'], // accepted (with the correction made) or declined with a reason
   'timesheet.request_withdrawn': ['TIME'],

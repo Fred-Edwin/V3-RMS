@@ -1,15 +1,17 @@
-import { ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
+import { ConflictError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import { instantAt, nairobiToday, parseClockTime } from '../../_shared/time/nairobi-time';
-import { scopeOf, type AccessSubject } from '../../_shared/workforce-access';
+import type { AccessSubject } from '../../_shared/workforce-access';
 import { personInScope } from '../../attendance/attendance-scope';
 import { resolveActor, told } from '../../people/people-context';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { refreshPeriod } from '../assemble/assemble-service';
+import { assertOwnPin } from '../approval/pin-check';
 import { periodsRepository } from '../periods/periods-repository';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
-import { assertCan, viewerFor } from '../timesheets-scope';
+import { assertCan, decisionCapability, viewerFor } from '../timesheets-scope';
 import type { OvertimeRow } from '../timesheets.types';
+import { decisionOutcome } from './overtime-plan';
 import { overtimeRepository } from './overtime-repository';
 import type { OvertimeDecisionBody, OvertimeListQuery } from './overtime-validators';
 
@@ -20,11 +22,12 @@ export interface OvertimeListItem extends OvertimeRow {
 }
 
 const MS_PER_HOUR = 3_600_000;
+const DECIDED = ['APPROVED', 'APPROVED_PART', 'DECLINED', 'AUTO_AUTHORISED'] as const;
 
-/** Waiting and decided overtime for a branch, in the viewer's scope (a head sees their departments only). */
+/** Waiting and decided overtime for a branch, in the viewer's scope. */
 export async function listOvertime(subject: AccessSubject, query: OvertimeListQuery, now: Date = new Date()) {
   const viewer = viewerFor(subject, 'timesheet.read', query.siteId);
-  const statuses = query.status === 'PENDING' ? (['PENDING'] as const) : query.status === 'DECIDED' ? (['APPROVED', 'DECLINED', 'AUTO_AUTHORISED'] as const) : (['PENDING', 'APPROVED', 'DECLINED', 'AUTO_AUTHORISED'] as const);
+  const statuses = query.status === 'PENDING' ? (['PENDING'] as const) : query.status === 'DECIDED' ? DECIDED : ([...DECIDED, 'PENDING'] as const);
   const rules = (await getEffectiveRuleGroup(viewer.siteId, nairobiToday(now), 'OVERTIME')).values;
   const all = await overtimeRepository.page(viewer.siteId, query.periodId ?? null, statuses, 0, 1000);
   const scoped = all.rows.filter(({ person }) => viewer.departmentIds === null || (person.departmentId !== null && viewer.departmentIds.includes(person.departmentId)));
@@ -38,33 +41,38 @@ export async function listOvertime(subject: AccessSubject, query: OvertimeListQu
 }
 
 /**
- * Authorise or decline overtime (Chapter 8, step 3). Authorising allows the time; payroll decides pay. A department head
- * may decide only inside the allowance (the weekly cap and the branch budget); beyond it the Branch or Store Manager or
- * HR decides, with a reason. Nobody decides their own. A closed period is read-only.
+ * Decide an overtime item: approve all, part or none (Segment 1A, S6). The site's manager decides, with their own PIN, a reason
+ * for part or none, and the version the screen showed. Approving authorises the time only; payroll decides pay. A site
+ * manager's own overtime goes to the Director; nobody decides their own. A month that is approved is read-only. The answer can
+ * be changed until the month is approved (the history stays in the audit log). The person is told.
  */
 export async function decideOvertime(subject: AccessSubject, itemId: string, body: OvertimeDecisionBody, now: Date = new Date()): Promise<OvertimeRow> {
-  assertCan(subject, 'overtime.approve');
   const item = await overtimeRepository.byIdAnywhere(itemId);
   if (!item) throw new NotFoundError('Overtime not found');
-  const person = await personInScope(subject, 'overtime.approve', item.employeeId, 'write');
-  const ctx = await resolveActor(subject);
+  const ownerUserId = (await personInScope(subject, 'timesheet.read', item.employeeId, 'read')).userId;
+  const role = ownerUserId ? ((await periodsRepository.people([ownerUserId])).get(ownerUserId)?.role ?? null) : null;
+  const capability = decisionCapability(role, 'overtime.approve');
+  assertCan(subject, capability);
+  const person = await personInScope(subject, capability, item.employeeId, 'write');
   const period = await periodsRepository.find(item.siteId, item.periodId);
   if (!period) throw new NotFoundError('Period not found');
-  if (period.state !== 'OPEN') throw new ConflictError('That pay period is closed. HR can reopen it.', 'PERIOD_CLOSED');
-  if (item.status !== 'PENDING') throw new ConflictError('This overtime has been answered already.', 'ALREADY_DECIDED');
-  if (!item.limits.insideAllowance) {
-    if (scopeOf(subject, 'overtime.approve') === 'dept') throw new ForbiddenError('This is beyond your overtime allowance. Your Branch Manager decides it.', 'OVERTIME_NEEDS_MANAGER');
-    if (body.outcome === 'APPROVE' && !body.reason) throw new ConflictError('Say why you are authorising more than the limit.', 'REASON_REQUIRED_OVER_LIMIT');
-  }
+  if (period.state === 'APPROVED') throw new ConflictError('This month is approved. Tell HR if the overtime needs to change.', 'PERIOD_APPROVED');
+  if (item.needsMinutes <= 0) throw new ConflictError('This overtime was covered by the service tail; nothing to decide.', 'NOTHING_TO_DECIDE');
+  if (item.version !== body.version) throw new ConflictError('This changed while you were looking. Check it again.', 'CHANGED_UNDERNEATH', { version: item.version, status: item.status });
 
-  const approving = body.outcome === 'APPROVE';
-  const grantedMinutes = approving ? Math.min(body.minutes ?? item.needsMinutes, item.needsMinutes) : 0;
-  const authorisedMinutes = item.autoMinutes + grantedMinutes;
-  const status = approving ? 'APPROVED' : 'DECLINED';
-  const reason = body.reason ?? null;
+  const outcome = decisionOutcome(item, body.decision, body.approvedMinutes);
+  if (!outcome) throw new ConflictError('Pick between 5 minutes and 5 minutes less than the extra, in steps of 5.', 'PART_OUT_OF_RANGE', { needsMinutes: item.needsMinutes });
+  if (!item.limits.insideAllowance && body.decision !== 'DECLINE' && (body.reason ?? '').length < 5) {
+    throw new ConflictError('Say why you are authorising more than the limit.', 'REASON_REQUIRED_OVER_LIMIT');
+  }
+  await assertOwnPin(subject.id, body.pin);
+  const ctx = await resolveActor(subject);
+  const reason = body.reason?.trim() || null;
 
   await runAudited(async (tx) => {
-    await overtimeRepository.decide(tx, item.id, { status, authorisedMinutes, decidedById: subject.id, decidedAt: now, decisionReason: reason });
+    if ((await periodsRepository.lockState(tx, period.id)) === 'APPROVED') throw new ConflictError('This month is approved. Tell HR if the overtime needs to change.', 'PERIOD_APPROVED');
+    const written = await overtimeRepository.decide(tx, item.id, body.version, { status: outcome.status, authorisedMinutes: outcome.authorisedMinutes, decidedById: subject.id, decidedAt: now, decisionReason: reason });
+    if (!written) throw new ConflictError('This changed while you were looking. Check it again.', 'CHANGED_UNDERNEATH');
     const entry = timesheetEntry({
       companyId: ctx.companyId,
       siteId: item.siteId,
@@ -72,15 +80,22 @@ export async function decideOvertime(subject: AccessSubject, itemId: string, bod
       action: 'timesheet.overtime_decided',
       subjectId: item.employeeId,
       userId: person.userId,
-      before: { date: item.shiftDate, status: item.status, rawMinutes: item.rawMinutes, needsMinutes: item.needsMinutes, autoMinutes: item.autoMinutes },
-      after: { date: item.shiftDate, status, authorisedMinutes, insideAllowance: item.limits.insideAllowance },
+      before: { date: item.shiftDate, status: item.status, rawMinutes: item.rawMinutes, needsMinutes: item.needsMinutes, autoMinutes: item.autoMinutes, authorisedMinutes: item.authorisedMinutes },
+      after: { date: item.shiftDate, decision: body.decision, status: outcome.status, grantedMinutes: outcome.grantedMinutes, authorisedMinutes: outcome.authorisedMinutes, method: 'PIN', insideAllowance: item.limits.insideAllowance },
       reason,
     });
-    const event = eventOf('overtime.decided', { siteId: item.siteId, employeeId: item.employeeId, userId: person.userId, shiftDate: item.shiftDate, outcome: status, authorisedMinutes, decidedById: subject.id }, now);
+    const event = eventOf('overtime.decided', { siteId: item.siteId, employeeId: item.employeeId, userId: person.userId, shiftDate: item.shiftDate, outcome: outcome.status, authorisedMinutes: outcome.authorisedMinutes, decidedById: subject.id }, now);
     return { result: undefined, entries: [entry], events: [event] };
   });
   await refreshPeriod(period, now, true); // settles the day when overtime was its only exception
-  await told([person.userId], 'overtime.decided', { date: item.shiftDate, outcome: status });
+  // The person is told the answer; the reason is shown to them only for a part or a decline (D28).
+  await told([person.userId], 'overtime.decided', {
+    date: item.shiftDate,
+    outcome: outcome.status,
+    minutes: outcome.grantedMinutes,
+    ofMinutes: item.needsMinutes,
+    reason: outcome.status === 'APPROVED' ? null : reason,
+  });
   const fresh = await overtimeRepository.byIdAnywhere(item.id);
   if (!fresh) throw new NotFoundError('Overtime not found');
   return fresh;

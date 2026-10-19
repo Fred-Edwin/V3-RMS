@@ -52,7 +52,7 @@ const storedOf = (w: DayWrite, extra: Partial<DayRow> = {}): DayRow => ({
 const itemOf = (w: OvertimeWrite, extra: Partial<OvertimeRow> = {}): OvertimeRow => ({
   id: 'o1', periodId: w.periodId, employeeId: w.employeeId, shiftDate: w.shiftDate, rawMinutes: w.rawMinutes, serviceTailMinutes: w.serviceTailMinutes,
   autoMinutes: w.autoMinutes, needsMinutes: w.needsMinutes, authorisedMinutes: w.authorisedMinutes, status: w.status, evidence: w.evidence, limits: w.limits,
-  decidedById: null, decidedAt: null, decisionReason: null, ...extra,
+  decidedById: null, decidedAt: null, decisionReason: null, version: 0, headNote: null, ...extra,
 });
 
 describe('planTimesheet: a week with one late day and one overtime day', () => {

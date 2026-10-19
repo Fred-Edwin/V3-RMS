@@ -112,11 +112,11 @@ export const requestsRepository = {
     (await tx.timeRequest.updateMany({ where: { id, state: 'WAITING', escalatedAt: null }, data: { escalatedAt: at, waitingOnRole: 'HR_MANAGER', waitingOnUserId: hr.userId } })).count === 1,
 
   /** Who a request is routed to: the people holding that role at the site (an HR Manager or System Admin has no site). */
-  approverCandidates: async (siteId: string | null, roles: readonly ('MANAGER' | 'STORE_MANAGER' | 'HR_MANAGER' | 'SYSTEM_ADMIN')[], db: Db = prisma) =>
+  approverCandidates: async (siteId: string | null, roles: readonly ('MANAGER' | 'STORE_MANAGER' | 'HR_MANAGER' | 'SYSTEM_ADMIN' | 'ACCOUNTANT')[], db: Db = prisma) =>
     db.user.findMany({
       where: { isActive: true, deletedAt: null, role: { in: [...roles] }, ...(siteId ? { siteId } : {}) },
       select: { id: true, name: true, role: true },
       orderBy: { createdAt: 'asc' },
-      take: 5,
+      take: 20,
     }),
 };

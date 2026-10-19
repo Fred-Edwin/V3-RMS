@@ -22,7 +22,7 @@ import type { RequestRow } from '../timesheets.types';
  * Branch or Store Manager and the System Admin, and to HR once it has moved there; pay questions belong to HR.
  */
 function assertMayAnswer(subject: AccessSubject, request: RequestRow): void {
-  const wide = scopeOf(subject, 'timesheet.approve') === 'all';
+  const wide = scopeOf(subject, 'time_request.answer') === 'all';
   if (request.kind === 'PAY_OTHER' && !wide) throw new ForbiddenError('Pay questions are answered by HR.', 'HR_ONLY');
   if (request.kind === 'CLOCKED_OUT_BY_MISTAKE' && !workforceCan(subject, 'clock_mistake.resolve') && !(wide && request.escalatedAt !== null)) {
     throw new ForbiddenError('Only the Branch Manager or the System Admin answers a clock-out mistake (HR once it has moved there).', 'MISTAKE_NOT_YOURS');
@@ -35,13 +35,13 @@ function assertMayAnswer(subject: AccessSubject, request: RequestRow): void {
 /**
  * Answer a request (Chapter 9, step 3): accept, or decline with a reason. Accepting a clock request makes the correction
  * through the attendance fix door (new rows pointing at the old; the old value stays in the history) and the person sees
- * before and after. A closed period refuses the correction (HR reopens it first). Nobody answers their own.
+ * before and after. An approved month refuses the correction (PERIOD_APPROVED; HR corrects the payslip). Nobody answers their own.
  */
 export async function decideRequest(subject: AccessSubject, id: string, body: RequestDecisionBody, now: Date = new Date()): Promise<RequestView> {
-  assertCan(subject, 'timesheet.approve');
+  assertCan(subject, 'time_request.answer');
   const request = await requestsRepository.findAnywhere(id);
   if (!request) throw new NotFoundError('Request not found');
-  const person = await personInScope(subject, 'timesheet.approve', request.employeeId, 'write');
+  const person = await personInScope(subject, 'time_request.answer', request.employeeId, 'write');
   assertMayAnswer(subject, request);
   if (request.state !== 'WAITING') throw new ConflictError('This request has been answered already.', 'ALREADY_ANSWERED');
   const ctx = await resolveActor(subject);

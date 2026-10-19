@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 const reason = z.string().trim().min(3, 'Say why').max(300);
 
-export const periodPersonParams = z.object({ id: z.string().uuid(), employeeId: z.string().uuid() }).strict();
 export const dayParams = z.object({ id: z.string().uuid() }).strict();
 
 /**

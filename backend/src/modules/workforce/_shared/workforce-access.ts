@@ -29,8 +29,11 @@ export const CAPABILITIES = [
   'timesheet.read',
   'timesheet.approve',
   'overtime.approve',
-  'timesheet.close', // close a period early and sign its report (slice 4a amendment)
-  'timesheet.reopen', // HR reopens a closed period, with a reason (slice 4a amendment)
+  'timesheet.close', // approve the month, with a PIN: the site's own manager only (Segment 1A amendment)
+  'timesheet.export', // export a month as PDF or Excel (Segment 1A amendment)
+  'overtime.note', // a department head's one-line note on an overtime item: evidence, never a decision (Segment 1A)
+  'time_request.answer', // answer a Report a problem / "clocked out by mistake" request (Segment 1A: split from timesheet.approve)
+  'manager_time.decide', // decide a site manager's own days and overtime (the Director; Segment 1A)
   'clock_mistake.resolve',
   'casual.record',
   'casual.approve',
@@ -123,9 +126,7 @@ const HEAD_EXTRAS: Grants = {
   'rota.write': 'dept',
   'today.read': 'dept',
   'today.act': 'dept',
-  'timesheet.read': 'dept',
-  'timesheet.approve': 'dept', // inside the overtime allowance; the service checks the allowance
-  'overtime.approve': 'dept',
+  'overtime.note': 'dept', // the head decides nothing; a one-line note is evidence (Segment 1A)
   'casual.record': 'dept',
   'casual.read': 'dept',
   'leave.acknowledge': 'dept',
@@ -147,6 +148,8 @@ const UNIT_MANAGER: Grants = {
   'timesheet.approve': 'unit',
   'overtime.approve': 'unit',
   'timesheet.close': 'unit',
+  'timesheet.export': 'unit',
+  'time_request.answer': 'unit',
   'clock_mistake.resolve': 'unit', // Store Manager resolves the Store Attendants' (decision D8)
   'casual.approve': 'unit',
   'casual.read': 'unit',
@@ -179,6 +182,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
   ACCOUNTANT: {
     ...STAFF,
     'timesheet.read': 'all',
+    'timesheet.export': 'all',
     'employee.read_basic': 'all',
     'employee.read_sensitive': 'all',
     'payprofile.read': 'all',
@@ -201,10 +205,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'today.read': 'all',
     'time.fix': 'all',
     'timesheet.read': 'all',
-    'timesheet.approve': 'all',
-    'overtime.approve': 'all',
-    'timesheet.close': 'all',
-    'timesheet.reopen': 'all',
+    'timesheet.export': 'all',
+    'time_request.answer': 'all',
     'casual.read': 'all',
     'leave.read': 'all',
     'leave.approve': 'all',
@@ -240,6 +242,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
     'today.read': 'all',
     'timesheet.read': 'all',
+    'timesheet.close': 'unit', // approves the month of the site the Director belongs to (Head office; Segment 1A D7)
+    'manager_time.decide': 'all', // a site manager's own days and overtime go to the Director
     'casual.read': 'all',
     'leave.read': 'all',
     'leave.approve': 'all', // fallback only: the approvals sub-module routes to the Director when the approver is the subject or absent
@@ -274,9 +278,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'time.fix': 'all',
     'attendance.switch': 'all', // the owner pilots one branch at a time; only the System Admin moves a site (owner, 18 Oct 2026)
     'timesheet.read': 'all',
-    'timesheet.approve': 'all',
-    'overtime.approve': 'all',
-    'timesheet.close': 'all',
+    'time_request.answer': 'all',
     'clock_mistake.resolve': 'all',
     'leave.read': 'all',
     'leave.approve': 'all',

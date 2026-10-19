@@ -25,6 +25,14 @@ export function viewerFor(subject: AccessSubject, capability: Capability, reques
   return { scope, siteId: subject.siteId, departmentIds: scope === 'dept' ? (subject.headOfDepartmentIds ?? []) : null };
 }
 
+const SITE_MANAGER_ROLES: readonly string[] = ['MANAGER', 'STORE_MANAGER'];
+
+/**
+ * Which capability decides a person's days and overtime (Segment 1A): the site's manager decides everyone at the site except
+ * themselves; a site manager's own days and overtime go to the Director (`manager_time.decide`). Nobody decides their own.
+ */
+export const decisionCapability = (personRole: string | null, ordinary: 'timesheet.approve' | 'overtime.approve'): Capability => (personRole !== null && SITE_MANAGER_ROLES.includes(personRole) ? 'manager_time.decide' : ordinary);
+
 /** A write needs the capability itself: a reader without it is refused (403) before anything about the record is looked up. */
 export function assertCan(subject: AccessSubject, capability: Capability): void {
   if (scopeOf(subject, capability) === null) throw new ForbiddenError('You do not have permission to perform this action');

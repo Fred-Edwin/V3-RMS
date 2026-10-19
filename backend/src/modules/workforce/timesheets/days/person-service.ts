@@ -1,57 +1,17 @@
 import { NotFoundError } from '../../../../utils/errors';
-import { instantAt, parseClockTime, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { personInScope } from '../../attendance/attendance-scope';
 import { dayHistory, type DayHistory } from '../../attendance/fixes/history-service';
-import { refreshPeriod } from '../assemble/assemble-service';
-import { clockTimesFor, type DayClockTimes } from '../me/me-clock-times';
-import { evidenceRepository } from '../overtime/evidence-repository';
 import { overtimeRepository } from '../overtime/overtime-repository';
-import { periodForViewer } from '../periods/periods-service';
 import { requestsRepository } from '../requests/requests-repository';
-import type { DayRow, OvertimeRow, PeriodRow, RequestRow } from '../timesheets.types';
+import type { DayRow, OvertimeRow, RequestRow } from '../timesheets.types';
 import { timesheetDaysRepository } from './timesheet-days-repository';
-import { weekView, type WeekView } from './weeks';
-
-export interface PersonPeriodView {
-  period: PeriodRow;
-  person: { id: string; name: string; departmentName: string | null };
-  days: (DayRow & DayClockTimes)[];
-  weeks: WeekView[];
-  overtime: OvertimeRow[];
-  requests: RequestRow[];
-}
-
-/** One person's period: matching days approved by the system, the exceptions beside them (Chapter 8, step 2). */
-export async function personPeriod(subject: AccessSubject, periodId: string, employeeId: string, now: Date = new Date()): Promise<PersonPeriodView> {
-  const person = await personInScope(subject, 'timesheet.read', employeeId, 'read');
-  const { period: found } = await periodForViewer(subject, periodId);
-  if (found.siteId !== person.siteId) throw new NotFoundError('Not found');
-  await refreshPeriod(found, now);
-  const [days, overtime, weeks, requests] = await Promise.all([
-    timesheetDaysRepository.allInPeriod(found.id, found.siteId),
-    overtimeRepository.allInPeriod(found.id, found.siteId),
-    timesheetDaysRepository.weeksOf(found.id, found.siteId, person.id),
-    requestsRepository.ofPersonOnDates(found.siteId, person.id, found.start, found.end),
-  ]);
-  const mine = days.filter(({ person: p }) => p.id === person.id).map(({ day }) => day);
-  const clocks = await clockTimesFor(found.siteId, person.id, found.start, found.end, mine.filter((d) => d.scheduledMinutes > 0 || d.workedMinutes > 0).map((d) => d.shiftDate), now);
-  return {
-    period: found,
-    person: { id: person.id, name: person.name, departmentName: person.departmentName },
-    // Each day also carries its first shift's clock-in and clock-out (ISO instants, null when not clocked), for "14:02 → 22:01".
-    days: mine.map((day) => ({ ...day, clockIn: clocks.get(day.shiftDate)?.clockIn ?? null, clockOut: clocks.get(day.shiftDate)?.clockOut ?? null })),
-    weeks: weeks.map((w) => weekView(w, found)),
-    overtime: overtime.filter((item) => item.employeeId === person.id),
-    requests,
-  };
-}
 
 export interface DayDetailView {
   day: DayRow & { siteId: string };
   person: { id: string; name: string; departmentName: string | null };
   history: DayHistory;
-  overtime: (OvertimeRow & { ordersValue: string | null }) | null;
+  overtime: OvertimeRow | null;
   requests: RequestRow[];
 }
 
@@ -69,15 +29,7 @@ export async function dayDetail(subject: AccessSubject, dayId: string, now: Date
     day: row,
     person: { id: person.id, name: person.name, departmentName: person.departmentName },
     history,
-    overtime: item && { ...item, ordersValue: await ordersValueOf(row.siteId, row.shiftDate, person.userId, history) },
+    overtime: item,
     requests,
   };
-}
-
-/** The takings of the orders taken in the extra time: shown to the manager as evidence, never stored, never pay. */
-async function ordersValueOf(siteId: string, date: NairobiDate, userId: string | null, history: DayHistory): Promise<string | null> {
-  const entry = history.entries.find((e) => e.afterEndMinutes > 0);
-  if (!entry || !userId) return null;
-  const endsAt = instantAt(date, parseClockTime(entry.endTime));
-  return evidenceRepository.valueOfOrders(siteId, userId, endsAt, new Date(endsAt.getTime() + entry.afterEndMinutes * 60_000));
 }

@@ -13,15 +13,13 @@ export const toPeriodRow = (row: TimesheetPeriod): PeriodRow => ({
   label: row.label,
   cutoffAt: row.cutoffAt,
   state: row.state,
-  reportNumber: row.reportNumber,
-  closeKind: row.closeKind,
-  closedAt: row.closedAt,
-  closedById: row.closedById,
-  signedById: row.signedById,
-  signedAt: row.signedAt,
-  reopenedAt: row.reopenedAt,
-  reopenedById: row.reopenedById,
-  reopenReason: row.reopenReason,
+  approvedAt: row.approvedAt,
+  approvedById: row.approvedById,
+  approverOwnHours: row.approverOwnHours,
+  approveKey: row.approveKey,
+  documentNumber: row.documentNumber,
+  documentHash: row.documentHash,
+  approvalNote: row.approvalNote,
 });
 
 /** Every query carries the site, so a read can never cross a branch. */
@@ -50,11 +48,62 @@ export const periodsRepository = {
     return row ? toPeriodRow(row) : null;
   },
 
-  /** A closed period that covers the day (any person at the site): the answer the attendance fix door asks. */
-  closedCovering: async (siteId: string, date: NairobiDate, db: Db = prisma): Promise<PeriodRow | null> => {
+  /** An approved month that covers the day (any person at the site): the answer the attendance fix door asks. */
+  approvedCovering: async (siteId: string, date: NairobiDate, db: Db = prisma): Promise<PeriodRow | null> => {
     const day = toDateColumn(date);
-    const row = await db.timesheetPeriod.findFirst({ where: { siteId, state: { not: 'OPEN' }, startDate: { lte: day }, endDate: { gte: day } } });
+    const row = await db.timesheetPeriod.findFirst({ where: { siteId, state: 'APPROVED', startDate: { lte: day }, endDate: { gte: day } } });
     return row ? toPeriodRow(row) : null;
+  },
+
+  /** The period whose last day falls in the month ("2026-09"); the month key is its last day's month. */
+  byMonth: async (siteId: string, first: NairobiDate, last: NairobiDate, db: Db = prisma): Promise<PeriodRow | null> => {
+    const row = await db.timesheetPeriod.findFirst({ where: { siteId, endDate: { gte: toDateColumn(first), lte: toDateColumn(last) } }, orderBy: { endDate: 'desc' } });
+    return row ? toPeriodRow(row) : null;
+  },
+
+  /** The months of a site, newest first, with the total for the pager. */
+  page: async (siteId: string, skip: number, take: number, db: Db = prisma): Promise<{ rows: PeriodRow[]; total: number }> => {
+    const [rows, total] = await Promise.all([db.timesheetPeriod.findMany({ where: { siteId }, orderBy: { endDate: 'desc' }, skip, take }), db.timesheetPeriod.count({ where: { siteId } })]);
+    return { rows: rows.map(toPeriodRow), total };
+  },
+
+  /** Locks the row for the rest of the transaction (decisions and the approval take turns) and returns its state. */
+  lockState: async (tx: Db, id: string): Promise<TimesheetPeriodState | null> => {
+    const rows = await tx.$queryRaw<{ state: TimesheetPeriodState }[]>`SELECT "state" FROM "timesheet_periods" WHERE "id" = ${id} FOR UPDATE`;
+    return rows[0]?.state ?? null;
+  },
+
+  /** The next TSH-n document number (gaps are allowed). */
+  nextDocumentNumber: async (tx: Db): Promise<number> => {
+    const rows = await tx.$queryRaw<{ n: number }[]>`SELECT nextval('timesheet_document_seq')::int AS n`;
+    return rows[0]!.n;
+  },
+
+  /** Claims the approval only while the month is still open; a second approver gets false. */
+  approve: async (
+    tx: Db,
+    id: string,
+    data: { approvedAt: Date; approvedById: string; approverOwnHours: boolean; approveKey: string; documentNumber: number; documentHash: string; snapshot: Prisma.InputJsonValue },
+  ): Promise<boolean> =>
+    (
+      await tx.timesheetPeriod.updateMany({
+        where: { id, state: 'OPEN' },
+        data: { state: 'APPROVED', approvedAt: data.approvedAt, approvedById: data.approvedById, approverOwnHours: data.approverOwnHours, approveKey: data.approveKey, documentNumber: data.documentNumber, documentHash: data.documentHash, approvedSnapshot: data.snapshot },
+      })
+    ).count === 1,
+
+  snapshotOf: async (id: string, db: Db = prisma): Promise<Prisma.JsonValue | null> => (await db.timesheetPeriod.findUnique({ where: { id }, select: { approvedSnapshot: true } }))?.approvedSnapshot ?? null,
+
+  /** Months that are not approved yet, for the sweep's refresh (all sites with the new clock on). */
+  openPeriods: async (db: Db = prisma): Promise<PeriodRow[]> =>
+    (await db.timesheetPeriod.findMany({ where: { state: 'OPEN', site: { attendanceSwitch: { enabled: true } } }, orderBy: { startDate: 'asc' } })).map(toPeriodRow),
+
+  /** Company sites that have a month, and whether it is approved (the Approve dialog's "payroll waits for ..." sentence). */
+  otherSites: async (companyId: string, excludeSiteId: string, end: NairobiDate, db: Db = prisma): Promise<{ name: string; approved: boolean }[]> => {
+    const sites = await db.site.findMany({ where: { companyId, id: { not: excludeSiteId }, attendanceSwitch: { enabled: true } }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+    const day = toDateColumn(end);
+    const periods = await db.timesheetPeriod.findMany({ where: { siteId: { in: sites.map((s) => s.id) }, startDate: { lte: day }, endDate: { gte: day } }, select: { siteId: true, state: true } });
+    return sites.map((s) => ({ name: s.name, approved: periods.some((p) => p.siteId === s.id && p.state === 'APPROVED') }));
   },
 
   /**
@@ -78,21 +127,6 @@ export const periodsRepository = {
 
   list: async (siteId: string, take: number, db: Db = prisma): Promise<PeriodRow[]> =>
     (await db.timesheetPeriod.findMany({ where: { siteId }, orderBy: { startDate: 'desc' }, take })).map(toPeriodRow),
-
-  /** Open periods whose cut-off has passed, and periods whose close was claimed but not finished (all sites with the clock on). */
-  dueToClose: async (now: Date, db: Db = prisma): Promise<PeriodRow[]> =>
-    (
-      await db.timesheetPeriod.findMany({
-        where: { OR: [{ state: 'OPEN', cutoffAt: { lte: now } }, { state: 'CLOSING' }], site: { attendanceSwitch: { enabled: true } } },
-        orderBy: { cutoffAt: 'asc' },
-      })
-    ).map(toPeriodRow),
-
-  /** Claims a state change only if the period is still in the expected state (a second sweep gets 0 and does nothing). */
-  transition: async (id: string, from: TimesheetPeriodState, data: Prisma.TimesheetPeriodUpdateManyMutationInput, db: Db = prisma): Promise<boolean> =>
-    (await db.timesheetPeriod.updateMany({ where: { id, state: from }, data })).count === 1,
-
-  setSigned: (id: string, by: string, at: Date, db: Db = prisma) => db.timesheetPeriod.update({ where: { id }, data: { signedById: by, signedAt: at } }),
 
   /** Names and roles of the people a report names (who decided, who signed). */
   people: async (ids: readonly string[], db: Db = prisma): Promise<Map<string, { name: string; role: string }>> => {

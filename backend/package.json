@@ -36,6 +36,7 @@
         "compression": "^1.8.1",
         "cors": "^2.8.6",
         "dotenv": "^17.3.1",
+        "exceljs": "4.4.0",
         "express": "^5.2.1",
         "express-rate-limit": "^8.2.1",
         "firebase-admin": "^13.6.1",
@@ -45,6 +46,7 @@
         "pdfkit": "^0.17.2",
         "pino": "^10.3.1",
         "pino-http": "^11.0.0",
+        "qrcode": "1.5.4",
         "socket.io": "^4.8.3",
         "zod": "^4.3.6"
     },
@@ -58,6 +60,7 @@
         "@types/multer": "^2.0.0",
         "@types/node": "^25.3.0",
         "@types/pdfkit": "^0.17.5",
+        "@types/qrcode": "1.5.5",
         "@types/supertest": "^6.0.3",
         "dependency-cruiser": "^17.4.3",
         "eslint": "^10.0.1",

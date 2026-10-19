@@ -8,7 +8,7 @@ import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { weekRulesFor } from '../assemble/assemble-service';
 import { periodsRepository } from '../periods/periods-repository';
 import { eventOf, timesheetEntry } from '../timesheets-audit';
-import { assertCan } from '../timesheets-scope';
+import { assertCan, decisionCapability } from '../timesheets-scope';
 import type { DayRow } from '../timesheets.types';
 import type { DecisionBody } from './days-validators';
 import { timesheetDaysRepository } from './timesheet-days-repository';
@@ -18,7 +18,7 @@ const MS_PER_HOUR = 3_600_000;
 
 /** Excusing lateness is open for the rule's hours after the day ends (LATENESS.excuseWindowHours); HR and the System Admin are not held to it. */
 async function assertExcuseWindow(subject: AccessSubject, siteId: string, date: NairobiDate, now: Date): Promise<void> {
-  if (scopeOf(subject, 'timesheet.approve') === 'all') return;
+  if (scopeOf(subject, 'manager_time.decide') === 'all') return;
   const rules = (await getEffectiveRuleGroup(siteId, date, 'LATENESS')).values;
   const closesAt = instantAt(date, parseClockTime('23:59')).getTime() + rules.excuseWindowHours * MS_PER_HOUR;
   if (now.getTime() > closesAt) throw new ConflictError(`Lateness can be excused for ${rules.excuseWindowHours} hours after the day. Ask HR.`, 'EXCUSE_WINDOW_OVER');
@@ -28,19 +28,22 @@ const statusFor = (outcome: DecisionBody['outcome']): DayRow['status'] => (outco
 
 /**
  * Decide an exception (Chapter 8, steps 2 and 4): accept the day as recorded, excuse the lateness, or hold it back.
- * Needs `timesheet.approve` for the person (a head: own department; a manager: own branch; HR and System Admin: all); nobody
- * decides their own day. A day with overtime waiting is settled by the overtime answer first. A closed period is
- * read-only. Writes the audit entry in the same transaction; the person is told.
+ * Needs `timesheet.approve` for the person (the site's own manager); a site manager's own days go to the Director
+ * (`manager_time.decide`); nobody decides their own day. A day with overtime waiting is settled by the overtime answer first.
+ * An approved month is read-only. Writes the audit entry in the same transaction; the person is told.
  */
 export async function decideDay(subject: AccessSubject, dayId: string, body: DecisionBody, now: Date = new Date()): Promise<DayRow> {
-  assertCan(subject, 'timesheet.approve');
   const row = await timesheetDaysRepository.byIdAnywhere(dayId);
   if (!row) throw new NotFoundError('Day not found');
-  const person = await personInScope(subject, 'timesheet.approve', row.employeeId, 'write');
+  const owner = await personInScope(subject, 'timesheet.read', row.employeeId, 'read');
+  const role = owner.userId ? ((await periodsRepository.people([owner.userId])).get(owner.userId)?.role ?? null) : null;
+  const capability = decisionCapability(role, 'timesheet.approve');
+  assertCan(subject, capability);
+  const person = await personInScope(subject, capability, row.employeeId, 'write');
   const ctx = await resolveActor(subject);
   const period = await periodsRepository.find(row.siteId, row.periodId);
   if (!period) throw new NotFoundError('Period not found');
-  if (period.state !== 'OPEN') throw new ConflictError('That pay period is closed. HR can reopen it.', 'PERIOD_CLOSED');
+  if (period.state === 'APPROVED') throw new ConflictError('This month is approved. Tell HR.', 'PERIOD_APPROVED');
   if (row.status !== 'NEEDS_LOOK' && row.status !== 'HELD') throw new ConflictError('This day does not need a decision.', 'NOTHING_TO_DECIDE');
   if (body.outcome === 'ACCEPT' && row.reasons.includes('OVERTIME')) throw new ConflictError('Answer the overtime first.', 'OVERTIME_UNDECIDED');
   if (body.outcome === 'EXCUSE') {
@@ -52,6 +55,7 @@ export async function decideDay(subject: AccessSubject, dayId: string, body: Dec
   const status = statusFor(body.outcome);
 
   await runAudited(async (tx) => {
+    if ((await periodsRepository.lockState(tx, period.id)) === 'APPROVED') throw new ConflictError('This month is approved. Tell HR.', 'PERIOD_APPROVED');
     await timesheetDaysRepository.decide(tx, row.id, { status, decidedById: subject.id, decidedAt: now, decisionReason: reason, lateExcused: body.outcome === 'EXCUSE' });
     await rebuildWeeks(tx, row.periodId, row.siteId, row.employeeId, weekStartsOn);
     const entry = timesheetEntry({

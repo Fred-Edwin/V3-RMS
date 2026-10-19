@@ -88,6 +88,8 @@ export interface OvertimeRow {
   decidedById: string | null;
   decidedAt: Date | null;
   decisionReason: string | null;
+  version: number;
+  headNote: { byId: string; text: string; at: string } | null;
 }
 
 export interface PeriodRow {
@@ -98,15 +100,13 @@ export interface PeriodRow {
   label: string;
   cutoffAt: Date;
   state: TimesheetPeriodState;
-  reportNumber: number;
-  closeKind: 'AUTO' | 'EARLY' | null;
-  closedAt: Date | null;
-  closedById: string | null;
-  signedById: string | null;
-  signedAt: Date | null;
-  reopenedAt: Date | null;
-  reopenedById: string | null;
-  reopenReason: string | null;
+  approvedAt: Date | null;
+  approvedById: string | null;
+  approverOwnHours: boolean;
+  approveKey: string | null;
+  documentNumber: number | null;
+  documentHash: string | null;
+  approvalNote: string | null;
 }
 
 export interface RequestRow {
