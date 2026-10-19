@@ -23,6 +23,8 @@ export interface WorkforceKpiCell {
   actionable?: boolean;
   /** Makes the actionable cell a button. */
   onSelect?: () => void;
+  /** `success` is the green "done" cell (a month approved): green fill, green top edge, green words. */
+  tone?: 'success';
 }
 
 export interface WorkforceKpiStripProps {
@@ -35,7 +37,7 @@ function Cell({ cell, last }: { cell: WorkforceKpiCell; last: boolean }) {
   const body = (
     <>
       <span className="flex items-start justify-between">
-        <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">
+        <span className={cn('font-wds-mono text-[10px] leading-3 tracking-[0.06em]', cell.tone === 'success' ? 'text-wds-success-fg' : cell.actionable ? 'text-wds-warning-fg' : 'text-wds-text-secondary')}>
           {cell.label}
         </span>
         {cell.actionable ? (
@@ -47,20 +49,20 @@ function Cell({ cell, last }: { cell: WorkforceKpiCell; last: boolean }) {
       <span
         className={cn(
           'font-wds-sans text-[30px] font-semibold leading-[34px] tracking-[-0.025em]',
-          cell.actionable ? 'text-wds-warning-fg' : 'text-wds-text-ink'
+          cell.tone === 'success' ? 'text-wds-success-fg' : cell.actionable ? 'text-wds-warning-fg' : 'text-wds-text-ink'
         )}
       >
         {cell.value}
       </span>
       {cell.detail ? (
-        <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{cell.detail}</span>
+        <span className={cn('font-wds-sans text-[12px] leading-4', cell.tone === 'success' ? 'text-wds-success-fg' : 'text-wds-text-secondary')}>{cell.detail}</span>
       ) : null}
     </>
   );
 
   const base = cn(
     'flex min-w-0 flex-1 flex-col gap-1.5 border-t-2 px-5 py-4 text-left',
-    cell.actionable ? 'border-t-wds-warning-fg' : 'border-t-transparent',
+    cell.tone === 'success' ? 'border-t-wds-success-fg bg-wds-success-bg' : cell.actionable ? 'border-t-wds-warning-fg bg-wds-caramel-100' : 'border-t-transparent',
     !last && 'border-r border-r-wds-border'
   );
 

@@ -1,21 +1,10 @@
 'use client';
 
 import { useRemote, type Remote } from '../../../_shared';
-import { timesheetReads, type Page } from '../services/timesheet-services';
-import type { MyRota, MyTime, OvertimeListItem, PeriodList, PersonPeriod, Report, Request } from '../types/timesheet-types';
+import { timesheetReads } from '../services/timesheet-services';
+import type { MyRota, MyTime, Request } from '../types/timesheet-types';
 
-/** One hook per read. `enabled` false (permissions still loading, nothing chosen yet) asks nothing. */
-
-export const usePeriods = (siteId: string | undefined, enabled: boolean): Remote<PeriodList> =>
-  useRemote(() => timesheetReads.periods(siteId), `periods:${siteId ?? 'mine'}`, enabled);
-
-export const usePersonPeriod = (periodId: string | null, employeeId: string | null, enabled: boolean): Remote<PersonPeriod> =>
-  useRemote(() => timesheetReads.person(periodId ?? '', employeeId ?? ''), `person:${periodId}:${employeeId}`, enabled && periodId !== null && employeeId !== null);
-
-export const usePendingOvertime = (siteId: string | undefined, periodId: string | null, enabled: boolean): Remote<Page<OvertimeListItem>> =>
-  useRemote(() => timesheetReads.overtime('PENDING', siteId, periodId ?? undefined), `ot:${siteId ?? 'mine'}:${periodId}`, enabled && periodId !== null);
-
-export const useReport = (periodId: string, enabled: boolean): Remote<Report> => useRemote(() => timesheetReads.report(periodId), `report:${periodId}`, enabled);
+/** One hook per read for the phone screens. `enabled` false (permissions still loading) asks nothing. The months reads are in `use-month-data.ts`. */
 
 export const useMyTime = (periodId: string | undefined, enabled: boolean): Remote<MyTime> => useRemote(() => timesheetReads.myTime(periodId), `my-time:${periodId ?? 'now'}`, enabled);
 

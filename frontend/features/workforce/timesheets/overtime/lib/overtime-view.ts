@@ -1,66 +1,84 @@
-import type { ReasonOption } from '../../../_shared';
+import { hmOf } from '../../../attendance';
 import { hmWords } from '../../_shared/lib/timesheet-words';
-import type { Overtime } from '../../_shared/types/timesheet-types';
+import type { OvertimeAnswer, OvertimeChoice, OvertimeDetail } from '../../_shared/types/month-types';
 
-/** The overtime decision (Paper Chapter 8, step 3). You authorise the time; payroll decides pay, so nothing here is money. */
+/** The pure rules of the overtime decision (spec S6, D3, D4). No money: approving only authorises the time; payroll decides pay. */
 
-export const DECLINE_REASONS: ReasonOption[] = [
-  { key: 'not-agreed', label: 'Not agreed beforehand' },
-  { key: 'no-work', label: 'No work was waiting' },
-  { key: 'hand-over', label: 'Could have been handed over' },
-  { key: 'weekly-limit', label: 'Over the weekly limit' },
-  { key: 'early', label: 'Clocked in early, no need' },
-  { key: 'twice', label: 'Entered twice' },
-  { key: 'time-off', label: 'Taken as time off instead' },
-];
+export const REASON_MIN = 5;
+export const REASON_MAX = 280;
 
-/** Needed when the time is above the weekly or branch limit and you authorise it anyway. */
-export const OVER_LIMIT_REASONS: ReasonOption[] = [
-  { key: 'busy', label: 'Busy service, customers waiting' },
-  { key: 'cover', label: 'Covering someone who was away' },
-  { key: 'event', label: 'An event or a late delivery' },
-];
+const humanCode = (code: string): string => {
+  const words = code.toLowerCase().replaceAll('_', ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
-export const reasonLabels = (options: readonly ReasonOption[]): Record<string, string> => Object.fromEntries(options.map((o) => [o.key, o.label]));
-
-/** "WHY, FROM THE RECORD": what the system saw, counts only. */
-export function evidenceLines(item: Overtime): string[] {
-  const { evidence } = item;
-  const lines: string[] = [];
-  if (evidence.openWorkAtEnd) lines.push(`Work was open at the shift end: ${evidence.openOrdersAtEnd} ${evidence.openOrdersAtEnd === 1 ? 'order' : 'orders'}`);
-  else lines.push('Nothing was open at the shift end');
-  lines.push(`Orders taken in the extra time: ${evidence.ordersTaken}`);
-  lines.push(`Tickets cleared in the extra time: ${evidence.ticketsCleared}`);
-  if (item.serviceTailMinutes > 0) lines.push(`Service tail the rules allow: ${hmWords(item.serviceTailMinutes)}${item.autoMinutes > 0 ? `, ${hmWords(item.autoMinutes)} of it recognised already` : ''}`);
-  return lines;
+/** "WHY, FROM THE RECORD": counts and notes only, never takings. */
+export function evidenceLines(d: OvertimeDetail): string[] {
+  const e = d.evidence;
+  const note = e.headNote ? `${e.headNote.by ? `${e.headNote.by.name}, ${e.headNote.by.role}: ` : ''}${e.headNote.text}` : 'none';
+  return [
+    `Reason given: ${e.reasonGiven ? humanCode(e.reasonGiven) : 'none'}`,
+    e.openWork ? `Open at ${e.openWork.at ?? 'the end of the shift'}: ${e.openWork.orders} ${e.openWork.orders === 1 ? 'order' : 'orders'}` : 'Open at the end of the shift: nothing',
+    `Colleagues in: ${e.colleagues.present} of ${e.colleagues.rostered}${e.colleagues.team ? `, the ${e.colleagues.team} team` : ''}`,
+    `Orders taken ${e.ordersTaken}, tickets cleared ${e.ticketsCleared}`,
+    `Asked in advance: ${e.askedInAdvance ? 'yes' : 'no'}`,
+    `Head's note: ${note}`,
+  ];
 }
 
-/** "THE LIMITS": the weekly cap and the branch budget, as the rules stand. */
-export function limitLines(item: Overtime): string[] {
-  const { limits } = item;
-  const lines: string[] = [];
-  if (limits.weeklyCapMinutes !== null) lines.push(`Their week: ${hmWords(limits.weekMinutes)} of the ${hmWords(limits.weeklyCapMinutes)} limit`);
-  else lines.push(`Their week: ${hmWords(limits.weekMinutes)} of overtime so far`);
-  if (limits.overCapMinutes > 0) lines.push(`${hmWords(limits.overCapMinutes)} is over the weekly limit`);
-  lines.push(
-    limits.branchBudgetMinutes !== null
-      ? `Branch overtime this month: ${hmWords(limits.branchUsedMinutes)} of ${hmWords(limits.branchBudgetMinutes)}`
-      : `Branch overtime this month: ${hmWords(limits.branchUsedMinutes)} so far`
-  );
-  return lines;
+/** "THE LIMITS": information for the manager; a manager may approve above them with a reason. */
+export function limitLines(d: OvertimeDetail): string[] {
+  const l = d.limits;
+  return [
+    l.weekCapMinutes === null ? `That week: ${hmWords(l.weekMinutes)}, no weekly limit set` : `That week: ${hmWords(l.weekMinutes)} of the ${hmWords(l.weekCapMinutes)} limit`,
+    `Overtime this month: ${hmWords(l.monthMinutes)} so far`,
+    `Branch overtime that week: ${hmWords(l.branchWeekMinutes)}`,
+  ];
 }
 
-/** The "approve part" amount: about half, to the nearest five minutes, only when there is enough to split. */
-export function partMinutes(needsMinutes: number): number | null {
-  if (needsMinutes < 10) return null;
-  const half = Math.floor(needsMinutes / 2 / 5) * 5;
-  return half >= 5 && half < needsMinutes ? half : null;
+/** Where the "approve part" stepper starts: half the extra rounded down to 5, kept inside the allowed range. */
+export function partStart(part: NonNullable<OvertimeDetail['part']>, extra: number): number {
+  const half = Math.floor(extra / 2 / part.step) * part.step;
+  return Math.min(part.max, Math.max(part.min, half));
 }
 
-export type OvertimeChoice = 'ALL' | 'PART' | 'DECLINE';
+export const stepPart = (part: NonNullable<OvertimeDetail['part']>, value: number, direction: 1 | -1): number => Math.min(part.max, Math.max(part.min, value + direction * part.step));
 
-/** Whether a reason must be given with this answer, and which list it comes from. */
-export function reasonNeeded(choice: OvertimeChoice, insideAllowance: boolean): 'decline' | 'over-limit' | null {
-  if (choice === 'DECLINE') return 'decline';
-  return insideAllowance ? null : 'over-limit';
+/** The choice an earlier answer maps to, so "Change my answer" opens on it. */
+export function choiceOf(status: OvertimeDetail['status']): OvertimeChoice {
+  if (status === 'DECLINED') return 'DECLINE';
+  if (status === 'APPROVED_PART') return 'APPROVE_PART';
+  return 'APPROVE_ALL';
+}
+
+/** Why Save is not yet possible, in words under the button, or null when it is. */
+export function saveProblem(choice: OvertimeChoice, reason: string, pin: string): string | null {
+  if (choice !== 'APPROVE_ALL' && reason.trim().length < REASON_MIN) return 'Add your reason';
+  if (pin.length < 4) return 'Enter your PIN';
+  return null;
+}
+
+export function answerBody(choice: OvertimeChoice, part: number, reason: string, pin: string, version: number): OvertimeAnswer {
+  const text = reason.trim();
+  return { decision: choice, ...(choice === 'APPROVE_PART' ? { approvedMinutes: part } : {}), ...(text ? { reason: text } : {}), pin, version };
+}
+
+/** "14:00 → 22:00" for the planned times and "13:58 → 22:35" for the worked instants. */
+export const plannedText = (d: OvertimeDetail): string => (d.plannedStart && d.plannedEnd ? `${d.plannedStart} → ${d.plannedEnd}` : '—');
+export const workedText = (d: OvertimeDetail): string => (d.workedStart ? `${hmOf(d.workedStart)} → ${d.workedEnd ? hmOf(d.workedEnd) : 'open'}` : '—');
+
+/** What the server's refusal codes say on this dialog. */
+export function overtimeWords(code: string, fallback: string): string {
+  switch (code) {
+    case 'INVALID_PIN':
+      return 'That PIN is not right.';
+    case 'CHANGED_UNDERNEATH':
+      return 'This changed while you were looking. Check it again.';
+    case 'PIN_NOT_SET':
+      return 'Set your PIN first. Open your profile and choose Set PIN.';
+    case 'PERIOD_APPROVED':
+      return 'This month is approved. Tell HR if the overtime needs to change.';
+    default:
+      return fallback || 'That did not go through. Nothing was changed.';
+  }
 }

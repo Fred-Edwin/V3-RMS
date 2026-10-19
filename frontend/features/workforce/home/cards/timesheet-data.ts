@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 
 import { useRemote, useWorkforcePermissions, type ComingUpEvent } from '../../_shared';
 import { attendanceReads } from '../../attendance';
-import { dayMonth, hmWords, plainName, requestTitle, shortCompare, timesheetReads, waitingWords, type InboxRequest, type OvertimeListItem } from '../../timesheets';
+import { dayMonth, hmWords, plainName, requestTitle, monthReads, shortCompare, timesheetReads, waitingWords, type InboxRequest, type OvertimeListItem } from '../../timesheets';
 import type { AttentionItem } from '../components/attention-list';
 import type { WaitingItem } from '../components/waiting-for-you';
 import type { CardDataState } from '../lib/card-registry';
@@ -21,8 +21,11 @@ import type { CardDataState } from '../lib/card-registry';
 interface Waiting {
   requests: InboxRequest[];
   overtime: OvertimeListItem[];
-  closes: { branch: string; cutoffAt: string }[];
+  closes: { branch: string; approvableFrom: string }[];
 }
+
+/** The first day a month can be approved: the day after its last day ("2026-10" becomes "2026-11-01"). */
+const dayAfterMonth = (monthKey: string): string => new Date(Date.UTC(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)), 1)).toISOString().slice(0, 10);
 
 /** The branches to ask: every branch with the new clock on for a company-wide role, else the person's own (undefined). */
 async function branchesToAsk(wide: boolean): Promise<{ id: string | undefined; name: string }[]> {
@@ -33,13 +36,13 @@ async function branchesToAsk(wide: boolean): Promise<{ id: string | undefined; n
 async function loadWaiting(wide: boolean, readsOvertime: boolean): Promise<Waiting> {
   const parts = await Promise.all(
     (await branchesToAsk(wide)).map(async (b) => {
-      const [requests, overtime, periods] = await Promise.all([
+      const [requests, overtime, months] = await Promise.all([
         timesheetReads.inbox('WAITING', undefined, 1, 10, b.id),
         readsOvertime ? timesheetReads.overtime('PENDING', b.id) : Promise.resolve({ rows: [] as OvertimeListItem[] }),
-        timesheetReads.periods(b.id),
+        monthReads.list(b.id, 1, 5),
       ]);
-      const open = periods.periods.find((p) => p.state === 'OPEN');
-      return { requests: requests.rows, overtime: overtime.rows, close: open ? { branch: b.name, cutoffAt: open.cutoffAt } : null };
+      const open = months.months.find((m) => m.state === 'OPEN');
+      return { requests: requests.rows, overtime: overtime.rows, close: open ? { branch: b.name, approvableFrom: dayAfterMonth(open.monthKey) } : null };
     })
   );
   return { requests: parts.flatMap((p) => p.requests), overtime: parts.flatMap((p) => p.overtime), closes: parts.flatMap((p) => (p.close ? [p.close] : [])) };
@@ -118,14 +121,12 @@ export function useTimesheetWaitingItems(): CardDataState<readonly WaitingItem[]
   }, [data, failed, reload, router]);
 }
 
-const closeDate = (iso: string): string => dayMonth(new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date(iso))).toUpperCase();
-
-/** "Timesheets close" for each branch whose month is open: the day it closes by itself. */
+/** "Timesheet ready to approve" for each branch whose month is open: the first day the manager can approve it. Nothing closes by itself. */
 export function useTimesheetCloseEvents(): CardDataState<readonly ComingUpEvent[]> {
   const { data, failed, reload } = useTimesheetWaiting();
   return useMemo((): CardDataState<readonly ComingUpEvent[]> => {
     if (failed) return { status: 'error', retry: reload };
     if (!data) return { status: 'loading' };
-    return { status: 'ready', data: data.closes.map((c) => ({ key: `close-${c.branch}-${c.cutoffAt}`, date: closeDate(c.cutoffAt), text: `Timesheets close${c.branch ? ` · ${c.branch}` : ''}` })) };
+    return { status: 'ready', data: data.closes.map((c) => ({ key: `close-${c.branch}-${c.approvableFrom}`, date: dayMonth(c.approvableFrom).toUpperCase(), text: `Timesheet ready to approve${c.branch ? ` · ${c.branch}` : ''}` })) };
   }, [data, failed, reload]);
 }
