@@ -15,7 +15,7 @@ import { OvertimeDialog } from '../../overtime/components/overtime-dialog';
 import { RangeControl } from '../../months/components/range-control';
 import { rangeFromUrl } from '../../months/lib/month-pick';
 import { rowAction, type DaysChip, type RowAction } from '../lib/days-view';
-import { CalendarGlance, GLANCE_LEGEND } from './calendar-glance';
+import { CalendarGlance, GlanceLegend } from './calendar-glance';
 import { DayFix } from './day-fix';
 import { DaysTable } from './days-table';
 
@@ -92,11 +92,7 @@ export function PersonMonthScreen() {
         <aside aria-label="The month at a glance" className="flex shrink-0 flex-col gap-3 lg:w-[300px] lg:border-r lg:border-wds-neutral-950 lg:pr-5">
           <h2 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.08em] text-wds-text-secondary">THE MONTH AT A GLANCE</h2>
           <CalendarGlance days={data.glance} onPick={pick} />
-          <ul className="m-0 flex list-none flex-col gap-1 p-0 font-wds-sans text-[13px] leading-4 text-wds-text-ink">
-            {GLANCE_LEGEND.map((l) => (
-              <li key={l.kind}>{l.label}</li>
-            ))}
-          </ul>
+          <GlanceLegend />
           {firstNeed && !approved ? (
             <div className="flex flex-col gap-1.5 border border-wds-warning-border bg-wds-caramel-100 p-3">
               <p className="m-0 font-wds-sans text-[13px] font-semibold leading-[18px] text-wds-text-ink">Something needs you on {firstNeed.date.slice(8)} {monthLabel(monthKey).split(' ')[0]}</p>

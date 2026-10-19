@@ -88,7 +88,7 @@ export function PersonDrawer({
               </Callout>
             ) : null}
             <StatBoxes
-              variant="figures"
+              variant="times"
               cells={[
                 { label: 'PLANNED', value: clockHours(data.totals.plannedMinutes) },
                 { label: 'WORKED', value: clockHours(data.totals.workedMinutes) },

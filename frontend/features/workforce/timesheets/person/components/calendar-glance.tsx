@@ -27,6 +27,20 @@ export const GLANCE_LEGEND: { kind: GlanceKind; label: string }[] = [
   { kind: 'REST', label: 'Rest day' },
 ];
 
+/** The key under the calendar: a small swatch in each day colour with its words. */
+export function GlanceLegend() {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1.5 p-0 font-wds-sans text-[13px] leading-4 text-wds-text-ink">
+      {GLANCE_LEGEND.map((l) => (
+        <li key={l.kind} className="flex items-center gap-2">
+          <span aria-hidden className={cn('inline-block size-3.5 shrink-0', SWATCH[l.kind])} />
+          {l.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * The month at a glance (spec S5): a calendar built from the days given, so a 31-day month and February come out right. Each day is a
  * button named "Wed 9 Sep, worked, on the rota"; choosing it takes the table to that day. Colour is never the only signal: the
@@ -39,7 +53,7 @@ export function CalendarGlance({ days, onPick }: { days: readonly { date: string
   while (cells.length % 7 !== 0) cells.push(null);
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
   return (
-    <table className="border-separate border-spacing-[3px]">
+    <table className="w-fit border-separate border-spacing-[3px]">
       <caption className="sr-only">The month at a glance</caption>
       <thead>
         <tr>

@@ -129,7 +129,7 @@ function Decision({ detail, onClose, onDone, onStale }: { detail: OvertimeDetail
           ) : null}
           <FormField label="Reason" helper="Needed to approve part or decline. It is recorded." hint={choice === 'APPROVE_ALL' ? 'optional' : undefined}>
             {({ id, describedBy, invalid }) => (
-              <input id={id} aria-describedby={describedBy} aria-invalid={invalid} className={FIELD_CLASS} maxLength={REASON_MAX} value={reason} disabled={busy} onChange={(e) => setReason(e.target.value)} />
+              <input id={id} autoComplete="off" aria-describedby={describedBy} aria-invalid={invalid} className={FIELD_CLASS} maxLength={REASON_MAX} value={reason} disabled={busy} onChange={(e) => setReason(e.target.value)} />
             )}
           </FormField>
           <div className="flex flex-wrap items-start gap-x-6 gap-y-3">

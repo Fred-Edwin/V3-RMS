@@ -99,7 +99,7 @@ export function PeopleTable({
       { id: 'planned', header: 'PLANNED', width: '84px', align: 'right', cell: (row) => <Zero value={row.plannedMinutes}>{clockHours(row.plannedMinutes)}</Zero> },
       { id: 'worked', header: 'WORKED', width: '84px', align: 'right', cell: (row) => <Zero value={row.workedMinutes}>{clockHours(row.workedMinutes)}</Zero> },
       { id: 'overtime', header: 'OVERTIME', width: '88px', align: 'right', cell: (row) => <Zero value={row.overtimeMinutes}>{clockHours(row.overtimeMinutes)}</Zero> },
-      { id: 'late', header: 'LATE', width: '72px', align: 'right', cell: (row) => <Zero value={row.lateMinutes}>{row.lateMinutes > 0 ? `${row.lateMinutes} min` : '0'}</Zero> },
+      { id: 'late', header: 'LATE', width: '88px', align: 'right', cell: (row) => <Zero value={row.lateMinutes}>{row.lateMinutes > 0 ? `${row.lateMinutes} min` : '0'}</Zero> },
       { id: 'absent', header: 'ABSENT', width: '72px', align: 'right', cell: (row) => <Zero value={row.absentDays}>{row.absentDays}</Zero> },
       { id: 'leave', header: 'LEAVE', width: '64px', align: 'right', className: WIDE_ONLY, cell: (row) => <Zero value={row.leaveDays}>{row.leaveDays}</Zero> },
       { id: 'status', header: 'STATUS', cell: (row) => <Status person={row} /> },
