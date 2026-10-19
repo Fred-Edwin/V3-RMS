@@ -4,14 +4,15 @@
 // backend/src/modules/workforce/timesheets/README.md.
 
 enum TimesheetPeriodState {
-  OPEN
-  CLOSING // the close has been claimed and is being finished (a crashed close is resumed by the sweep)
-  CLOSED
+  OPEN // stored state; "To approve" is derived (the month has ended and nobody has approved it)
+  CLOSING // retired (no automatic close any more); kept so old rows stay readable
+  CLOSED // retired: migrated to APPROVED
+  APPROVED // the site's manager approved the month with a PIN: locked and with payroll
 }
 
 enum TimesheetCloseKind {
-  AUTO // at the cut-off
-  EARLY // a manager brought it forward
+  AUTO // retired: the automatic close at the cut-off
+  EARLY // retired: a manager brought it forward
 }
 
 enum TimesheetStatus {
@@ -26,6 +27,7 @@ enum OvertimeStatus {
   AUTO_AUTHORISED // fully covered by the service tail
   PENDING
   APPROVED
+  APPROVED_PART // the manager authorised some of the minutes asked for
   DECLINED
 }
 
@@ -47,29 +49,39 @@ enum TimeRequestState {
 
 /// One pay period of one site. The window is the days this timesheet covers (the rule's period, cut at the cut-off day).
 model TimesheetPeriod {
-  id           String               @id @default(uuid())
-  siteId       String               @map("organization_id")
-  startDate    DateTime             @map("start_date") @db.Date
-  endDate      DateTime             @map("end_date") @db.Date // inclusive; the cut-off day
-  label        String
-  cutoffAt     DateTime             @map("cutoff_at") // the instant the period closes by itself (Nairobi time)
-  state        TimesheetPeriodState @default(OPEN)
-  reportNumber Int                  @default(autoincrement()) @map("report_number") // TSH-000n
-  closeKind    TimesheetCloseKind?  @map("close_kind")
-  closedAt     DateTime?            @map("closed_at")
-  closedById   String?              @map("closed_by_id")
-  signedById   String?              @map("signed_by_id") // the manager who signed the report with their PIN
-  signedAt     DateTime?            @map("signed_at")
-  reopenedAt   DateTime?            @map("reopened_at")
-  reopenedById String?              @map("reopened_by_id")
-  reopenReason String?              @map("reopen_reason")
-  createdAt    DateTime             @default(now()) @map("created_at")
-  updatedAt    DateTime             @updatedAt @map("updated_at")
+  id               String               @id @default(uuid())
+  siteId           String               @map("organization_id")
+  startDate        DateTime             @map("start_date") @db.Date
+  endDate          DateTime             @map("end_date") @db.Date // inclusive; the cut-off day
+  label            String
+  cutoffAt         DateTime             @map("cutoff_at") // the instant the period closes by itself (Nairobi time)
+  state            TimesheetPeriodState @default(OPEN)
+  reportNumber     Int                  @default(autoincrement()) @map("report_number") // TSH-000n
+  closeKind        TimesheetCloseKind?  @map("close_kind")
+  closedAt         DateTime?            @map("closed_at")
+  closedById       String?              @map("closed_by_id")
+  signedById       String?              @map("signed_by_id") // the manager who signed the report with their PIN
+  signedAt         DateTime?            @map("signed_at")
+  reopenedAt       DateTime?            @map("reopened_at")
+  reopenedById     String?              @map("reopened_by_id")
+  reopenReason     String?              @map("reopen_reason")
+  // Approval of the month (Segment 1A). One approval per site-month; nothing reopens it.
+  approvedAt       DateTime?            @map("approved_at")
+  approvedById     String?              @map("approved_by_id")
+  approverOwnHours Boolean              @default(false) @map("approver_own_hours") // the approver's own hours are in the month
+  approveKey       String?              @map("approve_key") // idempotency key of the approving request
+  documentNumber   Int?                 @unique @map("document_number") // TSH-n, issued at approval from timesheet_document_seq
+  documentHash     String?              @map("document_hash") // sha256 of the frozen snapshot
+  approvedSnapshot Json?                @map("approved_snapshot") // one row per person and the totals, frozen at approval
+  approvalNote     String?              @map("approval_note") // set when the approval predates the redesign
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
 
-  site  Site            @relation(fields: [siteId], references: [id])
-  days  TimesheetDay[]
-  weeks TimesheetWeek[]
-  items OvertimeItem[]
+  site    Site              @relation(fields: [siteId], references: [id])
+  days    TimesheetDay[]
+  weeks   TimesheetWeek[]
+  items   OvertimeItem[]
+  exports TimesheetExport[]
 
   @@unique([siteId, startDate])
   @@index([siteId, state])
@@ -151,6 +163,8 @@ model OvertimeItem {
   decidedById        String?        @map("decided_by_id")
   decidedAt          DateTime?      @map("decided_at")
   decisionReason     String?        @map("decision_reason")
+  version            Int            @default(0) // bumped by every write; a stale version answers 409 CHANGED_UNDERNEATH
+  headNote           Json?          @map("head_note") // { byId, text, at }: evidence from a department head, never a decision
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
@@ -162,6 +176,29 @@ model OvertimeItem {
   @@index([periodId, status])
   @@index([siteId, status])
   @@map("overtime_items")
+}
+
+/// One export of a month (PDF or Excel). The file is never stored; the row is the audit anchor, the idempotency key and the
+/// count the rate limit reads.
+model TimesheetExport {
+  id             String    @id @default(uuid())
+  periodId       String    @map("period_id")
+  siteId         String    @map("organization_id")
+  userId         String    @map("user_id")
+  format         String // pdf | xlsx
+  scope          String // month | range
+  rangeFrom      DateTime? @map("range_from") @db.Date
+  rangeTo        DateTime? @map("range_to") @db.Date
+  idempotencyKey String    @map("idempotency_key")
+  documentNumber Int?      @map("document_number")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  period TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([periodId])
+  @@map("timesheet_exports")
 }
 
 /// Report a problem and "clocked out by mistake": what a person says a recorded time should be. Never edits time itself;
