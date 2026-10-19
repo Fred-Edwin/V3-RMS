@@ -1,6 +1,6 @@
 # Workforce design pass 4: shared parts after payroll (Chapters 14 to 17 and conflicts)
 
-19 October 2026. A review of Chapters 14 (Audit and security), 15 (Waiting for you), 16 (When things go wrong) and 17 (Signed documents) against the approved Chapters 12 (Payroll and timesheets) and 13 (Rules). No Paper redraw and no code yet; this file records the owner's decisions and the list of changes to draw.
+19 October 2026. A review of Chapters 14 (Audit and security), 15 (Waiting for you), 16 (When things go wrong) and 17 (Signed documents) against the approved Chapters 12 (Payroll and timesheets) and 13 (Rules). **The owner approved the redrawn Chapters 14 to 17 on 19 Oct 2026.** No code yet; this file records the owner's decisions, what was redrawn in Paper, and what is left.
 
 ## Decided by the owner (19 Oct 2026)
 
