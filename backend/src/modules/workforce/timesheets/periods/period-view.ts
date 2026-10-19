@@ -42,6 +42,12 @@ export interface PeriodSummary {
 
 export type PeopleFilter = 'ALL' | 'NEEDS_LOOK' | 'LATE';
 
+/** The days (and overtime) that fall within `from` to `to`, both ends included; no range means all of them. Days are Nairobi dates, so a plain comparison is right. */
+export function withinRange<T>(items: readonly T[], dateOf: (item: T) => string, range: { from?: string; to?: string }): T[] {
+  const { from, to } = range;
+  return from === undefined || to === undefined ? [...items] : items.filter((item) => dateOf(item) >= from && dateOf(item) <= to);
+}
+
 interface DayWithPerson {
   day: DayRow;
   person: PersonFacts;

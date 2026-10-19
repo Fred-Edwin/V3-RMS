@@ -5385,7 +5385,7 @@ Base `/api/v1/workforce/timesheets`. Every route: `authenticate`, `attachWorkfor
 | # | Method and path | Capability | Body or query | Success |
 |---|---|---|---|---|
 | T1 | `GET /periods` | `timesheet.read` | `siteId?` | `{ enabled, periods[] }` (the current period is created on first read) |
-| T2 | `GET /periods/:id` | `timesheet.read` | `search?`, `departmentId?`, `filter?` (`ALL`, `NEEDS_LOOK`, `LATE`), `page`, `pageSize` | `{ period, summary, weeks, carriedInDays, counts, people: { rows, page, pageSize, total } }`; exceptions first |
+| T2 | `GET /periods/:id` | `timesheet.read` | `search?`, `departmentId?`, `filter?` (`ALL`, `NEEDS_LOOK`, `LATE`), `from?` and `to?` (both or neither: only those days of the period, for the week picker), `page`, `pageSize` | `{ period, summary, weeks, carriedInDays, counts, people: { rows, page, pageSize, total } }`; exceptions first |
 | T4 | `GET /periods/:id/people/:employeeId` | `timesheet.read` | | `{ period, person, days[], weeks[], overtime[], requests[] }` |
 | T5 | `GET /days/:id` | `timesheet.read` | | `{ day, person, history, overtime (with evidence, limits, ordersValue), requests }` |
 | T6 | `POST /days/:id/decision` | `timesheet.approve` | `{ outcome: ACCEPT, reason? }` or `{ outcome: EXCUSE\|HOLD, reason }` | the day. 409 `PERIOD_CLOSED`, `NOTHING_TO_DECIDE`, `OVERTIME_UNDECIDED`, `NOT_LATE`, `EXCUSE_WINDOW_OVER` |

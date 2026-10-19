@@ -5,7 +5,7 @@ import { timesheetDaysRepository } from '../days/timesheet-days-repository';
 import { overtimeRepository } from '../overtime/overtime-repository';
 import { viewerFor, type Viewer } from '../timesheets-scope';
 import type { PeriodRow } from '../timesheets.types';
-import { filterRows, personRows, summarise, type PeriodSummary, type PersonPeriodRow } from './period-view';
+import { filterRows, personRows, summarise, withinRange, type PeriodSummary, type PersonPeriodRow } from './period-view';
 import type { PeriodListQuery, PeriodQuery } from './periods-validators';
 import { periodsRepository } from './periods-repository';
 
@@ -48,11 +48,15 @@ export async function getPeriod(subject: AccessSubject, id: string, query: Perio
   await refreshPeriod(found, now);
   const period = (await periodsRepository.find(found.siteId, found.id)) ?? found;
 
-  const [days, overtime, weeks] = await Promise.all([
+  const [allDays, allOvertime, weeks] = await Promise.all([
     timesheetDaysRepository.allInPeriod(period.id, period.siteId),
     overtimeRepository.allInPeriod(period.id, period.siteId),
     timesheetDaysRepository.weekCounts(period.id, period.siteId),
   ]);
+  // The week picker narrows the figures and the people to a range of the period's days (the whole period when none is given).
+  const range = { from: query.from, to: query.to };
+  const days = withinRange(allDays, ({ day }) => day.shiftDate, range);
+  const overtime = withinRange(allOvertime, (item) => item.shiftDate, range);
   const scoped = filterRows(personRows(days, overtime), 'ALL', undefined, undefined, viewer.departmentIds);
   const visible = new Set(scoped.map((row) => row.employeeId));
   const rows = filterRows(scoped, query.filter, query.search, query.departmentId, null);

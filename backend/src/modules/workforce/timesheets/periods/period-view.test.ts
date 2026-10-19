@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { NairobiDate } from '../../_shared/time/nairobi-time';
 import type { DayRow, OvertimeRow } from '../timesheets.types';
-import { filterRows, personRows, summarise } from './period-view';
+import { periodQuery } from './periods-validators';
+import { filterRows, personRows, summarise, withinRange } from './period-view';
 
 const person = (id: string, name: string, dept: string) => ({ id, name, departmentId: dept, department: { name: dept === 'svc' ? 'Service' : 'Kitchen' } });
 const day = (employeeId: string, date: string, extra: Partial<DayRow> = {}): DayRow => ({
@@ -57,5 +58,31 @@ describe('search and filters', () => {
   it('a department head sees only their departments, however they search', () => {
     expect(filterRows(rows, 'ALL', undefined, undefined, ['kit']).map((r) => r.name)).toEqual(['Esther Mwende', 'Dan Kiprop']);
     expect(filterRows(rows, 'ALL', 'Amina', undefined, ['kit'])).toEqual([]);
+  });
+});
+
+describe('the week picker (a range of the period)', () => {
+  const entries = days.map((d) => d.day);
+
+  it('keeps the days from the first to the last day inclusive, and everything when no range is given', () => {
+    expect(withinRange(entries, (d) => d.shiftDate, { from: '2026-10-06', to: '2026-10-06' }).map((d) => d.id)).toEqual(['a-2026-10-06']);
+    expect(withinRange(entries, (d) => d.shiftDate, { from: '2026-10-05', to: '2026-10-06' })).toHaveLength(5);
+    expect(withinRange(entries, (d) => d.shiftDate, {})).toHaveLength(5);
+    expect(withinRange(entries, (d) => d.shiftDate, { from: '2026-10-07', to: '2026-10-11' })).toEqual([]);
+  });
+
+  it('narrows the people and the figures to the chosen days', () => {
+    const only = days.filter(({ day: d }) => d.shiftDate === '2026-10-06');
+    const narrowed = personRows(only, withinRange(items, (i) => i.shiftDate, { from: '2026-10-06', to: '2026-10-06' }));
+    expect(narrowed.map((r) => r.name)).toEqual(['Amina Hassan']);
+    expect(summarise(narrowed, only, [])).toMatchObject({ people: 1, plannedMinutes: 480, needsLookDays: 0, pendingOvertimeItems: 0 });
+  });
+
+  it('asks for both ends or neither, in order', () => {
+    expect(periodQuery.safeParse({ from: '2026-10-05', to: '2026-10-11' }).success).toBe(true);
+    expect(periodQuery.safeParse({}).success).toBe(true);
+    expect(periodQuery.safeParse({ from: '2026-10-05' }).success).toBe(false);
+    expect(periodQuery.safeParse({ from: '2026-10-11', to: '2026-10-05' }).success).toBe(false);
+    expect(periodQuery.safeParse({ from: 'yesterday', to: '2026-10-05' }).success).toBe(false);
   });
 });
