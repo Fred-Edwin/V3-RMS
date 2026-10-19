@@ -5401,7 +5401,7 @@ Base `/api/v1/workforce/timesheets`. Every route: `authenticate`, `attachWorkfor
 | R4 | `GET /me/requests` | `time.own` | `state?` (`OPEN`, `ALL`) | `{ requests[] }` with `waitingOnName`, `waitingDays`, `escalatedToHr`, `answerAfter` |
 | R5 | `POST /me/requests` | `time.own` | one of six kinds, see below | 201 the request (a second identical open request returns the first) |
 | R6 | `POST /me/requests/:id/withdraw` | `time.own` | | the request. 409 `NOT_WAITING` |
-| M1 | `GET /me/time` | `time.own` | `periodId?` | `{ enabled, period, periods, days[], weeks[], totals, openRequests }`, own record only |
+| M1 | `GET /me/time` | `time.own` | `periodId?` | `{ enabled, period, periods, days[], weeks[], totals, openRequests }`, own record only. Each day also carries `clockIn` and `clockOut` (ISO instants of the first shift, null when not clocked; corrections applied) |
 | M2 | `GET /me/rota` | `time.own` | `from?`, `to?` (up to 62 days; default today and 13 days) | `{ enabled, from, to, shifts[] }` |
 
 R5 bodies (all carry `date` and a one-line `note`): `CLOCK_TIME_WRONG { type: IN\|OUT, at }`, `WORKED_NOT_RECORDED { clockIn, clockOut }`, `CLOCKED_OUT_BY_MISTAKE { at? }` (no time takes the clock-out away), `ROTA_WRONG`, `OVERTIME_MISSING { minutes? }`, `PAY_OTHER`. Errors: 409 `ATTENDANCE_NOT_ENABLED`, `NOTHING_TO_REVERSE`; 400 `DATE_IN_FUTURE`, `DATE_TOO_OLD` (over 45 days).

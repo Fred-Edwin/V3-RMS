@@ -10,6 +10,7 @@ import { overtimeRepository } from '../overtime/overtime-repository';
 import { periodsRepository } from '../periods/periods-repository';
 import { requestsRepository } from '../requests/requests-repository';
 import type { DayRow, OvertimeRow, PeriodRow, RequestRow } from '../timesheets.types';
+import { clockTimesFor, type DayClockTimes } from './me-clock-times';
 import type { MyRotaQuery, MyTimeQuery } from './me-validators';
 
 export interface MyTimeView {
@@ -17,7 +18,8 @@ export interface MyTimeView {
   enabled: boolean;
   period: PeriodRow | null;
   periods: PeriodRow[];
-  days: (DayRow & { overtime: Pick<OvertimeRow, 'status' | 'authorisedMinutes' | 'needsMinutes' | 'rawMinutes'> | null; requests: Pick<RequestRow, 'id' | 'kind' | 'state'>[] })[];
+  /** Each day also carries its first shift's clock-in and clock-out (ISO instants, null when not clocked), for "05:58 → 14:01". */
+  days: (DayRow & DayClockTimes & { overtime: Pick<OvertimeRow, 'status' | 'authorisedMinutes' | 'needsMinutes' | 'rawMinutes'> | null; requests: Pick<RequestRow, 'id' | 'kind' | 'state'>[] })[];
   weeks: WeekView[];
   /** Hours only. Overtime still waiting is shown as pending and is not paid until someone authorises it. */
   totals: { plannedMinutes: number; workedMinutes: number; lateMinutes: number; overtimeAuthorisedMinutes: number; overtimePendingMinutes: number };
@@ -50,6 +52,7 @@ export async function myTime(subject: AccessSubject, query: MyTimeQuery, now: Da
   ]);
   const mineDays = days.filter(({ person: p }) => p.id === person.id).map(({ day }) => day);
   const mineItems = items.filter((item) => item.employeeId === person.id);
+  const clocks = await clockTimesFor(period.siteId, person.id, period.start, period.end, mineDays.filter((d) => d.scheduledMinutes > 0 || d.workedMinutes > 0).map((d) => d.shiftDate), now);
   return {
     enabled: true,
     period,
@@ -58,6 +61,8 @@ export async function myTime(subject: AccessSubject, query: MyTimeQuery, now: Da
       const item = mineItems.find((i) => i.shiftDate === day.shiftDate) ?? null;
       return {
         ...day,
+        clockIn: clocks.get(day.shiftDate)?.clockIn ?? null,
+        clockOut: clocks.get(day.shiftDate)?.clockOut ?? null,
         overtime: item && { status: item.status, authorisedMinutes: item.authorisedMinutes, needsMinutes: item.needsMinutes, rawMinutes: item.rawMinutes },
         requests: requests.filter((r) => r.shiftDate === day.shiftDate).map((r) => ({ id: r.id, kind: r.kind, state: r.state })),
       };
