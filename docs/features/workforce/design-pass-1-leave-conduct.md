@@ -1,6 +1,6 @@
 # Workforce design pass 1: Leave and Conduct (Chapters 10 and 11)
 
-19 October 2026. A design session with the owner on Paper page "Workforce · C. Leave and conduct" (file `01M3TP8J54R83RHC9FJ7RAHGKG`). No code was written. The redrawn chapters are **ready for the owner's approval, not approved**.
+19 October 2026. A design session with the owner on Paper page "Workforce · C. Leave and conduct" (file `01M3TP8J54R83RHC9FJ7RAHGKG`). No code was written. **The owner approved Chapters 10 and 11 on 19 Oct 2026.** Still open: the Chapter 13 Rules tabs other than Leave and Conduct have not been checked for the row-level Change and locked Change pattern, and the Chapter 11 staff steps 1 and 4 sit out of date order.
 
 ## What the owner decided
 
