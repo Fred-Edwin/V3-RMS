@@ -1,6 +1,6 @@
 # Workforce · Timesheets, overtime and requests (slice 4a)
 
-**Status:** back end built 18 Oct 2026 on branch `feat/workforce-4a-timesheets` (cut from `feat/workforce-3-attendance`); not merged or pushed. No screens yet. Every choice is in [decisions-4a-timesheets-backend.md](../../../../../docs/features/workforce/decisions-4a-timesheets-backend.md).
+**Status:** back end built 18 Oct 2026 on branch `feat/workforce-4a-timesheets` (cut from `feat/workforce-3-attendance`); not merged or pushed. Screens built 19 Oct 2026 on `feat/workforce-4a-timesheets-frontend` (`frontend/features/workforce/timesheets/`), with three small additions made there and recorded in [decisions-4a-timesheets-frontend.md](../../../../../docs/features/workforce/decisions-4a-timesheets-frontend.md): a person's days (T4) and My time's days (M1) carry `clockIn` and `clockOut`, and the period read (T2) takes `from` and `to`. Every back-end choice is in [decisions-4a-timesheets-backend.md](../../../../../docs/features/workforce/decisions-4a-timesheets-backend.md).
 
 ## What it does
 
@@ -55,7 +55,7 @@ timesheets/
   overtime/   overtime-plan (pure), overtime-repository, evidence-repository, overtime-service, validators, controller
   requests/   requests-rules (pure), clock-apply, day-snapshot, requests-service, request-decide-service, escalation-service,
               requests-repository, requests-view, validators, controller
-  report/     report-service, report-controller        me/   me-service, me-validators, me-controller
+  report/     report-service, report-controller        me/   me-service, me-clock-times (a day's clock times), me-validators, me-controller
 ```
 
 Tables: `timesheet_periods`, `timesheet_days`, `timesheet_weeks`, `overtime_items`, `time_requests` (DATA_MODEL §12). Nothing stores money.
