@@ -7,6 +7,7 @@ model Company {
   updatedAt DateTime @updatedAt @map("updated_at")
   sites     Site[]
   shiftTemplates ShiftTemplate[]
+  payrollMonths  PayrollMonth[]
 
   @@map("companies")
 }

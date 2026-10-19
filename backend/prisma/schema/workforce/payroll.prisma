@@ -1,0 +1,315 @@
+// ---- Workforce Segment 2A: Payroll, part 1 (month, engine, review, approval) ------------------------------
+// New tables only. The legacy `payslips` table is never altered. Money is Decimal(14, 2) (DATA_MODEL: never a float).
+// Part 2 adds the enum values PUBLISHED and PAID (month) and PUBLISHED and LOCKED (payslip) with ALTER TYPE ... ADD VALUE.
+// Rows of runs, payslips, payslip lines and snapshots are insert-only (database trigger); review lines and adjustments change
+// only while the month is still being prepared. Employees, sites and users are plain ids, checked by the services, so that no
+// core model needed an inverse relation. See backend/src/modules/workforce/payroll/README.md.
+
+enum PayrollMonthState {
+  WAITING // the month ended and is not calculated yet (a site has not approved, or the tax tables are not confirmed)
+  IN_REVIEW // calculated; HR checks the unusual lines
+  TO_APPROVE // HR sent it to the Accountant
+  TO_PUBLISH // the Accountant approved with a PIN; the figures are frozen
+}
+
+enum PayrollRunTrigger {
+  SYSTEM // within 15 minutes of the last included approval
+  HR // Calculate again
+}
+
+enum PayrollRunStatus {
+  SUCCEEDED
+  FAILED // the whole-month checks did not agree; nothing of this run is current
+}
+
+enum PayslipStatus {
+  READY // calculated, not published (part 2 adds PUBLISHED and LOCKED)
+}
+
+enum PayslipLineKind {
+  EARNING
+  DEDUCTION
+  STATUTORY
+  MEMO
+}
+
+enum ReviewState {
+  OPEN
+  CHECKED
+}
+
+/// One calendar month for the whole company. Created when the first included site approves or when the month ends.
+model PayrollMonth {
+  id                String            @id @default(uuid())
+  companyId         String            @map("company_id")
+  monthKey          String            @map("month_key") // YYYY-MM, Nairobi calendar
+  state             PayrollMonthState @default(WAITING)
+  stateVersion      Int               @default(0) @map("state_version") // bumped by every write; a stale one answers 409 CHANGED_UNDERNEATH
+  includedSiteIds   String[]          @map("included_site_ids") // fixed at the first calculation (E10)
+  currentRunId      String?           @map("current_run_id")
+  runCount          Int               @default(0) @map("run_count")
+  tablesVersion     Int?              @map("tables_version") // the Statutory version the month froze
+  tablesConfirmedAt DateTime?         @map("tables_confirmed_at")
+  tablesConfirmedBy String?           @map("tables_confirmed_by")
+  rulesUsed         Json?             @map("rules_used") // the rule versions found at the month's last day, frozen at the first calculation
+  calculatedAt      DateTime?         @map("calculated_at")
+  sentAt            DateTime?         @map("sent_at") // HR sent it to the Accountant
+  sentById          String?           @map("sent_by_id")
+  sentBackAt        DateTime?         @map("sent_back_at")
+  sentBackById      String?           @map("sent_back_by_id")
+  sentBackReason    String?           @map("sent_back_reason")
+  approvedAt        DateTime?         @map("approved_at")
+  approvedById      String?           @map("approved_by_id")
+  documentNumber    String?           @map("document_number") // PAY-YYYY-MM, issued at approval
+  handChecked       Boolean           @default(false) @map("hand_checked") // the Accountant ticked "I checked at least 3 payslips" (P16)
+  firstMonthSiteIds String[]          @default([]) @map("first_month_site_ids") // sites for which this is their first payroll month
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  company     Company             @relation(fields: [companyId], references: [id])
+  sites       PayrollMonthSite[]
+  runs        PayrollRun[]
+  adjustments PayrollAdjustment[]
+  leftOut     PayrollLeftOut[]
+  snapshots   PayrollSnapshot[]
+
+  @@unique([companyId, monthKey])
+  @@unique([companyId, documentNumber])
+  @@index([companyId, state])
+  @@map("payroll_months")
+}
+
+/// A site the month includes, and its timesheet approval at the moment the month was first calculated.
+model PayrollMonthSite {
+  id                    String   @id @default(uuid())
+  monthId               String   @map("month_id")
+  siteId                String   @map("site_id")
+  periodId              String   @map("period_id") // the site's timesheet month
+  timesheetNumber       Int      @map("timesheet_number") // TSH-n
+  timesheetApprovedAt   DateTime @map("timesheet_approved_at")
+  timesheetApprovedById String   @map("timesheet_approved_by_id")
+  headcount             Int
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, siteId])
+  @@index([siteId])
+  @@map("payroll_month_sites")
+}
+
+/// One calculation of the month. Insert-only; the earlier runs are kept for the audit.
+model PayrollRun {
+  id            String            @id @default(uuid())
+  monthId       String            @map("month_id")
+  runNumber     Int               @map("run_number")
+  trigger       PayrollRunTrigger
+  status        PayrollRunStatus
+  byId          String?           @map("by_id") // null when the system calculated
+  inputsHash    String            @map("inputs_hash") // sha256 of everything the run read
+  headcount     Int
+  blocking      Int               @default(0)
+  totals        Json // gross, tax and statutory, other, net, employer shares, by site (strings)
+  failureReason String?           @map("failure_reason")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  month    PayrollMonth        @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  payslips PayrollPayslip[]
+  review   PayrollReviewLine[]
+
+  @@unique([monthId, runNumber])
+  @@map("payroll_runs")
+}
+
+/// A person's payslip in one run, frozen. Corrections (part 2) add `version` n+1 in the same run; rows are never updated.
+model PayrollPayslip {
+  id                String        @id @default(uuid())
+  monthId           String        @map("month_id")
+  runId             String        @map("run_id")
+  employeeId        String        @map("employee_id")
+  siteId            String        @map("site_id")
+  version           Int           @default(1)
+  status            PayslipStatus @default(READY)
+  employeeName      String        @map("employee_name")
+  employeeNumber    String        @map("employee_number")
+  department        String?
+  siteName          String        @map("site_name")
+  basic             Decimal       @db.Decimal(14, 2)
+  gross             Decimal       @db.Decimal(14, 2)
+  statutoryEmployee Decimal       @map("statutory_employee") @db.Decimal(14, 2)
+  incomeTax         Decimal       @map("income_tax") @db.Decimal(14, 2)
+  otherDeductions   Decimal       @map("other_deductions") @db.Decimal(14, 2)
+  net               Decimal       @db.Decimal(14, 2)
+  employerShare     Decimal       @map("employer_share") @db.Decimal(14, 2)
+  taxablePay        Decimal       @map("taxable_pay") @db.Decimal(14, 2)
+  overtimePay       Decimal       @map("overtime_pay") @db.Decimal(14, 2)
+  latenessDeduction Decimal       @map("lateness_deduction") @db.Decimal(14, 2)
+  unpaidAbsence     Decimal       @map("unpaid_absence") @db.Decimal(14, 2)
+  input             Json // the engine input, so one person can be worked again with the month's frozen rules
+  payoutMethod      String?       @map("payout_method") // BANK, MPESA, CASH or null; the account itself is never copied here
+  documentNumber    String?       @map("document_number") // PS-nnnn, issued at the first publish (part 2)
+  replacesVersion   Int?          @map("replaces_version") // part 2
+  diff              Json? // part 2: the change against the previous version
+  reason            String? // part 2
+  correctedById     String?       @map("corrected_by_id") // part 2
+  correctedAt       DateTime?     @map("corrected_at") // part 2
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  run   PayrollRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  lines PayrollPayslipLine[]
+
+  @@unique([runId, employeeId, version])
+  @@index([monthId, runId, siteId])
+  @@index([employeeId, monthId])
+  @@map("payroll_payslips")
+}
+
+/// One line of a payslip with the working that produced it.
+model PayrollPayslipLine {
+  id          String          @id @default(uuid())
+  payslipId   String          @map("payslip_id")
+  position    Int
+  code        String
+  label       String
+  kind        PayslipLineKind
+  amount      Decimal         @db.Decimal(14, 2)
+  taxable     Boolean         @default(false)
+  base        String?
+  baseAmount  Decimal?        @map("base_amount") @db.Decimal(14, 2)
+  rate        String?
+  bandsUsed   Json?           @map("bands_used")
+  quantity    String?
+  unit        String?
+  source      Json
+  workingText String          @map("working_text")
+  tableCode   String?         @map("table_code")
+  share       String? // EMPLOYEE or EMPLOYER
+
+  payslip PayrollPayslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@unique([payslipId, position])
+  @@index([payslipId])
+  @@map("payroll_payslip_lines")
+}
+
+/// A line HR must look at (E5). The ticks belong to the run; Calculate again makes a fresh set.
+model PayrollReviewLine {
+  id           String      @id @default(uuid())
+  monthId      String      @map("month_id")
+  runId        String      @map("run_id")
+  employeeId   String      @map("employee_id")
+  siteId       String      @map("site_id")
+  employeeName String      @map("employee_name")
+  siteName     String      @map("site_name")
+  kind         String
+  severity     String // BLOCK or TICK
+  text         String
+  state        ReviewState @default(OPEN)
+  checkedById  String?     @map("checked_by_id")
+  checkedAt    DateTime?   @map("checked_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  run PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, employeeId, kind])
+  @@index([runId, state])
+  @@index([runId, severity, state])
+  @@map("payroll_review_lines")
+}
+
+/// A line HR added in review (P14). Removed (not deleted) until the month is sent.
+model PayrollAdjustment {
+  id             String    @id @default(uuid())
+  monthId        String    @map("month_id")
+  employeeId     String    @map("employee_id")
+  siteId         String    @map("site_id")
+  kind           String // ALLOWANCE, INCENTIVE, ARREARS, OTHER_EARNING, ADVANCE_REPAID, HELB, OTHER_DEDUCTION
+  label          String
+  amount         Decimal   @db.Decimal(14, 2)
+  taxable        Boolean   @default(false)
+  reason         String
+  idempotencyKey String    @map("idempotency_key")
+  createdById    String    @map("created_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  removedById    String?   @map("removed_by_id")
+  removedAt      DateTime? @map("removed_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, idempotencyKey])
+  @@index([monthId, employeeId])
+  @@map("payroll_adjustments")
+}
+
+/// A person HR left out of the month; kept across recalculations. The next month raises an ARREARS line for each.
+model PayrollLeftOut {
+  id         String   @id @default(uuid())
+  monthId    String   @map("month_id")
+  employeeId String   @map("employee_id")
+  siteId     String   @map("site_id")
+  reason     String
+  byId       String   @map("by_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, employeeId])
+  @@index([employeeId])
+  @@map("payroll_left_out")
+}
+
+/// The frozen calculation at approval (E8). Insert-only; a correction in part 2 adds revision r+1.
+model PayrollSnapshot {
+  id        String   @id @default(uuid())
+  monthId   String   @map("month_id")
+  revision  Int      @default(1)
+  hash      String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, revision])
+  @@map("payroll_snapshots")
+}
+
+/// A reminder to a site that has not approved its timesheets. At most one in 24 hours.
+model PayrollReminder {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  monthKey     String   @map("month_key")
+  siteId       String   @map("site_id")
+  remindedById String   @map("reminded_by_id")
+  remindedAt   DateTime @default(now()) @map("reminded_at")
+
+  @@index([companyId, monthKey, siteId, remindedAt])
+  @@map("payroll_reminders")
+}
+
+/// The Director's estimate of a month, written by the nightly job and read from here (P28).
+model PayrollEstimate {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  monthKey   String   @map("month_key")
+  asOf       DateTime @map("as_of") @db.Date
+  computedAt DateTime @map("computed_at")
+  data       Json
+
+  @@unique([companyId, monthKey])
+  @@map("payroll_estimates")
+}
+
+/// A write that already happened under this key. The same key answers the first result; a different key on a finished step is a 409.
+model PayrollRequestKey {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  key       String
+  action    String
+  monthKey  String   @map("month_key")
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([companyId, key])
+  @@index([companyId, monthKey, action])
+  @@map("payroll_request_keys")
+}
