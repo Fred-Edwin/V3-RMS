@@ -18,7 +18,7 @@ export type DayReason =
 
 export type DayStatus = 'MATCHED' | 'AUTO_APPROVED' | 'NEEDS_LOOK' | 'APPROVED' | 'HELD' | 'EXCUSED';
 export type OvertimeStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'AUTO_AUTHORISED';
-export type PeriodState = 'OPEN' | 'CLOSING' | 'CLOSED';
+export type PeriodState = 'OPEN' | 'CLOSING' | 'CLOSED' | 'APPROVED';
 export type RequestKind = 'CLOCK_TIME_WRONG' | 'WORKED_NOT_RECORDED' | 'CLOCKED_OUT_BY_MISTAKE' | 'ROTA_WRONG' | 'OVERTIME_MISSING' | 'PAY_OTHER';
 export type RequestState = 'WAITING' | 'APPROVED' | 'DECLINED' | 'WITHDRAWN';
 

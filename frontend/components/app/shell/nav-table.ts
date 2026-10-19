@@ -281,8 +281,11 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'templates', label: 'Shift templates', newHref: '/app/workforce/schedule/templates', roles: [...WF_APPROVERS, DIRECTOR] },
     ],
   },
-  // Timesheets and Requests (slice 4a): shown only where the branch's new clock is on, like the Schedule rows. The Accountant reads Timesheets and acts on nothing.
-  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR, ACCOUNTANT], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets'] },
+  // Timesheets and Requests (slice 4a, reworked by Segment 1A): shown only where the branch's new clock is on, like the Schedule rows. Only the
+  // Branch and Store Managers keep a Timesheets link (they approve the month). HR and the Accountant read it by address, from Payroll later.
+  // The Director has no Timesheets link and approves Head office timesheets from their own row (built beyond Paper).
+  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [MANAGER, STORE_MANAGER], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets'] },
+  { key: 'wf-head-office-timesheets', label: 'Head office timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [DIRECTOR], needsAttendance: true, match: ['/app/workforce/timesheets'] },
   { key: 'wf-requests', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
   { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
@@ -308,7 +311,6 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/today', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
   { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
-  { key: 'wf-head-timesheets', label: 'Timesheets', group: 'wf-team', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true, match: ['/app/workforce/timesheets'] },
   { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true, notBuilt: true },
   // My time (slice 4a): hours and days, my rota, and the requests I have sent. Only where the branch's new clock is on.
   {
@@ -765,7 +767,7 @@ export function activeFor(groups: readonly NavGroup[], pathname: string): Active
 export const hasHubRows = (role: AppRole | null | undefined): boolean => Boolean(role) && NAV_ROWS.some((row) => row.hub && role !== null && role !== undefined && row.roles.includes(role));
 
 /** Print documents are bare pages: no sidebar, no top bar. */
-export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname) || /^\/app\/workforce\/schedule\/rota\/print(\/|$)/.test(pathname) || /^\/app\/workforce\/timesheets\/report(\/|$)/.test(pathname);
+export const isBareRoute = (pathname: string): boolean => /-print(\/|$)/.test(pathname) || /^\/app\/workforce\/schedule\/rota\/print(\/|$)/.test(pathname);
 
 /**
  * Roles that use the one shell at every width: the sidebar on a desktop, a top bar with a menu drawer on a phone (and the floor-staff

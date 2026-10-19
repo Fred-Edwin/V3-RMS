@@ -24,12 +24,15 @@ export const wholeHours = (minutes: number): string => `${Math.round(minutes / 6
 export const monthOf = (period: Pick<Period, 'start'>): string => MONTH_YEAR.format(noon(period.start));
 /** "Mon 5", for a day row. */
 export const dayShort = (day: string): string => WEEKDAY_SHORT.format(noon(day)).replace(',', '');
+/** Newer ICU data spells September "Sept" in en-GB; the spec and Paper write "Sep". */
+const sep = (text: string): string => text.replace('Sept', 'Sep');
+
 /** "9 Oct". */
-export const dayMonth = (day: string): string => DAY_MONTH.format(noon(day));
+export const dayMonth = (day: string): string => sep(DAY_MONTH.format(noon(day)));
 /** "Friday 9 October". */
 export const dayLong = (day: string): string => LONG_DAY_MONTH.format(noon(day)).replace(',', '');
 /** "Fri 9 Oct" for a request title. */
-export const dayTitle = (day: string): string => `${WEEKDAY_SHORT.format(noon(day)).split(/[ ,]+/)[0]} ${DAY_MONTH.format(noon(day))}`;
+export const dayTitle = (day: string): string => `${WEEKDAY_SHORT.format(noon(day)).split(/[ ,]+/)[0]} ${dayMonth(day)}`;
 
 /** "Monday 2 November, 18:00": when the period closes by itself. */
 export function cutoffWords(period: Pick<Period, 'cutoffAt'>): string {

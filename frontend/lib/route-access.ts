@@ -148,11 +148,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'SYSTEM_ADMIN';
   }
 
-  // Timesheets and Requests (slice 4a): the roles that read timesheets (the managers, HR, the Director, the Accountant to read) and a
-  // department head for their own department. The API decides what each can do; a branch whose new clock is off shows an empty page.
+  // Timesheets and Requests (slice 4a, Segment 1A): the roles that read timesheets (the managers, HR, the Director, the Accountant to read).
+  // A department head does not (spec D7). The API decides what each can do; a branch whose new clock is off shows an empty page.
   const under = (prefix: string): boolean => pathname === prefix || pathname.startsWith(`${prefix}/`);
   if (under('/app/workforce/timesheets') || under('/app/workforce/requests')) {
-    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
 
   // My time, My rota and My requests (slice 4a): everyone who clocks in, the floor staff and the Store Attendant included, and the desktop

@@ -39,6 +39,8 @@ export function ReportProblemScreen() {
   }, [covering, time.data?.period]);
   const day = time.data?.days.find((d) => d.shiftDate === form.date);
   const problem = problemOf(form);
+  // A day in an approved month is locked: the request goes straight to HR (spec section 9 and D29).
+  const locked = covering?.state === 'APPROVED' || (time.data?.period?.state === 'APPROVED' && covering === undefined && form.date !== null && time.data.period.start <= form.date && form.date <= time.data.period.end);
   const first = form.kind === 'CLOCK_TIME_WRONG' || form.kind === 'CLOCKED_OUT_BY_MISTAKE';
 
   if (permissions.ready && !permissions.can('time.own')) {
@@ -57,7 +59,7 @@ export function ReportProblemScreen() {
     return (
       <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" heading="What went wrong?" back="/app/workforce/my-time">
         <OptionList legend="What went wrong?" tick options={KIND_OPTIONS} value={form.kind} onChange={(kind) => { set({ kind: kind as ReportForm['kind'] }); setStep('detail'); }} name="report-kind" />
-        <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Pay questions about deductions go to HR. Everything else goes to your Branch Manager.</p>
+        <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Pay questions about deductions go to HR. Everything else goes to your manager, who will answer.</p>
       </PhoneScreen>
     );
   }
@@ -87,9 +89,14 @@ export function ReportProblemScreen() {
         </Callout>
       ) : null}
       <PhoneButton size="lg" disabled={problem !== null || action.busy} onClick={() => form.kind && void action.run(() => timesheetWrites.createRequest(bodyOf(form)))}>
-        {action.busy ? 'Sending…' : goesToHr(form.kind) ? 'Send to HR' : 'Send to your manager'}
+        {action.busy ? 'Sending…' : goesToHr(form.kind) || locked ? 'Send to HR' : 'Send to your manager'}
       </PhoneButton>
-      <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{problem ?? 'Your time stays as recorded until your manager answers. You will be told, and you can follow it in My requests.'}</p>
+      {locked ? (
+        <Callout tone="neutral" size="sm" role="status">
+          This month is approved. Tell HR.
+        </Callout>
+      ) : null}
+      <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{problem ?? (locked ? 'Your request goes straight to HR. You will be told, and you can follow it in My requests.' : 'Your time stays as recorded until your manager answers. You will be told, and you can follow it in My requests.')}</p>
     </PhoneScreen>
   );
 }

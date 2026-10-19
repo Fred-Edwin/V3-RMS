@@ -69,11 +69,11 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforcex', 'HR_MANAGER', false)).toBe(false);
   });
 
-  it('opens Timesheets, its report and Requests for the roles that read timesheets and a department head, and nobody else (slice 4a)', () => {
-    for (const path of ['/app/workforce/timesheets', '/app/workforce/timesheets/report', '/app/workforce/requests']) {
+  it('opens Timesheets, a person’s month and Requests for the roles that read timesheets, and not for a department head or anyone else (slice 4a, 1A)', () => {
+    for (const path of ['/app/workforce/timesheets', '/app/workforce/timesheets/month/2026-09/abc', '/app/workforce/requests']) {
       for (const role of ALL) {
         expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
-        expect(isAllowedPath(path, role, true), `head ${role} on ${path}`).toBe(true);
+        expect(isAllowedPath(path, role, true), `head ${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
       }
     }
     expect(isAllowedPath('/app/workforce/timesheetsx', 'WAITER', false)).toBe(false);
