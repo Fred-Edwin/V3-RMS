@@ -1,0 +1,80 @@
+# Workforce design pass 1: Leave and Conduct (Chapters 10 and 11)
+
+19 October 2026. A design session with the owner on Paper page "Workforce · C. Leave and conduct" (file `01M3TP8J54R83RHC9FJ7RAHGKG`). No code was written. The redrawn chapters are **ready for the owner's approval, not approved**.
+
+## What the owner decided
+
+| Question | Decision | Why |
+|---|---|---|
+| How should a staff member see their leave? | A Leave home with one card per leave type HR sets: days left, taken and booked, and a bar that is green over half, amber under half, red under a quarter. A Request page, a History page, and a follow-up page for each request. | At a glance, one story, one place for each job. |
+| Where does the tall dark header go? | On the first screen of a section (Leave home, History, Conduct list, a notice waiting to be signed). The thin bar stays on screens where you do something. | A tall header gives the screen a headline number; forms need the room. |
+| How is a request's progress shown? | A vertical stepper with circles: green done, ringed current, red declined, grey to come, and an amber passed step when nobody answered in 3 days and it moved to HR. | Reads the real approval chain at a glance. |
+| Who is named in messages to the approver? | The role ("your Branch Manager"), never a name. | The person changes, the role does not. |
+| PDF or a screen for slips and notices? | A Document view: the real document fitted to the phone, pinch to zoom, Download PDF and Share. | Phones open PDFs badly. |
+| Do staff sign leave slips? | No. The approver's PIN signs the slip. | A staff signature would imply they could refuse an approval. |
+| Who writes a warning? | The manager raises, signs and issues it. HR decides appeals only. | The issuer never judges their own notice. |
+| How is the letter wording handled? | Ready-made letters **fixed in the system**. The issuer fills the blanks and adds one line of their own. Changes are made in code; there is no editing screen. | Keeps the design simple. An editing screen was drawn and then removed. |
+| Can the manager ask HR to withdraw a notice? | No button. The manager phones HR. HR can withdraw or change any notice. | Keeps it simple. |
+| When do the 7 appeal days start? | From the day the notice is issued, signed or not. | Signing late never extends the appeal. |
+| Can staff appeal before signing? | Yes. Signing only shows the notice was received. An appeal button is on the notice. | Someone who disagrees should never have to sign first. |
+| How does the staff member find out about a notice? | Push notification, then an Inbox message, then the Conduct page, which is the permanent list with downloads. | The push can be missed, the Inbox and the Conduct page cannot. |
+| Where is a leave request decided? | Only on the Leave page, with the rota. Waiting for you shows a summary and a "Review with the rota" button. Overtime and clock fixes are decided in Waiting for you. | One decision screen, not two. |
+
+## Decided on the owner's behalf
+
+- Sample data: Cynthia Wairimu has 12 days left, 9 taken (5 in June, 4 in August), 0 booked, plus a declined request on 27 to 29 July.
+- Bar colour thresholds are fixed in the system, not a Rules setting.
+- Leave home must list every type the person is entitled to (Maternity and Paternity only for those who qualify). Only Annual, Sick and Family emergency are drawn.
+- The steps in each chapter are ordered staff, manager, HR. In Chapter 11 the staff steps 1 and 4 show screens that follow an HR decision, so they sit out of date order.
+
+## Open points for later
+
+- The "hearing" after a final written warning has no screen in Chapters 10 to 17.
+- Equation or "before, change, after" rows in Chapters 12 to 17 were not swept for the alignment pattern. Chapter 10 step 15 is fixed. Matches found by a quick text search in Chapters 12 to 17: none with the NOW / NEW layout; the Chapter 11 and 10 summary rows are label and value lists.
+- Chapter 15 step 6 (after-answer states) still describes leave being answered inside Waiting for you.
+- The Conduct row added to the phone menu has no connector dot on the rail and uses a plain document icon.
+- Phones: the sign and appeal screens (Chapter 11 step 3) are kept from the old design with role names.
+
+## Change log (Paper)
+
+### Chapter 10 · Leave
+| Frame | What changed |
+|---|---|
+| Step 1 (menu) | Added a Conduct link under Me. |
+| Step 2 Leave home + Request | New. Leave home with three cards, coloured bars, a bar key and a waiting line; Request kept, wording changed to "Send to your Branch Manager". |
+| Step 3 History + request | New. Tall-header History with filter tabs and a hairline list; one request with the stepper. |
+| Step 4 endings | New. Approved (slip download) and declined (reason). |
+| Step 5 moved to HR | New. Stepper with the passed 3-day step. |
+| Step 6 Document view | New. Leave slip LVE-0031 and notice WRN-0007 with logo, QR, signatures and footer cloned from step 17. |
+| Step 7 Inbox answer | Kept (right phone); left phone removed. Wording changed to roles. |
+| Step 8 not enough days | Kept (middle phone); declined and with-HR phones removed. |
+| Step 9 Waiting for you | Decline and Approve replaced by "Review with the rota". Caption and note rewritten. |
+| Step 10 Leave | Caption rewritten. |
+| Step 11 approve dialog | Her, she and his copy made neutral. |
+| Step 15 adjust a balance | The now, add, new row is three fixed-width columns with fixed separators. |
+| Old step 2 (Ask for leave), old step 15 (three phones), old step 3 left phone, old step 14 declined and with-HR phones | Deleted, replaced by the new frames. |
+| Chapter header | "19 steps". |
+
+### Chapter 11 · Conduct
+| Frame | What changed |
+|---|---|
+| Step 1 Conduct page | New. Tall-header list of notices with download; one notice with a stepper, download and appeal. |
+| Step 2 Inbox + notice | The notice before signing is new: tall header, stepper with "Sign that you received it" current, sign, read the full letter, and "I do not agree · appeal to HR". |
+| Step 3 sign and appeal | Wording changed to roles. |
+| Step 4 outcome + Conduct page | Right phone replaced by the Conduct list after an appeal (verbal note active, written warning replaced with a download). |
+| Step 7 issue a warning | The own-line label and the caption say the letter is ready-made. |
+| Step 8 notice document, step 9 record not signed | Gendered copy made neutral. |
+| Chapter header | "13 steps". |
+
+### Chapter 13 · Rules, Conduct tab (step 7)
+- Who does what: Whoever issues raises, signs and issues; HR decides every appeal and can withdraw any notice; the Branch Manager reads their own site; the Director changes the rule and reads all.
+- Time to appeal: counted from the day the notice is issued, signed or not.
+- Subtitle: the ladder and the letters are fixed.
+- An editing screen and a Letter wording row were added and then removed (the letters are fixed in the system).
+
+### Chapter 15 · Waiting for you
+- Steps 1 and 2 (Branch Manager and HR): leave rows show "Review with the rota" instead of Approve and Decline.
+
+## Not changed
+
+`backend/` and `frontend/` were not touched. Chapters 12 to 17 were not changed.
