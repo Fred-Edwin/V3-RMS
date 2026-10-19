@@ -76,9 +76,12 @@ export async function loadPeople(args: LoadArgs): Promise<LoadedPerson[]> {
     const spells = e.spells.map((s) => ({ startsOn: fromDateColumn(s.startsOn) as NairobiDate, endedOn: s.endedOn ? (fromDateColumn(s.endedOn) as NairobiDate) : null }));
     const ranges = employedRanges(window, spells);
     const { segments, lastAmount } = await amountSegments(ranges, (date) => payAmountOn(e.id, date));
-    const hours = e.userId ? await getApprovedHours(e.userId, { start: window.first, end: window.last }) : { workedMinutes: 0, overtimeApprovedMinutes: 0 };
     const myDays: ApprovedDay[] = daysBy.get(e.id) ?? [];
     const myOvertime = overtimeBy.get(e.id) ?? [];
+    // The door answers by login. A person without a login (the door cannot find them) is read from the same approved rows the door sums.
+    const hours = e.userId
+      ? await getApprovedHours(e.userId, { start: window.first, end: window.last })
+      : { workedMinutes: myDays.reduce((t, d) => t + d.workedMinutes, 0), overtimeApprovedMinutes: myOvertime.reduce((t, o) => t + o.authorisedMinutes, 0) };
     const snapshot = snapshotBy.get(e.id);
     const profile = e.payProfile;
     const split = splitOvertime(myOvertime, myDays, holidays, hours.overtimeApprovedMinutes);
