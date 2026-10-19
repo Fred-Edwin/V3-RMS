@@ -24,6 +24,8 @@ export { registerTimesheets } from './timesheets/register-timesheets'; // the cl
 export { sweepTimesheets } from './timesheets/timesheets-sweep'; // the ten-minute job: refreshes open months, escalates old requests (closes nothing)
 export { getApprovedHours, type ApprovedHours } from './timesheets/approved-hours'; // reporting and payroll read approved hours only, never raw clock events
 export { isSitePeriodOnNewPayroll } from './payroll/rollout/rollout-guard'; // the old payslip code asks this before it saves, publishes or reverts (Segment 2A)
+export { default as workforcePayrollRouter } from './payroll/payroll-routes'; // Payroll part 1: the month, the engine, the review and the approval (Segment 2A)
+export { sweepPayroll, refreshEstimates as refreshPayrollEstimates } from './payroll/payroll-sweep'; // the job: month rows, automatic calculation, nightly estimate
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 

@@ -17,6 +17,8 @@ export const monthsRepository = {
     return { rows, total };
   },
 
+  activeCompanyIds: async (): Promise<string[]> => (await prisma.company.findMany({ where: { isActive: true }, select: { id: true } })).map((c) => c.id),
+
   allKeys: async (companyId: string): Promise<{ monthKey: string; state: PayrollMonthState }[]> => prisma.payrollMonth.findMany({ where: { companyId }, select: { monthKey: true, state: true }, orderBy: { monthKey: 'desc' } }),
 
   /** Locks the month row for the rest of the transaction and returns what it held at that moment. */

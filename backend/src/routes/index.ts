@@ -55,6 +55,7 @@ import {
   workforceAttendanceRouter,
   workforceOrgRouter,
   workforcePeopleRouter,
+  workforcePayrollRouter,
   workforcePermissionsRouter,
   workforceRotaRouter,
   workforceRulesRouter,
@@ -133,5 +134,6 @@ apiRouter.use(workforceRotaRouter);
 apiRouter.use(workforceAttendanceRouter);
 registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
 apiRouter.use(workforceTimesheetsRouter);
+apiRouter.use(workforcePayrollRouter);
 
 export default apiRouter;

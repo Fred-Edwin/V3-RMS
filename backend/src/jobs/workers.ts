@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { bullMqConnection, notificationQueue, reportQueue, commsQueue } from '../config/queues';
 import { ATTENDANCE_AUTO_CLOSE_JOB, ensureAttendanceAutoCloseSchedule, runAttendanceAutoCloseJob } from './attendance-auto-close-job';
 import { TIMESHEETS_SWEEP_JOB, ensureTimesheetsSweepSchedule, runTimesheetsSweepJob } from './timesheets-sweep-job';
+import { PAYROLL_ESTIMATE_JOB, PAYROLL_SWEEP_JOB, ensurePayrollSchedules, runPayrollEstimateJob, runPayrollSweepJob } from './payroll-sweep-job';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
@@ -86,6 +87,16 @@ export const reportWorker = new Worker(
 
     if (job.name === TIMESHEETS_SWEEP_JOB) {
       await runTimesheetsSweepJob();
+      return;
+    }
+
+    if (job.name === PAYROLL_SWEEP_JOB) {
+      await runPayrollSweepJob();
+      return;
+    }
+
+    if (job.name === PAYROLL_ESTIMATE_JOB) {
+      await runPayrollEstimateJob();
       return;
     }
 
@@ -184,6 +195,9 @@ export const startWorkers = (): void => {
     });
     void ensureTimesheetsSweepSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the timesheets sweep schedule');
+    });
+    void ensurePayrollSchedules(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the payroll schedules');
     });
     void ensurePeopleSchedulerSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the People scheduler schedule');
