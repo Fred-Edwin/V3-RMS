@@ -231,15 +231,15 @@ describe.skipIf(!enabled)('Attendance flows in the database', () => {
     expect(seen).toContain('attendance.auto_closed');
   });
 
-  it('a manager fixes time with a reason: preview, the old value stays in the history, a closed period needs HR, nothing breaks the order', async () => {
+  it('a manager fixes time with a reason: preview, the old value stays in the history, an approved month refuses everyone, nothing breaks the order', async () => {
     const autoOut = (await eventsOf(ids.lena)).find((e) => e.type === 'AUTO_OUT')!;
     const fix = { employeeId: ids.lena, date: today, action: 'EDIT' as const, eventId: autoOut.id, at: at('15:20'), reason: 'She worked until 15:20, her manager confirmed' };
     expect(await m.previewFix(townManager, fix, at('16:00'))).toMatchObject({ before: { afterEndMinutes: 0 }, after: { afterEndMinutes: 80 } });
     await expect(m.applyFix(townManager, { ...fix, at: at('05:00') }, at('16:00'))).rejects.toMatchObject({ code: 'FIX_BREAKS_ORDER' });
     await expect(m.applyFix(highwayManager, fix, at('16:00'))).rejects.toMatchObject({ statusCode: 404 });
     m.setPeriodClosedCheck(async () => true);
-    await expect(m.applyFix(townManager, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
-    await expect(m.previewFix(hr, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_CLOSED' }); // slice 4a: nobody, HR included; HR reopens the period first
+    await expect(m.applyFix(townManager, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_APPROVED', message: 'This month is approved. Ask HR to correct the payslip.' });
+    await expect(m.previewFix(hr, fix, at('16:00'))).rejects.toMatchObject({ code: 'PERIOD_APPROVED' }); // Segment 1A: nobody, HR included; the payslip is corrected, not the clock
     m.setPeriodClosedCheck(null);
 
     const applied = await m.applyFix(townManager, fix, at('16:00'));

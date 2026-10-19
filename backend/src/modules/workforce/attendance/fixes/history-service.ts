@@ -1,5 +1,5 @@
 import type { AccessSubject } from '../../_shared/workforce-access';
-import { personInScope } from '../attendance-scope';
+import { attendanceReadCapability, personInScope } from '../attendance-scope';
 import type { EventRow } from '../attendance.types';
 import { buildEntryDay, inAppendOrder } from '../days/day-model';
 import { attendanceRulesFor } from '../days/day-rules';
@@ -70,7 +70,7 @@ function annotate(events: readonly EventRow[], names: Map<string, string>): Hist
 
 /** A person's day with every event, replaced and removed ones included ("See history"): the old value stays visible. */
 export async function dayHistory(subject: AccessSubject, query: DayQuery, now: Date = new Date()): Promise<DayHistory> {
-  const person = await personInScope(subject, 'timesheet.read', query.employeeId, 'read');
+  const person = await personInScope(subject, attendanceReadCapability(subject), query.employeeId, 'read');
   const [data, rules] = await Promise.all([daysRepository.loadDayData(person.siteId, query.date, query.date, [person.id]), attendanceRulesFor(person.siteId, query.date)]);
   const groups = groupDay(person.id, query.date, data);
   const names = await daysRepository.userNames([...new Set(data.events.map((e) => e.recordedById).filter((id): id is string => id !== null))]);

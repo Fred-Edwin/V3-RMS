@@ -2,6 +2,7 @@ import { ValidationError } from '../../../../utils/errors';
 import { daysBetween, eachDay, nairobiToday, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { gridScope } from '../../rota/rota-scope';
+import { attendanceReadCapability } from '../attendance-scope';
 import { attendanceRulesFor } from '../days/day-rules';
 import { daysRepository } from '../days/days-repository';
 import { buildPersonDay } from '../days/person-day';
@@ -50,7 +51,7 @@ export interface LatenessReport {
  * Scope is the Today board's for managers and heads, and the whole branch for HR, the Director and the Accountant.
  */
 export async function latenessReport(subject: AccessSubject, query: LatenessQuery, now: Date = new Date()): Promise<LatenessReport> {
-  const scope = gridScope(subject, 'timesheet.read', query.siteId);
+  const scope = gridScope(subject, attendanceReadCapability(subject), query.siteId);
   if (query.to < query.from) throw new ValidationError('The end day is before the start day', 'RANGE_INVALID');
   if (daysBetween(query.from, query.to) + 1 > MAX_LATENESS_DAYS) throw new ValidationError(`Ask for at most ${MAX_LATENESS_DAYS} days at a time`, 'RANGE_TOO_LONG');
   const to = [query.to, nairobiToday(now)].sort()[0] as NairobiDate; // a day that has not started has no lateness

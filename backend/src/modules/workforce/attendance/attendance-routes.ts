@@ -26,11 +26,11 @@ router.post(`${A}/shift-end`, ...base, requireCapability('time.own'), clock.shif
 router.get(`${A}/board`, ...base, requireCapability('today.read'), board.board); // B1
 router.post(`${A}/clock-for`, ...base, requireCapability('today.act'), board.clockFor); // B2
 
-router.get(`${A}/day`, ...base, requireCapability('timesheet.read'), fixes.day); // F1
+router.get(`${A}/day`, ...base, requireCapability('timesheet.read', 'today.read'), fixes.day); // F1 (a head reads their department's)
 router.post(`${A}/fixes/preview`, ...base, requireCapability('time.fix'), fixes.preview); // F2
 router.post(`${A}/fixes`, ...base, requireCapability('time.fix'), fixes.apply); // F3
 
-router.get(`${A}/lateness`, ...base, requireCapability('timesheet.read'), lateness.report); // L1
+router.get(`${A}/lateness`, ...base, requireCapability('timesheet.read', 'today.read'), lateness.report); // L1 (a head reads their department's)
 
 router.get(`${A}/switch`, ...base, requireCapability('today.read'), site.get); // S1
 router.put(`${A}/switch`, ...base, requireCapability('attendance.switch'), site.set); // S2

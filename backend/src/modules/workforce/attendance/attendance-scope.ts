@@ -4,6 +4,12 @@ import type { PersonRow } from './attendance.types';
 import { daysRepository } from './days/days-repository';
 
 /**
+ * The capability an attendance read (a day's history, lateness) goes by: `timesheet.read` for managers, HR, the Accountant and
+ * the Director; a department head has no timesheet access (Segment 1A) but still reads their department's day on the Today board.
+ */
+export const attendanceReadCapability = (subject: AccessSubject): Capability => (scopeOf(subject, 'timesheet.read') !== null ? 'timesheet.read' : 'today.read');
+
+/**
  * The person an action is about, if the caller may act on them. Another branch answers 404 (nothing about it is
  * revealed). Inside the branch, a department head outside their departments is refused (403 for a write, 404 for a
  * read, as the rota does). Nobody changes their own clock through these routes.
