@@ -120,6 +120,7 @@ The owner agreed all four recommendations: Branch Manager own-site editing only 
 - Naming rule changed: a bare name is never shown on its own. Show the role alone, or the name with the role ("Anne Muthoni, Accountant"). Chapter 13 updated (Overtime, Statutory banner and versions, version history). Chapter 12 messages already use the role alone.
 - Chapter 13 is expected to be approved after this fix.
 - Chapter 12 is NOT accepted: the owner wants to rethink how the system handles payroll. The pass 2 redraw of Chapter 12 (order, Document view, role names) stands as a draft until that discussion.
+- **Superseded (19 Oct 2026):** Chapter 12 was redesigned from scratch with the timesheets as one feature, approved by the owner, and the pass 2 Chapter 12 frames were deleted. See [design-pass-3-payroll.md](design-pass-3-payroll.md). The "Pay runs" link is now "Payroll".
 
 ### Open after pass 2
 - A Branch Manager's view of Lateness and Overtime (with locked rows for other sites) is not drawn; only the Director's view and the Holidays padlock are.
