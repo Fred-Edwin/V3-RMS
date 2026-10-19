@@ -1276,9 +1276,14 @@ Scope codes: `own`, `dept`, `unit` (own site), `all`, `–` none. "Head" is what
 | `rota.write` | – | dept | – | unit | all | – | all |
 | `today.read` | – | dept | – | unit | all | all | all |
 | `today.act` | – | dept | – | unit | – | – | all |
-| `timesheet.read` | – | dept | all | unit | all | all | all |
-| `timesheet.approve` | – | dept | – | unit | all | – | all |
-| `overtime.approve` | – | dept | – | unit | all | – | all |
+| `timesheet.read` | – | – | all | unit | all | all | all |
+| `timesheet.approve` | – | – | – | unit | – | – | – |
+| `overtime.approve` | – | – | – | unit | – | – | – |
+| `timesheet.close` (Approve the month) | – | – | – | unit | – | unit | – |
+| `timesheet.export` | – | – | all | unit | all | – | – |
+| `overtime.note` | – | dept | – | – | – | – | – |
+| `time_request.answer` | – | – | – | unit | all | – | all |
+| `manager_time.decide` | – | – | – | – | – | all | – |
 | `clock_mistake.resolve` | – | – | – | unit | – | – | all |
 | `casual.record` | – | dept | – | – | – | – | – |
 | `casual.approve` | – | – | – | unit | – | – | – |
@@ -1339,7 +1344,7 @@ Scope codes: `own`, `dept`, `unit` (own site), `all`, `–` none. "Head" is what
 
 Rules the matrix cannot show (they live in services, listed so they are not forgotten):
 - **Not their own.** `timesheet.approve`, `overtime.approve`, `leave.approve`, `clock_mistake.resolve`: `assertNotSelf`. A manager's own leave goes to HR; HR's own goes to the Director (decision D13). The Director's `leave.approve` is a fallback the approvals sub-module routes to; it is not a general approval right.
-- **Head's allowance.** A head's `overtime.approve` and `timesheet.approve` only cover time inside the overtime allowance (rules, OVERTIME, `serviceTailMinutes` and the weekly cap); beyond it the request moves to the Branch Manager.
+- **A head decides nothing (Segment 1A, replaces the head's allowance).** A department head holds no `timesheet.*` or `overtime.approve`; they may leave one line of `overtime.note` on a pending item of their own department (evidence, never a decision). The site's manager decides everything at the site except their own; a site manager's own days and overtime are decided by the Director under `manager_time.decide`. The month is approved by the site's own manager (`timesheet.close`, `unit`; the Director for the site the Director belongs to).
 - **Separation of duties in payroll.** The person who prepared a pay run cannot approve it (slice 6 service guard). The System Admin holds all pay-run capabilities per proposal section 9, so this guard is what stops one person doing both.
 - **Casuals have no login.** Their data is reached only through `casual.*` and `employee.read_basic` on the head's or manager's scope.
 - **Hub.** `unit` for a Store Manager is the hub site; Store Attendants' approvals go to the Store Manager (decision D8, D13).
@@ -2777,5 +2782,7 @@ The backend session fills this in. Every change from this contract is recorded h
 | 18 Oct 2026 | 3.2, 3.3 | **Slice 4a adds two capabilities** to the access table: `timesheet.close` (close a period early and sign its report; Branch Manager and Store Manager: unit; HR and System Admin: all) and `timesheet.reopen` (HR only: reopening is the one way a closed period changes, with a reason). Existing `timesheet.read`, `timesheet.approve` and `overtime.approve` are used as granted; the Accountant and the Director read and act on nothing. | The Director only reads, so closing is the Branch Manager's job (Chapter 8, step 4). See `decisions-4a-timesheets-backend.md`. |
 | 18 Oct 2026 | 7.1, 7.2 | Slice 4a registers events `timesheet.period_closed`, `timesheet.period_reopened`, `timesheet.day_decided`, `overtime.decided`, `time_request.created/decided/escalated/withdrawn`; audit actions `timesheet.auto_approved/day_decided/overtime_decided/period_closed/period_reopened/period_signed/request_created/request_decided/request_withdrawn/request_escalated` (all category TIME). The older declared `overtime.requested` and `timesheet.approved` stay declared and unused. The door gains `workforceTimesheetsRouter`, `registerTimesheets`, `sweepTimesheets` and a real `getApprovedHours` (the slice 4 stub is gone). | Richer payloads, and the sweep and the hook need a door. |
 | 18 Oct 2026 | 6.1 | `WEEK_AND_BREAKS` gains `timesheetCutoff { daysBeforePeriodEnd, time }` (default 2 days, 18:00; Director edits with the other week fields). | The period closes "on Friday 16 October" for a period ending Sunday 18 (Chapter 8); the cut-off had no home. Parsed with a default, so stored rules stay valid. |
+| 19 Oct 2026 | 3.2, 3.3 | **Segment 1A (Timesheets rework) changes the access table** (code wins; `workforce-access.ts` and its test): `timesheet.close` (now "Approve the month") is held only by the Branch Manager and Store Manager (`unit`) and the Director (`unit`, the Director's own site; no Head office site exists yet); HR and the System Admin lose it. `timesheet.reopen` is deleted. A department head loses `timesheet.read`, `timesheet.approve` and `overtime.approve`; HR loses `timesheet.approve` and `overtime.approve`; the System Admin loses `timesheet.approve`, `overtime.approve` and `timesheet.close`. **New:** `timesheet.export` (Branch and Store Manager `unit`; HR and the Accountant `all`), `overtime.note` (head extra, `dept`), `time_request.answer` (Branch and Store Manager `unit`; HR and System Admin `all`; split from `timesheet.approve` so HR still answers escalated requests) and `manager_time.decide` (Director, `all`: a site manager's own days and overtime, which nobody else may decide). Attendance's lateness report and day history for a head now go by `today.read`. | Owner decisions of 19 Oct 2026 (design pass 3, Segment 1 review): each site's manager approves; HR cannot approve for a site. The Director's decision rights and the request capability are departures flagged in `decisions-1a-timesheets-backend.md` (X6 to X9). |
+| 19 Oct 2026 | 7.1 | Segment 1A adds the event `timesheets.month_approved { siteId, periodId, monthKey, approvedById, documentNumber, headcount, workedMinutes, overtimeAuthorisedMinutes }` (Payroll reads it) and removes `timesheet.period_closed` and `timesheet.period_reopened`; `overtime.decided` outcomes are `APPROVED`, `APPROVED_PART` or `DECLINED`. Audit actions added: `timesheet.month_approved`, `timesheet.overtime_noted`, `timesheet.exported`; `timesheet.period_closed`, `period_reopened` and `period_signed` are retired (history stays readable). | Approve the month replaces the close, reopen and signature. |
 | 18 Oct 2026 | 2.4 | Slice 4a tables differ from the draft: `timesheet_periods`, `timesheet_days`, `timesheet_weeks`, `overtime_items`, `time_requests` (see DATA_MODEL §12). Employee, not legacy user, is the subject; no money is stored. | Brief. |
 
