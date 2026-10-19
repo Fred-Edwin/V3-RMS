@@ -114,14 +114,15 @@ export function TableToolbar({
 
   const chipClass = (active: boolean) =>
     cn(
-      'border px-[11px] py-1.5 font-wds-sans text-[12px] leading-4 transition-colors max-sm:min-h-11',
+      'shrink-0 whitespace-nowrap border px-[11px] py-1.5 font-wds-sans text-[12px] leading-4 transition-colors max-sm:min-h-11',
       focusRing,
       active ? 'border-wds-text-ink bg-wds-text-ink text-white' : 'border-wds-border-strong bg-transparent text-wds-text-ink hover:bg-wds-neutral-50'
     );
 
   return (
-    <div role="search" aria-label={searchLabel} className={cn('flex flex-wrap items-center gap-2 px-4 py-3', className)}>
-      <label className={cn('flex h-8 max-sm:h-11 w-full shrink-0 items-center gap-2 border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring', paper ? 'border-wds-border-strong sm:w-[300px]' : 'border-wds-border sm:w-[240px]')}>
+    <div role="search" aria-label={searchLabel} className={cn('flex flex-wrap items-center gap-2 px-4 py-3', trailing && 'lg:flex-nowrap', className)}>
+      {/* With a `trailing` control the row stays on one line from `lg`: the search box gives way first (down to 140 px). */}
+      <label className={cn('flex h-8 max-sm:h-11 w-full items-center gap-2 border px-2.5 focus-within:border-wds-primary focus-within:shadow-wds-ring', trailing ? 'sm:min-w-[140px] sm:shrink' : 'shrink-0', paper ? 'border-wds-border-strong sm:w-[300px]' : 'border-wds-border sm:w-[240px]')}>
         <Search className="size-[13px] shrink-0 text-wds-text-faint" strokeWidth={1.5} aria-hidden />
         <input
           type="text"
@@ -184,7 +185,7 @@ export function TableToolbar({
       })}
 
       {dropdowns.length > 0 || dateRanges.length > 0 || trailing ? (
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className={cn('ml-auto flex flex-wrap items-center gap-2', trailing && 'lg:shrink-0 lg:flex-nowrap')}>
           {trailing}
           {dateRanges.map((f) => (
             <DateRangePicker
