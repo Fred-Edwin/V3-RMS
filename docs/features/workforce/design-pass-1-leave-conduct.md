@@ -89,6 +89,37 @@
 ### Chapter 15 · Waiting for you
 - Steps 1 and 2 (Branch Manager and HR): leave rows show "Review with the rota" instead of Approve and Decline.
 
+## Design pass 2: Chapters 12 and 13 (19 Oct 2026)
+
+The owner agreed all four recommendations: Branch Manager own-site editing only on Lateness, Overtime and minimum cover; the same Document view for a payslip; Chapter 12 ordered by the monthly run with staff and heads last; roles in messages, names only on signed records.
+
+### Chapter 13 · Rules
+| Frame | What changed |
+|---|---|
+| Steps 1, 3, 4, 5, 6, 10, 11 (Lateness, Overtime, Attendance, Probation, Casual work, Holidays, Week and breaks) | "Change this rule" button removed. A Change link on every changeable row; rows the system sets say Fixed (Probation signed contract, Casual who records and who approves, unpaid break per shift template). |
+| Step 6 Casual work | Branch Manager "who holds the cash" line now Read only. |
+| Step 9 Statutory | "Change a rate" button removed; Change on every band, relief and deduction row. |
+| Step 10 Holidays | Change on each holiday. New row "Pay for hours worked on a holiday" with a locked Change and popover (only the Accountant can change it). |
+| Step 2 Lateness dialog | Caption says Change on a row opens this one dialog; labels now NOW and FROM in the same style as Chapter 10. |
+| Step 3 Overtime panel | Names replaced by the role. |
+| Step 12 Version history | Page-level button removed. |
+| Step 13 Who edits what | Rebuilt as a table: tab, changed by, confirmed by, told. Subtitle explains Change, padlock and Fixed. |
+| Chapter header | Intro says every row has a Change link and where the Leave tab is drawn (Chapter 10 step 18). |
+
+### Chapter 12 · Payroll
+| Frame | What changed |
+|---|---|
+| Whole chapter | Reordered and renumbered 1 to 16 plus Designed later: overview, worked payslip, Pay runs, Accountant confirms the tables, prepare, review, approve, publish, pay run summary, Director reopen, staff phone payslip, Document view, A4 payslip, casual phone, voucher, status reference. Two duplicated step numbers and two missing captions fixed. Header says 16 steps. |
+| Step 12 Document view (new) | The payslip PS-1042 as a phone Document view: logo, QR, Accountant signature, pinch to zoom, Download PDF, Share. Cloned from Chapter 10 step 6. |
+| Step 11 payslip phone | "Save as a PDF" became "View document". |
+| Messages | "Anne Muthoni" and "Mercy Achieng" replaced by the role in messages and captions. Names stay on signed records, the audit log and the sidebar user. |
+| Copy | "her" and "he" removed from the review table. |
+| Step references | Captions that pointed at steps 2, 3 and 4 now point at 5 and 6, and "Steps 5 to 8". |
+
+### Open after pass 2
+- A Branch Manager's view of Lateness and Overtime (with locked rows for other sites) is not drawn; only the Director's view and the Holidays padlock are.
+- "Accountant pays out" (overview step 7) still has no screen of its own.
+
 ## Not changed
 
-`backend/` and `frontend/` were not touched. Chapters 12 to 17 were not changed.
+`backend/` and `frontend/` were not touched. Chapters 14 to 17 were not changed.
