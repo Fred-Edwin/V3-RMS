@@ -50,7 +50,7 @@ export function ReportScreen() {
         </Link>
         <div className="flex items-center gap-2">
           {closed && !signer && permissions.can('timesheet.close') ? (
-            <DialogButton kind="primary" onClick={() => setDialog('sign')}>
+            <DialogButton kind="cancel" onClick={() => setDialog('sign')}>
               Sign this report
             </DialogButton>
           ) : null}

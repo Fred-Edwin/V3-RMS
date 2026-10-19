@@ -18,6 +18,7 @@ export function PhoneScreen({
   title,
   figure,
   subtitle,
+  heading,
   back,
   children,
 }: {
@@ -28,6 +29,8 @@ export function PhoneScreen({
   title?: string;
   figure?: string;
   subtitle?: string;
+  /** A heading in the page itself, under a dark band that is only the back bar (Report a problem). */
+  heading?: string;
   /** Where the arrow goes. */
   back: string;
   children: React.ReactNode;
@@ -39,7 +42,8 @@ export function PhoneScreen({
       <PhoneDarkHeader className="lg:hidden" kicker={kicker} onBack={() => router.push(back)} title={title} figure={figure} subtitle={subtitle} />
       <main aria-label={screen} className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-3 px-4 py-4 lg:py-7">
-          <PageHeader className="hidden lg:flex" title={figure ?? title ?? screen} subtitle={subtitle} />
+          <PageHeader className="hidden lg:flex" title={heading ?? figure ?? title ?? screen} subtitle={subtitle} />
+          {heading ? <h1 className="m-0 mb-1 font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em] text-wds-text-ink lg:hidden">{heading}</h1> : null}
           {children}
         </div>
       </main>

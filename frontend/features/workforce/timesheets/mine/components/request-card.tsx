@@ -2,9 +2,9 @@
 
 import { cn } from '@/lib/cn';
 
-import { Callout, ChecklistRows, PhoneButton, StatBoxes } from '../../../_shared';
+import { Callout, PhoneButton, StatBoxes } from '../../../_shared';
 import { answeredCompare, dayNowMinutes, shortCompare } from '../../_shared/lib/request-compare';
-import { REQUEST_STATE_WORDS, dayLong, hm, requestTitle, stampOf, weekdayOf } from '../../_shared/lib/timesheet-words';
+import { REQUEST_STATE_WORDS, dayLong, hm, plainName, requestTitle, stampOf, weekdayOf } from '../../_shared/lib/timesheet-words';
 import type { Request, RequestState } from '../../_shared/types/timesheet-types';
 
 const EDGE: Record<RequestState, string> = { WAITING: 'border-l-wds-caramel-600', APPROVED: 'border-l-wds-success-fg', DECLINED: 'border-l-wds-error-fg', WITHDRAWN: 'border-l-wds-neutral-400' };
@@ -25,7 +25,7 @@ export function RequestCard({ request, busy, onWithdraw }: { request: Request; b
   const after = answeredCompare(request);
   const now = dayNowMinutes(request);
   const answeredOn = request.decidedAt ? stampOf(request.decidedAt).split(',')[0] : '';
-  const by = request.decidedByName ?? 'your manager';
+  const by = request.decidedByName ? plainName(request.decidedByName) : 'your manager';
   return (
     <li className={cn('flex flex-col gap-2.5 border border-l-[3px] border-wds-border bg-wds-surface px-4 py-3.5', EDGE[request.state])}>
       <div className="flex items-baseline justify-between gap-3">
@@ -36,10 +36,19 @@ export function RequestCard({ request, busy, onWithdraw }: { request: Request; b
       {request.state === 'WAITING' ? (
         <>
           <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{shortCompare(request)}</p>
-          <ChecklistRows rows={[{ title: `Sent ${stampOf(request.createdAt)}` }, { title: request.escalatedToHr ? 'Not answered yet, and with HR too' : 'Not answered yet', state: 'open' }]} className="border-0" />
+          <ul className="m-0 flex list-none flex-col gap-2 p-0 font-wds-sans text-[14px] leading-[18px]">
+            <li className="flex items-center gap-2.5 text-wds-text-ink">
+              <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-wds-success-fg text-[11px] leading-none text-white">✓</span>
+              Sent {stampOf(request.createdAt)}
+            </li>
+            <li className="flex items-center gap-2.5 text-wds-warning-fg">
+              <span aria-hidden className="size-[18px] shrink-0 rounded-full border-2 border-wds-caramel-600" />
+              {request.escalatedToHr ? 'Not answered yet, and with HR too' : 'Not answered yet'}
+            </li>
+          </ul>
           {request.escalatedToHr ? (
             <Callout tone="warning" size="sm">
-              Nobody has answered in {request.waitingDays} days, so this has also gone to HR{request.waitingOnName ? ` (${request.waitingOnName})` : ''}. You do not need to do anything.
+              Nobody has answered in {request.waitingDays} days, so this has also gone to HR{request.waitingOnName ? ` (${plainName(request.waitingOnName)})` : ''}. You do not need to do anything.
             </Callout>
           ) : null}
           <PhoneButton kind="outlined" size="sm" disabled={busy} onClick={() => onWithdraw(request.id)}>
@@ -50,7 +59,7 @@ export function RequestCard({ request, busy, onWithdraw }: { request: Request; b
 
       {request.state === 'APPROVED' ? (
         <>
-          {after ? <StatBoxes variant="compare" cells={[{ label: 'WAS', value: <s>{after.was}</s>, tone: 'error' }, { label: 'NOW', value: after.want, tone: 'success' }]} /> : null}
+          {after ? <StatBoxes variant="compare" row cells={[{ label: 'WAS', value: <s>{after.was}</s>, tone: 'error' }, { label: 'NOW', value: after.want, tone: 'success' }]} /> : null}
           <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
             Answered by {by}, {answeredOn}.{now !== null ? ` Your ${weekdayOf(request.shiftDate)} now shows ${hm(now)}.` : ''}
           </p>

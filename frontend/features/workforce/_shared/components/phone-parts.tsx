@@ -409,7 +409,7 @@ export function TimeRow({
   return (
     <li className={cn('flex flex-col gap-1.5 border border-wds-border bg-wds-surface px-3.5 py-3', problem && 'border-l-[3px] border-l-wds-error-fg')}>
       <div className="flex items-center gap-2.5">
-        <span className="w-11 shrink-0 font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink">{day}</span>
+        <span className="w-[52px] shrink-0 whitespace-nowrap font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink">{day}</span>
         <span className={cn('grow basis-0 font-wds-mono text-[12px] leading-4', problem ? 'text-wds-error-fg' : 'text-wds-text-ink')}>{range}</span>
         <span className={cn('font-wds-sans text-[12px] leading-4', state === 'ok' ? 'text-wds-success-fg' : 'text-wds-warning-fg')}>
           {state === 'problem' ? '' : '✓ '}

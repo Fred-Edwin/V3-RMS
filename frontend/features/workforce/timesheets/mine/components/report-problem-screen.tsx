@@ -55,7 +55,7 @@ export function ReportProblemScreen() {
 
   if (step === 'kind') {
     return (
-      <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" title="What went wrong?" back="/app/workforce/my-time">
+      <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" heading="What went wrong?" back="/app/workforce/my-time">
         <OptionList legend="What went wrong?" tick options={KIND_OPTIONS} value={form.kind} onChange={(kind) => { set({ kind: kind as ReportForm['kind'] }); setStep('detail'); }} name="report-kind" />
         <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Pay questions about deductions go to HR. Everything else goes to your Branch Manager.</p>
       </PhoneScreen>
@@ -63,12 +63,12 @@ export function ReportProblemScreen() {
   }
 
   return (
-    <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" title={form.date ? dayLong(form.date) : 'Which day?'} back="/app/workforce/my-time">
+    <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" heading={form.date ? dayLong(form.date) : 'Which day?'} back="/app/workforce/my-time">
       <button type="button" onClick={() => setStep('kind')} className="self-start font-wds-sans text-[13px] text-wds-text-secondary underline underline-offset-2">
         {KIND_OPTIONS.find((o) => o.value === form.kind)?.label} · change
       </button>
       {dayFromLink ? null : <ChoiceChips legend="Which day?" legendStyle="sentence" size="sm" options={recent} value={form.date} onChange={(date) => set({ date })} name="report-day" />}
-      {recorded ? <StatBoxes variant="compare" cells={[{ label: 'RECORDED', value: recorded, tone: 'error' }, { label: 'I SAY IT SHOULD BE', value: shouldBeWords(form), tone: 'success' }]} /> : null}
+      {recorded ? <StatBoxes variant="compare" row cells={[{ label: 'RECORDED', value: recorded, tone: 'error' }, { label: 'I SAY IT SHOULD BE', value: shouldBeWords(form), tone: 'success' }]} /> : null}
       {form.kind === 'CLOCK_TIME_WRONG' ? <ChoiceChips legend="Which time is wrong?" legendStyle="sentence" size="sm" options={[{ value: 'IN', label: 'Clock in' }, { value: 'OUT', label: 'Clock out' }]} value={form.type} onChange={(type) => set({ type: type as 'IN' | 'OUT' })} name="report-type" /> : null}
       {form.kind === 'CLOCK_TIME_WRONG' ? <TimeField label="It should be" value={form.time} onChange={(time) => set({ time })} /> : null}
       {form.kind === 'CLOCKED_OUT_BY_MISTAKE' ? <TimeField label="I really finished at" hint="optional" helper="Leave it empty if you are still on shift." value={form.time} onChange={(time) => set({ time })} /> : null}

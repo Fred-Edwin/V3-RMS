@@ -113,6 +113,9 @@ const STAMP_DAY = nairobi({ day: 'numeric', month: 'short', year: 'numeric' });
 /** "3 Nov 2026, 09:12" for an instant, in Nairobi time. */
 export const stampOf = (iso: string): string => `${STAMP_DAY.format(new Date(iso))}, ${hmOf(iso)}`;
 
+/** A name as a sentence wants it: the bracketed suffix some display names carry ("Faith Njeri (BM Nyeri Town)") is dropped. */
+export const plainName = (full: string): string => full.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+
 export const ROLE_WORDS: Record<string, string> = { MANAGER: 'Branch Manager', STORE_MANAGER: 'Store Manager', HR_MANAGER: 'HR Manager', SYSTEM_ADMIN: 'System Admin', DIRECTOR: 'Director', ACCOUNTANT: 'Accountant' };
 
 export const weekdayOf =(day: string): string => WEEKDAY_ONLY.format(noon(day));

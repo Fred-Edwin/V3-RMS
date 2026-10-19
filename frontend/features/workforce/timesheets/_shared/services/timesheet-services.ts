@@ -43,7 +43,7 @@ export const timesheetReads = {
   periods: (siteId?: string): Promise<PeriodList> => apiClient.get(`${BASE}/periods${query({ siteId })}`, token()),
   /** T2 */
   period: (id: string, q: PeriodQuery): Promise<PeriodView> =>
-    apiClient.get(`${BASE}/periods/${id}${query({ search: q.search, departmentId: q.departmentId, filter: q.filter, page: q.page, pageSize: q.pageSize })}`, token()),
+    apiClient.get(`${BASE}/periods/${id}${query({ search: q.search, departmentId: q.departmentId, filter: q.filter, from: q.from, to: q.to, page: q.page, pageSize: q.pageSize })}`, token()),
   /** T4 */
   person: (periodId: string, employeeId: string): Promise<PersonPeriod> => apiClient.get(`${BASE}/periods/${periodId}/people/${employeeId}`, token()),
   /** O1 */

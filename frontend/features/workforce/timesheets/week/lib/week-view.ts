@@ -1,4 +1,5 @@
 import type { ValueTone } from '../../../_shared';
+import { hmOf } from '../../../attendance';
 import { mondayOf } from '../../../rota';
 import { hm } from '../../_shared/lib/timesheet-words';
 import type { Day, Overtime, PersonPeriod, Week } from '../../_shared/types/timesheet-types';
@@ -48,6 +49,9 @@ export function dayStatus(day: Day): { text: string; tone: ValueTone } {
       return { text: 'Needs you', tone: 'warning' };
   }
 }
+
+/** "14:02 → 22:01" in Nairobi time, or "14:02 → …" while the shift is open; null when there was no clock-in (the API sends none, or nobody clocked). */
+export const dayRange = (day: Day): string | null => (day.clockIn ? `${hmOf(day.clockIn)} → ${day.clockOut ? hmOf(day.clockOut) : '…'}` : null);
 
 /** "8 h 03 of 8 h 00": a day's worked time against the plan, or "Off" for a day with neither. */
 export const dayHours = (day: Day): string => (day.scheduledMinutes === 0 && day.workedMinutes === 0 ? 'Off' : `${hm(day.workedMinutes)} of ${hm(day.scheduledMinutes)}`);

@@ -282,7 +282,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     ],
   },
   // Timesheets and Requests (slice 4a): shown only where the branch's new clock is on, like the Schedule rows. The Accountant reads Timesheets and acts on nothing.
-  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR, ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/timesheets'] },
+  { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [...WF_APPROVERS, DIRECTOR, ACCOUNTANT], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets'] },
   { key: 'wf-requests', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
   { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
@@ -316,13 +316,13 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     label: 'My time',
     group: 'wf-me',
     icon: ico.myTime,
-    roles: SHIFT_STAFF,
+    roles: [...SHIFT_STAFF, STORE_ATTENDANT],
     needsAttendance: true,
     match: ['/app/workforce/my-time'],
     subItems: [
-      { key: 'hours', label: 'Hours this month', newHref: '/app/workforce/my-time', roles: SHIFT_STAFF },
-      { key: 'rota', label: 'My rota', newHref: '/app/workforce/my-time/rota', roles: SHIFT_STAFF },
-      { key: 'requests', label: 'My requests', newHref: '/app/workforce/my-time/requests', roles: SHIFT_STAFF },
+      { key: 'hours', label: 'Hours this month', newHref: '/app/workforce/my-time', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
+      { key: 'rota', label: 'My rota', newHref: '/app/workforce/my-time/rota', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
+      { key: 'requests', label: 'My requests', newHref: '/app/workforce/my-time/requests', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
     ],
   },
   { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: SHIFT_STAFF, notBuilt: true },

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Day, Overtime, PersonPeriod } from '../../_shared/types/timesheet-types';
 import { DECLINE_REASONS, evidenceLines, limitLines, partMinutes, reasonNeeded } from '../../overtime/lib/overtime-view';
-import { dayStatus, defaultWeekIndex, systemLine, weeksWithDays } from './week-view';
+import { dayRange, dayStatus, defaultWeekIndex, systemLine, weeksWithDays } from './week-view';
 
 const day = (shiftDate: string, over: Partial<Day> = {}): Day => ({ id: shiftDate, periodId: 'p', employeeId: 'e', shiftDate, status: 'AUTO_APPROVED', reasons: [], scheduledMinutes: 480, workedMinutes: 480, minutesLate: 0, minutesAfterGrace: 0, leftEarlyMinutes: 0, afterEndMinutes: 0, lateExcused: false, decidedById: null, decidedAt: null, decisionReason: null, carriedFromPeriodId: null, ...over });
 
@@ -36,6 +36,15 @@ describe('a person’s weeks', () => {
     const quiet = weeksWithDays(person([day('2026-10-01'), day('2026-10-06')]));
     expect(defaultWeekIndex(quiet, '2026-10-06')).toBe(1);
     expect(defaultWeekIndex(quiet, '2026-10-02')).toBe(0);
+  });
+});
+
+describe('a day’s clock range', () => {
+  it('reads the clock-in and clock-out in Nairobi time, an open shift with dots, and nothing when the API sent none', () => {
+    expect(dayRange(day('2026-10-05', { clockIn: '2026-10-05T11:02:00.000Z', clockOut: '2026-10-05T19:01:00.000Z' }))).toBe('14:02 → 22:01');
+    expect(dayRange(day('2026-10-05', { clockIn: '2026-10-05T11:02:00.000Z', clockOut: null }))).toBe('14:02 → …');
+    expect(dayRange(day('2026-10-05'))).toBeNull();
+    expect(dayRange(day('2026-10-05', { clockIn: null, clockOut: null }))).toBeNull();
   });
 });
 

@@ -3,6 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 
+import { DateRangePicker } from '@/components/ui2/date-range-picker';
+
 import { ChoiceChips, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, Callout, useWorkforcePermissions } from '../../../_shared';
 import { nairobiToday } from '../../../rota';
 import { PersonDrawer } from '../../week/components/person-drawer';
@@ -10,6 +12,7 @@ import { useBranchChoice } from '../../_shared/hooks/use-branch-choice';
 import { usePeriods } from '../../_shared/hooks/use-timesheet-data';
 import { closedWhen, monthOf, periodLine } from '../../_shared/lib/timesheet-words';
 import type { PeriodView, PersonRow } from '../../_shared/types/timesheet-types';
+import { chosenRange, shownRange, wholeMonth, type DayRange } from '../lib/period-range';
 import { canCloseNow, kpiCells } from '../lib/period-view';
 import { useDepartments } from '../hooks/use-departments';
 import { useExport } from '../hooks/use-export';
@@ -37,6 +40,18 @@ export function TimesheetsScreen() {
   const departments = useDepartments(period?.organizationId ?? null);
   const exporter = useExport();
   const today = nairobiToday();
+
+  // The week picker: a range of the month's days, or null for the whole month. A different month starts on its whole again.
+  const [chosen, setChosen] = React.useState<DayRange | null>(null);
+  const chooseRange = (range: DayRange | null): void => {
+    setChosen(range);
+    setRefresh((n) => n + 1);
+  };
+  const stepMonth = (to: number): void => {
+    setView(null);
+    setChosen(null);
+    setIndex(to);
+  };
 
   const changed = (): void => {
     setRefresh((n) => n + 1);
@@ -111,7 +126,7 @@ export function TimesheetsScreen() {
             {exporter.error}
           </Callout>
         ) : null}
-        <PeopleTable key={period.id} periodId={period.id} view={view} departments={departments} refreshToken={refresh} onView={setView} onOpen={setOpen} />
+        <PeopleTable key={period.id} periodId={period.id} view={view} range={chosen} departments={departments} refreshToken={refresh} onView={setView} onOpen={setOpen} />
       </>
     );
   }
@@ -123,12 +138,23 @@ export function TimesheetsScreen() {
           title={`Timesheets${branch.name ? ` · ${branch.name}` : ''}`}
           subtitle={period ? periodLine(period) : undefined}
           actions={
-            list.length > 1 && period ? (
-              <PeriodStepper label={monthOf(period)} previousLabel="Earlier month" nextLabel="Later month" previousDisabled={index >= list.length - 1} nextDisabled={index === 0} onPrevious={() => { setView(null); setIndex(index + 1); }} onNext={() => { setView(null); setIndex(index - 1); }} />
+            period ? (
+              <>
+                {list.length > 1 ? <PeriodStepper label={monthOf(period)} previousLabel="Earlier month" nextLabel="Later month" previousDisabled={index >= list.length - 1} nextDisabled={index === 0} onPrevious={() => stepMonth(index + 1)} onNext={() => stepMonth(index - 1)} /> : null}
+                <DateRangePicker
+                  label="Days"
+                  today={today}
+                  value={shownRange(chosen, period, today)}
+                  minDate={period.start}
+                  maxDate={wholeMonth(period, today).to}
+                  note="Choose a week, or any days of this month. The numbers and the people below follow."
+                  onChange={(r) => chooseRange(r ? chosenRange(r, period, today) : null)}
+                />
+              </>
             ) : undefined
           }
         />
-        {branch.branches.length > 1 ? <ChoiceChips legend="Branch" legendStyle="caps" size="sm" value={branch.siteId ?? null} onChange={(id) => { setIndex(0); setView(null); branch.choose(id); }} options={branch.branches.map((b) => ({ value: b.id, label: b.name }))} /> : null}
+        {branch.branches.length > 1 ? <ChoiceChips legend="Branch" legendStyle="caps" size="sm" value={branch.siteId ?? null} onChange={(id) => { setIndex(0); setView(null); setChosen(null); branch.choose(id); }} options={branch.branches.map((b) => ({ value: b.id, label: b.name }))} /> : null}
         {body}
       </div>
       {open && period ? (
@@ -141,7 +167,7 @@ export function TimesheetsScreen() {
           onChanged={changed}
         />
       ) : null}
-      {dialog === 'close' && view ? <CloseDialog view={view} branch={branch.name} onClose={() => setDialog(null)} onDone={done} /> : null}
+      {dialog === 'close' && period ? <CloseDialog period={period} branch={branch.name} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog === 'reopen' && period ? <ReopenDialog period={period} onClose={() => setDialog(null)} onDone={done} /> : null}
     </WorkforceFrame>
   );

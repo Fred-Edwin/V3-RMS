@@ -1,4 +1,5 @@
 import type { ReasonOption } from '../../../_shared';
+import { plainName } from '../../_shared/lib/timesheet-words';
 import type { InboxRequest, Request, RequestKind } from '../../_shared/types/timesheet-types';
 
 /** The manager's side of Report a problem (Chapter 9 draws the person's side). Pure. */
@@ -21,10 +22,10 @@ export function approveNote(kind: RequestKind): string {
 
 /** "Waiting 3 days", "Waiting since today", "Escalated to HR · Mercy Achieng", or how it was answered. */
 export function waitingWords(request: Pick<Request, 'state' | 'waitingDays' | 'escalatedToHr' | 'waitingOnName' | 'decidedByName'>): string {
-  if (request.state === 'APPROVED') return `Approved${request.decidedByName ? ` by ${request.decidedByName}` : ''}`;
-  if (request.state === 'DECLINED') return `Not approved${request.decidedByName ? ` by ${request.decidedByName}` : ''}`;
+  if (request.state === 'APPROVED') return `Approved${request.decidedByName ? ` by ${plainName(request.decidedByName)}` : ''}`;
+  if (request.state === 'DECLINED') return `Not approved${request.decidedByName ? ` by ${plainName(request.decidedByName)}` : ''}`;
   if (request.state === 'WITHDRAWN') return 'Withdrawn';
-  if (request.escalatedToHr) return `Escalated to HR${request.waitingOnName ? ` · ${request.waitingOnName}` : ''}`;
+  if (request.escalatedToHr) return `Escalated to HR${request.waitingOnName ? ` · ${plainName(request.waitingOnName)}` : ''}`;
   if (request.waitingDays === 0) return 'Waiting since today';
   return `Waiting ${request.waitingDays} ${request.waitingDays === 1 ? 'day' : 'days'}`;
 }

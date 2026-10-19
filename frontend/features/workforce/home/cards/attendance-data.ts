@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { useWorkforcePermissions, type WorkforceKpiCell } from '../../_shared';
 import { dayWords, kpiCells, lookItems, useBoard, useMyDay, withWorked, type Board } from '../../attendance';
+import { hmWords, useMyTime } from '../../timesheets';
 import type { WaitingItem } from '../components/waiting-for-you';
 import type { CardDataState } from '../lib/card-registry';
 import type { WaitingData } from './branch-cards';
@@ -12,6 +13,7 @@ import type { KpiData } from './hr-cards';
 import { noSource } from './no-source';
 import type { ClockSlot, TeamSlot, WeekCardData } from './phone-cards-defs';
 import { useThisWeekCard } from './rota-data';
+import { useTimesheetWaitingItems } from './timesheet-data';
 
 /**
  * The Home cards Attendance feeds. Every one of them answers "no source" when the person's branch is still on the old clock (the
@@ -43,12 +45,16 @@ export function useWeekCardData(): CardDataState<WeekCardData> {
   const planned = useThisWeekCard();
   const mine = useMyDay();
   const { status, day } = mine;
+  // Overtime still waiting for a manager's answer (Timesheets, slice 4a); asked only where the new clock is on.
+  const time = useMyTime(undefined, status === 'ready' && day !== null && day.enabled);
+  const waitingMinutes = time.data?.totals.overtimePendingMinutes ?? 0;
   return useMemo((): CardDataState<WeekCardData> => {
     // A branch on the old clock has no phone Home at all; its planned-hours card stays off too.
     if (status === 'ready' && day && !day.enabled) return OFF();
     if (planned.status !== 'ready') return planned;
-    return { status: 'ready', data: day ? { ...planned.data, ...withWorked(planned.data, day) } : planned.data };
-  }, [planned, status, day]);
+    const base = day ? { ...planned.data, ...withWorked(planned.data, day) } : planned.data;
+    return { status: 'ready', data: waitingMinutes > 0 ? { ...base, overtimeWaiting: `${hmWords(waitingMinutes)} overtime waiting` } : base };
+  }, [planned, status, day, waitingMinutes]);
 }
 
 /** A department head's "team today" (B1 scoped to their departments). */
@@ -87,12 +93,14 @@ export function useBoardCardData(): CardDataState<{ live: { board: Board; reload
   }, [board, reload, failed, loading]);
 }
 
-/** "Waiting for you" gets the shifts the phone closed for a manager to put right; approvals join it in slice 4. */
+/** "Waiting for you": the overtime and requests waiting on a manager (Timesheets, slice 4a), then the shifts the phone closed for a manager to put right. */
 export function useWaitingCardData(): CardDataState<WaitingData> {
   const router = useRouter();
   const { can } = useWorkforcePermissions();
   const canFix = can('time.fix');
   const { board, reload, failed, loading } = useHomeBoard();
+  const timesheets = useTimesheetWaitingItems();
+  const timesheetItems = timesheets.status === 'ready' ? timesheets.data : null;
   return useMemo((): CardDataState<WaitingData> => {
     if (failed) return { status: 'error', retry: reload };
     if (loading || !board) return { status: 'loading' };
@@ -106,6 +114,6 @@ export function useWaitingCardData(): CardDataState<WaitingData> {
         kind: 'request',
         actions: [{ label: 'Review', kind: 'primary', onClick: () => router.push(`/app/workforce/today?review=${encodeURIComponent(i.entryId)}&employee=${encodeURIComponent(i.employeeId)}&date=${i.date}`) }],
       }));
-    return { status: 'ready', data: { items } };
-  }, [board, reload, failed, loading, canFix, router]);
+    return { status: 'ready', data: { items: [...(timesheetItems ?? []), ...items] } };
+  }, [board, reload, failed, loading, canFix, router, timesheetItems]);
 }

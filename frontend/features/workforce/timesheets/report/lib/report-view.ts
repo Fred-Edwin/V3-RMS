@@ -1,11 +1,11 @@
-import { dayMonth, monthOf } from '../../_shared/lib/timesheet-words';
+import { dayMonth, monthOf, plainName } from '../../_shared/lib/timesheet-words';
 import type { Report, ReportNote, ReportRow } from '../../_shared/types/timesheet-types';
 
 /** The words and the file of the timesheet report (Paper Chapter 8, step 5). Hours only: nothing in it is money. Pure. */
 
 /** "Overtime approved by Faith Njeri", "Approved by the system", "Clock-out fix open, moves to next period". */
 export function noteWords(note: ReportNote): string {
-  const by = note.by ?? 'a manager';
+  const by = note.by ? plainName(note.by) : 'a manager';
   switch (note.code) {
     case 'APPROVED_BY_SYSTEM':
       return 'Approved by the system';

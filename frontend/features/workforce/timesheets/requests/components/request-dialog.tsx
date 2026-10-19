@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Callout, ChoiceChips, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, StatBoxes, isReasonComplete, reasonText, useAction, type ReasonValue } from '../../../_shared';
 import { timesheetWrites } from '../../_shared/services/timesheet-services';
 import { answeredCompare, requestedCompare } from '../../_shared/lib/request-compare';
-import { hmWords, requestTitle, stampOf } from '../../_shared/lib/timesheet-words';
+import { hmWords, plainName, requestTitle, stampOf } from '../../_shared/lib/timesheet-words';
 import type { InboxRequest } from '../../_shared/types/timesheet-types';
 import { REQUEST_DECLINE_REASONS, approveNote, waitingWords } from '../lib/request-view';
 
@@ -55,7 +55,7 @@ export function RequestDialog({ request, canAct, onClose, onDone }: { request: I
     >
       {request.escalatedToHr && waiting ? (
         <Callout tone="warning" size="sm" title="This has gone to HR">
-          Nobody answered in {request.waitingDays} days, so it is also with HR{request.waitingOnName ? ` (${request.waitingOnName})` : ''}.
+          Nobody answered in {request.waitingDays} days, so it is also with HR{request.waitingOnName ? ` (${plainName(request.waitingOnName)})` : ''}.
         </Callout>
       ) : null}
       {compare ? (

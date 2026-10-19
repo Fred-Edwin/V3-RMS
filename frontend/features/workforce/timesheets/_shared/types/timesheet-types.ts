@@ -82,6 +82,9 @@ export interface PeriodQuery {
   search?: string;
   departmentId?: string;
   filter: PeopleFilter;
+  /** The week picker: only these days of the period (both or neither). */
+  from?: string;
+  to?: string;
   page: number;
   pageSize: number;
 }
@@ -113,6 +116,9 @@ export interface Day {
   decidedAt: string | null;
   decisionReason: string | null;
   carriedFromPeriodId: string | null;
+  /** The first shift's clock-in and clock-out as ISO instants (null when not clocked). Sent with a person's days and My time. */
+  clockIn?: string | null;
+  clockOut?: string | null;
 }
 
 export interface OvertimeLimits {
@@ -237,7 +243,6 @@ export type NewRequest =
   | { kind: 'PAY_OTHER'; date: string; note: string };
 
 export interface MyDay extends Day {
-  /** The first shift's clock-in and clock-out as ISO instants; null when not clocked. */
   clockIn: string | null;
   clockOut: string | null;
   overtime: Pick<Overtime, 'status' | 'authorisedMinutes' | 'needsMinutes' | 'rawMinutes'> | null;

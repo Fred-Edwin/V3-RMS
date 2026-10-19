@@ -4,7 +4,7 @@ import { Callout, DialogButton, StatusText, useAction } from '../../../_shared';
 import { timesheetWrites } from '../../_shared/services/timesheet-services';
 import { dayShort, hm, hmWords, reasonsLine } from '../../_shared/lib/timesheet-words';
 import type { Day, Overtime, PersonPeriod } from '../../_shared/types/timesheet-types';
-import { dayHours, dayStatus, needsPerson, overtimeOn } from '../lib/week-view';
+import { dayHours, dayRange, dayStatus, needsPerson, overtimeOn } from '../lib/week-view';
 
 export interface DayActions {
   /** The period is open and the person may decide days. */
@@ -22,7 +22,7 @@ function QuietRow({ day }: { day: Day }) {
   return (
     <li className="flex items-baseline gap-4 border-b border-wds-neutral-100 py-2.5 last:border-b-0">
       <span className="w-14 shrink-0 font-wds-mono text-[12px] uppercase leading-4 text-wds-text-ink">{dayShort(day.shiftDate)}</span>
-      <span className="w-36 shrink-0 font-wds-mono text-[12px] leading-4 text-wds-text-ink">{dayHours(day)}</span>
+      <span className="w-36 shrink-0 font-wds-mono text-[12px] leading-4 text-wds-text-ink">{dayRange(day) ?? dayHours(day)}</span>
       {off ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Off</span> : <StatusText tone={status.tone}>{status.text}</StatusText>}
     </li>
   );
@@ -88,7 +88,7 @@ function ExceptionCard({
         }
       >
         <p className="m-0 font-wds-mono text-[13px] leading-[18px] text-wds-text-ink">
-          Worked {hm(day.workedMinutes)} of {hm(day.scheduledMinutes)} planned
+          {dayRange(day) ? `${dayRange(day)} · ` : ''}worked {hm(day.workedMinutes)} of {hm(day.scheduledMinutes)} planned
         </p>
         {line ? <p className="m-0 mt-1 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{line}</p> : null}
         {waitingOvertime && item ? <p className="m-0 mt-1 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">Overtime {hmWords(item.needsMinutes)} is waiting for an answer.</p> : null}

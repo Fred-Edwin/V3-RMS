@@ -110,9 +110,9 @@ const CELL_TONE: Record<NonNullable<StatCell['tone']>, { fill: string; text: str
   error: { fill: '', text: 'text-wds-error-fg' },
 };
 
-export function StatBoxes({ cells, variant = 'compact', className }: { cells: StatCell[]; variant?: 'figures' | 'compact' | 'times' | 'compare'; className?: string }) {
+export function StatBoxes({ cells, variant = 'compact', row = false, className }: { cells: StatCell[]; variant?: 'figures' | 'compact' | 'times' | 'compare'; /** Keep the boxes side by side on a phone (Paper's before and after on Report a problem). Default: they stack. */ row?: boolean; className?: string }) {
   return (
-    <dl className={cn('m-0 grid auto-cols-fr grid-flow-col border border-wds-border max-sm:grid-flow-row max-sm:auto-rows-auto', className)}>
+    <dl className={cn('m-0 grid auto-cols-fr grid-flow-col border border-wds-border', !row && 'max-sm:grid-flow-row max-sm:auto-rows-auto', className)}>
       {cells.map((c, i) => {
         const tone = CELL_TONE[c.tone ?? 'default'];
         return (
@@ -121,7 +121,7 @@ export function StatBoxes({ cells, variant = 'compact', className }: { cells: St
             className={cn(
               'flex min-w-0 flex-col',
               variant === 'figures' ? 'gap-1 px-5 py-3.5' : variant === 'times' ? 'gap-0.5 px-3.5 py-2.5' : variant === 'compare' ? 'gap-0.5 px-4 py-3' : 'gap-[3px] px-3.5 py-3',
-              i > 0 && 'border-l border-wds-border max-sm:border-l-0 max-sm:border-t',
+              i > 0 && (row ? 'border-l border-wds-border' : 'border-l border-wds-border max-sm:border-l-0 max-sm:border-t'),
               // Paper fills the cell only in the mono "times" boxes (1CPT-0, 1BC0-0); in the compact boxes only the number is toned (17WG-0).
               variant !== 'compact' && tone.fill
             )}

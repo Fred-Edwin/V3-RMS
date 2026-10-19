@@ -68,4 +68,22 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
   it('does not match a path that only starts with the same letters', () => {
     expect(isAllowedPath('/app/workforcex', 'HR_MANAGER', false)).toBe(false);
   });
+
+  it('opens Timesheets, its report and Requests for the roles that read timesheets and a department head, and nobody else (slice 4a)', () => {
+    for (const path of ['/app/workforce/timesheets', '/app/workforce/timesheets/report', '/app/workforce/requests']) {
+      for (const role of ALL) {
+        expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
+        expect(isAllowedPath(path, role, true), `head ${role} on ${path}`).toBe(true);
+      }
+    }
+    expect(isAllowedPath('/app/workforce/timesheetsx', 'WAITER', false)).toBe(false);
+  });
+
+  it('opens My time, My rota, Report a problem and My requests for everyone who has a clock, and never for the System Admin (slice 4a)', () => {
+    for (const path of ['/app/workforce/my-time', '/app/workforce/my-time/rota', '/app/workforce/my-time/report', '/app/workforce/my-time/requests']) {
+      for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(role !== 'SYSTEM_ADMIN');
+    }
+    // A path that only starts with the same letters falls to the general Workforce rule: the five desktop roles only.
+    expect(isAllowedPath('/app/workforce/my-timex', 'WAITER', false)).toBe(false);
+  });
 });

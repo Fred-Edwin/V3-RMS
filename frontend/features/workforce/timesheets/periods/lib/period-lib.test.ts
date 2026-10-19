@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PeriodView, PersonRow } from '../../_shared/types/timesheet-types';
+import { chosenRange, rangeQuery, shownRange, wholeMonth } from './period-range';
 import { apiFilterOf, canCloseNow, filterCounts, kpiCells, needsLine } from './period-view';
 
 const view = (over: Partial<PeriodView['summary']> = {}, counts = { all: 31, needsLook: 5, late: 6 }): PeriodView => ({
@@ -53,6 +54,29 @@ describe('the filter chips', () => {
     expect(apiFilterOf('ALL')).toBe('ALL');
     expect(filterCounts(view())).toEqual({ filter: { '': 5, LATE: 6, ALL: 31 } });
     expect(filterCounts(null)).toBeUndefined();
+  });
+});
+
+describe('the week picker', () => {
+  const october = { start: '2026-10-01', end: '2026-10-31' };
+
+  it('opens on the whole month up to today, and the whole month once it is over', () => {
+    expect(wholeMonth(october, '2026-10-19')).toEqual({ from: '2026-10-01', to: '2026-10-19' });
+    expect(wholeMonth(october, '2026-11-02')).toEqual({ from: '2026-10-01', to: '2026-10-31' });
+    expect(shownRange(null, october, '2026-10-19')).toEqual({ from: '2026-10-01', to: '2026-10-19' });
+  });
+
+  it('keeps a range only if it narrows something, clamped to the month', () => {
+    expect(chosenRange({ from: '2026-10-05', to: '2026-10-11' }, october, '2026-10-19')).toEqual({ from: '2026-10-05', to: '2026-10-11' });
+    expect(chosenRange({ from: '2026-10-01', to: '2026-10-19' }, october, '2026-10-19')).toBeNull();
+    expect(chosenRange({ from: '2026-09-28', to: '2026-10-04' }, october, '2026-10-19')).toEqual({ from: '2026-10-01', to: '2026-10-04' });
+    expect(chosenRange({ from: '2026-09-01', to: '2026-09-07' }, october, '2026-10-19')).toBeNull();
+    expect(chosenRange(null, october, '2026-10-19')).toBeNull();
+  });
+
+  it('sends both dates or neither', () => {
+    expect(rangeQuery({ from: '2026-10-05', to: '2026-10-11' })).toEqual({ from: '2026-10-05', to: '2026-10-11' });
+    expect(rangeQuery(null)).toEqual({});
   });
 });
 

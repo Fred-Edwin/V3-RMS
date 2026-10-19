@@ -10,13 +10,15 @@ import { NeedsYouLine, NumberCell } from '../../../_shared';
 import { timesheetReads } from '../../_shared/services/timesheet-services';
 import { hm } from '../../_shared/lib/timesheet-words';
 import type { PeriodView, PersonRow } from '../../_shared/types/timesheet-types';
+import { rangeQuery, type DayRange } from '../lib/period-range';
 import { apiFilterOf, filterCounts, needsLine } from '../lib/period-view';
 
 const COPY: TableCopy = {
-  emptyTitle: 'Nobody has time this month yet',
-  emptyDescription: 'People appear here once they are on the rota.',
-  filteredEmptyTitle: 'Nobody needs you here',
-  filteredEmptyDescription: 'Everything matched the rota, or try All to see everyone.',
+  // The page opens on "Needs a look", so an empty list is good news, not a missing month.
+  emptyTitle: 'Nobody needs you here',
+  emptyDescription: 'Everything matched the rota, or was decided. Choose All to see everyone.',
+  filteredEmptyTitle: 'Nobody matches',
+  filteredEmptyDescription: 'Try another name or filter, or choose All to see everyone.',
   errorTitle: 'The timesheets did not load',
   errorDescription: 'Check your connection and try again.',
 };
@@ -48,6 +50,7 @@ export function buildFilters(departments: readonly { id: string; name: string }[
 export function PeopleTable({
   periodId,
   view,
+  range,
   departments,
   refreshToken,
   onView,
@@ -55,6 +58,8 @@ export function PeopleTable({
 }: {
   periodId: string;
   view: PeriodView | null;
+  /** The days chosen with the week picker; null is the whole month. */
+  range: DayRange | null;
   departments: readonly { id: string; name: string }[];
   refreshToken: number;
   onView: (view: PeriodView) => void;
@@ -94,7 +99,7 @@ export function PeopleTable({
       refreshToken={refreshToken}
       onRowActivate={onOpen}
       fetchRows={async (q) => {
-        const result = await timesheetReads.period(periodId, { search: q.search || undefined, departmentId: q.filters[FILTER_KEYS.department] || undefined, filter: apiFilterOf(q.filters[FILTER_KEYS.chips]), page: q.page, pageSize: q.perPage });
+        const result = await timesheetReads.period(periodId, { search: q.search || undefined, departmentId: q.filters[FILTER_KEYS.department] || undefined, filter: apiFilterOf(q.filters[FILTER_KEYS.chips]), ...rangeQuery(range), page: q.page, pageSize: q.perPage });
         onView(result);
         return { rows: result.people.rows, total: result.people.total };
       }}
