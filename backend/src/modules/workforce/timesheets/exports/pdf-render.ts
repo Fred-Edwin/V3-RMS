@@ -25,7 +25,15 @@ const PAD = 4;
 
 /** The landscape A4 timesheet, drawn server side (D14). Draft until the month is approved: stamped, watermarked, unsigned, no number, no QR. */
 export async function renderPdf(model: ExportModel): Promise<Buffer> {
-  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false, bufferPages: true, info: { Title: `Timesheet ${model.siteName} ${model.monthLabel}`, Author: 'Wendo RMS', Subject: model.documentNumber ?? 'Draft, not approved' } });
+  // The dates in the file are the export time, so the same export is the same bytes (a re-export of an approved month matches).
+  const doc = new PDFDocument({
+    size: 'A4',
+    layout: 'landscape',
+    margin: 0,
+    autoFirstPage: false,
+    bufferPages: true,
+    info: { Title: `Timesheet ${model.siteName} ${model.monthLabel}`, Author: 'Wendo RMS', Subject: model.documentNumber ?? 'Draft, not approved', CreationDate: model.exportedAt, ModDate: model.exportedAt },
+  });
   const chunks: Buffer[] = [];
   doc.on('data', (chunk: Buffer) => chunks.push(chunk));
   const finished = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));

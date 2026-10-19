@@ -22,8 +22,19 @@ export interface TextOptions {
 
 /** One line of text at a fixed place, cut with an ellipsis at the width. Nothing here ever starts a new page by itself. */
 export function put(doc: Doc, text: string, x: number, y: number, options: TextOptions = {}): void {
+  const width = options.width ?? CONTENT_WIDTH;
+  const spacing = options.spacing ?? 0;
   doc.font(options.font ?? 'Times-Roman').fontSize(options.size ?? 8.25).fillColor(options.color ?? PALETTE.ink);
-  doc.text(text, x, y, { width: options.width ?? CONTENT_WIDTH, align: options.align ?? 'left', lineBreak: false, ellipsis: true, characterSpacing: options.spacing ?? 0 });
+  doc.text(fit(doc, text, width, spacing), x, y, { width, align: options.align ?? 'left', lineBreak: false, characterSpacing: spacing });
+}
+
+/** One line only: the text is cut with an ellipsis where it would pass the width (the full text lives in the Excel). */
+function fit(doc: Doc, text: string, width: number, spacing: number): string {
+  const measure = (value: string): number => doc.widthOfString(value) + value.length * spacing;
+  if (measure(text) <= width) return text;
+  let cut = text;
+  while (cut.length > 1 && measure(`${cut}…`) > width) cut = cut.slice(0, -1);
+  return `${cut.trimEnd()}…`;
 }
 
 export function hline(doc: Doc, y: number, x1: number, x2: number, color: string, width: number): void {
@@ -50,6 +61,6 @@ export function pageFurniture(doc: Doc, draft: boolean): void {
   if (!draft) return;
   doc.save().fillColor(PALETTE.navy).fillOpacity(0.08).font('Times-Bold').fontSize(150);
   doc.rotate(-28, { origin: [PAGE.width / 2, PAGE.height / 2] });
-  doc.text('DRAFT', PAGE.width / 2 - 200, PAGE.height / 2 - 80, { width: 400, align: 'center', lineBreak: false });
+  doc.text('DRAFT', PAGE.width / 2 - 350, PAGE.height / 2 - 80, { width: 700, align: 'center', lineBreak: false });
   doc.restore();
 }
