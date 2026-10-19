@@ -140,6 +140,12 @@ describe('versions coming and confirmations waiting', () => {
     expect(lateness2).toMatchObject({ version: 1, expectedVersion: 2, scheduled: { id: 'next', version: 2, effectiveFrom: '2026-11-02', changedSummary: 'Grace period 5 min → 10 min' } });
   });
 
+  it('a first scheduled version is compared with the starting values, so its summary names only what changed', async () => {
+    seed({ id: 'first', group: 'LATENESS', version: 1, effectiveFrom: day('2026-11-02'), values: lateness({ graceMinutes: 10 }) });
+    const first = await page('dir', 'LATENESS');
+    expect(first).toMatchObject({ version: 0, isDefault: true, scheduled: { id: 'first', changedSummary: 'Grace period 5 min → 10 min' } });
+  });
+
   it('a withdrawn scheduled version is not shown, but its number is still counted', async () => {
     seed({ group: 'LATENESS', version: 1, effectiveFrom: day('2026-09-01'), values: lateness() });
     seed({ id: 'gone', group: 'LATENESS', version: 2, effectiveFrom: day('2026-11-02'), values: lateness({ graceMinutes: 10 }), withdrawal: { id: 'w', ruleVersionId: 'gone', withdrawnById: 'dir', withdrawnByRole: 'DIRECTOR', withdrawnAt: new Date(), reason: 'x' } });

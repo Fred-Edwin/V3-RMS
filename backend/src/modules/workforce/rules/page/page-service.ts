@@ -8,6 +8,7 @@ import { summariseChange } from '../history/history-summary';
 import { actorCompany, assertCanReadSite } from '../resolve/rules-context';
 import { rulesRepository, type RuleVersionRow } from '../resolve/rules-repository';
 import { resolveGroup } from '../resolve/rules-resolve';
+import { RULE_DEFAULTS } from '../rules-defaults';
 import type { RuleGroupCode } from '../rules-schemas';
 import { asValues, confirmCapabilityOf, isSiteGroup, pick, policyOf, requireGroup, requiredScopesOf, same, siteFieldsOf } from '../rules-values';
 import type { EffectiveRuleGroup, LockedRuleGroup } from '../rules.types';
@@ -113,7 +114,8 @@ export async function getRulesPage(actor: AccessSubject, groupInput: string, req
   });
 
   const visibleSites = allSites.filter((s) => !unitOnly || s.id === actor.siteId);
-  const inForceValues = lookSiteId ? asValues(siteOverride?.values) : asValues(chain[0]?.values);
+  // With no company version yet, the starting values are what is in force, so a scheduled change reads as a change against them.
+  const inForceValues = lookSiteId ? asValues(siteOverride?.values) : asValues(chain[0]?.values ?? RULE_DEFAULTS[group]);
   const scheduledFields = scheduled ? Object.keys(asValues(scheduled.values)).filter((key) => !same(inForceValues[key], asValues(scheduled.values)[key])) : [];
   const sitesWithOwnRule = siteScoped
     ? overrides
