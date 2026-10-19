@@ -40,7 +40,7 @@ export function HistoryScreen() {
   const remote = useRulesHistory(tab.group, siteId, page, perPage, enabled);
   const data = remote.data && !isLocked(remote.data) ? remote.data : null;
   const denied = (permissions.ready && !enabled) || (remote.status === 'error' && remote.error.status === 403);
-  const scheduled = data?.items.find((i) => i.status === 'SCHEDULED');
+  const scheduled = data?.items.find((i) => i.id === data.canWithdraw?.versionId);
 
   const chooseSite = (value: string): void => {
     setPage(1);

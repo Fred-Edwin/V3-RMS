@@ -77,9 +77,19 @@ export function RuleChangeDialog(props: RuleChangeProps) {
     if (from === null && preview) setFrom(preview.defaultEffectiveFrom);
   }, [from, preview]);
 
+  // The preview can also find that someone else saved first: say so and read the tab again, exactly as a refused save does.
+  const previewStale = Boolean(preview?.errors.some((e) => e.code === 'RULE_STALE'));
+  React.useEffect(() => {
+    if (!previewStale) return;
+    setStale(true);
+    onStale();
+    // `onStale` is the screen's reload; it is read once per stale answer, and the next preview carries the new version number.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewStale]);
+
   const mapped = (e: { code: string; message: string; details?: unknown }): string => wordsForCode(e.code, e.message, (e.details ?? {}) as Record<string, never>, weekStartName).text;
   const dateErrors = preview?.errors.filter((e) => e.field === 'effectiveFrom') ?? [];
-  const otherErrors = (preview?.errors ?? []).filter((e) => e.field !== 'effectiveFrom' && !(values === null && e.code === 'RULE_NO_CHANGE'));
+  const otherErrors = (preview?.errors ?? []).filter((e) => e.field !== 'effectiveFrom' && e.code !== 'RULE_STALE' && !(values === null && e.code === 'RULE_NO_CHANGE'));
   const dateError = failure?.kind === 'date' ? failure.text : dateErrors[0] ? mapped(dateErrors[0]) : undefined;
   const pinMessage = failure && (failure.kind === 'pin' || failure.kind === 'locked') ? failure.text : null;
   const locked = failure?.kind === 'locked';

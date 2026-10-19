@@ -1,6 +1,6 @@
 import type { RuleGroup } from '@prisma/client';
 import { ForbiddenError, NotFoundError } from '../../../../utils/errors';
-import { nairobiToday, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { fromDateColumn, nairobiToday, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import { scopeOf, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { mayEditTab } from '../access/access-who';
 import { AUDIENCE_ROLE, toldAudiencesOf } from '../plan/plan-notice';
@@ -64,9 +64,11 @@ export async function listHistory(actor: AccessSubject, groupInput: string, quer
     return { ...view, changedSummary: summariseChange(group, view.changedFields, before, asValues(view.values), mayReadPay), told };
   });
 
-  const scheduled = await rulesRepository.findScheduled(companyId, query.siteId, group as RuleGroup, toDateColumn(nairobiToday(now)));
+  // Only the newest live version of a scope can be withdrawn (a later one holds a full copy of it), and only before its day.
+  const today = nairobiToday(now);
   const latest = await rulesRepository.latestOfScope(companyId, query.siteId, group as RuleGroup);
-  const withdrawable = scheduled && latest?.live?.version === scheduled.version && mayEditTab(actor, group, query.siteId);
+  const newest = latest?.live && fromDateColumn(latest.live.effectiveFrom) > today ? await rulesRepository.findByNumber(companyId, query.siteId, group as RuleGroup, latest.live.version) : null;
+  const withdrawable = newest && mayEditTab(actor, group, query.siteId) ? newest : null;
 
   return {
     group,
@@ -77,7 +79,7 @@ export async function listHistory(actor: AccessSubject, groupInput: string, quer
     page: query.page,
     pageSize: query.pageSize,
     sites: await sitesWithOwnRule(actor, companyId, group, query.siteId, now),
-    canWithdraw: withdrawable ? { versionId: scheduled.id, version: scheduled.version } : null,
+    canWithdraw: withdrawable ? { versionId: withdrawable.id, version: withdrawable.version } : null,
   };
 }
 

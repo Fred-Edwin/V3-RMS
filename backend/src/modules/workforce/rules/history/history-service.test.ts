@@ -52,6 +52,11 @@ describe('the history of a tab', () => {
     expect((await history('bm1', 'LATENESS')).canWithdraw).toBeNull(); // the scheduled version is the company's
   });
 
+  it('with several scheduled versions, the withdrawal offered is the newest one', async () => {
+    seed({ id: 'v4', group: 'LATENESS', version: 4, effectiveFrom: day('2026-12-01'), values: lateness({ graceMinutes: 20 }) });
+    expect((await history('dir', 'LATENESS')).canWithdraw).toEqual({ versionId: 'v4', version: 4 });
+  });
+
   it('an empty tab has no versions: only the starting values', async () => {
     const page = await history('dir', 'ATTENDANCE');
     expect(page).toMatchObject({ items: [], total: 0, canWithdraw: null });
