@@ -3,6 +3,8 @@ import { isoWeekday, parseNairobiDate } from '../_shared/time/nairobi-time';
 
 const money = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/, 'Use digits with up to 2 decimals');
 const factor = z.string().regex(/^\d{1,2}(\.\d{1,4})?$/, 'Use digits with up to 4 decimals');
+const multiplier = factor.refine((v) => Number(v) >= 1 && Number(v) <= 5, 'Use a number from 1 to 5');
+const dailyRate = money.refine((v) => Number(v) >= 1 && Number(v) <= 100000, 'Use an amount from 1 to 100,000');
 const minutes = (max: number) => z.number().int().min(0).max(max);
 const nairobiDate = z
   .string()
@@ -29,21 +31,32 @@ export const LatenessBase = z.object({
 });
 const afterNNeedsCount = (v: { policy: string; afterLatesPerMonth: number | null }) => v.policy !== 'AFTER_N_LATES' || v.afterLatesPerMonth !== null;
 export const LatenessRulesSchema = LatenessBase.refine(afterNNeedsCount, { message: 'Say after how many lates', path: ['afterLatesPerMonth'] });
+// A site override carries only the rows the site makes its own (any subset); the merged result is checked by the full schema.
 export const LatenessSiteSchema = LatenessBase.pick({
   graceMinutes: true,
   policy: true,
   afterLatesPerMonth: true,
   makeUpSameDay: true,
   excuseWindowHours: true,
-}).refine(afterNNeedsCount, { message: 'Say after how many lates', path: ['afterLatesPerMonth'] });
+}).partial();
 
-// 2. OVERTIME (decision D10). Multipliers are confirmed by the Accountant.
+// 2. OVERTIME (decision D10). Multipliers are confirmed by the Accountant. The public-holiday rate lives in HOLIDAYS (D19).
+// An older stored { standard } reads as the ordinary-day rate.
+const overtimeMultipliers = z.preprocess(
+  (value) => {
+    if (value !== null && typeof value === 'object' && 'standard' in value && !('ordinaryDay' in value)) {
+      return { ordinaryDay: (value as { standard: unknown }).standard, restDay: null };
+    }
+    return value;
+  },
+  z.object({ ordinaryDay: multiplier.nullable(), restDay: multiplier.nullable() }),
+);
 export const OvertimeBase = z.object({
   serviceTailMinutes: minutes(120),
   weeklyCapMinutes: z.number().int().min(0).nullable(),
   branchBudgetMinutesPerPeriod: z.number().int().min(0).nullable(),
   approvalWindowHours: z.number().int().min(1).max(720),
-  multipliers: z.object({ standard: factor.nullable() }), // more tiers are added here later, additively
+  multipliers: overtimeMultipliers,
 });
 export const OvertimeRulesSchema = OvertimeBase;
 export const OvertimeSiteSchema = OvertimeBase.pick({
@@ -51,7 +64,7 @@ export const OvertimeSiteSchema = OvertimeBase.pick({
   weeklyCapMinutes: true,
   branchBudgetMinutesPerPeriod: true,
   approvalWindowHours: true,
-});
+}).partial();
 
 // 3. ATTENDANCE. Director only.
 export const AttendanceRulesSchema = z.object({
@@ -73,6 +86,12 @@ const leaveType = z.object({
   daysPerYear: z.number().min(0).max(366).nullable(),
   paid: z.boolean(),
   requiresReason: z.boolean(),
+  // D18: the columns of the Leave types table. Older stored types read with these defaults.
+  accrual: z.enum(['UP_FRONT', 'MONTHLY', 'PER_EVENT']).default('UP_FRONT'),
+  perMonthDays: z.number().min(0).max(31).nullable().default(null), // for MONTHLY
+  carryOverDays: z.number().min(0).max(366).default(0),
+  sickNoteAfterDays: z.number().int().min(0).max(30).nullable().default(null),
+  approvedBy: z.enum(['MANAGER', 'HR']).default('MANAGER'),
 });
 export const LeaveBase = z.object({
   leaveTypes: z.array(leaveType).min(1),
@@ -82,26 +101,43 @@ export const LeaveBase = z.object({
 const leaveConsistent = (v: z.infer<typeof LeaveBase>) =>
   new Set(v.leaveTypes.map((t) => t.code)).size === v.leaveTypes.length &&
   Object.keys(v.defaultPolicy).every((code) => v.leaveTypes.some((t) => t.code === code));
-export const LeaveRulesSchema = LeaveBase.refine(leaveConsistent, { message: 'Leave types must be unique and the default policy must use them' });
-export const LeaveSiteSchema = LeaveBase.pick({ minimumCover: true });
+const monthlyHasDays = (v: z.infer<typeof LeaveBase>) => v.leaveTypes.every((t) => t.accrual !== 'MONTHLY' || t.perMonthDays !== null);
+export const LeaveRulesSchema = LeaveBase.refine(leaveConsistent, { message: 'Leave types must be unique and the default policy must use them' }).refine(monthlyHasDays, {
+  message: 'Say how many days build up each month',
+  path: ['leaveTypes'],
+});
+export const LeaveSiteSchema = LeaveBase.pick({ minimumCover: true }).partial();
 
-// 5. PROBATION. Director only.
+// 5. PROBATION. Director only. D17: the reminder and the report days.
 export const ProbationRulesSchema = z.object({
   defaultMonths: z.number().int().min(0).max(12),
   maxExtensions: z.number().int().min(0).max(3),
   maxExtensionMonths: z.number().int().min(0).max(12),
+  reminderDaysBeforeEnd: z.number().int().min(1).max(60).default(14),
+  reportDays: z
+    .array(z.number().int().min(1).max(365))
+    .min(1)
+    .max(4)
+    .refine((days) => days.every((day, i) => i === 0 || day > (days[i - 1] ?? 0)), 'Report days must go up')
+    .default([45, 80]),
 });
 
-// 6. CASUAL_WORK. Director only (question 8).
-export const CasualWorkRulesSchema = z.object({
-  defaultDailyRate: money.nullable(),
-  rates: z.array(z.object({ positionId: z.string().min(1), dailyRate: money })),
-  pettyCashHolder: z.discriminatedUnion('mode', [
-    z.object({ mode: z.literal('BRANCH_MANAGER') }),
-    z.object({ mode: z.literal('NAMED'), userId: z.string().min(1) }),
-  ]),
-  latenessReducesPayout: z.literal(true), // fixed by decision (proposal 2.6); shown, not editable
-});
+// 6. CASUAL_WORK. Director only (question 8). D16: rates are per department; an older per-position entry is dropped.
+const casualRates = z.preprocess(
+  (value) => (Array.isArray(value) ? value.filter((rate) => rate !== null && typeof rate === 'object' && 'departmentId' in rate) : value),
+  z.array(z.object({ departmentId: z.string().min(1), dailyRate })),
+);
+export const CasualWorkRulesSchema = z
+  .object({
+    defaultDailyRate: money.nullable(),
+    rates: casualRates,
+    pettyCashHolder: z.discriminatedUnion('mode', [
+      z.object({ mode: z.literal('BRANCH_MANAGER') }),
+      z.object({ mode: z.literal('NAMED'), userId: z.string().min(1) }),
+    ]),
+    latenessReducesPayout: z.literal(true), // fixed by decision (proposal 2.6); shown, not editable
+  })
+  .refine((v) => new Set(v.rates.map((rate) => rate.departmentId)).size === v.rates.length, { message: 'One rate for each department', path: ['rates'] });
 
 // 7. CONDUCT. The ladder's order is fixed in code; names, durations and letters are set here by the Director; HR reads.
 const conductLevel = z.object({
@@ -126,26 +162,47 @@ export const ConductRulesSchema = z
 const band = z.object({
   fromAmount: money,
   toAmount: money.nullable(),
-  ratePercent: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/).nullable(),
+  ratePercent: z
+    .string()
+    .regex(/^\d{1,3}(\.\d{1,4})?$/)
+    .refine((v) => Number(v) <= 100, 'A rate is 0 to 100')
+    .nullable(),
   flatAmount: money.nullable(),
 });
-export const StatutoryRulesSchema = z.object({
-  tables: z.array(
-    z.object({
-      code: z.enum(['PAYE', 'NSSF', 'SHA', 'HOUSING_LEVY', 'RELIEF', 'OTHER']),
-      name: z.string().min(1).max(80),
-      bands: z.array(band),
-      note: z.string().max(500).nullable(),
-    }),
-  ),
-});
+// Bands are contiguous and not overlapping: the first starts at 0, each starts where the one before ends, only the last is open-ended.
+const bandsContiguous = (bands: z.infer<typeof band>[]): boolean =>
+  bands.length > 0 &&
+  bands.every((b, i) => {
+    const next = bands[i + 1];
+    const startsRight = i === 0 ? Number(b.fromAmount) === 0 : Number(b.fromAmount) === Number(bands[i - 1]?.toAmount);
+    const endsRight = next ? b.toAmount !== null && Number(b.toAmount) > Number(b.fromAmount) : b.toAmount === null;
+    return startsRight && endsRight && (b.ratePercent !== null || b.flatAmount !== null);
+  });
+export const StatutoryRulesSchema = z
+  .object({
+    tables: z.array(
+      z.object({
+        code: z.enum(['PAYE', 'NSSF', 'SHA', 'HOUSING_LEVY', 'RELIEF', 'OTHER']),
+        name: z.string().min(1).max(80),
+        bands: z.array(band).refine(bandsContiguous, 'Bands must start at 0, follow one another with no gap, and only the last has no upper limit'),
+        note: z.string().max(500).nullable(),
+      }),
+    ),
+  })
+  .refine((v) => new Set(v.tables.map((t) => (t.code === 'OTHER' ? `OTHER:${t.name.toLowerCase()}` : t.code))).size === v.tables.length, {
+    message: 'Each deduction appears once',
+    path: ['tables'],
+  });
 
-// 9. HOLIDAYS. Off by default (decision D5). HR edits; the Director confirms the list, the Accountant the pay rate.
-export const HolidaysRulesSchema = z.object({
-  enabled: z.boolean(),
-  payMultiplier: factor.nullable(),
-  holidays: z.array(z.object({ date: nairobiDate, name: z.string().min(1).max(80) })),
-});
+// 9. HOLIDAYS. Off by default (decision D5). The Director edits and confirms the list, the Accountant the pay rate (D4).
+// `enabled` is derived on every write (D14): on when a pay rate is set.
+export const HolidaysRulesSchema = z
+  .object({
+    enabled: z.boolean(),
+    payMultiplier: multiplier.nullable(),
+    holidays: z.array(z.object({ date: nairobiDate, name: z.string().trim().min(1).max(80) })),
+  })
+  .refine((v) => new Set(v.holidays.map((h) => h.date)).size === v.holidays.length, { message: 'There is already a holiday on that date', path: ['holidays'] });
 
 // 10. WEEK_AND_BREAKS. Director edits. The unpaid break is NOT here: it comes from each shift template (read-only on the screen).
 const isoDay = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7)]);

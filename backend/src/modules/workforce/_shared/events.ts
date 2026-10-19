@@ -79,8 +79,11 @@ export interface WorkforceEventPayloads {
     effectiveFrom: NairobiDate;
     createdById: string;
     notice: RuleChangeNotice;
+    pay: boolean; // 1B: a pay field changed. Told without figures (D1); `changes` is then empty.
+    changes: { field: string; from: unknown; to: unknown }[]; // old and new for fields that are not pay
   };
   'rules.version_confirmed': { versionId: string; group: RuleGroupCode; scope: string; confirmedById: string };
+  'rules.version_withdrawn': { versionId: string; companyId: string; siteId: string | null; group: RuleGroupCode; version: number; effectiveFrom: NairobiDate; withdrawnById: string; notice: RuleChangeNotice };
   // slice 1 (People). None carries an amount or an ID number.
   'employee.hired': { siteId: string; employeeId: string; userId: string | null; departmentId: string | null; startDate: NairobiDate };
   'employee.transferred': {
