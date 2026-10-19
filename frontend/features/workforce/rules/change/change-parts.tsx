@@ -19,7 +19,7 @@ export interface DialogPair {
 function PairCells({ pair, solo }: { pair: DialogPair; solo: boolean }) {
   return (
     <div className="flex items-end gap-3">
-      <div className="flex min-w-[96px] flex-col gap-1.5">
+      <div className={cn('flex flex-col gap-1.5', solo ? 'min-w-[96px]' : 'w-[200px]')}>
         <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">{pair.label ? `NOW · ${pair.label.toUpperCase()}` : 'NOW'}</span>
         <span aria-label={`Now ${pair.now}`} className={cn('font-wds-mono text-wds-text-ink', pair.now.length > 12 ? 'max-w-[190px] text-[14px] leading-5' : 'text-[20px] leading-6')}>
           {pair.now}
@@ -113,6 +113,7 @@ export function WhyField({ value, onChange, disabled }: { value: string; onChang
           aria-describedby={describedBy}
           aria-invalid={invalid}
           rows={2}
+          autoComplete="off"
           maxLength={500}
           disabled={disabled}
           value={value}

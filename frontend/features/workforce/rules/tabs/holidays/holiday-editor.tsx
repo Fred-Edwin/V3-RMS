@@ -50,7 +50,7 @@ export function HolidayEditor({ page, holiday, onSaved, onStale, onClose }: Edit
             <SingleDateField label="Date of the holiday" plainLabel value={date} onChange={setDate} minDate={nairobiToday()} maxDate="2100-01-01" error={clash ? draftMessage : undefined} />
             <FormField label="Name" hint="required" helper="1 to 80 characters">
               {({ id, describedBy, invalid }) => (
-                <input id={id} aria-describedby={describedBy} aria-invalid={invalid} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />
+                <input id={id} aria-describedby={describedBy} aria-invalid={invalid} autoComplete="off" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />
               )}
             </FormField>
             {holiday ? (

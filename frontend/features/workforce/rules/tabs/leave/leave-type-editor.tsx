@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 
 import { FIELD_CLASS, FormField, RadioCards } from '../../../_shared';
 import { RuleChangeDialog } from '../../change/change-dialog';
+import { RuleNumberInput } from '../../change/rule-number-input';
 import type { LeaveType, LeaveValues } from '../../types/rules-types';
 import type { EditorProps } from '../tab-types';
 
@@ -25,7 +26,7 @@ export function codeFor(label: string, taken: readonly string[]): string {
 function Num({ label, value, onChange, error, wide }: { label: string; value: string; onChange: (v: string) => void; error?: string; wide?: boolean }) {
   return (
     <FormField label={label} error={error}>
-      {({ id, describedBy, invalid }) => <input id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} className={cn(FIELD_CLASS, 'h-10 font-wds-mono', wide ? 'w-full' : 'w-[120px]')} />}
+      {({ id, describedBy, invalid }) => <RuleNumberInput label={label} id={id} describedBy={describedBy} invalid={invalid} decimal value={value} onChange={onChange} className={wide ? 'w-full' : 'w-[120px]'} />}
     </FormField>
   );
 }
@@ -70,7 +71,7 @@ export function LeaveTypeEditor({ page, type, onSaved, onStale, onClose }: Edito
           now: daysWords(type),
           control: (
             <div className="flex flex-col gap-1.5">
-              <input aria-label="New value: days a year" inputMode="decimal" disabled={noLimit} placeholder={noLimit ? 'No limit' : undefined} value={noLimit ? '' : days} onChange={(e) => setDays(e.target.value)} className={cn(FIELD_CLASS, 'h-10 font-wds-mono text-[16px]')} />
+              <RuleNumberInput label="New value: days a year" decimal disabled={noLimit} placeholder={noLimit ? 'No limit' : undefined} value={noLimit ? '' : days} onChange={setDays} />
               <label className="flex items-center gap-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                 <input type="checkbox" checked={noLimit} onChange={(e) => setNoLimit(e.target.checked)} className="h-4 w-4 accent-[var(--wds-primary)]" /> No limit
               </label>
@@ -82,7 +83,7 @@ export function LeaveTypeEditor({ page, type, onSaved, onStale, onClose }: Edito
         <div className="flex flex-col gap-4">
           {type ? null : (
             <FormField label="Name of the leave type" hint="required">
-              {({ id, describedBy }) => <input id={id} aria-describedby={describedBy} maxLength={60} value={label} onChange={(e) => setLabel(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />}
+              {({ id, describedBy }) => <input id={id} aria-describedby={describedBy} autoComplete="off" maxLength={60} value={label} onChange={(e) => setLabel(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />}
             </FormField>
           )}
           <RadioCards legend="Builds up" columns={3} value={accrual} onChange={(v) => setAccrual(v as LeaveType['accrual'])} options={[{ value: 'UP_FRONT', title: 'All at the start' }, { value: 'MONTHLY', title: 'A number a month' }, { value: 'PER_EVENT', title: 'Per event' }]} />

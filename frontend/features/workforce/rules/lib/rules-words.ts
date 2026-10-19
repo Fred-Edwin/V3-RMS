@@ -87,7 +87,10 @@ export function roleInSentence(role: string, siteName?: string): string {
   return siteName ? `the ${name} of ${siteName}` : `the ${name}`;
 }
 
-export const unique = <T>(items: readonly T[]): T[] => items.filter((item, i) => items.indexOf(item) === i);
+/** A display name sometimes carries a role in brackets ("Anne Muthoni (Accountant)"); sentences show the name and the role once (D24). */
+export const plainName = (name: string): string => name.replace(/\s*\([^)]*\)\s*$/, '');
+
+export const unique =<T>(items: readonly T[]): T[] => items.filter((item, i) => items.indexOf(item) === i);
 
 /** "A, B or C" */
 export function orList(items: readonly string[]): string {

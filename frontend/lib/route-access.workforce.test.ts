@@ -79,6 +79,14 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforce/timesheetsx', 'WAITER', false)).toBe(false);
   });
 
+  it('opens Rules, its history and Who edits what for the roles that hold rules.read (the five desktop roles and the System Admin), and no head or floor staff (segment 1B)', () => {
+    const READS: AppRole[] = [...WORKFORCE_DESKTOP, 'SYSTEM_ADMIN'];
+    for (const path of ['/app/workforce/rules', '/app/workforce/rules/history', '/app/workforce/rules/who-edits-what']) {
+      for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(READS.includes(role));
+      expect(isAllowedPath(path, 'WAITER', true), `a head on ${path}`).toBe(false);
+    }
+  });
+
   it('opens My time, My rota, Report a problem and My requests for everyone who has a clock, and never for the System Admin (slice 4a)', () => {
     for (const path of ['/app/workforce/my-time', '/app/workforce/my-time/rota', '/app/workforce/my-time/report', '/app/workforce/my-time/requests']) {
       for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(role !== 'SYSTEM_ADMIN');

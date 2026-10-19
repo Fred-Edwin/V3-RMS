@@ -2,12 +2,10 @@
 
 import * as React from 'react';
 
-import { cn } from '@/lib/cn';
-
-import { FIELD_CLASS } from '../../_shared';
 import type { RuleValues, RulesPage, SavedVersion } from '../types/rules-types';
 import type { DialogPair } from './change-parts';
 import { RuleChangeDialog } from './change-dialog';
+import { RuleNumberInput } from './rule-number-input';
 
 /** One number the person types. `nullable` adds a "No cap"-style switch that stores nothing (null). */
 export interface NumSpec {
@@ -61,19 +59,16 @@ function NumberInput({ spec, text, off, invalid, disabled, autoFocus, onText, on
   const id = React.useId();
   return (
     <div className="flex flex-col gap-1.5">
-      <input
-        id={id}
-        aria-label={`New value: ${spec.name}`}
-        aria-invalid={invalid}
-        aria-describedby={invalid ? `${id}-err` : undefined}
-        inputMode={spec.decimals ? 'decimal' : 'numeric'}
-        autoComplete="off"
+      <RuleNumberInput
+        label={`New value: ${spec.name}`}
+        invalid={invalid}
+        describedBy={invalid ? `${id}-err` : undefined}
+        decimal={Boolean(spec.decimals)}
         autoFocus={autoFocus}
         disabled={disabled || off}
         value={off ? '' : text}
         placeholder={off ? spec.nullable : undefined}
-        onChange={(e) => onText(e.target.value)}
-        className={cn(FIELD_CLASS, 'h-10 font-wds-mono text-[16px]')}
+        onChange={onText}
       />
       {spec.nullable && onOff ? (
         <label className="flex items-center gap-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">

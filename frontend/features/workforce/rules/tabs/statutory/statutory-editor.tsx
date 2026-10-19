@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 
 import { DialogButton, FIELD_CLASS, FormField } from '../../../_shared';
 import { RuleChangeDialog } from '../../change/change-dialog';
+import { RuleNumberInput } from '../../change/rule-number-input';
 import { bandLabel, bandProblem, bandValue, flatBand, fromDraft, toDraft, type BandDraft } from '../../lib/statutory-view';
 import type { StatutoryTable, StatutoryValues } from '../../types/rules-types';
 import type { EditorProps } from '../tab-types';
@@ -65,7 +66,7 @@ export function StatutoryEditor({ page, target, onSaved, onStale, onClose }: Edi
         <>
           {target.code === 'OTHER' && !existing ? (
             <FormField label="Name of the deduction" hint="required">
-              {({ id, describedBy }) => <input id={id} aria-describedby={describedBy} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />}
+              {({ id, describedBy }) => <input id={id} aria-describedby={describedBy} autoComplete="off" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={cn(FIELD_CLASS, 'h-10')} />}
             </FormField>
           ) : null}
           {target.kind === 'BANDS' ? (
@@ -75,11 +76,11 @@ export function StatutoryEditor({ page, target, onSaved, onStale, onClose }: Edi
                 const last = i === rows.length - 1;
                 return (
                   <div key={i} className="flex items-end gap-2">
-                    <FormField label={last ? 'Above the bands before' : `Band ${i + 1}: width`} className="flex-1">
-                      {({ id }) => <input id={id} inputMode="decimal" disabled={last} placeholder={last ? 'No upper limit' : undefined} value={last ? '' : row.width} onChange={(e) => setRow(i, { width: e.target.value })} className={cn(FIELD_CLASS, 'h-10 font-wds-mono')} />}
+                    <FormField label={last ? (rows.length === 1 ? 'All income' : 'Above the bands before') : `Band ${i + 1}: width`} className="flex-1">
+                      {({ id }) => <RuleNumberInput label={`Band ${i + 1} width`} id={id} decimal disabled={last} placeholder={last ? 'No upper limit' : undefined} value={last ? '' : row.width} onChange={(v) => setRow(i, { width: v })} />}
                     </FormField>
                     <FormField label="Rate %" className="w-[110px]">
-                      {({ id }) => <input id={id} inputMode="decimal" value={row.rate} onChange={(e) => setRow(i, { rate: e.target.value })} className={cn(FIELD_CLASS, 'h-10 font-wds-mono')} />}
+                      {({ id }) => <RuleNumberInput label={`Band ${i + 1} rate`} id={id} decimal value={row.rate} onChange={(v) => setRow(i, { rate: v })} />}
                     </FormField>
                     {rows.length > 1 ? (
                       <DialogButton kind="cancel" onClick={() => setRows((r) => r.filter((_, j) => j !== i))} aria-label={`Remove band ${i + 1}`} className="text-wds-error-fg">
@@ -98,7 +99,7 @@ export function StatutoryEditor({ page, target, onSaved, onStale, onClose }: Edi
             </fieldset>
           ) : (
             <FormField label={target.kind === 'FLAT' ? 'Amount a month, KES' : 'Rate, %'} error={problem && single.length > 0 ? problem : undefined}>
-              {({ id, describedBy, invalid }) => <input id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="decimal" value={single} onChange={(e) => setSingle(e.target.value)} className={cn(FIELD_CLASS, 'h-10 w-[160px] font-wds-mono')} />}
+              {({ id, describedBy, invalid }) => <RuleNumberInput label={target.kind === 'FLAT' ? 'Amount a month' : 'Rate'} id={id} describedBy={describedBy} invalid={invalid} decimal value={single} onChange={setSingle} className="w-[160px]" />}
             </FormField>
           )}
         </>

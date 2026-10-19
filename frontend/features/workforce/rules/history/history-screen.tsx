@@ -12,7 +12,7 @@ import { useWdsToastStore } from '@/store/wdsToastStore';
 
 import { Callout, DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, StatusTag, WorkforceFrame, onHover, useWorkforcePermissions } from '../../_shared';
 import { useRulesHistory } from '../hooks/use-rules-data';
-import { andList, instantDay, longDay, ROLE_NAMES } from '../lib/rules-words';
+import { andList, instantDay, longDay, plainName, ROLE_NAMES } from '../lib/rules-words';
 import { rulesHref, tabOfSlug } from '../lib/tab-defs';
 import { isLocked, type HistoryItem } from '../types/rules-types';
 import { WithdrawDialog } from './withdraw-dialog';
@@ -99,14 +99,14 @@ export function HistoryScreen() {
                         </TableCell>
                         <TableCell className="font-wds-mono">{longDay(item.effectiveFrom)}</TableCell>
                         <TableCell className="whitespace-normal">
-                          {item.createdBy.name}, {ROLE_NAMES[item.createdBy.role] ?? item.createdBy.role} · {instantDay(item.createdAt)}
+                          {plainName(item.createdBy.name)}, {ROLE_NAMES[item.createdBy.role] ?? item.createdBy.role} · {instantDay(item.createdAt)}
                         </TableCell>
                         <TableCell className="whitespace-normal">
                           {item.changedSummary || 'Changed, see the audit log'}
                           <span className="block text-[12px] leading-4 text-wds-text-secondary">Why: {item.reason}</span>
                           {item.withdrawn ? (
                             <StatusTag tone="neutral" size="row">
-                              Withdrawn by {item.withdrawn.by.name}, {ROLE_NAMES[item.withdrawn.by.role] ?? item.withdrawn.by.role}: {item.withdrawn.reason}
+                              Withdrawn by {plainName(item.withdrawn.by.name)},{ROLE_NAMES[item.withdrawn.by.role] ?? item.withdrawn.by.role}: {item.withdrawn.reason}
                             </StatusTag>
                           ) : null}
                         </TableCell>

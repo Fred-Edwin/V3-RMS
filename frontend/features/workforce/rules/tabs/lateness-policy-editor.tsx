@@ -2,11 +2,10 @@
 
 import * as React from 'react';
 
-import { cn } from '@/lib/cn';
-
-import { FIELD_CLASS, FormField, RadioCards } from '../../_shared';
+import { FormField, RadioCards } from '../../_shared';
 import { RuleChangeDialog } from '../change/change-dialog';
 import { numberError, parseTyped, type NumSpec } from '../change/number-editor';
+import { RuleNumberInput } from '../change/rule-number-input';
 import type { LatenessValues } from '../types/rules-types';
 import type { EditorProps } from './tab-types';
 
@@ -57,9 +56,7 @@ export function LatenessPolicyEditor({ page, onSaved, onStale, onClose }: Editor
           />
           {policy === 'AFTER_N_LATES' ? (
             <FormField label="Late days in a month" helper="A whole number from 1 to 31." error={badCount && count.length > 0 ? numberError(COUNT) : undefined}>
-              {({ id, describedBy, invalid }) => (
-                <input id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} className={cn(FIELD_CLASS, 'h-10 w-[120px] font-wds-mono text-[16px]')} />
-              )}
+              {({ id, describedBy, invalid }) => <RuleNumberInput label="Late days in a month" id={id} describedBy={describedBy} invalid={invalid} value={count} onChange={setCount} className="w-[120px]" />}
             </FormField>
           ) : null}
         </>

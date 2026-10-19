@@ -10,7 +10,7 @@ import { Callout, DialogButton, FOCUS_RING, KitDialog, Panel, RadioCards, onHove
 import { ChangeLink } from '../../components/change-link';
 import { SideLabel } from '../../components/who-panel';
 import { useOnline, useRulesHistory } from '../../hooks/use-rules-data';
-import { grouped, instantDay, longDay, shortDay } from '../../lib/rules-words';
+import { grouped, instantDay, longDay, plainName, shortDay } from '../../lib/rules-words';
 import { historyHref } from '../../lib/tab-defs';
 import { appliesFrom, bandLabel, bandValue } from '../../lib/statutory-view';
 import { isLocked, type StatutoryTable, type StatutoryValues } from '../../types/rules-types';
@@ -90,7 +90,7 @@ export function StatutoryTab({ page, onSaved, onStale }: TabProps) {
           Payroll cannot calculate a month until the Accountant has typed and confirmed them.
         </Callout>
       ) : confirmed ? (
-        <Callout tone="success" title={`Confirmed by ${confirmed.name}, Accountant, on ${instantDay(confirmed.at)}`}>
+        <Callout tone="success" title={`Confirmed by ${plainName(confirmed.name)}, Accountant, on ${instantDay(confirmed.at)}`}>
           Payroll uses these rates. A month cannot be calculated until the Accountant has confirmed them.
         </Callout>
       ) : null}
@@ -165,7 +165,7 @@ export function StatutoryTab({ page, onSaved, onStale }: TabProps) {
                   <TableRow key={v.id}>
                     <TableCell>Version {v.version}{v.status === 'IN_FORCE' ? ' · now' : ''}{v.status === 'WITHDRAWN' ? ' · withdrawn' : ''}</TableCell>
                     <TableCell className="font-wds-mono">{longDay(v.effectiveFrom)}</TableCell>
-                    <TableCell>{c ? `${c.by.name}, Accountant, ${instantDay(c.at)}` : 'Not confirmed'}</TableCell>
+                    <TableCell>{c ? `${plainName(c.by.name)}, Accountant, ${instantDay(c.at)}` : 'Not confirmed'}</TableCell>
                     <TableCell>{v.changedSummary || 'Changed, see the audit log'}</TableCell>
                   </TableRow>
                 );

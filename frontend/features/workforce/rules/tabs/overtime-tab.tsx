@@ -6,7 +6,7 @@ import { Callout } from '../../_shared';
 import { RuleRows } from '../components/rule-rows';
 import { SitesPanel } from '../components/sites-panel';
 import { TabColumns, WhoPanel, rowNames, whoEntries } from '../components/who-panel';
-import { hoursAsDays, instantDay, minutesAsHours, multiplierWords } from '../lib/rules-words';
+import { hoursAsDays, instantDay, minutesAsHours, multiplierWords, plainName, ROLE_NAMES } from '../lib/rules-words';
 import type { OvertimeValues, RuleValues, RulesPage } from '../types/rules-types';
 import { numbersEditor } from './editor-factories';
 import type { RuleRowDef, TabProps } from './tab-types';
@@ -22,7 +22,7 @@ function multiplierValue(page: RulesPage): React.ReactNode {
     return (
       <span className="flex flex-col items-end gap-0.5">
         <span className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-success-fg">
-          Confirmed by {answer.confirmedBy.name}, {answer.confirmedBy.role === 'ACCOUNTANT' ? 'Accountant' : answer.confirmedBy.role}
+          Confirmed by {plainName(answer.confirmedBy.name)}, {ROLE_NAMES[answer.confirmedBy.role] ?? answer.confirmedBy.role}
         </span>
         <span className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{instantDay(answer.confirmedBy.at)}</span>
       </span>
