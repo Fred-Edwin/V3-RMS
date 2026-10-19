@@ -16,7 +16,8 @@ import type {
   PublishInput,
   RevertInput,
 } from '../validators/payslip-schemas';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { isSitePeriodOnNewPayroll } from '../modules/workforce';
 
 export type PayslipActor = NonNullable<Request['user']>;
 
@@ -143,6 +144,11 @@ const assertCanPublish = (actor: PayslipActor): void => {
   }
 };
 
+/** A person is paid by one system per month: a site and month the new Payroll covers is refused here (Workforce Segment 2A, E10). */
+const assertNotInNewPayroll = async (siteId: string, payPeriod: string): Promise<void> => {
+  if (await isSitePeriodOnNewPayroll(siteId, payPeriod)) throw new ConflictError('This site and month are paid in the new Payroll.', 'PAID_IN_NEW_PAYROLL');
+};
+
 export const payslipService = {
   bulkUpsert: async (
     actor: PayslipActor,
@@ -150,6 +156,7 @@ export const payslipService = {
   ): Promise<{ saved: PayslipWithRelations[]; skipped: string[] }> => {
     ensureHumanActor(actor);
     assertCanMutate(actor);
+    await assertNotInNewPayroll(input.siteId, input.payPeriod);
 
     const computedRows = input.rows.map(computePayslipTotals);
 
@@ -165,6 +172,7 @@ export const payslipService = {
   publish: async (actor: PayslipActor, input: PublishInput): Promise<{ count: number }> => {
     ensureHumanActor(actor);
     assertCanPublish(actor);
+    await assertNotInNewPayroll(input.siteId, input.payPeriod);
     const count = await payslipRepository.publishPeriod(input.siteId, input.payPeriod);
     return { count };
   },
@@ -172,6 +180,7 @@ export const payslipService = {
   revert: async (actor: PayslipActor, input: RevertInput): Promise<{ count: number }> => {
     ensureHumanActor(actor);
     assertCanPublish(actor);
+    await assertNotInNewPayroll(input.siteId, input.payPeriod);
     const count = await payslipRepository.revertPeriod(input.siteId, input.payPeriod);
     return { count };
   },

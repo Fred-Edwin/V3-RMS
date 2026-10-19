@@ -23,6 +23,7 @@ export { default as workforceTimesheetsRouter } from './timesheets/timesheets-ro
 export { registerTimesheets } from './timesheets/register-timesheets'; // the closed-period answer for attendance fixes
 export { sweepTimesheets } from './timesheets/timesheets-sweep'; // the ten-minute job: refreshes open months, escalates old requests (closes nothing)
 export { getApprovedHours, type ApprovedHours } from './timesheets/approved-hours'; // reporting and payroll read approved hours only, never raw clock events
+export { isSitePeriodOnNewPayroll } from './payroll/rollout/rollout-guard'; // the old payslip code asks this before it saves, publishes or reverts (Segment 2A)
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 
