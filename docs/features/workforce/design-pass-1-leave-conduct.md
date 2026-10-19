@@ -66,6 +66,14 @@
 | Step 8 notice document, step 9 record not signed | Gendered copy made neutral. |
 | Chapter header | "13 steps". |
 
+### Editing a rule (agreed 19 Oct 2026)
+- Decision: every row of a Rules table that the viewer may change has a "Change" link in a fixed column; the page-level "Change this rule" button is gone. Change opens the shared dialog (now to new, from, why, PIN, what it would change, who is told).
+- Chapter 10 step 18 (Rules, Leave): Change on each leave type row (HR); minimum cover has no link in the HR view; header now "Changed by HR".
+- Chapter 10 step 19 (new): the Change dialog for Annual leave (21 to 24 days from 1 Jan 2027, version 2). Old step 19 is now step 20; the chapter header says 20 steps.
+- Chapter 10 step 20 (minimum cover, Branch Manager): the "Edit minimum cover" button replaced by Change on each row. The dialog is still the older, shorter one (no reason or PIN) and should be redrawn as the shared dialog.
+- Chapter 13 step 7 (Rules, Conduct): Change on each level and each time limit (Director); the page-level button removed.
+- Chapter 13 step 8 (new): the Change dialog for how long a written warning stays (6 to 9 months from 2 Nov 2026). Steps 8 to 12 are now 9 to 13; the header says 13 steps.
+
 ### Chapter 13 · Rules, Conduct tab (step 7)
 - Who does what: Whoever issues raises, signs and issues; HR decides every appeal and can withdraw any notice; the Branch Manager reads their own site; the Director changes the rule and reads all.
 - Time to appeal: counted from the day the notice is issued, signed or not.
