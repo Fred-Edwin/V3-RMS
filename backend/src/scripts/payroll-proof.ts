@@ -181,7 +181,9 @@ async function up(): Promise<void> {
   out('\n== 3. the figures against a hand calculation written independently');
   const list = (await call(HR, 'GET', `${M}/payslips?rows=100`)).body.data as Body;
   const slipOf = async (employeeId: string): Promise<Body> => {
-    const row = list['rows'].find((r: Body) => r['employeeId'] === employeeId);
+    // every recalculation makes new payslips, so read the list afresh
+    const current = (await call(HR, 'GET', `${M}/payslips`)).body.data as Body;
+    const row = current['rows'].find((r: Body) => r['employeeId'] === employeeId);
     return (await call(HR, 'GET', `${M}/payslips/${row?.payslipId}`)).body.data as Body;
   };
   let handGross = 0n;
@@ -218,7 +220,10 @@ async function up(): Promise<void> {
   let last: Reply | null = null;
   for (let i = 0; i < blockers.length; i += 1) {
     // every leave-out works the month again, which makes a new set of lines: read the first blocking line afresh each time
-    const now = ((await call(HR, 'GET', `${M}/review?rows=100&severity=BLOCK`)).body.data as Body)['lines'][0] as Body;
+    const fresh = await call(HR, 'GET', `${M}/review?rows=100&severity=BLOCK`);
+    if (!fresh.body.data) console.log('review reply', fresh.status, JSON.stringify(fresh.body));
+    const now = ((fresh.body.data as Body)['lines'] as Body[])[0];
+    if (!now) break;
     last = await expectStatus(`HR leaves ${String(now['name']).split(' (')[0]} out of this run`, HR, 'POST', `${M}/review/${now['id']}/leave-out`, 200, { reason: 'No pay profile yet', stateVersion: version, idempotencyKey: nextKey('out') });
     version = last.body.data?.['recalculated']?.stateVersion ?? version;
   }

@@ -5438,3 +5438,35 @@ Base `/api/v1/workforce/rules`. Source of truth: `backend/src/modules/workforce/
 | R8 | `POST /versions/:id/withdraw` | any `rules.edit.*` | `{ reason, pin }` | `{ version }` (status `WITHDRAWN`); idempotent |
 
 Errors: `400` `RULE_BACKDATED`, `RULE_MONTH_APPROVED`, `RULE_DATE_TOO_FAR`, `RULE_DATE_NOT_WEEK_START`, `RULE_FIELD_UNKNOWN`; `403` `RULE_FIELD_NOT_EDITABLE`, `RULE_CONFIRM_NOT_ALLOWED`, `PIN_INVALID`, `PIN_NOT_SET`; `404` another site (reads) or unknown version or group; `409` `RULE_NO_CHANGE`, `RULE_STALE` (`details.latestVersion`), `RULE_FUTURE_VERSION_EXISTS` (`details.version, effectiveFrom, withdrawable`), `RULE_CONFIRM_NOT_REQUIRED`, `RULE_VERSION_STARTED`, `RULE_VERSION_NOT_LATEST`, `RULE_VERSION_WITHDRAWN`, `RULE_IDEMPOTENCY_KEY_REUSED`; `422` `RULE_SITE_FIELD_NOT_OVERRIDABLE`; `429` `PIN_LOCKED`.
+
+---
+
+## 40. Workforce — Payroll, part 1 (segment 2A, BUILT 20 Oct 2026, back end only)
+
+Base `/api/v1/workforce/payroll`. Source of truth: `backend/src/modules/workforce/payroll/README.md` and `docs/features/workforce/decisions-2a-payroll-backend.md`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`, Zod. **Wire names:** `siteId`, `siteName`, `sites` read `organizationId`, `organizationName`, `organizations` in replies (exact keys only). `:monthKey` is `YYYY-MM`. Money is a string with two decimals. Every write takes `idempotencyKey` (8 to 80 characters; the same key answers the first result with `repeat: true`) and `stateVersion` (the version the screen showed). Part 2 adds publish, corrections, the bank file, Mark as paid and the exports.
+
+| # | Method and path | Capability | Body or query | Success |
+|---|---|---|---|---|
+| P1 | `GET /months` | `payroll.read` | | the months, newest first, with stage and KPIs |
+| P2 | `GET /months/:monthKey` | `payroll.read` | | the month: `state`, `stateVersion`, stage line, `kpis`, banner (why it waits), sites with approval status, `tabs[]`, `capabilities` |
+| P3 | `GET /months/:monthKey/rules-applied` | `payroll.read` | | the rule versions the month froze, as cards |
+| P4 | `GET /months/:monthKey/tax` | `payroll.read` | | one panel per statutory table, in the Accountant's order, with a worked example from a real line |
+| P5 | `GET /months/:monthKey/casual` | `payroll.read` | | the casual pay memo |
+| P6 | `GET /months/:monthKey/totals` | `payroll.read` | | `total` (`gross, net, taxStatutory, other, people`) and by site |
+| P7 | `GET /months/:monthKey/payslips` | `payroll.read` | | the payslips list (drafts are visible to payroll readers only) |
+| P8 | `GET /months/:monthKey/payslips/:payslipId` | `payroll.read` | | one payslip: `totals`, `lines[]` each with its working |
+| P9 | `GET /months/:monthKey/estimate` | `payroll.estimate.read` | | the stored estimate of an open month |
+| P10 | `GET /months/:monthKey/review` | `payroll.read` | `kind, state (OPEN, CHECKED), severity (BLOCK, TICK), q, siteId, page, rows (25, 50, 100)` | `{ lines[], counts{total,checked,blocking}, stale, stateVersion }` |
+| P11 | `POST /months/:monthKey/recalculate` | `payroll.review` | `{ idempotencyKey, stateVersion }` | a new run; ticks cleared |
+| P12 | `POST /months/:monthKey/review/:lineId/check` | `payroll.review` | `{ checked, stateVersion }` | the line; does not bump the version |
+| P13 | `POST /months/:monthKey/review/check-kind` | `payroll.review` | `{ kind, stateVersion }` | the count ticked |
+| P14 | `POST /months/:monthKey/review/:lineId/leave-out` | `payroll.review` | `{ reason, stateVersion, idempotencyKey }` | `{ recalculated: { runNumber, headcount, stateVersion } }` |
+| P15 | `POST /months/:monthKey/adjustments` | `payroll.review` | `{ employeeId, type, label, amount, taxable, reason, pin, idempotencyKey, stateVersion }`; `type` is `ALLOWANCE, INCENTIVE, ARREARS, OTHER_EARNING, ADVANCE_REPAID, HELB, OTHER_DEDUCTION`; amount 1 to 10,000,000 | `201` the line; the month is worked again |
+| P16 | `DELETE /months/:monthKey/adjustments/:id` | `payroll.review` | `{ stateVersion, idempotencyKey }` | `200` |
+| P17 | `POST /months/:monthKey/send-to-accountant` | `payroll.review` | `{ idempotencyKey, stateVersion }` | the month, now `TO_APPROVE` |
+| P18 | `POST /months/:monthKey/send-back` | `payroll.approve` | `{ reason (5 to 280, no amounts), idempotencyKey, stateVersion }` | the month, `IN_REVIEW`, ticks kept |
+| P19 | `POST /months/:monthKey/approve` | `payroll.approve` | `{ pin, idempotencyKey, stateVersion, expectedTotals{gross,net,taxStatutory,other,headcount}, handChecked? }` | the month, `TO_PUBLISH`, `documentNumber` PAY-YYYY-MM; one frozen snapshot with a hash |
+| P20 | `POST /months/:monthKey/sites/:siteId/remind` | `payroll.remind` | `{ idempotencyKey }` | at most one in 24 hours per site |
+| P21 | `POST /months/:monthKey/sites/:siteId/approve-late` | `payroll.approve_site_late` | `{ pin, idempotencyKey, expectedTotals{workedMinutes,overtimeAuthorisedMinutes,headcount} }` | the site's timesheet month approved by the Director |
+
+Errors: `400` `VALIDATION_ERROR`; `403` `PIN_INVALID`, `SELF_APPROVAL` (the approver prepared it), a missing capability; `404` unknown month or another site's data; `409` `CHANGED_UNDERNEATH` (`stateVersion` or the figures moved), `BLOCKING_LINES`, `MONTH_NOT_IN_REVIEW`, `MONTH_NOT_CALCULABLE`, `HAND_CHECK_REQUIRED` (a site's first payroll month), `ALREADY_APPROVED`, `PAID_IN_NEW_PAYROLL` (on the old `/payslips` write routes for a covered site and month).

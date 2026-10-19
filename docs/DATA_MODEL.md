@@ -3228,6 +3228,27 @@ Additive only. Models in `backend/prisma/schema/workforce.prisma`.
 
 The `values` JSON shapes changed without a data migration (older values still parse): Overtime `multipliers` is `{ ordinaryDay, restDay }`; Casual `rates` are `{ departmentId, dailyRate }`; Probation gains `reminderDaysBeforeEnd` and `reportDays`; each leave type gains `accrual, perMonthDays, carryOverDays, sickNoteAfterDays, approvedBy`. A site version holds only the rows the site made its own.
 
+## 14. Workforce Payroll, part 1 (Segment 2A, migration `20261019193407_workforce_payroll_part1`)
+
+New tables only; the legacy `payslips` table is never altered. Models in `backend/prisma/schema/workforce/payroll.prisma`. Money is `Decimal(14,2)`. Employees, sites and users are plain ids checked by services; only `payroll_months` has a relation (to `companies`). Runs, payslips, payslip lines and snapshots are **insert-only** (trigger refuses UPDATE and DELETE; dev escape `set_config('wendo.allow_payroll_edit','on',true)` inside one transaction). CHECK constraints keep totals and states consistent.
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `payroll_months` | One calendar month per company: `month_key` (YYYY-MM), `state` (`WAITING`, `IN_REVIEW`, `TO_APPROVE`, `TO_PUBLISH`), `state_version`, `included_site_ids`, `current_run_id`, `run_count`, the frozen `tables_version` and `rules_used`, send, send-back and approval who and when, `document_number` (PAY-YYYY-MM), `hand_checked`, `first_month_site_ids` | unique `(company_id, month_key)` and `(company_id, document_number)` |
+| `payroll_month_sites` | A site the month includes and its timesheet approval at first calculation (`period_id`, `timesheet_number`, `headcount`) | unique `(month_id, site_id)` |
+| `payroll_runs` | One calculation: `run_number`, `trigger` (`SYSTEM`, `HR`), `status` (`SUCCEEDED`, `FAILED`), `inputs_hash`, `headcount`, `blocking`, `totals` JSON | insert-only; unique `(month_id, run_number)` |
+| `payroll_payslips` | A person's payslip in one run: names copied, `basic, gross, statutory_employee, income_tax, other_deductions, net, employer_share, taxable_pay, overtime_pay, lateness_deduction, unpaid_absence`, `input` JSON, `payout_method`, and the part 2 columns `document_number, replaces_version, diff, reason, corrected_by_id, corrected_at` | insert-only; unique `(run_id, employee_id, version)` |
+| `payroll_payslip_lines` | One line with its working: `code, label, kind` (`EARNING`, `DEDUCTION`, `STATUTORY`, `MEMO`), `amount`, `taxable`, `base, rate, bands_used, quantity, unit, source, working_text, table_code, share` | insert-only; unique `(payslip_id, position)` |
+| `payroll_review_lines` | A line HR must look at: `kind`, `severity` (`BLOCK`, `TICK`), `text`, `state` (`OPEN`, `CHECKED`), who and when | belongs to a run; ticks change only while the month is being prepared; unique `(run_id, employee_id, kind)` |
+| `payroll_adjustments` | A line HR added: `kind` (allowance, incentive, arrears, other earning, advance repaid, HELB, other deduction), `label`, `amount`, `taxable`, `reason`, `idempotency_key`, `removed_by_id`, `removed_at` | removed, not deleted; unique `(month_id, idempotency_key)` |
+| `payroll_left_out` | A person HR left out of the month, with the reason | kept across recalculations; unique `(month_id, employee_id)` |
+| `payroll_snapshots` | The frozen calculation at approval: `revision`, `hash`, `data` JSON | insert-only; unique `(month_id, revision)`; part 2 corrections add revisions |
+| `payroll_reminders` | A reminder to a site that has not approved its timesheets | at most one in 24 hours per site |
+| `payroll_estimates` | The Director's estimate of a month, written by the nightly job: `as_of`, `computed_at`, `data` | unique `(company_id, month_key)` |
+| `payroll_request_keys` | A write that already happened under this idempotency key and its response | unique `(company_id, key)` |
+
+Part 2 adds the enum values `PUBLISHED` and `PAID` (month) and `PUBLISHED` and `LOCKED` (payslip) with `ALTER TYPE ... ADD VALUE`, and must extend the check `payroll_months_approved_has_signature`.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

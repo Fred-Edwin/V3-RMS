@@ -134,7 +134,6 @@ describe.skipIf(!enabled)('Payroll flows in the database', () => {
     const state = await m.getMonth(hr, KEY);
     return { gross: state.kpis?.gross ?? '', net: state.kpis?.net ?? '', headcount: state.kpis?.headcount ?? 0, stateVersion: state.stateVersion };
   };
-  const expected = (t: Awaited<ReturnType<typeof totals>>, over: object = {}) => ({ gross: t.gross, net: t.net, taxStatutory: '0.00', other: '0.00', headcount: t.headcount, ...over });
 
   it('1. the month ended and the tax tables are not confirmed: the sweep makes the row, does not calculate, and the month says what it waits for', async () => {
     await versionOf('STATUTORY', { tables: [] }, 'statutory', false);

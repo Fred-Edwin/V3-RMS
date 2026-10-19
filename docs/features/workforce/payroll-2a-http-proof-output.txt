@@ -1,0 +1,166 @@
+(node:2318560) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+gave the waiter 30,000 and Lena 45,000 a month (Carol has no pay profile); saved the tax tables and overtime rates, not yet confirmed
+PASS  System Admin switches Nyeri Town on: admin PUT /workforce/attendance/switch -> 200
+
+== 1. the month ended, the tables are not confirmed: the month waits and says why
+PASS  the sweep made the September row and calculated nothing
+PASS  HR opens September: hr GET /months/2026-09 -> 200
+PASS  it is Waiting, with the banner for the tax tables and the Accountant named
+PASS  the stage line has six stages and only Timesheets is current
+PASS  read the months list: hr GET /months -> 200
+PASS  read the months list: accountant GET /months -> 200
+PASS  read the months list: director GET /months -> 200
+PASS  read the months list: admin GET /months -> 200
+PASS  read the months list: bm.town GET /months -> 403
+PASS  read the months list: bm.highway GET /months -> 403
+PASS  read the months list: store.manager GET /months -> 403
+PASS  read the months list: kitchen.head.town GET /months -> 403
+PASS  read the months list: proof.tsh.waiter GET /months -> 403
+PASS  a month that does not exist: hr GET /months/2025-01 -> 404 NO_PAYROLL_MONTH
+PASS  the totals tab is not there yet: hr GET /months/2026-09/totals -> 409 TAB_NOT_AVAILABLE
+PASS  nobody can calculate by hand before the tables are confirmed: hr POST /months/2026-09/recalculate -> 409 TABLES_NOT_CONFIRMED
+
+== 2. the Accountant confirms the tables with a PIN; the system calculates
+PASS  HR cannot confirm tax tables: hr POST /workforce/rules/versions/:id/confirm -> 403
+PASS  the Accountant confirms the tax tables: accountant POST /workforce/rules/versions/:id/confirm -> 200
+PASS  the Accountant confirms the overtime rates: accountant POST /workforce/rules/versions/:id/confirm -> 200
+[2026-10-19 23:59:46.190 +0300] [32mINFO[39m: [36mworkforce notification (not delivered yet)[39m [90m{"recipientUserId":"40789495-3288-466d-9916-554324af84ec","kind":"payroll.month_calculated","data":{"month":"2026-09"}}[39m
+PASS  the sweep calculated September
+PASS  HR opens September: hr GET /months/2026-09 -> 200
+PASS  it is In review, calculated by the system, with stage 2 done and HR checking lines
+PASS  the tabs open and the header actions follow the role (HR can review, not approve)
+PASS  only Nyeri Town is in the month; first month for the site
+PASS  the rules-applied tab: hr GET /months/2026-09/rules-applied -> 200
+PASS  the rules-applied tab: accountant GET /months/2026-09/rules-applied -> 200
+PASS  the rules-applied tab: director GET /months/2026-09/rules-applied -> 200
+PASS  the rules-applied tab: admin GET /months/2026-09/rules-applied -> 200
+PASS  the rules-applied tab: bm.town GET /months/2026-09/rules-applied -> 403
+PASS  the rules-applied tab: proof.tsh.waiter GET /months/2026-09/rules-applied -> 403
+PASS  the tax tab: hr GET /months/2026-09/tax -> 200
+PASS  the tax tab: accountant GET /months/2026-09/tax -> 200
+PASS  the tax tab: director GET /months/2026-09/tax -> 200
+PASS  the tax tab: admin GET /months/2026-09/tax -> 200
+PASS  the tax tab: bm.town GET /months/2026-09/tax -> 403
+PASS  the tax tab: proof.tsh.waiter GET /months/2026-09/tax -> 403
+PASS  the casual tab: hr GET /months/2026-09/casual -> 200
+PASS  the casual tab: accountant GET /months/2026-09/casual -> 200
+PASS  the casual tab: director GET /months/2026-09/casual -> 200
+PASS  the casual tab: admin GET /months/2026-09/casual -> 200
+PASS  the casual tab: bm.town GET /months/2026-09/casual -> 403
+PASS  the casual tab: proof.tsh.waiter GET /months/2026-09/casual -> 403
+PASS  the totals tab: hr GET /months/2026-09/totals -> 200
+PASS  the totals tab: accountant GET /months/2026-09/totals -> 200
+PASS  the totals tab: director GET /months/2026-09/totals -> 200
+PASS  the totals tab: admin GET /months/2026-09/totals -> 200
+PASS  the totals tab: bm.town GET /months/2026-09/totals -> 403
+PASS  the totals tab: proof.tsh.waiter GET /months/2026-09/totals -> 403
+PASS  the payslips tab: hr GET /months/2026-09/payslips -> 200
+PASS  the payslips tab: accountant GET /months/2026-09/payslips -> 200
+PASS  the payslips tab: director GET /months/2026-09/payslips -> 200
+PASS  the payslips tab: admin GET /months/2026-09/payslips -> 200
+PASS  the payslips tab: bm.town GET /months/2026-09/payslips -> 403
+PASS  the payslips tab: proof.tsh.waiter GET /months/2026-09/payslips -> 403
+PASS  the review tab: hr GET /months/2026-09/review -> 200
+PASS  the review tab: accountant GET /months/2026-09/review -> 200
+PASS  the review tab: director GET /months/2026-09/review -> 200
+PASS  the review tab: admin GET /months/2026-09/review -> 200
+PASS  the review tab: bm.town GET /months/2026-09/review -> 403
+PASS  the review tab: proof.tsh.waiter GET /months/2026-09/review -> 403
+
+== 3. the figures against a hand calculation written independently
+   the waiter: 30000.00 + overtime 0.00 (0 min × 1.5) − absence 0.00 = gross 30000.00; Alpha 6% 1800.00; taxable 28200.00; PAYE 1450.00; net 26750.00
+PASS  the waiter: gross, Alpha, PAYE and net equal the hand calculation
+PASS  the waiter: every line shows its working
+   Lena: 45000.00 + overtime 162.26 (30 min × 1.5) − absence 0.00 = gross 45162.26; Alpha 6% 2709.74; taxable 42452.52; PAYE 5519.11; net 36933.41
+PASS  Lena: gross, Alpha, PAYE and net equal the hand calculation
+PASS  Lena: every line shows its working
+PASS  the Totals tab: the month adds up to the two payslips (Carol has none yet), and the sites add up to the total
+PASS  Tax and deductions: one panel per table in the Accountant's order, confirmed by the Accountant, an example from a real line
+
+== 4. the review: a person with no pay profile blocks the month
+PASS  Carol and the seeded Nyeri Town staff with no pay profile are blocking lines
+PASS  send refused while a line blocks: hr POST /months/2026-09/send-to-accountant -> 409 BLOCKING_LINES
+PASS  leave a person out: accountant POST /months/2026-09/review/:id/leave-out -> 403
+PASS  leave a person out: director POST /months/2026-09/review/:id/leave-out -> 403
+PASS  leave a person out: admin POST /months/2026-09/review/:id/leave-out -> 403
+PASS  leave a person out: bm.town POST /months/2026-09/review/:id/leave-out -> 403
+PASS  HR ticks a line: hr POST /months/2026-09/review/:id/check -> 200
+PASS  HR leaves Faith Njeri out of this run: hr POST /months/2026-09/review/:id/leave-out -> 200
+PASS  HR leaves Kelvin Kings out of this run: hr POST /months/2026-09/review/:id/leave-out -> 200
+PASS  HR leaves Victor Maina out of this run: hr POST /months/2026-09/review/:id/leave-out -> 200
+PASS  HR leaves ZZ Proof Pay Carol out of this run: hr POST /months/2026-09/review/:id/leave-out -> 200
+PASS  each leave-out worked the month again, and only the waiter and Lena are in the totals
+PASS  no blocking line is left, and the lines of the people left out say so
+PASS  a wrong PIN on an added line: hr POST /months/2026-09/adjustments -> 403 PIN_INVALID
+PASS  HR adds an airtime allowance for the waiter: hr POST /months/2026-09/adjustments -> 201
+PASS  the waiter's payslip carries the line and a new gross
+PASS  HR takes the line back out: hr DELETE /months/2026-09/adjustments/:id -> 200
+PASS  every line is checked; nothing changed since the calculation
+
+== 5. send, send back, approve (the refusals first)
+PASS  send to the Accountant: accountant POST /months/2026-09/send-to-accountant -> 403
+PASS  send to the Accountant: director POST /months/2026-09/send-to-accountant -> 403
+PASS  send to the Accountant: admin POST /months/2026-09/send-to-accountant -> 403
+PASS  HR sends September to the Accountant: hr POST /months/2026-09/send-to-accountant -> 200
+PASS  a double click answers the first result
+PASS  HR cannot change a line once sent: hr POST /months/2026-09/review/:id/check -> 409 MONTH_NOT_IN_REVIEW
+PASS  nor calculate again: hr POST /months/2026-09/recalculate -> 409 MONTH_NOT_CALCULABLE
+PASS  the Accountant sees Approve and no review buttons
+PASS  the reason may not carry figures: accountant POST /months/2026-09/send-back -> 400 VALIDATION_ERROR
+PASS  the Accountant sends it back with a reason: accountant POST /months/2026-09/send-back -> 200
+PASS  it is In review again and HR's ticks are kept
+PASS  HR sends it again: hr POST /months/2026-09/send-to-accountant -> 200
+PASS  HR cannot approve: hr POST /months/2026-09/approve -> 403
+PASS  approve: director POST /months/2026-09/approve -> 403
+PASS  approve: admin POST /months/2026-09/approve -> 403
+PASS  approve: bm.town POST /months/2026-09/approve -> 403
+PASS  a wrong PIN: accountant POST /months/2026-09/approve -> 403 PIN_INVALID
+PASS  the first month needs the hand check ticked: accountant POST /months/2026-09/approve -> 409 HAND_CHECK_REQUIRED
+PASS  figures that moved: accountant POST /months/2026-09/approve -> 409 CHANGED_UNDERNEATH
+PASS  nothing was approved by any of that
+PASS  the Accountant approves September with their PIN: accountant POST /months/2026-09/approve -> 200
+PASS  the document is PAY-2026-09 and the month is To publish
+PASS  the same request again answers the first result
+PASS  another key is too late: accountant POST /months/2026-09/approve -> 409 ALREADY_APPROVED
+PASS  the approver is not the person who sent it; one frozen snapshot with a hash
+PASS  the Payslips tab is open from Approved, drafts visible to payroll readers only
+PASS  the audit entries hold no PIN and no pay figure
+prisma:error 
+Invalid `prisma.payrollPayslip.updateMany()` invocation in
+/home/fred/Projects/V3-RMS-lanes/lane-1/backend/src/scripts/payroll-proof.ts:281:90
+
+  278 check('the Payslips tab is open from Approved, drafts visible to payroll readers only', ((await call(HR, 'GET', M)).body.data as Body)['tabs'].includes('payslips'));
+  279 const entries = JSON.stringify(await prisma.auditEntry.findMany({ where: { companyId, subjectId: row.id }, select: { before: true, after: true, reason: true } }));
+  280 check('the audit entries hold no PIN and no pay figure', !entries.includes(PIN) && !/"(gross|net|statutory)"/.test(entries));
+→ 281 check('the payslip rows cannot be edited in the database', await prisma.payrollPayslip.updateMany(
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "23001", message: "payroll_payslips is insert-only: UPDATE is not allowed. Add a new run, version or revision instead.", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+PASS  the payslip rows cannot be edited in the database
+
+== 6. one person is paid by one system: the old run leaves Nyeri Town September alone
+PASS  save an old payslip for the covered site and month: hr POST /payslips/bulk-upsert -> 409 PAID_IN_NEW_PAYROLL
+PASS  publish: hr POST /payslips/publish -> 409 PAID_IN_NEW_PAYROLL
+PASS  revert: hr POST /payslips/revert -> 409 PAID_IN_NEW_PAYROLL
+PASS  another site: the old run works as before (revert of nothing): hr POST /payslips/revert -> 200
+PASS  and answers its normal count
+PASS  Nyeri Town before the switch (August): the old run is untouched: hr POST /payslips/revert -> 200
+PASS  the old list stays readable for the covered month: hr GET /payslips -> 200
+PASS  no legacy payslip, shift or clock row changed
+
+== 7. the Director's estimate, and the switch that cannot go off while the month is unpaid
+PASS  the nightly job stored the estimate for the running month
+PASS  the Director reads October's estimate: director GET /months/2026-10/estimate -> 200
+PASS  it is stored (not worked out in the request), gross only, with Nyeri Town
+PASS  read the estimate: hr GET /months/2026-10/estimate -> 200
+PASS  read the estimate: accountant GET /months/2026-10/estimate -> 200
+PASS  read the estimate: admin GET /months/2026-10/estimate -> 200
+PASS  read the estimate: bm.town GET /months/2026-10/estimate -> 403
+PASS  read the estimate: proof.tsh.waiter GET /months/2026-10/estimate -> 403
+PASS  System Admin cannot switch Nyeri Town off while September is unpaid: admin PUT /workforce/attendance/switch -> 409 SITE_IN_UNPAID_PAYROLL
+PASS  the months list shows September To publish with its net, and October open
+
+== 8. integrity
+PASS  the audit chain verifies
+
+132 passed, 0 failed. Data left in place: run "down" (then timesheets-proof down) to remove it.
