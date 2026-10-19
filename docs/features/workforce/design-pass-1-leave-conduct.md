@@ -74,6 +74,12 @@
 - Chapter 13 step 7 (Rules, Conduct): Change on each level and each time limit (Director); the page-level button removed.
 - Chapter 13 step 8 (new): the Change dialog for how long a written warning stays (6 to 9 months from 2 Nov 2026). Steps 8 to 12 are now 9 to 13; the header says 13 steps.
 
+### Locked Change links and the "later" frames (19 Oct 2026, second round)
+- Decision: where a viewer cannot change a row, the Change link stays visible with a padlock and a click says who can ("Only the Branch Manager of Nyeri Town, the Director or the System Admin can change minimum cover. Ask one of them."). This replaces the earlier "hide the link" rule. Minimum cover is changed by the Branch Manager (own site), the Director or the System Admin; HR reads it.
+- Chapter 10 step 18: locked Change links on the minimum cover rows, with the popover shown open on one row. Step 20 dialog redrawn as the shared dialog (reason, PIN, who is told).
+- Chapter 10 and 11 "Not drawn yet" frames renamed "Drawn elsewhere": the cards now say where each item is drawn (Chapters 12, 13, 14, 15 and the shared States kit). Only the lawyer's decision on figures and wording remains open, and it is not a screen.
+- Other Rules tabs in Chapter 13 are not yet checked for locked Change links.
+
 ### Chapter 13 · Rules, Conduct tab (step 7)
 - Who does what: Whoever issues raises, signs and issues; HR decides every appeal and can withdraw any notice; the Branch Manager reads their own site; the Director changes the rule and reads all.
 - Time to appeal: counted from the day the notice is issued, signed or not.
