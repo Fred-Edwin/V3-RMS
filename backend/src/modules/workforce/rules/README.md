@@ -8,7 +8,7 @@ the Rules screens need was built in segment 1B (19 Oct 2026, branch `feat/workfo
 [`decisions-1b-rules-backend.md`](../../../../../docs/features/workforce/decisions-1b-rules-backend.md) (what this build chose
 beyond them). The original contract is [`slice-0-contract.md`](../../../../../docs/features/workforce/slice-0-contract.md) §6.
 
-**Status:** back end complete and tested; the screens are the next front-end session.
+**Status:** back end complete and tested; the screens are built (`frontend/features/workforce/rules/`, 19 Oct 2026). Two small gaps found by the screens were fixed here: a first scheduled version is summarised against the starting values (`page/`), and the withdrawal offered by `GET /:group/versions` is the newest scheduled version (`history/`).
 
 ## Folders (what the user does)
 
