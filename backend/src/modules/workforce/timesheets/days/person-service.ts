@@ -4,6 +4,7 @@ import type { AccessSubject } from '../../_shared/workforce-access';
 import { personInScope } from '../../attendance/attendance-scope';
 import { dayHistory, type DayHistory } from '../../attendance/fixes/history-service';
 import { refreshPeriod } from '../assemble/assemble-service';
+import { clockTimesFor, type DayClockTimes } from '../me/me-clock-times';
 import { evidenceRepository } from '../overtime/evidence-repository';
 import { overtimeRepository } from '../overtime/overtime-repository';
 import { periodForViewer } from '../periods/periods-service';
@@ -15,7 +16,7 @@ import { weekView, type WeekView } from './weeks';
 export interface PersonPeriodView {
   period: PeriodRow;
   person: { id: string; name: string; departmentName: string | null };
-  days: DayRow[];
+  days: (DayRow & DayClockTimes)[];
   weeks: WeekView[];
   overtime: OvertimeRow[];
   requests: RequestRow[];
@@ -33,10 +34,13 @@ export async function personPeriod(subject: AccessSubject, periodId: string, emp
     timesheetDaysRepository.weeksOf(found.id, found.siteId, person.id),
     requestsRepository.ofPersonOnDates(found.siteId, person.id, found.start, found.end),
   ]);
+  const mine = days.filter(({ person: p }) => p.id === person.id).map(({ day }) => day);
+  const clocks = await clockTimesFor(found.siteId, person.id, found.start, found.end, mine.filter((d) => d.scheduledMinutes > 0 || d.workedMinutes > 0).map((d) => d.shiftDate), now);
   return {
     period: found,
     person: { id: person.id, name: person.name, departmentName: person.departmentName },
-    days: days.filter(({ person: p }) => p.id === person.id).map(({ day }) => day),
+    // Each day also carries its first shift's clock-in and clock-out (ISO instants, null when not clocked), for "14:02 → 22:01".
+    days: mine.map((day) => ({ ...day, clockIn: clocks.get(day.shiftDate)?.clockIn ?? null, clockOut: clocks.get(day.shiftDate)?.clockOut ?? null })),
     weeks: weeks.map((w) => weekView(w, found)),
     overtime: overtime.filter((item) => item.employeeId === person.id),
     requests,
