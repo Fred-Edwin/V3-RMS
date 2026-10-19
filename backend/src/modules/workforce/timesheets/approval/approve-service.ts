@@ -60,10 +60,12 @@ const sameTotals = (totals: MonthTotals, expected: ApproveBody['expectedTotals']
  * Checks in order: capability and site (403 / 404), already approved (same key: success, other key: 409), month ended,
  * nothing left to decide, PIN, something to approve, figures unchanged.
  */
-export async function approveMonth(subject: AccessSubject, monthKey: string, body: ApproveBody, now: Date = new Date()): Promise<ApprovalResult> {
+export async function approveMonth(subject: AccessSubject, monthKey: string, body: ApproveBody, now: Date = new Date(), options: { lateForSiteId?: string } = {}): Promise<ApprovalResult> {
   if (!isMonthKey(monthKey)) throw new NotFoundError('No timesheet for that month', 'NO_TIMESHEET');
-  const siteId = body.site ?? subject.siteId ?? undefined;
-  const viewer = writerFor(subject, 'timesheet.close', siteId ?? '');
+  const siteId = options.lateForSiteId ?? body.site ?? subject.siteId ?? undefined;
+  // Payroll's late approval (P4, Segment 2A): the Director was already checked for `payroll.approve_site_late` and the five days, so
+  // the site's own-manager scope does not apply. The PIN, the figures and everything below are checked exactly as for the manager.
+  const viewer = options.lateForSiteId ? { siteId: options.lateForSiteId } : writerFor(subject, 'timesheet.close', siteId ?? '');
   const bounds = monthBounds(monthKey);
   const found = await periodsRepository.byMonth(viewer.siteId, bounds.first, bounds.last);
   if (!found) throw new NotFoundError('No timesheet for that month', 'NO_TIMESHEET');

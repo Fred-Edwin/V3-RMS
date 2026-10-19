@@ -90,6 +90,11 @@ export const inputsRepository = {
     return row?.confirmations[0] ?? null;
   },
 
+  /** The ticked review lines of a run, to carry over to the next one when nothing about them changed. */
+  async checkedLines(runId: string) {
+    return prisma.payrollReviewLine.findMany({ where: { runId, state: 'CHECKED', checkedById: { not: null } }, select: { employeeId: true, kind: true, text: true, checkedById: true, checkedAt: true } });
+  },
+
   /** The lines HR added that are still in force. */
   async activeAdjustments(monthId: string) {
     return prisma.payrollAdjustment.findMany({ where: { monthId, removedAt: null }, orderBy: { createdAt: 'asc' } });
@@ -119,13 +124,14 @@ export const inputsRepository = {
 
   /** A cheap fingerprint of what a calculation reads, to tell HR that something changed after it was calculated. */
   async fingerprint(companyId: string, siteIds: readonly string[], window: MonthWindow): Promise<string> {
-    const [people, profiles, changes, periods, adjustments] = await Promise.all([
+    const [people, profiles, changes, periods, adjustments, leftOut] = await Promise.all([
       prisma.employee.aggregate({ where: { companyId, siteId: { in: [...siteIds] } }, _count: true, _max: { updatedAt: true } }),
       prisma.payProfile.aggregate({ where: { employee: { companyId, siteId: { in: [...siteIds] } } }, _max: { updatedAt: true } }),
       prisma.payChange.aggregate({ where: { status: 'APPROVED', employee: { companyId, siteId: { in: [...siteIds] } } }, _count: true, _max: { decidedAt: true } }),
       prisma.timesheetPeriod.aggregate({ where: { siteId: { in: [...siteIds] }, startDate: toDateColumn(window.first) }, _max: { approvedAt: true } }),
       prisma.payrollAdjustment.aggregate({ where: { month: { companyId, monthKey: window.monthKey } }, _count: true, _max: { createdAt: true, removedAt: true } }),
+      prisma.payrollLeftOut.count({ where: { month: { companyId, monthKey: window.monthKey } } }),
     ]);
-    return [people._count, people._max.updatedAt?.toISOString(), profiles._max.updatedAt?.toISOString(), changes._count, changes._max.decidedAt?.toISOString(), periods._max.approvedAt?.toISOString(), adjustments._count, adjustments._max.createdAt?.toISOString(), adjustments._max.removedAt?.toISOString()].join('|');
+    return [leftOut,people._count, people._max.updatedAt?.toISOString(), profiles._max.updatedAt?.toISOString(), changes._count, changes._max.decidedAt?.toISOString(), periods._max.approvedAt?.toISOString(), adjustments._count, adjustments._max.createdAt?.toISOString(), adjustments._max.removedAt?.toISOString()].join('|');
   },
 };

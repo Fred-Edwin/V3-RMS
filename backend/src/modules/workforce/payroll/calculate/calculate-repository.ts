@@ -21,7 +21,8 @@ export interface ReviewWrite {
   kind: string;
   severity: 'BLOCK' | 'TICK';
   text: string;
-  checkedById: string | null; // set for a line that is born ticked (a person left out)
+  checkedById: string | null; // set for a line that is born ticked (a person left out, or a tick carried over from the run before)
+  checkedAt?: Date | null;
 }
 
 export interface RunWrite {
@@ -110,7 +111,7 @@ export const calculateRepository = {
           kind: r.kind,
           severity: r.severity,
           text: r.text,
-          ...(r.checkedById ? { state: 'CHECKED' as const, checkedById: r.checkedById, checkedAt: write.now } : {}),
+          ...(r.checkedById ? { state: 'CHECKED' as const, checkedById: r.checkedById, checkedAt: r.checkedAt ?? write.now } : {}),
         })),
       });
     }

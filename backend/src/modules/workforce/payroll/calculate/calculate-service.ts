@@ -23,6 +23,8 @@ export interface CalculateArgs {
   actor: ActorCtx | null;
   expectedVersion?: number;
   idempotencyKey?: string;
+  /** Carry over HR's ticks on lines that did not change (after a left-out choice or an adjustment). `Calculate again` clears them. */
+  keepTicks?: boolean;
   now?: Date;
 }
 
@@ -85,6 +87,13 @@ export async function calculateMonth(args: CalculateArgs): Promise<CalculateResu
   });
   const engineRules = new Map([...plan.rulesBySite].map(([siteId, rules]) => [siteId, toEngineRules(rules)]));
   const computed = computeRun(people, engineRules, new Map(leftOut.map((l) => [l.employeeId, { byId: l.byId }])));
+  if (args.keepTicks && month.currentRunId) {
+    const ticked = new Map((await inputsRepository.checkedLines(month.currentRunId)).map((l) => [`${l.employeeId}|${l.kind}|${l.text}`, l]));
+    for (const review of computed.reviews) {
+      const kept = review.checkedById === null ? ticked.get(`${review.employeeId}|${review.kind}|${review.text}`) : undefined;
+      if (kept && review.severity === 'TICK') Object.assign(review, { checkedById: kept.checkedById, checkedAt: kept.checkedAt });
+    }
+  }
   const fingerprint = await inputsRepository.fingerprint(companyId, plan.siteIds, window);
   const inputsHash = hashInputs({ people: people.map((p) => p.input), versions: [...engineRules].map(([id, r]) => [id, r.versions]), leftOut: leftOut.map((l) => l.employeeId).sort() });
   const trigger = args.trigger;
