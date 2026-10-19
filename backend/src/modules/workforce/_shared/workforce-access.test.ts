@@ -20,6 +20,7 @@ import {
   type Capability,
   type Scope,
 } from './workforce-access';
+import { RULE_FIELD_POLICY } from '../rules/rules-field-policy';
 
 /**
  * The matrix of contract section 3.3, written out by hand. Columns:
@@ -351,5 +352,126 @@ describe('audit capabilities', () => {
   it('every audit category has its read capability', () => {
     expect(AUDIT_CAPABILITIES_COMPLETE).toBe(true);
     for (const category of AUDIT_CATEGORIES) expect(CAPABILITIES).toContain(auditReadCapability(category));
+  });
+});
+
+/**
+ * Rules permissions, one test per row of the table in the 1B spec (section 14). C = may change a row for the company or the
+ * site they stand at, P = reads but cannot change. The field policy says which capability each row needs.
+ */
+describe('Rules permissions table (1B, section 14)', () => {
+  const policy = RULE_FIELD_POLICY as Record<string, Record<string, { edit: Capability | null; site: boolean }>>;
+  const ROLES: [string, UserRole][] = [
+    ['Director', 'DIRECTOR'],
+    ['Branch Manager', 'MANAGER'],
+    ['Store Manager', 'STORE_MANAGER'],
+    ['HR', 'HR_MANAGER'],
+    ['Accountant', 'ACCOUNTANT'],
+    ['System Admin', 'SYSTEM_ADMIN'],
+  ];
+  // Can this role write this field for the company (siteId null) or, standing at its own site, for that site's own rule?
+  const mayChange = (role: UserRole, group: string, field: string, at: 'company' | 'own-site'): boolean => {
+    const capability = policy[group]?.[field]?.edit ?? null;
+    if (!capability) return false;
+    const scope = scopeOf(subject(role), capability);
+    if (scope === 'all') return true;
+    return scope === 'unit' && at === 'own-site' && policy[group]?.[field]?.site === true; // only a row a site may own
+  };
+  const row = (group: string, field: string, expected: Record<string, 'C' | 'P' | 'own'>): void => {
+    for (const [label, role] of ROLES) {
+      const want = expected[label];
+      expect(want, `${label} is missing from the row`).toBeDefined();
+      const actual = mayChange(role, group, field, 'company') ? 'C' : mayChange(role, group, field, 'own-site') ? 'own' : 'P';
+      expect(actual, `${label} ${group}.${field}`).toBe(want);
+    }
+  };
+  const readsEverything = ['DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN'] as UserRole[];
+
+  it('open the page (rules.read): the six desk roles; never heads or floor staff', () => {
+    for (const role of readsEverything) expect(scopeOf(subject(role), 'rules.read'), role).not.toBeNull();
+    expect(scopeOf(subject('MANAGER'), 'rules.read')).toBe('unit');
+    expect(scopeOf(subject('STORE_MANAGER'), 'rules.read')).toBe('unit');
+    for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT'] as UserRole[]) expect(scopeOf(subject(role), 'rules.read'), role).toBeNull();
+    expect(scopeOf(subject('WAITER', { isDepartmentHead: true }), 'rules.read')).toBeNull();
+  });
+
+  it('Lateness, all rows but the cap: the Director changes, Branch and Store Managers change their own site, the rest read', () => {
+    for (const field of ['graceMinutes', 'policy', 'afterLatesPerMonth', 'makeUpSameDay', 'excuseWindowHours']) {
+      row('LATENESS', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+    }
+  });
+
+  it('Lateness, deduction cap: the Director only (a site cannot own it)', () => {
+    expect(policy['LATENESS']?.['deductionCapPercentOfPay']).toMatchObject({ edit: 'rules.edit.lateness', site: false });
+    expect(mayChange('MANAGER', 'LATENESS', 'deductionCapPercentOfPay', 'company')).toBe(false);
+    expect(mayChange('DIRECTOR', 'LATENESS', 'deductionCapPercentOfPay', 'company')).toBe(true);
+  });
+
+  it('Overtime tail, caps, budget and window: the Director and a manager at their own site', () => {
+    for (const field of ['serviceTailMinutes', 'weeklyCapMinutes', 'branchBudgetMinutesPerPeriod', 'approvalWindowHours']) {
+      row('OVERTIME', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+    }
+  });
+
+  it('Overtime multiplier: the Director changes it and the Accountant confirms it', () => {
+    row('OVERTIME', 'multipliers', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+    expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.pay_rates')).toBe('all');
+    expect(scopeOf(subject('DIRECTOR'), 'rules.confirm.pay_rates')).toBeNull();
+  });
+
+  it('Attendance: the Director alone changes it', () => {
+    row('ATTENDANCE', 'undoWindowSeconds', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  });
+
+  it('Leave types and the default policy: HR alone (the Director does not)', () => {
+    for (const field of ['leaveTypes', 'defaultPolicy']) row('LEAVE', field, { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'C', Accountant: 'P', 'System Admin': 'P' });
+  });
+
+  it('Leave minimum cover: the Director and System Admin anywhere, the manager at their own site; HR and the Accountant read', () => {
+    row('LEAVE', 'minimumCover', { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
+  });
+
+  it('Probation, casual rates and the cash holder, conduct months and limits: the Director alone', () => {
+    for (const [group, field] of [['PROBATION', 'defaultMonths'], ['PROBATION', 'reportDays'], ['CASUAL_WORK', 'rates'], ['CASUAL_WORK', 'pettyCashHolder'], ['CONDUCT', 'levels'], ['CONDUCT', 'appealWithinDays']] as const) {
+      row(group, field, { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+    }
+  });
+
+  it('Casual who records and who approves, the unpaid break, rounding: Fixed for everyone (no editor at all)', () => {
+    expect(policy['CASUAL_WORK']?.['latenessReducesPayout']?.edit).toBeNull();
+    expect(policy['ATTENDANCE']?.['roundingMinutes']?.edit).toBeNull();
+    expect(policy['WEEK_AND_BREAKS']?.['timesheetPeriod']?.edit).toBeNull();
+  });
+
+  it('Statutory: the Accountant changes and confirms; the Director, HR and System Admin read it; a manager has no payrun.read and gets the locked card', () => {
+    row('STATUTORY', 'tables', { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'P' });
+    expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.statutory')).toBe('all');
+    for (const role of ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT'] as UserRole[]) expect(scopeOf(subject(role), 'payrun.read'), role).toBe('all');
+    for (const role of ['MANAGER', 'STORE_MANAGER'] as UserRole[]) expect(scopeOf(subject(role), 'payrun.read'), role).toBeNull();
+  });
+
+  it('Holidays list: the Director changes and confirms it', () => {
+    row('HOLIDAYS', 'holidays', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+    expect(scopeOf(subject('DIRECTOR'), 'rules.confirm.holiday_list')).toBe('all');
+  });
+
+  it('Holiday pay rate: the Accountant changes and confirms it; the Director only reads', () => {
+    row('HOLIDAYS', 'payMultiplier', { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'P' });
+    expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.pay_rates')).toBe('all');
+  });
+
+  it('Week starts on: the Director alone; the unpaid break is Fixed', () => {
+    row('WEEK_AND_BREAKS', 'weekStartsOn', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  });
+
+  it('the System Admin and HR hold no capability that changes lateness, overtime or attendance (decision D6)', () => {
+    for (const capability of ['rules.edit.lateness', 'rules.edit.overtime', 'rules.edit.attendance', 'rules.edit.holidays', 'rules.edit.statutory'] as Capability[]) {
+      expect(scopeOf(subject('SYSTEM_ADMIN'), capability), capability).toBeNull();
+      expect(scopeOf(subject('HR_MANAGER'), capability), capability).toBeNull();
+    }
+  });
+
+  it('the old combined leave capability is gone', () => {
+    expect(CAPABILITIES).not.toContain('rules.edit.leave');
   });
 });

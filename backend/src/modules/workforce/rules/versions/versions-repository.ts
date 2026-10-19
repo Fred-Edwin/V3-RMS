@@ -37,7 +37,7 @@ export interface NewRuleWithdrawal {
 export const versionsRepository = {
   /** Holds a lock on one (company, group, site) timeline until the transaction ends, so two saves cannot both take the next number. */
   lockScope: async (db: Prisma.TransactionClient, companyId: string, group: RuleGroup, siteId: string | null): Promise<void> => {
-    await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`rules:${companyId}:${group}:${siteId ?? 'company'}`}))`;
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rules:${companyId}:${group}:${siteId ?? 'company'}`}))`;
   },
 
   createVersion: (db: Prisma.TransactionClient, data: NewRuleVersion): Promise<RuleVersionRow> => db.ruleVersion.create({ data: { ...data }, include: withDetails }),

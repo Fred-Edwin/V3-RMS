@@ -47,6 +47,13 @@ const merged = (role: string): string => (role === 'MANAGER' || role === 'STORE_
 
 const rowName = (group: RuleGroupCode, id: string): string => ROWS[group].find((row) => row.id === id)?.short ?? id;
 
+/** "(tail, caps)" for a few rows, "(all but the deduction cap)" when a role has most of the tab. */
+const rowsText = (group: RuleGroupCode, rows: string[]): string => {
+  const editable = ROWS[group].filter((row) => !row.fixed && row.fields.length > 0).map((row) => row.id);
+  const left = editable.filter((id) => !rows.includes(id));
+  return rows.length > left.length ? `all but ${left.map((id) => rowName(group, id)).join(', ')}` : rows.map((id) => rowName(group, id)).join(', ');
+};
+
 const changedByOf = (group: RuleGroupCode): AccessTableRow['changedBy'] => {
   const policy = policyOf(group);
   const editableRows = ROWS[group].filter((row) => !row.fixed && row.fields.some((f) => policy[f]?.edit != null && policy[f]?.derived !== true));
@@ -97,7 +104,7 @@ export function buildAccessTable(): AccessTableRow[] {
     const confirmedBy = confirmedByOf(group);
     const told = [...new Set(toldAudiencesOf(group).map((audience) => AUDIENCE_ROLE[audience]).map(merged))].map((role) => ({ role }));
     const changedText = changedBy
-      .map((entry) => `${ROLE_WORDS[entry.role] ?? entry.role}${entry.scope === 'OWN_SITE' ? ' for own site' : ''}${entry.rows ? ` (${entry.rows.map((id) => rowName(group, id)).join(', ')})` : ''}`)
+      .map((entry) => `${ROLE_WORDS[entry.role] ?? entry.role}${entry.scope === 'OWN_SITE' ? ' for own site' : ''}${entry.rows ? ` (${rowsText(group, entry.rows)})` : ''}`)
       .join(' · ');
     const confirmedText = confirmedBy.length === 0 ? 'No one, starts on its date' : confirmedBy.map((entry) => `${ROLE_WORDS[entry.role] ?? entry.role} (${entry.what})`).join(' · ');
     return { group, ...TABS[group], changedBy, confirmedBy, told, text: { changedBy: changedText, confirmedBy: confirmedText, told: words(told.map((t) => t.role)) } };
