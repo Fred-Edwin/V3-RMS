@@ -8,7 +8,7 @@ import { Callout, DialogButton, EmptyState, ErrorBlock, FilterChip, ListSkeleton
 import { nairobiToday } from '../../../rota';
 import { useMonth, usePersonDays } from '../../_shared/hooks/use-month-data';
 import { clockHours, monthLabel, plural, pickLimits, rangeWords } from '../../_shared/lib/month-words';
-import { plainName } from '../../_shared/lib/timesheet-words';
+import { plainName, roleName } from '../../_shared/lib/timesheet-words';
 import type { PersonDayRow } from '../../_shared/types/month-types';
 import { ExportMenu } from '../../exports/components/export-menu';
 import { OvertimeDialog } from '../../overtime/components/overtime-dialog';
@@ -101,11 +101,15 @@ export function PersonMonthScreen() {
           ) : null}
         </aside>
         <section aria-label="Days" className="flex min-w-0 flex-1 flex-col gap-3">
-          <RangeControl first={lim.first} last={lim.last} today={today} value={range} onChange={(r) => go({ from: r?.from ?? null, to: r?.to ?? null })} />
-          <div role="group" aria-label="Filter" className="flex flex-wrap gap-2">
-            <FilterChip label="All days" count={data.counts.all} selected={chip === 'all'} onClick={() => go({ view: null })} />
-            <FilterChip label="Needs a look" count={data.counts.needs} selected={chip === 'needs'} tone="attention" onClick={() => go({ view: 'needs' })} />
-            <FilterChip label="Worked" count={data.counts.worked} selected={chip === 'worked'} onClick={() => go({ view: 'worked' })} />
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="group" aria-label="Filter" className="flex flex-wrap gap-2">
+              <FilterChip label="All days" count={data.counts.all} selected={chip === 'all'} onClick={() => go({ view: null })} />
+              <FilterChip label="Needs a look" count={data.counts.needs} selected={chip === 'needs'} tone="attention" onClick={() => go({ view: 'needs' })} />
+              <FilterChip label="Worked" count={data.counts.worked} selected={chip === 'worked'} onClick={() => go({ view: 'worked' })} />
+            </div>
+            <div className="ml-auto">
+              <RangeControl first={lim.first} last={lim.last} today={today} value={range} onChange={(r) => go({ from: r?.from ?? null, to: r?.to ?? null })} />
+            </div>
           </div>
           {data.days.length === 0 ? (
             <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Nothing here.</p>
@@ -125,7 +129,7 @@ export function PersonMonthScreen() {
         <PageHeader
           size="lg"
           title={name ? `${name} · ${monthLabel(monthKey)}` : 'Timesheet'}
-          subtitle={data ? `${[data.employee.role, siteName].filter(Boolean).join(' · ')} · every day from ${rangeWords(range?.from ?? data.month.start, range?.to ?? data.month.end)}` : undefined}
+          subtitle={data ? `${[roleName(data.employee.role) || data.employee.department, siteName].filter(Boolean).join(' · ')} · every day from ${rangeWords(range?.from ?? data.month.start, range?.to ?? data.month.end)}` : undefined}
           actions={
             <>
               <DialogButton kind="cancel" size="lg" disabled={!data?.neighbours.prevEmployeeId} title={data?.neighbours.prevEmployeeId ? undefined : 'This is the first person'} onClick={() => data?.neighbours.prevEmployeeId && toPerson(data.neighbours.prevEmployeeId)}>‹ Previous person</DialogButton>

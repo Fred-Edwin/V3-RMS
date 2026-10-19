@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Callout, DialogButton, DrawerSection, ErrorBlock, ListSkeleton, StatBoxes, WorkforceDrawer, initialsOf, useWorkforcePermissions } from '../../../_shared';
 import { usePersonDrawer } from '../../_shared/hooks/use-month-data';
 import { approvedStamp, clockHours, monthLabel, plural, rangeWords, spanOf } from '../../_shared/lib/month-words';
-import { plainName } from '../../_shared/lib/timesheet-words';
+import { plainName, roleName } from '../../_shared/lib/timesheet-words';
 import type { MonthView, NeedLookItem } from '../../_shared/types/month-types';
 import { OvertimeDialog } from '../../overtime/components/overtime-dialog';
 import { decisionLine, type NeedAction } from '../lib/person-view';
@@ -69,7 +69,7 @@ export function PersonDrawer({
   };
 
   const name = data ? plainName(data.employee.name) : '';
-  const subtitle = data ? [monthLabel(monthKey), data.employee.role ?? data.employee.department, month.organization.name].filter(Boolean).join(' · ') : monthLabel(monthKey);
+  const subtitle = data ? [monthLabel(monthKey), roleName(data.employee.role) || data.employee.department, month.organization.name].filter(Boolean).join(' · ') : monthLabel(monthKey);
   return (
     <>
       <WorkforceDrawer open onOpenChange={(o) => !o && onClose()} title={name || 'Loading…'} subtitle={subtitle} {...(name ? { initials: initialsOf(name) } : {})}>

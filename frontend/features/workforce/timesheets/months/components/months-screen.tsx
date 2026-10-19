@@ -100,12 +100,12 @@ export function MonthsScreen() {
             onPage={setListPage}
             onRetry={list.reload}
           />
-          <section aria-label={monthKey ? `${monthLabel(monthKey)}, the people` : 'The people'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto pt-4 lg:pl-6">
+          <section aria-label={monthKey ? `${monthLabel(monthKey)}, the people` : 'The people'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto pt-2 lg:pl-4">
             {month.status === 'error' && !view ? <ErrorBlock title="This month did not load" line={month.error.message} onRetry={month.reload} /> : null}
             {view && limits && monthKey ? (
               <>
-                <RangeControl first={limits.first} last={limits.last} today={today} value={range} onChange={(r) => url.set({ from: r?.from ?? null, to: r?.to ?? null, page: null })} />
                 <PeopleTable
+                  trailing={<RangeControl first={limits.first} last={limits.last} today={today} value={range} onChange={(r) => url.set({ from: r?.from ?? null, to: r?.to ?? null, page: null })} />}
                   key={`${siteId ?? ''}:${monthKey}:${range?.from ?? ''}:${range?.to ?? ''}`}
                   monthKey={monthKey}
                   site={siteId}

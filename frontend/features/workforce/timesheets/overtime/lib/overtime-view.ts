@@ -1,5 +1,5 @@
 import { hmOf } from '../../../attendance';
-import { hmWords } from '../../_shared/lib/timesheet-words';
+import { hmWords, roleName } from '../../_shared/lib/timesheet-words';
 import type { OvertimeAnswer, OvertimeChoice, OvertimeDetail } from '../../_shared/types/month-types';
 
 /** The pure rules of the overtime decision (spec S6, D3, D4). No money: approving only authorises the time; payroll decides pay. */
@@ -15,7 +15,7 @@ const humanCode = (code: string): string => {
 /** "WHY, FROM THE RECORD": counts and notes only, never takings. */
 export function evidenceLines(d: OvertimeDetail): string[] {
   const e = d.evidence;
-  const note = e.headNote ? `${e.headNote.by ? `${e.headNote.by.name}, ${e.headNote.by.role}: ` : ''}${e.headNote.text}` : 'none';
+  const note = e.headNote ? `${e.headNote.by ? `${e.headNote.by.name}, ${roleName(e.headNote.by.role)}: ` : ''}${e.headNote.text}` : 'none';
   return [
     `Reason given: ${e.reasonGiven ? humanCode(e.reasonGiven) : 'none'}`,
     e.openWork ? `Open at ${e.openWork.at ?? 'the end of the shift'}: ${e.openWork.orders} ${e.openWork.orders === 1 ? 'order' : 'orders'}` : 'Open at the end of the shift: nothing',

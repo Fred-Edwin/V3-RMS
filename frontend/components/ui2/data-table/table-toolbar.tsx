@@ -84,6 +84,8 @@ export interface TableToolbarProps {
   onFiltersChange?: (changes: Record<string, string>) => void;
   /** `paper` is the Branch waste toolbar (W6, W8): a 300px search with a strong border, filters with 10px padding. The layout is the kit's. */
   variant?: 'default' | 'paper';
+  /** A control that belongs in the same row, drawn at the right before the dropdowns (a date range with its own limits, say). */
+  trailing?: React.ReactNode;
   className?: string;
 }
 
@@ -99,6 +101,7 @@ export function TableToolbar({
   onFilterChange,
   onFiltersChange,
   variant = 'default',
+  trailing,
   className,
 }: TableToolbarProps) {
   const paper = variant === 'paper';
@@ -180,8 +183,9 @@ export function TableToolbar({
         );
       })}
 
-      {dropdowns.length > 0 || dateRanges.length > 0 ? (
+      {dropdowns.length > 0 || dateRanges.length > 0 || trailing ? (
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {trailing}
           {dateRanges.map((f) => (
             <DateRangePicker
               key={`${f.fromKey}:${f.toKey}`}

@@ -6,6 +6,8 @@ import { bandOvertime, cellHours, dayCell, headingHours, lateCell, longStamp, ra
 import { groupByDepartment, type ExportModel } from './export-model';
 import { continuation, joinNames, planPages, type Band, type PlannedPage } from './export-plan';
 import { CONTENT_WIDTH, PAGE, PALETTE, drawQr, hline, pageFurniture, put } from './pdf-draw';
+import { drawLogo } from './pdf-logo';
+import { registerSignatureFont, signedName } from './signature-font';
 
 const X = PAGE.marginX;
 const ROW = 15;
@@ -58,8 +60,10 @@ export async function renderPdf(model: ExportModel): Promise<Buffer> {
 
 function firstHeader(doc: PDFKit.PDFDocument, model: ExportModel): number {
   const top = 30;
-  doc.save().circle(X + 15, top + 15, 15).fill(PALETTE.navy).restore();
-  put(doc, 'W', X, top + 8, { font: 'Times-Bold', size: 15, color: '#FFFFFF', width: 30, align: 'center' });
+  if (!drawLogo(doc, X + 15, top + 15, 15)) {
+    doc.save().circle(X + 15, top + 15, 15).fill(PALETTE.navy).restore();
+    put(doc, 'W', X, top + 8, { font: 'Times-Bold', size: 15, color: '#FFFFFF', width: 30, align: 'center' });
+  }
   put(doc, `Timesheet · ${model.siteName}`, X + 40, top, { font: 'Times-Bold', size: 16.5, color: PALETTE.navy, width: 330 });
   put(doc, `${model.monthLabel} (${rangeWords(model.start, model.end).replace(/ \d{4}$/, '')}) · Wendo Coffee Bistro`, X + 40, top + 21, { size: 9, color: PALETTE.muted, width: 330 });
   const stamp = model.draft ? 'DRAFT · NOT APPROVED' : 'APPROVED';
@@ -180,7 +184,7 @@ function rulesAndSignature(doc: PDFKit.PDFDocument, model: ExportModel, top: num
     put(doc, "Not signed · the site's manager signs by approving the month", X, sy + 20, { font: 'Times-Italic', size: 10.5, color: PALETTE.muted });
     return;
   }
-  put(doc, model.approvedBy.name, X, sy, { font: 'Times-Italic', size: 26, color: PALETTE.navy, width: 330 });
+  put(doc, signedName(model.approvedBy.name), X, sy - 4, { font: registerSignatureFont(doc), size: 32, color: PALETTE.navy, width: 330 });
   hline(doc, sy + 32, X, X + 230, PALETTE.navy, 0.75);
   put(doc, `${model.approvedBy.name} · ${roleLabel(model.approvedBy.role)}`, X, sy + 36, { size: 9, width: 330 });
   put(doc, `Signed with PIN · ${model.approvedAt ? longStamp(model.approvedAt) : ''}`, X, sy + 48, { size: 8.25, color: PALETTE.muted, width: 330 });

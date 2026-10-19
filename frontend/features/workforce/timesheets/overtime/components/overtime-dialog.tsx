@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 
 import { Callout, ChoiceChips, DialogButton, ErrorBlock, FIELD_CLASS, FOCUS_RING, FormField, KitDialog, ListSkeleton, MOTION, PinField, StatBoxes } from '../../../_shared';
 import { useOvertimeDetail } from '../../_shared/hooks/use-month-data';
-import { hmWords, dayLong, plainName } from '../../_shared/lib/timesheet-words';
+import { hmWords, dayLong, plainName, roleName } from '../../_shared/lib/timesheet-words';
 import { monthWrites } from '../../_shared/services/month-services';
 import type { OvertimeChoice, OvertimeDetail } from '../../_shared/types/month-types';
 import { REASON_MAX, answerBody, choiceOf, evidenceLines, limitLines, overtimeWords, partStart, plannedText, saveProblem, stepPart, workedText } from '../lib/overtime-view';
@@ -73,7 +73,7 @@ function Decision({ detail, onClose, onDone, onStale }: { detail: OvertimeDetail
       busy={busy}
       width={780}
       title={`Overtime · ${plainName(detail.person.name)} · ${hmWords(detail.extraMinutes)}`}
-      description={`${dayLong(detail.shiftDate)} · ${[detail.person.role, detail.organization.name].filter(Boolean).join(' · ')}`}
+      description={`${dayLong(detail.shiftDate)} · ${[roleName(detail.person.role) || detail.person.department, detail.organization.name].filter(Boolean).join(' · ')}`}
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={busy}>

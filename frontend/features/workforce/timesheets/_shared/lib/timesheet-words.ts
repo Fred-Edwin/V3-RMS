@@ -121,4 +121,7 @@ export const plainName = (full: string): string => full.replace(/\([^)]*\)/g, ' 
 
 export const ROLE_WORDS: Record<string, string> = { MANAGER: 'Branch Manager', STORE_MANAGER: 'Store Manager', HR_MANAGER: 'HR Manager', SYSTEM_ADMIN: 'System Admin', DIRECTOR: 'Director', ACCOUNTANT: 'Accountant' };
 
+/** A role as a person says it ("Branch Manager"); a role the table does not know is shown as it came. */
+export const roleName = (role: string | null | undefined): string => (role ? (ROLE_WORDS[role] ?? role) : '');
+
 export const weekdayOf =(day: string): string => WEEKDAY_ONLY.format(noon(day));

@@ -95,6 +95,8 @@ export interface DataTableProps<Row> {
   rowSize?: 'default' | 'two-line' | 'compact';
   /** `workforce` draws the header, rows and selected row as Workforce does (see `ui2/table`). Search, filters, pager and URL state are unchanged. */
   tableLook?: TableLook;
+  /** A control for the toolbar row, drawn at the right before the dropdowns (see `TableToolbarProps.trailing`). */
+  toolbarTrailing?: React.ReactNode;
   className?: string;
 }
 
@@ -161,6 +163,7 @@ export function DataTable<Row>({
   tableClassName,
   rowSize = 'default',
   tableLook = 'default',
+  toolbarTrailing,
   className,
 }: DataTableProps<Row>) {
   const filterKeys = React.useMemo(() => filterKeysOf(filters), [filters]);
@@ -302,6 +305,7 @@ export function DataTable<Row>({
           onFilterChange={onFilterChange}
           onFiltersChange={onFiltersChange}
           variant={look}
+          trailing={toolbarTrailing}
           className={searchable ? undefined : '[&>label]:hidden'}
         />
       ) : null}

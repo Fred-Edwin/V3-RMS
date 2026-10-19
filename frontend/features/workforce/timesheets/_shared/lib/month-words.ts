@@ -1,4 +1,4 @@
-import { dayTitle, hmWords, wholeHours } from './timesheet-words';
+import { dayTitle, hmWords, roleName, wholeHours } from './timesheet-words';
 import type { DayResultKey, MonthView, PersonStatus } from '../types/month-types';
 
 /**
@@ -110,7 +110,7 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Nairobi
 /** "19 Oct, 11:42" in Nairobi time. */
 export const approvedStamp = (iso: string): string => `${DAY_FORMAT.format(new Date(iso))}, ${TIME_FORMAT.format(new Date(iso))}`;
 
-const signerLine = (approval: NonNullable<MonthView['approval']>): string => `${approvedStamp(approval.approvedAt)}${approval.approvedBy ? ` · ${approval.approvedBy.name}, ${approval.approvedBy.role}` : ''}`;
+const signerLine = (approval: NonNullable<MonthView['approval']>): string => `${approvedStamp(approval.approvedAt)}${approval.approvedBy ? ` · ${approval.approvedBy.name}, ${roleName(approval.approvedBy.role)}` : ''}`;
 
 /** The four numbers above the table (spec S1 and S8). */
 export function kpiCells(month: MonthView): Cell[] {

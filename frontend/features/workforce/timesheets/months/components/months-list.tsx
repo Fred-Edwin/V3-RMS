@@ -112,7 +112,7 @@ export function MonthsList({
   }
 
   return (
-    <nav aria-label={`Months, ${siteName}`} className="flex min-h-0 w-full flex-col pt-4 lg:w-[280px] lg:shrink-0 lg:border-r lg:border-wds-neutral-950">
+    <nav aria-label={`Months, ${siteName}`} className="flex min-h-0 w-full flex-col pt-4 lg:w-[232px] lg:shrink-0 lg:border-r lg:border-wds-neutral-950">
       <h2 className="m-0 pb-2.5 pr-4 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.08em] text-wds-text-secondary">Months · {siteName}</h2>
       <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
       {data && data.total > 0 ? (

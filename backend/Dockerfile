@@ -27,6 +27,10 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+# The signature font of the signed timesheet PDF (Alex Brush, SIL OFL); the export falls back to Times-Italic if it is missing
+COPY --from=builder /app/assets/fonts ./assets/fonts
+# The Wendo logo in the header of the timesheet PDF; the export draws a plain mark if it is missing
+COPY --from=builder /app/assets/images ./assets/images
 
 # Run as non-root user for security
 RUN addgroup -S wendo && adduser -S wendo -G wendo

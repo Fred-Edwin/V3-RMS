@@ -5,6 +5,7 @@ import { bandOvertime, cellHours, clockOf, dayCell, headingHours, lateCell, long
 import { fileNameOf, groupByDepartment, type ExportModel } from './export-model';
 import { planPages } from './export-plan';
 import { renderPdf } from './pdf-render';
+import { signedName } from './signature-font';
 import { renderXlsx } from './xlsx-render';
 
 const faith = { name: 'Faith Njeri', role: 'MANAGER' };
@@ -78,6 +79,21 @@ describe('the PDF', () => {
     const draft = await renderPdf(model(31, { draft: true, documentNumber: null, hashPrefix: null, approvedAt: null, approvedBy: null, qrUrl: null }));
     expect(Buffer.compare(signed, draft)).not.toBe(0);
     expect(pageCount(draft)).toBe(pageCount(signed));
+  });
+  it('draws the signature in Alex Brush on a signed file, and a draft has no signature font', async () => {
+    const signed = (await renderPdf(model(3))).toString('latin1');
+    expect(signed).toContain('AlexBrush');
+    const draft = (await renderPdf(model(3, { draft: true, documentNumber: null, hashPrefix: null, approvedAt: null, approvedBy: null, qrUrl: null }))).toString('latin1');
+    expect(draft).not.toContain('AlexBrush');
+  });
+  it('carries the Wendo logo as a picture in the header of a signed file and of a draft', async () => {
+    expect((await renderPdf(model(3))).toString('latin1')).toContain('/Subtype /Image');
+    const draft = await renderPdf(model(3, { draft: true, documentNumber: null, hashPrefix: null, approvedAt: null, approvedBy: null, qrUrl: null }));
+    expect(draft.toString('latin1')).toContain('/Subtype /Image');
+  });
+  it('signs with the first and second name only', () => {
+    expect(signedName('Faith Njeri (BM Nyeri Town)')).toBe('Faith Njeri');
+    expect(signedName('Mary Wanjiku Kamau')).toBe('Mary Wanjiku');
   });
   it('carries the document number in its metadata, or says it is a draft', async () => {
     expect((await renderPdf(model(3))).toString('latin1')).toContain('TSH-0009');

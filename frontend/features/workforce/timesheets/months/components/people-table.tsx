@@ -46,7 +46,11 @@ export function buildFilters(departments: readonly { id: string; name: string }[
 
 const viewOf = (value: string | undefined): PeopleChip => (value === 'needs' || value === 'late' ? value : 'all');
 
-const Zero = ({ value, children }: { value: number; children: React.ReactNode }) => <NumberCell tone={value === 0 ? 'muted' : 'default'}>{children}</NumberCell>;
+const Zero = ({ value, children }: { value: number; children: React.ReactNode }) => (
+  <NumberCell tone={value === 0 ? 'muted' : 'default'} className="whitespace-nowrap">
+    {children}
+  </NumberCell>
+);
 
 function Status({ person }: { person: MonthPerson }) {
   const { text, tone } = statusWords(person.status);
@@ -69,6 +73,7 @@ export function PeopleTable({
   caption,
   onCounts,
   onOpen,
+  trailing,
 }: {
   monthKey: string;
   site: string | undefined;
@@ -80,6 +85,8 @@ export function PeopleTable({
   caption: string;
   onCounts: (counts: MonthPeople['counts']) => void;
   onOpen: (person: MonthPerson) => void;
+  /** The date range, drawn in the same toolbar row as search, the chips and Department. */
+  trailing?: React.ReactNode;
 }) {
   const filters = React.useMemo(() => buildFilters(departments), [departments]);
   const narrow = useMediaQuery('(max-width: 767px)').matches;
@@ -88,20 +95,20 @@ export function PeopleTable({
       {
         id: 'person',
         header: 'PERSON',
-        width: '200px',
+        width: '150px',
         cell: (row, { term }) => (
-          <span title={plainName(row.name)} className="block max-w-[180px] truncate font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">
+          <span title={plainName(row.name)} className="block max-w-[140px] truncate font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">
             <HighlightMatch text={plainName(row.name)} term={term} />
           </span>
         ),
       },
-      { id: 'department', header: 'DEPT', width: '110px', className: WIDE_ONLY, cell: (row) => <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{row.department ?? ''}</span> },
-      { id: 'planned', header: 'PLANNED', width: '84px', align: 'right', cell: (row) => <Zero value={row.plannedMinutes}>{clockHours(row.plannedMinutes)}</Zero> },
-      { id: 'worked', header: 'WORKED', width: '84px', align: 'right', cell: (row) => <Zero value={row.workedMinutes}>{clockHours(row.workedMinutes)}</Zero> },
-      { id: 'overtime', header: 'OVERTIME', width: '88px', align: 'right', cell: (row) => <Zero value={row.overtimeMinutes}>{clockHours(row.overtimeMinutes)}</Zero> },
-      { id: 'late', header: 'LATE', width: '88px', align: 'right', cell: (row) => <Zero value={row.lateMinutes}>{row.lateMinutes > 0 ? `${row.lateMinutes} min` : '0'}</Zero> },
-      { id: 'absent', header: 'ABSENT', width: '72px', align: 'right', cell: (row) => <Zero value={row.absentDays}>{row.absentDays}</Zero> },
-      { id: 'leave', header: 'LEAVE', width: '64px', align: 'right', className: WIDE_ONLY, cell: (row) => <Zero value={row.leaveDays}>{row.leaveDays}</Zero> },
+      { id: 'department', header: 'DEPT', width: '84px', className: WIDE_ONLY, cell: (row) => <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{row.department ?? ''}</span> },
+      { id: 'planned', header: 'PLANNED', width: '76px', align: 'right', cell: (row) => <Zero value={row.plannedMinutes}>{clockHours(row.plannedMinutes)}</Zero> },
+      { id: 'worked', header: 'WORKED', width: '76px', align: 'right', cell: (row) => <Zero value={row.workedMinutes}>{clockHours(row.workedMinutes)}</Zero> },
+      { id: 'overtime', header: 'OVERTIME', width: '84px', align: 'right', cell: (row) => <Zero value={row.overtimeMinutes}>{clockHours(row.overtimeMinutes)}</Zero> },
+      { id: 'late', header: 'LATE', width: '76px', align: 'right', cell: (row) => <Zero value={row.lateMinutes}>{row.lateMinutes > 0 ? `${row.lateMinutes} min` : '0'}</Zero> },
+      { id: 'absent', header: 'ABSENT', width: '64px', align: 'right', cell: (row) => <Zero value={row.absentDays}>{row.absentDays}</Zero> },
+      { id: 'leave', header: 'LEAVE', width: '56px', align: 'right', className: 'hidden min-[1600px]:table-cell', cell: (row) => <Zero value={row.leaveDays}>{row.leaveDays}</Zero> },
       { id: 'status', header: 'STATUS', cell: (row) => <Status person={row} /> },
     ],
     []
@@ -117,6 +124,7 @@ export function PeopleTable({
       searchPlaceholder="Search a name"
       searchParam="q"
       tableLook="workforce"
+      toolbarTrailing={trailing}
       rowSize="compact"
       className="border-0 bg-transparent"
       refreshToken={refreshToken}

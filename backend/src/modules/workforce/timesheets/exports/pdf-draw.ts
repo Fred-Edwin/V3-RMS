@@ -9,7 +9,7 @@ export const PAGE = { width: 841.89, height: 595.28, marginX: 40.5 } as const;
 export const CONTENT_WIDTH = PAGE.width - 2 * PAGE.marginX;
 
 type Doc = InstanceType<typeof PDFDocument>;
-type Font = 'Times-Roman' | 'Times-Bold' | 'Times-Italic' | 'Times-BoldItalic';
+type Font = 'Times-Roman' | 'Times-Bold' | 'Times-Italic' | 'Times-BoldItalic' | 'AlexBrush';
 
 export interface TextOptions {
   font?: Font;
