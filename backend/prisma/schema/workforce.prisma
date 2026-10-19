@@ -442,12 +442,31 @@ model RuleVersion {
   createdById         String    @map("created_by_id")
   createdByRole       String    @map("created_by_role")
   createdAt           DateTime  @default(now()) @map("created_at")
+  /// Slice 1B: a retry of the same save (same key) answers with the version already made. Null for versions made before 1B.
+  idempotencyKey      String?   @map("idempotency_key")
 
   confirmations RuleConfirmation[]
+  withdrawal    RuleVersionWithdrawal?
 
+  @@unique([companyId, idempotencyKey])
   @@index([companyId, group, effectiveFrom])
   @@index([siteId, group, effectiveFrom])
   @@map("workforce_rule_versions")
+}
+
+/// A scheduled version someone cancelled before its start day (slice 1B). The version row is never touched: it stays in the
+/// history as "Withdrawn" and the resolver skips it. At most one per version.
+model RuleVersionWithdrawal {
+  id              String   @id @default(uuid())
+  ruleVersionId   String   @unique @map("rule_version_id")
+  withdrawnById   String   @map("withdrawn_by_id")
+  withdrawnByRole String   @map("withdrawn_by_role")
+  withdrawnAt     DateTime @default(now()) @map("withdrawn_at")
+  reason          String
+
+  ruleVersion RuleVersion @relation(fields: [ruleVersionId], references: [id])
+
+  @@map("workforce_rule_version_withdrawals")
 }
 
 /// Someone confirmed a part of a version (Accountant: pay rates, statutory; Director: holiday list).

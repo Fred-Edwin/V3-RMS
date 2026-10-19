@@ -42,7 +42,7 @@ Every row exists with its label, group, icon, link and who sees it. Only **Home*
 | Leave | HR, BM, SM, Director | 5 | `workforce-leave` | row defined, hidden |
 | Conduct | HR, BM, SM, Director | 7 | none | row defined, hidden |
 | Pay runs, Payslips | HR, Accountant, Director | 6 | none | row defined, hidden |
-| Rules | all five | 7 (Rules and rules store) | none | row defined, hidden |
+| Rules | all five, and a second row (`wf-rules-admin`) for the System Admin, who reads every tab | 1b (Rules screens) | none | **shown** (1b Rules, 19 Oct 2026); the route gate opens `/app/workforce/rules` for those six roles |
 | Audit log | all five | 7 | none | row defined, hidden |
 | My time (Accountant) | Accountant | 3 (built in 4a) | none | **shown** (4a, 19 Oct 2026) only where the new clock is on |
 | My leave, My payslips | all five | 5, 6 | none | row defined, hidden |

@@ -17,7 +17,7 @@ describe('defaults', () => {
   it('statutory ships empty and holidays are off', () => {
     expect(RULE_DEFAULTS.STATUTORY).toEqual({ tables: [] });
     expect(RULE_DEFAULTS.HOLIDAYS).toMatchObject({ enabled: false, payMultiplier: null, holidays: [] });
-    expect(RULE_DEFAULTS.OVERTIME.multipliers.standard).toBeNull();
+    expect(RULE_DEFAULTS.OVERTIME.multipliers).toEqual({ ordinaryDay: null, restDay: null });
   });
 
   it('the group keys equal the Prisma RuleGroup enum', () => {
@@ -62,12 +62,63 @@ describe('group rules', () => {
     expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, defaultDailyRate: '1500.50' }).success).toBe(true);
     expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, defaultDailyRate: 1500 }).success).toBe(false);
     expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, defaultDailyRate: '1500.555' }).success).toBe(false);
-    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { standard: '1.5' } }).success).toBe(true);
-    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { standard: 1.5 } }).success).toBe(false);
+    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { ordinaryDay: '1.5', restDay: '2.0' } }).success).toBe(true);
+    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { ordinaryDay: 1.5, restDay: null } }).success).toBe(false);
   });
 
-  it('holiday dates must be real dates', () => {
+  it('a multiplier is 1 to 5; an older { standard } reads as the ordinary-day rate', () => {
+    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { ordinaryDay: '0.5', restDay: null } }).success).toBe(false);
+    expect(RULE_SCHEMAS.OVERTIME.safeParse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { ordinaryDay: '5.5', restDay: null } }).success).toBe(false);
+    const parsed = RULE_SCHEMAS.OVERTIME.parse({ ...RULE_DEFAULTS.OVERTIME, multipliers: { standard: '1.5' } });
+    expect(parsed.multipliers).toEqual({ ordinaryDay: '1.5', restDay: null });
+  });
+
+  it('casual rates are per department, one each, and an older per-position entry is dropped', () => {
+    const rates = [{ departmentId: 'd1', dailyRate: '900.00' }];
+    expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, rates }).success).toBe(true);
+    expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, rates: [...rates, ...rates] }).success).toBe(false);
+    expect(RULE_SCHEMAS.CASUAL_WORK.safeParse({ ...RULE_DEFAULTS.CASUAL_WORK, rates: [{ departmentId: 'd1', dailyRate: '0' }] }).success).toBe(false);
+    const legacy = RULE_SCHEMAS.CASUAL_WORK.parse({ ...RULE_DEFAULTS.CASUAL_WORK, rates: [{ positionId: 'p1', dailyRate: '900' }] });
+    expect(legacy.rates).toEqual([]);
+  });
+
+  it('probation: the reminder and report days are bounded, older stored values read with the defaults', () => {
+    expect(RULE_SCHEMAS.PROBATION.parse({ defaultMonths: 3, maxExtensions: 1, maxExtensionMonths: 3 })).toMatchObject({ reminderDaysBeforeEnd: 14, reportDays: [45, 80] });
+    expect(RULE_SCHEMAS.PROBATION.safeParse({ ...RULE_DEFAULTS.PROBATION, reportDays: [80, 45] }).success).toBe(false);
+    expect(RULE_SCHEMAS.PROBATION.safeParse({ ...RULE_DEFAULTS.PROBATION, reminderDaysBeforeEnd: 0 }).success).toBe(false);
+  });
+
+  it('leave types: older stored types read with defaults, and a monthly type needs its days', () => {
+    const old = { code: 'ANNUAL', label: 'Annual', daysPerYear: 21, paid: true, requiresReason: false };
+    const parsed = RULE_SCHEMAS.LEAVE.parse({ ...RULE_DEFAULTS.LEAVE, leaveTypes: [old] });
+    expect(parsed.leaveTypes[0]).toMatchObject({ accrual: 'UP_FRONT', carryOverDays: 0, approvedBy: 'MANAGER', sickNoteAfterDays: null });
+    expect(RULE_SCHEMAS.LEAVE.safeParse({ ...RULE_DEFAULTS.LEAVE, leaveTypes: [{ ...old, accrual: 'MONTHLY' }] }).success).toBe(false);
+    expect(RULE_SCHEMAS.LEAVE.safeParse({ ...RULE_DEFAULTS.LEAVE, leaveTypes: [{ ...old, accrual: 'MONTHLY', perMonthDays: 1.75 }] }).success).toBe(true);
+  });
+
+  it('statutory bands start at 0, follow with no gap, and only the last is open-ended', () => {
+    const band = (fromAmount: string, toAmount: string | null, ratePercent: string | null = '10') => ({ fromAmount, toAmount, ratePercent, flatAmount: null });
+    const table = (bands: ReturnType<typeof band>[]) => ({ tables: [{ code: 'PAYE', name: 'PAYE', bands, note: null }] });
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', '24000'), band('24000', null, '25')])).success).toBe(true);
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', '24000'), band('25000', null)])).success).toBe(false); // a gap
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', '24000'), band('20000', null)])).success).toBe(false); // an overlap
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', '24000')])).success).toBe(false); // the last must be open
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('1000', null)])).success).toBe(false); // must start at 0
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', null, '120')])).success).toBe(false); // a rate is 0 to 100
+    expect(RULE_SCHEMAS.STATUTORY.safeParse(table([band('0', null, null)])).success).toBe(false); // a band has a rate or a flat amount
+    expect(RULE_SCHEMAS.STATUTORY.safeParse({ tables: [] }).success).toBe(true); // ships empty
+  });
+
+  it('a deduction appears once in statutory', () => {
+    const one = { code: 'NSSF', name: 'NSSF', bands: [{ fromAmount: '0', toAmount: null, ratePercent: '6', flatAmount: null }], note: null };
+    expect(RULE_SCHEMAS.STATUTORY.safeParse({ tables: [one, one] }).success).toBe(false);
+  });
+
+  it('holiday dates must be real dates, one holiday a date, and the pay rate 1 to 5', () => {
     expect(RULE_SCHEMAS.HOLIDAYS.safeParse({ enabled: true, payMultiplier: null, holidays: [{ date: '2026-02-30', name: 'x' }] }).success).toBe(false);
+    const day = { date: '2026-12-25', name: 'Christmas Day' };
+    expect(RULE_SCHEMAS.HOLIDAYS.safeParse({ enabled: false, payMultiplier: null, holidays: [day, { ...day, name: 'Again' }] }).success).toBe(false);
+    expect(RULE_SCHEMAS.HOLIDAYS.safeParse({ enabled: true, payMultiplier: '6', holidays: [] }).success).toBe(false);
   });
 });
 
@@ -78,14 +129,14 @@ describe('field policy', () => {
 
   it('every capability it names exists', () => {
     for (const group of GROUPS) {
-      for (const policy of Object.values<{ edit: string; confirm?: { capability: string } }>(RULE_FIELD_POLICY[group])) {
-        expect(CAPABILITIES).toContain(policy.edit);
+      for (const policy of Object.values<{ edit: string | null; confirm?: { capability: string } }>(RULE_FIELD_POLICY[group])) {
+        if (policy.edit !== null) expect(CAPABILITIES).toContain(policy.edit);
         if (policy.confirm) expect(CAPABILITIES).toContain(policy.confirm.capability);
       }
     }
   });
 
-  it.each(Object.keys(RULE_SITE_SCHEMAS) as (keyof typeof RULE_SITE_SCHEMAS)[])('the %s site schema holds exactly the site fields', (group) => {
+  it.each(Object.keys(RULE_SITE_SCHEMAS) as (keyof typeof RULE_SITE_SCHEMAS)[])('the %s site schema holds exactly the site fields, any subset of them', (group) => {
     const siteFields = Object.entries<{ site: boolean }>(RULE_FIELD_POLICY[group])
       .filter(([, policy]) => policy.site)
       .map(([field]) => field)
@@ -96,9 +147,24 @@ describe('field policy', () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(Object.keys(parsed.data).sort()).toEqual(siteFields);
     for (const field of siteFields) {
-      const without = Object.fromEntries(Object.entries(full).filter(([key]) => key !== field));
-      expect(RULE_SITE_SCHEMAS[group].safeParse(without).success, `without ${field}`).toBe(false);
+      const only = { [field]: full[field] };
+      const one = RULE_SITE_SCHEMAS[group].safeParse(only);
+      expect(one.success, `only ${field}`).toBe(true);
+      if (one.success) expect(Object.keys(one.data)).toEqual([field]);
     }
+    expect(RULE_SITE_SCHEMAS[group].safeParse({}).success).toBe(true); // "use the company rule again"
+  });
+
+  it('a fixed field has no editor, and a derived field never needs one', () => {
+    expect(RULE_FIELD_POLICY.ATTENDANCE.roundingMinutes.edit).toBeNull();
+    expect(RULE_FIELD_POLICY.CASUAL_WORK.latenessReducesPayout.edit).toBeNull();
+    expect(RULE_FIELD_POLICY.WEEK_AND_BREAKS.timesheetCutoff.edit).toBeNull();
+    expect(RULE_FIELD_POLICY.HOLIDAYS.enabled.derived).toBe(true);
+  });
+
+  it('pay fields are flagged: the multiplier, the cap, casual rates, statutory tables and the holiday rate', () => {
+    const pay = GROUPS.flatMap((group) => Object.entries<{ pay?: boolean }>(RULE_FIELD_POLICY[group]).filter(([, p]) => p.pay === true).map(([field]) => `${group}.${field}`));
+    expect(pay.sort()).toEqual(['CASUAL_WORK.defaultDailyRate', 'CASUAL_WORK.rates', 'HOLIDAYS.payMultiplier', 'LATENESS.deductionCapPercentOfPay', 'OVERTIME.multipliers', 'STATUTORY.tables']);
   });
 
   it('only lateness, overtime and leave (minimum cover) can be overridden by a site', () => {

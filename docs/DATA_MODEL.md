@@ -3217,6 +3217,17 @@ Rule change: nothing reads `WEEK_AND_BREAKS.timesheetCutoff` any more (the field
 
 Rule addition (slice 4a, now unused): `WEEK_AND_BREAKS.timesheetCutoff { daysAfterPeriodEnd, time }` (default 2 days after the period ends, 18:00), a default in the schema so existing stored rules still parse (an older `daysBeforePeriodEnd` is dropped). `WEEK_AND_BREAKS.timesheetPeriod` defaults to `{ kind: 'CALENDAR_MONTH' }`; `FIXED_WEEKS` still parses. Data-only migration `20261019100000_workforce_timesheet_calendar_month` re-cuts open four-week periods into calendar months (no table or column changes). A week that straddles two months has one `timesheet_weeks` row per period; it is flagged a part week when read, not stored. Back-relations added in `access.prisma` (`Site`) and `workforce/people.prisma` (`Employee`).
 
+## 13. Workforce Rules (segment 1B, migration `20261019120000_workforce_rules_withdrawals_idempotency`)
+
+Additive only. Models in `backend/prisma/schema/workforce.prisma`.
+
+| Change | Purpose | Notes |
+|---|---|---|
+| `workforce_rule_versions.idempotency_key` (text, null) | A retried save answers with the version it already made | unique `(company_id, idempotency_key)`; null for older rows |
+| `workforce_rule_version_withdrawals` | A scheduled version cancelled before its day: `rule_version_id` (unique), `withdrawn_by_id`, `withdrawn_by_role`, `withdrawn_at`, `reason` | insert only; the version row is never touched and the resolver skips it |
+
+The `values` JSON shapes changed without a data migration (older values still parse): Overtime `multipliers` is `{ ordinaryDay, restDay }`; Casual `rates` are `{ departmentId, dailyRate }`; Probation gains `reminderDaysBeforeEnd` and `reportDays`; each leave type gains `accrual, perMonthDays, carryOverDays, sickNoteAfterDays, approvedBy`. A site version holds only the rows the site made its own.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

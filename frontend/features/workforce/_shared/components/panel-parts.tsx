@@ -66,6 +66,10 @@ export interface SettingRow {
   /** Numbers and durations are mono 15 px; words are 14 px sans. Off ("Off") reads grey. */
   mono?: boolean;
   muted?: boolean;
+  /** Rules: the fixed 56 px column after the value (Change, a padlocked Change, or Fixed). Rows without one leave the column out. */
+  action?: React.ReactNode;
+  /** Rules: the grey `neutral-50` fill of the Pay multiplier row. */
+  tinted?: boolean;
 }
 
 export function SettingRows({ rows, caption, className }: { rows: SettingRow[]; /** Mono caption over the box ("THE RULE TODAY"). */ caption?: string; className?: string }) {
@@ -74,8 +78,8 @@ export function SettingRows({ rows, caption, className }: { rows: SettingRow[]; 
       {caption ? <h3 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.08em] text-wds-text-secondary">{caption}</h3> : null}
       <ul className="m-0 flex list-none flex-col border border-wds-border bg-wds-surface p-0">
         {rows.map((r) => (
-          <li key={r.title} className="flex items-center justify-between gap-4 border-t border-wds-neutral-100 px-[18px] py-3.5 first:border-t-0">
-            <div className="flex min-w-0 flex-col gap-0.5">
+          <li key={r.title} className={cn('flex items-center justify-between gap-4 border-t border-wds-neutral-100 px-[18px] py-3.5 first:border-t-0', r.tinted && 'bg-wds-neutral-50')}>
+            <div className="flex min-w-0 grow flex-col gap-0.5">
               <span className="font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink">{r.title}</span>
               {r.description ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.description}</span> : null}
             </div>
@@ -88,6 +92,7 @@ export function SettingRows({ rows, caption, className }: { rows: SettingRow[]; 
             >
               {r.value}
             </span>
+            {r.action !== undefined ? <span className="flex h-[18px] w-14 shrink-0 items-center justify-end">{r.action}</span> : null}
           </li>
         ))}
       </ul>

@@ -9,7 +9,12 @@ export interface EffectiveRuleGroup<G extends RuleGroupCode = RuleGroupCode> {
   siteVersion: number | null; // the override that supplied any fields
   effectiveFrom: NairobiDate | null; // of the company version; null for defaults
   requiredConfirmations: string[]; // scopes this version needs (e.g. 'overtime.multipliers')
-  missingConfirmations: string[]; // the ones nobody has confirmed yet
+  /**
+   * Scopes for which no confirmed value exists at all, so the value in use was never checked. Payroll refuses on these.
+   * An unconfirmed NEW value with an older confirmed one in use is NOT here, it is in `pendingConfirmations` (D2).
+   */
+  missingConfirmations: string[];
+  pendingConfirmations: string[]; // scopes of the version in force that wait for a confirmation; the older confirmed value stays in use
 }
 
 export type EffectiveRules = { [G in RuleGroupCode]: EffectiveRuleGroup<G> };

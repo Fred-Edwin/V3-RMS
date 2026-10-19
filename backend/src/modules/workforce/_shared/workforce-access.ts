@@ -61,7 +61,9 @@ export const CAPABILITIES = [
   'rules.edit.lateness',
   'rules.edit.overtime',
   'rules.edit.attendance',
-  'rules.edit.leave',
+  'rules.edit.leave_types', // leave types and the default policy (HR)
+  'rules.edit.min_cover', // minimum cover; unit scope writes the person's own site (1B, decision D5)
+  'rules.edit.holiday_pay', // the pay rate for hours worked on a public holiday (Accountant, 1B decision D4)
   'rules.edit.probation',
   'rules.edit.casual_work',
   'rules.edit.conduct',
@@ -161,7 +163,7 @@ const UNIT_MANAGER: Grants = {
   'rules.read': 'unit',
   'rules.edit.lateness': 'unit', // own site only: writes a site override
   'rules.edit.overtime': 'unit',
-  'rules.edit.leave': 'unit', // minimum cover only (field policy, section 6)
+  'rules.edit.min_cover': 'unit', // minimum cover only
   'discipline.read': 'unit',
   'discipline.issue': 'unit',
   'org.read': 'unit',
@@ -188,6 +190,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'payprofile.read': 'all',
     'rules.read': 'all',
     'rules.edit.statutory': 'all',
+    'rules.edit.holiday_pay': 'all',
     'rules.confirm.pay_rates': 'all',
     'rules.confirm.statutory': 'all',
     'payrun.read': 'all',
@@ -222,8 +225,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'org.write': 'all',
     'org.write_heads': 'all',
     'rules.read': 'all',
-    'rules.edit.leave': 'all',
-    'rules.edit.holidays': 'all',
+    'rules.edit.leave_types': 'all',
     'payrun.read': 'all',
     'payrun.prepare': 'all',
     'payrun.publish': 'all',
@@ -256,10 +258,11 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'rules.edit.lateness': 'all',
     'rules.edit.overtime': 'all',
     'rules.edit.attendance': 'all',
-    'rules.edit.leave': 'all',
+    'rules.edit.min_cover': 'all',
     'rules.edit.probation': 'all',
     'rules.edit.casual_work': 'all',
     'rules.edit.conduct': 'all',
+    'rules.edit.holidays': 'all',
     'rules.edit.week_breaks': 'all',
     'rules.confirm.holiday_list': 'all',
     'payrun.read': 'all',
@@ -289,9 +292,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'org.write': 'all',
     'org.write_heads': 'all',
     'rules.read': 'all',
-    'rules.edit.lateness': 'all',
-    'rules.edit.overtime': 'all',
-    'rules.edit.attendance': 'all',
+    'rules.edit.min_cover': 'all', // reads every tab; changes minimum cover only (1B, decision D6)
     'payrun.read': 'all',
     'payrun.prepare': 'all',
     'payrun.approve': 'all',

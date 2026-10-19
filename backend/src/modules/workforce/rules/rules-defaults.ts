@@ -1,9 +1,11 @@
 import type { RuleValues } from './rules-schemas';
 
+const LEAVE_TYPE_EXTRAS = { accrual: 'UP_FRONT', perMonthDays: null, carryOverDays: 0, sickNoteAfterDays: null, approvedBy: 'MANAGER' } as const;
+
 /** EXAMPLES ONLY, so the engine can run before anyone sets a rule. None of these is a legal or policy value. */
 export const RULE_DEFAULTS: RuleValues = {
   LATENESS: { graceMinutes: 5, policy: 'RECORD_ONLY', afterLatesPerMonth: null, makeUpSameDay: false, excuseWindowHours: 48, deductionCapPercentOfPay: null },
-  OVERTIME: { serviceTailMinutes: 15, weeklyCapMinutes: null, branchBudgetMinutesPerPeriod: null, approvalWindowHours: 48, multipliers: { standard: null } },
+  OVERTIME: { serviceTailMinutes: 15, weeklyCapMinutes: null, branchBudgetMinutesPerPeriod: null, approvalWindowHours: 48, multipliers: { ordinaryDay: null, restDay: null } },
   ATTENDANCE: {
     clockInOpensMinutesBefore: 30,
     autoCloseAfterMinutes: 15,
@@ -17,15 +19,15 @@ export const RULE_DEFAULTS: RuleValues = {
   },
   LEAVE: {
     leaveTypes: [
-      { code: 'ANNUAL', label: 'Annual leave', daysPerYear: null, paid: true, requiresReason: false },
-      { code: 'SICK', label: 'Sick leave', daysPerYear: null, paid: true, requiresReason: false },
-      { code: 'EMERGENCY', label: 'Emergency leave', daysPerYear: null, paid: true, requiresReason: true },
-      { code: 'UNPAID', label: 'Unpaid leave', daysPerYear: null, paid: false, requiresReason: true },
+      { code: 'ANNUAL', label: 'Annual leave', daysPerYear: null, paid: true, requiresReason: false, ...LEAVE_TYPE_EXTRAS },
+      { code: 'SICK', label: 'Sick leave', daysPerYear: null, paid: true, requiresReason: false, ...LEAVE_TYPE_EXTRAS },
+      { code: 'EMERGENCY', label: 'Emergency leave', daysPerYear: null, paid: true, requiresReason: true, ...LEAVE_TYPE_EXTRAS },
+      { code: 'UNPAID', label: 'Unpaid leave', daysPerYear: null, paid: false, requiresReason: true, ...LEAVE_TYPE_EXTRAS },
     ],
     defaultPolicy: {},
     minimumCover: {},
   },
-  PROBATION: { defaultMonths: 3, maxExtensions: 1, maxExtensionMonths: 3 },
+  PROBATION: { defaultMonths: 3, maxExtensions: 1, maxExtensionMonths: 3, reminderDaysBeforeEnd: 14, reportDays: [45, 80] },
   CASUAL_WORK: { defaultDailyRate: null, rates: [], pettyCashHolder: { mode: 'BRANCH_MANAGER' }, latenessReducesPayout: true },
   CONDUCT: {
     levels: [

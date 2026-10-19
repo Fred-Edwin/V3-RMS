@@ -8,6 +8,7 @@ import type { AuditCategoryCode } from './audit.types';
 export const AUDIT_ACTIONS = {
   'rules.version_created': ['RULES_OPERATING', 'RULES_PAY'], // PAY when the change touches statutory, multipliers or holiday pay
   'rules.version_confirmed': ['RULES_PAY'],
+  'rules.version_withdrawn': ['RULES_OPERATING', 'RULES_PAY'], // a scheduled version cancelled before its day (1B); the version row stays
   'audit.log_viewed': ['LOG_ACCESS'], // written by the slice-7 read side; declared now so the visibility rule is complete
   // slice 1 (People). Never an amount, ID number, bank number, password or PIN in an entry: field names and "changed" only.
   'people.hired': ['PEOPLE'],

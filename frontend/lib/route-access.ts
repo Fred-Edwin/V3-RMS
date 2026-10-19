@@ -155,6 +155,12 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
 
+  // Rules (segment 1B): everyone who holds `rules.read` (the five desktop roles and the System Admin, who reads every tab). Heads and floor
+  // staff have no link and the page answers 403. The API decides which rows each person can change.
+  if (under('/app/workforce/rules')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // My time, My rota and My requests (slice 4a): everyone who clocks in, the floor staff and the Store Attendant included, and the desktop
   // roles' own time. The System Admin has no clock.
   if (under('/app/workforce/my-time')) {
