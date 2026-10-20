@@ -64,7 +64,8 @@ export type WorkforceScope = 'own' | 'dept' | 'unit' | 'all';
 /** What `GET /workforce/permissions/me` returns in `data` (the fields Home uses). */
 export interface WorkforcePermissionsPayload {
   role: string;
-  siteId: string | null;
+  /** The person's branch; the wire still calls a Site an organization. */
+  organizationId: string | null;
   isDepartmentHead: boolean;
   departmentTag: string | null;
   tracksTime: boolean;

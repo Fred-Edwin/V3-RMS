@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { Callout, EmptyState, PhoneButton, SavedOnPhoneMarker } from '../../../_shared';
 import { draftTotal, firstUnfinished } from '../../_shared/lib/casual-pay';
-import { CASUAL_COPY, kes } from '../../_shared/lib/casual-words';
+import { CASUAL_COPY, dayMonth, kes } from '../../_shared/lib/casual-words';
 import type { DraftLine, Sheet } from '../../_shared/types/casual-types';
 import { LineDrawer } from './line-drawer';
 import { SheetStatusBlock } from './sheet-status';
@@ -41,7 +41,7 @@ export function DayBody({
   const rate = sheet.rate ?? '0';
   const unfinished = editable ? firstUnfinished(sheet.date, lines, Date.now()) : null;
   const sendReason = sheet.noRate ? CASUAL_COPY.noRate(sheet.departmentName) : lines.length === 0 ? CASUAL_COPY.sendNeedsOne : unfinished ? CASUAL_COPY.sendAfter(unfinished.name, unfinished.end) : null;
-  const total = pending ? String(draftTotal(rate, lines)) : sheet.total;
+  const total = pending ? String(draftTotal(rate, lines) + sheet.corrections.reduce((sum, c) => sum + Math.round(Number(c.amount)), 0)) : sheet.total;
   const taken = React.useMemo(() => new Set(lines.map((l) => l.casualId)), [lines]);
   const save = (line: DraftLine) => {
     const others = lines.filter((l) => l.casualId !== line.casualId);
@@ -78,7 +78,7 @@ export function DayBody({
       ) : null}
       {sheet.corrections.map((c) => (
         <p key={c.id} className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-          Correction for {c.originalDate}, KES {c.amount}, {c.reason}
+          Correction for {dayMonth(c.originalDate)}, KES {kes(c.amount)}, {c.reason}
         </p>
       ))}
       {lines.length > 0 ? (
@@ -100,7 +100,7 @@ export function DayBody({
       <LineDrawer
         open={drawer.open}
         onOpenChange={(open) => setDrawer((d) => ({ ...d, open }))}
-        siteId={sheet.siteId}
+        siteId={sheet.organizationId}
         departmentId={sheet.departmentId}
         rate={rate}
         taken={taken}

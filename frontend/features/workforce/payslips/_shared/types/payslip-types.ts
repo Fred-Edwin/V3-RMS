@@ -99,7 +99,7 @@ export interface PayslipDetail {
   versionNumber: number;
   correctedAt: string | null;
   replacedBy: { versionNumber: number; correctedAt: string } | null;
-  employeeSummary: { role: string | null; site: string };
+  employeeSummary: { role: string | null; organization: string }; // wire name: the branch is still called organization on the wire
   payDay: string | null;
   paidOn: string | null;
   status: PayslipStatus;

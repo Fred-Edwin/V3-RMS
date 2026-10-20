@@ -35,8 +35,8 @@ export interface Sheet {
   id: string | null;
   number: string | null;
   date: string;
-  siteId: string;
-  siteName: string;
+  organizationId: string; // wire names: a branch is still an organization on the wire
+  organizationName: string;
   departmentId: string;
   departmentName: string;
   status: SheetStatus;
@@ -68,7 +68,7 @@ export interface SheetCard {
   id: string;
   number: string | null;
   date: string;
-  siteName: string;
+  organizationName: string;
   departmentName: string;
   status: string;
   workers: number;

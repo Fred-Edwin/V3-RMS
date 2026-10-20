@@ -40,7 +40,7 @@ export function useWorkforcePermissions() {
     apiClient.get<WorkforcePermissionsPayload>('/workforce/permissions/me', accessToken).then(
       (data) => {
         if (cancelled) return;
-        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), scopes: new Map(data.capabilities.map((c) => [c.capability, c.scope] as const)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime, siteId: data.siteId, headOfDepartmentIds: data.headOfDepartmentIds ?? [] });
+        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), scopes: new Map(data.capabilities.map((c) => [c.capability, c.scope] as const)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime, siteId: data.organizationId, headOfDepartmentIds: data.headOfDepartmentIds ?? [] });
       },
       () => {
         if (!cancelled) setAnswer({ userId, status: 'error', capabilities: new Set(), scopes: new Map(), isDepartmentHead: false, tracksTime: false, siteId: null, headOfDepartmentIds: [] });

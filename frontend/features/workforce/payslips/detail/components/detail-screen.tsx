@@ -85,11 +85,11 @@ export function PayslipDetailScreen({ id }: { id: string }) {
     );
   }
 
-  const headSub = d ? `${d.employeeSummary.role ? `${d.employeeSummary.role}, ` : ''}${d.employeeSummary.site} · ${payLine(d).text.replace(/^\w/, (c) => c.toLowerCase())}` : undefined;
+  const headSub = d ? `${d.employeeSummary.role ? `${d.employeeSummary.role}, ` : ''}${d.employeeSummary.organization} · ${payLine(d).text.replace(/^\w/, (c) => c.toLowerCase())}` : undefined;
   return (
     <PhoneScreen
       screen={PAYSLIP_COPY.screen}
-      kicker={d ? `${monthLong(d.month).toUpperCase()}${d.number ? ` · ${d.number}` : ''}${d.versionNumber > 1 ? ` · VERSION ${d.versionNumber}` : ''}` : 'PAYSLIP'}
+      kicker={d ? `${monthLong(d.month).toUpperCase()}${d.number ? ` · ${d.number}` : ''}${d.versionNumber > 1 ? ` · VERSION ${d.versionNumber}` : ''}` : 'PAYSLIP'}
       back={d ? '/app/workforce/my-payslips' : '/app/workforce/my-payslips'}
       figure={d ? (shown ? money(view === 'month' ? d.thisMonth.net : d.ytd.net) : <span aria-hidden className="tracking-[0.12em]">••••••</span>) : undefined}
       title={d ? undefined : 'Payslip'}

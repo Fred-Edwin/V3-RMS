@@ -81,7 +81,7 @@ function Decided({ sheet, me, note, pinOpen, backOpen, setPinOpen, setBackOpen, 
         <span className="font-wds-mono">KES {kes(sheet.total)}</span>
       </div>
       <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-        Recorded by the {recorder}.{waiting && !sheet.number ? 'The pay sheet gets its number when you approve.' : ''}
+        Recorded by the {recorder}.{waiting && !sheet.number ? ' The pay sheet gets its number when you approve.' : ''}
       </p>
       {note ? <Callout tone="success" role="status">{note}</Callout> : null}
       {decision.error && !pinOpen && !backOpen ? <Callout tone="warning" role="alert">{decision.error}</Callout> : null}

@@ -77,7 +77,7 @@ export function SheetScreen({ id }: { id: string }) {
     );
   }
   return (
-    <PhoneScreen screen={CASUAL_COPY.screen} kicker={sheet ? `CASUAL PAY · ${dayShort(sheet.date).toUpperCase()}` : 'CASUAL PAY'} back="/app/workforce/casuals" title={sheet ? `${sheet.departmentName}, ${dayLong(sheet.date)}` : 'Pay sheet'} subtitle={sheet?.siteName}>
+    <PhoneScreen screen={CASUAL_COPY.screen} kicker={sheet ? `CASUAL PAY · ${dayShort(sheet.date).toUpperCase()}` : 'CASUAL PAY'} back="/app/workforce/casuals" title={sheet ? `${sheet.departmentName}, ${dayLong(sheet.date)}` : 'Pay sheet'} subtitle={sheet?.organizationName}>
       {body}
     </PhoneScreen>
   );

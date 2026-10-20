@@ -21,7 +21,7 @@ interface Drawn {
 
 async function loadPdfjs(): Promise<PdfModule> {
   const pdfjs = await import('pdfjs-dist');
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+  if (!pdfjs.GlobalWorkerOptions.workerPort) pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL('../lib/pdf-worker.ts', import.meta.url));
   return pdfjs;
 }
 
