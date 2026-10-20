@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { payslipContentHash } from '../../_shared/documents/qr-hash';
 import { roleLabel } from '../../timesheets/approval/decided-by';
 import { longDay, longStamp } from '../../timesheets/exports/export-format';
 import { employerLines, maskNumber, monthSection, yearSection, type PayslipData } from '../reads/payslip-model';
@@ -65,7 +65,7 @@ export function buildPayslipDoc(input: DocInput): PayslipDoc {
   const e = input.employee;
   const paidTo = e.payoutMethod === 'BANK' && e.bankName ? `Bank transfer · ${e.bankName}${e.accountNumber ? ` •••• ${e.accountNumber.replace(/\D/g, '').slice(-4)}` : ''}` : e.payoutMethod === 'MPESA' ? 'M-Pesa' : e.payoutMethod === 'CASH' ? 'Cash' : 'Not on file';
   const v = input.data.version;
-  const content = createHash('sha256').update(JSON.stringify({ n: input.data.number, v, m: input.data.monthKey, g: input.data.gross, net: input.data.net, l: input.data.lines.map((l) => [l.code, l.amount]) })).digest('hex');
+  const content = payslipContentHash({ number: input.data.number, version: v, monthKey: input.data.monthKey, gross: input.data.gross, net: input.data.net, lines: input.data.lines });
   return {
     variant: input.variant,
     site: input.siteName,

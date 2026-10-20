@@ -60,6 +60,10 @@ export const readsRepository = {
   /** One payslip row by its id, with the lines; the caller decides whether the person may see it. */
   payslipById: (id: string): Promise<StoredPayslip | null> => prisma.payrollPayslip.findUnique({ where: { id }, include: withLines }),
 
+  /** Everyone who has a published payslip (Segment 6b: the Signed documents backfill walks them). */
+  publishedEmployeeIds: async (companyId: string): Promise<string[]> =>
+    (await prisma.payrollPublication.findMany({ where: { month: { companyId } }, distinct: ['employeeId'], select: { employeeId: true } })).map((r) => r.employeeId),
+
   monthOf: (id: string) => prisma.payrollMonth.findUnique({ where: { id }, select: { id: true, companyId: true, monthKey: true, state: true, currentRunId: true, approvedAt: true, approvedById: true } }),
 
   names: async (ids: readonly string[]) => new Map((await prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } })).map((u) => [u.id, u])),
