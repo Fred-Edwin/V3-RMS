@@ -29,4 +29,5 @@ export { default as workforceNotificationsRouter } from './notification-routes';
 export { WORKFORCE_NOTICE_JOB, type HeldPush } from './notification-service';
 export const dispatchHeldWorkforcePush = workforceNotifier.dispatchHeld;
 export { renderNotification, knownKinds } from './notification-wording';
+export { nudgeUsers, type WorkforceNudge } from './nudge';
 export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification } from './notification-types';

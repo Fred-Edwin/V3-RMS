@@ -61,6 +61,11 @@ export interface AuditedChange<T> {
   result: T;
   entries: AuditEntryInput[]; // usually one; one entry per bulk action, never one per row
   events?: WorkforceEvent[]; // emitted only after the transaction has committed
+  /**
+   * Segment 6a: runs in the same transaction right after the entries are written, with the written records in order. For a row that
+   * must carry an entry's id (a security alert). It must not take a lock another writer waits on: the chain head is already held.
+   */
+  afterWrite?: (tx: Prisma.TransactionClient, records: AuditEntryRecord[]) => Promise<void>;
 }
 
 /**
@@ -71,7 +76,9 @@ export interface AuditedChange<T> {
 export async function runAudited<T>(change: (tx: Prisma.TransactionClient) => Promise<AuditedChange<T>>): Promise<T> {
   const outcome = await prisma.$transaction(async (tx) => {
     const done = await change(tx);
-    for (const entry of done.entries) await writeAuditEntry(tx, entry);
+    const records: AuditEntryRecord[] = [];
+    for (const entry of done.entries) records.push(await writeAuditEntry(tx, entry));
+    if (done.afterWrite) await done.afterWrite(tx, records);
     return done;
   });
   for (const event of outcome.events ?? []) deliverEvent(event);

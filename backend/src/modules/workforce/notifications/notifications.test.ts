@@ -6,7 +6,7 @@ vi.mock('../../../config/queues', () => ({ notificationQueue: { add: vi.fn() } }
 vi.mock('../../../config/firebase', () => ({ firebaseMessaging: null }));
 vi.mock('../../../config/database', () => ({ prisma: {} }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: {} }));
-vi.mock('../../../sockets/socket', () => ({ getSocketServer: vi.fn(), userRoomName: (id: string) => `user:${id}` }));
+vi.mock('../../../sockets/socket', () => ({ getSocketServer: vi.fn(() => { throw new Error('no socket'); }), userRoomName: (id: string) => `user:${id}` }));
 
 import { createNotifier, type NotifierDeps } from './notification-service';
 import { renderNotification, knownKinds, isKnownKind } from './notification-wording';

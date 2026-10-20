@@ -1,8 +1,8 @@
 import { notificationQueue } from '../../../config/queues';
 import { firebaseMessaging } from '../../../config/firebase';
 import { env } from '../../../config/env';
-import { getSocketServer, userRoomName } from '../../../sockets/socket';
 import { logger } from '../../../utils/logger';
+import { nudgeUsers } from './nudge';
 import { renderNotification } from './notification-wording';
 import { notificationRepository, type StoreResult } from './notification-repository';
 import { isHeldInQuietHours, nextQuietHoursEnd } from './quiet-hours';
@@ -83,13 +83,7 @@ const defaultDeps: NotifierDeps = {
     });
     return tokens.length;
   },
-  nudge: (userId) => {
-    try {
-      getSocketServer().to(userRoomName(userId)).emit('workforce:notifications');
-    } catch {
-      // No socket server in this process (the worker, a script): the screen refetches on focus and every minute.
-    }
-  },
+  nudge: (userId) => nudgeUsers([userId], 'workforce:notifications'),
   hold: async (push, runAt, now) => {
     await notificationQueue.add(WORKFORCE_NOTICE_JOB, push, { delay: Math.max(0, runAt.getTime() - now.getTime()), jobId: `workforce-notice-${push.notificationId}`, removeOnComplete: true });
   },
