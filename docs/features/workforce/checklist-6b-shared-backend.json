@@ -1,0 +1,7 @@
+[
+  { "id": 1, "item": "Audit read: list, detail, facets, CSV, chain check, nightly job, viewers", "built": true, "verified": false, "note": "Unit and 7 database tests pass; no full suite or HTTP proof yet" },
+  { "id": 2, "item": "Activity on my record and payslip-opens digest range", "built": true, "verified": false, "note": "Wording unit tests only; no HTTP proof yet" },
+  { "id": 3, "item": "Documents door, read model, backfill, index endpoints", "built": true, "verified": false, "note": "Door and reconcile tested on lane DB; index list/panel endpoints untested by HTTP; backfill of real issued documents not yet run" },
+  { "id": 4, "item": "Verify endpoints (public and signed-in)", "built": true, "verified": false, "note": "Outcome unit tests and DB tests pass; report endpoint and HTTP proof not yet run" },
+  { "id": 5, "item": "Capabilities, audit events, three READMEs", "built": true, "verified": false, "note": "No new capabilities; audit and documents READMEs written; verify README is inside documents/README.md; docs pass (DATA_MODEL, API_CONTRACT, status rows) not done" }
+]
