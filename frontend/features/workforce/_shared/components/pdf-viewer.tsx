@@ -25,7 +25,7 @@ async function loadPdfjs(): Promise<PdfModule> {
   return pdfjs;
 }
 
-export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to fit', retry, footer }: { load: () => Promise<Blob>; name: string; hint?: string; retry?: () => void; footer?: React.ReactNode }) {
+export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to fit', retry, footer, onPage }: { load: () => Promise<Blob>; name: string; hint?: string; retry?: () => void; footer?: React.ReactNode; /** Tells the screen which page is showing, for the "1 / 1" in its top bar. */ onPage?: (page: number, pages: number) => void }) {
   const scroller = React.useRef<HTMLDivElement>(null);
   const canvases = React.useRef<HTMLCanvasElement[]>([]);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
@@ -34,6 +34,18 @@ export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to f
   const [zoom, setZoom] = React.useState(1);
   const [page, setPage] = React.useState(1);
   const [attempt, setAttempt] = React.useState(0);
+  const onPageRef = React.useRef(onPage);
+  onPageRef.current = onPage;
+  React.useEffect(() => {
+    if (status === 'ready') onPageRef.current?.(page, drawn.pages);
+  }, [status, page, drawn.pages]);
+  const [slow, setSlow] = React.useState(false);
+  React.useEffect(() => {
+    setSlow(false);
+    if (status !== 'loading') return;
+    const timer = window.setTimeout(() => setSlow(true), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [status, attempt]);
   const loadRef = React.useRef(load);
   loadRef.current = load;
   const zoomRef = React.useRef(zoom);
@@ -42,7 +54,8 @@ export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to f
   React.useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => setWidth(el.clientWidth - 24));
+    // The page fits the width less 16 px each side, and stops at a reading width on a tablet or a desktop's phone column.
+    const observer = new ResizeObserver(() => setWidth(Math.min(el.clientWidth - 32, 560)));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -128,31 +141,39 @@ export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to f
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[#47433D]">
-      <div className="flex items-center justify-between px-4 py-2 font-wds-mono text-[11px] leading-[14px] text-wds-neutral-300">
-        <span>{status === 'ready' ? `${page} / ${drawn.pages}` : ''}</span>
-        <span className="flex items-center gap-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* Zoom buttons are for a mouse or the keyboard; a finger pinches. On touch they stay for screen readers and show on focus. */}
+        <span className="absolute right-2 top-2 z-10 flex items-center gap-1 [@media(pointer:coarse)]:sr-only [@media(pointer:coarse)]:focus-within:not-sr-only">
           {([['Zoom out', '−', () => setZoom(clampZoom(zoom - 0.5))], ['Fit to width', 'Fit', () => setZoom(1)], ['Zoom in', '+', () => setZoom(clampZoom(zoom + 0.5))]] as const).map(([label, mark, act]) => (
-            <button key={label} type="button" aria-label={label} onClick={act} disabled={(label === 'Zoom out' && zoom <= MIN_ZOOM) || (label === 'Zoom in' && zoom >= MAX_ZOOM)} className={cn('min-h-[44px] min-w-[44px] text-[13px] text-wds-neutral-300 disabled:opacity-40', MOTION, FOCUS_RING, PRESSED)}>
+            <button key={label} type="button" aria-label={label} onClick={act} disabled={(label === 'Zoom out' && zoom <= MIN_ZOOM) || (label === 'Zoom in' && zoom >= MAX_ZOOM)} className={cn('min-h-[44px] min-w-[44px] bg-black/20 font-wds-mono text-[13px] text-wds-neutral-300 disabled:opacity-40', MOTION, FOCUS_RING, PRESSED)}>
               {mark}
             </button>
           ))}
         </span>
-      </div>
-      <div ref={scroller} onScroll={onScroll} tabIndex={0} aria-label={name} className={cn('min-h-0 flex-1 overflow-auto px-3 pb-3 [touch-action:pan-x_pan-y]', FOCUS_RING)}>
+      <div ref={scroller} onScroll={onScroll} tabIndex={0} aria-label={name} className={cn('flex min-h-0 flex-1 overflow-auto p-4 [touch-action:pan-x_pan-y]', FOCUS_RING)}>
         {status === 'loading' ? (
-          <div role="status" aria-busy="true" aria-label="Opening the document" className="mx-auto animate-pulse bg-wds-neutral-300" style={{ width: fitted || 340, height: (fitted || 340) * 1.414 }}>
-            <span className="sr-only">Opening the document</span>
+          <div role="status" aria-busy="true" aria-label="Opening the document" className="m-auto flex shrink-0 flex-col gap-3 bg-white p-5" style={{ width: fitted || 340, height: (fitted || 340) * 1.414 }}>
+            <div aria-hidden className="flex animate-pulse flex-col gap-3">
+              <div className="h-3 w-2/5 bg-wds-neutral-300" />
+              <div className="h-2 w-1/4 bg-wds-neutral-200" />
+              <div className="mt-4 h-2 w-full bg-wds-neutral-200" />
+              <div className="h-2 w-full bg-wds-neutral-200" />
+              <div className="h-2 w-4/5 bg-wds-neutral-200" />
+              <div className="mt-4 h-8 w-full bg-wds-neutral-200" />
+            </div>
+            <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{slow ? 'This is taking longer than usual. Check your signal; it will open when it arrives.' : 'Opening the document…'}</span>
           </div>
         ) : (
-          <div className="flex flex-col gap-3" style={{ width: fitted * zoom }}>
+          <div className="m-auto flex shrink-0 flex-col gap-3" style={{ width: fitted * zoom }}>
             {Array.from({ length: drawn.pages }, (_, i) => (
               <canvas key={i} ref={(c) => { if (c) canvases.current[i] = c; }} role="img" aria-label={`${name}, page ${i + 1} of ${drawn.pages}`} className="block h-auto w-full bg-white" />
             ))}
           </div>
         )}
       </div>
-      <p className="m-0 px-4 pb-2 pt-1 text-center font-wds-sans text-[13px] leading-4 text-wds-neutral-300">{hint}</p>
-      {footer ? <div className="flex flex-col gap-2.5 bg-wds-surface p-3.5 min-[400px]:flex-row">{footer}</div> : null}
+      </div>
+      <p className="m-0 px-4 pb-3 text-center font-wds-sans text-[12px] leading-4 text-[#CFC7BD]">{hint}</p>
+      {footer ? <div className="bg-wds-surface px-4 py-3.5">{footer}</div> : null}
     </div>
   );
 }

@@ -23,7 +23,7 @@ const slot = 'relative flex min-h-11 min-w-11 flex-1 flex-col items-center justi
  */
 export function BottomBar({ links, pathname, onMenuClick, className }: BottomBarProps) {
   return (
-    <nav aria-label="Quick links" className={cn('flex shrink-0 items-stretch border-t border-wds-border bg-wds-surface pb-[env(safe-area-inset-bottom)]', className)}>
+    <nav aria-label="Quick links" className={cn('flex shrink-0 items-stretch border-t border-wds-border bg-wds-surface pb-[env(safe-area-inset-bottom)] [[data-number-pad]_&]:hidden', className)}>
       {links.map((link) => {
         const active = under(pathname, link.href);
         const Icon = link.icon;

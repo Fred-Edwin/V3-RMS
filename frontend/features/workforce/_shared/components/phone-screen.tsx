@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Topbar } from '@/components/app/shell/topbar';
+import { cn } from '@/lib/cn';
 
 import { PageHeader } from './page-parts';
 import { PhoneDarkHeader } from './phone-parts';
@@ -26,6 +27,7 @@ export function PhoneScreen({
   desktopActions,
   heading,
   back,
+  bleed = false,
   children,
 }: {
   /** Breadcrumb and spoken name: "My time". */
@@ -48,6 +50,8 @@ export function PhoneScreen({
   heading?: string;
   /** Where the arrow goes. */
   back: string;
+  /** The body fills the width and the height under the band with no padding or scrolling of its own (the Document view). */
+  bleed?: boolean;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -56,8 +60,8 @@ export function PhoneScreen({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar breadcrumb={{ section: 'Workforce', screen }} hideSearch className="hidden lg:flex" />
       <PhoneDarkHeader className="lg:hidden" kicker={kicker} onBack={() => router.push(back)} trailing={trailing} title={title} figure={figure} figureSize={figureSize} subtitle={subtitle} aside={aside} />
-      <main aria-label={screen} className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
-        <div className="mx-auto flex w-full max-w-[480px] flex-col gap-3 px-4 py-4 lg:py-7">
+      <main aria-label={screen} className={cn('min-h-0 flex-1 bg-wds-canvas', bleed ? 'flex flex-col' : 'overflow-y-auto')}>
+        <div className={cn('mx-auto flex w-full flex-col', bleed ? 'min-h-0 flex-1 lg:max-w-[480px] lg:gap-3 lg:px-4 lg:py-7' : 'max-w-[480px] gap-3 px-4 py-4 lg:py-7')}>
           <PageHeader className="hidden lg:flex" title={heading ?? desktopTitle ?? plainFigure ?? title ?? screen} subtitle={subtitle} actions={desktopActions} />
           {heading ? <h1 className="m-0 mb-1 font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em] text-wds-text-ink lg:hidden">{heading}</h1> : null}
           {children}

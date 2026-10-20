@@ -6,7 +6,7 @@ import * as React from 'react';
 import { useAuthStore } from '@/store/authStore';
 
 import { Callout, ErrorBlock, ListSkeleton, PhoneButton, WorkforcePinDialog, useRemote } from '../../../_shared';
-import { CASUAL_COPY, clockOf, dayShort, kes } from '../../_shared/lib/casual-words';
+import { CASUAL_COPY, clockOf, dayMonth, dayShort, kes } from '../../_shared/lib/casual-words';
 import { casualReads } from '../../_shared/services/casual-services';
 import type { Sheet, SheetCard } from '../../_shared/types/casual-types';
 import { useDecision } from '../hooks/use-decision';
@@ -73,6 +73,11 @@ function Decided({ sheet, me, note, pinOpen, backOpen, setPinOpen, setBackOpen, 
               {l.name} · {l.start} to {l.end}{l.endsNextDay ? ' +1' : ''}
             </span>
             <span className="font-wds-mono">{kes(l.amount)}</span>
+          </li>
+        ))}
+        {sheet.corrections.map((c) => (
+          <li key={c.id} className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+            Correction for {dayMonth(c.originalDate)}, KES {kes(c.amount)}, {c.reason}
           </li>
         ))}
       </ul>

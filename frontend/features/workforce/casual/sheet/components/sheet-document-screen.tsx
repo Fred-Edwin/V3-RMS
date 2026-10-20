@@ -18,6 +18,7 @@ export function SheetDocumentScreen({ id }: { id: string }) {
   const preview = useSearchParams().get('preview') === '1';
   const [busy, setBusy] = React.useState<'save' | 'share' | null>(null);
   const [failed, setFailed] = React.useState<string | null>(null);
+  const [counter, setCounter] = React.useState('');
   const load = React.useCallback(() => (preview ? casualReads.preview(id) : casualReads.document(id)), [id, preview]);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
@@ -37,40 +38,49 @@ export function SheetDocumentScreen({ id }: { id: string }) {
   };
 
   return (
-    <PhoneScreen screen={CASUAL_COPY.screen} kicker={preview ? 'CASUAL PAY SHEET · PREVIEW' : 'CASUAL PAY SHEET'} back={preview ? '/app/workforce/casuals' : `/app/workforce/casuals/${id}`} desktopTitle="Casual pay sheet">
-      <div className="flex h-[72dvh] min-h-[420px] flex-col">
-        <PdfViewer
-          name={preview ? 'Casual pay sheet, draft' : 'Casual pay sheet'}
-          load={async () => (await load()).blob}
-          footer={
-            preview ? (
-              <div className="flex w-full flex-col gap-1.5">
-                <PhoneButton kind="outlined" size="sm" onClick={() => router.back()}>
-                  Back to edit
-                </PhoneButton>
-                <button type="button" disabled className="h-[46px] w-full bg-wds-border-strong font-wds-sans text-[14px] font-semibold text-wds-text-secondary">
+    <PhoneScreen screen={CASUAL_COPY.screen} kicker={preview ? 'CASUAL PAY SHEET · PREVIEW' : 'CASUAL PAY SHEET'} back={preview ? '/app/workforce/casuals' : `/app/workforce/casuals/${id}`} desktopTitle="Casual pay sheet" bleed trailing={counter ? <span className="font-wds-mono text-[11px] leading-[14px] tracking-[0.08em] text-wds-neutral-300">{counter}</span> : undefined}>
+      <PdfViewer
+        name={preview ? 'Casual pay sheet, draft' : 'Casual pay sheet'}
+        load={async () => (await load()).blob}
+        onPage={(page, pages) => setCounter(`${page} / ${pages}`)}
+        footer={
+          preview ? (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex gap-2.5">
+                <div className="min-w-0 flex-1">
+                  <PhoneButton kind="outlined" size="sm" onClick={() => router.back()}>
+                    Back to edit
+                  </PhoneButton>
+                </div>
+                <button type="button" disabled className="h-[46px] min-w-0 flex-1 bg-wds-border-strong font-wds-sans text-[14px] font-semibold text-wds-text-secondary">
                   Print after approval
                 </button>
-                <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">The head checks the sheet here before it goes to the Branch Manager. After approval it can be printed and the workers sign.</p>
               </div>
-            ) : (
-              <div className="flex w-full flex-col gap-2.5 min-[400px]:flex-row">
-                <PhoneButton size="sm" disabled={busy !== null} onClick={() => void run('share')}>
-                  {busy === 'share' ? 'Preparing…' : 'Print or share'}
-                </PhoneButton>
-                <PhoneButton kind="outlined" size="sm" disabled={busy !== null} onClick={() => void run('save')}>
-                  {busy === 'save' ? 'Preparing…' : 'Download PDF'}
-                </PhoneButton>
+              <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">The head checks the sheet here before it goes to the Branch Manager. After approval it can be printed and the workers sign.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex gap-2.5">
+                <div className="min-w-0 flex-1">
+                  <PhoneButton size="sm" disabled={busy !== null} onClick={() => void run('share')}>
+                    {busy === 'share' ? 'Preparing…' : 'Print or share'}
+                  </PhoneButton>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <PhoneButton kind="outlined" size="sm" disabled={busy !== null} onClick={() => void run('save')}>
+                    {busy === 'save' ? 'Preparing…' : 'Download PDF'}
+                  </PhoneButton>
+                </div>
               </div>
-            )
-          }
-        />
-      </div>
-      {failed ? (
-        <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">
-          {failed}
-        </p>
-      ) : null}
+              {failed ? (
+                <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">
+                  {failed}
+                </p>
+              ) : null}
+            </div>
+          )
+        }
+      />
     </PhoneScreen>
   );
 }

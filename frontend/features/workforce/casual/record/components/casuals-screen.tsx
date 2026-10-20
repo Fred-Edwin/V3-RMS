@@ -82,7 +82,7 @@ export function CasualsScreen() {
       <>
         {!online ? <OfflineStrip stillWorks="You can still record and preview. Send waits for a signal." /> : null}
         {day.message ? (
-          <Callout tone={day.message.startsWith('Sent') ? 'success' : 'warning'} role="status" action={<button type="button" onClick={day.dismiss} className="min-h-[44px] px-2 font-wds-sans text-[13px] text-wds-primary">Dismiss</button>}>
+          <Callout tone={day.message.startsWith('Sent') ? 'success' : 'warning'} role="status" action={<button type="button" onClick={day.dismiss} className="-my-3 -ml-2 min-h-[44px] px-2 font-wds-sans text-[13px] text-wds-primary">Dismiss</button>}>
             {day.message}
           </Callout>
         ) : null}

@@ -24,6 +24,11 @@ export function PayslipGate({ children }: { children: React.ReactNode }) {
   const permissions = useWorkforcePermissions();
   const unlocked = useUnlocked(userId);
   useRelock(userId);
+  // Set while the chosen payslip is opening from the home address, so Home never flashes in between.
+  const [jumping, setJumping] = React.useState(false);
+  React.useEffect(() => {
+    if (jumping && pathname !== PAYSLIP_HOME) setJumping(false);
+  }, [jumping, pathname]);
 
   if (!permissions.ready) {
     return (
@@ -44,9 +49,19 @@ export function PayslipGate({ children }: { children: React.ReactNode }) {
       <UnlockScreen
         onOpened={(chosenId) => {
           // From the home address the chosen payslip opens at once; a deep link stays where it is.
-          if (pathname === PAYSLIP_HOME && chosenId) router.push(payslipHref(chosenId));
+          if (pathname === PAYSLIP_HOME && chosenId) {
+            setJumping(true);
+            router.push(payslipHref(chosenId));
+          }
         }}
       />
+    );
+  }
+  if (jumping && pathname === PAYSLIP_HOME) {
+    return (
+      <PhoneScreen screen={PAYSLIP_COPY.screen} kicker="MY PAYSLIPS" back="/app/workforce" desktopTitle="My payslips">
+        <ListSkeleton rows={4} columns={['fill', 60]} label="Opening your payslip" />
+      </PhoneScreen>
     );
   }
   return <>{children}</>;

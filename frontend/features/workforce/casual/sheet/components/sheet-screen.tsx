@@ -44,7 +44,8 @@ export function SheetScreen({ id }: { id: string }) {
         ) : null}
         <ul aria-label="Workers" className="m-0 flex list-none flex-col gap-2.5 p-0">
           {sheet.lines.map((l) => (
-            <li key={l.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-wds-border bg-wds-surface px-3.5 py-3">
+            <li key={l.id} className="flex flex-col gap-2.5 border border-wds-border bg-wds-surface px-3.5 py-3">
+              <div className="flex items-start justify-between gap-3">
               <span className="flex min-w-0 flex-col">
                 <span className="font-wds-sans text-[15px] font-semibold leading-[18px] text-wds-text-ink">{l.name}</span>
                 <span className="font-wds-mono text-[12px] leading-4 text-wds-text-secondary">
@@ -52,14 +53,13 @@ export function SheetScreen({ id }: { id: string }) {
                 </span>
                 {approved ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{l.receivedAt ? `Signed ${l.receivedName ?? ''} at ${clockOf(l.receivedAt)}` : 'Waiting for the cash'}</span> : null}
               </span>
-              <span className="flex items-center gap-3">
-                <span className="font-wds-mono text-[14px] text-wds-text-ink">{kes(l.amount)}</span>
-                {approved && !l.receivedAt && canSign ? (
-                  <button type="button" onClick={() => setSigning(l)} className="min-h-[44px] border border-wds-border-strong px-3 font-wds-sans text-[13px] font-medium text-wds-text-ink focus-visible:outline-none focus-visible:shadow-wds-ring">
-                    Paid, sign
-                  </button>
-                ) : null}
-              </span>
+              <span className="font-wds-mono text-[14px] text-wds-text-ink">{kes(l.amount)}</span>
+              </div>
+              {approved && !l.receivedAt && canSign ? (
+                <button type="button" onClick={() => setSigning(l)} className="min-h-[44px] w-full border border-wds-border-strong px-3 font-wds-sans text-[13px] font-medium text-wds-text-ink focus-visible:outline-none focus-visible:shadow-wds-ring">
+                  Paid, sign
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>

@@ -37,6 +37,11 @@ export function SendBackDialog({ open, onOpenChange, role, busy, error, onSend }
       }
     >
       <ReasonChips legend="Why?" legendStyle="sentence" hint="required" options={REASONS} value={reason} onChange={setReason} />
+      {!ready && !busy ? (
+        <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+          {isReasonComplete(reason) ? 'Say a little more, at least 5 characters.' : 'Pick a reason to send it back.'}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">
           {error}

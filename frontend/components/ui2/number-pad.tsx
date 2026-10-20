@@ -285,9 +285,11 @@ export function NumberPadHost() {
     const box = boxRef.current;
     if (!open || !box) {
       root.style.removeProperty('--number-pad-h');
+      root.removeAttribute('data-number-pad');
       return;
     }
     const apply = (): void => root.style.setProperty('--number-pad-h', `${box.offsetHeight}px`);
+    root.setAttribute('data-number-pad', 'open'); // the phone bottom bar hides while the pad is up
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(box);
@@ -296,6 +298,7 @@ export function NumberPadHost() {
       window.clearTimeout(reveal);
       observer.disconnect();
       root.style.removeProperty('--number-pad-h');
+      root.removeAttribute('data-number-pad');
     };
   }, [open]);
 

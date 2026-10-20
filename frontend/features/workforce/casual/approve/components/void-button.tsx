@@ -42,7 +42,13 @@ export function VoidButton({ sheet, onVoided, onStale }: { sheet: Sheet; onVoide
               Why? <span className="font-normal text-wds-text-secondary">required</span>
             </label>
             <textarea id="void-reason" rows={2} autoComplete="off"value={reason} onChange={(e) => setReason(e.target.value)} className="w-full border border-wds-border-strong p-2 font-wds-sans text-[14px]" />
-            {!longEnough && reason !== '' ? <Callout tone="warning" size="sm">Say why, in at least 5 characters.</Callout> : null}
+            {!longEnough ? (
+              reason !== '' ? (
+                <Callout tone="warning" size="sm">Say why, in at least 5 characters.</Callout>
+              ) : (
+                <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Say why you are voiding it, then enter your PIN.</p>
+              )
+            ) : null}
           </div>
         }
         caption="You sign with your PIN. The head is told."

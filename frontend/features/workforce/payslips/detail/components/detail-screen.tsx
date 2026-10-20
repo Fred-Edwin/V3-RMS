@@ -33,6 +33,8 @@ export function PayslipDetailScreen({ id }: { id: string }) {
   const user = useAuthStore((s) => s.user);
   const { shown, toggle } = useAmountsShown(user?.id ?? null);
   const [view, setView] = React.useState<'month' | 'year'>('month');
+  // Every payslip and every version opens on "This month"; the toggle is a choice for the screen in front of the person.
+  React.useEffect(() => setView('month'), [id, version]);
   const slip = useRemote(() => payslipReads.detail(id, version), `${id}:${version ?? 'latest'}`);
   const d = slip.data;
 
@@ -46,7 +48,7 @@ export function PayslipDetailScreen({ id }: { id: string }) {
     body = (
       <>
         {replaced ? (
-          <Callout tone="warning" size="sm" title={`Replaced by version ${replaced.versionNumber} on ${dayMonth(replaced.correctedAt)}`} action={<Link href={payslipHref(d.id, replaced.versionNumber)} className="inline-flex min-h-[44px] items-center font-wds-sans text-[13px] font-medium text-wds-primary">See the current payslip</Link>} />
+          <Callout tone="warning" size="sm" title={`Replaced by version ${replaced.versionNumber} on ${dayMonth(replaced.correctedAt)}`} action={<Link href={payslipHref(d.id, replaced.versionNumber)} className="-my-3 inline-flex min-h-[44px] items-center font-wds-sans text-[13px] font-medium text-wds-primary">See the current payslip</Link>} />
         ) : null}
         <SegmentedControl label="Show" items={VIEWS} value={view} onChange={(v) => setView(v === 'year' ? 'year' : 'month')} className="[&>button]:flex-1" />
         <SectionTable caption={view === 'month' ? 'Earned this month' : 'Earned this year'} heading="EARNED" lines={section.earnings} totalLabel="Gross pay" total={section.gross} shown={shown} zeroKeys={['BASIC']} />
