@@ -71,7 +71,6 @@ export const recordingRepository = {
     const rows = await prisma.casualSheetLine.groupBy({
       by: ['workerId'],
       where: { sheet: { companyId, siteId, departmentId, status: { not: 'VOID' } } },
-      _max: { createdAt: true },
     });
     const ids = rows.map((r) => r.workerId);
     const workers = await prisma.casualWorker.findMany({ where: { companyId, id: { in: ids }, ...(q ? { OR: [{ fullName: { contains: q, mode: 'insensitive' } }, { nationalId: { contains: q.toUpperCase() } }] } : {}) }, orderBy: { fullName: 'asc' }, take: 100 });

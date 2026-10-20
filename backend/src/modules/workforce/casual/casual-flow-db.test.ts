@@ -125,6 +125,13 @@ describe.skipIf(!enabled)('Casual pay flows in the database', () => {
     expect(saved.status).toBe('DRAFT');
   });
 
+  it('"My casuals" lists the department workers with the last day each worked, and a name or ID fragment narrows it', async () => {
+    const all = await m.listWorkers(head, { siteId, departmentId: deptId });
+    expect(all.map((w) => w.id)).toEqual(expect.arrayContaining([peter, rose]));
+    expect(all.find((w) => w.id === peter)?.lastWorked).toBe(yesterday());
+    expect((await m.listWorkers(head, { siteId, departmentId: deptId, q: 'Rose' })).map((w) => w.id)).toEqual([rose]);
+  });
+
   it('an offline retry makes one record; a stale version is refused with CHANGED_UNDERNEATH', async () => {
     const k = key('lines');
     const lines = [{ casualId: peter, start: '07:00', end: '15:00' }, { casualId: rose, start: '10:00', end: '19:00' }];
