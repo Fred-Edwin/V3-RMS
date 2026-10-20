@@ -4,7 +4,7 @@ import { comparePin, hashPin } from '../../../../utils/password';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import { signerPinRepository } from '../../_shared/pin/signer-pin-repository';
 import type { AccessSubject } from '../../_shared/workforce-access';
-import { employeesRepository } from '../../people/employees/employees-repository';
+import { claimAlertWindow, insertAlertForEntry, tellAdminsOfAlert, type AlertFacts } from '../../security';
 import { told } from '../../people/people-context';
 import { payslipActor, payslipEntry } from '../payslips-context';
 import { isDeviceConfirmed } from './device-source';
@@ -41,6 +41,7 @@ export async function unlock(subject: AccessSubject, body: UnlockBody, deviceLab
   const hash = await signerPinRepository.hashOf(subject.id);
   if (hash === null) throw new ConflictError('Choose your code first.', 'NO_CODE_SET');
   const confirmed = await isDeviceConfirmed(subject.id, body.deviceId);
+  const alertFacts: AlertFacts = { companyId: ctx.companyId, siteId: subject.siteId, kind: 'WRONG_CODES', subjectUserId: subject.id, deviceLabel, at: now };
   const outcome = await runAudited<Outcome>(async (tx) => {
     await unlockRepository.lockPerson(tx, subject.id);
     const state = await unlockRepository.windowState(tx, subject.id, new Date(now.getTime() - WINDOW_MS));
@@ -54,24 +55,28 @@ export async function unlock(subject: AccessSubject, body: UnlockBody, deviceLab
     const count = state.wrong + 1;
     const alert = shouldAlert(count, state.alerted);
     await unlockRepository.addTry(tx, { userId: subject.id, deviceId: body.deviceId, success: false, confirmed: confirmed === true, alerted: alert, createdAt: now });
-    return { result: { kind: 'WRONG', count, alert }, entries: [payslipEntry({ companyId: ctx.companyId, actor: ctx.auditActor, action: 'payslip.code_tried', category: 'SECURITY', subjectType: 'User', subjectId: subject.id, subjectUserId: subject.id, after: { success: false, count, confirmed: confirmed === true }, deviceLabel })] };
+    // 6a S1: the 3rd wrong code raises one System Admin alert per person and 15 minutes, written with its entry in this transaction.
+    const raise = alert && (await claimAlertWindow(tx, subject.id, 'WRONG_CODES', now));
+    return {
+      result: { kind: 'WRONG', count, alert: raise },
+      entries: [payslipEntry({ companyId: ctx.companyId, actor: ctx.auditActor, action: 'payslip.code_tried', category: 'SECURITY', subjectType: 'User', subjectId: subject.id, subjectUserId: subject.id, after: { success: false, count, confirmed: confirmed === true }, deviceLabel })],
+      afterWrite: async (inner, records) => {
+        const first = records[0];
+        if (raise && first) await insertAlertForEntry(inner, alertFacts, first.id);
+      },
+    };
   });
 
   if (outcome.kind === 'SLOW') throw new AppError(429, 'CODE_SLOWED', `Wait ${outcome.wait} seconds, then try again.`, { waitSeconds: outcome.wait });
   if (outcome.kind === 'WRONG') {
     if (outcome.alert) {
-      const admins = await employeesRepository.userIdsByRole(ctx.companyId, 'SYSTEM_ADMIN');
-      const facts = { userId: subject.id, at: now.toISOString(), device: deviceLabel };
-      await told([...admins, subject.id], 'payslip.three_wrong_codes', facts);
+      await tellAdminsOfAlert(alertFacts);
+      await told([subject.id], 'payslip.three_wrong_codes', { device: deviceLabel, at: now.toISOString() });
     }
     const next = pauseSeconds(outcome.count);
     throw new ForbiddenError('That code is not right.', 'CODE_WRONG', next > 0 ? { waitSeconds: next } : undefined);
   }
-  if (confirmed === false) {
-    // PD4: it opens, it is recorded, and the person and the System Admin are told loudly. The screen never says why.
-    const admins = await employeesRepository.userIdsByRole(ctx.companyId, 'SYSTEM_ADMIN');
-    await told([...admins, subject.id], 'payslip.on_unconfirmed_phone', { userId: subject.id, at: now.toISOString(), device: deviceLabel });
-  }
+  // An unconfirmed phone is recorded and alerted when the payslip is opened (reads/open-audit.ts), not here.
   return outcome.unlocked;
 }
 

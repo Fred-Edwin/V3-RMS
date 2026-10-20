@@ -17,6 +17,8 @@ import { readsRepository, type EmployeeFacts } from './reads-repository';
 export interface Phone {
   id: string;
   label: string | null;
+  /** A coarse place from the tunnel's location headers (never an address); null when unknown. */
+  placeLabel?: string | null;
 }
 
 interface Own {
@@ -86,7 +88,7 @@ export async function detail(subject: AccessSubject, id: string, version: number
 
 async function opened(o: Own & { employee: EmployeeFacts }, subject: AccessSubject, record: MonthRecord, version: number, purpose: OpenPurpose, phone: Phone, now: Date): Promise<void> {
   const confirmed = await isDeviceConfirmed(subject.id, phone.id);
-  await recordOpening({ companyId: o.ctx.companyId, actor: o.ctx.auditActor, employee: o.employee, record, version, purpose, ownerOpened: true, deviceLabel: phone.label, confirmed }, now);
+  await recordOpening({ companyId: o.ctx.companyId, actor: o.ctx.auditActor, employee: o.employee, record, version, purpose, ownerOpened: true, deviceLabel: phone.label, placeLabel: phone.placeLabel ?? null, confirmed }, now);
 }
 
 export async function versionsOf(subject: AccessSubject, id: string): Promise<VersionInfo[]> {

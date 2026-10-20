@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { nairobiToday, parseNairobiDate } from '../../_shared/time/nairobi-time';
 import { ok, subjectOf } from '../../rota/rota-http';
+import { placeLabelOf } from '../../security';
 import type { PayslipFile } from '../documents/document-service';
 import { generateP9, myP9Document, myP9Status, confirmP9Format } from '../p9/p9-service';
 import { DEVICE_HEADER } from '../unlock/unlock-middleware';
@@ -9,7 +10,7 @@ import { detail, documentOf, history, home, list, versionsOf, type Phone } from 
 import { documentAny, openAny, openingsOfDay } from './others-service';
 import { confirmBody, dayQuery, detailQuery, documentQuery, historyQuery, idParams, p9PersonParams, phoneHeader, yearParams } from './reads-validators';
 
-const phone = (req: Request): Phone => ({ id: phoneHeader.parse(req.header(DEVICE_HEADER)), label: deviceLabelOf(req.header('user-agent')) });
+const phone = (req: Request): Phone => ({ id: phoneHeader.parse(req.header(DEVICE_HEADER)), label: deviceLabelOf(req.header('user-agent')), placeLabel: placeLabelOf((name) => req.header(name)) });
 const label = (req: Request): string | null => deviceLabelOf(req.header('user-agent'));
 
 /** The stored file, inline, never cached by anything between the server and the phone. */
