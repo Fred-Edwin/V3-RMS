@@ -27,6 +27,11 @@ vi.mock('./review/review-service', () => ({ listReview: answer, checkLine: answe
 vi.mock('./review/adjustments-service', () => ({ addAdjustment: answer, leaveOut: answer, removeAdjustment: answer }));
 vi.mock('./approval/approval-service', () => ({ sendToAccountant: answer, sendBack: answer, approveMonth: answer }));
 vi.mock('./sites/sites-service', () => ({ remindSite: answer, approveSiteLate: answer }));
+vi.mock('./publish/publish-service', () => ({ publishMonth: answer }));
+vi.mock('./corrections/correction-service', () => ({ correctionInputs: answer, previewCorrection: answer, correctPayslip: answer }));
+vi.mock('./paid/paid-service', () => ({ markPaid: answer }));
+vi.mock('./bank/bank-service', () => ({ payoutView: answer, downloadBankFile: vi.fn(async () => ({ filename: 'bank-2026-09.csv', text: 'a,b\r\n', version: 1, hash: 'h', repeat: false })) }));
+vi.mock('./exports/exports-service', () => ({ exportMonth: vi.fn(async () => ({ buffer: Buffer.from('%PDF-'), filename: 'x.pdf', contentType: 'application/pdf', documentNumber: null, revision: 1 })) }));
 
 import router from './payroll-routes';
 
@@ -41,8 +46,10 @@ const P = '/workforce/payroll';
 const M = `${P}/months/2026-09`;
 const key = 'request-key-0001';
 
-type Cap = 'payroll.read' | 'payroll.review' | 'payroll.approve' | 'payroll.remind' | 'payroll.estimate.read' | 'payroll.approve_site_late';
-type Case = { method: 'get' | 'post' | 'delete'; path: string; body?: object; capability: Cap };
+type Cap = 'payroll.read' | 'payroll.review' | 'payroll.approve' | 'payroll.remind' | 'payroll.estimate.read' | 'payroll.approve_site_late' | 'payroll.publish' | 'payroll.correct' | 'payroll.pay' | 'payroll.export';
+type Case = { method: 'get' | 'post' | 'delete'; path: string; body?: object; capability: Cap; file?: boolean };
+const pin = '1234';
+const change = { kind: 'LATE_DAYS', changes: { lateDaysCounted: 1 } };
 const cases: Case[] = [
   { method: 'get', path: `${P}/months?page=1&rows=5`, capability: 'payroll.read' },
   { method: 'get', path: M, capability: 'payroll.read' },
@@ -65,6 +72,15 @@ const cases: Case[] = [
   { method: 'post', path: `${M}/approve`, body: { pin: '1234', idempotencyKey: key, stateVersion: 2, expectedTotals: { gross: '100.00', net: '90.00', taxStatutory: '10.00', other: '0.00', headcount: 2 } }, capability: 'payroll.approve' },
   { method: 'post', path: `${M}/sites/${id}/remind`, body: { idempotencyKey: key }, capability: 'payroll.remind' },
   { method: 'post', path: `${M}/sites/${id}/approve-late`, body: { pin: '1234', idempotencyKey: key, expectedTotals: { workedMinutes: 100, overtimeAuthorisedMinutes: 0, headcount: 3 } }, capability: 'payroll.approve_site_late' },
+  // Segment 2B
+  { method: 'post', path: `${M}/publish`, body: { pin, idempotencyKey: key, stateVersion: 3 }, capability: 'payroll.publish' },
+  { method: 'get', path: `${M}/payslips/${id}/correction-inputs?version=1`, capability: 'payroll.correct' },
+  { method: 'post', path: `${M}/payslips/${id}/correction-preview`, body: { change, expectedVersion: 1 }, capability: 'payroll.correct' },
+  { method: 'post', path: `${M}/payslips/${id}/correct`, body: { change, reason: 'One late day was excused', pin, expectedVersion: 1, idempotencyKey: key }, capability: 'payroll.correct' },
+  { method: 'get', path: `${M}/payout`, capability: 'payroll.read' },
+  { method: 'post', path: `${M}/bank-file`, body: { idempotencyKey: key }, capability: 'payroll.pay', file: true },
+  { method: 'post', path: `${M}/mark-paid`, body: { pin, idempotencyKey: key, stateVersion: 4, bankFileHash: 'a'.repeat(64) }, capability: 'payroll.pay' },
+  { method: 'post', path: `${M}/exports`, body: { kind: 'REGISTER', format: 'pdf', idempotencyKey: key }, capability: 'payroll.export', file: true },
 ];
 const WITH: Record<Cap, string> = {
   'payroll.read': as('ACCOUNTANT'),
@@ -73,6 +89,10 @@ const WITH: Record<Cap, string> = {
   'payroll.remind': as('DIRECTOR'),
   'payroll.estimate.read': as('SYSTEM_ADMIN'),
   'payroll.approve_site_late': as('DIRECTOR'),
+  'payroll.publish': as('HR_MANAGER'),
+  'payroll.correct': as('HR_MANAGER'),
+  'payroll.pay': as('ACCOUNTANT'),
+  'payroll.export': as('DIRECTOR'),
 };
 const WITHOUT: Record<Cap, string> = {
   'payroll.read': as('MANAGER'),
@@ -81,6 +101,10 @@ const WITHOUT: Record<Cap, string> = {
   'payroll.remind': as('SYSTEM_ADMIN'),
   'payroll.estimate.read': as('MANAGER'),
   'payroll.approve_site_late': as('HR_MANAGER'),
+  'payroll.publish': as('ACCOUNTANT'),
+  'payroll.correct': as('DIRECTOR'),
+  'payroll.pay': as('HR_MANAGER'),
+  'payroll.export': as('MANAGER'),
 };
 const call = (c: Case, user?: string) => {
   const r = request(app)[c.method](c.path);
@@ -97,10 +121,61 @@ describe('Payroll routes', () => {
     expect((await call(c, WITHOUT[c.capability])).status).toBe(403);
     expect(answer).not.toHaveBeenCalled();
   });
-  it.each(cases)('$method $path: answers in the envelope with $capability', async (c) => {
+  it.each(cases.filter((c) => !c.file))('$method $path: answers in the envelope with $capability', async (c) => {
     const res = await call(c, WITH[c.capability]);
     expect([200, 201]).toContain(res.status);
     expect(res.body).toEqual({ success: true, data: { ok: true } });
+  });
+
+  it('the bank file and the exports stream a file that is never cached', async () => {
+    for (const c of cases.filter((x) => x.file)) {
+      const res = await call(c, WITH[c.capability]);
+      expect(res.status, c.path).toBe(200);
+      expect(res.header['cache-control'], c.path).toBe('no-store');
+      expect(res.header['content-disposition'], c.path).toMatch(/^attachment; filename="/);
+    }
+  });
+
+  it('who may do what in part 2: HR publishes, the Accountant pays, both correct, three export, the bank file is the Accountant only', async () => {
+    const as2 = { hr: as('HR_MANAGER'), acc: as('ACCOUNTANT'), dir: as('DIRECTOR'), admin: as('SYSTEM_ADMIN'), bm: as('MANAGER'), sm: as('STORE_MANAGER'), waiter: as('WAITER') };
+    const status = async (path: string, user: string, body: object) => (await request(app).post(path).set('x-test-user', user).send(body)).status;
+    const publish = { pin, idempotencyKey: key, stateVersion: 3 };
+    const correct = { change, reason: 'One late day was excused', pin, expectedVersion: 1, idempotencyKey: key };
+    const pay = { pin, idempotencyKey: key, stateVersion: 4 };
+    const exp = { kind: 'SUMMARY', format: 'pdf', idempotencyKey: key };
+    expect(await status(`${M}/publish`, as2.hr, publish)).toBe(200);
+    for (const u of [as2.acc, as2.dir, as2.admin, as2.bm, as2.sm, as2.waiter]) expect(await status(`${M}/publish`, u, publish)).toBe(403);
+    for (const u of [as2.hr, as2.acc]) expect(await status(`${M}/payslips/${id}/correct`, u, correct)).toBe(200);
+    for (const u of [as2.dir, as2.admin, as2.bm, as2.sm, as2.waiter]) expect(await status(`${M}/payslips/${id}/correct`, u, correct)).toBe(403);
+    expect(await status(`${M}/mark-paid`, as2.acc, pay)).toBe(200);
+    for (const u of [as2.hr, as2.dir, as2.admin, as2.bm, as2.sm, as2.waiter]) {
+      expect(await status(`${M}/mark-paid`, u, pay)).toBe(403);
+      expect(await status(`${M}/bank-file`, u, { idempotencyKey: key })).toBe(403);
+    }
+    for (const u of [as2.acc, as2.hr, as2.dir]) expect(await status(`${M}/exports`, u, exp)).toBe(200);
+    for (const u of [as2.admin, as2.bm, as2.sm, as2.waiter]) expect(await status(`${M}/exports`, u, exp)).toBe(403);
+  });
+
+  it('400 for a bad part 2 body, and nothing reaches a service', async () => {
+    const post = (path: string, user: string, body: object) => request(app).post(path).set('x-test-user', user).send(body);
+    const hr = as('HR_MANAGER');
+    const acc = as('ACCOUNTANT');
+    const ok = { change, reason: 'One late day was excused', pin, expectedVersion: 1, idempotencyKey: key };
+    expect((await post(`${M}/publish`, hr, { pin: '12', idempotencyKey: key, stateVersion: 1 })).status).toBe(400);
+    expect((await post(`${M}/publish`, hr, { pin, idempotencyKey: key })).status).toBe(400);
+    expect((await post(`${M}/payslips/${id}/correct`, hr, { ...ok, reason: 'no' })).status).toBe(400);
+    expect((await post(`${M}/payslips/${id}/correct`, hr, { ...ok, reason: 'Paid 12500 too little' })).status).toBe(400);
+    expect((await post(`${M}/payslips/${id}/correct`, hr, { ...ok, change: { kind: 'LATE_DAYS', changes: { absentDays: 1 } } })).status).toBe(400);
+    expect((await post(`${M}/payslips/${id}/correct`, hr, { ...ok, expectedVersion: 0 })).status).toBe(400);
+    expect((await post(`${M}/payslips/not-an-id/correct`, hr, ok)).status).toBe(400);
+    expect((await post(`${M}/payslips/${id}/correction-preview`, hr, { change })).status).toBe(400);
+    expect((await request(app).get(`${M}/payslips/${id}/correction-inputs`).set('x-test-user', hr)).status).toBe(400); // the version is required
+    expect((await post(`${M}/mark-paid`, acc, { pin, idempotencyKey: key, stateVersion: 1, bankFileHash: 'xyz' })).status).toBe(400);
+    expect((await post(`${M}/mark-paid`, acc, { pin: 'abcd', idempotencyKey: key, stateVersion: 1 })).status).toBe(400);
+    expect((await post(`${M}/bank-file`, acc, { idempotencyKey: 'short' })).status).toBe(400);
+    expect((await post(`${M}/exports`, acc, { kind: 'SUMMARY', format: 'xlsx', idempotencyKey: key })).status).toBe(400);
+    expect((await post(`${M}/exports`, acc, { kind: 'NOPE', format: 'pdf', idempotencyKey: key })).status).toBe(400);
+    expect(answer).not.toHaveBeenCalled();
   });
 
   it('a Branch Manager, a Store Manager, a head and a waiter read no payroll at all', async () => {
@@ -112,7 +187,7 @@ describe('Payroll routes', () => {
 
   it('the Director and the System Admin read but never write, and HR cannot approve or send back', async () => {
     for (const role of ['DIRECTOR', 'SYSTEM_ADMIN']) {
-      for (const c of cases.filter((x) => x.method !== 'get' && !['payroll.remind', 'payroll.approve_site_late'].includes(x.capability))) expect((await call(c, as(role))).status, `${role} ${c.path}`).toBe(403);
+      for (const c of cases.filter((x) => x.method !== 'get' && !['payroll.remind', 'payroll.approve_site_late', 'payroll.export'].includes(x.capability))) expect((await call(c, as(role))).status, `${role} ${c.path}`).toBe(403);
     }
     for (const path of ['approve', 'send-back']) expect((await request(app).post(`${M}/${path}`).set('x-test-user', as('HR_MANAGER')).send({})).status).toBe(403);
     expect((await request(app).post(`${M}/sites/${id}/approve-late`).set('x-test-user', as('HR_MANAGER')).send({})).status).toBe(403);

@@ -10,6 +10,7 @@
  * entries stay (the log is append-only by design). Run the workforce database flows one file at a time.
  */
 import { randomUUID } from 'node:crypto';
+import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const url = process.env['DATABASE_URL'] ?? '';
@@ -27,6 +28,10 @@ describe.skipIf(!enabled)('Payroll flows in the database', () => {
       ...(await import('./approval/approval-service')), ...(await import('./sites/sites-service')), ...(await import('./payroll-sweep')),
       ...(await import('./rollout/rollout-guard')), ...(await import('./estimate/estimate-service')), ...(await import('./reads/tabs-service')),
       ...(await import('./reads/payslips-service')), ...(await import('../rules/rules-defaults')), ...(await import('../../../utils/password')),
+      // Segment 2B
+      ...(await import('./publish/publish-service')), ...(await import('./corrections/correction-service')), ...(await import('./bank/bank-service')),
+      ...(await import('./paid/paid-service')), ...(await import('./exports/exports-service')), ...(await import('./register-payroll')),
+      ...(await import('../attendance/switch/switch-off-check')), auditRepository: (await import('../_shared/audit/audit-repository')).auditRepository, ...(await import('../_shared/audit/audit-hash')),
     };
   };
   let m: Awaited<ReturnType<typeof load>>;
@@ -233,6 +238,21 @@ describe.skipIf(!enabled)('Payroll flows in the database', () => {
     await expect(m.sendToAccountant(hr, KEY, { idempotencyKey: nextKey('send'), stateVersion: sent.stateVersion })).rejects.toMatchObject({ code: 'MONTH_NOT_IN_REVIEW' });
     await expect(m.recalculate(hr, KEY, { idempotencyKey: nextKey('calc'), stateVersion: sent.stateVersion })).rejects.toMatchObject({ code: 'MONTH_NOT_CALCULABLE' });
     await expect(m.checkLine(hr, KEY, randomUUID(), { checked: true, stateVersion: sent.stateVersion })).rejects.toMatchObject({ code: 'MONTH_NOT_IN_REVIEW' });
+  });
+
+  it('5b. a draft export says so, is audited once per key, and all payslips wait for publishing', async () => {
+    const key = nextKey('export');
+    const file = await m.exportMonth(hr, KEY, { kind: 'REGISTER', format: 'xlsx', idempotencyKey: key });
+    expect(file).toMatchObject({ filename: 'Payroll-2026-09.xlsx', documentNumber: null, revision: 1 });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(file.buffer as unknown as ArrayBuffer);
+    expect(wb.getWorksheet('Register')!.getCell('A1').value).toBe('Working copy, draft, not approved');
+    expect(wb.worksheets.map((w) => w.name)).not.toContain('Bank file'); // HR never gets the bank sheet
+    await m.exportMonth(hr, KEY, { kind: 'REGISTER', format: 'xlsx', idempotencyKey: key });
+    expect(await m.prisma.auditEntry.count({ where: { companyId, action: 'payroll.exported', actorId: hr.id, after: { path: ['document'], equals: 'draft' } } })).toBe(1);
+    await expect(m.exportMonth(hr, KEY, { kind: 'PAYSLIPS', format: 'zip', idempotencyKey: nextKey('export') })).rejects.toMatchObject({ code: 'PAYSLIPS_NOT_PUBLISHED' });
+    await expect(m.exportMonth({ ...hr, role: 'SYSTEM_ADMIN' }, KEY, { kind: 'SUMMARY', format: 'pdf', idempotencyKey: nextKey('export') })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(m.exportMonth(hr, '2026-08', { kind: 'SUMMARY', format: 'pdf', idempotencyKey: nextKey('export') })).rejects.toMatchObject({ code: 'NOTHING_CALCULATED' });
   });
 
   it('6. the approval: HR cannot, the preparer cannot, a wrong PIN, the hand check and moved figures are each refused', async () => {

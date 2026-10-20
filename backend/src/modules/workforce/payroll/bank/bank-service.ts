@@ -85,6 +85,7 @@ export interface BankDownload {
 export async function downloadBankFile(subject: AccessSubject, monthKey: string, body: { idempotencyKey: string }, now: Date = new Date()): Promise<BankDownload> {
   const ctx = await payrollActor(subject, 'payroll.pay');
   const month = await requireMonth(ctx.companyId, monthKey);
+  // A paid month still allows taking the file again (read only, audited), so PAID is allowed here.
   assertState(month, ['PUBLISHED', 'PAID'], 'BANK_FILE_NOT_AVAILABLE', 'The bank file opens once the payslips are published');
   const built = await buildBankFile(month);
   if (built.plan.cannotPay.length > 0) throw new ConflictError(`${built.plan.cannotPay.length} ${built.plan.cannotPay.length === 1 ? 'person has' : 'people have'} no bank account. Fix that first.`, 'PEOPLE_CANNOT_BE_PAID', { cannotPay: built.plan.cannotPay });

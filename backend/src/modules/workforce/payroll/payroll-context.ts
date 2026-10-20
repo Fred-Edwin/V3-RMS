@@ -43,7 +43,7 @@ export function assertNotLocked(month: Pick<MonthRow, 'state' | 'lockedAt'>): vo
 
 /** Every write names the state it is for. Another state answers 409 with the state in words, so the screen can reload. */
 export function assertState(month: Pick<MonthRow, 'state'>, allowed: readonly PayrollMonthState[], code: string, message: string): void {
-  if (month.state === 'PAID') assertNotLocked({ state: 'PAID', lockedAt: null });
+  if (month.state === 'PAID' && !allowed.includes('PAID')) assertNotLocked({ state: 'PAID', lockedAt: null });
   if (!allowed.includes(month.state)) throw new ConflictError(`${message} (the month is ${STATE_WORDS[month.state]}).`, code, { state: month.state });
 }
 
