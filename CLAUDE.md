@@ -25,7 +25,9 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | Document                        | Read When                                      |
 | ------------------------------- | ---------------------------------------------- |
 | `docs/PROJECT_STATUS.md`        | The owner's one-page state of the refactor — update its row when you finish a session |
-| `docs/FEATURE_REDO_PLAYBOOK.md` | Any feature work — the governing process       |
+| `docs/FEATURE_REDO_PLAYBOOK.md` | Any feature work — the governing process (pipeline, code and folder rules, learnings) |
+| `docs/process/templates/`       | Writing any session brief — start from the matching template (orchestrator start, segment review, spec, back end, front end) |
+| `docs/PARALLEL_WORKFLOW.md`     | Working in a lane (worktrees, ports, stacked branches, merge queue) |
 | `docs/ROADMAP.md`               | Deciding what to build next — the 10 modules, cross-module rules, order, Company/Branch plan, Assistant (AI) layers |
 | `docs/PRD.md`                   | Understanding what a feature is supposed to do |
 | `docs/DATA_MODEL.md`            | Writing any Prisma schema or database query    |
@@ -63,7 +65,10 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 ## Non-Negotiables (Read These Now)
 
 1. TypeScript strict mode is always on. No `any` types.
-2. Every API route has `authenticate` and `requireRole` middleware.
+2. Every API route has `authenticate` and an access check. Rebuilt features
+   (Inventory Central Store, Workforce) use `requireCapability(...)` from the
+   feature's one access table, never a new `requireRole` list; not-yet-rebuilt
+   legacy routes keep `requireRole`.
 3. Every repository query includes `siteId` in the where clause. (A Site is a
    branch or the Central Store; it was called Organization/`organizationId`. The
    database columns and the API, socket and token names still say `organization`
