@@ -203,6 +203,10 @@ export const applicationsRepository = {
       })
     ).map(toApplication),
 
+  /** Approved leave of named people over a range (the rota's lookup). The people were already scoped by the rota caller. */
+  approvedForPeople: async (employeeIds: readonly string[], from: NairobiDate, to: NairobiDate, db: Db = prisma): Promise<ApplicationRow[]> =>
+    (await db.leaveApplication.findMany({ where: { employeeId: { in: [...employeeIds] }, status: 'APPROVED', startDate: { lte: toDateColumn(to) }, endDate: { gte: toDateColumn(from) } } })).map(toApplication),
+
   /** Waiting and approved-or-waiting rows overlapping a range, for the calendar bars. */
   liveBetween: async (db: Db, filter: ListFilter, from: NairobiDate, to: NairobiDate): Promise<ApplicationRow[]> =>
     (

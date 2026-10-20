@@ -60,6 +60,8 @@ import {
   registerSecurity,
   registerNeedsYou,
   workforceNeedsYouRouter,
+  workforceLeaveRouter,
+  registerLeave,
   workforceSecurityRouter,
   workforceSessionGate,
   workforceCasualRouter,
@@ -154,6 +156,8 @@ apiRouter.use(workforceNotificationsRouter);
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
 apiRouter.use(workforceNeedsYouRouter);
 apiRouter.use(workforceTimesheetsRouter);
+registerLeave(); // the rota's leave lookup and the Leave source of Needs you (Segment 4)
+apiRouter.use(workforceLeaveRouter);
 apiRouter.use(workforcePayrollRouter);
 apiRouter.use(workforceCasualRouter);
 apiRouter.use(workforcePayslipsRouter);

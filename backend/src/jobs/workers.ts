@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { bullMqConnection, notificationQueue, reportQueue, commsQueue } from '../config/queues';
 import { ATTENDANCE_AUTO_CLOSE_JOB, ensureAttendanceAutoCloseSchedule, runAttendanceAutoCloseJob } from './attendance-auto-close-job';
 import { TIMESHEETS_SWEEP_JOB, ensureTimesheetsSweepSchedule, runTimesheetsSweepJob } from './timesheets-sweep-job';
+import { LEAVE_ESCALATION_JOB, ensureLeaveEscalationSchedule, runLeaveEscalationJob } from './leave-escalation-job';
 import { PAYROLL_ESTIMATE_JOB, PAYROLL_SWEEP_JOB, ensurePayrollSchedules, runPayrollEstimateJob, runPayrollSweepJob } from './payroll-sweep-job';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
@@ -94,6 +95,11 @@ export const reportWorker = new Worker(
 
     if (job.name === TIMESHEETS_SWEEP_JOB) {
       await runTimesheetsSweepJob();
+      return;
+    }
+
+    if (job.name === LEAVE_ESCALATION_JOB) {
+      await runLeaveEscalationJob();
       return;
     }
 
@@ -202,6 +208,9 @@ export const startWorkers = (): void => {
     });
     void ensureTimesheetsSweepSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the timesheets sweep schedule');
+    });
+    void ensureLeaveEscalationSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the leave escalation schedule');
     });
     void ensurePayrollSchedules(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the payroll schedules');

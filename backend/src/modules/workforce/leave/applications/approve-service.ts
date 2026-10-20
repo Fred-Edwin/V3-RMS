@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { ConflictError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
-import { nairobiToday } from '../../_shared/time/nairobi-time';
+import { nairobiToday, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { clearCellsForLeave, noteLeaveCellsCleared } from '../../rota/leave/clear-cells-for-leave';
 import { balancesOf } from '../balances/balance-service';
@@ -58,7 +58,7 @@ export async function approveLeave(subject: AccessSubject, id: string, body: App
   await verifySignerPin(subject.id, body.pin, now.getTime());
 
   const head = person.departmentId ? await peopleRepository.headOf(person.departmentId, today) : null;
-  let cleared: string[] = [];
+  let cleared: NairobiDate[] = [];
   const done = await runAudited<ApproveResult>(async (tx) => {
     const locked = await lockedApplication(tx, ctx.companyId, app.id);
     await assertWaitingAndFresh(locked, body.expectedVersion);

@@ -1,6 +1,8 @@
 import { ValidationError } from '../../../../utils/errors';
 import { addDays, instantAt, nairobiToday, parseClockTime, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
+import { onLeaveAt } from '../../leave/reads/away-on';
+import { resolveActor } from '../../people/people-context';
 import { gridScope } from '../../rota/rota-scope';
 import { weeksRepository } from '../../rota/weeks/weeks-repository';
 import { attendanceRulesFor } from '../days/day-rules';
@@ -41,5 +43,8 @@ export async function todayBoard(subject: AccessSubject, query: BoardQuery, now:
     daysRepository.loadDayData(scope.siteId, addDays(date, -1), date, null),
   ]);
   const asOf = date === today ? now : instantAt(addDays(date, 1), parseClockTime('00:00')); // a past day is judged as it ended
-  return buildBoard({ siteId: scope.siteId, date, people, departments, data, rules, now: asOf });
+  const view = buildBoard({ siteId: scope.siteId, date, people, departments, data, rules, now: asOf });
+  // Segment 4: the "On leave" tile reads approved leave (names come from GET /workforce/leave/away).
+  const away = await onLeaveAt(scope.siteId, (await resolveActor(subject)).companyId, date, departmentIds);
+  return { ...view, tiles: { ...view.tiles, onLeave: { count: away.count, available: true } } };
 }
