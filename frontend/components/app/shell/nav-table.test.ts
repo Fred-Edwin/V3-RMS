@@ -572,12 +572,13 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     // and Store Manager's Home already is the board (owner, 18 Oct 2026), with a "See everyone today" link to the full page.
     // "Requests" (slice 4a) is the manager's inbox for Report a problem; Paper's sidebar does not draw it. The Accountant reads Timesheets and the
     // closed report (Paper step 5 names the Accountant), so Timesheets is in their menu too (decisions-4a-timesheets-frontend.md).
-    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    // "My notices" / "Conduct" under Me (Segment 5): the notices a person was given, for every role with `discipline.read_own`.
+    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'My notices'] },
     // "Casual pay" (Segment 3) is where a Branch Manager, Store Manager or the Director decides a casual pay sheet; Paper reaches it from the Home "Needs you" card (Segment 6).
-    MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
-    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'My notices'] },
+    STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'My notices'] },
+    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips', 'Conduct'] },
+    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'My notices'] },
   };
 
   /** The menu a role would have with every Workforce page built: the rows with `notBuilt` switched on, from the table itself. */
@@ -613,7 +614,8 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       // Workforce, People (not the Accountant's), Settings (Rules, built in segment 1B) and Me (My payslips, Segment 3).
       expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(role === 'ACCOUNTANT' ? 3 : 4);
       const hasOrganisation = role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
-      if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation'] : ['Employees']);
+      // Conduct (Segment 5) is built: it sits after the People pages that exist.
+      if (role !== 'ACCOUNTANT') expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation', 'Conduct'] : ['Employees', 'Conduct']);
       if (hasOrganisation) expect(item(groups, 'wf-organisation')?.href).toBe('/app/workforce/organisation');
       else expect(item(groups, 'wf-organisation')).toBeUndefined();
       expect(item(groups, role === 'ACCOUNTANT' ? 'wf-employees-acc' : 'wf-employees')?.href).toBe('/app/workforce/employees');
@@ -633,22 +635,22 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   it('shows no Workforce Home to the System Admin, the Store Attendant, floor staff or HR-less roles', () => {
     // They do have My payslips (Segment 3): payslips do not wait for the new clock.
     for (const role of ['STORE_ATTENDANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] as AppRole[]) {
-      expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))).filter((k) => k.startsWith('wf-')), role).toEqual(['wf-staff-my-payslips']);
+      expect(keys(navFor(ctxFor(role, { can: EVERYTHING }))).filter((k) => k.startsWith('wf-')), role).toEqual(['wf-staff-my-payslips', 'wf-staff-conduct']);
     }
     // The System Admin has no Workforce Home; its Workforce rows are the switch for the new clock (nobody else has it) and Rules, which it reads (1B).
     expect(keys(navFor(ctxFor('SYSTEM_ADMIN', { can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual(['wf-attendance-switch', 'wf-rules-admin']);
     for (const role of ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] as AppRole[]) expect(keys(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-attendance-switch');
     // With the new clock off, a department head gets nothing new either.
-    expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual(['wf-head-casuals', 'wf-staff-my-payslips']);
+    expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING }))).filter((k) => k.startsWith('wf-'))).toEqual(['wf-head-casuals', 'wf-staff-my-payslips', 'wf-staff-conduct']);
   });
 
   it('gives floor staff a Home link, and a head the Today board and the Rota, only where the new clock is on', () => {
     const wf = (groups: NavGroup[]) => keys(groups).filter((k) => k.startsWith('wf-'));
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT'] as AppRole[]) {
-      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }))), role).toEqual(['wf-staff-home', 'wf-staff-my-time', 'wf-staff-my-payslips']);
-      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: false }))), role).toEqual(['wf-staff-my-payslips']);
+      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }))), role).toEqual(['wf-staff-home', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
+      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: false }))), role).toEqual(['wf-staff-my-payslips', 'wf-staff-conduct']);
     }
-    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips']);
+    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
     // The links open: the route gate lets the same people in.
     expect(isAllowedPath('/app/workforce', 'WAITER', false)).toBe(true);
   });
@@ -689,9 +691,10 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
 
   it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {
     const only = (rows: readonly NavRow[]) => keys(navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }), rows)).filter((k) => k.startsWith('wf-'));
-    const built = NAV_ROWS.map((r) => (r.key === 'wf-conduct' ? { ...r, notBuilt: undefined } : r));
-    expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-rules', 'wf-my-payslips']);
-    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-conduct', 'wf-rules', 'wf-my-payslips']);
+    // Leave is the example: its page is not built yet (Conduct, built in Segment 5, no longer carries the flag).
+    const built = NAV_ROWS.map((r) => (r.key === 'wf-leave' ? { ...r, notBuilt: undefined } : r));
+    expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-conduct', 'wf-rules', 'wf-my-payslips', 'wf-my-conduct']);
+    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-leave', 'wf-conduct', 'wf-rules', 'wf-my-payslips', 'wf-my-conduct']);
   });
 
   it('offers a badge slot on Waiting for you, Timesheets and Leave, drawn only when a slice feeds a count', () => {
@@ -706,13 +709,13 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     const head = wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true }), everything));
     expect(head.map((g) => g.label)).toEqual(['HOME', 'TEAM', 'ME']);
     expect(head[1]?.items.map((i) => i.label)).toEqual(['Waiting for you', 'Team today', 'Rota', 'Casuals']);
-    expect(head[2]?.items.map((i) => i.label)).toEqual(['My time', 'My leave', 'My payslips', 'Profile and security']);
+    expect(head[2]?.items.map((i) => i.label)).toEqual(['My time', 'My leave', 'My payslips', 'Conduct', 'Profile and security']);
     expect(item(head, 'wf-staff-my-time')?.subItems?.map((s) => s.label)).toEqual(['Hours this month', 'My rota', 'My requests']);
     // A member who is not a head has no Team group.
     const staff = wf(navFor(ctxFor('WAITER', { can: EVERYTHING, attendanceOn: true }), everything));
     expect(staff.map((g) => g.label)).toEqual(['HOME', 'ME']);
     // Today (new clock on) a head gets the Home link, Team today and the Rota; the rest of the drawer waits for its slices.
-    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true }))).flatMap((g) => g.items.map((i) => i.key))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips']);
+    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true }))).flatMap((g) => g.items.map((i) => i.key))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
   });
 
   it('shows the Timesheets, Requests and My time rows only where the branch’s new clock is on, and every link opens for the role that sees it', () => {

@@ -166,6 +166,18 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'HR_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
+  // Conduct (Segment 5). The desk (the list, the issue panel, the appeal screen) is for the roles that hold `discipline.read`: the Branch Manager,
+  // the Store Manager, HR and the Director. The Accountant and a department head do not. The API decides what each can do and answers 404 for a
+  // notice outside their reach.
+  if (under('/app/workforce/conduct')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
+  }
+  // A person's own notices, the sign and appeal pages, and the witness card: everyone with a staff file (`discipline.read_own`), so every
+  // role but the System Admin, who has no file.
+  if (under('/app/conduct')) {
+    return role !== 'SYSTEM_ADMIN';
+  }
+
   // My time, My rota and My requests (slice 4a): everyone who clocks in, the floor staff and the Store Attendant included, and the desktop
   // roles' own time. The System Admin has no clock.
   if (under('/app/workforce/my-time')) {

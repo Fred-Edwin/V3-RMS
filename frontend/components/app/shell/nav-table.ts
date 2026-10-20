@@ -294,7 +294,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
   { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], match: ['/app/workforce/organisation'] },
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
-  { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, notBuilt: true },
+  { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, match: ['/app/workforce/conduct'] },
   // PAY (the Branch Manager and Store Manager see no pay)
   // Payroll (segment 2) replaces "Pay runs". It shows only once Payroll has a month (a branch is on the new clock), so a company with every switch off sees the old payroll menu unchanged.
   { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], needsPayroll: true, match: ['/app/workforce/payroll'] },
@@ -307,6 +307,10 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
   { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, notBuilt: true },
   { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP },
+  // Conduct (Segment 5): the notices a person was given. A Branch Manager, Store Manager, HR or Director who is also a staff member reads "My notices"
+  // (their desk link is "Conduct" under People); the Accountant has no desk link, so theirs reads "Conduct".
+  { key: 'wf-my-conduct', label: 'My notices', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: WF_PEOPLE, match: ['/app/conduct'] },
+  { key: 'wf-my-conduct-accountant', label: 'Conduct', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: [ACCOUNTANT], match: ['/app/conduct'] },
 
   // ── The phone drawer of floor staff and department heads (Paper Chapter 1 step 06: Home, Job, Team, Inbox, Me) ──────────────────
   // Not shown: the Workforce Home link for floor staff waits for Attendance (slice 3), which gives their Home a clock card. Job and Inbox
@@ -334,6 +338,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   },
   { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: SHIFT_STAFF, notBuilt: true },
   { key: 'wf-staff-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
+  { key: 'wf-staff-conduct', label: 'Conduct', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: [...SHIFT_STAFF, STORE_ATTENDANT], match: ['/app/conduct'] },
   { key: 'wf-staff-profile', label: 'Profile and security', group: 'wf-me', icon: ico.shield, newHref: '/app/profile', roles: SHIFT_STAFF, notBuilt: true },
 ];
 
