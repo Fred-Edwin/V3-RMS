@@ -1,6 +1,6 @@
 import { AppError, ForbiddenError } from '../../../../utils/errors';
 import { comparePin } from '../../../../utils/password';
-import { announceWrongThreshold, attemptWithPause, resetPinTries as resetTries } from './pin-door';
+import { announceWrongThreshold, attemptWithPause, resetPinTries as resetTries, type PinPurpose } from './pin-door';
 import { pauseSeconds } from './pin-pause';
 import { signerPinRepository } from './signer-pin-repository';
 
@@ -20,14 +20,14 @@ export interface PinSignature {
   signedAt: Date;
 }
 
-export async function verifySignerPin(userId: string, pin: string, now: number = Date.now()): Promise<PinSignature> {
+export async function verifySignerPin(userId: string, pin: string, now: number = Date.now(), purpose: PinPurpose = 'SIGNER'): Promise<PinSignature> {
   const hash = await signerPinRepository.hashOf(userId);
   if (hash === null) throw new ForbiddenError('Set your signing PIN first', 'PIN_NOT_SET');
   const at = new Date(now);
-  const outcome = await attemptWithPause(userId, 'SIGNER', () => comparePin(pin, hash), at);
+  const outcome = await attemptWithPause(userId, purpose, () => comparePin(pin, hash), at);
   if (outcome.kind === 'SLOW') throw new AppError(429, 'PIN_SLOWED', `Wait ${outcome.wait} seconds, then try again.`, { waitSeconds: outcome.wait });
   if (outcome.kind === 'WRONG') {
-    if (outcome.alert) await announceWrongThreshold({ userId, purpose: 'SIGNER', count: outcome.count, at });
+    if (outcome.alert) await announceWrongThreshold({ userId, purpose, count: outcome.count, at });
     const wait = pauseSeconds(outcome.count);
     throw new ForbiddenError('That PIN is not right. Try again.', 'PIN_INVALID', wait > 0 ? { waitSeconds: wait } : undefined);
   }
