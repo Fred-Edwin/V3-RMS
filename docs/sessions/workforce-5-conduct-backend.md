@@ -33,7 +33,7 @@ Two other back-end sessions (Leave, Shared parts B) run in parallel and edit the
 **Out:** verify page, audit read screens, all front end.
 
 ### How this session runs: TWO PARTS (read `docs/sessions/workforce-two-part-method.md` in full first)
-**Part 1 builds only** (changed-file checks, no full suite, no proofs, no docs pass), then you **stop**, write `docs/features/workforce/handoff-5-conduct-backend.md` and `checklist-5-conduct-backend.md`, print the starter prompt in a code block, and tell the owner to clear the context. **Part 2** (fresh context) is the "Gates and proof" section below. Everything in "Gates and proof" is part 2 only.
+**Part 1 builds only** (changed-file checks, no full suite, no proofs, no docs pass), then you **stop**, write `docs/features/workforce/handoff-5-conduct-backend.md` and `checklist-5-conduct-backend.json`, print the starter prompt in a code block, and tell the owner to clear the context. **Part 2** (fresh context) is the "Gates and proof" section below. Everything in "Gates and proof" is part 2 only.
 
 ### Tidy and cost
 Files aim for 250 lines or fewer, never over 350 (tests 450); router, controller, service, repository, validators, types separate; the module `index.ts` is its only public door; no catch-all `utils`; no folder over 12 files; never copy another module's code. Compare `pnpm check:imports` with the baseline before your first commit. No subagents; read only what is named; run only the tests for what you change while iterating, then the full suite and `pnpm build` once at the end; commit after each step.

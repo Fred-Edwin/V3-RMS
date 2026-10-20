@@ -8,7 +8,7 @@ Working document. Delete it when Workforce ships. Every build brief points here.
 - **Do not** run the full test suite, the three time-zone runs, `pnpm build`, the HTTP proof, the end-to-end check, the migration proof copy or the docs pass in part 1.
 - Read each named file once, in pieces if large; never re-read; do not paste long output back into your own context.
 - Commit after each scope item with `git add <explicit paths>`.
-- Keep the **done checklist** at `docs/features/workforce/checklist-<session>.md`: one line per scope item, `[ ]` or `[x]`, in the brief's order. Update it as you finish items.
+- Keep the **done checklist** at `docs/features/workforce/checklist-<session>.json`: a JSON array, one object per scope item in the brief's order, shaped `{ "id": 1, "item": "<short name>", "built": false, "verified": false, "note": "" }`. Edit it with the Edit tool and change only the `built`, `verified` and `note` fields: never rewrite, reorder or delete items, and never remove an item to make the list look complete. Part 1 sets `built`; part 2 sets `verified` only after the gate that proves it has run.
 - **The stop rule:** when every scope item is built and committed, STOP. Do not start part 2 in the same context, even if there seems to be room. (If the owner asks for an early handover, do the same steps at once.)
 
 ## The stop: write the handoff and the starter prompt
@@ -21,7 +21,7 @@ Working document. Delete it when Workforce ships. Every build brief points here.
 2. The seven database-flow test files that already failed on the base (attendance, payroll x2, payslips, timesheets and others) are known: re-run only those at the end and confirm the failing count has not grown. Say which test files ran and how many tests passed; **"tests pass" is not a report**.
 3. The migration proof on a copy of the lane database (legacy tables identical, a second run changes nothing), the per-role HTTP proof, and the one end-to-end flow checked with the read-only Postgres MCP; then tear down proof data and leave the lane's attendance switch off.
 4. Docs: module README, `DATA_MODEL.md`, `API_CONTRACT.md`, the Workforce README status row, `docs/PROJECT_STATUS.md`; edit with the Edit tool (never append with Bash).
-5. Tick the checklist; the final report is built from it.
+5. Update the checklist's `verified` fields; the final report's recap is built from it (any item with `built` or `verified` false must be named and explained).
 
 ## Rules that hold in both parts
 - **No cheating to go green:** fix the cause. Never delete a test, skip an assertion, loosen a check, or catch-and-ignore an error to pass a gate.
