@@ -6,8 +6,7 @@ import { cn } from '@/lib/cn';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { SearchInput } from '@/components/ui2/search-input';
 
-import { ErrorBlock, FilterBar, FilterChip, ListSkeleton, OfflineStrip, EmptyState, STATES_COPY, fillCopy } from '../../_shared';
-import { useNow } from '../hooks/use-now';
+import { ErrorBlock, FilterBar, FilterChip, ListSkeleton, OfflineStrip, EmptyState, STATES_COPY, fillCopy, useNow } from '../../_shared';
 import { useSeenOnLeave } from '../hooks/use-seen-on-leave';
 import { cardTitle, footerWords, kindCounts, kindLabel, liveText, matchesSearch } from '../lib/needs-you-words';
 import type { NeedsYouState } from '../hooks/use-needs-you';

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
 import { useAttendanceOn } from '@/features/workforce/attendance/shell';
 import { useNeedsYouBadges } from '@/features/workforce/needs-you';
+import { useWorkforceUnread } from '@/features/workforce/notifications';
 import { usePayrollOn } from '@/features/workforce/payroll/shell';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
@@ -102,7 +103,9 @@ export function useShellNav(): ShellNav {
   const attendanceOn = useAttendanceOn(role, isDepartmentHead);
   // Whether Payroll has a month for the company: the Payroll row waits for it (asked of Payroll itself, so it holds for the Accountant too).
   const payrollOn = usePayrollOn(role);
-  const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
+  // The Inbox badge adds the unread Workforce notifications to the old message counts (Segment 6a).
+  const unreadNotifications = useWorkforceUnread(role !== null);
+  const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount) + unreadNotifications;
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
   // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
