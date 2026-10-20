@@ -49,7 +49,7 @@ export async function previewPdf(subject: AccessSubject, id: string, now: Date =
     cashHolder: null,
     rate: row.rate.toFixed(2),
     lines: row.lines.map((l): SheetDocLine => ({ name: l.worker.fullName, idMasked: maskId(l.worker.nationalId), worked: workedOf(l.startMinute, l.endMinute), hours: hoursOf(l.minutes), amount: l.amount.toFixed(2), received: null })),
-    corrections: row.corrections.map((c) => ({ text: `Correction for ${longDay(fromDateColumn(c.originalDate))}, KES ${kes(c.amount.toFixed(2)).replace('-', '−')}, ${c.reason}`, amount: c.amount.toFixed(2) })),
+    corrections: row.corrections.map((c) => ({ text: `Correction for ${longDay(fromDateColumn(c.originalDate))}, KES ${kes(c.amount.toFixed(2))}, ${c.reason}`, amount: c.amount.toFixed(2) })),
     total: sheetTotal(row),
     created: now,
     qrUrl: null,
@@ -81,7 +81,7 @@ export async function documentPdf(subject: AccessSubject, id: string): Promise<{
       const r = received.get(l.lineId);
       return { name: l.name, idMasked: l.idMasked, worked: workedOf(l.startMinute, l.endMinute), hours: hoursOf(l.minutes), amount: l.amount, received: r?.receivedAt && r.receivedName ? { name: r.receivedName, at: clockOf(r.receivedAt.toISOString()) ?? '' } : null };
     }),
-    corrections: snapshot.corrections.map((c) => ({ text: `Correction for ${longDay(c.originalDate)}, KES ${kes(c.amount).replace('-', '−')}, ${c.reason}`, amount: c.amount })),
+    corrections: snapshot.corrections.map((c) => ({ text: `Correction for ${longDay(c.originalDate)}, KES ${kes(c.amount)}, ${c.reason}`, amount: c.amount })),
     total: snapshot.total,
     created: new Date(Math.max(row.approvedAt.getTime(), ...stamps)),
     qrUrl: `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}${verifyPath(cpsNumber(row.number), row.documentHash)}`,

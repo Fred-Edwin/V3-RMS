@@ -103,5 +103,6 @@ export const shillings = (amount: string, decimals: 0 | 2 = 0): string => {
   const negative = amount.startsWith('-');
   const [whole = '0', cents = '00'] = amount.replace('-', '').split('.');
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${negative ? '−' : ''}${grouped}${decimals === 2 ? `.${cents.padEnd(2, '0')}` : ''}`;
+  // A plain hyphen-minus: the built-in PDF font cannot draw U+2212 and prints it as a quote mark.
+  return `${negative ? '-' : ''}${grouped}${decimals === 2 ? `.${cents.padEnd(2, '0')}` : ''}`;
 };
