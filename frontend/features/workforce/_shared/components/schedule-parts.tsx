@@ -5,7 +5,7 @@ import * as React from 'react';
 import { cn } from '@/lib/cn';
 
 import { FOCUS_RING, MOTION, PRESSED, onHover } from '../lib/interaction';
-import { SHIFT_PAINT, SHIFT_TONES, type ShiftTone } from '../lib/shift-palette';
+import { SHIFT_PAINT, SHIFT_TONES, type ShiftChipTone, type ShiftTone } from '../lib/shift-palette';
 import { nextInGroup } from '../lib/roving';
 
 /**
@@ -36,7 +36,7 @@ export function ShiftChip({
   ariaLabel,
   className,
 }: {
-  tone: ShiftTone;
+  tone: ShiftChipTone;
   /** "06–14", or the long "Morning 06:00 to 14:00". */
   label: string;
   long?: boolean;
@@ -154,7 +154,7 @@ export function ShiftSwatchPicker({
 }
 
 export interface ShiftGridCell {
-  tone: ShiftTone;
+  tone: ShiftChipTone;
   label: string;
   long?: boolean;
   flagged?: boolean;

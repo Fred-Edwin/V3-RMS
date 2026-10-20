@@ -36,6 +36,7 @@ export type WorkforceCapability =
   | 'leave.acknowledge'
   | 'leave.read'
   | 'leave.approve'
+  | 'leave.balance_adjust'
   | 'employee.read_basic'
   | 'employee.read_sensitive'
   | 'employee.write_basic'
