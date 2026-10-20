@@ -59,7 +59,12 @@ export function NewCasualForm({ onAdded, onExisting }: { onAdded: (worker: Worke
           {error}
         </p>
       ) : null}
-      <PhoneButton size="sm" disabled={!ready || busy} onClick={() => void submit()}>
+      {!ready && !busy ? (
+        <p id="new-casual-reason" role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+          {name.trim().split(/\s+/).length < 2 ? "Enter the worker's full name." : id.trim().length < 5 ? 'Enter the national ID number.' : again.trim() === '' ? 'Type the ID number again to check it.' : 'The two ID numbers are different.'}
+        </p>
+      ) : null}
+      <PhoneButton size="sm" disabled={!ready || busy} aria-describedby={!ready && !busy ? 'new-casual-reason' : undefined} onClick={() => void submit()}>
         {busy ? 'Adding…' : 'Add casual'}
       </PhoneButton>
     </div>
