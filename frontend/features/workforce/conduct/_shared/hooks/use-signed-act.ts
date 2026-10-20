@@ -13,7 +13,7 @@ import { conductError, waitSecondsOf } from '../lib/conduct-words';
  * The idempotency key is made once for the open screen and used again for a retry after a lost answer (the same request twice returns
  * the first result); it is renewed after any answer the server gave, because the body can differ on the next try (a corrected code).
  */
-export type ActProblem = { kind: 'wrong' | 'slowed' | 'notSet' | 'refused'; message: string };
+export type ActProblem = { kind: 'wrong' | 'slowed' | 'notSet' | 'refused'; message: string; /** The server's own code, for a race the screen explains ("ALREADY_SIGNED"). */ code: string };
 
 export function useSignedAct() {
   const [busy, setBusy] = React.useState(false);
@@ -39,7 +39,7 @@ export function useSignedAct() {
         const seconds = waitSecondsOf(error);
         if (seconds > 0) setWait(seconds);
         const kind: ActProblem['kind'] = code === 'PIN_INVALID' ? 'wrong' : code === 'PIN_SLOWED' ? 'slowed' : code === 'PIN_NOT_SET' ? 'notSet' : 'refused';
-        setProblem({ kind, message: kind === 'slowed' && seconds > 0 ? `Wait ${seconds} seconds, then try again.` : conductError(error, 'That did not go through. Nothing was changed.') });
+        setProblem({ kind, code, message: kind === 'slowed' && seconds > 0 ? `Wait ${seconds} seconds, then try again.` : conductError(error, 'That did not go through. Nothing was changed.') });
         // The server answered (it did not time out), so a fresh key keeps the next try from being read as a changed copy of this one.
         if (error instanceof ApiError && error.statusCode !== 0) key.current = newIdempotencyKey();
         return { ok: false };
