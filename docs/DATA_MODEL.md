@@ -3247,7 +3247,21 @@ New tables only; the legacy `payslips` table is never altered. Models in `backen
 | `payroll_estimates` | The Director's estimate of a month, written by the nightly job: `as_of`, `computed_at`, `data` | unique `(company_id, month_key)` |
 | `payroll_request_keys` | A write that already happened under this idempotency key and its response | unique `(company_id, key)` |
 
-Part 2 adds the enum values `PUBLISHED` and `PAID` (month) and `PUBLISHED` and `LOCKED` (payslip) with `ALTER TYPE ... ADD VALUE`, and must extend the check `payroll_months_approved_has_signature`.
+### 14a. Part 2 (Segment 2B, migrations `20261020030920_workforce_payroll_part2` and `20261020030921_workforce_payroll_part2_lock`)
+
+`PayrollMonthState` gains `PUBLISHED` and `PAID`. `payroll_months` gains `published_at`, `published_by_id`, `paid_at`, `paid_by_id`, `locked_at`. The payslip enum is unchanged (status is derived from the month; decision X1). New sequence `payroll_payslip_seq` (the `PS-nnnn` number; gaps allowed).
+
+| Table | Purpose | Notes |
+|---|---|---|
+| `payroll_publications` | The payslip number of one person's month: `number` (from the sequence), `published_at` | unique `(month_id, employee_id)` and unique `number`; a correction keeps the number |
+| `pay_bank_files` | One download of the bank file: `version`, `format_id`, `file_name`, `hash`, `people`, `total`, `state` (`DOWNLOADED`, `VOIDED`), who and when, `voided_at`, `void_reason`, `idempotency_key` | the file itself is never stored; unique `(month_id, downloaded_by_id, idempotency_key)`; CHECKs: a voided row has a time and a reason |
+| `payroll_exports` | The anchor of the audit entry for an export, its idempotency key and the rate-limit count: `kind`, `format`, `document_number`, `revision` | unique `(user_id, idempotency_key)`; not covered by the lock |
+
+Payslip rows now also hold corrections: a new row with `version` n+1 in the same run, `replaces_version`, `diff`, `reason`, `corrected_by_id`, `corrected_at`; rows are never updated. `payroll_snapshots` gets `revision` 2, 3, ... for corrections after approval (revision 1 is the approval). Snapshot JSON additions are in decision X4.
+
+CHECK constraints: `payroll_months_approved_has_signature` now covers `TO_PUBLISH`, `PUBLISHED` and `PAID`; `published_has_publisher`; `paid_is_locked` (`state = 'PAID'` exactly when `locked_at` is set, and a paid month has who and when); `pay_bank_files_void_has_reason`, `pay_bank_files_total_nonneg`.
+
+**The lock.** Trigger function `payroll_locked_month_guard` (BEFORE INSERT, UPDATE and DELETE) on `payroll_months`, `payroll_month_sites`, `payroll_runs`, `payroll_payslips`, `payroll_payslip_lines`, `payroll_review_lines`, `payroll_adjustments`, `payroll_left_out`, `payroll_snapshots`, `pay_bank_files`, `payroll_publications` refuses any write once the month's `locked_at` is set (`MONTH_LOCKED: ...`, SQLSTATE 23001). The dev teardown door `set_config('wendo.allow_payroll_edit','on',true)` opens it too.
 
 ---
 

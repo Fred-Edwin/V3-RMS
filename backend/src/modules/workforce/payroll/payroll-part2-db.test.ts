@@ -197,14 +197,14 @@ describe.skipIf(!enabled)('Payroll part 2 flows in the database', () => {
     await expect(m.correctPayslip(accountant, KEY, alice.payslipId, { ...body, pin: '0000' })).rejects.toMatchObject({ code: 'PIN_INVALID' });
     await expect(m.correctPayslip(accountant, KEY, alice.payslipId, { ...body, expectedVersion: 2 })).rejects.toMatchObject({ code: 'PAYSLIP_CHANGED' });
     await expect(m.correctPayslip(director, KEY, alice.payslipId, body)).rejects.toMatchObject({ statusCode: 403 });
-    const done = await m.correctPayslip(accountant, KEY, alice.payslipId, body);
+    const done = await m.correctPayslip(hr, KEY, alice.payslipId, body); // HR's correction is filed under HR's category, and voids the file
     expect(done).toMatchObject({ version: 2, netBefore: NETS.alice, netAfter: NETS.aliceFixed, bankFileVoided: true });
-    expect(await m.correctPayslip(accountant, KEY, alice.payslipId, body)).toMatchObject({ repeat: true, version: 2 });
+    expect(await m.correctPayslip(hr, KEY, alice.payslipId, body)).toMatchObject({ repeat: true, version: 2 });
     await expect(m.correctPayslip(accountant, KEY, alice.payslipId, { ...body, idempotencyKey: key('correct') })).rejects.toMatchObject({ code: 'PAYSLIP_CHANGED' }); // version 1 is no longer the current one
 
     const versions = await m.prisma.payrollPayslip.findMany({ where: { monthId: (await month()).id, employeeId: people['Alice'] as string }, orderBy: { version: 'asc' } });
     expect(versions.map((v) => [v.version, v.net.toFixed(2)])).toEqual([[1, NETS.alice], [2, NETS.aliceFixed]]);
-    expect(versions[1]).toMatchObject({ replacesVersion: 1, reason: body.reason, correctedById: accountant.id });
+    expect(versions[1]).toMatchObject({ replacesVersion: 1, reason: body.reason, correctedById: hr.id });
     const old = await m.payslipDetail(hr, KEY, alice.payslipId);
     expect(old).toMatchObject({ version: 1, replacedBy: 2 });
     expect(old.versions).toHaveLength(2);
@@ -299,11 +299,13 @@ describe.skipIf(!enabled)('Payroll part 2 flows in the database', () => {
 
     const row = await month();
     const copy = await m.prisma.payrollPayslip.findFirstOrThrow({ where: { monthId: row.id } });
-    const { id: _id, createdAt: _at, ...rest } = copy;
+    const rest: Partial<typeof copy> = { ...copy };
+    delete rest.id;
+    delete rest.createdAt;
     const direct: [string, () => Promise<unknown>][] = [
       ['month', () => m.prisma.payrollMonth.update({ where: { id: row.id }, data: { state: 'PUBLISHED', lockedAt: null } })],
       ['month delete', () => m.prisma.payrollMonth.delete({ where: { id: row.id } })],
-      ['payslip version', () => m.prisma.payrollPayslip.create({ data: { ...rest, input: rest.input as object, diff: undefined, version: 99 } })],
+      ['payslip version', () => m.prisma.payrollPayslip.create({ data: { ...(rest as typeof copy), id: undefined, createdAt: undefined, input: copy.input as object, diff: undefined, version: 99 } })],
       ['adjustment', () => m.prisma.payrollAdjustment.create({ data: { monthId: row.id, employeeId: copy.employeeId, siteId, kind: 'ALLOWANCE', label: 'x', amount: 1, reason: 'x', idempotencyKey: 'x', createdById: hr.id } })],
       ['bank file', () => m.prisma.payrollBankFile.create({ data: { monthId: row.id, version: 9, formatId: 'x', fileName: 'x', hash: 'x', people: 1, total: 1, downloadedById: hr.id, downloadedAt: new Date(), idempotencyKey: 'x' } })],
       ['bank file void', () => m.prisma.payrollBankFile.updateMany({ where: { monthId: row.id }, data: { state: 'VOIDED', voidedAt: new Date(), voidReason: 'x' } })],

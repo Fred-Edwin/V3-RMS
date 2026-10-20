@@ -16,7 +16,7 @@ export interface PdfColumn {
  */
 export const MAX_TABLE_COLUMNS = 7;
 
-const FIXED = { person: 150, site: 78, basic: 58, overtime: 54, gross: 60, other: 54, net: 64 } as const;
+const FIXED = { person: 140, site: 78, basic: 58, overtime: 64, gross: 60, other: 54, net: 64 } as const;
 const MIN_TABLE_WIDTH = 40;
 
 /** Person, Site, Basic, Overtime, Gross, one column per statutory table in the Accountant's order, Other, Net pay. Widths add up to the page. */

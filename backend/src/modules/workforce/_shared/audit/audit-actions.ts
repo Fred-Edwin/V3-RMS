@@ -95,7 +95,7 @@ export const AUDIT_ACTIONS = {
   'payroll.published': ['PAY_RUN_PREPARE'], // HR published the approved month: document number, payslips issued
   'payroll.payslip_corrected': ['PAY_RUN_PREPARE', 'PAY_RUN_DECIDE'], // HR or the Accountant: kind, old and new figures, reason
   'payroll.bank_file_downloaded': ['PAY_RUN_DECIDE'], // version, file name, people, total, hash; a repeat after Paid is marked `again`
-  'payroll.bank_file_voided': ['PAY_RUN_DECIDE'], // a correction or a changed account moved the file
+  'payroll.bank_file_voided': ['PAY_RUN_PREPARE', 'PAY_RUN_DECIDE'], // a correction (by HR or the Accountant) or a changed account moved the file
   'payroll.marked_paid': ['PAY_RUN_DECIDE'], // the Accountant locked the month
   'payroll.exported': ['PAY_RUN_PREPARE', 'PAY_RUN_DECIDE'], // kind, format, month, document number or draft, revision
   // someone looked at something sensitive (written when it is not the person's own)

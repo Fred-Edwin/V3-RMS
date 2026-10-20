@@ -79,7 +79,7 @@ export function renderPayslip(model: PayrollModel, p: SnapshotPayslip): Promise<
     doc.save().lineWidth(1.5).strokeColor(PALETTE.navy).rect(W - M - 190, 68, 100, 20).stroke().restore();
     put(doc, 'CORRECTED', W - M - 190, 73, { font: 'Times-Bold', size: 9, color: PALETTE.navy, width: 100, align: 'center', spacing: 1.2 });
     const when = model.correctedAt.get(p.employeeId);
-    put(doc, `Version ${version} · replaces version ${version - 1}${when ? ` of ${longStamp(when).split(',')[0]}` : ''}`, M, 74, { font: 'Times-Italic', size: 8.5, color: PALETTE.muted, width: CW - 120, align: 'right' });
+    put(doc, `Version ${version} · replaces version ${version - 1}${when ? ` of ${longStamp(when).split(',')[0]}` : ''}`, M, 74, { font: 'Times-Italic', size: 8.5, color: PALETTE.muted, width: CW - 210, align: 'left' });
   }
   hline(doc, 96, M, M + CW, PALETTE.rule, 0.75);
 

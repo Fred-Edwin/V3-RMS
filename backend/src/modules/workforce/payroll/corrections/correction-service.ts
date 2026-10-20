@@ -8,7 +8,7 @@ import { bankRepository } from '../bank/bank-repository';
 import type { PersonInput } from '../engine/engine.types';
 import { monthsRepository } from '../months/months-repository';
 import { eventOf, payrollEntry } from '../payroll-audit';
-import { assertNotLocked, payrollActor, replayOf, requireMonth } from '../payroll-context';
+import { assertNotLocked, payrollActor, replayOf } from '../payroll-context';
 import { psNumber } from '../reads/payslips-service';
 import { readsRepository } from '../reads/reads-repository';
 import { sitesRepository } from '../sites/sites-repository';

@@ -1,0 +1,214 @@
+(node:575227) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+hand figures: waiter net 26750.00 (corrected, with a 500.00 taxable airtime line: 27102.50); Lena net 36933.41; month 63683.41 then 64035.91
+PASS  September is approved and waiting to publish (PAY-2026-09)
+
+== 1. publish: only HR, with the PIN and the version
+PASS  before publishing the payslips are Ready and have no PS number
+PASS  the pay-out card does not exist yet: hr GET /months/2026-09/payout -> 409 TAB_NOT_AVAILABLE
+PASS  the bank file is not available yet: accountant POST /months/2026-09/bank-file -> 409 BANK_FILE_NOT_AVAILABLE
+PASS  all payslips wait for publishing: hr POST /months/2026-09/exports -> 409 PAYSLIPS_NOT_PUBLISHED
+PASS  publish: accountant POST /months/2026-09/publish -> 403
+PASS  publish: director POST /months/2026-09/publish -> 403
+PASS  publish: admin POST /months/2026-09/publish -> 403
+PASS  publish: bm.town POST /months/2026-09/publish -> 403
+PASS  publish: bm.highway POST /months/2026-09/publish -> 403
+PASS  publish: store.manager POST /months/2026-09/publish -> 403
+PASS  publish: kitchen.head.town POST /months/2026-09/publish -> 403
+PASS  publish: proof.tsh.waiter POST /months/2026-09/publish -> 403
+PASS  a wrong PIN: hr POST /months/2026-09/publish -> 403 PIN_INVALID
+PASS  a stale version: hr POST /months/2026-09/publish -> 409 CHANGED_UNDERNEATH
+PASS  a bad PIN shape: hr POST /months/2026-09/publish -> 400
+PASS  nothing was published by any of that
+PASS  HR publishes September with their PIN: hr POST /months/2026-09/publish -> 200
+PASS  it is Published and two payslips were issued
+PASS  a double click answers the first result
+PASS  another key is too late: hr POST /months/2026-09/publish -> 409 ALREADY_PUBLISHED
+PASS  each payslip has its own PS-nnnn and shows Published
+PASS  the switch for Nyeri Town cannot go off while September is unpaid: admin PUT /workforce/attendance/switch -> 409 SITE_IN_UNPAID_PAYROLL
+
+== 2. who sees and does what once published
+PASS  read the pay-out card: hr GET /months/2026-09/payout -> 200
+PASS  read the payslips: hr GET /months/2026-09/payslips -> 200
+PASS  read the pay-out card: accountant GET /months/2026-09/payout -> 200
+PASS  read the payslips: accountant GET /months/2026-09/payslips -> 200
+PASS  read the pay-out card: director GET /months/2026-09/payout -> 200
+PASS  read the payslips: director GET /months/2026-09/payslips -> 200
+PASS  read the pay-out card: admin GET /months/2026-09/payout -> 200
+PASS  read the payslips: admin GET /months/2026-09/payslips -> 200
+PASS  read the pay-out card: bm.town GET /months/2026-09/payout -> 403
+PASS  read the payslips: bm.town GET /months/2026-09/payslips -> 403
+PASS  read the pay-out card: bm.highway GET /months/2026-09/payout -> 403
+PASS  read the payslips: bm.highway GET /months/2026-09/payslips -> 403
+PASS  read the pay-out card: store.manager GET /months/2026-09/payout -> 403
+PASS  read the payslips: store.manager GET /months/2026-09/payslips -> 403
+PASS  read the pay-out card: kitchen.head.town GET /months/2026-09/payout -> 403
+PASS  read the payslips: kitchen.head.town GET /months/2026-09/payslips -> 403
+PASS  read the pay-out card: proof.tsh.waiter GET /months/2026-09/payout -> 403
+PASS  read the payslips: proof.tsh.waiter GET /months/2026-09/payslips -> 403
+PASS  HR may correct and export, not pay; the Accountant may pay, correct and export; the Director only exports
+PASS  the System Admin has no write button and no export
+PASS  the pay-out card: two people by bank, the right amount, no file yet, Mark as paid blocked
+PASS  no account number is in any read
+
+== 3. the bank file: the Accountant only, bank only, never casual
+PASS  download the bank file: hr POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: director POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: admin POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: bm.town POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: bm.highway POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: store.manager POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: kitchen.head.town POST /months/2026-09/bank-file -> 403
+PASS  download the bank file: proof.tsh.waiter POST /months/2026-09/bank-file -> 403
+PASS  Mark as paid needs a download first: accountant POST /months/2026-09/mark-paid -> 409 BANK_FILE_REQUIRED
+PASS  the file is a CSV named bank-2026-09.csv, never cached, with its hash
+PASS  header row, then the waiter and Lena only, with the hand-calculated nets
+PASS  the same key again is the same file and writes no second record
+PASS  HR sees the file as downloaded and Mark as paid ready
+
+== 4. a correction: version 2, the file voided, a new download
+PASS  open a correction: director GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: admin GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: bm.town GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: bm.highway GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: store.manager GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: kitchen.head.town GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  open a correction: proof.tsh.waiter GET /months/2026-09/payslips/:id/correction-inputs -> 403
+PASS  HR opens the correction: hr GET /months/2026-09/payslips/:id/correction-inputs -> 200
+PASS  it shows the values now (no extra line yet) and the downloaded bank file
+PASS  the live preview: hr POST /months/2026-09/payslips/:id/correction-preview -> 200
+PASS  NOW and CORRECTED equal the hand calculation, and it says the file would be voided
+FAIL  a preview saves nothing   <- 
+PASS  a change that changes nothing: hr POST /months/2026-09/payslips/:id/correction-preview -> 422 NO_CHANGE
+PASS  late days can only go down: hr POST /months/2026-09/payslips/:id/correction-preview -> 422 CORRECTION_NOT_ALLOWED
+PASS  correct a payslip: director POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: admin POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: bm.town POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: bm.highway POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: store.manager POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: kitchen.head.town POST /months/2026-09/payslips/:id/correct -> 403
+PASS  correct a payslip: proof.tsh.waiter POST /months/2026-09/payslips/:id/correct -> 403
+PASS  a reason is needed: hr POST /months/2026-09/payslips/:id/correct -> 400
+PASS  a reason may not carry an amount: hr POST /months/2026-09/payslips/:id/correct -> 400
+PASS  a wrong PIN: hr POST /months/2026-09/payslips/:id/correct -> 403 PIN_INVALID
+PASS  a stale version: hr POST /months/2026-09/payslips/:id/correct -> 409 PAYSLIP_CHANGED
+PASS  a payslip of another month or another company is a 404: hr POST /months/2026-09/payslips/:id/correct -> 404 NO_PAYSLIP
+PASS  HR adds the waiter's airtime line with a reason and a PIN: hr POST /months/2026-09/payslips/:id/correct -> 200
+PASS  it is version 2, from the hand figure to the hand figure, and the file was voided
+PASS  a double click answers the first result
+PASS  version 1 stays readable and says it was replaced by version 2
+PASS  the list shows the current version once, marked corrected
+PASS  the Totals tab and the month follow the correction (the hand figure)
+PASS  HR sees the voided file and why
+PASS  Mark as paid refuses the old file: accountant POST /months/2026-09/mark-paid -> 409 BANK_FILE_REQUIRED
+PASS  the new download is bank-2026-09-v2.csv with the corrected amount
+
+== 5. Mark as paid and the lock
+PASS  mark paid: hr POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: director POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: admin POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: bm.town POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: bm.highway POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: store.manager POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: kitchen.head.town POST /months/2026-09/mark-paid -> 403
+PASS  mark paid: proof.tsh.waiter POST /months/2026-09/mark-paid -> 403
+PASS  a wrong PIN: accountant POST /months/2026-09/mark-paid -> 403 PIN_INVALID
+PASS  the file the dialog showed is not the current one: accountant POST /months/2026-09/mark-paid -> 409 BANK_FILE_CHANGED
+PASS  a stale version: accountant POST /months/2026-09/mark-paid -> 409 CHANGED_UNDERNEATH
+PASS  nothing was locked by any of that
+PASS  the Accountant marks September paid with their PIN: accountant POST /months/2026-09/mark-paid -> 200
+PASS  the month is Paid
+PASS  a double click answers the first result
+PASS  another key is too late: accountant POST /months/2026-09/mark-paid -> 409 ALREADY_PAID
+PASS  the month says Paid and Locked, with every action button gone but the export
+PASS  the stage line is all done
+PASS  after Paid: recalculate: hr POST /months/2026-09/recalculate -> 409 MONTH_LOCKED
+PASS  after Paid: send: hr POST /months/2026-09/send-to-accountant -> 409 MONTH_LOCKED
+PASS  after Paid: send back: accountant POST /months/2026-09/send-back -> 409 MONTH_LOCKED
+PASS  after Paid: approve: accountant POST /months/2026-09/approve -> 409 MONTH_LOCKED
+PASS  after Paid: publish: hr POST /months/2026-09/publish -> 409 MONTH_LOCKED
+PASS  after Paid: correct: hr POST /months/2026-09/payslips/:id/correct -> 409 MONTH_LOCKED
+PASS  after Paid: correct as the Accountant: accountant POST /months/2026-09/payslips/:id/correct -> 409 MONTH_LOCKED
+PASS  after Paid: add a line: hr POST /months/2026-09/adjustments -> 409 MONTH_LOCKED
+PASS  after Paid: tick a line: hr POST /months/2026-09/review/check-kind -> 409 MONTH_LOCKED
+PASS  after Paid: remind a site: hr POST /months/2026-09/sites/:id/remind -> 409 MONTH_LOCKED
+prisma:error 
+Invalid `prisma.payrollMonth.update()` invocation:
+
+
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "23001", message: "MONTH_LOCKED: UPDATE on payroll_months refused, the payroll month is paid and locked", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+PASS  the database refuses a direct write to the month row
+prisma:error 
+Invalid `prisma.$executeRaw()` invocation:
+
+
+Raw query failed. Code: `23001`. Message: `ERROR: payroll_payslip_lines is insert-only: UPDATE is not allowed. Add a new run, version or revision instead.`
+PASS  the database refuses a direct write to a payslip line
+prisma:error 
+Invalid `prisma.payrollAdjustment.create()` invocation:
+
+
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "23001", message: "MONTH_LOCKED: INSERT on payroll_adjustments refused, the payroll month is paid and locked", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+PASS  the database refuses a direct write to an adjustment
+prisma:error 
+Invalid `prisma.payrollBankFile.updateMany()` invocation:
+
+
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "23001", message: "MONTH_LOCKED: UPDATE on pay_bank_files refused, the payroll month is paid and locked", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+PASS  the database refuses a direct write to the bank file records
+prisma:error 
+Invalid `prisma.payrollSnapshot.create()` invocation in
+/home/fred/Projects/V3-RMS-lanes/lane-1/backend/src/scripts/payroll-proof-2.ts:244:51
+
+  241 ['a payslip line', () => prisma.$executeRaw`UPDATE payroll_payslip_lines SET amount = 1 WHERE payslip_id IN (SELECT id FROM payroll_payslips WHERE month_id = ${row.id})`],
+  242 ['an adjustment', () => prisma.payrollAdjustment.create({ data: { monthId: row.id, employeeId: waiter.id, siteId: townId, kind: 'ALLOWANCE', label: 'x', amount: 1, reason: 'x', idempotencyKey: 'x', createdById: waiter.id } })],
+  243 ['the bank file records', () => prisma.payrollBankFile.updateMany({ where: { monthId: row.id }, data: { state: 'DOWNLOADED', voidedAt: null, voidReason: null } })],
+→ 244 ['the snapshot', () => prisma.payrollSnapshot.create(
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "23001", message: "MONTH_LOCKED: INSERT on payroll_snapshots refused, the payroll month is paid and locked", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+PASS  the database refuses a direct write to the snapshot
+PASS  the month row did not move
+PASS  Paid months stay readable: hr GET /months/2026-09/payslips -> 200
+PASS  Paid months stay readable: accountant GET /months/2026-09/payslips -> 200
+PASS  Paid months stay readable: director GET /months/2026-09/payslips -> 200
+PASS  Paid months stay readable: admin GET /months/2026-09/payslips -> 200
+PASS  the Accountant can still download the file again; it is the same file and records nothing new
+
+== 6. every document downloads and opens
+PASS  accountant downloads Payroll-register-2026-09.pdf
+PASS  the register opens as a PDF
+PASS  hr downloads Payroll-register-2026-09.pdf
+PASS  the register opens as a PDF
+PASS  director downloads Payroll-register-2026-09.pdf
+PASS  the register opens as a PDF
+PASS  accountant downloads Payroll-summary-2026-09.pdf
+PASS  the summary opens as one page
+PASS  accountant downloads Payroll-2026-09.xlsx
+PASS  the Accountant's workbook has five sheets, the banner names the revision
+PASS  the register has a column per tax table in the Accountant's order
+PASS  the Net pay column adds to the hand figure and the total row is a live SUM
+PASS  hr downloads Payroll-2026-09.xlsx
+PASS  HR's workbook has no bank sheet
+PASS  director downloads Statutory-2026-09.xlsx
+PASS  the statutory schedules have an index and a sheet for each table, with filing numbers
+PASS  hr downloads Payslips-2026-09.zip
+PASS  all payslips: a zip with one PDF for each of the two people
+PASS  export: admin POST /months/2026-09/exports -> 403
+PASS  export: bm.town POST /months/2026-09/exports -> 403
+PASS  export: bm.highway POST /months/2026-09/exports -> 403
+PASS  export: store.manager POST /months/2026-09/exports -> 403
+PASS  export: kitchen.head.town POST /months/2026-09/exports -> 403
+PASS  export: proof.tsh.waiter POST /months/2026-09/exports -> 403
+PASS  a kind with a format it does not have: accountant POST /months/2026-09/exports -> 400
+PASS  the same export key twice writes one audit entry
+
+== 7. the clock can be switched off once the month is paid, and the integrity checks
+PASS  System Admin switches Nyeri Town off: admin PUT /workforce/attendance/switch -> 200
+PASS  the audit entries hold no PIN and no account number
+PASS  publish, correction, void, downloads, paid and exports are all in the audit log
+PASS  the audit chain verifies
+
+161 passed, 1 failed. Data left in place: run payroll-proof.ts down, then timesheets-proof.ts down.

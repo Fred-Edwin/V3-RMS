@@ -1,6 +1,6 @@
 # Workforce · Payroll (Segment 2A, part 1)
 
-**Status:** back end built 20 Oct 2026 on `feat/workforce-2a-payroll-backend` (not pushed, awaiting the owner's review). Part 1 covers the month, the engine, the review and the approval. Part 2 adds publish, corrections, the bank file, Mark as paid, exports and payslip numbers. Spec: `docs/features/workforce/design-pass-3-payroll.md`. Decisions: `docs/features/workforce/decisions-2a-payroll-backend.md`. HTTP proof: `docs/features/workforce/payroll-2a-http-proof-output.txt`.
+**Status:** back end built 20 Oct 2026 (not pushed, awaiting the owner's review): part 1 on `feat/workforce-2a-payroll-backend` (the month, the engine, the review and the approval), part 2 on `feat/workforce-2b-payroll-backend` (publish, corrections, the bank file, Mark as paid and the lock, exports, payslip numbers; see the section "Part 2" below). Spec: `docs/features/workforce/design-pass-3-payroll.md`. Decisions: `docs/features/workforce/decisions-2a-payroll-backend.md`. HTTP proof: `docs/features/workforce/payroll-2a-http-proof-output.txt`.
 
 ## What it does
 
@@ -62,6 +62,37 @@ Base `/api/v1/workforce/payroll`. Full table: `docs/API_CONTRACT.md` §40.
 
 Unit tests beside every sub-folder; `payroll-routes.test.ts` (the role matrix, 66 cases); `payroll-flow-db.test.ts` (9 flows against the database; export `DATABASE_URL` and run it alone); `src/scripts/payroll-proof.ts` (real logins, 132 checks). The time-zone script `pnpm test:workforce-tz` covers the pure folders in UTC, Nairobi and Los Angeles.
 
-## Not built (part 2 and the front end)
+## Part 2 (Segment 2B, 20 Oct 2026, `feat/workforce-2b-payroll-backend`, not pushed)
 
-Publish, the bank file, Mark as paid, corrections (payslip version 2), the exports, the `PS-` payslip numbers, staff payslip reads, notifications. The migration's `payroll_months_approved_has_signature` check and `unpaidMonthKeys` need extending when `PUBLISHED` and `PAID` arrive.
+Publish, corrections until Paid, the bank file, Mark as paid and the lock, and the documents. Decisions: `docs/features/workforce/decisions-2b-payroll-backend.md`. Proofs: `payroll-part2-db.test.ts` (9 database flows), `src/scripts/payroll-proof-2.ts` (162 checks with real logins, continuing `payroll-proof.ts`).
+
+| Folder | What lives there |
+|---|---|
+| `publish/` | HR publishes with a PIN: one transaction numbers every payslip `PS-nnnn` (sequence, in `payroll_publications`), the month becomes `PUBLISHED`; staff are told after the commit. |
+| `corrections/` | Inputs, live preview, save. A correction is payslip version n+1 (insert-only; version n stays readable and is reported as replaced), a snapshot revision r+1, a void of the bank file when a bank-paid net changed. Pure: `apply-correction.ts`, `correction-diff.ts`, `snapshot-revision.ts`. |
+| `bank/` | The pay-out card, the bank file (`BankFileFormat`, Generic CSV), the voiding rules. The file is rebuilt, never stored; its hash is what Mark as paid checks. |
+| `paid/` | Mark as paid with a PIN and the current file's hash; sets `PAID` and `locked_at`. |
+| `exports/` | Register PDF and Excel, summary PDF, statutory schedules, all payslips (zip). `render/` holds the drawers; the model is read from the latest snapshot (a draft from the current run). |
+
+### The lock
+
+From `locked_at` every payroll write answers `409 MONTH_LOCKED` in the service (`assertNotLocked`, also inside `assertState`), and a database trigger (`payroll_locked_month_guard`) refuses the same writes on every payroll table, so a bug cannot get round it. Allowed after Paid: reads, exports, "download the bank file again" (audited, no row), and switching the branch's clock off (`unpaidMonthKeys` now ignores `PAID`). `ALREADY_PAID` answers a second Mark as paid.
+
+### Endpoints added (`docs/API_CONTRACT.md` §40)
+
+| # | Route | Capability |
+|---|---|---|
+| P22 | `POST .../publish` | `payroll.publish` |
+| P23 to P25 | `GET .../payslips/:id/correction-inputs?version=`, `POST .../correction-preview`, `POST .../correct` | `payroll.correct` |
+| P26 | `GET .../payout` | `payroll.read` |
+| P27 | `POST .../bank-file` (streams the CSV) | `payroll.pay` |
+| P28 | `POST .../mark-paid` | `payroll.pay` |
+| P29 | `POST .../exports` (`kind` REGISTER, SUMMARY, STATUTORY, PAYSLIPS; `format` pdf, xlsx, zip) | `payroll.export` |
+
+### Hand-over to Segment 3
+
+Published payslips are `payroll_payslips` rows (current version = highest `version` per person and run; `replaces_version`, `reason` on a correction), their lines with `working_text`, the number in `payroll_publications`, the frozen document in `payroll_snapshots` (latest revision; each payslip carries `ids`, `payoutMethod`, `version`, lines with `base`, `rate`). Events `payroll.month_published`, `payroll.payslip_corrected` (with `userId`, `payslipNumber`, `version`) and `payroll.month_paid`; notification keys `payroll.payslip_published`, `payroll.payslip_corrected`, `payroll.month_paid`. Segment 3 builds the staff endpoints, the audited open of someone else's payslip and the P9.
+
+## Not built
+
+The staff payslip phone endpoints, casual pay, the P9 (Segment 3), the background export job (decision X3), a per-company bank format setting (X14), and any front end.
