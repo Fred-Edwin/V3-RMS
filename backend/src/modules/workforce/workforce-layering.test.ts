@@ -131,6 +131,9 @@ describe('the public door (contract 7.2)', () => {
       'registerPinTries', 'attemptWithPause',
       'workforceSecurityRouter', 'workforceSessionGate', 'registerSecurity', 'wasntMe', 'claimAlertWindow', 'insertAlertForEntry', 'tellAdminsOfAlert',
       'workforceNeedsYouRouter', 'registerNeedsYou', 'registerNeedsYouSource',
+      // shared parts (segment 6b): audit read, documents door, verify
+      'workforceAuditRouter', 'backfillAuditIndex', 'backfillAllAuditIndexes', 'runNightlyChainCheck', 'verifyRange',
+      'workforceDocumentsRouter', 'workforceVerifyRouter', 'publicVerifyRouter', 'registerDocument', 'registerDocuments', 'withdrawDocument', 'reconcileDocuments',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   }, 30_000); // importing the whole door takes seconds when the full suite is running
