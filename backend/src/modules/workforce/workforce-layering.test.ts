@@ -107,7 +107,7 @@ describe('the public door (contract 7.2)', () => {
       // payroll (segment 2A)
       'isSitePeriodOnNewPayroll', 'registerPayroll', 'workforcePayrollRouter', 'sweepPayroll', 'refreshPayrollEstimates',
       // casual pay (segment 3)
-      'workforceCasualRouter', 'casualMonthSummary',
+      'workforceCasualRouter', 'casualMonthSummary', 'workforcePayslipsRouter', 'setPublicationSource', 'setDeviceConfirmationSource', 'ensureFileForPayslip',
       // people (slice 1)
       'registerPeople', 'getEmployee', 'getActiveLoans', 'payAmountOn', 'registerImpactProvider', 'runPeopleScheduler', 'PEOPLE_SCHEDULER_TASKS',
       // access

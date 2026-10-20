@@ -56,6 +56,7 @@ import {
   workforceAttendanceRouter,
   workforceCasualRouter,
   workforceOrgRouter,
+  workforcePayslipsRouter,
   workforcePeopleRouter,
   workforcePayrollRouter,
   workforcePermissionsRouter,
@@ -139,5 +140,6 @@ registerPayroll(); // a branch with an unpaid payroll month cannot switch its ne
 apiRouter.use(workforceTimesheetsRouter);
 apiRouter.use(workforcePayrollRouter);
 apiRouter.use(workforceCasualRouter);
+apiRouter.use(workforcePayslipsRouter);
 
 export default apiRouter;
