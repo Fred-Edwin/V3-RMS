@@ -54,6 +54,7 @@ import {
   registerPayroll,
   registerTimesheets,
   workforceAttendanceRouter,
+  workforceCasualRouter,
   workforceOrgRouter,
   workforcePeopleRouter,
   workforcePayrollRouter,
@@ -137,5 +138,6 @@ registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforc
 registerPayroll(); // a branch with an unpaid payroll month cannot switch its new clock off (Workforce Segment 2A)
 apiRouter.use(workforceTimesheetsRouter);
 apiRouter.use(workforcePayrollRouter);
+apiRouter.use(workforceCasualRouter);
 
 export default apiRouter;
