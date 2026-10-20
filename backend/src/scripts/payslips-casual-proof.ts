@@ -41,7 +41,6 @@ const login = async (email: string): Promise<void> => {
   if (!json.data?.accessToken) throw new Error(`login failed for ${email}`);
   tokens.set(email, json.data.accessToken);
 };
-let phoneHeaders: Record<string, string> = {};
 const call = async (who: string, method: string, path: string, body?: object, headers: Record<string, string> = {}): Promise<Reply> => {
   const res = await fetch(`${base}${path}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${tokens.get(who)}`, ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const bytes = Buffer.from(await res.arrayBuffer());
@@ -181,13 +180,12 @@ async function up(): Promise<void> {
     const list = await expectStatus(WAITER, 'GET', `${P}/me`, 200, undefined, phone);
     check('the list has the two published months and no amount anywhere', list.body.data?.['items']?.length === 2 && !/"(gross|net|amount)"/.test(JSON.stringify(list.body)));
     await expectCode(WAITER, 'GET', `${P}/me/home`, 403, 'UNLOCK_REQUIRED', undefined, phone);
-    for (const n of [1, 2]) await expectCode(WAITER, 'POST', `${P}/me/unlock`, 403, 'CODE_WRONG', { code: '0000', deviceId: DEVICE });
+    for (let tries = 0; tries < 2; tries += 1) await expectCode(WAITER, 'POST', `${P}/me/unlock`, 403, 'CODE_WRONG', { code: '0000', deviceId: DEVICE });
     check('two wrong tries raise no alert yet', notes.filter((n) => n.kind === 'payslip.three_wrong_codes').length === 0);
     await expectCode(WAITER, 'POST', `${P}/me/unlock`, 403, 'CODE_WRONG', { code: '0000', deviceId: DEVICE });
     check('the third wrong try tells the System Admin and the person', notes.filter((n) => n.kind === 'payslip.three_wrong_codes').some((n) => n.to === waiterUser.id) && notes.filter((n) => n.kind === 'payslip.three_wrong_codes').length >= 2);
     const open = await expectStatus(WAITER, 'POST', `${P}/me/unlock`, 200, { code: PIN, deviceId: DEVICE });
     const unlocked = { ...phone, 'x-payslip-unlock': String(open.body.data?.['unlockToken']) };
-    phoneHeaders = unlocked;
     const home = await expectStatus(WAITER, 'GET', `${P}/me/home`, 200, undefined, unlocked);
     check('home: the newest month is December, version 2, net 38,000', home.body.data?.['latest']?.month === '2024-12' && home.body.data?.['latest']?.net === '38000.00' && home.body.data?.['latest']?.versionNumber === 2);
     const payslipId = String(home.body.data?.['latest']?.id);
