@@ -107,6 +107,14 @@ export const CAPABILITIES = [
   'audit.read.security',
   'audit.read.documents',
   'audit.read.log_access',
+  // Segment 6a (Shared parts): Needs you, notifications, security alerts and phones, chain check
+  'needs_you.read', // the Needs you card, its counts (badges) and the Overdue list for the Director
+  'needs_you.remind', // Director: send a reminder on an overdue item
+  'notifications.own', // the Inbox Notifications tab: my own rows only
+  'security.alerts.read', // System Admin: the security alert list and its counts
+  'security.alerts.clear', // System Admin: clear an alert with a one-line note; start alerts
+  'security.phones.own', // my own phones: confirm, remove, "This wasn't me"
+  'audit.verify_chain', // Director, System Admin: check the audit chain
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -129,7 +137,10 @@ const OWN_FILE: Grants = {
   'audit.read_own': 'own',
 };
 
-const STAFF: Grants = { ...OWN_FILE, 'time.own': 'own', 'rota.read': 'own' };
+/** Segment 6a: every signed-in person (the System Admin included) reads their own notifications and manages their own phones. */
+const OWN_SHARED_6A: Grants = { 'notifications.own': 'own', 'security.phones.own': 'own' };
+
+const STAFF: Grants = { ...OWN_FILE, ...OWN_SHARED_6A, 'time.own': 'own', 'rota.read': 'own' };
 
 const HEAD_EXTRAS: Grants = {
   'rota.read': 'dept',
@@ -148,6 +159,8 @@ const HEAD_EXTRAS: Grants = {
 
 const UNIT_MANAGER: Grants = {
   ...OWN_FILE,
+  ...OWN_SHARED_6A,
+  'needs_you.read': 'unit', // Segment 6a: their site's rows only
   'rota.read': 'unit',
   'rota.write': 'unit',
   'rota.template_write': 'unit',
@@ -214,11 +227,14 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'casual.read': 'all',
     'audit.read.pay_run_decide': 'all',
     'audit.read.rules_pay': 'all',
+    'audit.read.pay_run_prepare': 'all', // Segment 6a, SD4: publishing, corrections and exports
+    'needs_you.read': 'all', // Segment 6a
   },
   MANAGER: UNIT_MANAGER,
   STORE_MANAGER: UNIT_MANAGER,
   HR_MANAGER: {
     ...OWN_FILE,
+    ...OWN_SHARED_6A,
     'rota.read': 'all',
     'rota.write': 'all', // also builds the Accountant's rota (decision D18)
     'rota.template_write': 'all',
@@ -260,9 +276,16 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'audit.read.pay_setup': 'all',
     'audit.read.pay_run_prepare': 'all',
     'audit.read.discipline': 'all',
+    'audit.read.rules_operating': 'all', // Segment 6a, SD4: every rule change, read only
+    'audit.read.rules_pay': 'all',
+    'needs_you.read': 'all', // Segment 6a
   },
   DIRECTOR: {
     ...OWN_FILE,
+    ...OWN_SHARED_6A,
+    'needs_you.read': 'all', // Segment 6a
+    'needs_you.remind': 'all',
+    'audit.verify_chain': 'all',
     'rota.read': 'all',
     'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
     'today.read': 'all',
@@ -324,6 +347,11 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'audit.read.security': 'all',
     'audit.read.rules_operating': 'all',
     'audit.read.rules_pay': 'all',
+    ...OWN_SHARED_6A, // Segment 6a
+    'needs_you.read': 'all',
+    'security.alerts.read': 'all',
+    'security.alerts.clear': 'all',
+    'audit.verify_chain': 'all',
   },
 };
 

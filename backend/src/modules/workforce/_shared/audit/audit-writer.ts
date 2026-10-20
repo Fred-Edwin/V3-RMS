@@ -3,6 +3,7 @@ import { prisma } from '../../../../config/database'; // the one named exception
 import { ValidationError } from '../../../../utils/errors';
 import { deliverEvent, type WorkforceEvent } from '../events';
 import { AUDIT_ACTIONS } from './audit-actions';
+import { areaOf, describeEntry, searchTextOf } from './audit-describe';
 import { hashEntry } from './audit-hash';
 import { auditRepository } from './audit-repository';
 import type { AuditCategoryCode, AuditEntryInput, AuditEntryRecord } from './audit.types';
@@ -50,6 +51,8 @@ export async function writeAuditEntry(tx: Prisma.TransactionClient, input: Audit
   };
   const hash = hashEntry(row);
   const record = await auditRepository.insertEntry(tx, { ...row, hash });
+  const wording = describeEntry(record);
+  await auditRepository.insertIndex(tx, record, { area: areaOf(record.action), flagged: wording.flagged, title: wording.title, searchText: searchTextOf(wording, record.actorName, record.action) });
   await auditRepository.advanceHead(tx, input.companyId, row.seq, hash);
   return record;
 }

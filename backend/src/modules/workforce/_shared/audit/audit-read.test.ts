@@ -18,12 +18,14 @@ describe('auditReadScopeOf', () => {
   });
 
   it('HR reads people, time, leave, pay set-up, pay-run preparation and discipline', () => {
-    expect(cats('HR_MANAGER')).toEqual(['DISCIPLINE', 'LEAVE', 'PAY_RUN_PREPARE', 'PAY_SETUP', 'PEOPLE', 'TIME']);
+    // SD4 (Segment 6a): HR also reads every rule change, read only
+    expect(cats('HR_MANAGER')).toEqual(['DISCIPLINE', 'LEAVE', 'PAY_RUN_PREPARE', 'PAY_SETUP', 'PEOPLE', 'RULES_OPERATING', 'RULES_PAY', 'TIME']);
     expect(auditReadScopeOf(as('HR_MANAGER'))).toMatchObject({ scope: 'all', siteId: null });
   });
 
   it('the Accountant reads pay-run decisions and pay-rule changes', () => {
-    expect(cats('ACCOUNTANT')).toEqual(['PAY_RUN_DECIDE', 'RULES_PAY']);
+    // SD4 (Segment 6a): the Accountant also reads pay-run preparation (publishing, corrections, exports)
+    expect(cats('ACCOUNTANT')).toEqual(['PAY_RUN_DECIDE', 'PAY_RUN_PREPARE', 'RULES_PAY']);
   });
 
   it('the Director reads every category, including LOG_ACCESS and PAYSLIP_ACCESS', () => {

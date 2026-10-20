@@ -117,6 +117,18 @@ export const AUDIT_ACTIONS = {
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],
   'people.document_opened': ['SENSITIVE_VIEW'],
+  // Segment 6a (Shared parts). Device and place labels, month names, counts; never an amount, a code, a PIN or a password.
+  'security.phone_first_seen': ['SECURITY'], // a phone signed in as the person for the first time
+  'security.phone_confirmed': ['SECURITY'], // "Yes, this is my phone" (REMEMBER or ONCE)
+  'security.phone_removed': ['SECURITY'],
+  'security.wasnt_me': ['SECURITY'], // sessions revoked, password and code reset; raises the alert
+  'security.password_reset': ['SECURITY'], // the person chose a new password after "This wasn't me"
+  'security.payslip_unconfirmed_phone': ['SECURITY'], // the System Admin's copy of an opening on an unconfirmed phone: month name only
+  'security.signing_pin_wrong': ['SECURITY'], // the 3rd wrong signing PIN inside the window (flagged)
+  'security.alert_cleared': ['SECURITY'], // the System Admin cleared an alert, with a one-line note
+  'security.alerts_started': ['SECURITY'], // the System Admin pressed "Start alerts"
+  'audit.chain_failed': ['SECURITY'], // the chain check found a break (flagged)
+  'needs_you.reminder_sent': ['LOG_ACCESS'], // the Director reminded the person an item waits on: item and day, never a figure
 } as const satisfies Record<string, readonly AuditCategoryCode[]>;
 
 export type AuditActionCode = keyof typeof AUDIT_ACTIONS;

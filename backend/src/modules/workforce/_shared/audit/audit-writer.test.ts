@@ -8,12 +8,13 @@ const mocks = vi.hoisted(() => ({
   ensureHead: vi.fn(),
   lockChainHead: vi.fn(),
   insertEntry: vi.fn(),
+  insertIndex: vi.fn(),
   advanceHead: vi.fn(),
 }));
 
 vi.mock('../../../../config/database', () => ({ prisma: { $transaction: mocks.transaction } }));
 vi.mock('./audit-repository', () => ({
-  auditRepository: { ensureHead: mocks.ensureHead, lockChainHead: mocks.lockChainHead, insertEntry: mocks.insertEntry, advanceHead: mocks.advanceHead },
+  auditRepository: { ensureHead: mocks.ensureHead, lockChainHead: mocks.lockChainHead, insertEntry: mocks.insertEntry, insertIndex: mocks.insertIndex, advanceHead: mocks.advanceHead },
 }));
 
 import { GENESIS_HASH } from './audit-hash';

@@ -103,16 +103,23 @@ audit.read.people            -    -    -    -    all  all  -
 audit.read.time              -    -    -    unit all  all  -
 audit.read.leave             -    -    -    unit all  all  -
 audit.read.pay_setup         -    -    -    -    all  all  -
-audit.read.pay_run_prepare   -    -    -    -    all  all  -
+audit.read.pay_run_prepare   -    -    all  -    all  all  -
 audit.read.pay_run_decide    -    -    all  -    -    all  -
-audit.read.rules_operating   -    -    -    unit -    all  all
-audit.read.rules_pay         -    -    all  -    -    all  all
+audit.read.rules_operating   -    -    -    unit all  all  all
+audit.read.rules_pay         -    -    all  -    all  all  all
 audit.read.payslip_access    -    -    -    -    -    all  -
 audit.read.sensitive_view    -    -    -    -    -    all  -
 audit.read.discipline        -    -    -    -    all  all  -
 audit.read.security          -    -    -    -    -    all  all
 audit.read.documents         -    -    -    -    -    all  -
 audit.read.log_access        -    -    -    -    -    all  -
+needs_you.read               -    -    all  unit all  all  all
+needs_you.remind             -    -    -    -    -    all  -
+notifications.own            own  -    own  own  own  own  own
+security.alerts.read         -    -    -    -    -    -    all
+security.alerts.clear        -    -    -    -    -    -    all
+security.phones.own          own  -    own  own  own  own  own
+audit.verify_chain           -    -    -    -    -    all  all
 `;
 
 const COLUMNS = ['staff', 'head', 'accountant', 'manager', 'hr', 'director', 'admin'] as const;
