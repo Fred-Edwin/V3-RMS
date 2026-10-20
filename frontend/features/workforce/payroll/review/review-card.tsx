@@ -136,7 +136,7 @@ export function ReviewCard({ view, refresh, onChanged, onOpenDialog }: { view: M
           {(data?.lines ?? []).map((line) => {
             const blocks = line.severity === 'BLOCK';
             return (
-              <li key={line.id} className="flex items-start gap-3 border-t border-wds-neutral-100 py-3">
+              <li key={line.id} className="grid grid-cols-[14px_minmax(0,1fr)] items-start gap-x-3 gap-y-1 border-t border-wds-neutral-100 py-2.5 min-[900px]:grid-cols-[14px_minmax(0,230px)_130px_minmax(0,1fr)]">
                 {blocks ? (
                   <span aria-hidden className="mt-0.5 flex size-[14px] shrink-0 items-center justify-center border border-wds-error-fg text-[10px] font-bold leading-none text-wds-error-fg">!</span>
                 ) : (
@@ -149,27 +149,25 @@ export function ReviewCard({ view, refresh, onChanged, onOpenDialog }: { view: M
                     className="mt-0.5 size-[14px] shrink-0 accent-[var(--wds-success-fg)]"
                   />
                 )}
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">
-                    {line.name} · {line.siteName}
+                <span title={line.checkedBy ? `Checked by ${line.checkedBy}` : undefined} className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">
+                  {line.name} · {line.siteName}
+                  {line.checkedBy ? <span className="sr-only"> Checked by {line.checkedBy}</span> : null}
+                </span>
+                <span className={`col-start-2 font-wds-sans text-[13px] leading-[18px] min-[900px]:col-start-auto ${blocks ? 'font-medium text-wds-error-fg' : 'text-wds-text-secondary'}`}>{blocks ? `Blocks the month · ${kindWords(line.kind)}` : kindWords(line.kind)}</span>
+                <span className="col-start-2 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink min-[900px]:col-start-auto">{line.text}</span>
+                {blocks && canTick ? (
+                  <span className="col-start-2 mt-1 flex flex-wrap gap-2 min-[900px]:col-start-2 min-[900px]:col-span-3">
+                    <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'leaveOut', line })}>
+                      Leave out of this run
+                    </DialogButton>
+                    <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'adjust', line })}>
+                      Add a line
+                    </DialogButton>
+                    <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'recalc' })}>
+                      Calculate again
+                    </DialogButton>
                   </span>
-                  <span className={`font-wds-sans text-[13px] leading-4 ${blocks ? 'font-medium text-wds-error-fg' : 'text-wds-text-secondary'}`}>{blocks ? `Blocks the month · ${kindWords(line.kind)}` : kindWords(line.kind)}</span>
-                  <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{line.text}</span>
-                  {line.checkedBy ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Checked by {line.checkedBy}</span> : null}
-                  {blocks && canTick ? (
-                    <span className="mt-1.5 flex flex-wrap gap-2">
-                      <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'leaveOut', line })}>
-                        Leave out of this run
-                      </DialogButton>
-                      <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'adjust', line })}>
-                        Add a line
-                      </DialogButton>
-                      <DialogButton kind="cancel" onClick={() => setOpen({ kind: 'recalc' })}>
-                        Calculate again
-                      </DialogButton>
-                    </span>
-                  ) : null}
-                </div>
+                ) : null}
               </li>
             );
           })}
