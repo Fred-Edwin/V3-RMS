@@ -17,6 +17,7 @@ import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
 import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
 import type { HouseAuthTimeoutJobData } from './house-account-auth-timeout';
 import { fcmService } from '../services/fcm-service';
+import { dispatchHeldWorkforcePush, WORKFORCE_NOTICE_JOB, type HeldPush } from '../modules/workforce';
 import { COUNT_DIRECTOR_ALERT_JOB, countNotify, type DirectorAlertJob } from '../modules/inventory/counting/_shared/count-notify';
 import { logger } from '../utils/logger';
 
@@ -54,6 +55,12 @@ export const notificationWorker = new Worker(
     // An inventory push held for quiet hours goes out at 05:00 (the one notification layer, inventory/_shared/notify.ts).
     if (job.name === INVENTORY_NOTICE_JOB) {
       await inventoryNotify.dispatchHeld(job.data as HeldNotice);
+      return;
+    }
+
+    // A Workforce information push held for quiet hours goes out at 05:00 (Segment 6a); the Inbox row has been there since it was sent.
+    if (job.name === WORKFORCE_NOTICE_JOB) {
+      await dispatchHeldWorkforcePush(job.data as HeldPush);
       return;
     }
 

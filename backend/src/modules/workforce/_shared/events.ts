@@ -155,9 +155,12 @@ export const workforceEvents: WorkforceEventBus = {
   },
 };
 
-/** Delivery of "X is told" is a later slice (Notifications). Until then this logs and does nothing else. */
+/**
+ * Delivery of "X is told". Segment 6a registers the real one (`notifications/`: Inbox row, push, socket nudge); until a process
+ * registers it, this logs and does nothing else (tests, scripts).
+ */
 export interface WorkforceNotifier {
-  notify(recipientUserId: string, kind: string, data: Record<string, string | number | null>): Promise<void>;
+  notify(recipientUserId: string, kind: string, data: Record<string, string | number | null>, options?: { dedupeKey?: string; replace?: boolean }): Promise<void>;
 }
 
 const loggingNotifier: WorkforceNotifier = {

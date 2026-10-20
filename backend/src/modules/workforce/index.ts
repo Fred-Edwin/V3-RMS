@@ -29,6 +29,9 @@ export { default as workforcePayrollRouter } from './payroll/payroll-routes'; //
 export { sweepPayroll, refreshEstimates as refreshPayrollEstimates } from './payroll/payroll-sweep'; // the job: month rows, automatic calculation, nightly estimate
 export { workforceCasualRouter, casualMonthSummary } from './casual'; // Casual pay: workers, daily sheets, approval, receipts, the payroll memo line (Segment 3)
 export { workforcePayslipsRouter, setPublicationSource, setDeviceConfirmationSource, ensureFileForPayslip } from './payslips'; // Staff payslips: the code, reads, A4 file, P9 (Segment 3)
+// Segment 6a (Shared parts): the real notifier. Leave and Conduct call `notify` / `notifyMany`; the worker calls `dispatchHeldWorkforcePush`.
+export { notify, notifyMany, registerWorkforceNotifier, workforceNotificationsRouter, dispatchHeldWorkforcePush, WORKFORCE_NOTICE_JOB, renderNotification, knownKinds } from './notifications';
+export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification, HeldPush } from './notifications';
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 

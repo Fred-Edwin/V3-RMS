@@ -54,6 +54,8 @@ import {
   registerPayroll,
   registerTimesheets,
   workforceAttendanceRouter,
+  workforceNotificationsRouter,
+  registerWorkforceNotifier,
   workforceCasualRouter,
   workforceOrgRouter,
   workforcePayslipsRouter,
@@ -137,6 +139,8 @@ apiRouter.use(workforceRotaRouter);
 apiRouter.use(workforceAttendanceRouter);
 registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
 registerPayroll(); // a branch with an unpaid payroll month cannot switch its new clock off (Workforce Segment 2A)
+registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
+apiRouter.use(workforceNotificationsRouter);
 apiRouter.use(workforceTimesheetsRouter);
 apiRouter.use(workforcePayrollRouter);
 apiRouter.use(workforceCasualRouter);

@@ -27,13 +27,18 @@ export async function resolveActor(subject: AccessSubject): Promise<ActorCtx> {
 }
 
 /** "X is told": best effort, never blocks or fails the change that has already committed. The wording is a later slice. */
-export async function told(recipientUserIds: readonly (string | null | undefined)[], kind: string, data: Record<string, string | number | null> = {}): Promise<void> {
+export async function told(
+  recipientUserIds: readonly (string | null | undefined)[],
+  kind: string,
+  data: Record<string, string | number | null> = {},
+  options?: { dedupeKey?: string; replace?: boolean },
+): Promise<void> {
   const notifier = getWorkforceNotifier();
   const unique = [...new Set(recipientUserIds.filter((id): id is string => typeof id === 'string'))];
   await Promise.all(
     unique.map(async (userId) => {
       try {
-        await notifier.notify(userId, kind, data);
+        await notifier.notify(userId, kind, data, options);
       } catch (error) {
         logger.error({ err: error, kind }, 'workforce notification failed');
       }
