@@ -5,6 +5,7 @@ import { formatCents, parseCents } from '../engine/money';
 import { monthsRepository, type MonthRow } from '../months/months-repository';
 import { inputsRepository } from '../calculate/inputs-repository';
 import { payrollActor, requireMonth } from '../payroll-context';
+import { monthTotals, type TotalsRow } from './current-totals';
 import { readsRepository } from './reads-repository';
 import { ruleCards } from './rules-cards';
 
@@ -68,9 +69,9 @@ export async function casualPay(subject: AccessSubject, monthKey: string) {
 export async function totals(subject: AccessSubject, monthKey: string) {
   const { month, runId, companyId } = await calculated(subject, monthKey);
   const run = await monthsRepository.run(runId);
-  const stored = run?.totals as { total?: Record<string, string | number>; bySite?: Record<string, Record<string, string | number>> } | null;
+  const stored = await monthTotals(month);
   const names = await inputsRepository.siteNames(companyId, Object.keys(stored?.bySite ?? {}));
-  const row = (r: Record<string, string | number>) => ({ people: Number(r['people'] ?? 0), basic: String(r['basic'] ?? '0.00'), gross: String(r['gross'] ?? '0.00'), taxStatutory: String(r['taxStatutory'] ?? '0.00'), other: String(r['other'] ?? '0.00'), net: String(r['net'] ?? '0.00'), employerShare: String(r['employerShare'] ?? '0.00') });
+  const row = (r: Partial<TotalsRow>) => ({ people: r.people ?? 0, basic: r.basic ?? '0.00', gross: r.gross ?? '0.00', taxStatutory: r.taxStatutory ?? '0.00', other: r.other ?? '0.00', net: r.net ?? '0.00', employerShare: r.employerShare ?? '0.00' });
   const sites = Object.entries(stored?.bySite ?? {}).map(([siteId, r]) => ({ siteId, name: names.get(siteId) ?? '', ...row(r) })).sort((a, b) => a.name.localeCompare(b.name, 'en'));
   const total = row(stored?.total ?? {});
   return { monthKey, state: month.state, runNumber: run?.runNumber ?? 0, bySite: sites, total, employerContributions: parseCents(total.employerShare) > 0n ? total.employerShare : null, casual: '0.00', totalCost: formatCents(parseCents(total.gross) + parseCents(total.employerShare)) };

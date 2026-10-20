@@ -42,7 +42,7 @@ export interface RunWrite {
 const CHUNK = 500;
 const chunks = <T>(rows: readonly T[]): T[][] => Array.from({ length: Math.ceil(rows.length / CHUNK) }, (_, i) => rows.slice(i * CHUNK, (i + 1) * CHUNK));
 
-const lineRow = (payslipId: string, line: PayLine, position: number): Prisma.PayrollPayslipLineCreateManyInput => ({
+export const lineRow = (payslipId: string, line: PayLine, position: number): Prisma.PayrollPayslipLineCreateManyInput => ({
   payslipId,
   position,
   code: line.code,

@@ -11,6 +11,14 @@ export async function payrollActor(subject: AccessSubject, capability: Capabilit
   return resolveActor(subject);
 }
 
+/** The same key answers the first result; the same key for another action or month is a 409 (E9: idempotency on every POST). */
+export async function replayOf<T extends object>(companyId: string, key: string, action: string, monthKey: string): Promise<(T & { repeat: true }) | null> {
+  const prior = await monthsRepository.findKey(companyId, key);
+  if (!prior) return null;
+  if (prior.action !== action || prior.monthKey !== monthKey) throw new ConflictError('That request key was already used for something else.', 'IDEMPOTENCY_KEY_REUSED');
+  return { ...(prior.response as unknown as T), repeat: true };
+}
+
 /** A month that does not exist (or a key that is not a month) is a 404; it never reveals another company's. */
 export async function requireMonth(companyId: string, monthKey: string): Promise<MonthRow> {
   if (!isMonthKey(monthKey)) throw new NotFoundError('There is no payroll for that month', 'NO_PAYROLL_MONTH');
@@ -24,10 +32,18 @@ export const STATE_WORDS: Record<PayrollMonthState, string> = {
   IN_REVIEW: 'in review with HR',
   TO_APPROVE: 'with the Accountant',
   TO_PUBLISH: 'approved',
+  PUBLISHED: 'published',
+  PAID: 'paid and locked',
 };
+
+/** The lock (E6, P24): every write on a paid month answers 409 MONTH_LOCKED, before any other state check. */
+export function assertNotLocked(month: Pick<MonthRow, 'state' | 'lockedAt'>): void {
+  if (month.state === 'PAID' || month.lockedAt !== null) throw new ConflictError('This month is paid and locked.', 'MONTH_LOCKED', { state: 'PAID' });
+}
 
 /** Every write names the state it is for. Another state answers 409 with the state in words, so the screen can reload. */
 export function assertState(month: Pick<MonthRow, 'state'>, allowed: readonly PayrollMonthState[], code: string, message: string): void {
+  if (month.state === 'PAID') assertNotLocked({ state: 'PAID', lockedAt: null });
   if (!allowed.includes(month.state)) throw new ConflictError(`${message} (the month is ${STATE_WORDS[month.state]}).`, code, { state: month.state });
 }
 

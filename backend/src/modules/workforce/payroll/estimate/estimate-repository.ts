@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
 import { toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { currentPayslipIds } from '../reads/reads-repository';
 
 export interface OvertimeSoFar {
   authorised: number;
@@ -40,7 +41,7 @@ export const estimateRepository = {
   async grossBySite(companyId: string, monthKey: string): Promise<Map<string, string>> {
     const month = await prisma.payrollMonth.findUnique({ where: { companyId_monthKey: { companyId, monthKey } }, select: { currentRunId: true } });
     if (!month?.currentRunId) return new Map();
-    const rows = await prisma.payrollPayslip.groupBy({ by: ['siteId'], where: { runId: month.currentRunId }, _sum: { gross: true } });
+    const rows = await prisma.payrollPayslip.groupBy({ by: ['siteId'], where: { id: { in: await currentPayslipIds(month.currentRunId) } }, _sum: { gross: true } });
     return new Map(rows.map((row) => [row.siteId, (row._sum.gross ?? 0).toString()]));
   },
 };

@@ -1,6 +1,7 @@
 import { prisma } from '../../../../config/database';
 import { fromDateColumn, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { MonthWindow } from '../months/month-calendar';
+import { currentPayslipIds } from '../reads/reads-repository';
 
 /** Reads for one calculation. Every query names the sites (all of the company's) it may see; nothing here decides anything. */
 export const inputsRepository = {
@@ -81,7 +82,7 @@ export const inputsRepository = {
   async previousMonth(companyId: string, monthKey: string) {
     const month = await prisma.payrollMonth.findUnique({ where: { companyId_monthKey: { companyId, monthKey } }, select: { currentRunId: true } });
     if (!month?.currentRunId) return [];
-    return prisma.payrollPayslip.findMany({ where: { runId: month.currentRunId }, select: { employeeId: true, net: true, input: true } });
+    return prisma.payrollPayslip.findMany({ where: { id: { in: await currentPayslipIds(month.currentRunId) } }, select: { employeeId: true, net: true, input: true } });
   },
 
   /** Who confirmed the company's statutory tables of a version, and when (the Rules door does not expose it). */

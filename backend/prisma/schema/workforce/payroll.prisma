@@ -10,6 +10,8 @@ enum PayrollMonthState {
   IN_REVIEW // calculated; HR checks the unusual lines
   TO_APPROVE // HR sent it to the Accountant
   TO_PUBLISH // the Accountant approved with a PIN; the figures are frozen
+  PUBLISHED // HR published; staff see their payslip; corrections are open (called "To pay" in the list)
+  PAID // the Accountant marked it paid; locked, every write is refused (database guard and service)
 }
 
 enum PayrollRunTrigger {
@@ -63,15 +65,23 @@ model PayrollMonth {
   documentNumber    String?           @map("document_number") // PAY-YYYY-MM, issued at approval
   handChecked       Boolean           @default(false) @map("hand_checked") // the Accountant ticked "I checked at least 3 payslips" (P16)
   firstMonthSiteIds String[]          @default([]) @map("first_month_site_ids") // sites for which this is their first payroll month
+  publishedAt       DateTime?         @map("published_at") // part 2: HR published
+  publishedById     String?           @map("published_by_id")
+  paidAt            DateTime?         @map("paid_at") // part 2: the Accountant marked it paid
+  paidById          String?           @map("paid_by_id")
+  lockedAt          DateTime?         @map("locked_at") // set with paidAt; from then the database refuses every payroll write on the month
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
-  company     Company             @relation(fields: [companyId], references: [id])
-  sites       PayrollMonthSite[]
-  runs        PayrollRun[]
-  adjustments PayrollAdjustment[]
-  leftOut     PayrollLeftOut[]
-  snapshots   PayrollSnapshot[]
+  company      Company              @relation(fields: [companyId], references: [id])
+  sites        PayrollMonthSite[]
+  runs         PayrollRun[]
+  adjustments  PayrollAdjustment[]
+  leftOut      PayrollLeftOut[]
+  snapshots    PayrollSnapshot[]
+  publications PayrollPublication[]
+  bankFiles    PayrollBankFile[]
+  exports      PayrollExport[]
 
   @@unique([companyId, monthKey])
   @@unique([companyId, documentNumber])
@@ -271,6 +281,71 @@ model PayrollSnapshot {
 
   @@unique([monthId, revision])
   @@map("payroll_snapshots")
+}
+
+/// The payslip number `PS-nnnn` of one person's month, issued at the first publish from a database sequence (gaps allowed). A
+/// corrected payslip keeps it (version 2 of PS-0987). Kept apart because payslip rows are insert-only and the number comes later.
+model PayrollPublication {
+  id          String   @id @default(uuid())
+  monthId     String   @map("month_id")
+  employeeId  String   @map("employee_id")
+  number      Int      @unique @default(dbgenerated("nextval('payroll_payslip_seq')"))
+  publishedAt DateTime @map("published_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, employeeId])
+  @@index([employeeId])
+  @@map("payroll_publications")
+}
+
+enum BankFileState {
+  DOWNLOADED
+  VOIDED
+}
+
+/// One download of the bank file (E7). The file itself is never stored (rebuilt from the payslips); this row proves what was handed out.
+/// A void happens when a payslip's net or a person's payment details change after a download.
+model PayrollBankFile {
+  id             String        @id @default(uuid())
+  monthId        String        @map("month_id")
+  version        Int // 1, then 2 after a void
+  formatId       String        @map("format_id")
+  fileName       String        @map("file_name")
+  hash           String
+  people         Int
+  total          Decimal       @db.Decimal(14, 2)
+  state          BankFileState @default(DOWNLOADED)
+  downloadedById String        @map("downloaded_by_id")
+  downloadedAt   DateTime      @map("downloaded_at")
+  voidedAt       DateTime?     @map("voided_at")
+  voidReason     String?       @map("void_reason")
+  idempotencyKey String        @map("idempotency_key")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, downloadedById, idempotencyKey])
+  @@index([monthId, state])
+  @@map("pay_bank_files")
+}
+
+/// An export of the month (register, summary, schedules, payslips): the audit anchor, the idempotency key and the rate-limit count.
+model PayrollExport {
+  id             String   @id @default(uuid())
+  monthId        String   @map("month_id")
+  userId         String   @map("user_id")
+  kind           String
+  format         String
+  documentNumber String?  @map("document_number")
+  revision       Int      @default(1)
+  idempotencyKey String   @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  month PayrollMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@map("payroll_exports")
 }
 
 /// A reminder to a site that has not approved its timesheets. At most one in 24 hours.

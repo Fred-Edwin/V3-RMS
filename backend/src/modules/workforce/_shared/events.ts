@@ -68,6 +68,10 @@ export interface WorkforceEventPayloads {
   'payroll.month_sent_back': { monthKey: string; sentBackById: string; reason: string };
   'payroll.month_approved': { monthKey: string; approvedById: string; documentNumber: string; headcount: number };
   'payroll.site_reminded': { monthKey: string; siteId: string; remindedById: string };
+  // Segment 2B (Payroll part 2). The hand-over to the staff phone (Segment 3) and to 1A. Never a pay figure.
+  'payroll.month_published': { monthKey: string; publishedById: string; headcount: number; documentNumber: string };
+  'payroll.payslip_corrected': { monthKey: string; employeeId: string; userId: string | null; siteId: string; payslipNumber: string; version: number; correctedById: string; bankFileVoided: boolean };
+  'payroll.month_paid': { monthKey: string; paidById: string; headcount: number };
   'department.head_changed': {
     siteId: string;
     departmentId: string;

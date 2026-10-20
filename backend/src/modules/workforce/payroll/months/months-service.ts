@@ -6,6 +6,7 @@ import { estimateRepository } from '../estimate/estimate-repository';
 import { parseCents, formatCents } from '../engine/money';
 import { monthLabelOf } from '../../timesheets/months/rules/month-state';
 import { payrollActor } from '../payroll-context';
+import { monthTotals } from '../reads/current-totals';
 import { reviewRepository } from '../review/review-repository';
 import { approvalCount } from '../sites/site-status';
 import { loadSiteRows } from '../sites/site-rows';
@@ -18,10 +19,7 @@ interface RunTotalsJson {
   total?: { people: number; gross: string; taxStatutory: string; other: string; net: string; employerShare: string };
 }
 
-const runTotals = async (month: MonthRow): Promise<RunTotalsJson['total'] | null> => {
-  if (!month.currentRunId) return null;
-  return ((await monthsRepository.run(month.currentRunId))?.totals as RunTotalsJson | null)?.total ?? null;
-};
+const runTotals = async (month: MonthRow): Promise<RunTotalsJson['total'] | null> => (await monthTotals(month))?.total ?? null;
 
 /** The months list, newest first: the running month (an estimate, no row) and every month that has a row. */
 export async function listMonths(subject: AccessSubject, query: { page: number; rows: number }, now: Date = new Date()) {
@@ -64,7 +62,7 @@ export async function getMonth(subject: AccessSubject, monthKey: string, now: Da
   const approved = rows ? approvalCount(rows) : { approved: month.includedSiteIds.length, total: month.includedSiteIds.length, people: 0, peopleApproved: 0 };
   const banner = rows ? await waitingBanner(rows, window, monthLabelOf(monthKey)) : null;
   const totals = await runTotals(month);
-  const userIds = [month.sentById, month.approvedById, month.tablesConfirmedBy].filter((id): id is string => id !== null);
+  const userIds = [month.sentById, month.approvedById, month.tablesConfirmedBy, month.publishedById, month.paidById].filter((id): id is string => id !== null);
   const names = await monthsRepository.userNames(userIds);
   const nameOf = (id: string | null): string | null => (id ? (names.get(id)?.name ?? null) : null);
   const storedSites = rows ? [] : await monthsRepository.sites(month.id);
@@ -75,7 +73,7 @@ export async function getMonth(subject: AccessSubject, monthKey: string, now: Da
     label: monthLabelOf(monthKey),
     state: month.state as MonthStage,
     stateVersion: month.stateVersion,
-    stages: buildStages(month.state, { sitesApproved: approved, calculatedAt: month.calculatedAt, sentAt: month.sentAt, reviewedBy: nameOf(month.sentById), approvedAt: month.approvedAt, approvedBy: nameOf(month.approvedById), openLines: open }),
+    stages: buildStages(month.state, { sitesApproved: approved, calculatedAt: month.calculatedAt, sentAt: month.sentAt, reviewedBy: nameOf(month.sentById), approvedAt: month.approvedAt, approvedBy: nameOf(month.approvedById), openLines: open, publishedAt: month.publishedAt, publishedBy: nameOf(month.publishedById), paidAt: month.paidAt, paidBy: nameOf(month.paidById) }),
     stageCell: stageCell(month.state, { sitesApproved: approved, openLines: open, waitingFor: banner?.waitingFor ?? null }),
     kpis: { headcount: totals?.people ?? approved.people, gross: totals?.gross ?? null, net: totals?.net ?? null, totalCost, casual: '0.00', employerShare: totals?.employerShare ?? null, sitesApproved: { approved: approved.approved, total: approved.total }, openLines: open, blockingLines: counts.blocking },
     capabilities: capabilitiesFor(subject, month.state),
@@ -83,6 +81,9 @@ export async function getMonth(subject: AccessSubject, monthKey: string, now: Da
     sites: rows ?? storedSites.map((s) => ({ siteId: s.siteId, name: siteNames.get(s.siteId) ?? '', headcount: s.headcount, timesheetState: 'APPROVED' as const, approvedAt: s.timesheetApprovedAt.toISOString(), documentNumber: `TSH-${String(s.timesheetNumber).padStart(4, '0')}` })),
     banner,
     documentNumber: month.documentNumber,
+    lockedAt: month.lockedAt?.toISOString() ?? null,
+    publishedAt: month.publishedAt?.toISOString() ?? null,
+    paidAt: month.paidAt?.toISOString() ?? null,
     firstMonthForSites: month.firstMonthSiteIds,
     rulesUsed: Object.entries((month.rulesUsed ?? {}) as Record<string, { STATUTORY?: { companyVersion: number; effectiveFrom: string | null } }>).slice(0, 1).flatMap(([, rules]) => (rules.STATUTORY ? [{ key: 'STATUTORY', version: rules.STATUTORY.companyVersion, effectiveFrom: rules.STATUTORY.effectiveFrom }] : [])),
     tablesConfirmed: month.tablesVersion === null ? null : { version: month.tablesVersion, by: nameOf(month.tablesConfirmedBy), at: month.tablesConfirmedAt?.toISOString() ?? null },

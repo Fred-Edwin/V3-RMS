@@ -8,6 +8,7 @@ import { hashInputs } from '../engine/month-totals';
 import { monthHasEnded, monthWindow } from '../months/month-calendar';
 import { monthsRepository, type MonthRow } from '../months/months-repository';
 import { eventOf, payrollEntry, SYSTEM_ACTOR } from '../payroll-audit';
+import { assertNotLocked } from '../payroll-context';
 import { sitesRepository } from '../sites/sites-repository';
 import { calculateRepository } from './calculate-repository';
 import { computeRun } from './compute-run';
@@ -71,6 +72,7 @@ export async function calculateMonth(args: CalculateArgs): Promise<CalculateResu
   }
   const month = await monthsRepository.ensure(companyId, monthKey);
   if (args.expectedVersion !== undefined && month.stateVersion !== args.expectedVersion) throw new ConflictError('This changed while you were looking. Check it again.', 'CHANGED_UNDERNEATH');
+  assertNotLocked(month);
   if (month.state !== 'WAITING' && month.state !== 'IN_REVIEW') throw new ConflictError('This month has been sent on, so it cannot be calculated again. The Accountant can send it back.', 'MONTH_NOT_CALCULABLE');
 
   const first = month.state === 'WAITING';
