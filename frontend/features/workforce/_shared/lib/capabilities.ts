@@ -62,6 +62,7 @@ export type WorkforceCapability =
   | 'discipline.read_own'
   | 'discipline.read'
   | 'discipline.issue'
+  | 'discipline.decide'
   | 'audit.read_own';
 
 export type WorkforceScope = 'own' | 'dept' | 'unit' | 'all';
