@@ -1,7 +1,7 @@
 import { ApiError } from '@/types/api';
 
 import type { AdjustReason, ApplicationSummary, BarTone, CancelReason, DeclineReason } from '../types/leave-types';
-import { rangeShort } from './leave-dates';
+import { momentLabel, rangeShort } from './leave-dates';
 
 /** Leave words (spec screens, copy blocks). Roles stand in for names inside sentences; records carry name plus role (L29). */
 export const LEAVE_SCREEN = 'My leave';
@@ -67,6 +67,9 @@ export function statusLine(app: ApplicationSummary, reasonCode?: string | null):
       return { text: 'Cancelled', tone: 'muted' };
   }
 }
+
+/** The server's reason a decision button is missing ("... It moves to HR on 2026-10-12T12:10:00.000Z.") with the moment in Nairobi words. */
+export const whyNotText = (text: string): string => text.replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/, (iso) => momentLabel(iso));
 
 /** "Annual leave · 3 days", or "7 days (2 unpaid)". */
 export function titleLine(app: Pick<ApplicationSummary, 'typeLabel' | 'days' | 'unpaidTailDays'>): string {

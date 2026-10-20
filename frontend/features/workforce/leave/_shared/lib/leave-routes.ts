@@ -11,4 +11,6 @@ export const myLeaveRequestHref = (typeCode?: string, start?: string, end?: stri
 };
 export const myLeaveFollowHref = (id: string): string => `${MY_LEAVE_HISTORY}/${id}`;
 export const slipHref = (id: string): string => `${MY_LEAVE}/${id}/slip`;
+/** The slip as a manager opens it, from the Leave page (the arrow goes back to that request). */
+export const managerSlipHref = (id: string): string => `${LEAVE_PAGE}/${id}/slip`;
 export const requestsHref = (open?: string): string => `${LEAVE_PAGE}?tab=requests${open ? `&open=${open}` : ''}`;
