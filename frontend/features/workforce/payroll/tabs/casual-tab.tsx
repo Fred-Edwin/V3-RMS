@@ -7,6 +7,9 @@ import { dayOfDate, kes } from '../_shared/lib/format';
 const TH = 'px-3.5 py-2.5 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.08em] text-wds-text-secondary';
 const TD = 'px-3.5 py-2.5 font-wds-sans text-[13px] leading-4 text-wds-text-ink';
 
+/** Paper draws these four figures at 24 px (the kit's figures size is 30), so "Not included" stays on one line. */
+const figure = (text: string) => <span className="text-[24px] leading-7">{text}</span>;
+
 /** Casual pay (spec S4): a memo of what was paid from petty cash, by department, with the latest approved pay sheets. Never in the monthly run. */
 export function CasualTab({ monthKey, refresh }: { monthKey: string; refresh: number }) {
   const casual = useCasual(monthKey, refresh);
@@ -19,10 +22,10 @@ export function CasualTab({ monthKey, refresh }: { monthKey: string; refresh: nu
       <StatBoxes
         variant="figures"
         cells={[
-          { label: 'CASUAL DAYS', value: String(c.days) },
-          { label: 'CASUAL WORKERS', value: String(c.workers) },
-          { label: 'PAID FROM PETTY CASH (KES)', value: kes(c.paidTotal) },
-          { label: 'IN THE MONTHLY RUN', value: 'Not included' },
+          { label: 'CASUAL DAYS', value: figure(String(c.days)) },
+          { label: 'CASUAL WORKERS', value: figure(String(c.workers)) },
+          { label: 'PAID FROM PETTY CASH (KES)', value: figure(kes(c.paidTotal)) },
+          { label: 'IN THE MONTHLY RUN', value: figure('Not included') },
         ]}
       />
       {c.source === 'NONE' ? (

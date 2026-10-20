@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { Callout, ErrorBlock, ListSkeleton } from '../../_shared';
-import { FiguresCard } from '../_shared/components/figures-card';
+import { FiguresCard, type FigureRow } from '../_shared/components/figures-card';
 import { HandCheckDrawer } from '../review/hand-check-drawer';
 import { useTax } from '../_shared/hooks/use-payroll-data';
 import { dayMonthTime, kes, kesLabel } from '../_shared/lib/format';
@@ -16,6 +16,13 @@ import type { TaxTable } from '../_shared/types/tab-types';
 const sentenceCase = (role: string): string => {
   const words = role.replace(/_/g, ' ').toLowerCase();
   return (words.charAt(0).toUpperCase() + words.slice(1)).replace(/^Hr\b/, 'HR');
+};
+
+/** A short working stays on the row (NSSF: "37,500 × 6% = 2,250"); a long one (PAYE bands) becomes steps, one per line: "first 24,000 × 10%", "+ next 8,333 × 25%", "= 5,358". */
+const exampleRow = (name: string, text: string): FigureRow => {
+  const label = `Example · ${name}`;
+  if (text.length <= 36) return { label: 'Example', value: text, mono: true };
+  return { label, value: text, steps: text.split(/\s(?=[+−=]\s)/).map((s) => s.trim()) };
 };
 
 function TablePanel({ table }: { table: TaxTable }) {
@@ -33,7 +40,7 @@ function TablePanel({ table }: { table: TaxTable }) {
       rows={[
         ...bandRows(table).map((r) => ({ label: r.label, value: r.value, mono: true })),
         { label: 'Taken from', value: baseWords(table.base) },
-        ...(table.example ? [{ label: 'Example', value: table.example.text, mono: true }] : []),
+        ...(table.example ? [exampleRow(table.example.name, table.example.text)] : []),
       ]}
       cells={cells}
     />

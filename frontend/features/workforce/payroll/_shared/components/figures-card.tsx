@@ -5,6 +5,8 @@ export interface FigureRow {
   value: string;
   /** Digits and formulas read in the mono face (Paper: "1.5 ×", "Basic ÷ 208"). */
   mono?: boolean;
+  /** A long working shown as its own block, one step per line, under the label (the PAYE example). */
+  steps?: string[];
 }
 
 export interface FigureCell {
@@ -44,12 +46,23 @@ export function FiguresCard({
         {aside ? <div className="shrink-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{aside}</div> : null}
       </header>
       <ul className="m-0 flex list-none flex-col px-3.5 pb-1.5 pt-1.5">
-        {rows.map((r) => (
+        {rows.map((r) =>
+          r.steps ? (
+            <li key={r.label} className="flex flex-col gap-1.5 border-b border-wds-neutral-100 py-2 last:border-b-0">
+              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.label}</span>
+              <ol className="m-0 flex list-none flex-col gap-0.5 bg-wds-neutral-50 px-2.5 py-2 font-wds-mono text-[12px] leading-4 text-wds-text-ink">
+                {r.steps.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ol>
+            </li>
+          ) : (
           <li key={r.label} className="flex justify-between gap-4 border-b border-wds-neutral-100 py-1.5 last:border-b-0">
             <span className="shrink-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.label}</span>
             <span className={`min-w-0 break-words text-right text-[12px] leading-4 text-wds-text-ink ${r.mono ? 'font-wds-mono' : 'font-wds-sans'}`}>{r.value}</span>
           </li>
-        ))}
+          )
+        )}
         {note ? <li className="py-1.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{note}</li> : null}
       </ul>
       <dl className="m-0 mt-auto flex border-t border-wds-neutral-950 bg-wds-neutral-50">
