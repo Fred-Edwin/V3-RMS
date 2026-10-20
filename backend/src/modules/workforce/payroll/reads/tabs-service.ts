@@ -1,5 +1,6 @@
 import { ConflictError } from '../../../../utils/errors';
 import type { AccessSubject } from '../../_shared/workforce-access';
+import { casualMonthSummary } from '../../casual';
 import type { EffectiveRules } from '../../rules';
 import { formatCents, parseCents } from '../engine/money';
 import { monthsRepository, type MonthRow } from '../months/months-repository';
@@ -59,10 +60,10 @@ export async function taxAndDeductions(subject: AccessSubject, monthKey: string)
   };
 }
 
-/** S4: casual pay is a memo and the Casual feature does not exist yet, so the tab says so and shows zeros. */
+/** S4: casual pay is a memo line: the approved sheets of the month, read from the casual module (Segment 3). */
 export async function casualPay(subject: AccessSubject, monthKey: string) {
-  const { month } = await calculated(subject, monthKey);
-  return { monthKey, state: month.state, source: 'NONE' as const, days: 0, workers: 0, paidTotal: '0.00', inMonthlyRun: false, byDepartment: [], latestSheets: [], message: 'No casual pay sheets in the new system yet. Casual pay for this month is on the old pay sheets.' };
+  const { month, companyId } = await calculated(subject, monthKey);
+  return { ...(await casualMonthSummary(companyId, monthKey)), state: month.state };
 }
 
 /** S5: gross to net by site, from the stored run. */
