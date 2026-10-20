@@ -14,7 +14,7 @@ import { reviewRepository } from '../review/review-repository';
 import { sitesRepository } from '../sites/sites-repository';
 import { approvalRepository } from './approval-repository';
 import type { ApproveBody } from './approval-validators';
-import { hashSnapshot, type MonthSnapshot } from './month-snapshot';
+import { hashSnapshot, toSnapshotPayslip, type MonthSnapshot } from './month-snapshot';
 import { assertNotPreparer } from './preparers';
 
 export interface StepResult {
@@ -81,6 +81,7 @@ const sameMoney = (a: string, b: string): boolean => parseCents(a) === parseCent
 
 async function buildSnapshot(month: MonthRow, approver: { id: string; name: string }, now: Date, preparers: { id: string; name: string }[], totals: MonthSnapshot['totals']): Promise<MonthSnapshot> {
   const [slips, sites] = await Promise.all([approvalRepository.payslipsWithLines(month.currentRunId ?? ''), monthsRepository.sites(month.id)]);
+  const ids = await approvalRepository.statutoryIds(slips.map((p) => p.employeeId));
   const names = new Map((await sitesRepository.activeSites(month.companyId)).map((s) => [s.id, s.name]));
   return {
     version: 1,
@@ -94,12 +95,7 @@ async function buildSnapshot(month: MonthRow, approver: { id: string; name: stri
     sites: sites.map((s) => ({ siteId: s.siteId, name: names.get(s.siteId) ?? '', timesheetNumber: `TSH-${String(s.timesheetNumber).padStart(4, '0')}` })),
     rulesUsed: month.rulesUsed,
     totals,
-    payslips: slips.map((p) => ({
-      employeeId: p.employeeId, employeeName: p.employeeName, employeeNumber: p.employeeNumber, siteId: p.siteId, siteName: p.siteName, department: p.department,
-      basic: p.basic.toFixed(2), gross: p.gross.toFixed(2), statutoryEmployee: p.statutoryEmployee.toFixed(2), incomeTax: p.incomeTax.toFixed(2), otherDeductions: p.otherDeductions.toFixed(2),
-      net: p.net.toFixed(2), employerShare: p.employerShare.toFixed(2), taxablePay: p.taxablePay.toFixed(2),
-      lines: p.lines.map((l) => ({ code: l.code, label: l.label, kind: l.kind, amount: l.amount.toFixed(2), workingText: l.workingText, tableCode: l.tableCode, share: l.share })),
-    })),
+    payslips: slips.map((p) => toSnapshotPayslip(p, ids.get(p.employeeId) ?? null)),
   };
 }
 

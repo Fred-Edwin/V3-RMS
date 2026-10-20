@@ -5,7 +5,7 @@ const idempotencyKey = z.string().trim().min(8).max(80);
 const money = z.string().regex(/^-?\d{1,12}(\.\d{1,2})?$/, 'Use digits with up to 2 decimals');
 
 /** A reason is read by HR and shown in the audit log: say what is wrong, not how much (no pay figure travels in free text). */
-const reason = z
+export const reasonField = z
   .string()
   .trim()
   .min(5, 'Say why, in at least 5 characters')
@@ -13,7 +13,7 @@ const reason = z
   .refine((v) => !/\d{4,}/.test(v.replace(/[\s,.]/g, '')), 'Leave amounts out of the reason');
 
 export const sendBody = z.object({ idempotencyKey, stateVersion: version }).strict();
-export const sendBackBody = z.object({ reason, idempotencyKey, stateVersion: version }).strict();
+export const sendBackBody = z.object({ reason: reasonField, idempotencyKey, stateVersion: version }).strict();
 
 export const approveBody = z
   .object({

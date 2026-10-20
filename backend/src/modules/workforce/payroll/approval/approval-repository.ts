@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../../config/database';
+import type { StatutoryIds } from './month-snapshot';
 import type { PreparerFacts } from './preparers';
 
 export interface RunTotals {
@@ -37,6 +38,15 @@ export const approvalRepository = {
 
   /** Every payslip of the run with its lines, for the frozen snapshot. */
   payslipsWithLines: (runId: string) => prisma.payrollPayslip.findMany({ where: { runId }, include: { lines: { orderBy: { position: 'asc' } } }, orderBy: [{ siteName: 'asc' }, { employeeName: 'asc' }] }),
+
+  /** The newest snapshot of the month: revision 1 is the approval, a later one is a correction after it. */
+  latestSnapshot: (monthId: string) => prisma.payrollSnapshot.findFirst({ where: { monthId }, orderBy: { revision: 'desc' } }),
+
+  /** The filing numbers of these people, frozen into the snapshot at approval. */
+  async statutoryIds(employeeIds: readonly string[]): Promise<Map<string, StatutoryIds>> {
+    const rows = await prisma.employee.findMany({ where: { id: { in: [...employeeIds] } }, select: { id: true, kraPin: true, nssfNumber: true, shaNumber: true } });
+    return new Map(rows.map((r) => [r.id, { kraPin: r.kraPin, nssfNumber: r.nssfNumber, shaNumber: r.shaNumber }]));
+  },
 
   addSnapshot: (tx: Prisma.TransactionClient, data: { monthId: string; hash: string; data: Prisma.InputJsonValue }) => tx.payrollSnapshot.create({ data: { ...data, revision: 1 } }),
 
