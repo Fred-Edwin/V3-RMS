@@ -14,7 +14,7 @@ function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (
   const button = 'flex h-7 min-w-7 items-center justify-center px-1.5 font-wds-sans text-[12px] leading-4';
   return (
     <nav aria-label="Months pages" className="flex items-center gap-1">
-      <button type="button" aria-label="Newer months" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(button, 'text-wds-text-secondary disabled:opacity-40', FOCUS_RING)}>
+      <button type="button" aria-label="Newer months" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(button, MOTION, FOCUS_RING, 'text-wds-text-secondary disabled:pointer-events-none disabled:opacity-40', onHover('bg-wds-neutral-50'))}>
         ‹
       </button>
       {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
@@ -22,7 +22,7 @@ function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (
           {n}
         </button>
       ))}
-      <button type="button" aria-label="Older months" disabled={page >= pages} onClick={() => onPage(page + 1)} className={cn(button, 'text-wds-text-secondary disabled:opacity-40', FOCUS_RING)}>
+      <button type="button" aria-label="Older months" disabled={page >= pages} onClick={() => onPage(page + 1)} className={cn(button, MOTION, FOCUS_RING, 'text-wds-text-secondary disabled:pointer-events-none disabled:opacity-40', onHover('bg-wds-neutral-50'))}>
         ›
       </button>
     </nav>

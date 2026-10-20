@@ -36,7 +36,7 @@ export function NumberedPager({ page, rows, total, onPage, onRows }: { page: num
       </span>
       {pages > 1 ? (
         <nav aria-label="Pages" className="flex items-center gap-1">
-          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(cell, 'text-wds-text-secondary disabled:opacity-40', FOCUS_RING)}>
+          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className={cn(cell, MOTION, FOCUS_RING, 'text-wds-text-secondary disabled:pointer-events-none disabled:opacity-40', onHover('bg-wds-neutral-50'))}>
             Previous
           </button>
           {pageWindow(page, pages).map((n, i) =>
@@ -50,7 +50,7 @@ export function NumberedPager({ page, rows, total, onPage, onRows }: { page: num
               </button>
             )
           )}
-          <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} className={cn(cell, 'text-wds-text-secondary disabled:opacity-40', FOCUS_RING)}>
+          <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} className={cn(cell, MOTION, FOCUS_RING, 'text-wds-text-secondary disabled:pointer-events-none disabled:opacity-40', onHover('bg-wds-neutral-50'))}>
             Next
           </button>
         </nav>

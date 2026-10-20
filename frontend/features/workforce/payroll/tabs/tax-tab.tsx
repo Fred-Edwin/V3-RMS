@@ -6,6 +6,7 @@ import { Callout, ErrorBlock, ListSkeleton, Panel, SettingRows, StatBoxes } from
 import { HandCheckDrawer } from '../review/hand-check-drawer';
 import { useTax } from '../_shared/hooks/use-payroll-data';
 import { dayMonthTime, kes, kesLabel } from '../_shared/lib/format';
+import { LINK_BUTTON } from '../_shared/lib/link-style';
 import { bandRows, baseWords } from '../_shared/lib/tax-words';
 import type { MonthView } from '../_shared/types/month-types';
 import type { TaxTable } from '../_shared/types/tab-types';
@@ -54,7 +55,7 @@ export function TaxTab({ view, refresh, handCheck, onHandCheck }: { view: MonthV
       </div>
       <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
         {Number(t.employerContributions) > 0 ? `Employer contributions ${kesLabel(t.employerContributions)} are not taken from pay.` : 'Employer contributions KES 0 are not taken from pay.'}{' '}
-        <button type="button" onClick={() => onHandCheck(true)} className="font-medium text-wds-text-ink underline underline-offset-2">
+        <button type="button" onClick={() => onHandCheck(true)} className={LINK_BUTTON}>
           Check one person by hand
         </button>
       </p>

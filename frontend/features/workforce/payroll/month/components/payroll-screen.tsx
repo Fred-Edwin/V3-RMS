@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Callout, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, WorkforceFrame, WorkforceKpiStrip, useWorkforcePermissions } from '../../../_shared';
 import { PayrollDialogs, type DialogName } from '../../actions/payroll-dialogs';
 import { useMonthList, useMonthView, useEstimate } from '../../_shared/hooks/use-payroll-data';
+import { LINK_BUTTON } from '../../_shared/lib/link-style';
 import { defaultMonth, headerAction, headerActionLabel, isLocked, sendBlockedReason } from '../../_shared/lib/month-view';
 import { HowItWorks } from '../../help/how-payroll-works';
 import { PayrollTabs } from '../../tabs/payroll-tabs';
@@ -84,15 +85,13 @@ export function PayrollScreen() {
         ) : null}
         {month.status === 'error' && !view ? <ErrorBlock title="This month did not load" line={month.error.message} onRetry={month.reload} reference={month.error.code} /> : null}
         {view ? (
-          <>
-            <WorkforceKpiStrip aria-label={`${view.label}, where it stands`} cells={stripCells(view, stored)} />
-            <hr className="m-0 border-0 border-t border-wds-neutral-950" />
-          </>
+          <WorkforceKpiStrip aria-label={`${view.label}, where it stands`} cells={stripCells(view, stored)} />
         ) : null}
-        <div className="flex min-h-0 flex-col min-[1100px]:h-[max(520px,calc(100dvh-380px))] min-[1100px]:flex-row">
+        {/* The hairline is this row's own top border, so the months list's vertical divider meets it. The row fills the rest of the page at any screen height. */}
+        <div className="flex min-h-0 flex-1 flex-col border-t border-wds-neutral-950 min-[1100px]:min-h-[520px] min-[1100px]:flex-row">
           <MonthPicker data={list.data} selected={monthKey} onSelect={chooseMonth} />
           <MonthsList status={list.status === 'error' ? 'error' : list.status} data={list.data} selected={monthKey} page={listPage} onSelect={chooseMonth} onPage={setListPage} onRetry={list.reload} onEmptyLink={() => oldPayslips && router.push(oldPayslips)} />
-          <section aria-label={view ? `${view.label}, the month` : 'The month'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pt-4 min-[1100px]:pl-6">
+          <section aria-label={view ? `${view.label}, the month` : 'The month'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 pb-6 pt-4 min-[1100px]:pl-6">
             {view && monthKey ? (
               <>
                 {view.state === 'OPEN' ? null : <StageLine stages={view.stages} />}
@@ -113,15 +112,15 @@ export function PayrollScreen() {
   }
 
   return (
-    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Payroll' }} phoneTitle="Payroll" label="Payroll" className="px-4 py-6 lg:px-8 lg:py-7">
-      <div className="mx-auto flex w-full max-w-[1140px] flex-col gap-4">
+    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Payroll' }} phoneTitle="Payroll" label="Payroll" className="px-4 pb-0 pt-6 lg:px-8 lg:pt-7">
+      <div className="mx-auto flex min-h-full w-full max-w-[1140px] flex-col gap-4">
         <PageHeader
           size="lg"
           title="Payroll"
           subtitle={
             <>
               One page for each month, for the whole company.{' '}
-              <button type="button" onClick={() => setHelpOpen(true)} className="font-medium text-wds-text-ink underline underline-offset-2">
+              <button type="button" onClick={() => setHelpOpen(true)} className={LINK_BUTTON}>
                 How payroll works
               </button>
             </>

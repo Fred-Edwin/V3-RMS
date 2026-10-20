@@ -8,6 +8,7 @@ import { Callout, ErrorBlock, ListSkeleton } from '../../_shared';
 import { PinActDialog } from '../_shared/components/pin-act-dialog';
 import { useTotals } from '../_shared/hooks/use-payroll-data';
 import { kesLabel, monthName, people } from '../_shared/lib/format';
+import { LINK_BUTTON } from '../_shared/lib/link-style';
 import { payrollWrites } from '../_shared/services/payroll-writes';
 import type { MonthView } from '../_shared/types/month-types';
 
@@ -93,7 +94,7 @@ export function ApproveDialog({ view, onClose, onDone, onStale, onCheckByHand }:
           <input type="checkbox" checked={hand} onChange={(e) => setHand(e.target.checked)} disabled={prepared} className="mt-0.5 size-4 accent-[var(--wds-primary)]" />
           <span>
             I checked at least 3 payslips by hand against the Tax and deductions tab.{' '}
-            <button type="button" onClick={onCheckByHand} className="font-medium underline underline-offset-2">
+            <button type="button" onClick={onCheckByHand} className={LINK_BUTTON}>
               Check one person by hand
             </button>
           </span>

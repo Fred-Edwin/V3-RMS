@@ -3,6 +3,7 @@
 import { EmptyState, UnderlineTabs } from '../../_shared';
 import { EstimatePanel } from '../estimate/estimate-panel';
 import { TimesheetsTab } from '../sites/timesheets-tab';
+import { LINK_BUTTON } from '../_shared/lib/link-style';
 import { TAB_LABELS, TAB_OFF_REASON, TAB_ORDER, activeTab } from '../_shared/lib/month-view';
 import type { MonthView } from '../_shared/types/month-types';
 import type { EstimateView } from '../_shared/types/tab-types';
@@ -65,7 +66,7 @@ export function PayrollTabs({
       {oldPayslipsHref && view.sites.some((s) => s.timesheetState === 'NOT_ON_NEW_SYSTEM') ? (
         <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
           Sites not on the new system are still paid on the{' '}
-          <a href={oldPayslipsHref} className="font-medium text-wds-text-ink underline underline-offset-2">
+          <a href={oldPayslipsHref} className={LINK_BUTTON}>
             old Payslips page
           </a>
           .

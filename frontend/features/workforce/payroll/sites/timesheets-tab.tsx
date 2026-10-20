@@ -7,12 +7,13 @@ import { cn } from '@/lib/cn';
 
 import { Callout, DialogButton } from '../../_shared';
 import { people } from '../_shared/lib/format';
+import { LINK_BUTTON } from '../_shared/lib/link-style';
 import type { MonthSite, MonthView } from '../_shared/types/month-types';
 import { LateApproveDialog, RemindDialog } from './site-dialogs';
 import { oldSystemLine, remindWord, siteStatus, siteWhen } from './site-words';
 
 const TONE = { success: 'text-wds-success-fg', warning: 'font-semibold text-wds-warning-fg', muted: 'text-wds-text-secondary' } as const;
-const LINK = 'font-wds-sans text-[13px] leading-4 font-medium text-wds-text-ink underline underline-offset-2';
+const LINK = cn('font-wds-sans text-[13px] leading-4', LINK_BUTTON);
 
 /** The banner for a month that waits: for sites, or for the tax tables (with the way to Rules, spec S1). */
 function WaitingBanner({ view }: { view: MonthView }) {

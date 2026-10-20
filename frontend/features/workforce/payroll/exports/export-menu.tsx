@@ -25,6 +25,7 @@ export function ExportMenu({ view, onClose }: { view: MonthView; onClose: () => 
   const [format, setFormat] = React.useState<ExportFormat>(chosen?.formats[0] ?? 'pdf');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [saved, setSaved] = React.useState<string | null>(null);
   const [online, setOnline] = React.useState(true);
   const slow = useStillLoading(busy, 10_000);
   const key = React.useRef(newKey());
@@ -53,9 +54,11 @@ export function ExportMenu({ view, onClose }: { view: MonthView; onClose: () => 
     if (!chosen) return;
     setBusy(true);
     setError(null);
+    setSaved(null);
     try {
       const file = await downloadExport(view.monthKey, chosen.kind, format, key.current);
       saveFile(file.blob, file.filename);
+      setSaved(file.filename);
       key.current = newKey();
     } catch (err) {
       setError(err instanceof ApiError ? refusalWords(err.code, err.message) : 'The file could not be made. Try again.');
@@ -88,6 +91,11 @@ export function ExportMenu({ view, onClose }: { view: MonthView; onClose: () => 
       {error ? (
         <p role="alert" className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">
           {error}
+        </p>
+      ) : null}
+      {saved && !busy ? (
+        <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+          Saved {saved}.
         </p>
       ) : null}
       {slow ? (

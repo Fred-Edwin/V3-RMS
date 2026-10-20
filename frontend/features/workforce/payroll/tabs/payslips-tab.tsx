@@ -10,6 +10,7 @@ import { PayslipDrawer } from './payslip-drawer';
 import { NumberedPager } from '../_shared/components/numbered-pager';
 import { usePayslipList } from '../_shared/hooks/use-payroll-data';
 import { kes } from '../_shared/lib/format';
+import { LINK_BUTTON } from '../_shared/lib/link-style';
 import type { MonthView } from '../_shared/types/month-types';
 import type { PayslipRow } from '../_shared/types/tab-types';
 
@@ -113,11 +114,11 @@ export function PayslipsTab({ view, url, refresh, onChanged }: { view: MonthView
                       <td className={cn('px-3.5 font-wds-sans text-[13px]', s.tone)}>{s.text}</td>
                       <td className="whitespace-nowrap px-3.5 text-right">
                         <span className="inline-flex gap-3 font-wds-sans text-[13px]">
-                          <button type="button" aria-label={`View payslip of ${r.name}`} onClick={() => setViewing(r)} className="font-medium text-wds-text-ink underline underline-offset-2">
+                          <button type="button" aria-label={`View payslip of ${r.name}`} onClick={() => setViewing(r)} className={LINK_BUTTON}>
                             View
                           </button>
                           {canCorrect ? (
-                            <button type="button" aria-label={`Correct payslip of ${r.name}`} onClick={() => setCorrecting(r)} className="font-medium text-wds-text-ink underline underline-offset-2">
+                            <button type="button" aria-label={`Correct payslip of ${r.name}`} onClick={() => setCorrecting(r)} className={LINK_BUTTON}>
                               Correct
                             </button>
                           ) : null}
