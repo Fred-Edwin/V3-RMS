@@ -98,7 +98,8 @@ p9.confirm_format            -    -    all  -    -    -    -
 discipline.read_own          own  -    own  own  own  own  -
 discipline.read              -    -    -    unit all  all  -
 discipline.issue             -    -    -    unit all  -    -
-audit.read_own               own  -    own  own  own  own  -
+discipline.decide            -    -    -    -    all  all  -
+audit.read_own              own  -    own  own  own  own  -
 audit.read.people            -    -    -    -    all  all  -
 audit.read.time              -    -    -    unit all  all  -
 audit.read.leave             -    -    -    unit all  all  -

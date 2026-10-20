@@ -91,6 +91,7 @@ export const CAPABILITIES = [
   'discipline.read_own',
   'discipline.read',
   'discipline.issue',
+  'discipline.decide', // Segment 5: HR decides appeals and changes notices; the Director decides notices HR issued (the service narrows it)
   // audit log (what each role may read is one capability per category)
   'audit.read_own', // "Activity on my record"
   'audit.read.people',
@@ -270,6 +271,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'p9.generate': 'all',
     'discipline.read': 'all',
     'discipline.issue': 'all',
+    'discipline.decide': 'all',
     'audit.read.people': 'all',
     'audit.read.time': 'all',
     'audit.read.leave': 'all',
@@ -318,6 +320,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'payroll.estimate.read': 'all',
     'payroll.approve_site_late': 'all',
     'discipline.read': 'all',
+    'discipline.decide': 'all', // only for notices HR issued: assertMayDecide in conduct/appeals narrows it
     ...ALL_AUDIT_READS,
   },
   SYSTEM_ADMIN: {

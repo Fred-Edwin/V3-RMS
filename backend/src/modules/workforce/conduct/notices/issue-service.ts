@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
@@ -8,6 +7,7 @@ import { switchRepository } from '../../attendance/switch/switch-repository';
 import { nudgeUsers } from '../../notifications';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { conductActor, conductEntry, directorUserIds, hrUserIds, roleName, tellAbout } from '../_shared/conduct-context';
+import { newVerifyCode } from '../_shared/conduct-codes';
 import { jobLabelOf } from '../_shared/conduct-load';
 import { appealDeadline, validUntilOf } from '../_shared/conduct-dates';
 import { hasLetter, hasTimesheetFacts, LEVEL_LABELS, noticeNumberLabel, type ConductLevel } from '../_shared/conduct-model';
@@ -48,9 +48,6 @@ export async function factsFor(person: ConductPerson, about: IssueBody['about'],
   if (!facts) throw new AppError(422, 'NO_FACTS', `There are no unexcused days in ${monthKey}. Choose another month or add your own line.`, { monthKey });
   return facts;
 }
-
-/** A random 12-character code for the QR on the letter (C24). */
-const newVerifyCode = (): string => randomBytes(9).toString('base64url').slice(0, 12);
 
 /**
  * Issues a warning notice (S9): checks the person, the ladder and the facts, takes the issuer's PIN, then in ONE transaction takes
