@@ -6,15 +6,13 @@ import { ClockCard } from '../../_shared';
 import { ClockHomeCard, type Board, type MyDay } from '../../attendance';
 import { LiveTeamCard } from '../components/live-team-card';
 import { JobCardsSlot, ServiceTeamCard, WeekCard } from '../components/phone-cards';
-import { WaitingForYouCard } from '../components/waiting-for-you';
 import { defineHomeCard } from '../lib/card-registry';
 import { useClockCardData, useTeamCardData, useWeekCardData } from './attendance-data';
-import type { WaitingData } from './branch-cards';
 import { noSource } from './no-source';
 
 /**
- * The phone Home cards (Paper step 05), in the order the stack draws them: 01 the shift (the clock card), 02 Waiting for you,
- * 03 the job's cards (a dashed slot until the Orders redo), 04 the team, 05 this week. Staff see 01, 03 and 05; a department head all five;
+ * The phone Home cards (Paper step 05), in the order the stack draws them: 01 the shift (the clock card), 02 Needs you (registered in
+ * `needs-you-cards.tsx`; the department head's old "Waiting for you" card is deleted, heads approve nothing), 03 the job's cards (a dashed slot until the Orders redo), 04 the team, 05 this week. Staff see 01, 03 and 05; a department head all five;
  * a manager "the branch right now" in place of 01 and 05 (that is the desktop board, on a phone: slice 3).
  */
 
@@ -39,18 +37,6 @@ export const clockCard = defineHomeCard<ClockSlot>({
   urgency: (d) => ('live' in d && d.live.day.current?.state === 'PROMPT_DUE' ? 1 : 10),
   useData: useClockCardData,
   Card: ({ data }) => ('live' in data ? <ClockHomeCard day={data.live.day} reload={data.live.reload} /> : <ClockCard {...data.fixture} />),
-});
-
-export const waitingPhoneCard = defineHomeCard<WaitingData>({
-  id: 'workforce.waiting-for-you.phone',
-  title: 'Waiting for you',
-  surfaces: ['phone'],
-  slot: 'main',
-  anyCapability: ['overtime.approve', 'casual.record'],
-  order: 20,
-  isEmpty: (d) => d.items.length === 0,
-  useData: noSource<WaitingData>(),
-  Card: ({ data }) => <WaitingForYouCard items={data.items} />,
 });
 
 /** Always ready: the slot is a note, not data. It stays off the page until a person who has a job to show holds `time.own` AND the Orders redo exists. */

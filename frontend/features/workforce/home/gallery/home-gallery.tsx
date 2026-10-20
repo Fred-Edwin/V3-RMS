@@ -24,6 +24,7 @@ import {
   BRANCH_BOARD,
   BRANCH_KPIS,
   BRANCH_STATES,
+  BRANCH_NEEDS_YOU,
   BRANCH_WAITING,
   DIRECTOR_STATES,
   HEAD_STATES,
@@ -105,31 +106,31 @@ export function HomeGallery() {
           <div>
             <Label>HR Manager · OOZ-0</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('employee.write_sensitive', 'overtime.approve', 'leave.approve')} states={HR_STATES} heading={<Greeting title="Good morning, Mercy" line="Sunday 4 October. 11 things are waiting on people, and 3 of them are waiting on you." />} />
+              <RolePage surface="desktop" can={caps('employee.write_sensitive', 'overtime.approve', 'leave.approve', 'needs_you.read')} states={{ ...HR_STATES, 'workforce.needs-you': { status: 'ready', data: BRANCH_NEEDS_YOU } }} heading={<Greeting title="Good morning, Mercy" line="Sunday 4 October. 11 things are waiting on people, and 3 of them are waiting on you." />} />
             </Desktop>
           </div>
           <div>
             <Label>Branch Manager · PPM-0</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('today.act', 'overtime.approve', 'leave.approve')} states={BRANCH_STATES} heading={<BranchNowHeader title="Nyeri Town, right now" subtitle="Sunday 4 October, 10:42. The morning shift ends at 14:00." />} />
+              <RolePage surface="desktop" can={caps('today.act', 'overtime.approve', 'leave.approve', 'needs_you.read')} states={BRANCH_STATES} heading={<BranchNowHeader title="Nyeri Town, right now" subtitle="Sunday 4 October, 10:42. The morning shift ends at 14:00." />} />
             </Desktop>
           </div>
           <div>
             <Label>Store Manager · the same cards, for the Central Store</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('today.act', 'overtime.approve', 'clock_mistake.resolve')} states={BRANCH_STATES} heading={<BranchNowHeader title="Central Store, right now" subtitle="Sunday 4 October, 10:42. The morning shift ends at 14:00." />} />
+              <RolePage surface="desktop" can={caps('today.act', 'overtime.approve', 'clock_mistake.resolve', 'needs_you.read')} states={BRANCH_STATES} heading={<BranchNowHeader title="Central Store, right now" subtitle="Sunday 4 October, 10:42. The morning shift ends at 14:00." />} />
             </Desktop>
           </div>
           <div>
             <Label>Accountant · reference table (no drawing)</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('payroll.approve', 'timesheet.read')} states={ACCOUNTANT_STATES} heading={<Greeting title="Good morning, Anne" line="Sunday 4 October. 2 steps are waiting on you before the October pay run." />} />
+              <RolePage surface="desktop" can={caps('payroll.approve', 'timesheet.read', 'needs_you.read')} states={ACCOUNTANT_STATES} heading={<Greeting title="Good morning, Anne" line="Sunday 4 October. 2 steps are waiting on you before the October pay run." />} />
             </Desktop>
           </div>
           <div>
             <Label>Director · reference table (no drawing)</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('payroll.approve_site_late', 'leave.approve', 'rota.read')} states={DIRECTOR_STATES} heading={<Greeting title="Good morning, Wendo" line="Sunday 4 October. 2 approvals are overdue." />} />
+              <RolePage surface="desktop" can={caps('payroll.approve_site_late', 'leave.approve', 'rota.read', 'needs_you.remind')} states={DIRECTOR_STATES} heading={<Greeting title="Good morning, Wendo" line="Sunday 4 October. 2 approvals are overdue." />} />
             </Desktop>
           </div>
         </Section>

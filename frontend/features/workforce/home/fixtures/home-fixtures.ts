@@ -3,6 +3,7 @@ import type { BoardData, WaitingData } from '../cards/branch-cards';
 import type { AttentionData, ComingUpData, KpiData, PeopleData } from '../cards/hr-cards';
 import type { ClockCardData, TeamCardData, WeekCardData } from '../cards/phone-cards-defs';
 import { formatHms } from '../../_shared';
+import type { NeedsYouRow, NeedsYouState, OverdueState } from '../../needs-you';
 
 /**
  * The names and numbers Paper's Chapter 1 screens draw, as card data, so every block shows in the dev gallery before any slice feeds
@@ -12,10 +13,16 @@ import { formatHms } from '../../_shared';
 const noop = (): void => undefined;
 const ready = <T>(data: T): CardDataState<unknown> => ({ status: 'ready', data });
 
+/** A Needs you card state from example rows. */
+function needsYouFixture(rows: ReadonlyArray<Pick<NeedsYouRow, 'id' | 'kind' | 'text' | 'opens' | 'since' | 'isNew'>>): NeedsYouState {
+  const full: NeedsYouRow[] = rows.map((r) => ({ ...r, badge: null, siteId: null, siteName: null, waitingOnRole: 'MANAGER', personUserId: null, canRemind: false }));
+  return { status: 'ready', list: { rows: full, total: full.length, partial: false }, error: null, reload: noop };
+}
+
 // ── HR Manager (step 02) ──────────────────────────────────────────────────────────────────────────────────────────────────────
 export const HR_KPIS: KpiData = {
   cells: [
-    { key: 'waiting', label: 'WAITING FOR YOU', value: '5', detail: '2 leave, 2 reports, 1 pay run step', actionable: true, onSelect: noop },
+    { key: 'waiting', label: 'NEEDS YOU', value: '5', detail: '2 leave, 2 reports, 1 pay run step', actionable: true, onSelect: noop },
     { key: 'onboarding', label: 'ONBOARDING', value: '3', detail: 'employee files not complete', actionable: true, onSelect: noop },
     { key: 'contract', label: 'NO CONTRACT YET', value: '4', detail: 'monthly staff on the default policy', actionable: true, onSelect: noop },
     { key: 'payrun', label: 'OCTOBER PAY RUN', value: '82%', detail: 'of hours approved, 3 timesheets left' },
@@ -25,8 +32,6 @@ export const HR_KPIS: KpiData = {
 export const HR_ATTENTION: AttentionData = {
   viewAll: { label: 'View all 11', onClick: noop },
   items: [
-    { key: '1', kind: 'request', title: 'Leave request · Faith Njeri', detail: "Annual leave, 12 to 16 Oct, 5 days · Branch Manager, Nyeri Town · a manager's own leave comes to you", age: '1 DAY', action: { label: 'Review', onClick: noop } },
-    { key: '2', kind: 'report', title: 'Report a problem · Lucy Wambui', detail: "Says Friday's lateness was a bus breakdown · waiting on Faith Njeri for 4 days, moved to you", age: '4 DAYS', late: true, action: { label: 'Review', onClick: noop } },
     { key: '3', kind: 'setup', title: 'Finish hiring · Wanjiru Kamau', detail: 'Barista, Nyeri Town · pay and bank details are missing, so she cannot be paid yet', age: 'TODAY', action: { label: 'Finish', onClick: noop } },
     { key: '4', kind: 'date', title: 'Probation ends · Joy Chebet', detail: 'Barista, Nyeri Town · 14 Oct · decide whether to confirm her', age: '10 DAYS', action: { label: 'Open', onClick: noop } },
     { key: '5', kind: 'setup', title: 'No head for Pastry · Nyeri Highway', detail: 'Their rota and approvals are going to the branch manager for now', age: 'SET UP', action: { label: 'Assign', onClick: noop } },
@@ -59,7 +64,7 @@ export const BRANCH_KPIS: KpiData = {
     { key: 'on', label: 'ON SHIFT NOW', value: '29', detail: 'of 31 rostered' },
     { key: 'late', label: 'LATE TODAY', value: '2', detail: '31 minutes in total', actionable: true, onSelect: noop },
     { key: 'notin', label: 'NOT IN YET', value: '2', detail: 'the longest 4 h 42 m', actionable: true, onSelect: noop },
-    { key: 'waiting', label: 'WAITING FOR YOU', value: '4', detail: 'one tap each', actionable: true, onSelect: noop },
+    { key: 'waiting', label: 'NEEDS YOU', value: '4', detail: 'each row opens its page', actionable: true, onSelect: noop },
   ],
 };
 
@@ -88,6 +93,7 @@ export const BRANCH_BOARD: BoardData = {
   ],
 };
 
+/** Paper's "Waiting for you" column (PXC-0). Kept for the gallery's block section; the product card is Needs you. */
 export const BRANCH_WAITING: WaitingData = {
   openAll: { label: 'Open all', onClick: noop },
   items: [
@@ -108,18 +114,31 @@ export const PAYRUN_KPIS: KpiData = {
   ],
 };
 
-export const PAYRUN_STEPS: AttentionData = {
-  items: [
-    { key: '1', kind: 'request', title: 'Approve the October pay run', detail: 'Prepared by Mercy Achieng · 89 people · waiting for your approval', age: '28 OCT', action: { label: 'Review', onClick: noop } },
-    { key: '2', kind: 'setup', title: 'Confirm the overtime multipliers', detail: 'The 2 x holiday rate and the weekday overtime rate need your confirmation before the run', age: '2 DAYS', late: true, action: { label: 'Confirm', onClick: noop } },
-  ],
-};
+/** The Needs you card as the Accountant sees it (6b N1): never a pay figure in a row ("86 people"). Example rows only. */
+export const ACCOUNTANT_NEEDS_YOU: NeedsYouState = needsYouFixture([
+  { id: 'payroll:approve:m1', kind: 'payroll', text: 'Approve the October payroll · 86 people · reviewed by Mercy Achieng, HR Manager', opens: '/app/workforce/payroll', since: '2026-10-19T08:00:00Z', isNew: true },
+  { id: 'tables:t1', kind: 'tables', text: 'Confirm the PAYE, NSSF, SHA and housing levy tables, version 4', opens: '/app/workforce/rules?tab=statutory', since: '2026-10-17T08:00:00Z', isNew: false },
+]);
 
-export const OVERDUE_APPROVALS: AttentionData = {
-  items: [
-    { key: '1', kind: 'report', title: 'Leave request · Faith Njeri', detail: 'Waiting on Mercy Achieng for 6 days, past the 5 day limit', age: '6 DAYS', late: true, action: { label: 'Open', onClick: noop } },
-    { key: '2', kind: 'report', title: 'Overtime · Victor Maina', detail: 'Waiting on Faith Njeri for 4 days, past the 3 day limit', age: '4 DAYS', late: true, action: { label: 'Open', onClick: noop } },
-  ],
+/** The Branch Manager's card (Paper Chapter 15 step 1), with the newest row new. */
+export const BRANCH_NEEDS_YOU: NeedsYouState = needsYouFixture([
+  { id: 'overtime:1', kind: 'overtime', text: 'Cynthia Wairimu, Waiter · 35 min after a closed shift, Sat 10 Oct', opens: '/app/workforce/timesheets', since: '2026-10-19T08:00:00Z', isNew: false },
+  { id: 'overtime:2', kind: 'overtime', text: 'Dan Kiprop, Waiter · 1 h 40 over the week', opens: '/app/workforce/timesheets', since: '2026-10-19T09:00:00Z', isNew: false },
+  { id: 'clock-fix:3', kind: 'clock-fix', text: 'Amina Hassan, Barista · a clock-out was missed, Fri 9 Oct', opens: '/app/workforce/requests', since: '2026-10-20T06:02:00Z', isNew: false },
+  { id: 'leave:4', kind: 'leave', text: 'Cynthia Wairimu, Waiter · Annual leave · Mon 26 to Wed 28 Oct · 3 days', opens: '/app/workforce/leave', since: '2026-10-20T12:10:00Z', isNew: true },
+]);
+
+export const DIRECTOR_OVERDUE: OverdueState = {
+  status: 'ready',
+  error: null,
+  reload: noop,
+  data: {
+    total: 2,
+    rows: [
+      { id: 'clock-fix:9', kind: 'clock-fix', text: 'Faith Njeri, Waiter · clock-out Tue 6 Oct', waitingOn: { role: 'Branch Manager', siteName: 'Nyeri Highway' }, since: '2026-10-07T08:00:00Z', waitingDays: 13, canRemind: true, remindedToday: false },
+      { id: 'overtime:8', kind: 'overtime', text: 'Victor Maina, Waiter · 25 min after a closed shift', waitingOn: { role: 'Branch Manager', siteName: 'Nyeri Town' }, since: '2026-10-14T08:00:00Z', waitingDays: 6, canRemind: true, remindedToday: false },
+    ],
+  },
 };
 
 export const PAYRUN_COMING_UP: ComingUpData = {
@@ -206,16 +225,16 @@ export const HR_STATES: Record<string, CardDataState<unknown>> = {
 export const BRANCH_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.branch-kpis': ready(BRANCH_KPIS),
   'workforce.today-board': ready({ fixture: BRANCH_BOARD }),
-  'workforce.waiting-for-you.desktop': ready(BRANCH_WAITING),
+  'workforce.needs-you': ready(BRANCH_NEEDS_YOU),
 };
 export const ACCOUNTANT_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.payrun-kpis': ready(PAYRUN_KPIS),
-  'workforce.payrun-steps': ready(PAYRUN_STEPS),
+  'workforce.needs-you': ready(ACCOUNTANT_NEEDS_YOU),
   'workforce.coming-up': ready(PAYRUN_COMING_UP),
 };
 export const DIRECTOR_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.payrun-kpis': ready(PAYRUN_KPIS),
-  'workforce.overdue-approvals': ready(OVERDUE_APPROVALS),
+  'workforce.overdue': ready(DIRECTOR_OVERDUE),
   'workforce.company-headcount': ready(HR_PEOPLE),
   'workforce.coming-up': ready(PAYRUN_COMING_UP),
 };
@@ -226,7 +245,6 @@ export const STAFF_STATES: Record<string, CardDataState<unknown>> = {
 };
 export const HEAD_STATES: Record<string, CardDataState<unknown>> = {
   'workforce.clock': ready({ fixture: { ...CLOCK_ON_SHIFT, timer: formatHms(4 * 3600 + 38 * 60 + 40), caption: 'In at 06:04. Your shift ends in 3 h 22 m.' } }),
-  'workforce.waiting-for-you.phone': ready(HEAD_WAITING),
   'workforce.job-cards-slot': ready(JOB_SLOT),
   'workforce.team-today': ready({ fixture: HEAD_TEAM }),
   'workforce.this-week': ready(WEEK_HEAD),

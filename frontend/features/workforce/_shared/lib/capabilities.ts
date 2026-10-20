@@ -62,7 +62,15 @@ export type WorkforceCapability =
   | 'discipline.read_own'
   | 'discipline.read'
   | 'discipline.issue'
-  | 'audit.read_own';
+  | 'audit.read_own'
+  // Shared parts, back end A (segment 6a): the Needs you card, reminders, the Inbox notifications, the person's phones and the alerts.
+  | 'needs_you.read'
+  | 'needs_you.remind'
+  | 'notifications.own'
+  | 'security.phones.own'
+  | 'security.alerts.read'
+  | 'security.alerts.clear'
+  | 'audit.verify_chain';
 
 export type WorkforceScope = 'own' | 'dept' | 'unit' | 'all';
 

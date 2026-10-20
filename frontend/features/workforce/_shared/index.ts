@@ -16,6 +16,7 @@ export * from './hooks/use-workforce-permissions';
 export * from './hooks/use-nav-drawer';
 export * from './hooks/use-remote';
 export * from './hooks/use-action';
+export * from './hooks/use-workforce-nudge';
 
 export * from './components/kpi-strip';
 export * from './components/status-tag';

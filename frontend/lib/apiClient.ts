@@ -1,3 +1,4 @@
+import { deviceHeader } from './device-id';
 import { env } from './env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 
@@ -15,6 +16,8 @@ const request = async <T>(
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Every Workforce call says which phone it is (the server uses it for the phone list and the payslip code).
+      ...(path.startsWith('/workforce') ? deviceHeader() : {}),
       ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,

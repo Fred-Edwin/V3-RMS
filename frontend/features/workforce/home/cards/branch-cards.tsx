@@ -7,15 +7,15 @@ import { WorkforceKpiStrip } from '../../_shared';
 import type { Board } from '../../attendance';
 import { DepartmentChips, NeedsALook, OnTimeByDepartment, type DepartmentChip, type DepartmentLine, type LookRow } from '../components/branch-board';
 import { LiveBoard } from '../components/live-board';
-import { WaitingForYouColumn, type WaitingItem } from '../components/waiting-for-you';
+import type { WaitingItem } from '../components/waiting-for-you';
 import { defineHomeCard } from '../lib/card-registry';
-import { useBoardCardData, useBranchKpis, useWaitingCardData } from './attendance-data';
+import { useBoardCardData, useBranchKpis } from './attendance-data';
 import type { KpiData } from './hr-cards';
 
 /**
  * The Branch Manager's and Store Manager's Home, "the branch right now" (Paper step 03): the strip, the board (department chips,
- * "Needs a look", "On time and working") and "Waiting for you". The Store Manager sees the same cards for the Central Store: it is the
- * same capability. Data: slice 3 (Attendance) for the strip and the board, slice 4 for Waiting for you.
+ * "Needs a look", "On time and working"). "Waiting for you" is gone: the Needs you card (`needs-you-cards.tsx`) replaces it (Segment 6a).
+ * The Store Manager sees the same cards for the Central Store: it is the same capability. Data: slice 3 (Attendance).
  */
 
 export interface BoardData {
@@ -84,15 +84,3 @@ export interface WaitingData {
   openAll?: { label: string; onClick: () => void };
 }
 
-export const waitingDesktopCard = defineHomeCard<WaitingData>({
-  id: 'workforce.waiting-for-you.desktop',
-  title: 'Waiting for you',
-  surfaces: ['desktop'],
-  slot: 'side',
-  sideWidth: 360,
-  anyCapability: ['today.act'],
-  order: 30,
-  isEmpty: (d) => d.items.length === 0,
-  useData: useWaitingCardData,
-  Card: ({ data }) => <WaitingForYouColumn items={data.items} openAll={data.openAll} />,
-});

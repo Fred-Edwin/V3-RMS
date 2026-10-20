@@ -7,7 +7,7 @@ import { attentionRows, comingUpRows, gapRows, nairobiDay, onboardingCount, peop
 
 import type { CardDataState } from '../lib/card-registry';
 import type { AttentionData, ComingUpData, KpiData, PeopleData } from './hr-cards';
-import { useRequestAttention, useTimesheetCloseEvents } from './timesheet-data';
+import { useTimesheetCloseEvents } from './timesheet-data';
 
 /**
  * The data hooks of the cards slice 1a (People) owns: the Onboarding and No contract yet numbers, "Finish hiring" and "Probation ends"
@@ -62,11 +62,9 @@ const useAttentionFromRoster = (): CardDataState<AttentionData> => useRosterCard
 export function useHrAttention(): CardDataState<AttentionData> {
   const base = useAttentionFromRoster();
   const org = useOrgOverview(false);
-  const requests = useRequestAttention();
   const router = useRouter();
   const orgData = org.data;
-  // Slice 4a: what people reported, from Timesheets. Only used once it has answered, so a slow answer never holds the card back.
-  const requestItems = requests.status === 'ready' ? requests.data : null;
+  // Leave and "Report a problem" are not here any more: they wait for HR's decision, so they are rows of the Needs you card (SD17).
   // `base` is a new object on every render, so depend on its parts: the answer must keep the same identity until something changes,
   // or the page re-arranges on every render and loops (CLAUDE.md, Frontend Hook Stability Rules).
   const baseData = base.status === 'ready' ? base.data : null;
@@ -76,10 +74,10 @@ export function useHrAttention(): CardDataState<AttentionData> {
     const gaps = orgData
       ? gapRows(orgData).map((g) => ({ key: g.key, kind: 'setup' as const, title: g.title, detail: g.detail, age: g.age, late: true, action: { label: g.action, onClick: () => router.push(`/app/workforce/organisation/${g.departmentId}`) } }))
       : [];
-    return { status: 'ready', data: { ...baseData, items: [...gaps, ...(requestItems ?? []), ...baseData.items].slice(0, 6) } };
+    return { status: 'ready', data: { ...baseData, items: [...gaps, ...baseData.items].slice(0, 6) } };
     // `baseState` is only read when `baseData` is null; its status is what matters, so it is keyed by `base.status` and `base.status === 'error'` retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseData, base.status, orgData, requestItems, router]);
+  }, [baseData, base.status, orgData, router]);
 }
 
 const byBranch = (rows: Parameters<typeof peopleByBranch>[0]): PeopleData => ({ rows: peopleByBranch(rows) });
