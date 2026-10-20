@@ -129,6 +129,19 @@ export const AUDIT_ACTIONS = {
   'security.alerts_started': ['SECURITY'], // the System Admin pressed "Start alerts"
   'audit.chain_failed': ['SECURITY'], // the chain check found a break (flagged)
   'needs_you.reminder_sent': ['LOG_ACCESS'], // the Director reminded the person an item waits on: item and day, never a figure
+  // Segment 5 (Conduct). Level, number, status and the reason fields roles with audit.read.discipline may read; never a PIN, a code or the own line.
+  'conduct.issued': ['DISCIPLINE'],
+  'conduct.signed': ['DISCIPLINE'], // the person signed that they received it (late is marked)
+  'conduct.sign_try_failed': ['DISCIPLINE'], // a wrong receipt code: device only, never the digits
+  'conduct.not_signed_recorded': ['DISCIPLINE'],
+  'conduct.witness_confirmed': ['DISCIPLINE'],
+  'conduct.witness_declined': ['DISCIPLINE'],
+  'conduct.appealed': ['DISCIPLINE'],
+  'conduct.decided': ['DISCIPLINE'], // outcome and reason
+  'conduct.changed_by_hr': ['DISCIPLINE'], // a reduce or withdraw with no appeal
+  'conduct.ended': ['DISCIPLINE'], // by the daily job, channel SYSTEM
+  'conduct.document_read': ['DISCIPLINE'], // a manager, HR or the Director opened the letter (not the person)
+  'conduct.file_read': ['DISCIPLINE'], // the Conduct tab was read: one entry per person per viewer per day
 } as const satisfies Record<string, readonly AuditCategoryCode[]>;
 
 export type AuditActionCode = keyof typeof AUDIT_ACTIONS;

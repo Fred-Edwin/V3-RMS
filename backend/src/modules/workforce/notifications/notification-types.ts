@@ -16,6 +16,8 @@ export interface RenderedNotification {
   href: string | null;
   /** false = an Inbox row and a nudge only (for example "leave asked", which is a Needs you row). */
   push: boolean;
+  /** Set when the lock-screen text must not repeat the row (Conduct, C27): the push carries this title and body instead. */
+  pushText?: { title: string; body: string };
 }
 
 export interface NotifyOptions {

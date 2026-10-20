@@ -36,6 +36,7 @@ export { workforceSecurityRouter, workforceSessionGate, registerSecurity, wasntM
 export { workforceNeedsYouRouter, registerNeedsYou, registerNeedsYouSource, type NeedsYouSource, type NeedsYouRow, type NeedsYouContext } from './needs-you'; // the card, badges, Overdue; Leave and Conduct register a source
 export { registerPinTries } from './_shared/pin/register-pin'; // wrong PIN tries live in the database
 export { attemptWithPause, type PinAttempt, type PinPurpose } from './_shared/pin/pin-door'; // the shared door Conduct signing will use
+export { isSiteOnNewConduct, refuseLegacyConductWhenSwitched } from './conduct/rollout/rollout-guard'; // the old HR disciplinary create and acknowledge ask this (Segment 5, C1)
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 

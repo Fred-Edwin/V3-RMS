@@ -44,7 +44,7 @@ export const createNotifier = (deps: NotifierDeps) => ({
       if (!stored.created && !stored.replaced) return; // a duplicate inside its window
       deps.nudge(userId);
       if (!rendered.push || stored.replaced) return; // a running count updates the row; it does not ring the phone again
-      const push: HeldPush = { userId, notificationId: stored.id, title: rendered.title, body: rendered.body, href: rendered.href, tone: rendered.tone };
+      const push: HeldPush = { userId, notificationId: stored.id, title: rendered.pushText?.title ?? rendered.title, body: rendered.pushText?.body ?? rendered.body, href: rendered.href, tone: rendered.tone };
       if (isHeldInQuietHours(rendered.tone, now)) {
         await deps.hold(push, nextQuietHoursEnd(now), now);
         return;

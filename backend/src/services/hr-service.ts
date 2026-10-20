@@ -6,6 +6,7 @@ import { SELF_UPLOADABLE_DOCUMENT_TYPES, REPLACE_ON_REUPLOAD_DOCUMENT_TYPES } fr
 import { destroyUploadedFile } from '../utils/cloudinary';
 import type { UserRole } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { refuseLegacyConductWhenSwitched } from '../modules/workforce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -649,6 +650,8 @@ export async function createDisciplinaryRecord(
     throw new ForbiddenError('You can only create disciplinary records for your own branch');
   }
 
+  if (profile.user.siteId) await refuseLegacyConductWhenSwitched(profile.user.siteId);
+
   const record = await hrRepository.createDisciplinaryRecord({
     ...data,
     issuedById: actor.id,
@@ -692,6 +695,8 @@ export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: st
   if (actor.id !== employeeUserId) {
     throw new ForbiddenError('You can only acknowledge your own disciplinary records');
   }
+
+  await refuseLegacyConductWhenSwitched(record.siteId);
 
   return hrRepository.acknowledgeDisciplinaryRecord(recordId, record.siteId);
 }
