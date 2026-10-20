@@ -1,0 +1,42 @@
+# Workforce front-end sessions: the common rules
+
+Working document. Delete it when Workforce ships. Every Workforce front-end brief points here. Read it in full, once, together with `docs/sessions/workforce-two-part-method.md` (the two-part method, the server rules and the known gotchas). Written 20 Oct 2026.
+
+## 1. The owner's standing rules
+- **Paper is a demonstration; production is the goal.** Build screens that look like Paper **and** behave in production: every loading, empty, error, offline, locked and no-permission state; a wrong, missing or paused PIN; a "changed underneath you" conflict; long names; large lists; a failed or slow download; keyboard and screen-reader use; narrow widths. The spec's "what production adds" lists them. Build all of them and anything else real use needs. **Log every addition** in `docs/features/workforce/decisions-<session>.md` (*question, choice, why, what changing it takes*). Decide by default using your recommendation; stop only if truly blocked or the choice is expensive to reverse.
+- Your last message opens with the **decisions table**, then a **5-line plain-English recap**, then the items from your brief's final-message list.
+- Edit and Write tools only (never `sed`, `awk`, heredocs, scripts or `cp` for editing, and never to append to a doc). No `Why:` line is needed. A live task list. No subagents. Say any rule slip plainly.
+- Nothing is pushed and no PR is opened. Never touch `main`.
+
+## 2. Two parts, one planned stop (this is how we keep sessions fast)
+- **Part 1 builds only.** Assemble every in-scope screen from the kit and the spec, one screen at a time. After each screen run `pnpm exec tsc --noEmit` and only the tests for the files you changed (`pnpm exec vitest run <path>`; show the last 20 lines at most). Commit after each screen. Do **not** run the full test suite, lint across the project, `pnpm build`, the browser walkthrough or the docs pass in part 1. Do not open Paper in part 1, except where the spec has no value for something you need.
+- **The stop rule:** when every screen in scope is built and committed, STOP, even if there seems to be room. Write `docs/features/workforce/handoff-<session>.md` (60 lines or fewer, the fixed shape in the method file) and `docs/features/workforce/checklist-<session>.md` (a Markdown table: `# | Screen | Built | Verified | Note`, one row per screen in the brief's order, `no` or `yes`; edit only those cells, never delete or reorder rows). Print the **starter prompt in a code block**, then tell the owner: "Part 1 is built and committed. Clear the context now, then paste this prompt."
+- **Part 2 (fresh context) is the real-browser walkthrough and the finish.** See sections 4 and 5.
+
+## 3. How the screens are kept faithful to Paper
+1. **The spec is your source for values and copy.** It records the design values the kit lacks, the exact copy, the states and the layout. Do not re-derive them from Paper.
+2. **Assemble from the kit** (`frontend/features/workforce/_shared`: read its `README.md` and `index.ts`). Every kit part already matches Paper (each has a Paper node and a "matches" note), so do not re-check kit parts. Name the kit component for every part you use; build a new component only where the kit has none, and then in the kit's style.
+3. **Part 2, per screen: one screenshot of your build beside one screenshot of the matching Paper frame** (desktop 1440, phone 390), and fix every visible difference. Do not audit components or dialogs one by one.
+4. **If you cannot settle a difference by eye,** read the exact value from Paper with the Paper tools (`get_computed_styles` or `get_jsx` with `includeNodeIds: false`, `format: "inline-styles"`): font size, weight, spacing, colour, radius. Use the `wds-` token for it, or flag a value with no token in your decisions file. Call `get_guide` with `paper-mcp-instructions` once; **never call `get_basic_info`** (huge output); use the node ids in the spec; read each frame once.
+5. **Never use automated pixel-diff or image-compare tools.** The by-eye comparison and Paper's exact values are the method.
+6. **Paper contradictions:** the spec lists known inconsistencies in Paper (stale labels, sample figures that do not add up). Follow the spec and the owner's decisions, not the stale frame. Record anything new in your decisions file.
+
+## 4. Interaction, keyboard and screen readers
+- The kit already gives every interactive part hover (pointer devices only), a visible focus ring, pressed, disabled-with-reason and reduced-motion. **Do not re-test kit parts.**
+- For each screen, run its **main task once with the keyboard only** (tab order, Enter and Escape, focus kept inside dialogs and returned on close). For each **new** interactive component you built, check hover, focus and disabled once. Write one test per new interactive component.
+- Check the spec's **screen-reader labels** for the screen, and that hidden amounts or secrets are not read aloud (the spec says where).
+- Phones: the in-app number pad for every numeric input (`docs/UI_BUILD_RULES.md` §7b); no fake status bar.
+
+## 5. Part 2: the walkthrough and the finish
+1. **Fresh servers first.** Stop anything on your lane's front-end and API ports (by process id, never `pkill -f`), start both from the current code, and confirm a page or route that exists only in the new code answers (a 404 means a stale server: fix that before any screenshot). Run long commands in the background with a log. Lane ports: front end `pnpm exec next dev -p 310<n>`, API `410<n>`, browser `http://lane<n>.localhost:310<n>`. Run `migrate deploy` and `pnpm exec prisma generate` first if the lane database is behind.
+2. Switch the feature on for one lane site as the role that owns the switch, and **switch it off again when you finish.** Walk the main role and one refused role. Check the other roles through the API against the spec's permissions table.
+3. One screenshot pair per screen, fix differences (section 3), the keyboard run and the states (section 4). Use the Chrome DevTools tools directly. Log in with `password123` (`admin@`, `director@`, `bm.town@`, `accountant@`, `store.manager@`, `hr@wendo.test`; others via the read-only Postgres MCP, which points at the owner's main database: never write there).
+4. **Prove the safety property:** with the switch off, the main roles see nothing new. Then one flow end to end with the switch on, with the audit entries confirmed.
+5. **Gates, once each:** `pnpm exec tsc --noEmit`, `pnpm lint` (zero errors), `pnpm test`, `pnpm build`; size checks clean.
+6. Update the sub-module READMEs, the parity manifest (one line per screen), `docs/PROJECT_STATUS.md` and the Workforce README row. Edit with the Edit tool. Tick the checklist (`Verified`).
+
+## 6. Code rules
+Files aim for 250 lines or fewer, never over 350 (tests 400); one main component per file; no catch-all `utils`; no folder over 12 files; per sub-module `components/ hooks/ lib/ services/ types/` plus an `index.ts` door; `app/` pages are thin shells; never import another feature's internals; no `any`; hook references stable (`CLAUDE.md` "Frontend Hook Stability Rules"); button visibility comes from the API's permissions, never role names; the table convention in `docs/UI_BUILD_RULES.md` §4a (search and filters first, numbered pager with rows per page, no infinite scroll). Do not edit `backend/` except a small gap inside the feature's own back-end module (own commit `fix(<feature>):`, with a test, no migration, never legacy tables). Compare `pnpm check:imports`-style limits and the layering test before your first commit if the front end has one.
+
+## 7. Shared files that other front-end sessions also edit
+Other front-end sessions run in parallel and also edit: `frontend/components/app/shell/nav-table.ts` and its test, `frontend/lib/route-access.ts`, `frontend/features/workforce/_shared` (kit, permission hooks, the Home card registry), `docs/PROJECT_STATUS.md` and the Workforce README row. Keep edits to these small, in a block of your own, and list every line-level change in your sub-module README and your final message.
