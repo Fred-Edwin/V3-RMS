@@ -177,7 +177,8 @@ const SUB_ROW = 26;
 function CountChip({ count }: { count: number }) {
   return (
     <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[2px] bg-wds-sidebar-badge-bg px-[5px]">
-      <span className="font-wds-mono text-wds-overline font-semibold text-wds-sidebar-badge-fg">{count}</span>
+      <span className="font-wds-mono text-wds-overline font-semibold text-wds-sidebar-badge-fg">{count > 99 ? '99+' : count}</span>
+      <span className="sr-only"> waiting</span>
     </span>
   );
 }
@@ -425,7 +426,8 @@ export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, onSi
             <Icon className={active ? 'text-wds-sidebar-fg-active' : 'text-wds-sidebar-fg-muted'} />
             {item.count != null ? (
               <span className="absolute right-1.5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-wds-sm bg-wds-sidebar-badge-bg">
-                <span className="font-wds-mono text-[9px]/3 font-semibold text-wds-sidebar-badge-fg">{item.count}</span>
+                <span className="font-wds-mono text-[9px]/3 font-semibold text-wds-sidebar-badge-fg">{item.count > 99 ? '99+' : item.count}</span>
+                <span className="sr-only"> waiting</span>
               </span>
             ) : null}
           </Link>

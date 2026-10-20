@@ -39,7 +39,15 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     }
     expect(isAllowedPath('/app/workforce', 'WAITER', true)).toBe(true);
     expect(isAllowedPath('/app/workforce/waiting', 'WAITER', true)).toBe(false);
-    expect(isAllowedPath('/app/workforce', 'SYSTEM_ADMIN', false)).toBe(false);
+    // Segment 6a: the System Admin has a Home (its one card is Needs you) and the Security alerts page, but no other Workforce page.
+    expect(isAllowedPath('/app/workforce', 'SYSTEM_ADMIN', false)).toBe(true);
+    expect(isAllowedPath('/app/workforce/security', 'SYSTEM_ADMIN', false)).toBe(true);
+    expect(isAllowedPath('/app/workforce/employees', 'SYSTEM_ADMIN', false)).toBe(false);
+    for (const role of ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'WAITER', 'STORE_ATTENDANT'] as AppRole[]) {
+      expect(isAllowedPath('/app/workforce/security', role, false), `${role} on Security alerts`).toBe(false);
+    }
+    // My phones is every signed-in person's own page.
+    for (const role of ['HR_MANAGER', 'WAITER', 'STORE_ATTENDANT', 'SYSTEM_ADMIN'] as AppRole[]) expect(isAllowedPath('/app/workforce/my-phones', role, false), role).toBe(true);
   });
 
   it('opens the Today board for the roles that read it and a head, and the switch for the System Admin only', () => {
