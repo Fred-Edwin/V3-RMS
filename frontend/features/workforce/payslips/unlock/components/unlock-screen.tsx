@@ -5,11 +5,10 @@ import * as React from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/cn';
 
-import { EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, useRemote } from '../../../_shared';
+import { EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, nameAndRole, useRemote } from '../../../_shared';
 import { OldPayslipsCard } from '../../_shared/components/old-payslips-card';
 import { PAYSLIP_COPY } from '../../_shared/lib/payslip-copy';
 import { monthLong, monthName, rowLine } from '../../_shared/lib/pay-words';
-import { nameAndRole } from '../../_shared/lib/role-words';
 import { payslipReads } from '../../_shared/services/payslip-services';
 import { useCodeEntry } from '../hooks/use-code-entry';
 import { chosenRow } from '../lib/unlock-logic';

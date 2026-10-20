@@ -6,14 +6,13 @@ import * as React from 'react';
 
 import { useAuthStore } from '@/store/authStore';
 
-import { Callout, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, SegmentedControl, useRemote } from '../../../_shared';
+import { Callout, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, SegmentedControl, nameAndRole, useRemote } from '../../../_shared';
 import { Amount, EyeButton, HiddenNote } from '../../_shared/components/amount';
 import { DownloadPdfButton } from '../../_shared/components/pdf-buttons';
 import { useAmountsShown } from '../../_shared/lib/amount-pref';
 import { PAYSLIP_COPY } from '../../_shared/lib/payslip-copy';
 import { dayMonth, monthLong, money, payLine } from '../../_shared/lib/pay-words';
 import { payslipDocumentHref, payslipHref } from '../../_shared/lib/routes';
-import { nameAndRole } from '../../_shared/lib/role-words';
 import { payslipReads } from '../../_shared/services/payslip-services';
 import { SectionTable } from './section-table';
 

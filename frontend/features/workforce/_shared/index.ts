@@ -48,5 +48,6 @@ export * from './components/workforce-document';
 export * from './components/workforce-frame';
 export * from './components/pdf-viewer';
 export * from './lib/pinch-zoom';
+export * from './lib/role-words';
 export * from './lib/document-palette';
 export * from './lib/shift-palette';

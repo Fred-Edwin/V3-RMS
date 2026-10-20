@@ -183,8 +183,8 @@ describe('notification wording table', () => {
       expect(NOTIFICATION_KIND_TONE[r.kind], r.key).toBeDefined();
     }
   });
-  it('carries every event row of the Paper table (40: its 42 rows, less the header and the "Where and when" row)', () => {
-    expect(NOTIFICATION_ROWS).toHaveLength(40);
+  it('carries every event row of the Paper table (40: its 42 rows, less the header and the "Where and when" row) and the four Segment 3 kinds the back end sends', () => {
+    expect(NOTIFICATION_ROWS).toHaveLength(44);
   });
   it('never opens with "Dear" and never asks for a decision in the wording', () => {
     for (const r of NOTIFICATION_ROWS) {

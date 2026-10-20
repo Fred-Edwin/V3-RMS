@@ -15,6 +15,7 @@ import type { WorkforceCapability, WorkforcePermissionsPayload, WorkforceScope }
  * renders while the answer is the same. A later slice that needs this elsewhere moves it to `_shared`; it is here because Home is its first reader.
  */
 type Status = 'loading' | 'ready' | 'error';
+const NO_DEPARTMENTS: readonly string[] = [];
 
 interface Answer {
   userId: string;
@@ -23,6 +24,8 @@ interface Answer {
   scopes: ReadonlyMap<WorkforceCapability, WorkforceScope>;
   isDepartmentHead: boolean;
   tracksTime: boolean;
+  siteId: string | null;
+  headOfDepartmentIds: readonly string[];
 }
 
 export function useWorkforcePermissions() {
@@ -37,10 +40,10 @@ export function useWorkforcePermissions() {
     apiClient.get<WorkforcePermissionsPayload>('/workforce/permissions/me', accessToken).then(
       (data) => {
         if (cancelled) return;
-        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), scopes: new Map(data.capabilities.map((c) => [c.capability, c.scope] as const)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime });
+        setAnswer({ userId, status: 'ready', capabilities: new Set(data.capabilities.map((c) => c.capability)), scopes: new Map(data.capabilities.map((c) => [c.capability, c.scope] as const)), isDepartmentHead: data.isDepartmentHead, tracksTime: data.tracksTime, siteId: data.siteId, headOfDepartmentIds: data.headOfDepartmentIds ?? [] });
       },
       () => {
-        if (!cancelled) setAnswer({ userId, status: 'error', capabilities: new Set(), scopes: new Map(), isDepartmentHead: false, tracksTime: false });
+        if (!cancelled) setAnswer({ userId, status: 'error', capabilities: new Set(), scopes: new Map(), isDepartmentHead: false, tracksTime: false, siteId: null, headOfDepartmentIds: [] });
       }
     );
     return () => {
@@ -60,7 +63,7 @@ export function useWorkforcePermissions() {
   }, []);
 
   return useMemo(
-    () => ({ can, scopeOf, ready: mine?.status === 'ready', failed: mine?.status === 'error', isDepartmentHead: mine?.isDepartmentHead ?? false, tracksTime: mine?.tracksTime ?? false, retry }),
-    [can, scopeOf, mine?.status, mine?.isDepartmentHead, mine?.tracksTime, retry]
+    () => ({ can, scopeOf, ready: mine?.status === 'ready', failed: mine?.status === 'error', isDepartmentHead: mine?.isDepartmentHead ?? false, tracksTime: mine?.tracksTime ?? false, siteId: mine?.siteId ?? null, headOfDepartmentIds: mine?.headOfDepartmentIds ?? NO_DEPARTMENTS, retry }),
+    [can, scopeOf, mine?.status, mine?.isDepartmentHead, mine?.tracksTime, mine?.siteId, mine?.headOfDepartmentIds, retry]
   );
 }
