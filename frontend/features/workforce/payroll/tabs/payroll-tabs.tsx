@@ -4,7 +4,7 @@ import { EmptyState, UnderlineTabs } from '../../_shared';
 import { EstimatePanel } from '../estimate/estimate-panel';
 import { TimesheetsTab } from '../sites/timesheets-tab';
 import { LINK_BUTTON } from '../_shared/lib/link-style';
-import { TAB_LABELS, TAB_OFF_REASON, TAB_ORDER, activeTab } from '../_shared/lib/month-view';
+import { TAB_LABELS, TAB_OFF_REASON, TAB_ORDER, activeTab, defaultTab } from '../_shared/lib/month-view';
 import type { MonthView } from '../_shared/types/month-types';
 import type { EstimateView } from '../_shared/types/tab-types';
 import type { DialogName } from '../actions/payroll-dialogs';
@@ -44,8 +44,9 @@ export function PayrollTabs({
     if (!canEstimate) return <EmptyState kind="nothingYet" title="The month is still running" line="Payroll is worked out after the month ends." />;
     return <EstimatePanel monthLabel={view.label.split(' ')[0] ?? view.label} estimate={estimate?.ready ? estimate.estimate : null} ready={estimate?.ready ?? false} computedAt={estimate?.ready ? estimate.computedAt : null} />;
   }
-  const tab = activeTab(url.get('tab'), view.tabs);
-  const choose = (value: string): void => url.set({ tab: value === 'timesheets' ? null : value, q: null, page: null, rows: null, site: null, status: null, handcheck: null });
+  const home = defaultTab(view.state, view.capabilities.canReview, view.tabs);
+  const tab = activeTab(url.get('tab'), view.tabs, home);
+  const choose = (value: string): void => url.set({ tab: value === home ? null : value, q: null, page: null, rows: null, site: null, status: null, handcheck: null });
   return (
     <div className="flex min-h-0 flex-col gap-4">
       <UnderlineTabs

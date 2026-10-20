@@ -22,8 +22,11 @@ export function defaultMonth(rows: readonly MonthListRow[]): string | null {
   return (unpaid[unpaid.length - 1] ?? rows[0])?.monthKey ?? null;
 }
 
-/** The tab to show: the one asked for if it is on, else Timesheets. */
-export const activeTab = (asked: string | null, enabled: readonly TabKey[]): TabKey => (isTab(asked) && enabled.includes(asked) ? asked : 'timesheets');
+/** The tab to show: the one asked for if it is on, else the month's own first tab. */
+export const activeTab = (asked: string | null, enabled: readonly TabKey[], fallback: TabKey = 'timesheets'): TabKey => (isTab(asked) && enabled.includes(asked) ? asked : fallback);
+
+/** Where a month opens: Timesheets, except for the person who has lines to check, who lands on Totals where the review card is. */
+export const defaultTab = (state: MonthState, canReview: boolean, enabled: readonly TabKey[]): TabKey => (state === 'IN_REVIEW' && canReview && enabled.includes('totals') ? 'totals' : 'timesheets');
 
 export const STATE_TAG: Record<MonthState, { tone: 'neutral' | 'warning' | 'success'; label: string }> = {
   OPEN: { tone: 'neutral', label: 'Open' },

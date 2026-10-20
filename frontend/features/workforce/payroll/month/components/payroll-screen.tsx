@@ -47,6 +47,11 @@ export function PayrollScreen() {
   const stored = estimate.data?.ready ? estimate.data.estimate : null;
 
   useRefreshOnFocus(60_000, () => setRefresh((n) => n + 1));
+  React.useEffect(() => {
+    if (!said) return undefined;
+    const timer = window.setTimeout(() => setSaid(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [said]);
   const changed = React.useCallback((message?: string): void => {
     if (message) setSaid(message);
     setRefresh((n) => n + 1);
