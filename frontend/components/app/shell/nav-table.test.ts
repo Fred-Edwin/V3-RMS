@@ -572,19 +572,19 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     // and Store Manager's Home already is the board (owner, 18 Oct 2026), with a "See everyone today" link to the full page.
     // "Requests" (slice 4a) is the manager's inbox for Report a problem; Paper's sidebar does not draw it. The Accountant reads Timesheets and the
     // closed report (Paper step 5 names the Accountant), so Timesheets is in their menu too (decisions-4a-timesheets-frontend.md).
-    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
     // "Casual pay" (Segment 3) is where a Branch Manager, Store Manager or the Director decides a casual pay sheet; Paper reaches it from the Home "Needs you" card (Segment 6).
     MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
     STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
-    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
+    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
   };
 
   /** The menu a role would have with every Workforce page built: the rows with `notBuilt` switched on, from the table itself. */
   const eventual = (role: AppRole): Record<string, string[]> => {
     const everything = NAV_ROWS.map((r) => (r.key.startsWith('wf-') ? { ...r, notBuilt: undefined } : r));
     const out: Record<string, string[]> = {};
-    for (const g of navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }), everything)) {
+    for (const g of navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true, payrollOn: true }), everything)) {
       if (!g.key.startsWith('wf-')) continue;
       out[g.label] = g.items.map((i) => i.label);
     }
@@ -737,6 +737,16 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-timesheets');
     expect(keys(navFor(ctxFor('ACCOUNTANT', { can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-requests');
     expect(keys(navFor(ctxFor('SYSTEM_ADMIN', { can: EVERYTHING, attendanceOn: true }))).filter((k) => NEW_ROWS.includes(k))).toEqual([]);
+  });
+
+  it('shows the Payroll row to the four Payroll roles only once Payroll has a month, wherever their own site is', () => {
+    const payroll = (role: AppRole, payrollOn: boolean, attendanceOn = false): boolean => keys(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn, payrollOn }))).includes('wf-pay-runs');
+    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'] as AppRole[]) {
+      expect(payroll(role, true), `${role} on`).toBe(true);
+      expect(payroll(role, false), `${role} every switch off`).toBe(false);
+      expect(payroll(role, false, true), `${role}: the clock alone is not enough`).toBe(false);
+    }
+    for (const role of ['MANAGER', 'STORE_MANAGER', 'WAITER', 'STORE_ATTENDANT'] as AppRole[]) expect(payroll(role, true), `${role} never sees it`).toBe(false);
   });
 
   it('lights Home on /app/workforce', () => {

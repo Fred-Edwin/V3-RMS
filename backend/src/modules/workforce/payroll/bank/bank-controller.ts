@@ -17,6 +17,8 @@ export const bankController = {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Bank-File-Hash', file.hash);
     res.setHeader('X-Bank-File-Version', String(file.version));
+    // The app is served from another origin than the API, so the browser may read these headers only when they are exposed.
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-Bank-File-Hash, X-Bank-File-Version');
     res.send(file.text); // no byte-order mark: the bytes are exactly what the hash was taken over, and banks reject a stray one
   },
 };

@@ -24,7 +24,7 @@ const total = (lines: readonly LineFigure[]): string => formatCents(lines.reduce
 const sumQuantity = (lines: readonly LineFigure[]): number => lines.reduce((sum, l) => sum + Number(l.quantity ?? 0), 0);
 const biggest = (lines: readonly LineFigure[]): LineFigure | null => [...lines].sort((a, b) => Number(parseCents(b.amount) - parseCents(a.amount)) || a.employeeName.localeCompare(b.employeeName, 'en'))[0] ?? null;
 const hoursText = (minutes: number): string => `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
-const timesText = (value: string): string => `${value.replace(/\.?0+$/, '')} ×`;
+export const timesText = (value: string): string => `${value.includes('.') ? value.replace(/\.?0+$/, '') : value} ×`;
 
 const LATENESS_WORDS = { RECORD_ONLY: 'Recorded only, nothing deducted', FROM_FIRST_MINUTE: 'From the first minute' } as const;
 

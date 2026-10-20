@@ -13,6 +13,7 @@ export const exportsController = {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Document-Number', file.documentNumber ?? 'draft');
     res.setHeader('X-Revision', String(file.revision));
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-Document-Number, X-Revision');
     res.send(file.buffer);
   },
 };

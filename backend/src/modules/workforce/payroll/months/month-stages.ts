@@ -42,7 +42,7 @@ export function buildStages(state: PayrollMonthState, facts: StageFacts): StageV
     if (status === 'TODO') return base;
     if (key === 'TIMESHEETS') return { ...base, text: `${facts.sitesApproved.approved} of ${facts.sitesApproved.total} sites` };
     if (key === 'CALCULATED') return { ...base, at: facts.calculatedAt?.toISOString() ?? null };
-    if (key === 'REVIEWED') return status === 'DONE' ? { ...base, who: facts.reviewedBy, at: facts.sentAt?.toISOString() ?? null } : { ...base, who: 'HR', text: `${facts.openLines} ${facts.openLines === 1 ? 'line' : 'lines'}` };
+    if (key === 'REVIEWED') return status === 'DONE' ? { ...base, who: facts.reviewedBy, at: facts.sentAt?.toISOString() ?? null } : { ...base, who: 'HR', text: facts.openLines === 0 ? 'All checked' : `${facts.openLines} ${facts.openLines === 1 ? 'line' : 'lines'}` };
     if (key === 'APPROVED') return { ...base, who: facts.approvedBy, at: facts.approvedAt?.toISOString() ?? null };
     if (key === 'PUBLISHED') return status === 'DONE' ? { ...base, who: facts.publishedBy ?? 'HR', at: facts.publishedAt?.toISOString() ?? null } : { ...base, who: 'HR', text: 'HR to publish' };
     if (key === 'PAID') return status === 'DONE' ? { ...base, who: facts.paidBy ?? null, at: facts.paidAt?.toISOString() ?? null } : { ...base, who: 'Accountant', text: 'Accountant to pay' };
