@@ -46,6 +46,11 @@ action. Actions are registered in `audit-actions.ts` with the categories they ma
 Reading is role-limited by category (`auditReadScopeOf`); the endpoints and screens are slice 7. Entries are kept 7 years;
 slice 0 deletes nothing. `audit-db.test.ts` is the integration proof and runs only against a `_lane` database.
 
+### Added in Segment 6a
+- `runAudited` takes an optional `afterWrite(tx, records)`: it runs in the same transaction right after the entries are written and receives them, so a row that must carry an entry's id (a security alert) is written with it. It must not lock anything another writer waits on.
+- The writer also inserts the entry's `workforce_audit_entry_index` row (title, area, flag, search text) from `describeEntry` (`audit/audit-describe.ts`, wording in `audit-titles.ts`). The detail builder uses an allow-list and never prints a money or secret-looking key.
+- PIN door (`pin/`): `attemptWithPause(userId, purpose, check)` returns `RIGHT`, `WRONG` (with `alert` on the 3rd wrong in 15 minutes) or `SLOW` (2, 4, 8, 16, 30 s; never a lock). `setPinTryStore` swaps the store (memory in tests, the database from `registerPinTries()`); `setWrongThresholdListener` is how security hears about the 3rd wrong signing PIN. Purposes: `SIGNER`, `CONDUCT_SIGN`.
+
 ## Events (`events.ts`)
 
 A typed in-process bus (`workforceEvents`) and a `WorkforceNotifier` that only logs until a later slice delivers

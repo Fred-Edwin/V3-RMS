@@ -3284,6 +3284,22 @@ Files `backend/prisma/schema/workforce/payslips.prisma` and `casual.prisma`. No 
 
 Enum `CasualSheetStatus`. Rules: `LEAVE` gains `hrContact` (stored in the rule version JSON, no column).
 
+### 4.88 Workforce Segment 6a: notifier, security, Needs you (20 Oct 2026, migration `20261020113519_workforce_shared_6a`, additive)
+
+File `backend/prisma/schema/workforce/shared.prisma`. No existing table is changed (proved on a copy of the lane database: legacy tables identical, a second `migrate deploy` changes nothing). Nine tables:
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `workforce_notifications` | One Inbox row per person: kind, tone, title, body, href, read time | Wording rendered at send time; a dedupe key makes a repeat a no-op; never a pay figure |
+| `workforce_devices` | A person's phones: SHA-256 of the browser's device id, label, place label, confirmed mode and time, removed time | Unique per person and hash; the id itself is never stored |
+| `workforce_security_alerts` | System Admin alerts: kind, subject person, device and place labels, detail, audit entry id, status, who cleared and the note | One per person, kind and 15 minutes; never an amount or a code |
+| `workforce_security_settings` | Per company: when "Start alerts" was pressed | |
+| `workforce_security_flags` | Per person: must change password, when "This wasn't me" was pressed | Stands in for columns on the legacy users table |
+| `workforce_pin_tries` | Tries at the signing PIN by purpose, never the digits | Drives the 2, 4, 8, 16, 30 second pause |
+| `workforce_audit_entry_index` | Per audit entry: area, flag, title, search text | Filled by the audit writer in the same transaction |
+| `workforce_needs_you_state` | Per person: when Home was last opened | Tags rows "New" |
+| `workforce_needs_you_reminders` | A reminder sent on an item on a Nairobi day | Unique per item and day |
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

@@ -5537,3 +5537,18 @@ Capabilities `casual.record` (a department head, own department), `casual.approv
 | `POST /sheets/:id/lines/:lineId/receive` | record | `{ name, idempotencyKey }`; `409 ALREADY_RECEIVED`, `SHEET_NOT_APPROVED` |
 | `GET /sheets/:id/preview`, `/document` | read | Draft PDF (`CPS-draft`) / approved PDF |
 | `GET /months/:monthKey/summary` | `payroll.read` | Approved sheets of the month for Payroll's Casual pay tab |
+
+## 43. Workforce — Shared parts, back end A (segment 6a, BUILT 20 Oct 2026, back end only)
+
+All routes: `authenticate`, `attachWorkforceSubject`, a capability; success `{ success: true, data }`. Every `/workforce` route also passes the session gate (`401 SESSION_ENDED`, `403 PASSWORD_RESET_REQUIRED`, `401 PHONE_REMOVED`). Every `5xx` carries `error.reference` (`WF-XXXX`). New capabilities: `needs_you.read` (Branch and Store Manager unit; Accountant, HR, Director, System Admin all), `needs_you.remind` (Director), `notifications.own` and `security.phones.own` (everyone with a login), `security.alerts.read`, `security.alerts.clear` (System Admin), `audit.verify_chain` (Director, System Admin). Changed: the signing PIN no longer locks: `429 PIN_SLOWED` (with `waitSeconds`) and `403 PIN_INVALID`; `PIN_LOCKED` is gone.
+
+| Endpoint | Capability | Notes |
+|---|---|---|
+| `GET /workforce/notifications`, `/unread-count`; `POST /read`, `/read-all` | `notifications.own` | Own Inbox rows |
+| `GET /workforce/security/phones/me` | `security.phones.own` | This phone from header `x-device-id` |
+| `POST .../phones/me/current/seen { deviceId }`, `.../current/answer { deviceId, answer: REMEMBER\|ONCE, idempotencyKey }`, `.../:id/confirm`, `.../:id/remove` | `security.phones.own` | `404 PHONE_NOT_FOUND`, `409 THIS_PHONE` |
+| `GET /workforce/security/alerts?status&kind&siteId&from&to&page&pageSize`, `/alerts/counts` | `security.alerts.read` | |
+| `POST .../alerts/:id/clear { note, idempotencyKey }`, `POST .../alerts/start` | `security.alerts.clear` | `409 ALREADY_CLEARED`, `404 ALERT_NOT_FOUND` |
+| `POST .../security/wasnt-me { deviceId?, entryId?, idempotencyKey }`, `POST .../reset-password { newPassword, confirm }`, `GET .../state` | signed in | `409 RESET_NOT_REQUIRED` |
+| `GET /workforce/needs-you`, `/counts`, `/attention`; `POST /seen`, `/:id/undo` | `needs_you.read` (404 without) | `404 UNDO_UNAVAILABLE` |
+| `GET /workforce/needs-you/overdue`; `POST /:id/remind { idempotencyKey }` | `needs_you.remind` (404 without) | `403 REMINDER_ALREADY_SENT`, `404 ITEM_NOT_OVERDUE` |
