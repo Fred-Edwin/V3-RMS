@@ -90,6 +90,12 @@ export const conductPeopleRepository = {
     return rows.filter((row) => row.userId !== args.excludeUserId).slice(0, args.take).map(shape);
   },
 
+  /** Employees whose name matches the typed text, for the list's type-ahead (the notices store ids, not names). */
+  async employeeIdsByName(companyId: string, q: string): Promise<string[]> {
+    const rows = await prisma.employee.findMany({ where: { companyId, name: { contains: q, mode: 'insensitive' } }, select: { id: true }, take: 500 });
+    return rows.map((row) => row.id);
+  },
+
   /** The ids of everyone filed at a site now (for "a transferred person's notices appear for the new site's manager", C26). */
   async employeeIdsAtSite(companyId: string, siteId: string): Promise<string[]> {
     const rows = await prisma.employee.findMany({ where: { companyId, siteId }, select: { id: true } });
