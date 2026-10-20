@@ -25,7 +25,7 @@ async function loadPdfjs(): Promise<PdfModule> {
   return pdfjs;
 }
 
-export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to fit', retry, footer, onPage }: { load: () => Promise<Blob>; name: string; hint?: string; retry?: () => void; footer?: React.ReactNode; /** Tells the screen which page is showing, for the "1 / 1" in its top bar. */ onPage?: (page: number, pages: number) => void }) {
+export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to fit', retry, footer, onPage, top }: { load: () => Promise<Blob>; /** Something on the dark ground above the page (the Document | Text switch). */ top?: React.ReactNode; name: string; hint?: string; retry?: () => void; footer?: React.ReactNode; /** Tells the screen which page is showing, for the "1 / 1" in its top bar. */ onPage?: (page: number, pages: number) => void }) {
   const scroller = React.useRef<HTMLDivElement>(null);
   const canvases = React.useRef<HTMLCanvasElement[]>([]);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
@@ -141,6 +141,7 @@ export function PdfViewer({ load, name, hint = 'Pinch to zoom · double tap to f
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[#47433D]">
+      {top}
       <div className="relative flex min-h-0 flex-1 flex-col">
         {/* Zoom buttons are for a mouse or the keyboard; a finger pinches. On touch they stay for screen readers and show on focus. */}
         <span className="absolute right-2 top-2 z-10 flex items-center gap-1 [@media(pointer:coarse)]:sr-only [@media(pointer:coarse)]:focus-within:not-sr-only">

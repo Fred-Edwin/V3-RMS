@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
 
@@ -30,6 +31,18 @@ export function PayslipDocumentScreen({ id, kind = 'payslip', year }: { id?: str
         name={name}
         load={async () => (await loader()).blob}
         onPage={(page, pages) => setCounter(`${page} / ${pages}`)}
+        top={
+          kind === 'payslip' && id ? (
+            <nav aria-label="Show this payslip as" className="flex px-4 pt-3">
+              <span aria-current="page" className="flex h-11 flex-1 items-center justify-center bg-white/15 font-wds-sans text-[13px] font-semibold text-white">
+                Document
+              </span>
+              <Link href={payslipHref(id, version)} className="flex h-11 flex-1 items-center justify-center border border-white/15 font-wds-sans text-[13px] font-medium text-wds-neutral-300 hover:bg-white/10 focus-visible:outline-none focus-visible:shadow-wds-ring">
+                Text
+              </Link>
+            </nav>
+          ) : undefined
+        }
         footer={
           <div className="flex gap-2.5">
             <DownloadPdfButton kind="primary" className="min-w-0 flex-1" load={fileFor('download')} failure={kind === 'p9' ? PAYSLIP_COPY.p9Failed : PAYSLIP_COPY.downloadFailed} />
