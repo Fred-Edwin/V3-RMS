@@ -3,7 +3,7 @@ import { firebaseMessaging } from '../../../config/firebase';
 import { env } from '../../../config/env';
 import { logger } from '../../../utils/logger';
 import { nudgeUsers } from './nudge';
-import { renderNotification } from './notification-wording';
+import { renderNotification } from './wording/notification-wording';
 import { notificationRepository, type StoreResult } from './notification-repository';
 import { isHeldInQuietHours, nextQuietHoursEnd } from './quiet-hours';
 import type { NotifyData, NotifyOptions, RenderedNotification } from './notification-types';

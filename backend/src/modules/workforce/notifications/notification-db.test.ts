@@ -10,7 +10,7 @@ describe.skipIf(!enabled)('workforce notifications in the database', () => {
     const { prisma } = await import('../../../config/database');
     const { notificationRepository: repo } = await import('./notification-repository');
     const { notificationInboxService: inbox } = await import('./notification-inbox-service');
-    const { renderNotification } = await import('./notification-wording');
+    const { renderNotification } = await import('./wording/notification-wording');
     return { prisma, repo, inbox, renderNotification };
   };
   const users: string[] = [];

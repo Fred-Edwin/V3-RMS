@@ -1,5 +1,5 @@
 import { clockLabel, dayLabel, monthName, num, plural, text } from './notification-format';
-import type { NotifyData, RenderedNotification } from './notification-types';
+import type { NotifyData, RenderedNotification } from '../notification-types';
 
 export type Wording = (data: NotifyData) => RenderedNotification;
 

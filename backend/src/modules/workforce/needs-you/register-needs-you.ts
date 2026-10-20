@@ -1,9 +1,8 @@
-import { UserRole } from '@prisma/client';
 import { logger } from '../../../utils/logger';
 import { workforceEvents, type WorkforceEventName } from '../_shared/events';
 import { scopeOf } from '../_shared/workforce-access';
 import { nudgeUsers } from '../notifications';
-import { needsYouQueries } from './needs-you-queries';
+import { needsYouQueries } from './needs-you-repository';
 import { monthSource } from './sources/month-source';
 import { paySource } from './sources/pay-source';
 import { registerNeedsYouSource } from './sources/registry';
@@ -56,7 +55,7 @@ export function registerNeedsYou(): void {
 
 /** Everyone who holds `needs_you.read` and could see a row at this site: company-wide holders, and `unit` holders of that site. */
 async function readersNear(siteId: string | null): Promise<string[]> {
-  const holders = (Object.values(UserRole) as UserRole[]).flatMap((role) => {
+  const holders = needsYouQueries.allRoles().flatMap((role) => {
     const scope = scopeOf({ id: 'role-probe', role, siteId: null }, 'needs_you.read');
     return scope === null ? [] : [{ role, wide: scope === 'all' }];
   });

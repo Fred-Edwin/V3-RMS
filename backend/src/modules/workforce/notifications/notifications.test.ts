@@ -9,7 +9,7 @@ vi.mock('../../../repositories/auth-repository', () => ({ authRepository: {} }))
 vi.mock('../../../sockets/socket', () => ({ getSocketServer: vi.fn(() => { throw new Error('no socket'); }), userRoomName: (id: string) => `user:${id}` }));
 
 import { createNotifier, type NotifierDeps } from './notification-service';
-import { renderNotification, knownKinds, isKnownKind } from './notification-wording';
+import { renderNotification, knownKinds, isKnownKind } from './wording/notification-wording';
 import { inQuietHours, nextQuietHoursEnd, isHeldInQuietHours } from './quiet-hours';
 
 const FIGURE = /(\d[\d,.]*\s*(kes|ksh|shillings?))|((kes|ksh)\.?\s*\d)/i;

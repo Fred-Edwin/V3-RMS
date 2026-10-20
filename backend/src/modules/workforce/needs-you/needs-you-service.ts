@@ -2,7 +2,7 @@ import { NotFoundError } from '../../../utils/errors';
 import { logger } from '../../../utils/logger';
 import { workforceCan, type AccessSubject } from '../_shared/workforce-access';
 import { resolveActor } from '../people/people-context';
-import { needsYouQueries } from './needs-you-queries';
+import { needsYouQueries } from './needs-you-repository';
 import { emptyBadges, type BadgeCounts, type NeedsYouContext, type NeedsYouRow, type NeedsYouSource } from './needs-you-types';
 import { kindOrder, registeredSources, sourceForRow } from './sources/registry';
 

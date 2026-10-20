@@ -1,4 +1,4 @@
-import type { NotifyData, RenderedNotification } from './notification-types';
+import type { NotifyData, RenderedNotification } from '../notification-types';
 import { BUILT_WORDING } from './wording-built';
 import { KIND_ALIASES, SHARED_WORDING } from './wording-shared';
 

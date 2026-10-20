@@ -126,6 +126,11 @@ describe('the public door (contract 7.2)', () => {
       'workforceEvents', 'setWorkforceNotifier',
       // stubs
       'isOnLeave',
+      // shared parts (segment 6a): the notifier, the PIN door, security, Needs you
+      'notify', 'notifyMany', 'registerWorkforceNotifier', 'workforceNotificationsRouter', 'dispatchHeldWorkforcePush', 'WORKFORCE_NOTICE_JOB', 'renderNotification', 'knownKinds',
+      'registerPinTries', 'attemptWithPause',
+      'workforceSecurityRouter', 'workforceSessionGate', 'registerSecurity', 'wasntMe', 'claimAlertWindow', 'insertAlertForEntry', 'tellAdminsOfAlert',
+      'workforceNeedsYouRouter', 'registerNeedsYou', 'registerNeedsYouSource',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   }, 30_000); // importing the whole door takes seconds when the full suite is running

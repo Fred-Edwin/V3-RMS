@@ -7,7 +7,7 @@ import { notify, nudgeUsers, roleLabel } from '../notifications';
 import { employeesRepository } from '../people/employees/employees-repository';
 import { resolveActor } from '../people/people-context';
 import { contextFor, orderRows } from './needs-you-service';
-import { needsYouQueries } from './needs-you-queries';
+import { needsYouQueries } from './needs-you-repository';
 import { DAY_MS } from './needs-you-scope';
 import type { NeedsYouContext, NeedsYouRow } from './needs-you-types';
 import { registeredSources, sourceForRow } from './sources/registry';

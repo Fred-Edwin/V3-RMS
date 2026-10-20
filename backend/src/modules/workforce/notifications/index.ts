@@ -25,10 +25,10 @@ export function registerWorkforceNotifier(): void {
   setWorkforceNotifier({ notify: (userId, kind, data, options) => notify(userId, kind, data, options) });
 }
 
-export { dayLabel, monthName, roleLabel, plural } from './notification-format'; // the one place wording helpers live: Needs you rows use them too
+export { dayLabel, monthName, roleLabel, plural } from './wording/notification-format'; // the one place wording helpers live: Needs you rows use them too
 export { default as workforceNotificationsRouter } from './notification-routes';
 export { WORKFORCE_NOTICE_JOB, type HeldPush } from './notification-service';
 export const dispatchHeldWorkforcePush = workforceNotifier.dispatchHeld;
-export { renderNotification, knownKinds } from './notification-wording';
+export { renderNotification, knownKinds } from './wording/notification-wording';
 export { nudgeUsers, type WorkforceNudge } from './nudge';
 export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification } from './notification-types';

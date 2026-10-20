@@ -3,7 +3,7 @@ import { workforceCan, type AccessSubject } from '../../_shared/workforce-access
 import { monthName, plural } from '../../notifications';
 import { P9_LAYOUT_VERSION } from '../../payslips';
 import type { NeedsYouContext, NeedsYouRow, NeedsYouSource } from '../needs-you-types';
-import { payReads } from './pay-reads';
+import { payReads } from './pay-repository';
 
 const base = { siteId: null, siteName: null, personUserId: null, canRemind: false } as const;
 

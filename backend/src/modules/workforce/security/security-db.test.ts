@@ -7,7 +7,7 @@ const url = process.env['DATABASE_URL'] ?? '';
 const enabled = /_lane\d*(\?|$)/.test(url) || /_lane\d*_/.test(url);
 const T0 = new Date('2026-10-20T08:00:00Z');
 
-describe.skipIf(!enabled)('Security flows in the database', () => {
+describe.skipIf(!enabled)('Security flows in the database', { timeout: 60_000 }, () => {
   const made: string[] = [];
   let siteId: string | null = null;
   const load = async () => {

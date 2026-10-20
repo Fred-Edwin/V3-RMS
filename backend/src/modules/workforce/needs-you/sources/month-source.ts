@@ -3,7 +3,7 @@ import type { AccessSubject } from '../../_shared/workforce-access';
 import { dayLabel, monthName, plural } from '../../notifications';
 import { reachesCompany, DAY_MS, OVERDUE_DAYS, sitesFor } from '../needs-you-scope';
 import type { NeedsYouContext, NeedsYouRow, NeedsYouSource } from '../needs-you-types';
-import { timeReads } from './time-reads';
+import { timeReads } from './time-repository';
 
 const monthKeyOf = (endDate: Date): string => fromDateColumn(endDate).slice(0, 7);
 

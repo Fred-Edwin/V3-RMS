@@ -1,10 +1,10 @@
 import { fromDateColumn } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { dayLabel, roleLabel } from '../../notifications';
-import { needsYouQueries } from '../needs-you-queries';
+import { needsYouQueries } from '../needs-you-repository';
 import { OVERDUE_DAYS, DAY_MS, sitesFor } from '../needs-you-scope';
 import type { NeedsYouContext, NeedsYouRow, NeedsYouSource } from '../needs-you-types';
-import { timeReads } from './time-reads';
+import { timeReads } from './time-repository';
 
 type Person = { name: string; user: { id: string; role: string } | null };
 const who = (p: Person): string => `${p.name}, ${roleLabel(p.user?.role ?? null)}`;

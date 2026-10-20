@@ -1,4 +1,4 @@
-import type { Prisma, UserRole } from '@prisma/client';
+import { UserRole, type Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
 
 /**
@@ -23,6 +23,8 @@ export const needsYouQueries = {
     const rows = await prisma.user.findMany({ where: { siteId, role: { in: [...roles] }, isActive: true, deletedAt: null }, select: { id: true } });
     return rows.map((r) => r.id);
   },
+
+  allRoles: (): UserRole[] => Object.values(UserRole),
 
   /** Active people with one of these roles: everywhere (`siteId` null) or at one site. */
   async usersByRoles(roles: readonly UserRole[], siteId: string | null): Promise<string[]> {

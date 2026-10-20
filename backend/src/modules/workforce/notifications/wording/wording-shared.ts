@@ -1,5 +1,5 @@
 import { clockLabel, monthName, num, plural, roleLabel, text } from './notification-format';
-import type { NotifyData, RenderedNotification } from './notification-types';
+import type { NotifyData, RenderedNotification } from '../notification-types';
 import type { Wording } from './wording-built';
 
 const who = (d: NotifyData): string => (d.name ? `${text(d, 'name', '')}, ${roleLabel(text(d, 'role', ''))}` : roleLabel(text(d, 'role', '')));

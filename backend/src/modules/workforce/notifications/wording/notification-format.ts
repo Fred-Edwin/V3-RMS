@@ -1,5 +1,5 @@
-import { isoWeekday, nairobiClockOf, nairobiDateOf, parseNairobiDate } from '../_shared/time/nairobi-time';
-import type { NotifyData } from './notification-types';
+import { isoWeekday, nairobiClockOf, nairobiDateOf, parseNairobiDate } from '../../_shared/time/nairobi-time';
+import type { NotifyData } from '../notification-types';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

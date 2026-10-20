@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const nudged: string[][] = [];
 vi.mock('../notifications', async (original) => ({ ...(await original<typeof import('../notifications')>()), nudgeUsers: (ids: string[]) => void nudged.push([...ids]) }));
-vi.mock('./needs-you-queries', () => ({
-  needsYouQueries: { usersByRoles: async (roles: string[], siteId: string | null) => roles.map((r) => `${r}@${siteId ?? 'company'}`) },
+vi.mock('./needs-you-repository', () => ({
+  needsYouQueries: {
+    allRoles: () => ['MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER'],
+    usersByRoles: async (roles: string[], siteId: string | null) => roles.map((r) => `${r}@${siteId ?? 'company'}`) },
 }));
 
 describe('Needs you nudges', () => {

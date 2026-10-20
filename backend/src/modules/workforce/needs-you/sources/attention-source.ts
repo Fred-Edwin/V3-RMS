@@ -3,7 +3,7 @@ import type { AccessSubject } from '../../_shared/workforce-access';
 import { dayLabel } from '../../notifications';
 import { reachesCompany } from '../needs-you-scope';
 import type { NeedsYouContext, NeedsYouRow } from '../needs-you-types';
-import { attentionReads } from './attention-reads';
+import { attentionReads } from './attention-repository';
 
 const PROBATION_WARNING_DAYS = 14;
 
