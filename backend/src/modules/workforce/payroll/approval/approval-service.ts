@@ -10,6 +10,7 @@ import { monthsRepository, type MonthRow } from '../months/months-repository';
 import { eventOf, payrollEntry } from '../payroll-audit';
 import { assertState, assertVersion, payrollActor, requireMonth } from '../payroll-context';
 import { isStale } from '../review/review-service';
+import { readsRepository } from '../reads/reads-repository';
 import { reviewRepository } from '../review/review-repository';
 import { sitesRepository } from '../sites/sites-repository';
 import { approvalRepository } from './approval-repository';
@@ -96,6 +97,7 @@ async function buildSnapshot(month: MonthRow, approver: { id: string; name: stri
     rulesUsed: month.rulesUsed,
     totals,
     payslips: slips.map((p) => toSnapshotPayslip(p, ids.get(p.employeeId) ?? null)),
+    leftOut: (await readsRepository.leftOutLines(month.currentRunId ?? '')).map((l) => ({ employeeId: l.employeeId, name: l.employeeName, siteName: l.siteName })),
   };
 }
 

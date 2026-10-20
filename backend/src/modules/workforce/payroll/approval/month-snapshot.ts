@@ -27,7 +27,21 @@ export interface SnapshotPayslip {
   payoutMethod?: string | null;
   version?: number;
   ids?: StatutoryIds | null;
-  lines: { code: string; label: string; kind: string; amount: string; workingText: string; tableCode: string | null; share: string | null }[];
+  lines: SnapshotLine[];
+}
+
+/** `base`, `baseAmount` and `rate` (Segment 2B) feed the statutory schedules; a revision 1 written by part 1 does not have them. */
+export interface SnapshotLine {
+  code: string;
+  label: string;
+  kind: string;
+  amount: string;
+  workingText: string;
+  tableCode: string | null;
+  share: string | null;
+  base?: string | null;
+  baseAmount?: string | null;
+  rate?: string | null;
 }
 
 export interface MonthSnapshot {
@@ -43,6 +57,8 @@ export interface MonthSnapshot {
   rulesUsed: unknown;
   totals: { headcount: number; gross: string; taxStatutory: string; other: string; net: string };
   payslips: SnapshotPayslip[];
+  /** People HR left out of the run (paid next month). Frozen here so the documents need nothing from outside the snapshot. */
+  leftOut?: { employeeId: string; name: string; siteName: string }[];
   /** Revision 2 and later: a correction after approval. Revision 1 is the approval itself and carries neither. */
   revision?: number;
   corrections?: { employeeId: string; version: number; reason: string; correctedById: string; at: string }[];
@@ -67,7 +83,7 @@ export interface SlipRow {
   employerShare: Money;
   taxablePay: Money;
   overtimePay: Money;
-  lines: { code: string; label: string; kind: string; amount: Money; workingText: string; tableCode: string | null; share: string | null }[];
+  lines: { code: string; label: string; kind: string; amount: Money; workingText: string; tableCode: string | null; share: string | null; base: string | null; baseAmount: Money | null; rate: string | null }[];
 }
 
 /** One stored payslip (any version) as the snapshot and the exports hold it: money as text with 2 decimals. */
@@ -75,7 +91,7 @@ export const toSnapshotPayslip = (p: SlipRow, ids: StatutoryIds | null): Snapsho
   employeeId: p.employeeId, employeeName: p.employeeName, employeeNumber: p.employeeNumber, siteId: p.siteId, siteName: p.siteName, department: p.department,
   basic: p.basic.toFixed(2), gross: p.gross.toFixed(2), statutoryEmployee: p.statutoryEmployee.toFixed(2), incomeTax: p.incomeTax.toFixed(2), otherDeductions: p.otherDeductions.toFixed(2),
   net: p.net.toFixed(2), employerShare: p.employerShare.toFixed(2), taxablePay: p.taxablePay.toFixed(2), overtimePay: p.overtimePay.toFixed(2), payoutMethod: p.payoutMethod, version: p.version, ids,
-  lines: p.lines.map((l) => ({ code: l.code, label: l.label, kind: l.kind, amount: l.amount.toFixed(2), workingText: l.workingText, tableCode: l.tableCode, share: l.share })),
+  lines: p.lines.map((l) => ({ code: l.code, label: l.label, kind: l.kind, amount: l.amount.toFixed(2), workingText: l.workingText, tableCode: l.tableCode, share: l.share, base: l.base, baseAmount: l.baseAmount?.toFixed(2) ?? null, rate: l.rate })),
 });
 
 /** The hash is over the whole snapshot with sorted keys, so the same month always gives the same hash and any edit shows. */

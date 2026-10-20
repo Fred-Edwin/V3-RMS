@@ -19,7 +19,7 @@ export function snapshotPayslipOf(person: CorrectedPerson, slip: Payslip, previo
     employeeId: person.employeeId, employeeName: person.employeeName, employeeNumber: person.employeeNumber, siteId: person.siteId, siteName: person.siteName, department: person.department,
     basic: slip.basic, gross: slip.gross, statutoryEmployee: slip.statutoryEmployee, incomeTax: slip.incomeTax, otherDeductions: slip.otherDeductions, net: slip.net, employerShare: slip.employerShare, taxablePay: slip.taxablePay,
     overtimePay: slip.overtimePay, payoutMethod: person.payoutMethod, version: person.version, ids: previous?.ids ?? null,
-    lines: slip.lines.map((l) => ({ code: l.code, label: l.label, kind: l.kind, amount: l.amount, workingText: l.workingText, tableCode: l.tableCode, share: l.share })),
+    lines: slip.lines.map((l) => ({ code: l.code, label: l.label, kind: l.kind, amount: l.amount, workingText: l.workingText, tableCode: l.tableCode, share: l.share, base: l.base, baseAmount: l.baseAmount, rate: l.rate })),
   };
 }
 

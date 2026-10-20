@@ -5,6 +5,7 @@ import { attachWorkforceSubject } from '../people/people-subject';
 import { approvalController as approval } from './approval/approval-controller';
 import { bankController as bank } from './bank/bank-controller';
 import { correctionController as corrections } from './corrections/correction-controller';
+import { exportsController as exportsC } from './exports/exports-controller';
 import { paidController as paid } from './paid/paid-controller';
 import { publishController as publish } from './publish/publish-controller';
 import { monthsController as months } from './months/months-controller';
@@ -54,6 +55,8 @@ router.post(`${M}/payslips/:payslipId/correct`, ...base, requireCapability('payr
 router.get(`${M}/payout`, ...base, requireCapability('payroll.read'), bank.payout); // P26
 router.post(`${M}/bank-file`, ...base, requireCapability('payroll.pay'), bank.download); // P27
 router.post(`${M}/mark-paid`, ...base, requireCapability('payroll.pay'), paid.markPaid); // P28
+
+router.post(`${M}/exports`, ...base, requireCapability('payroll.export'), exportsC.export); // P29
 
 router.post(`${M}/sites/:siteId/remind`, ...base, requireCapability('payroll.remind'), sites.remind); // P20
 router.post(`${M}/sites/:siteId/approve-late`, ...base, requireCapability('payroll.approve_site_late'), sites.approveLate); // P21
