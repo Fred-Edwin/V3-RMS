@@ -161,7 +161,7 @@ export const applicationsRepository = {
 
   /** Serialises everything one person does at once (two asks that overlap) for the rest of the transaction. */
   lockPerson: async (tx: Prisma.TransactionClient, employeeId: string): Promise<void> => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`leave:${employeeId}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`leave:${employeeId}`}))`;
   },
 
   /** A request of the same person that shares a day with the range and is not finished with (waiting or approved). */
