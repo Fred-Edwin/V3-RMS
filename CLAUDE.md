@@ -85,11 +85,8 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
     awk, or heredoc scripts in Bash. Edit fails loudly when the target text
     is missing; a script's `replace` fails silently, and Bash edits bypass
     `/rewind` and the owner's review view.
-13. Before each Edit or Write, put one line in your message that starts with
-    `Why:` — what this change does and how it serves the current task, in plain
-    English (e.g. `Why: the sidebar needs the new Restock link before the tests can pass`).
-    The owner's dashboard shows that line next to the file name. For multi-step
-    work, also keep a task list (see "Task Tracking" below).
+13. For multi-step work, keep a task list (see "Task Tracking" below). (The
+    per-edit `Why:` line was dropped by the owner on 20 Oct 2026.)
 14. End every task with a short plain-English recap (about 5 lines): what
     changed, which files, and how the owner can verify it. The owner does not
     read full diffs.
