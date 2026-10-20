@@ -128,7 +128,7 @@ export function PayrollScreen() {
           title="Payroll"
           subtitle={
             <>
-              One page for each month, for the whole company.{' '}
+              One page for each month: the timesheets, the rules applied, tax, casual pay, the totals and the payslips.{' '}
               <button type="button" onClick={() => setHelpOpen(true)} className={LINK_BUTTON}>
                 How payroll works
               </button>

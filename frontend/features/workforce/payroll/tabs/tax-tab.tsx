@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 
-import { Callout, ErrorBlock, ListSkeleton, Panel, SettingRows, StatBoxes } from '../../_shared';
+import { Callout, ErrorBlock, ListSkeleton } from '../../_shared';
+import { FiguresCard } from '../_shared/components/figures-card';
 import { HandCheckDrawer } from '../review/hand-check-drawer';
 import { useTax } from '../_shared/hooks/use-payroll-data';
 import { dayMonthTime, kes, kesLabel } from '../_shared/lib/format';
@@ -11,6 +12,12 @@ import { bandRows, baseWords } from '../_shared/lib/tax-words';
 import type { MonthView } from '../_shared/types/month-types';
 import type { TaxTable } from '../_shared/types/tab-types';
 
+/** "ACCOUNTANT" or "HR_MANAGER" as the sentence Paper writes: "Accountant", "HR manager". */
+const sentenceCase = (role: string): string => {
+  const words = role.replace(/_/g, ' ').toLowerCase();
+  return (words.charAt(0).toUpperCase() + words.slice(1)).replace(/^Hr\b/, 'HR');
+};
+
 function TablePanel({ table }: { table: TaxTable }) {
   const cells = [
     { label: table.isIncomeTax ? 'PEOPLE TAXED' : 'PEOPLE', value: String(table.employeeShare.people) },
@@ -18,19 +25,18 @@ function TablePanel({ table }: { table: TaxTable }) {
     ...(table.employerShare ? [{ label: 'EMPLOYER (KES)', value: kes(table.employerShare.amount) }] : []),
   ];
   return (
-    <Panel title={table.name} caption={table.reliefMonthly ? `after relief ${kes(table.reliefMonthly)}` : undefined} padded={false}>
-      <div className="flex flex-col gap-3 p-3.5">
-        {table.notUsed ? <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Not used this month</p> : null}
-        <SettingRows
-          rows={[
-            ...bandRows(table).map((r) => ({ title: r.label, value: r.value, mono: true })),
-            { title: 'Taken from', value: baseWords(table.base) },
-            ...(table.example ? [{ title: 'Example', value: table.example.text, mono: true }] : []),
-          ]}
-        />
-        <StatBoxes cells={cells} variant="figures" />
-      </div>
-    </Panel>
+    <FiguresCard
+      title={table.name}
+      chip={table.kind === 'BANDS' ? 'monthly bands' : undefined}
+      aside={table.reliefMonthly ? `after relief ${kes(table.reliefMonthly)}` : table.kind === 'BANDS' ? undefined : 'employee share'}
+      note={table.notUsed ? 'Not used this month' : undefined}
+      rows={[
+        ...bandRows(table).map((r) => ({ label: r.label, value: r.value, mono: true })),
+        { label: 'Taken from', value: baseWords(table.base) },
+        ...(table.example ? [{ label: 'Example', value: table.example.text, mono: true }] : []),
+      ]}
+      cells={cells}
+    />
   );
 }
 
@@ -45,7 +51,7 @@ export function TaxTab({ view, refresh, handCheck, onHandCheck }: { view: MonthV
   return (
     <div className="flex flex-col gap-4">
       <Callout tone="success" role="status" actionAt="end" action={<span className="font-wds-mono text-[13px] font-semibold leading-4">Total taken off · {kesLabel(t.totalTakenOff)}</span>}>
-        {t.tablesVersionLabel ?? 'Tax tables'} confirmed{t.confirmedBy ? ` by ${t.confirmedBy.name}, ${t.confirmedBy.role}` : ''}
+        {t.tablesVersionLabel ?? 'Tax tables'} confirmed{t.confirmedBy ? ` by ${t.confirmedBy.name}, ${sentenceCase(t.confirmedBy.role)}` : ''}
         {t.confirmedAt ? `, ${dayMonthTime(t.confirmedAt)}` : ''}.
       </Callout>
       <div className="grid gap-4 min-[1100px]:grid-cols-2">

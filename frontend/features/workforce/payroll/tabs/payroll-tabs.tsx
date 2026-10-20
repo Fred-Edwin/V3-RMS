@@ -51,6 +51,7 @@ export function PayrollTabs({
     <div className="flex min-h-0 flex-col gap-4">
       <UnderlineTabs
         label="Month sections"
+        className="overflow-y-hidden"
         value={tab}
         onChange={choose}
         items={TAB_ORDER.map((key) => ({ value: key, label: TAB_LABELS[key], disabled: !view.tabs.includes(key) }))}

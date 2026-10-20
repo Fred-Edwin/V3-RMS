@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 
-import { ErrorBlock, ListSkeleton, Panel, SettingRows, StatBoxes, type StatCell, useWorkforcePermissions } from '../../_shared';
+import { ErrorBlock, ListSkeleton, useWorkforcePermissions } from '../../_shared';
+import { FiguresCard, type FigureCell } from '../_shared/components/figures-card';
 import { useRulesApplied } from '../_shared/hooks/use-payroll-data';
 import { dayOfDate, kes } from '../_shared/lib/format';
 import type { RuleCard } from '../_shared/types/tab-types';
@@ -13,7 +14,7 @@ const RULES_TAB: Record<RuleCard['ruleKey'], string> = { OVERTIME: 'overtime', L
 const num = (v: number | string | undefined): string => (v === undefined ? '0' : typeof v === 'number' ? String(v) : kes(v));
 
 /** The boxes under each card: the figures the month's stored lines gave for that rule. Lateness is minutes, not days (back-end decision D13). */
-function boxes(card: RuleCard): StatCell[] {
+function boxes(card: RuleCard): FigureCell[] {
   const f = card.figures;
   switch (card.ruleKey) {
     case 'OVERTIME':
@@ -39,17 +40,20 @@ export function RulesTab({ monthKey, refresh }: { monthKey: string; refresh: num
   return (
     <div className="grid gap-4 min-[1100px]:grid-cols-2">
       {cards.map((card) => (
-        <Panel key={card.ruleKey} title={`${NAMES[card.ruleKey]}`} caption={`v${card.version}${card.effectiveFrom ? ` · from ${dayOfDate(card.effectiveFrom)}` : ''}`} padded={false}>
-          <div className="flex flex-col gap-3 p-3.5">
-            <SettingRows rows={[...card.rows.map((r) => ({ title: r.label, value: r.value, mono: /\d/.test(r.value) })), ...(card.largest ? [{ title: 'Largest', value: `${card.largest.name} · ${card.largest.text}` }] : [])]} />
-            <StatBoxes cells={boxes(card)} variant="figures" />
-            {permissions.can('rules.read') ? (
-              <Link href={`/app/workforce/rules?tab=${RULES_TAB[card.ruleKey]}`} className="self-end font-wds-sans text-[12px] leading-4 text-wds-info-fg underline-offset-2 hover:underline">
+        <FiguresCard
+          key={card.ruleKey}
+          title={NAMES[card.ruleKey]}
+          chip={`v${card.version}${card.effectiveFrom ? ` · from ${dayOfDate(card.effectiveFrom)}` : ''}`}
+          aside={
+            permissions.can('rules.read') ? (
+              <Link href={`/app/workforce/rules?tab=${RULES_TAB[card.ruleKey]}`} className="text-wds-info-fg underline-offset-2 hover:underline">
                 Rules ↗
               </Link>
-            ) : null}
-          </div>
-        </Panel>
+            ) : null
+          }
+          rows={[...card.rows.map((r) => ({ label: r.label, value: r.value, mono: /\d/.test(r.value) })), ...(card.largest ? [{ label: 'Largest', value: `${card.largest.name} · ${card.largest.text}` }] : [])]}
+          cells={boxes(card)}
+        />
       ))}
     </div>
   );
