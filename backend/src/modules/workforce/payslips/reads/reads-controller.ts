@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { nairobiToday, parseNairobiDate } from '../../_shared/time/nairobi-time';
+import { addDays, nairobiToday, parseNairobiDate } from '../../_shared/time/nairobi-time';
 import { ok, subjectOf } from '../../rota/rota-http';
 import { placeLabelOf } from '../../security';
 import type { PayslipFile } from '../documents/document-service';
@@ -7,7 +7,7 @@ import { generateP9, myP9Document, myP9Status, confirmP9Format } from '../p9/p9-
 import { DEVICE_HEADER } from '../unlock/unlock-middleware';
 import { deviceLabelOf } from '../unlock/unlock-rules';
 import { detail, documentOf, history, home, list, versionsOf, type Phone } from './reads-service';
-import { documentAny, openAny, openingsOfDay } from './others-service';
+import { documentAny, openAny, openingsOfDay, openingsOfRange } from './others-service';
 import { confirmBody, dayQuery, detailQuery, documentQuery, historyQuery, idParams, p9PersonParams, phoneHeader, yearParams } from './reads-validators';
 
 const phone = (req: Request): Phone => ({ id: phoneHeader.parse(req.header(DEVICE_HEADER)), label: deviceLabelOf(req.header('user-agent')), placeLabel: placeLabelOf((name) => req.header(name)) });
@@ -39,8 +39,11 @@ export const readsController = {
     sendPdf(res, await documentAny(subjectOf(req), idParams.parse(req.params).id, q.v ?? null, q.purpose, label(req)));
   },
   openings: async (req: Request, res: Response): Promise<void> => {
-    const day = dayQuery.parse(req.query).day;
-    ok(res, await openingsOfDay(subjectOf(req), day ? parseNairobiDate(day) : nairobiToday(new Date())));
+    const q = dayQuery.parse(req.query);
+    const today = nairobiToday(new Date());
+    // `day` (or nothing) keeps the built answer, a list; `from` or `to` asks for the grouped range of the Director's card (at most 31 days).
+    if (q.from || q.to) ok(res, await openingsOfRange(subjectOf(req), q.from ? parseNairobiDate(q.from) : addDays(today, -6), q.to ? parseNairobiDate(q.to) : today));
+    else ok(res, await openingsOfDay(subjectOf(req), q.day ? parseNairobiDate(q.day) : today));
   },
   p9Generate: async (req: Request, res: Response): Promise<void> => {
     const p = p9PersonParams.parse(req.params);

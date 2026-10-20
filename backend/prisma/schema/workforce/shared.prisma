@@ -100,20 +100,109 @@ model WorkforcePinTry {
 
 /// The audit entry index: the columns the append-only entry table must not carry (it cannot be altered after the fact).
 model WorkforceAuditEntryIndex {
-  entryId    String   @id @map("entry_id")
-  companyId  String   @map("company_id")
-  siteId     String?  @map("organization_id")
-  seq        BigInt
-  occurredAt DateTime @map("occurred_at")
-  area       String   @default("WORKFORCE")
-  flagged    Boolean  @default(false)
-  title      String
-  searchText String   @map("search_text")
+  entryId       String   @id @map("entry_id")
+  companyId     String   @map("company_id")
+  siteId        String?  @map("organization_id")
+  seq           BigInt
+  occurredAt    DateTime @map("occurred_at")
+  area          String   @default("WORKFORCE")
+  flagged       Boolean  @default(false)
+  title         String
+  searchText    String   @map("search_text")
+  // Segment 6b: copied from the entry so the list filters and counts without joining the big append-only table.
+  category      String?  @map("category")
+  actorId       String?  @map("actor_id")
+  subjectUserId String?  @map("subject_user_id")
 
   @@index([companyId, occurredAt(sort: Desc)])
   @@index([companyId, flagged, occurredAt(sort: Desc)])
   @@index([companyId, area, occurredAt(sort: Desc)])
+  @@index([companyId, category, occurredAt(sort: Desc)])
+  @@index([companyId, actorId, occurredAt(sort: Desc)])
+  @@index([subjectUserId, occurredAt(sort: Desc)])
   @@map("workforce_audit_entry_index")
+}
+
+// ============================================================================
+// Workforce segment 6, back end B (Shared parts): audit read, documents door, verify. Additive only; no legacy table is altered.
+// ============================================================================
+
+/// One audit-log reader's last "log viewed" entry. The conditional update on `lastAt` is what makes it once per reader per 10 minutes, even when two pages load at once.
+model WorkforceAuditViewMark {
+  userId String   @id @map("user_id")
+  lastAt DateTime @map("last_at")
+
+  @@map("workforce_audit_view_marks")
+}
+
+/// A person's answer to an entry in Activity on my record ("That was me" / "This wasn't me"). One answer per entry and person.
+model WorkforceRecordAnswer {
+  id         String   @id @default(uuid())
+  entryId    String   @map("entry_id")
+  userId     String   @map("user_id")
+  answer     String // ME | NOT_ME
+  answerKey  String   @map("answer_key")
+  answeredAt DateTime @default(now()) @map("answered_at")
+
+  @@unique([entryId, userId])
+  @@unique([userId, answerKey])
+  @@map("workforce_record_answers")
+}
+
+/// The read model of every numbered, signed document (D1). Written by `registerDocument` in the issuer's own transaction. Never holds a figure.
+model WorkforceDocument {
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  siteId            String?   @map("organization_id")
+  kind              String // PAY | PS | CPS | P9 | TSH | LVE | WRN | CTR
+  number            String
+  version           Int       @default(1)
+  title             String
+  about             String
+  subjectUserId     String?   @map("subject_user_id")
+  signedById        String?   @map("signed_by_id")
+  signedByName      String    @map("signed_by_name")
+  signedByRole      String    @map("signed_by_role")
+  reviewedById      String?   @map("reviewed_by_id")
+  reviewedByName    String?   @map("reviewed_by_name")
+  reviewedByRole    String?   @map("reviewed_by_role")
+  reviewedAt        DateTime? @map("reviewed_at")
+  signedAt          DateTime  @map("signed_at")
+  method            String    @default("PIN")
+  hashPrefix        String    @map("hash_prefix") // the first 10 hex characters of the file hash, the value the QR carries
+  hash              String
+  status            String    @default("CURRENT") // CURRENT | REPLACED | WITHDRAWN
+  replacedByVersion Int?      @map("replaced_by_version")
+  replacedAt        DateTime? @map("replaced_at")
+  withdrawnAt       DateTime? @map("withdrawn_at")
+  withdrawnByRole   String?   @map("withdrawn_by_role")
+  replacedByNumber  String?   @map("replaced_by_number")
+  openHref          String    @map("open_href")
+  searchText        String    @map("search_text")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([companyId, number, version])
+  @@index([companyId, signedAt(sort: Desc)])
+  @@index([companyId, kind, signedAt(sort: Desc)])
+  @@index([companyId, siteId, signedAt(sort: Desc)])
+  @@index([number])
+  @@map("workforce_documents")
+}
+
+/// One counter row per verify check (D3). The public page never writes an audit row per scan; this table is the count.
+model WorkforceDocumentCheck {
+  id          String   @id @default(uuid())
+  kind        String
+  number      String
+  outcome     String
+  at          DateTime @default(now())
+  addressHash String   @map("address_hash")
+  deviceLabel String?  @map("device_label")
+  userId      String?  @map("user_id")
+
+  @@index([at])
+  @@index([kind, number, at])
+  @@map("workforce_document_checks")
 }
 
 /// Needs you: when a person last opened Home (rows newer than this are "new").

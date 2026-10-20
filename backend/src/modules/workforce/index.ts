@@ -34,6 +34,7 @@ export { notify, notifyMany, registerWorkforceNotifier, workforceNotificationsRo
 export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification, HeldPush } from './notifications';
 export { workforceSecurityRouter, workforceSessionGate, registerSecurity, wasntMe, claimAlertWindow, insertAlertForEntry, tellAdminsOfAlert } from './security'; // phones, alerts, "This wasn't me", the session gate
 export { workforceNeedsYouRouter, registerNeedsYou, registerNeedsYouSource, type NeedsYouSource, type NeedsYouRow, type NeedsYouContext } from './needs-you'; // the card, badges, Overdue; Leave and Conduct register a source
+export { workforceAuditRouter, runNightlyChainCheck, backfillAuditIndex, backfillAllAuditIndexes, verifyRange, type NightlyResult } from './audit'; // Segment 6b: the Audit log read side, Activity on my record, the chain check
 export { registerPinTries } from './_shared/pin/register-pin'; // wrong PIN tries live in the database
 export { attemptWithPause, type PinAttempt, type PinPurpose } from './_shared/pin/pin-door'; // the shared door Conduct signing will use
 export { getOnShiftNow } from './attendance/board/on-shift-now';

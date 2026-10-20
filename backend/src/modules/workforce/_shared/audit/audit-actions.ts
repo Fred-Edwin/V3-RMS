@@ -128,6 +128,13 @@ export const AUDIT_ACTIONS = {
   'security.alert_cleared': ['SECURITY'], // the System Admin cleared an alert, with a one-line note
   'security.alerts_started': ['SECURITY'], // the System Admin pressed "Start alerts"
   'audit.chain_failed': ['SECURITY'], // the chain check found a break (flagged)
+  // Segment 6b (audit read, documents, verify)
+  'audit.exported': ['LOG_ACCESS'], // someone exported a view of the log: the filters and the row count
+  'audit.record_answered': ['SECURITY'], // "That was me" on an entry of Activity on my record
+  'document.opened': ['DOCUMENTS'], // a signed document opened from the Signed documents index (types with no audit of their own)
+  'document.verified': ['DOCUMENTS'], // a signed-in person checked a printed copy
+  'document.verify_failed': ['SECURITY'], // a printed copy of a real number did not match (flagged; once per number per day)
+  'document.mismatch_reported': ['SECURITY'], // a signed-in person pressed "Tell the ..." on a copy that did not match (flagged)
   'needs_you.reminder_sent': ['LOG_ACCESS'], // the Director reminded the person an item waits on: item and day, never a figure
 } as const satisfies Record<string, readonly AuditCategoryCode[]>;
 

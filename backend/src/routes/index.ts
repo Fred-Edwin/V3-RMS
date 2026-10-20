@@ -54,6 +54,7 @@ import {
   registerPayroll,
   registerTimesheets,
   workforceAttendanceRouter,
+  workforceAuditRouter,
   workforceNotificationsRouter,
   registerWorkforceNotifier,
   registerPinTries,
@@ -151,6 +152,7 @@ registerPinTries(); // wrong signing-PIN tries are stored; the pause survives a 
 registerSecurity(); // payslip code reads the shared phone list; the 3rd wrong signing PIN is written to Activity (Segment 6a)
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
+apiRouter.use(workforceAuditRouter); // the company Audit log, Activity on my record and the chain check (Segment 6b)
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
 apiRouter.use(workforceNeedsYouRouter);
 apiRouter.use(workforceTimesheetsRouter);

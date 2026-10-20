@@ -3,6 +3,7 @@ import { bullMqConnection, notificationQueue, reportQueue, commsQueue } from '..
 import { ATTENDANCE_AUTO_CLOSE_JOB, ensureAttendanceAutoCloseSchedule, runAttendanceAutoCloseJob } from './attendance-auto-close-job';
 import { TIMESHEETS_SWEEP_JOB, ensureTimesheetsSweepSchedule, runTimesheetsSweepJob } from './timesheets-sweep-job';
 import { PAYROLL_ESTIMATE_JOB, PAYROLL_SWEEP_JOB, ensurePayrollSchedules, runPayrollEstimateJob, runPayrollSweepJob } from './payroll-sweep-job';
+import { WORKFORCE_AUDIT_JOB, ensureWorkforceAuditSchedule, runWorkforceAuditJob } from './workforce-audit-job';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
@@ -107,6 +108,11 @@ export const reportWorker = new Worker(
       return;
     }
 
+    if (job.name === WORKFORCE_AUDIT_JOB) {
+      await runWorkforceAuditJob();
+      return;
+    }
+
     if (job.name === PEOPLE_SCHEDULER_JOB) {
       const changed = await runPeopleSchedulerJob();
       logger.info({ jobId: job.id, changed }, 'People scheduler executed');
@@ -205,6 +211,9 @@ export const startWorkers = (): void => {
     });
     void ensurePayrollSchedules(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the payroll schedules');
+    });
+    void ensureWorkforceAuditSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register the Workforce audit check schedule');
     });
     void ensurePeopleSchedulerSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register the People scheduler schedule');

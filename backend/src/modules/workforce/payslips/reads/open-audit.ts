@@ -39,7 +39,7 @@ export async function recordOpening(f: OpenFacts, now: Date = new Date()): Promi
   const alertFacts: AlertFacts = { companyId: f.companyId, siteId: f.employee.siteId, kind: 'UNCONFIRMED_PHONE', subjectUserId: f.employee.userId, deviceLabel: f.deviceLabel, placeLabel: f.placeLabel ?? null, detail: f.record.monthKey, at: now };
   let raised: boolean = false;
   const count = await runAudited<number>(async (tx) => {
-    const n = f.ownerOpened ? 0 : await readsRepository.bumpDigest(tx, f.companyId, f.actor.id ?? '', day);
+    const n = f.ownerOpened ? 0 : await readsRepository.bumpDigest(tx, f.companyId, f.actor.id ?? '', day, now);
     // 6a S1: an opening on an unconfirmed phone raises one alert per person and 15 minutes, written with its own entry here.
     raised = unconfirmed && ownerId !== null && (await claimAlertWindow(tx, ownerId, 'UNCONFIRMED_PHONE', now));
     const alertEntry = raised && ownerId !== null

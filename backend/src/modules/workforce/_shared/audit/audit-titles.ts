@@ -117,5 +117,11 @@ export const AUDIT_TITLES = {
   'security.alert_cleared': 'Security alert cleared',
   'security.alerts_started': 'Security alerts started',
   'audit.chain_failed': 'Audit chain check failed',
+  'audit.exported': 'Audit log exported',
+  'audit.record_answered': 'Entry confirmed by the person',
+  'document.opened': 'Signed document opened',
+  'document.verified': 'Printed copy checked',
+  'document.verify_failed': 'Printed copy did not match',
+  'document.mismatch_reported': 'Mismatch on a printed copy reported',
   'needs_you.reminder_sent': 'Reminder sent',
 } as const satisfies Record<AuditActionCode, string>;

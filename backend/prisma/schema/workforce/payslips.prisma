@@ -40,20 +40,23 @@ model PayslipOpenDigest {
   day        DateTime  @db.Date
   openCount  Int       @default(0) @map("open_count")
   notifiedAt DateTime? @map("notified_at")
+  firstAt    DateTime? @map("first_at") // Segment 6b: the span of the day's openings (09:12 to 11:40)
+  lastAt     DateTime? @map("last_at")
 
   @@unique([openerId, day])
+  @@index([companyId, day])
   @@map("payslip_open_digests")
 }
 
 /// The rendered A4 payslip, stored once so every download is the same bytes (PD16). `variant` ORIGINAL or REPLACED (the watermarked copy of a replaced version).
 model PayslipDocument {
-  id         String   @id @default(uuid())
-  payslipId  String   @map("payslip_id") // the payroll_payslips row (one per version)
-  variant    String
-  number     String
-  bytes      Bytes
-  hash       String
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  payslipId String   @map("payslip_id") // the payroll_payslips row (one per version)
+  variant   String
+  number    String
+  bytes     Bytes
+  hash      String
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([payslipId, variant])
   @@map("payslip_documents")
