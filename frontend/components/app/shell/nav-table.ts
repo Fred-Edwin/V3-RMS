@@ -294,7 +294,8 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
   { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, notBuilt: true },
   // PAY (the Branch Manager and Store Manager see no pay)
-  { key: 'wf-pay-runs', label: 'Pay runs', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/pay-runs', roles: WF_PAY, notBuilt: true },
+  // Payroll (segment 2) replaces "Pay runs". It shows only where the new clock is on, so a company with every switch off sees the old payroll menu unchanged.
+  { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/payroll'] },
   { key: 'wf-payslips', label: 'Payslips', group: 'wf-pay', icon: ico.payslips, newHref: '/app/workforce/payslips', roles: WF_PAY, notBuilt: true },
   // SETTINGS
   { key: 'wf-rules', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: WF_DESKTOP, match: ['/app/workforce/rules'] },

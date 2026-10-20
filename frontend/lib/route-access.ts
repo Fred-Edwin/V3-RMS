@@ -161,6 +161,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
+  // Payroll (segment 2): the roles that hold `payroll.read`. Branch and Store Managers see no pay. The API decides what each can do.
+  if (under('/app/workforce/payroll')) {
+    return role === 'HR_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // My time, My rota and My requests (slice 4a): everyone who clocks in, the floor staff and the Store Attendant included, and the desktop
   // roles' own time. The System Admin has no clock.
   if (under('/app/workforce/my-time')) {

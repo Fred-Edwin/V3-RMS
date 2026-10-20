@@ -70,7 +70,7 @@ export const comingUpCard = defineHomeCard<ComingUpData>({
   title: 'Coming up',
   surfaces: ['desktop'],
   slot: 'wide',
-  anyCapability: ['employee.write_sensitive', 'payrun.approve', 'payrun.reopen'],
+  anyCapability: ['employee.write_sensitive', 'payroll.approve', 'payroll.approve_site_late'],
   order: 90,
   isEmpty: (d) => d.events.length === 0,
   useData: useComingUpData,

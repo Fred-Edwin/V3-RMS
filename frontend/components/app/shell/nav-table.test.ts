@@ -572,11 +572,11 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     // and Store Manager's Home already is the board (owner, 18 Oct 2026), with a "See everyone today" link to the full page.
     // "Requests" (slice 4a) is the manager's inbox for Report a problem; Paper's sidebar does not draw it. The Accountant reads Timesheets and the
     // closed report (Paper step 5 names the Accountant), so Timesheets is in their menu too (decisions-4a-timesheets-frontend.md).
-    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Waiting for you', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
     MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
     STORE_MANAGER: { WORKFORCE: ['Home', 'Waiting for you', 'Schedule', 'Timesheets', 'Requests'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
-    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
-    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Pay runs', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
+    ACCOUNTANT: { WORKFORCE: ['Home', 'Waiting for you', 'Employees'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips'] },
+    DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Overdue approvals', 'Schedule', 'Head office timesheets', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips'] },
   };
 
   /** The menu a role would have with every Workforce page built: the rows with `notBuilt` switched on, from the table itself. */

@@ -123,13 +123,13 @@ export function HomeGallery() {
           <div>
             <Label>Accountant · reference table (no drawing)</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('payrun.approve', 'timesheet.read')} states={ACCOUNTANT_STATES} heading={<Greeting title="Good morning, Anne" line="Sunday 4 October. 2 steps are waiting on you before the October pay run." />} />
+              <RolePage surface="desktop" can={caps('payroll.approve', 'timesheet.read')} states={ACCOUNTANT_STATES} heading={<Greeting title="Good morning, Anne" line="Sunday 4 October. 2 steps are waiting on you before the October pay run." />} />
             </Desktop>
           </div>
           <div>
             <Label>Director · reference table (no drawing)</Label>
             <Desktop>
-              <RolePage surface="desktop" can={caps('payrun.reopen', 'leave.approve', 'rota.read')} states={DIRECTOR_STATES} heading={<Greeting title="Good morning, Wendo" line="Sunday 4 October. 2 approvals are overdue." />} />
+              <RolePage surface="desktop" can={caps('payroll.approve_site_late', 'leave.approve', 'rota.read')} states={DIRECTOR_STATES} heading={<Greeting title="Good morning, Wendo" line="Sunday 4 October. 2 approvals are overdue." />} />
             </Desktop>
           </div>
         </Section>
