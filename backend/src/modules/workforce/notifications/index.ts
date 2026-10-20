@@ -25,6 +25,7 @@ export function registerWorkforceNotifier(): void {
   setWorkforceNotifier({ notify: (userId, kind, data, options) => notify(userId, kind, data, options) });
 }
 
+export { dayLabel, monthName, roleLabel, plural } from './notification-format'; // the one place wording helpers live: Needs you rows use them too
 export { default as workforceNotificationsRouter } from './notification-routes';
 export { WORKFORCE_NOTICE_JOB, type HeldPush } from './notification-service';
 export const dispatchHeldWorkforcePush = workforceNotifier.dispatchHeld;

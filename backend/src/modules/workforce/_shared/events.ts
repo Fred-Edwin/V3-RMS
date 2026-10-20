@@ -113,6 +113,14 @@ export interface WorkforceEventPayloads {
   'employee.tracks_time_changed': { employeeId: string; userId: string | null; siteId: string; tracksTime: boolean; effectiveOn: NairobiDate };
   'pay.change_requested': { employeeId: string; payChangeId: string; requestedById: string };
   'pay.change_decided': { employeeId: string; payChangeId: string; decision: 'APPROVED' | 'DECLINED'; decidedById: string };
+  // ── Segment 6a: events Leave (Segment 4) and Conduct (Segment 5) MUST emit so the Needs you card and badges refresh (6b N5). ──
+  // Ids and sites only, never a reason or a figure. Add the names to NUDGING_EVENTS in needs-you/register-needs-you.ts.
+  'leave.requested': { siteId: string; requestId: string; employeeId: string };
+  'leave.decided': { siteId: string; requestId: string; employeeId: string; outcome: 'APPROVED' | 'DECLINED' };
+  'leave.moved_up': { siteId: string; requestId: string; employeeId: string; toRole: string };
+  'conduct.appeal_sent': { siteId: string; appealId: string; employeeId: string };
+  'conduct.appeal_decided': { siteId: string; appealId: string; employeeId: string };
+  // ── end of the Segment 6a block ──
 }
 
 export type WorkforceEventName = keyof WorkforceEventPayloads;

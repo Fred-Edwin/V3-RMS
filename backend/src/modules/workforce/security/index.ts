@@ -10,6 +10,7 @@ export { registerSecurity } from './register-security';
 export { workforceSessionGate, forgetSession } from './session/reset-gate';
 export { wasntMe, type WasntMeInput, type WasntMeContext } from './session/wasnt-me-service';
 export { claimAlertWindow, insertAlertForEntry, tellAdminsOfAlert, alertsStarted, type AlertFacts } from './alerts/alerts-raise';
+export { listAlerts } from './alerts/alerts-service';
 export { securityEntry } from './security-context';
 export { confirmationOf } from './devices/devices-service';
 export { phoneLabelOf, placeLabelOf } from './devices/device-label';

@@ -8,5 +8,6 @@
  */
 export { default as workforcePayslipsRouter } from './payslips-routes';
 export { setPublicationSource, type MonthPublication, type MonthFacts, type PublicationSource } from './reads/publication';
+export { P9_LAYOUT_VERSION } from './p9/p9-layout'; // Needs you shows "Confirm the P9 format" until the Accountant has
 export { setDeviceConfirmationSource, type DeviceConfirmationSource } from './unlock/device-source';
 export { ensureFileForPayslip, type PayslipFile } from './documents/document-service';
