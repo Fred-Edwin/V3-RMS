@@ -37,8 +37,9 @@ export function MarkPaidDialog({ view, onClose, onDone, onStale }: { view: Month
       rows={
         p && bank
           ? [
-              { label: 'Net pay to staff', value: kesLabel(bank.amount), mono: true },
+              { label: 'In the bank file', value: kesLabel(bank.amount), mono: true },
               { label: 'Paid to', value: `${people(bank.people)}, by bank transfer` },
+              ...p.otherMethods.map((o) => ({ label: 'Paid another way', value: `${people(o.people)} by ${o.method.toLowerCase()}, ${kesLabel(o.amount)}` })),
               { label: 'Bank file', value: bank.file.filename && bank.file.downloadedAt ? `${bank.file.filename} · downloaded ${dayMonthTime(bank.file.downloadedAt)}` : 'Not downloaded yet', mono: true, tone: bank.file.state === 'DOWNLOADED' ? 'default' : 'warning' },
               { label: 'Staff told', value: `"Your ${name} pay has been sent"` },
             ]

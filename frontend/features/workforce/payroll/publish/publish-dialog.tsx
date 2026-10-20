@@ -22,7 +22,7 @@ export function PublishDialog({ view, onClose, onDone, onStale }: { view: MonthV
         { label: 'Staff told', value: 'Push and Inbox' },
         { label: 'Staff see it under', value: 'My payslips' },
         { label: 'Net pay to staff', value: kesLabel(k?.net), mono: true },
-        ...(approvedBy ? [{ label: 'Approved by', value: `${approvedBy}, Accountant` }] : []),
+        ...(approvedBy ? [{ label: 'Approved by', value: approvedBy.includes('(') ? approvedBy : `${approvedBy}, Accountant` }] : []),
         { label: 'After publishing', value: 'Open to correct until paid', tone: 'success' as const },
       ]}
       confirmLabel="Publish the payslips"

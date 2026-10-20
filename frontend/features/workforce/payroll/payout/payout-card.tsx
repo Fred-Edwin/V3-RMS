@@ -59,7 +59,7 @@ export function PayoutCard({ view, refresh, onChanged }: { view: MonthView; refr
     <div className="flex flex-col gap-4">
       {file.state === 'VOIDED' ? (
         <Callout tone="warning" title="The bank file was voided" role="alert">
-          {file.voidReason ?? 'A payslip changed after the file was downloaded.'} Download the new file before you pay. If you already uploaded the old file at the bank, tell the bank to stop it.
+          {(file.voidReason ?? 'A payslip changed after the file was downloaded').replace(/\.?\s*$/, '.')} Download the new file before you pay. If you already uploaded the old file at the bank, tell the bank to stop it.
         </Callout>
       ) : null}
       <Panel title={`Pay out the ${view.label.split(' ')[0]} net pay`} caption={view.publishedAt ? `PUBLISHED ${dayMonthTime(view.publishedAt).toUpperCase()}${view.documentNumber ? ` · ${view.documentNumber}` : ''}` : undefined} padded={false}>

@@ -52,8 +52,12 @@ export function PayrollScreen() {
     const timer = window.setTimeout(() => setSaid(null), 8000);
     return () => window.clearTimeout(timer);
   }, [said]);
+  // After any act the month stays on screen: the default month is "the oldest not Paid", so once a month is paid the page would jump away from it.
+  const pin = React.useRef({ monthKey, asked: url.get('month'), set: url.set });
+  pin.current = { monthKey, asked: url.get('month'), set: url.set };
   const changed = React.useCallback((message?: string): void => {
     if (message) setSaid(message);
+    if (pin.current.monthKey && !pin.current.asked) pin.current.set({ month: pin.current.monthKey });
     setRefresh((n) => n + 1);
   }, []);
   const oldPayslips = role ? OLD_PAYSLIPS[role] : undefined;
