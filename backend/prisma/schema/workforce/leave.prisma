@@ -121,7 +121,10 @@ model LeaveEvent {
   at            DateTime
   byUser        String?        @map("by_user")
   role          String?
+  /// The Idempotency-Key of the decision or cancel that wrote this event: a repeat of the same key returns the first result.
+  idempotencyKey String?       @map("idempotency_key")
 
+  @@unique([applicationId, idempotencyKey])
   @@index([applicationId, at])
   @@map("leave_events")
 }
