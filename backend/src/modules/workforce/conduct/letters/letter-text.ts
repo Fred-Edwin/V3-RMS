@@ -33,7 +33,6 @@ export function datesLong(dates: readonly NairobiDate[]): string {
 
 /** Plain text only: control characters and line breaks become single spaces, runs of spaces collapse, the ends are trimmed. */
 export const plainText = (value: string): string =>
-  // eslint-disable-next-line no-control-regex -- stripping control characters is the point
   value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
 
 /** Replaces each {blank}; a blank with no value stays visible so a missing fact is noticed in tests. */
