@@ -57,6 +57,9 @@ import {
   workforceNotificationsRouter,
   registerWorkforceNotifier,
   registerPinTries,
+  registerSecurity,
+  workforceSecurityRouter,
+  workforceSessionGate,
   workforceCasualRouter,
   workforceOrgRouter,
   workforcePayslipsRouter,
@@ -132,7 +135,9 @@ apiRouter.use('/inventory/carriers', carriersRoutes);
 apiRouter.use('/inventory/deliveries', deliveriesRoutes);
 apiRouter.use('/inventory/discrepancies', discrepanciesRoutes);
 registerPeople(); // the real "clocks in" lookup (Workforce slice 1)
+apiRouter.use('/workforce', workforceSessionGate); // an ended session, a required password reset or a removed phone is refused before any Workforce route (Segment 6a)
 apiRouter.use(workforcePermissionsRouter);
+apiRouter.use(workforceSecurityRouter);
 apiRouter.use(workforceRulesRouter);
 apiRouter.use(workforcePeopleRouter);
 apiRouter.use(workforceOrgRouter);
@@ -141,6 +146,7 @@ apiRouter.use(workforceAttendanceRouter);
 registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
 registerPayroll(); // a branch with an unpaid payroll month cannot switch its new clock off (Workforce Segment 2A)
 registerPinTries(); // wrong signing-PIN tries are stored; the pause survives a restart (Workforce Segment 6a, SD16)
+registerSecurity(); // payslip code reads the shared phone list; the 3rd wrong signing PIN is written to Activity (Segment 6a)
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
 apiRouter.use(workforceTimesheetsRouter);
