@@ -23,6 +23,20 @@ Working document. Delete it when Workforce ships. Every build brief points here.
 4. Docs: module README, `DATA_MODEL.md`, `API_CONTRACT.md`, the Workforce README status row, `docs/PROJECT_STATUS.md`; edit with the Edit tool (never append with Bash).
 5. Update the checklist's `verified` fields; the final report's recap is built from it (any item with `built` or `verified` false must be named and explained).
 
+## Servers, proofs and long commands (learned in the wave 2 back-end sessions: the Leave proof lost about 20 minutes to these)
+1. **Start fresh, then prove it is fresh.** Before any HTTP proof or browser walk, stop whatever is on the lane port (kill by process id, never `pkill -f`), start the server from the current code, then call one route that exists only in the new code. A 404 there means a stale server: stop and fix that first. A server left over from earlier work serves old code and makes every new route answer 404.
+2. **Long commands run in the background with a log.** Never wait in the foreground: start it, read the log after about 30 seconds, stop early on the first failure. Foreground timeouts of 200 to 400 seconds hide a hang.
+3. **Every proof or helper script must end by itself** (`process.exit`), reuse its logins between runs, and clear leftover test data at the start of each run, not only at the end. A failed first run otherwise blocks the second.
+4. **The login limit is 10 a minute.** A proof that creates fresh logins on every run waits about a minute each time. Make logins once and reuse them.
+5. **Never `pkill -f <pattern>`.** It can kill your own shell. Kill by exact process id.
+6. **Write a module's own flow tests in part 1** (they test what you just built and find real bugs early); part 2 is for the big gates.
+7. **Do not chase known-failing test files.** The list is in the handoff; re-run them once at the end. A file that also fails on the base is not yours.
+
+## Front-end sessions (same two parts, different part 2)
+- **Part 1** builds the screens from the kit and the spec, one screen at a time, with a type check and the tests for what changed. **Then stop** and write the handoff and the starter prompt, exactly as for the back end.
+- **Part 2** is the real-browser walkthrough: for each screen, one screenshot of the build beside one screenshot of the Paper frame; fix visible differences; read exact values from Paper (font sizes, spacing, colours) only where the eye cannot settle it; hover, keyboard and states; then the gates (`tsc`, lint, tests, build), the docs and the report.
+- The browser walk uses the fresh-server rule above: confirm the front end and the API both serve the current code before the first screenshot.
+
 ## Rules that hold in both parts
 - **No cheating to go green:** fix the cause. Never delete a test, skip an assertion, loosen a check, or catch-and-ignore an error to pass a gate.
 - **Two attempts, then stop:** if the same failure survives two fix attempts, stop, record it, and report it instead of looping.
