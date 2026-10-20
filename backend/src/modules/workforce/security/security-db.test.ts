@@ -84,7 +84,7 @@ describe.skipIf(!enabled)('Security flows in the database', () => {
     const { signAccessToken } = await import('../../../utils/jwt');
     const p = await person();
     const run = async (token: string, path: string, device?: string) => {
-      const req = { headers: { authorization: `Bearer ${token}` }, baseUrl: '/workforce', path, header: (n: string) => (n.toLowerCase() === 'x-device-id' ? device : undefined) } as unknown as Request;
+      const req = { headers: { authorization: `Bearer ${token}` }, baseUrl: '/api/v1/workforce', path: path.replace(/^\/workforce/, ''), header: (n: string) => (n.toLowerCase() === 'x-device-id' ? device : undefined) } as unknown as Request;
       let err: unknown = null;
       await security.workforceSessionGate(req, {} as Response, (e?: unknown) => { err = e ?? null; });
       return err as { code?: string } | null;

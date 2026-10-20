@@ -57,7 +57,8 @@ export async function workforceSessionGate(req: Request, _res: Response, next: N
     const deviceHeader = req.header('x-device-id');
     const state = await stateOf(userId, deviceHeader && /^[A-Za-z0-9._-]{8,64}$/.test(deviceHeader) ? deviceHeader : null, Date.now());
     if (state.raisedAtSeconds !== null && issuedAt < state.raisedAtSeconds) throw new UnauthorizedError('Please sign in again.', 'SESSION_ENDED');
-    const path = `${req.baseUrl}${req.path}`.replace(/\/+$/, ''); // mounted under /workforce, so req.path alone is shortened
+    // Mounted under /workforce (and the API prefix), so req.path alone is shortened: compare from "/workforce" on.
+    const path = `${req.baseUrl}${req.path}`.replace(/^.*?(?=\/workforce)/, '').replace(/\/+$/, '');
     if (state.mustChangePassword && !OPEN_WHILE_RESETTING.includes(path)) throw new ForbiddenError('Choose a new password to come back in.', 'PASSWORD_RESET_REQUIRED');
     if (state.phoneRemoved && !OPEN_FOR_REMOVED_PHONE.includes(path)) throw new UnauthorizedError('This phone was removed. Sign in again.', 'PHONE_REMOVED');
     next();

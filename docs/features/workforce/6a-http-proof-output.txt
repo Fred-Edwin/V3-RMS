@@ -1,0 +1,42 @@
+Workforce Segment 6a (Shared parts, back end A): per-role HTTP proof, 20 Oct 2026.
+Command: RATE_LIMIT_MAX=100000 KEEP=1 pnpm exec tsx src/scripts/shared-6a-proof.ts up   (lane 3 database, real logins, app served in-process)
+After the run the end-to-end result was read with the read-only Postgres tool (WRONG_CODES alert CLEARED with an audit entry, WASNT_ME alert OPEN with an
+audit entry, the payslip.code_tried 3rd-wrong entry flagged), then `down` removed the fixture and every attendance switch was off.
+Note: the proof's own users cannot be deleted once they wrote to the append-only audit log; down renames and deactivates them.
+
+== 0. fixture
+Nyeri Town's new clock switched on for the proof (it was on; down switches it off, as the brief asks).
+PASS  admin, director, bm.town, bm.highway, accountant, store.manager, an HR Manager and a waiter sign in (8 logins)
+== 1. Needs you: who sees what
+PASS  admin, director, bm.town, accountant, store.manager, hr, bm.highway GET needs-you -> 200
+PASS  waiter GET needs-you and needs-you/counts -> 404
+PASS  the Nyeri Town Branch Manager sees the waiting clock fix, worded with a name and a role
+PASS  the badge equals the rows that carry a badge
+PASS  another branch's manager does not see Nyeri Town's clock fix (cross-site)
+PASS  no row text carries a pay figure
+PASS  bm.town POST needs-you/seen -> 200; hr GET needs-you/attention -> 200
+== 2. Overdue and reminders (Director only, once a day)
+PASS  bm.town and accountant GET needs-you/overdue -> 404; director -> 200
+PASS  the 5-day clock fix is on the Director's Overdue list with its waiting days
+PASS  director POST remind -> 200; again -> 403 REMINDER_ALREADY_SENT; bm.town POST remind -> 404
+PASS  the Branch Manager was told by Inbox row
+== 3. Security: alerts and who may touch them
+PASS  director, bm.town, accountant, hr, waiter GET security/alerts -> 403; admin -> 200
+PASS  director POST security/alerts/start -> 403; admin -> 200
+PASS  admin, director, bm.town, waiter GET security/phones/me -> 200
+== 4. End to end: three wrong payslip codes raise one alert, the System Admin clears it
+PASS  waiter POST payslips/me/unlock x3 -> 403 CODE_WRONG
+PASS  exactly one wrong-codes alert exists for the waiter, with no amount or code in it
+PASS  the Security badge rose by one and equals the Security rows
+PASS  the alert row is tied to its audit entry
+PASS  admin POST security/alerts/:id/clear -> 200; a second clear with another key -> 409 ALREADY_CLEARED
+== 5. "This wasn't me": sessions end, a new password is required, the phone list empties
+PASS  waiter POST security/phones/me/current/seen -> 200; POST security/wasnt-me -> 200
+PASS  the old token -> 401 SESSION_ENDED; the sign-in code was cleared; the admin has a "This wasn't me" alert
+PASS  after signing in again: notifications -> 403 PASSWORD_RESET_REQUIRED; security/state -> 200
+PASS  reset-password with the old password -> 400; with a new one -> 200; the new password signs in; notifications -> 200
+== 6. server errors carry a reference
+PASS  a 5xx would carry WF-XXXX (covered by fault-reference.test.ts)
+PASS  the HR proof login exists only for the proof
+
+64 passed, 0 failed.
