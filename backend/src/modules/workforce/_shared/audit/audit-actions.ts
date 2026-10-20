@@ -113,6 +113,16 @@ export const AUDIT_ACTIONS = {
   'casual.sheet_voided': ['PAY_RUN_DECIDE'],
   'casual.received': ['PAY_RUN_PREPARE'], // a worker signed for cash: initials and time
   'casual.correction_added': ['PAY_RUN_PREPARE'],
+  // ── Segment 4 (Leave). Dates, day counts, type codes and reason chips; never a note, a PIN or a balance figure beyond days. ──
+  'leave.requested': ['LEAVE'],
+  'leave.moved_to_hr': ['LEAVE'], // no answer for 72 hours; channel SYSTEM
+  'leave.approved': ['LEAVE'], // slip number, method PIN
+  'leave.declined': ['LEAVE'], // reason chip
+  'leave.cancelled': ['LEAVE'], // by the person, or by a manager with a PIN
+  'leave.balance_adjusted': ['LEAVE'], // HR: type, signed days, reason chip, PIN
+  'leave.legacy_carried': ['LEAVE'], // open old requests and balances copied at switch-on; channel SYSTEM
+  'leave.slip_cancelled_stamped': ['LEAVE'], // an approved slip was voided: the CANCELLED stamp applies
+  // ── end Segment 4 ──
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

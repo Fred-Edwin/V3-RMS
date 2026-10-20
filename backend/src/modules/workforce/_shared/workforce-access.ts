@@ -43,6 +43,7 @@ export const CAPABILITIES = [
   'leave.acknowledge',
   'leave.read',
   'leave.approve',
+  'leave.balance_adjust', // Segment 4: HR adds or removes days on a balance (PIN, reason, audit)
   // people
   'employee.read_basic',
   'employee.read_sensitive', // IDs, bank, documents
@@ -258,6 +259,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'org.write': 'all',
     'org.write_heads': 'all',
     'rules.read': 'all',
+    'leave.balance_adjust': 'all', // Segment 4: HR only (L26)
     'rules.edit.leave_types': 'all',
     'payroll.read': 'all',
     'payroll.review': 'all',
