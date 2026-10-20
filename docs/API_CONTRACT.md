@@ -5552,3 +5552,28 @@ All routes: `authenticate`, `attachWorkforceSubject`, a capability; success `{ s
 | `POST .../security/wasnt-me { deviceId?, entryId?, idempotencyKey }`, `POST .../reset-password { newPassword, confirm }`, `GET .../state` | signed in | `409 RESET_NOT_REQUIRED` |
 | `GET /workforce/needs-you`, `/counts`, `/attention`; `POST /seen`, `/:id/undo` | `needs_you.read` (404 without) | `404 UNDO_UNAVAILABLE` |
 | `GET /workforce/needs-you/overdue`; `POST /:id/remind { idempotencyKey }` | `needs_you.remind` (404 without) | `403 REMINDER_ALREADY_SENT`, `404 ITEM_NOT_OVERDUE` |
+
+## 44. Workforce — Conduct (segment 5, BUILT 20 Oct 2026, back end only)
+
+Base `/api/v1/workforce/conduct`. Source of truth: `backend/src/modules/workforce/conduct/README.md` and `docs/features/workforce/decisions-5-conduct-backend.md`. Every route: `authenticate`, `attachWorkforceSubject`, `requireCapability(...)`, Zod (`.strict()`); success `{ success: true, data }`. A notice outside the caller's reach is `404`; one in reach but not allowed is `403`. Everything is behind the branch's attendance switch: `409 CONDUCT_NOT_ENABLED` to issue while it is off, and the old HR screen answers `409 CONDUCT_IN_NEW_SYSTEM` while it is on. A push or lock-screen text never carries the reason. PINs go through the shared pause door: wrong tries are logged and slowed, never a lock.
+
+**New capability (one row in `workforce-access.ts`):** `discipline.decide`. HR: all. Director: all, narrowed in the service to notices HR issued (`403 NOT_DECIDER` otherwise). Branch Manager, staff, heads, Accountant and System Admin do not have it. System Admin and Accountant have no `discipline.*` row at all.
+
+| Endpoint | Capability | Notes |
+|---|---|---|
+| `GET /conduct/me`, `GET /conduct/badge` | `discipline.read_own` | The caller's own notices; the badge counts the rows the Needs-you card shows (staff have no `needs_you.read`) |
+| `GET /conduct?status=active\|appealed\|ended&site&q&page&pageSize` | `discipline.read` | Site-scoped for a Branch Manager; pageSize 25, 50 or 100 |
+| `GET /conduct/people?q`, `GET /conduct/draft?personId&about&month` | `discipline.issue` | People in reach; the draft carries the frozen facts and the suggested level |
+| `POST /conduct/draft/preview { personId, level, about, factsMonth?, ownLine }` | `discipline.issue` | A4 PDF stamped DRAFT, nothing stored; `422 NO_LETTER` for a verbal note |
+| `POST /conduct { personId, level, about, factsMonth?, ownLine, pin, idempotencyKey }` | `discipline.issue` | `201`; same key again returns the same notice; `422 NO_FACTS`, `409 LEVEL_NOT_IN_RULES`, `403 ISSUE_NOT_ALLOWED` (a notice to oneself), `409 IDEMPOTENCY_KEY_REUSED`, `403 PIN_INVALID` |
+| `GET /conduct/:id` | `discipline.read` or `discipline.read_own` | 404 outside reach; a head sees nothing unless named witness |
+| `GET /conduct/:id/document?version=1\|2\|3\|latest&inline=0\|1` | same | `application/pdf`, `private, no-store`, ETag is the file hash; a manager's open writes `conduct.document_read`, the person's own does not; `404 DOCUMENT_VERSION_NOT_FOUND` |
+| `POST /conduct/:id/sign { code, deviceId, idempotencyKey }` | `discipline.read_own` | Wrong code `403 PIN_INVALID` (paused, never locked); `409 NOT_SIGNABLE`, `409 INVALID_TRANSITION` |
+| `POST /conduct/:id/appeal { reasonKey: FACTS_WRONG\|GOOD_REASON\|TOO_STRONG\|OTHER, text, idempotencyKey }` | `discipline.read_own` | No PIN; one per notice within 7 days: `409 ALREADY_APPEALED`, `409 APPEAL_WINDOW_CLOSED`, `409 NOT_APPEALABLE` |
+| `POST /conduct/:id/not-signed { reason: REFUSED\|NOT_REACHED\|NO_LOGIN, witnessId, pin, idempotencyKey }` | `discipline.issue` | Issuer or HR; `422 LOGIN_EXISTS`, `422 NO_LOGIN_ONLY`, `422 TOO_EARLY`, `422 WITNESS_NOT_ALLOWED`, `409 ALREADY_RECORDED`, `409 ALREADY_SIGNED` |
+| `GET /conduct/:id/witness-options?q` | `discipline.issue` | Colleagues at the site who could witness |
+| `GET /conduct/:id/witness`, `POST /conduct/:id/witness { confirmed, code? }` | `notifications.own` | 404 unless named; a code is needed to confirm; no reason is shown; answering twice returns the first answer |
+| `POST /conduct/:id/decision/preview { outcome }`, `POST /conduct/:id/decision { outcome: KEEP\|REDUCE_TO_WRITTEN\|REDUCE_TO_VERBAL\|WITHDRAW, reason, pin, idempotencyKey }` | `discipline.decide` | Reduce makes a new linked notice and the old letter gains a decision page as version 2; `409 ALREADY_DECIDED` for the second decider, `409 NOTHING_TO_DECIDE`, `422 REDUCE_NOT_POSSIBLE`, `403 SELF_DECISION`, `403 NOT_DECIDER` |
+| `GET /workforce/people/:id/conduct` | `discipline.read` | The employee file tab: new notices plus "Before the new system" rows from the old table, read only |
+
+Events: `conduct.appeal_sent`, `conduct.appeal_decided`. A nightly job (00:10 Nairobi) ends notices past their end date, tells the Director once about an appeal past 7 days, and reports a silent witness. The documents door (back end B) takes the named hook `registerConductDocuments`.

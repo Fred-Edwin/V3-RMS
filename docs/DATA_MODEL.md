@@ -3298,6 +3298,17 @@ File `backend/prisma/schema/workforce/shared.prisma`. No existing table is chang
 | `workforce_pin_tries` | Tries at the signing PIN by purpose, never the digits | Drives the 2, 4, 8, 16, 30 second pause |
 | `workforce_audit_entry_index` | Per audit entry: area, flag, title, search text | Filled by the audit writer in the same transaction |
 | `workforce_needs_you_state` | Per person: when Home was last opened | Tags rows "New" |
+
+### 4.89 Workforce Segment 5: Conduct (20 Oct 2026, migration `20261020135759_workforce_conduct`, additive)
+
+File `backend/prisma/schema/workforce/conduct.prisma`. No existing table is changed: the old `disciplinary_records` stay as they are, read only, and never count toward the ladder. Proved on a copy of the lane database: the 179 other tables had identical fingerprints before and after, and a second `migrate deploy` reported no pending migrations. Enums `ConductLevel` (`VERBAL_NOTE`, `WRITTEN_WARNING`, `FINAL_WRITTEN_WARNING`), `ConductAbout` (`LATENESS`, `ABSENCE`, `BEHAVIOUR`, `SAFETY_HYGIENE`, `OTHER`) and `ConductStatus` (`ISSUED`, `RECORDED`, `SIGNED`, `GIVEN_NOT_SIGNED`, `APPEALED`, `KEPT`, `REPLACED`, `WITHDRAWN`, `ENDED`). Sequence `conduct_notice_seq` numbers `WRN-nnnn`; a verbal note has no number. Notices are never deleted.
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `conduct_notices` | One notice: person (employee and optional login user), site (`organization_id`), issuer, level, about, the frozen facts and the manager's own line, issue and end dates, status, signature, the not-signed record, the witness and the appeal | Unique `number`, `verify_code`, `replaces_notice_id`, `replaced_by_id` and `(issuer_id, idempotency_key)`; indexes on site and status, employee and status, person and issue date, status and end date, status and appeal due date |
+| `conduct_notice_events` | The notice's own timeline (issued, signed, appealed, decided, witness answers) | Index `(notice_id, at)`; a push or Inbox row never carries the reason |
+| `conduct_decisions` | One row per decision on an appeal or HR change: outcome (keep, reduce to written, reduce to verbal, withdraw), reason, who decided, the linked new notice | Unique `(notice_id, version)` makes a second decider lose; unique `(decided_by_id, idempotency_key)` |
+| `conduct_notice_documents` | The stored A4 PDF per notice and version, with its hash; a withdrawn copy carries the watermark | Unique `(notice_id, version, withdrawn)`; written only once the receipt is final |
 | `workforce_needs_you_reminders` | A reminder sent on an item on a Nairobi day | Unique per item and day |
 
 ---
