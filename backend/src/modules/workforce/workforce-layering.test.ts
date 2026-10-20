@@ -131,6 +131,8 @@ describe('the public door (contract 7.2)', () => {
       'registerPinTries', 'attemptWithPause',
       'workforceSecurityRouter', 'workforceSessionGate', 'registerSecurity', 'wasntMe', 'claimAlertWindow', 'insertAlertForEntry', 'tellAdminsOfAlert',
       'workforceNeedsYouRouter', 'registerNeedsYou', 'registerNeedsYouSource',
+      // conduct (segment 5)
+      'workforceConductRouter', 'registerConduct', 'sweepConduct', 'registerConductDocuments', 'isSiteOnNewConduct', 'refuseLegacyConductWhenSwitched',
     ].sort();
     expect(runtimeExports).toEqual(expected);
   }, 30_000); // importing the whole door takes seconds when the full suite is running

@@ -59,6 +59,8 @@ import {
   registerPinTries,
   registerSecurity,
   registerNeedsYou,
+  registerConduct,
+  workforceConductRouter,
   workforceNeedsYouRouter,
   workforceSecurityRouter,
   workforceSessionGate,
@@ -152,7 +154,9 @@ registerSecurity(); // payslip code reads the shared phone list; the 3rd wrong s
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
+registerConduct(); // Conduct's rows (to sign, to record, appeals waiting) join the same card and badge (Segment 5)
 apiRouter.use(workforceNeedsYouRouter);
+apiRouter.use(workforceConductRouter);
 apiRouter.use(workforceTimesheetsRouter);
 apiRouter.use(workforcePayrollRouter);
 apiRouter.use(workforceCasualRouter);
