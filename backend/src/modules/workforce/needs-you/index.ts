@@ -11,3 +11,4 @@ export { registerNeedsYou } from './register-needs-you';
 export { registerNeedsYouSource, registeredSources } from './sources/registry';
 export { BADGE_KEYS, type BadgeKey, type BadgeCounts, type NeedsYouContext, type NeedsYouRow, type NeedsYouSource } from './needs-you-types';
 export { sitesFor, reachesCompany } from './needs-you-scope';
+export { contextFor } from './needs-you-service'; // a source's own badge endpoint (Conduct's GET /badge) builds the same context the card uses
