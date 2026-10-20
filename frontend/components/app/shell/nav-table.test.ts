@@ -583,7 +583,7 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   const eventual = (role: AppRole): Record<string, string[]> => {
     const everything = NAV_ROWS.map((r) => (r.key.startsWith('wf-') ? { ...r, notBuilt: undefined } : r));
     const out: Record<string, string[]> = {};
-    for (const g of navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }), everything)) {
+    for (const g of navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true, payrollOn: true }), everything)) {
       if (!g.key.startsWith('wf-')) continue;
       out[g.label] = g.items.map((i) => i.label);
     }
@@ -734,6 +734,16 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     expect(keys(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-timesheets');
     expect(keys(navFor(ctxFor('ACCOUNTANT', { can: EVERYTHING, attendanceOn: true })))).not.toContain('wf-requests');
     expect(keys(navFor(ctxFor('SYSTEM_ADMIN', { can: EVERYTHING, attendanceOn: true }))).filter((k) => NEW_ROWS.includes(k))).toEqual([]);
+  });
+
+  it('shows the Payroll row to the four Payroll roles only once Payroll has a month, wherever their own site is', () => {
+    const payroll = (role: AppRole, payrollOn: boolean, attendanceOn = false): boolean => keys(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn, payrollOn }))).includes('wf-pay-runs');
+    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'] as AppRole[]) {
+      expect(payroll(role, true), `${role} on`).toBe(true);
+      expect(payroll(role, false), `${role} every switch off`).toBe(false);
+      expect(payroll(role, false, true), `${role}: the clock alone is not enough`).toBe(false);
+    }
+    for (const role of ['MANAGER', 'STORE_MANAGER', 'WAITER', 'STORE_ATTENDANT'] as AppRole[]) expect(payroll(role, true), `${role} never sees it`).toBe(false);
   });
 
   it('lights Home on /app/workforce', () => {

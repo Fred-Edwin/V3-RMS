@@ -105,6 +105,8 @@ interface Visibility {
   notBuilt?: boolean;
   /** Shows only when the new clock is on for the person's branch (`NavContext.attendanceOn`). */
   needsAttendance?: boolean;
+  /** Shows only when Payroll has a month for the company (`NavContext.payrollOn`), whichever site the person belongs to. */
+  needsPayroll?: boolean;
 }
 
 export interface NavSubRow extends Visibility {
@@ -294,8 +296,8 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
   { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, notBuilt: true },
   // PAY (the Branch Manager and Store Manager see no pay)
-  // Payroll (segment 2) replaces "Pay runs". It shows only where the new clock is on, so a company with every switch off sees the old payroll menu unchanged.
-  { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/payroll'] },
+  // Payroll (segment 2) replaces "Pay runs". It shows only once Payroll has a month (a branch is on the new clock), so a company with every switch off sees the old payroll menu unchanged.
+  { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], needsPayroll: true, match: ['/app/workforce/payroll'] },
   { key: 'wf-payslips', label: 'Payslips', group: 'wf-pay', icon: ico.payslips, newHref: '/app/workforce/payslips', roles: WF_PAY, notBuilt: true },
   // SETTINGS
   { key: 'wf-rules', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: WF_DESKTOP, match: ['/app/workforce/rules'] },
@@ -613,6 +615,8 @@ export interface NavContext {
   branches?: ReadonlyArray<{ id: string; name: string }>;
   /** The new clock is on for the person's branch (for a company-wide role, for any branch they can see). Absent means off. */
   attendanceOn?: boolean;
+  /** Payroll has a month for the company (a branch is on the new clock, or a month already exists). Absent means off. */
+  payrollOn?: boolean;
 }
 
 export interface NavLinkSub {
@@ -647,6 +651,7 @@ export interface NavGroup {
 const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   !rule.notBuilt &&
   (!rule.needsAttendance || ctx.attendanceOn === true) &&
+  (!rule.needsPayroll || ctx.payrollOn === true) &&
   rule.roles.includes(actor) &&
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&

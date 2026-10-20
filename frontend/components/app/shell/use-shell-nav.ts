@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
 import { useAttendanceOn } from '@/features/workforce/attendance/shell';
+import { usePayrollOn } from '@/features/workforce/payroll/shell';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -95,6 +96,8 @@ export function useShellNav(): ShellNav {
   const branches = useBranches(role === 'DIRECTOR');
   // Whether the new clock is on for this person's branch: the Schedule rows, the Today board and the floor staff's Home link wait for it.
   const attendanceOn = useAttendanceOn(role, isDepartmentHead);
+  // Whether Payroll has a month for the company: the Payroll row waits for it (asked of Payroll itself, so it holds for the Accountant too).
+  const payrollOn = usePayrollOn(role);
   const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
@@ -119,8 +122,9 @@ export function useShellNav(): ShellNav {
         creditAccounts: env.creditAccounts,
         branches,
         attendanceOn,
+        payrollOn,
       }),
-    [role, isDepartmentHead, isDepartmentMember, can, branches, attendanceOn]
+    [role, isDepartmentHead, isDepartmentMember, can, branches, attendanceOn, payrollOn]
   );
 
   // The counts are the only thing added to the table's rows here. A zero count draws nothing, so a role without prep.read_flags
