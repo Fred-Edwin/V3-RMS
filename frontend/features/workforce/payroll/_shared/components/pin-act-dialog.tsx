@@ -49,6 +49,12 @@ export function PinActDialog({ title, description, rows, children, note, confirm
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const key = React.useRef(newKey());
+  const pinBox = React.useRef<HTMLDivElement>(null);
+
+  // The PIN field is disabled while signing, which drops keyboard focus; after a refusal it goes back there so the next try needs no mouse.
+  React.useEffect(() => {
+    if (!busy && error) pinBox.current?.querySelector('input')?.focus();
+  }, [busy, error]);
 
   const sign = async (): Promise<void> => {
     if (busy || disabled || blockedReason) return;
@@ -92,7 +98,7 @@ export function PinActDialog({ title, description, rows, children, note, confirm
     >
       {rows ? <KeyValueRows aria-label={title} rows={rows} /> : null}
       {children}
-      <div className="flex flex-col gap-1.5">
+      <div ref={pinBox} className="flex flex-col gap-1.5">
         <span className="font-wds-sans text-[13px] font-semibold leading-4 text-wds-text-ink">Your PIN</span>
         <PinField value={pin} onChange={setPin} label="Your PIN" disabled={busy || disabled} invalid={error !== null} autoFocus={!locking && !disabled} className="max-w-[240px]" />
       </div>
