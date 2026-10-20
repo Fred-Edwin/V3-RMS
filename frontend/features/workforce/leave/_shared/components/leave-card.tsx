@@ -24,7 +24,7 @@ function Figure({ label, value, strong }: { label: string; value: number; strong
 }
 
 /** One leave type on the Leave home: name, days a year, the bar and LEFT, TAKEN, BOOKED. Not a button. */
-export function LeaveCard({ card, buildsFrom }: { card: TypeBalance; buildsFrom?: string | null }) {
+export function LeaveCard({ card }: { card: TypeBalance }) {
   return (
     <section role="group" aria-label={card.spoken} className="flex flex-col gap-3 border border-wds-border bg-wds-surface p-3.5">
       <div className="flex items-baseline justify-between gap-3">
@@ -37,7 +37,7 @@ export function LeaveCard({ card, buildsFrom }: { card: TypeBalance; buildsFrom?
         <Figure label="TAKEN" value={card.taken} />
         <Figure label="BOOKED" value={card.booked} />
       </div>
-      {card.builds && buildsFrom ? <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{`Builds up ${card.builds.perMonth} days a month from ${buildsFrom}`}</p> : null}
+      {card.builds ? <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{`Builds up ${card.builds.perMonth} days a month`}</p> : null}
     </section>
   );
 }
