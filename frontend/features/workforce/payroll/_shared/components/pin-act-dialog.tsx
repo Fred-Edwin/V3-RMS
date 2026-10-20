@@ -2,11 +2,9 @@
 
 import * as React from 'react';
 
-import { ApiError } from '@/types/api';
-
 import { DialogButton, KeyValueRows, KitDialog, PIN_LENGTH, PinField, type KeyValueRow } from '../../../_shared';
 import { newKey } from '../lib/format';
-import { STALE_CODES, refusalWords } from '../lib/month-view';
+import { signRefusal } from '../lib/month-view';
 
 /**
  * The dialog every signed Payroll act uses (Approve, Publish, Mark as paid, Add a line, a correction): a summary, optional extra fields,
@@ -63,11 +61,11 @@ export function PinActDialog({ title, description, rows, children, note, confirm
     try {
       await onSign(pin, key.current);
     } catch (err) {
-      const code = err instanceof ApiError ? err.code : '';
+      const refusal = signRefusal(err);
       setPin('');
-      if (onAlready?.(code)) return;
-      setError(err instanceof ApiError ? refusalWords(code, err.message) : 'The connection dropped. Nothing was changed. Try again.');
-      if (STALE_CODES.includes(code)) {
+      if (onAlready?.(refusal.code)) return;
+      setError(refusal.words);
+      if (refusal.stale) {
         key.current = newKey();
         onStale?.();
       }

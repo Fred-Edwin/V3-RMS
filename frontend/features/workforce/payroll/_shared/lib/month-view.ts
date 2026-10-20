@@ -1,3 +1,5 @@
+import { ApiError } from '@/types/api';
+
 import type { MonthCapabilities, MonthListRow, MonthState, MonthView, StageView, TabKey } from '../types/month-types';
 import { dayMonth, kes, monthName, plural } from './format';
 
@@ -138,3 +140,12 @@ export const REFUSAL_WORDS: Record<string, string> = {
 export const STALE_CODES: readonly string[] = ['CHANGED_UNDERNEATH', 'PAYSLIP_CHANGED', 'BANK_FILE_CHANGED', 'MONTH_LOCKED', 'ALREADY_PAID', 'ALREADY_PUBLISHED', 'ALREADY_APPROVED'];
 
 export const refusalWords = (code: string, serverMessage: string): string => REFUSAL_WORDS[code] ?? (serverMessage || 'That did not go through. Nothing was changed.');
+
+/**
+ * What a signed act shows when it fails: the server's words for an ApiError, a plain "nothing was changed" line when the connection
+ * dropped, and `stale` when the answer means the month moved (the dialog then takes a new key and the page reloads).
+ */
+export function signRefusal(err: unknown): { code: string; words: string; stale: boolean } {
+  if (!(err instanceof ApiError)) return { code: '', words: 'The connection dropped. Nothing was changed. Try again.', stale: false };
+  return { code: err.code, words: refusalWords(err.code, err.message), stale: STALE_CODES.includes(err.code) };
+}
