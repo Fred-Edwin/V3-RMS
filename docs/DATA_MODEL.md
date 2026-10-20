@@ -3300,6 +3300,18 @@ File `backend/prisma/schema/workforce/shared.prisma`. No existing table is chang
 | `workforce_needs_you_state` | Per person: when Home was last opened | Tags rows "New" |
 | `workforce_needs_you_reminders` | A reminder sent on an item on a Nairobi day | Unique per item and day |
 
+### 4.89 Workforce Segment 4: Leave (20 Oct 2026, migrations `20261020135619_workforce_leave` and `20261020141500_workforce_leave_event_key`, additive)
+
+File `backend/prisma/schema/workforce/leave.prisma`. The old `leave_requests`, `leave_balances`, `leave_policies` and acknowledgement tables are not changed (proved on a copy of the lane database: the two migrations applied on top of the real data, the old tables and the people, users and audit rows identical before and after, a second `migrate deploy` said "No pending migrations", and `migrate diff` showed no drift for leave; the diff's only output was the known `payroll_payslip_seq` line, which belongs to Payroll). Three tables, no foreign keys (ids are plain columns, like the rest of Workforce):
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `leave_applications` | One request: person, site, type code and a frozen type snapshot, start and end (Nairobi dates), days (calendar), unpaid tail days, note, status (`WAITING`, `APPROVED`, `DECLINED`, `CANCELLED`), stage (`MANAGER`, `HR`, `DIRECTOR`), the routed role, ask / decide / cancel times and who, reason chip, slip number, frozen slip snapshot and hash, balance before and after, `version`, origin (`NEW`, `LEGACY`), `legacy_request_id`, how days were counted, idempotency key | Unique: slip number, legacy request id, `(employee_id, idempotency_key)`. Six indexes for the lists, the person's calendar and the 72-hour sweep. Every query carries `organization_id` |
+| `leave_balance_entries` | The balance ledger: signed whole days by person, type and leave year; kind `OPENING`, `CARRY_OVER` or `ADJUSTMENT`; reason chip and note; who; the key | **Append-only**: a trigger refuses `UPDATE`, `DELETE` and `TRUNCATE`; a wrong line is fixed with a later one. A unique index allows one `OPENING` and one `CARRY_OVER` per person, type and year; unique `(employee_id, idempotency_key)` |
+| `leave_events` | The stepper history of a request: `ASKED`, `MOVED_TO_HR`, `APPROVED`, `DECLINED`, `CANCELLED`, with time, user, role and the decision's idempotency key | Unique `(application_id, idempotency_key)` (second migration) |
+
+Also: sequence `leave_document_seq` numbers the slips (`LVE-nnnn`, never reused, so a cancelled slip keeps its number). Balances are not stored: they are worked out from the Rules, the ledger and the approved requests (spec section 3), so a rules change never needs a rewrite. Test and proof people leave ledger and audit rows behind by design.
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*

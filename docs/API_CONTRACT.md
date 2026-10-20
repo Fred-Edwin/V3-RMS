@@ -5552,3 +5552,31 @@ All routes: `authenticate`, `attachWorkforceSubject`, a capability; success `{ s
 | `POST .../security/wasnt-me { deviceId?, entryId?, idempotencyKey }`, `POST .../reset-password { newPassword, confirm }`, `GET .../state` | signed in | `409 RESET_NOT_REQUIRED` |
 | `GET /workforce/needs-you`, `/counts`, `/attention`; `POST /seen`, `/:id/undo` | `needs_you.read` (404 without) | `404 UNDO_UNAVAILABLE` |
 | `GET /workforce/needs-you/overdue`; `POST /:id/remind { idempotencyKey }` | `needs_you.remind` (404 without) | `403 REMINDER_ALREADY_SENT`, `404 ITEM_NOT_OVERDUE` |
+
+## 44. Workforce — Leave (segment 4, BUILT 20 Oct 2026, back end only)
+
+Base `/workforce/leave`. All routes: `authenticate`, `attachWorkforceSubject`, a capability (never `requireRole`); success `{ success: true, data }`; scope (own, department, site, all) and the 404-not-403 rule for a record out of scope are checked in the services. Every write needs the header `Idempotency-Key` (8 to 80 characters, else `400 IDEMPOTENCY_KEY_REQUIRED`); the same key again answers the first result with `repeat: true` (HTTP 200 where the first answer was 201). Bodies are strict (an unknown field is `400`). Spec: [specs/4-leave-spec.md](features/workforce/specs/4-leave-spec.md); choices: [decisions-4-leave-backend.md](features/workforce/decisions-4-leave-backend.md); proof: [leave-http-proof-output.txt](features/workforce/leave-http-proof-output.txt).
+
+**Capabilities** (one table, `_shared/workforce-access.ts`): `leave.request` own (every login with an employee file); `leave.read` department (a head, `GET /away` only), site (Branch and Store Manager) or all (HR, Director, System Admin); `leave.approve` site or all (the routed decider only; the System Admin only when nobody holds the role); `leave.balance_adjust` all, **HR Manager only** (new in this segment). The Accountant and floor staff have no `leave.read`.
+
+| Endpoint | Capability | Notes |
+|---|---|---|
+| `GET /me/overview?year` | `leave.request` | Cards, chips, waiting. A casual worker (daily rate, no active contract) gets `200 { casual: true, cards: [], chips: [], message }`, never an error |
+| `GET /me/applications?year&status&type&page&rows` | `leave.request` | Own requests, paged (rows at most 100) |
+| `POST /applications/preview { typeCode, start, end, unpaidTailDays? }` | `leave.request` | Days, left after, shortfall, who decides, a yes/no `tight` (never counts or names); no side effects |
+| `POST /applications { typeCode, start, end, unpaidTailDays?, note? }` | `leave.request` | `201 { application, repeat }`; routed by the server (Branch Manager; HR when nobody holds the role or for a manager's own leave) |
+| `GET /applications/:id` | `leave.request` or `leave.read` | The owner, or a reader in scope; stepper, balance before and after, rota strip pointer |
+| `POST /applications/:id/cancel { reasonCode?, note?, pin? }` | `leave.request` or `leave.approve` | The person: waiting, or approved and not started, no PIN. A manager: approved and not started, `reasonCode` and `pin` required; the slip is stamped cancelled |
+| `GET /requests?tab=recent\|needs-you&status&site&dept&q&page&rows` | `leave.read` | The deciders' list; `needs-you` is the same function as the badge and Home card |
+| `GET /applications/:id/rota` | `leave.read` | The rota strip and minimum-cover warning (warns only) |
+| `POST /applications/:id/approve { pin, expectedVersion }` | `leave.approve` | Slip number `LVE-nnnn` issued once, frozen snapshot, rota cells cleared, same transaction |
+| `POST /applications/:id/decline { reasonCode, note?, expectedVersion }` | `leave.approve` | No PIN; `note` required for `OTHER` |
+| `GET /balances?site&dept&filter&q&year&page&rows`, `GET /balances/:employeeId?year` | `leave.read` | At most 500 people are read, paged in memory |
+| `POST /balances/adjust/preview { employeeId, typeCode, add? }`, `POST /balances/adjust { employeeId, typeCode, add, reasonCode, note?, pin, expectedNow? }` | `leave.balance_adjust` | Whole days, -60 to +60, never below 0; appends one ledger line |
+| `GET /calendar?site&dept&from` | `leave.read` | |
+| `GET /applications/:id/slip`, `GET /applications/:id/slip.pdf` | `leave.request` or `leave.read` | Slip data, and the A4 PDF (`application/pdf`; a cancelled slip is stamped VOID) |
+| `GET /badge` | `leave.request` | Count for the menu badge |
+| `GET /needs-you?limit` | `leave.approve` | The Leave source of the Needs-you registry |
+| `GET /away?from&to&site` | `leave.read` | Who is on leave (a head sees their departments only); also exported as `onLeaveAt` and `comingUp` |
+
+Errors: `400` `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REQUIRED`, `REASON_REQUIRED`, `NOTE_REQUIRED`, `CANCEL_REASON_REQUIRED`, `PIN_REQUIRED`, `TYPE_UNKNOWN`; `403` `PIN_INVALID`, `NO_EMPLOYEE_FILE`, `OWN_REQUEST`, `OWN_BALANCE`, `NOT_WITH_YOU_YET` (HR before the 72 hours; carries `movesToHrAt`), `NOT_YOUR_DECISION`, `NOT_CANCELLABLE`, a missing capability; `404` another site, another person, `LEAVE_NOT_FOUND`, `PERSON_NOT_FOUND`; `409` `OVERLAP`, `ALREADY_DECIDED` (who, when, outcome), `STALE_REQUEST`, `BALANCE_TOO_LOW`, `BALANCE_BELOW_ZERO`, `BALANCE_CHANGED`, `TYPE_NOT_ADJUSTABLE`, `CASUAL_NO_LEAVE`, `STARTED_WHILE_WAITING`. The old routes `/hr/leave/*` answer `409 LEAVE_IN_NEW_SYSTEM` for writes at a branch whose attendance switch is on (one guard line in `hr-service.ts`; nothing else in the legacy leave code changed). Audit actions: `leave.requested`, `leave.approved`, `leave.declined`, `leave.cancelled`, `leave.slip_cancelled_stamped`, `leave.moved_to_hr` (system), `leave.balance_adjusted`, `leave.legacy_carried` (system; the switch-on copy and the switch-off mirror both use it, with a `direction`); events `leave.requested`, `leave.decided` and `leave.moved_up`; notification kinds `leave.asked`, `leave.approved`, `leave.declined`, `leave.head_told`, `leave.moved_to_hr`, `leave.moved_to_hr_person`, `leave.cancelled_by_person`, `leave.cancelled_by_manager`, `leave.cancelled_plan_days`, `leave.balance_adjusted` (one generic text each, no names, dates, balances or reasons). Hourly job `leave.escalation` (report queue) marks waiting requests that have passed 72 hours; the stage itself is derived, so a missed run only delays the notice.
