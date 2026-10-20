@@ -5552,3 +5552,24 @@ All routes: `authenticate`, `attachWorkforceSubject`, a capability; success `{ s
 | `POST .../security/wasnt-me { deviceId?, entryId?, idempotencyKey }`, `POST .../reset-password { newPassword, confirm }`, `GET .../state` | signed in | `409 RESET_NOT_REQUIRED` |
 | `GET /workforce/needs-you`, `/counts`, `/attention`; `POST /seen`, `/:id/undo` | `needs_you.read` (404 without) | `404 UNDO_UNAVAILABLE` |
 | `GET /workforce/needs-you/overdue`; `POST /:id/remind { idempotencyKey }` | `needs_you.remind` (404 without) | `403 REMINDER_ALREADY_SENT`, `404 ITEM_NOT_OVERDUE` |
+
+## 44. Workforce — Shared parts, back end B (segment 6b, BUILT 20 Oct 2026, back end only)
+
+Audit read, the documents door and index, and verify. No new capability: each route reads the existing per-category `audit.read.*` capabilities and the per-type document capabilities (`payroll.read`, `payslip.read_any`, `casual.read`, `timesheet.read`, `leave.read`, `discipline.read`, `employee.read_sensitive`) from the one access table. A reader with none of them gets `404` (the log and the index do not admit they exist); a number outside the reader's types or site is `404` too. Same envelope and session gate as §43, except the one public route.
+
+| Endpoint | Capability | Notes |
+|---|---|---|
+| `GET /workforce/audit/entries?area&event&siteId&actorId&subjectUserId&from&to&flagged&q&sort&page&pageSize` | per category, applied inside the query | Exact count to 50,000 (`totalIsExact`); a category the reader may not read is dropped from the query, never counted |
+| `GET /workforce/audit/entries/:id`, `/facets`, `/actors?q=` , `/viewers` | same; `/viewers` Director | Detail carries entry number and hash; `/actors` needs `q` |
+| `GET /workforce/audit/export?...` | same as the list | CSV, capped at 50,000, escaped, one `audit.exported` entry committed before the first byte |
+| `POST /workforce/audit/chain/check { fromSeq, toSeq }` | `audit.verify_chain` | `400` if `toSeq < fromSeq` or the slice is over the cap; `429 CHECK_TOO_SOON` (once a minute); a break writes `audit.chain_failed`. A nightly job runs the same check |
+| `GET /workforce/audit/me`, `/me/:id`; `POST /me/:id/answer { answer, idempotencyKey }` | `audit.read_own` | Activity on my record; "This wasn't me" calls §43 `wasnt-me`; writes `audit.record_answered` |
+| `GET /workforce/payslips/opens?from&to` | existing payslip-opens capability | Range extension for the Director's digest |
+| `GET /workforce/documents?q&type&siteId&from&to&sort&page&pageSize` | per type (above) | `pageSize` 25, 50 or 100 (else `400`); unknown query keys `400`; only readable types are listed or counted |
+| `GET /workforce/documents/:number?v=` | per type and site | Panel; `404 DOCUMENT_NOT_FOUND` |
+| `POST /workforce/documents/:number/open?v=` | per type and site | Writes `document.opened`; returns `{ openHref }`. `openHref` is an API route and, for payroll, timesheet and P9 documents, a POST route |
+| `GET /api/v1/verify/:kind/:number?h=` | **PUBLIC, no sign-in** | `200 { outcome }` with outcome GENUINE, REPLACED, WITHDRAWN, ARCHIVED, NOT_VERIFIED (unknown number and wrong hash are one answer), MALFORMED; `429` RATE_LIMITED (30 a minute, 300 a day per address). Role and date only; `Cache-Control: no-store`, `X-Robots-Tag: noindex` |
+| `GET /workforce/documents/verify/:kind/:number?h=` | signed in | Adds `signedBy`, `canOpen`, `openHref`, `readableBy`; writes `document.verified` |
+| `POST /workforce/documents/verify/:kind/:number/report { h, idempotencyKey }` | signed in | "Tell the ...": `document.mismatch_reported`, issuer and Director notified, once per person, number and day |
+
+The documents door (`registerDocument(tx, input)`, `withdrawDocument(tx, input)`) is called inside the issuer's own transaction; see `backend/src/modules/workforce/documents/README.md`. The payroll-export QR hash changed to the shared payslip hash (decisions-6b-backend B14).

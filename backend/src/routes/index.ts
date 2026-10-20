@@ -82,6 +82,7 @@ const apiRouter = Router();
 
 apiRouter.use(healthRoutes);
 apiRouter.use(authRoutes);
+apiRouter.use(publicVerifyRouter); // PUBLIC: what a printed QR opens; no sign-in, role and date only (Segment 6b). Mounted before the legacy routers: one of them signs in every path under the root
 apiRouter.use(branchRoutes);
 apiRouter.use(staffRoutes);
 apiRouter.use(menuRoutes);
@@ -142,7 +143,6 @@ apiRouter.use('/inventory/carriers', carriersRoutes);
 apiRouter.use('/inventory/deliveries', deliveriesRoutes);
 apiRouter.use('/inventory/discrepancies', discrepanciesRoutes);
 registerPeople(); // the real "clocks in" lookup (Workforce slice 1)
-apiRouter.use(publicVerifyRouter); // PUBLIC: what a printed QR opens; no sign-in, role and date only (Segment 6b)
 apiRouter.use('/workforce', workforceSessionGate); // an ended session, a required password reset or a removed phone is refused before any Workforce route (Segment 6a)
 apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceSecurityRouter);

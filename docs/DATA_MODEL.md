@@ -3300,6 +3300,17 @@ File `backend/prisma/schema/workforce/shared.prisma`. No existing table is chang
 | `workforce_needs_you_state` | Per person: when Home was last opened | Tags rows "New" |
 | `workforce_needs_you_reminders` | A reminder sent on an item on a Nairobi day | Unique per item and day |
 
+**Back end B (segment 6b, migration `20261020135815_workforce_shared_6b`, additive; no legacy table touched):**
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `workforce_audit_entry_index` (3 new columns) | `category`, `actor_id`, `subject_user_id` copied from the entry | Filled by the writer in the same transaction; the migration fills older rows; indexed for the list and count, trigram index on `search_text` |
+| `workforce_audit_view_marks` | Per person: when they last opened the log | Drives one `log_access` entry per ten minutes |
+| `workforce_record_answers` | A person's answer to one entry on their own record | Unique per entry and person, and per person and answer key |
+| `workforce_documents` | One row per (company, number, version) of every signed document: kind, number, title, period in words, signer and reviewer (name and role), signed time, `hash` and its 10-character `hash_prefix`, status CURRENT, REPLACED or WITHDRAWN, replaced and withdrawn facts, open route, search text | Unique on company, number and version; never holds a pay figure; 7 years then read as ARCHIVED, nothing deleted |
+| `workforce_document_checks` | One row per verify check: kind, number, outcome, time, SHA-256 of the address, phone label, user | No address in clear |
+| `payslip_open_digests` (2 new columns) | `first_at`, `last_at` | For the Director's range digest |
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*
