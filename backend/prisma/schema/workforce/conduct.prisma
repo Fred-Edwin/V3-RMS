@@ -1,0 +1,148 @@
+// ---- Workforce Segment 5: Conduct (notices, their history, decisions, stored letters) ---------------------------------
+// New tables only. `disciplinary_records` (the old HR screen) is untouched and never copied. People, users and sites are plain ids
+// checked by the services (as in payslips.prisma). The text of a letter and the facts on it are frozen at issue in `letter_snapshot`
+// and `facts_snapshot`, so a later Rules or wording change never alters an issued letter.
+// See backend/src/modules/workforce/conduct/README.md and docs/features/workforce/specs/5-conduct-spec.md.
+
+enum ConductLevel {
+  VERBAL_NOTE
+  WRITTEN_WARNING
+  FINAL_WRITTEN_WARNING
+}
+
+enum ConductAbout {
+  LATENESS
+  ABSENCE
+  BEHAVIOUR
+  SAFETY_HYGIENE
+  OTHER
+}
+
+/// The headline of a notice (spec section 3). Active until `valid_until`; ENDED is set by the 00:10 Nairobi job.
+enum ConductStatus {
+  ISSUED
+  RECORDED
+  SIGNED
+  GIVEN_NOT_SIGNED
+  APPEALED
+  KEPT
+  REPLACED
+  WITHDRAWN
+  ENDED
+}
+
+/// One warning notice. Never deleted. A reduction on appeal creates a second row that points back (`replaces_notice_id`).
+model ConductNotice {
+  id                   String        @id @default(uuid())
+  companyId            String        @map("company_id")
+  siteId               String        @map("organization_id") // the person's site on the day of issue
+  siteName             String        @map("site_name") // frozen for the letter and the verify page
+  employeeId           String        @map("employee_id") // the person the notice is about
+  personUserId         String?       @map("person_user_id") // null: no login (paper route)
+  issuerId             String        @map("issuer_id")
+  issuerName           String        @map("issuer_name") // frozen, with the role below
+  issuerRole           String        @map("issuer_role")
+  level                ConductLevel
+  about                ConductAbout
+  number               Int?          @unique // WRN-nnnn from conduct_notice_seq; verbal notes have none
+  verifyCode           String        @unique @map("verify_code") // the QR code on the letter
+  letterVersion        String        @map("letter_version") // which wording constants made the letter
+  letterSnapshot       Json?         @map("letter_snapshot") // null for a verbal note
+  factsSnapshot        Json?         @map("facts_snapshot")
+  ownLine              String        @map("own_line")
+  issuedAt             DateTime      @map("issued_at")
+  ackDays              Int           @map("ack_days") // Rules values copied at issue (D29)
+  appealDays           Int           @map("appeal_days")
+  validForMonths       Int           @map("valid_for_months")
+  validUntil           DateTime      @map("valid_until") @db.Date
+  status               ConductStatus
+  signedAt             DateTime?     @map("signed_at")
+  signedDeviceId       String?       @map("signed_device_id")
+  notSignedRecordedAt  DateTime?     @map("not_signed_recorded_at")
+  notSignedReason      String?       @map("not_signed_reason") // REFUSED | NOT_REACHED | NO_LOGIN
+  notSignedById        String?       @map("not_signed_by_id")
+  witnessId            String?       @map("witness_id") // a user
+  witnessAskedAt       DateTime?     @map("witness_asked_at")
+  witnessConfirmedAt   DateTime?     @map("witness_confirmed_at")
+  witnessDeclinedAt    DateTime?     @map("witness_declined_at")
+  appealedAt           DateTime?     @map("appealed_at")
+  appealReasonKey      String?       @map("appeal_reason_key")
+  appealText           String?       @map("appeal_text")
+  appealDecisionDueBy  DateTime?     @map("appeal_decision_due_by") // appealedAt + HR_DECISION_DAYS
+  overdueToldAt        DateTime?     @map("overdue_told_at") // the Director was told once
+  decidedAt            DateTime?     @map("decided_at")
+  endedAt              DateTime?     @map("ended_at")
+  replacesNoticeId     String?       @unique @map("replaces_notice_id")
+  replacedById         String?       @unique @map("replaced_by_id")
+  documentVersion      Int           @default(1) @map("document_version")
+  idempotencyKey       String        @map("idempotency_key")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  events    ConductNoticeEvent[]
+  decisions ConductDecision[]
+  documents ConductNoticeDocument[]
+
+  @@unique([issuerId, idempotencyKey])
+  @@index([siteId, status, issuedAt])
+  @@index([employeeId, status])
+  @@index([personUserId, issuedAt])
+  @@index([status, validUntil])
+  @@index([status, appealDecisionDueBy])
+  @@map("conduct_notices")
+}
+
+/// Append-only history of a notice: the timeline on the employee file and the stepper on the staff phone read it, never the audit log.
+model ConductNoticeEvent {
+  id         String   @id @default(uuid())
+  noticeId   String   @map("notice_id")
+  at         DateTime
+  kind       String // ISSUED | SIGNED | SIGNED_LATE | NOT_SIGNED_RECORDED | WITNESS_CONFIRMED | WITNESS_DECLINED | APPEALED | DECIDED | CHANGED | ENDED
+  actorId    String?  @map("actor_id") // null: the system
+  actorName  String?  @map("actor_name")
+  actorRole  String?  @map("actor_role")
+  payload    Json?
+
+  notice ConductNotice @relation(fields: [noticeId], references: [id])
+
+  @@index([noticeId, at])
+  @@map("conduct_notice_events")
+}
+
+/// A decision on a notice (an appeal's answer, or HR changing it). Version 2 of the letter carries the first one, version 3 the next.
+model ConductDecision {
+  id               String        @id @default(uuid())
+  noticeId         String        @map("notice_id")
+  version          Int // the document version this decision creates
+  outcome          String // KEEP | REDUCE_TO_WRITTEN | REDUCE_TO_VERBAL | WITHDRAW
+  viaAppeal        Boolean       @map("via_appeal")
+  reason           String
+  decidedById      String        @map("decided_by_id")
+  decidedByName    String        @map("decided_by_name")
+  decidedByRole    String        @map("decided_by_role")
+  decidedAt        DateTime      @map("decided_at")
+  newNoticeId      String?       @map("new_notice_id")
+  idempotencyKey   String        @map("idempotency_key")
+
+  notice ConductNotice @relation(fields: [noticeId], references: [id])
+
+  @@unique([noticeId, version])
+  @@unique([decidedById, idempotencyKey])
+  @@map("conduct_decisions")
+}
+
+/// The rendered A4 letter for one version, stored once (insert-only in practice): the first file made for a version is every later download.
+model ConductNoticeDocument {
+  id        String   @id @default(uuid())
+  noticeId  String   @map("notice_id")
+  version   Int
+  withdrawn Boolean  @default(false) // the WITHDRAWN-watermarked copy of a version, made once when the notice is withdrawn
+  bytes     Bytes
+  hash      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  notice ConductNotice @relation(fields: [noticeId], references: [id])
+
+  @@unique([noticeId, version, withdrawn])
+  @@map("conduct_notice_documents")
+}
