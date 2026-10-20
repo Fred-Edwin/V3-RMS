@@ -59,7 +59,17 @@ export const auditRepository = {
   /** The entry's index row (area, flagged, wording, search text), in the same transaction as the entry itself. */
   insertIndex: (tx: Prisma.TransactionClient, entry: AuditEntryRecord, index: { area: string; flagged: boolean; title: string; searchText: string }) =>
     tx.workforceAuditEntryIndex.create({
-      data: { entryId: entry.id, companyId: entry.companyId, siteId: entry.siteId, seq: entry.seq, occurredAt: entry.occurredAt, ...index },
+      data: {
+        entryId: entry.id,
+        companyId: entry.companyId,
+        siteId: entry.siteId,
+        seq: entry.seq,
+        occurredAt: entry.occurredAt,
+        category: entry.category,
+        actorId: entry.actorId,
+        subjectUserId: entry.subjectUserId,
+        ...index,
+      },
       select: { entryId: true },
     }),
 

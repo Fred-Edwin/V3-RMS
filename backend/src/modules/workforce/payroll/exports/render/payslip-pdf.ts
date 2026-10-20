@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
 import PDFDocument from 'pdfkit';
+import { hashPrefixOf, payslipContentHash } from '../../../_shared/documents/qr-hash';
 import { env } from '../../../../../config/env';
 import { parseCents } from '../../engine/money';
 import type { SnapshotLine, SnapshotPayslip } from '../../approval/month-snapshot';
@@ -24,8 +24,9 @@ const money = (v: string): string => {
   return `${cents < 0n ? '-' : ''}${(abs / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${(abs % 100n).toString().padStart(2, '0')}`;
 };
 
-/** The first ten characters of a hash over this payslip as it was frozen: the QR carries it, the verify page compares it. */
-export const payslipHash = (p: SnapshotPayslip): string => createHash('sha256').update(JSON.stringify(p)).digest('hex').slice(0, 10);
+/** The first ten characters of the payslip's one hash (the same value the person's own file prints): the QR carries it, the verify page compares it. */
+export const payslipHash = (p: SnapshotPayslip, number: string, monthKey: string): string =>
+  hashPrefixOf(payslipContentHash({ number, version: p.version ?? 1, monthKey, gross: p.gross, net: p.net, lines: p.lines }));
 
 function section(doc: Doc, title: string, lines: readonly SnapshotLine[], y: number, ensure: (need: number, y: number) => number): number {
   y = ensure(30, y);
@@ -113,7 +114,7 @@ export function renderPayslip(model: PayrollModel, p: SnapshotPayslip): Promise<
     put(doc, `Approved · signed with PIN · ${longStamp(model.approved.at)}`, M, y + 46, { size: 8, color: PALETTE.muted, width: 330 });
   }
   if (model.documentNumber && model.hashPrefix) {
-    drawQr(doc, `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/ps/${number}?h=${payslipHash(p)}`, W - M - 57, y - 6, 57);
+    drawQr(doc, `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/ps/${number}?h=${payslipHash(p, number, model.monthKey)}`, W - M - 57, y - 6, 57);
     put(doc, `Scan to check ${number}`, W - M - 200, y + 53, { size: 8, color: PALETTE.muted, width: 200, align: 'right' });
   }
   const range = doc.bufferedPageRange();

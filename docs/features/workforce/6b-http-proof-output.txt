@@ -1,0 +1,20 @@
+Workforce 6b shared back end B: per-role HTTP proof (src/scripts/shared-6b-proof.ts), 20 Oct 2026, lane 3 database.
+The app is served in-process with real logins. Result of the last run: 80 passed, 0 failed. Proof data removed afterwards.
+
+0. Fixture: admin, director, bm.town, bm.highway, accountant sign in; two proof logins made and removed (an HR Manager and a waiter,
+   because the lane database had no hr@ login). Seven documents registered through the door (LVE x4 with one corrected and one
+   withdrawn, WRN, PS), one at another branch.
+1. Signed documents index: waiter 404 on list and panel; Town manager sees Town leave slips and not Highway's (cross-site); Highway
+   manager gets 404 on Town's slip; HR sees leave, warning and payslip of every branch; Accountant sees the payslip and gets 404 on
+   the warning notice; Director sees the warning notice; no list row carries a pay figure; v1 Replaced and v2 Current; bad page size
+   and unknown query keys 400; open writes an audit entry.
+2. Audit log: waiter 404 on entries and export; director, HR, Town manager, accountant and admin read their own categories (200);
+   HR gets an empty Documents view, not 403; facets, actors, viewers, export 200; chain check 403 for Town manager, HR, accountant,
+   waiter and 200 for director and admin; reversed range 400; unknown entry 404; Activity on my record 200 for each; no sign-in 401.
+3. Verify: public with no sign-in: genuine (role and date only, no name, site or figure); wrong hash and unknown number give the same
+   answer; malformed; replaced; genuine on version 2; withdrawn with role and date; signed-in HR gets signer and Open link; another
+   branch's manager gets the verdict but no link and no name; report says who was told, bad hash 400; 429 past 30 a minute.
+4. Read back (read-only database tool, kept data): every row's 10-character prefix equals the first 10 of its hash; the corrected
+   number has two versions, the first replaced; checks counted by outcome with no address in clear; document.opened, document.verified,
+   document.verify_failed and document.mismatch_reported entries exist.
+5. Reconciliation run twice: 0 registered, 0 failed (the lane database holds no issued documents, so this is a safety proof only).

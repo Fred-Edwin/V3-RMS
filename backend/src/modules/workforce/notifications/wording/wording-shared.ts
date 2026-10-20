@@ -39,6 +39,8 @@ export const SHARED_WORDING: Record<string, Wording> = {
     push: false,
   }),
   'audit.chain_failed': (d) => problem('/app/workforce/security', 'The audit chain check failed', `The audit chain check found a problem at entry ${num(d, 'seq') ?? 'unknown'}. Nothing was changed.`),
+  'document.mismatch': (d) =>
+    problem('/app/workforce/audit-log?tab=documents', 'A printed copy does not match', `${text(d, 'label', 'A document')} ${text(d, 'number', '')} was checked on a phone and the printed copy does not match the record. Do not rely on that copy.`),
   'needs_you.overdue_reminder': (d) => ({
     tone: 'needsLook',
     area: 'TIME',
@@ -63,4 +65,5 @@ export const KIND_ALIASES: Record<string, string> = {
   threeWrongCodes: 'payslip.three_wrong_codes',
   newPhoneSignedIn: 'security.new_phone',
   auditChainFailed: 'audit.chain_failed',
+  documentMismatch: 'document.mismatch',
 };

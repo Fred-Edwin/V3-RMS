@@ -14,6 +14,10 @@ export const p9Repository = {
 
   document: (employeeId: string, year: number, layoutVersion: number) => prisma.p9Document.findUnique({ where: { employeeId_year_layoutVersion: { employeeId, year, layoutVersion } } }),
 
+  /** Every generated P9 of the company, without the file bytes (Segment 6b: the Signed documents backfill). */
+  forCompany: (companyId: string) =>
+    prisma.p9Document.findMany({ where: { companyId }, select: { employeeId: true, year: true, number: true, hash: true, generatedById: true, generatedAt: true }, orderBy: { generatedAt: 'asc' } }),
+
   /** One builder at a time per person and year, so two requests make one card (the loser finds the winner's under the lock). */
   async lockCard(tx: Tx, employeeId: string, year: number): Promise<void> {
     await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`p9:${employeeId}:${year}`}))`);

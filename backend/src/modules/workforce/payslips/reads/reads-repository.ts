@@ -60,6 +60,10 @@ export const readsRepository = {
   /** One payslip row by its id, with the lines; the caller decides whether the person may see it. */
   payslipById: (id: string): Promise<StoredPayslip | null> => prisma.payrollPayslip.findUnique({ where: { id }, include: withLines }),
 
+  /** Everyone who has a published payslip (Segment 6b: the Signed documents backfill walks them). */
+  publishedEmployeeIds: async (companyId: string): Promise<string[]> =>
+    (await prisma.payrollPublication.findMany({ where: { month: { companyId } }, distinct: ['employeeId'], select: { employeeId: true } })).map((r) => r.employeeId),
+
   monthOf: (id: string) => prisma.payrollMonth.findUnique({ where: { id }, select: { id: true, companyId: true, monthKey: true, state: true, currentRunId: true, approvedAt: true, approvedById: true } }),
 
   names: async (ids: readonly string[]) => new Map((await prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } })).map((u) => [u.id, u])),
@@ -71,14 +75,17 @@ export const readsRepository = {
 
   // ---- the Director's daily digest of other people's openings (PD5) -----------------------------------------------------
   /** Counts one more opening by this person today. Returns the new count; 1 means the first of the day. */
-  async bumpDigest(tx: Tx, companyId: string, openerId: string, day: NairobiDate): Promise<number> {
+  async bumpDigest(tx: Tx, companyId: string, openerId: string, day: NairobiDate, at: Date = new Date()): Promise<number> {
     const row = await tx.payslipOpenDigest.upsert({
       where: { openerId_day: { openerId, day: toDateColumn(day) } },
-      create: { companyId, openerId, day: toDateColumn(day), openCount: 1 },
-      update: { openCount: { increment: 1 } },
+      create: { companyId, openerId, day: toDateColumn(day), openCount: 1, firstAt: at, lastAt: at },
+      update: { openCount: { increment: 1 }, lastAt: at },
       select: { openCount: true },
     });
     return row.openCount;
   },
   digestOfDay: (companyId: string, day: NairobiDate) => prisma.payslipOpenDigest.findMany({ where: { companyId, day: toDateColumn(day) }, orderBy: { openCount: 'desc' } }),
+  /** Segment 6b: the last days at once (the Director's card), newest day first, then by count. */
+  digestOfRange: (companyId: string, from: NairobiDate, to: NairobiDate) =>
+    prisma.payslipOpenDigest.findMany({ where: { companyId, day: { gte: toDateColumn(from), lte: toDateColumn(to) } }, orderBy: [{ day: 'desc' }, { openCount: 'desc' }] }),
 };

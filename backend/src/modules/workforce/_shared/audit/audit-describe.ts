@@ -57,6 +57,8 @@ export function isFlagged(entry: Pick<DescribableEntry, 'action' | 'after'>): bo
     case 'security.payslip_unconfirmed_phone':
     case 'security.signing_pin_wrong':
     case 'audit.chain_failed':
+    case 'document.verify_failed':
+    case 'document.mismatch_reported':
       return true;
     default:
       return false;

@@ -54,6 +54,11 @@ import {
   registerPayroll,
   registerTimesheets,
   workforceAttendanceRouter,
+  workforceAuditRouter,
+  workforceDocumentsRouter,
+  workforceVerifyRouter,
+  publicVerifyRouter,
+  registerDocuments,
   workforceNotificationsRouter,
   registerWorkforceNotifier,
   registerPinTries,
@@ -81,6 +86,7 @@ const apiRouter = Router();
 
 apiRouter.use(healthRoutes);
 apiRouter.use(authRoutes);
+apiRouter.use(publicVerifyRouter); // PUBLIC: what a printed QR opens; no sign-in, role and date only (Segment 6b). Mounted before the legacy routers: one of them signs in every path under the root
 apiRouter.use(branchRoutes);
 apiRouter.use(staffRoutes);
 apiRouter.use(menuRoutes);
@@ -155,6 +161,10 @@ registerPinTries(); // wrong signing-PIN tries are stored; the pause survives a 
 registerSecurity(); // payslip code reads the shared phone list; the 3rd wrong signing PIN is written to Activity (Segment 6a)
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
+apiRouter.use(workforceAuditRouter); // the company Audit log, Activity on my record and the chain check (Segment 6b)
+registerDocuments(); // where the Signed documents index finds what is already issued (Segment 6b)
+apiRouter.use(workforceVerifyRouter); // before the documents router so /documents/verify is not read as a number
+apiRouter.use(workforceDocumentsRouter);
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
 registerConduct(); // Conduct's rows (to sign, to record, appeals waiting) join the same card and badge (Segment 5)
 apiRouter.use(workforceNeedsYouRouter);

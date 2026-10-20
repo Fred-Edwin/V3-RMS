@@ -1,5 +1,5 @@
-import { NotFoundError } from '../../../../utils/errors';
-import { nairobiToday, fromDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { NotFoundError, ValidationError } from '../../../../utils/errors';
+import { daysBetween, nairobiToday, fromDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import { workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { ForbiddenError } from '../../../../utils/errors';
 import { resolveActor } from '../../people/people-context';
@@ -44,7 +44,27 @@ export interface DigestRow {
   role: string;
   day: NairobiDate;
   count: number;
+  /** Segment 6b: the span of that day's openings (null for a day counted before the span was kept). */
+  firstAt: string | null;
+  lastAt: string | null;
+  /** A hint for the card, not a rule: an opener over 150 payslips in a day reads "Many". */
+  many: boolean;
 }
+
+export const MANY_OPENINGS = 150;
+const WINDOW_MAX_DAYS = 31;
+
+type DigestStored = { openerId: string; day: Date; openCount: number; firstAt: Date | null; lastAt: Date | null };
+const toDigestRow = (r: DigestStored, names: Map<string, { name: string; role: string }>): DigestRow => ({
+  openerId: r.openerId,
+  name: names.get(r.openerId)?.name ?? '',
+  role: names.get(r.openerId)?.role ?? '',
+  day: fromDateColumn(r.day),
+  count: r.openCount,
+  firstAt: r.firstAt?.toISOString() ?? null,
+  lastAt: r.lastAt?.toISOString() ?? null,
+  many: r.openCount > MANY_OPENINGS,
+});
 
 /** The Director's row per opener for a day: "HR opened 12 payslips today" (PD5). Counts only, no names of the people opened. */
 export async function openingsOfDay(subject: AccessSubject, day: NairobiDate): Promise<DigestRow[]> {
@@ -52,5 +72,26 @@ export async function openingsOfDay(subject: AccessSubject, day: NairobiDate): P
   const ctx = await resolveActor(subject);
   const rows = await readsRepository.digestOfDay(ctx.companyId, day);
   const names = await readsRepository.names(rows.map((r) => r.openerId));
-  return rows.map((r) => ({ openerId: r.openerId, name: names.get(r.openerId)?.name ?? '', role: names.get(r.openerId)?.role ?? '', day: fromDateColumn(r.day), count: r.openCount }));
+  return rows.map((r) => toDigestRow(r, names));
+}
+
+export interface DigestDay {
+  day: NairobiDate;
+  rows: DigestRow[];
+}
+
+/** The last days at once for the Director's Home card (6a A9): at most 31 days, newest first, empty days left out. */
+export async function openingsOfRange(subject: AccessSubject, from: NairobiDate, to: NairobiDate): Promise<{ days: DigestDay[] }> {
+  if (!workforceCan(subject, 'audit.read.payslip_access')) throw new ForbiddenError('You do not have permission to perform this action');
+  const [a, b] = from <= to ? [from, to] : [to, from];
+  if (daysBetween(a, b) + 1 > WINDOW_MAX_DAYS) throw new ValidationError('Ask for at most 31 days.', 'RANGE_TOO_LARGE');
+  const ctx = await resolveActor(subject);
+  const rows = await readsRepository.digestOfRange(ctx.companyId, a, b);
+  const names = await readsRepository.names(rows.map((r) => r.openerId));
+  const days = new Map<string, DigestRow[]>();
+  for (const r of rows) {
+    const row = toDigestRow(r, names);
+    days.set(row.day, [...(days.get(row.day) ?? []), row]);
+  }
+  return { days: [...days.entries()].map(([day, list]) => ({ day: day as NairobiDate, rows: list })) };
 }

@@ -11,7 +11,10 @@ export const documentQuery = z.object({ v: version, purpose: z.enum(['view', 'do
 export const historyQuery = z.object({ year: year.optional() }).strict();
 export const yearParams = z.object({ year }).strict();
 export const p9PersonParams = z.object({ year, employeeId: id }).strict();
-export const dayQuery = z.object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).strict();
+export const dayQuery = z
+  .object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })
+  .strict()
+  .refine((q) => !(q.day && (q.from || q.to)), { message: 'Ask for one day, or a range, not both.' });
 export const confirmBody = z.object({ pin: z.string().regex(/^\d{4}$/, 'Your PIN is 4 digits') }).strict();
 
 /** The phone sends its own random id with every payslip read; the unlock token is bound to it. */

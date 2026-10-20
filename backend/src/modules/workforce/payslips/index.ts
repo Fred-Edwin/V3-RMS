@@ -11,3 +11,4 @@ export { setPublicationSource, type MonthPublication, type MonthFacts, type Publ
 export { P9_LAYOUT_VERSION } from './p9/p9-layout'; // Needs you shows "Confirm the P9 format" until the Accountant has
 export { setDeviceConfirmationSource, type DeviceConfirmationSource } from './unlock/device-source';
 export { ensureFileForPayslip, type PayslipFile } from './documents/document-service';
+export { issuedPayslips, issuedP9 } from './documents/issued-documents'; // Segment 6b: what is already issued, for the Signed documents backfill

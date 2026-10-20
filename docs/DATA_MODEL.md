@@ -3311,7 +3311,7 @@ File `backend/prisma/schema/workforce/conduct.prisma`. No existing table is chan
 | `conduct_notice_documents` | The stored A4 PDF per notice and version, with its hash; a withdrawn copy carries the watermark | Unique `(notice_id, version, withdrawn)`; written only once the receipt is final |
 | `workforce_needs_you_reminders` | A reminder sent on an item on a Nairobi day | Unique per item and day |
 
-### 4.89 Workforce Segment 4: Leave (20 Oct 2026, migrations `20261020135619_workforce_leave` and `20261020141500_workforce_leave_event_key`, additive)
+### 4.90 Workforce Segment 4: Leave (20 Oct 2026, migrations `20261020135619_workforce_leave` and `20261020141500_workforce_leave_event_key`, additive)
 
 File `backend/prisma/schema/workforce/leave.prisma`. The old `leave_requests`, `leave_balances`, `leave_policies` and acknowledgement tables are not changed (proved on a copy of the lane database: the two migrations applied on top of the real data, the old tables and the people, users and audit rows identical before and after, a second `migrate deploy` said "No pending migrations", and `migrate diff` showed no drift for leave; the diff's only output was the known `payroll_payslip_seq` line, which belongs to Payroll). Three tables, no foreign keys (ids are plain columns, like the rest of Workforce):
 
@@ -3322,6 +3322,19 @@ File `backend/prisma/schema/workforce/leave.prisma`. The old `leave_requests`, `
 | `leave_events` | The stepper history of a request: `ASKED`, `MOVED_TO_HR`, `APPROVED`, `DECLINED`, `CANCELLED`, with time, user, role and the decision's idempotency key | Unique `(application_id, idempotency_key)` (second migration) |
 
 Also: sequence `leave_document_seq` numbers the slips (`LVE-nnnn`, never reused, so a cancelled slip keeps its number). Balances are not stored: they are worked out from the Rules, the ledger and the approved requests (spec section 3), so a rules change never needs a rewrite. Test and proof people leave ledger and audit rows behind by design.
+
+### 4.91 Workforce Segment 6b: audit read, documents and verify (20 Oct 2026)
+
+**Back end B (segment 6b, migration `20261020135815_workforce_shared_6b`, additive; no legacy table touched):**
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `workforce_audit_entry_index` (3 new columns) | `category`, `actor_id`, `subject_user_id` copied from the entry | Filled by the writer in the same transaction; the migration fills older rows; indexed for the list and count, trigram index on `search_text` |
+| `workforce_audit_view_marks` | Per person: when they last opened the log | Drives one `log_access` entry per ten minutes |
+| `workforce_record_answers` | A person's answer to one entry on their own record | Unique per entry and person, and per person and answer key |
+| `workforce_documents` | One row per (company, number, version) of every signed document: kind, number, title, period in words, signer and reviewer (name and role), signed time, `hash` and its 10-character `hash_prefix`, status CURRENT, REPLACED or WITHDRAWN, replaced and withdrawn facts, open route, search text | Unique on company, number and version; never holds a pay figure; 7 years then read as ARCHIVED, nothing deleted |
+| `workforce_document_checks` | One row per verify check: kind, number, outcome, time, SHA-256 of the address, phone label, user | No address in clear |
+| `payslip_open_digests` (2 new columns) | `first_at`, `last_at` | For the Director's range digest |
 
 ---
 

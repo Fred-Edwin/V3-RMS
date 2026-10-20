@@ -37,6 +37,11 @@ export { workforceNeedsYouRouter, registerNeedsYou, registerNeedsYouSource, type
 // Segment 4 (Leave): the router, start-up registration, the hourly sweep, the guard the old leave code calls, and the slip hooks back end B uses.
 export { workforceLeaveRouter, registerLeave, sweepLeave, assertLegacyLeaveWritable, verifyLeaveSlip, registerLeaveSlipDocument } from './leave';
 export type { LeaveSlipVerdict, DocumentKindRegistration } from './leave';
+export { workforceAuditRouter, runNightlyChainCheck, backfillAuditIndex, backfillAllAuditIndexes, verifyRange, type NightlyResult } from './audit'; // Segment 6b: the Audit log read side, Activity on my record, the chain check
+export { workforceDocumentsRouter, registerDocuments, reconcileDocuments } from './documents'; // Segment 6b: the Signed documents index
+export { publicVerifyRouter, workforceVerifyRouter } from './verify'; // Segment 6b: what the QR opens
+export { registerDocument, withdrawDocument, type WithdrawDocumentInput } from './_shared/documents/register-document'; // the door Leave and Conduct call inside their signing transaction
+export type { RegisterDocumentInput, RegisteredDocument, DocumentPerson } from './_shared/documents/documents.types';
 export { registerPinTries } from './_shared/pin/register-pin'; // wrong PIN tries live in the database
 export { attemptWithPause, type PinAttempt, type PinPurpose } from './_shared/pin/pin-door'; // the shared door Conduct signing will use
 export { isSiteOnNewConduct, refuseLegacyConductWhenSwitched } from './conduct/rollout/rollout-guard'; // the old HR disciplinary create and acknowledge ask this (Segment 5, C1)
