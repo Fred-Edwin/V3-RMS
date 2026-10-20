@@ -35,6 +35,7 @@ const request = async <T>(
       response.status,
       payload.error?.code ?? 'UNKNOWN_ERROR',
       payload.error?.details,
+      payload.error?.reference,
     );
     // Log the real error details so they appear in the browser console
     console.error(`[apiClient] ${method} ${path} → ${response.status}`, payload.error ?? payload);

@@ -49,6 +49,8 @@ export * from './components/home-parts';
 export * from './components/workforce-document';
 export * from './components/workforce-frame';
 export * from './components/pdf-viewer';
+export * from './components/message-cards';
+export * from './lib/messages';
 export * from './lib/pinch-zoom';
 export * from './lib/role-words';
 export * from './lib/document-palette';

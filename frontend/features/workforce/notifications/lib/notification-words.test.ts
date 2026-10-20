@@ -31,4 +31,8 @@ describe('row labels and links', () => {
     expect(safeHref('//evil.example/app')).toBeNull();
     expect(safeHref(null)).toBeNull();
   });
+
+  it('sends Activity on my record to My phones until that screen exists', () => {
+    expect(safeHref('/app/workforce/my-record')).toBe('/app/workforce/my-phones');
+  });
 });

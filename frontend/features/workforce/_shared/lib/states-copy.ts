@@ -23,6 +23,9 @@ export const SCREEN_KEYS = [
   'people',
   'audit',
   'rules',
+  'myPayslips',
+  'securityAlerts',
+  'phones',
 ] as const;
 
 export type WorkforceScreenKey = (typeof SCREEN_KEYS)[number];
@@ -39,8 +42,8 @@ export interface ScreenStatesCopy {
 
 export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   waitingForYou: {
-    screen: 'Waiting for you',
-    nothingYet: 'Nothing is waiting for you. New requests show here and in the bell.',
+    screen: 'Needs you',
+    nothingYet: 'Nothing needs you. New requests show here, in the bell and as badges on the menu.',
     nothingFound: 'No request matches "{term}". Clear the filter.',
     error: 'We could not load your list. Your answers are safe.',
   },
@@ -58,7 +61,7 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   },
   timesheets: {
     screen: 'Timesheets',
-    nothingYet: 'No timesheet period is open yet. One opens when the first rota is published.',
+    nothingYet: 'No timesheet month is open yet. One opens when the first rota is set.',
     nothingFound: 'No person matches "{term}". Clear the search.',
     error: 'We could not load the period. Nothing was changed.',
   },
@@ -82,7 +85,7 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   },
   pay: {
     screen: 'Pay runs and payslips',
-    nothingYet: 'No pay run yet. The first one can be prepared after the period closes. A payslip appears when its run is published.',
+    nothingYet: "No payroll yet. The first one appears once a month's timesheets are approved. A payslip appears when its payroll is published.",
     nothingFound: 'No run matches that year.',
     error: 'We could not load pay. Nothing was published or changed.',
   },
@@ -94,7 +97,7 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   },
   audit: {
     screen: 'Audit log and Signed documents',
-    nothingYet: 'No entries in this period.',
+    nothingYet: 'No entries in this month.',
     nothingFound: 'No entry matches. Widen the dates or clear the filter.',
     error: 'We could not load the log. Opening it was still recorded.',
   },
@@ -102,8 +105,28 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
     screen: 'Rules',
     nothingYet: 'Not applicable: every tab has a value from the first day.',
     nothingFound: 'Not applicable',
-    error: 'We could not load the rules. Pay runs are not affected.',
+    error: 'We could not load the rules. Payroll is not affected.',
     notApplicable: true,
+  },
+  // Rows added in production (6b M3; words in 6a S1 and S2). My payslips, Security alerts and Phones are Shared parts A; Signed documents and
+  // Activity on my record arrive with Shared parts B.
+  myPayslips: {
+    screen: 'My payslips',
+    nothingYet: 'No payslip yet. Your first one appears here when your pay is published.',
+    nothingFound: 'No payslip in that year.',
+    error: 'We could not load your payslips. Nothing was changed.',
+  },
+  securityAlerts: {
+    screen: 'Security alerts',
+    nothingYet: 'No security alerts. A new one shows here and as a badge on the menu.',
+    nothingFound: 'No alert matches. Clear the filter.',
+    error: 'We could not load the alerts. Nothing was changed.',
+  },
+  phones: {
+    screen: 'Phones',
+    nothingYet: 'No other phones. This is the only phone that has signed in.',
+    nothingFound: 'No phone matches.',
+    error: 'We could not load your phones. Nothing was changed.',
   },
 };
 
