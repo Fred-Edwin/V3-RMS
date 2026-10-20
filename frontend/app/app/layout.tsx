@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/app/shell/app-shell';
 import { FLOOR_ROLES, isBareRoute, usesAppShell } from '@/components/app/shell/nav-table';
 import { usePermissions } from '@/features/inventory';
+import { SecurityGate } from '@/features/workforce/security';
 import { PourReveal } from '@/components/app/shell/pour-reveal';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
@@ -22,6 +23,18 @@ interface AppShellLayoutProps {
  *     and a menu drawer on phones, with a short bottom bar for the floor staff.
  */
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  // Segment 6a: a person who must choose a new password, or whose phone is not confirmed yet, answers that before the app. The kitchen and
+  // bar display screens are devices, not people, and skip it.
+  const asksSecurity = Boolean(role) && role !== 'KITCHEN_DISPLAY' && role !== 'BARISTA_DISPLAY';
+  return (
+    <SecurityGate enabled={asksSecurity}>
+      <AppFrame>{children}</AppFrame>
+    </SecurityGate>
+  );
+}
+
+function AppFrame({ children }: AppShellLayoutProps): JSX.Element {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.role);
   const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);

@@ -189,7 +189,8 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
   }
 
   // My phones (Segment 6a): everyone with a login lists, confirms and removes their own phones. The API shows only the person's own.
-  if (under('/app/workforce/my-phones')) {
+  // "This wasn't me" is the same person's own page.
+  if (under('/app/workforce/my-phones') || under('/app/workforce/wasnt-me')) {
     return true;
   }
 
