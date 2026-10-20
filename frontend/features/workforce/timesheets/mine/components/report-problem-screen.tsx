@@ -3,14 +3,13 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { Callout, ChoiceChips, EmptyState, FIELD_CLASS, FormField, OptionList, PhoneButton, StatBoxes, TimeField, useAction, useWorkforcePermissions } from '../../../_shared';
+import { Callout, ChoiceChips, EmptyState, FIELD_CLASS, FormField, OptionList, PhoneButton, PhoneScreen, StatBoxes, TimeField, useAction, useWorkforcePermissions } from '../../../_shared';
 import { hmOf } from '../../../attendance';
 import { addDays, nairobiToday } from '../../../rota';
 import { useMyTime } from '../../_shared/hooks/use-timesheet-data';
 import { timesheetWrites } from '../../_shared/services/timesheet-services';
 import { dayLong, dayShort } from '../../_shared/lib/timesheet-words';
 import { EMPTY_FORM, KIND_OPTIONS, bodyOf, goesToHr, problemOf, recordedWords, shouldBeWords, type ReportForm } from '../lib/report-form';
-import { PhoneScreen } from './phone-screen';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const RECENT_DAYS = 14;

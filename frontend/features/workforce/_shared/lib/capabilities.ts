@@ -28,6 +28,10 @@ export type WorkforceCapability =
   | 'casual.record'
   | 'casual.approve'
   | 'casual.read'
+  | 'payslip.read_any'
+  | 'p9.generate'
+  | 'p9.confirm_format'
+  | 'audit.read.payslip_access'
   | 'leave.request'
   | 'leave.acknowledge'
   | 'leave.read'
@@ -64,5 +68,7 @@ export interface WorkforcePermissionsPayload {
   isDepartmentHead: boolean;
   departmentTag: string | null;
   tracksTime: boolean;
+  /** The departments this person heads today; a casual-pay sheet is found by site and one of these. */
+  headOfDepartmentIds?: readonly string[];
   capabilities: ReadonlyArray<{ capability: WorkforceCapability; scope: WorkforceScope }>;
 }

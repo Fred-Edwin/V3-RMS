@@ -37,7 +37,9 @@ export function PhoneDarkHeader({
   trailing,
   title,
   figure,
+  figureSize = 'md',
   subtitle,
+  aside,
   className,
 }: {
   /** "MY TIME · ROTA". */
@@ -48,9 +50,13 @@ export function PhoneDarkHeader({
   /** Something at the right of the bar (a `TimerChip`). */
   trailing?: React.ReactNode;
   title?: string;
-  /** A big mono figure instead of a title ("38 h 10"). */
-  figure?: string;
+  /** A big mono figure instead of a title ("38 h 10"). A node when the figure can be hidden (pay). */
+  figure?: React.ReactNode;
+  /** `lg` is the 44 px figure of the payslip home. */
+  figureSize?: 'md' | 'lg';
   subtitle?: string;
+  /** Under the subtitle: a status tag. */
+  aside?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -67,8 +73,11 @@ export function PhoneDarkHeader({
       {title || figure || subtitle ? (
         <div className="flex flex-col gap-0.5 px-4 pb-3 pt-4">
           {title ? <h1 className={cn('m-0 font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em]', ON_DARK)}>{title}</h1> : null}
-          {figure ? <p className={cn('m-0 font-wds-mono text-[34px] font-medium leading-[42px] tracking-[-0.03em]', ON_DARK)}>{figure}</p> : null}
+          {figure ? (
+            <p className={cn('m-0 font-wds-mono font-medium tracking-[-0.03em]', ON_DARK, figureSize === 'lg' ? 'text-[44px] leading-[50px] max-[360px]:text-[36px] max-[360px]:leading-[42px]' : 'text-[34px] leading-[42px]')}>{figure}</p>
+          ) : null}
           {subtitle ? <p className={cn('m-0 font-wds-sans text-[13px] leading-4', MUTED_ON_DARK)}>{subtitle}</p> : null}
+          {aside ? <div className="mt-1.5">{aside}</div> : null}
         </div>
       ) : null}
     </header>

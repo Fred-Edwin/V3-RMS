@@ -1,10 +1,9 @@
 'use client';
 
-import { DayCard, EmptyState, ErrorBlock, ListSkeleton, useWorkforcePermissions } from '../../../_shared';
+import { DayCard, EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, useWorkforcePermissions } from '../../../_shared';
 import { nairobiToday } from '../../../rota';
 import { useMyRota } from '../../_shared/hooks/use-timesheet-data';
 import { rotaLines, rotaRange, rotaSummary } from '../lib/rota-lines';
-import { PhoneScreen } from './phone-screen';
 
 /** My rota (Paper Chapter 9, step 1): the next two weeks of my own shifts, today marked. The rota has no publish step, so what I see is what is planned. */
 export function MyRotaScreen() {

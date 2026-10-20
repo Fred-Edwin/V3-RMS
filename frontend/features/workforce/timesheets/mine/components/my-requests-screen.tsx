@@ -2,10 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 
-import { Callout, EmptyState, ErrorBlock, ListSkeleton, PhoneButton, useAction, useWorkforcePermissions } from '../../../_shared';
+import { Callout, EmptyState, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, useAction, useWorkforcePermissions } from '../../../_shared';
 import { useMyRequests } from '../../_shared/hooks/use-timesheet-data';
 import { timesheetWrites } from '../../_shared/services/timesheet-services';
-import { PhoneScreen } from './phone-screen';
 import { RequestCard } from './request-card';
 
 /** My requests (Paper Chapter 9, step 3): a request never disappears. Waiting ones first (with the escalation to HR said in words), then the answered ones. */

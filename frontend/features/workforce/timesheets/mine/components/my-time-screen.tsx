@@ -3,11 +3,10 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Callout, EmptyState, ErrorBlock, ListSkeleton, PeriodStepper, PhoneButton, TimeRow, useWorkforcePermissions } from '../../../_shared';
+import { Callout, EmptyState, ErrorBlock, ListSkeleton, PeriodStepper, PhoneButton, PhoneScreen, TimeRow, useWorkforcePermissions } from '../../../_shared';
 import { useMyTime } from '../../_shared/hooks/use-timesheet-data';
 import { hm, monthOf } from '../../_shared/lib/timesheet-words';
 import { heroLine, overtimeLine, weekGroups } from '../lib/my-view';
-import { PhoneScreen } from './phone-screen';
 
 /**
  * My time (Paper Chapter 9, step 1): the hours worked this month, then each day with its clock times and where it stands. A day that

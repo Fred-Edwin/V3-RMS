@@ -167,6 +167,17 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role !== 'SYSTEM_ADMIN';
   }
 
+  // My payslips (Segment 3): everyone who has a payslip. The System Admin has none (access table). The code is checked by the API.
+  if (under('/app/workforce/my-payslips')) {
+    return role !== 'SYSTEM_ADMIN';
+  }
+
+  // Casual pay (Segment 3): the head records, the Branch Manager and the Director approve; HR, the Accountant and the Store Manager read.
+  // The API's casual.record / casual.approve / casual.read decide what each can do.
+  if (under('/app/workforce/casuals')) {
+    return isDepartmentHead || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'HR_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+  }
+
   // The Home of the floor staff and department heads: their clock card. The menu shows the link only on a branch with the new clock on;
   // a branch that is off has no clock card, so the page would only say that nothing needs them.
   if (pathname === '/app/workforce' && (isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_ATTENDANT')) {

@@ -13,7 +13,7 @@ The Attendance clock card's "clocked out by mistake?" note and the closed-shift 
 
 | Piece | File |
 |---|---|
-| Frame | `components/phone-screen.tsx` |
+| Frame | `PhoneScreen` from the shared kit (moved to `_shared/components/phone-screen.tsx` in Segment 3) |
 | Screens | `components/my-time-screen.tsx`, `report-problem-screen.tsx`, `my-requests-screen.tsx`, `my-rota-screen.tsx` |
 | A request card | `components/request-card.tsx` |
 | Day lines, week groups, overtime words | `lib/my-view.ts` |
