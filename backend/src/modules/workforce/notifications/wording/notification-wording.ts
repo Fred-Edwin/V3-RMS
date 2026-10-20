@@ -1,9 +1,10 @@
 import type { NotifyData, RenderedNotification } from '../notification-types';
 import { BUILT_WORDING } from './wording-built';
 import { CONDUCT_WORDING } from './wording-conduct';
+import { LEAVE_WORDING } from './wording-leave';
 import { KIND_ALIASES, SHARED_WORDING } from './wording-shared';
 
-const ALL = { ...BUILT_WORDING, ...SHARED_WORDING, ...CONDUCT_WORDING };
+const ALL = { ...BUILT_WORDING, ...SHARED_WORDING, ...CONDUCT_WORDING, ...LEAVE_WORDING };
 
 /** A pay figure in words: a number next to KES/Ksh, or KES/Ksh next to a number. A rendered row must never contain one. */
 const FIGURE = /(\d[\d,.]*\s*(kes|ksh|shillings?))|((kes|ksh)\.?\s*\d)/i;

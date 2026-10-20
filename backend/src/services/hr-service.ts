@@ -6,7 +6,7 @@ import { SELF_UPLOADABLE_DOCUMENT_TYPES, REPLACE_ON_REUPLOAD_DOCUMENT_TYPES } fr
 import { destroyUploadedFile } from '../utils/cloudinary';
 import type { UserRole } from '@prisma/client';
 import { logger } from '../utils/logger';
-import { refuseLegacyConductWhenSwitched } from '../modules/workforce';
+import { assertLegacyLeaveWritable, refuseLegacyConductWhenSwitched } from '../modules/workforce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,6 +180,7 @@ export async function assignContract(
 
   const profile = await hrRepository.findProfileByUserId(userId);
   if (!profile) throw new NotFoundError('Employee profile not found');
+  await assertLegacyLeaveWritable(profile.user.siteId);
 
   if (contractTypeId) {
     const contractType = await hrRepository.findContractTypeById(contractTypeId);
@@ -237,6 +238,8 @@ export async function updateLeaveBalance(
   const profile = await hrRepository.findProfileByUserId(userId);
   if (!profile) throw new NotFoundError('Employee profile not found');
 
+  await assertLegacyLeaveWritable(profile.user.siteId);
+
   const balance = await hrRepository.findLeaveBalance(profile.id, leaveType, leaveYear);
   if (!balance) {
     throw new NotFoundError(`No leave balance found for type ${leaveType} in ${leaveYear}`);
@@ -272,6 +275,7 @@ export async function submitLeaveRequest(
     reason: string;
   },
 ) {
+  await assertLegacyLeaveWritable(actor.siteId);
   if (input.startDate > input.endDate) {
     throw new ValidationError('Start date must be before end date');
   }
@@ -355,6 +359,7 @@ export async function submitLeaveRequest(
 export async function approveLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
   const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
+  await assertLegacyLeaveWritable(request.siteId);
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be approved');
   }
@@ -418,6 +423,7 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
 export async function rejectLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
   const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
+  await assertLegacyLeaveWritable(request.siteId);
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be rejected');
   }
@@ -461,6 +467,7 @@ export async function rejectLeaveRequest(actor: HrActor, requestId: string, comm
 export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
   const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
+  await assertLegacyLeaveWritable(request.siteId);
 
   const employeeUserId = request.employeeProfile.user.id;
 
@@ -507,6 +514,7 @@ export async function revertLeaveRequest(actor: HrActor, requestId: string) {
 
   const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
+  await assertLegacyLeaveWritable(request.siteId);
 
   if (request.status !== 'APPROVED' && request.status !== 'REJECTED') {
     throw new ConflictError('Only approved or rejected leave requests can be reverted to pending');

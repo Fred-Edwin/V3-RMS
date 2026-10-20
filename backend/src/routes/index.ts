@@ -62,6 +62,8 @@ import {
   registerConduct,
   workforceConductRouter,
   workforceNeedsYouRouter,
+  workforceLeaveRouter,
+  registerLeave,
   workforceSecurityRouter,
   workforceSessionGate,
   workforceCasualRouter,
@@ -158,6 +160,8 @@ registerConduct(); // Conduct's rows (to sign, to record, appeals waiting) join 
 apiRouter.use(workforceNeedsYouRouter);
 apiRouter.use(workforceConductRouter);
 apiRouter.use(workforceTimesheetsRouter);
+registerLeave(); // the rota's leave lookup and the Leave source of Needs you (Segment 4)
+apiRouter.use(workforceLeaveRouter);
 apiRouter.use(workforcePayrollRouter);
 apiRouter.use(workforceCasualRouter);
 apiRouter.use(workforcePayslipsRouter);

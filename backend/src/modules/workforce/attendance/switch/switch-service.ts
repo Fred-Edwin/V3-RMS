@@ -1,5 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
+import type { AuditEntryInput } from '../../_shared/audit/audit.types';
+import { carryLegacyLeave, mirrorLegacyLeave } from '../../leave/carry/carry-service';
 import { nairobiToday } from '../../_shared/time/nairobi-time';
 import { scopeOf, type AccessSubject } from '../../_shared/workforce-access';
 import { resolveActor } from '../../people/people-context';
@@ -71,17 +73,20 @@ export async function setSwitch(subject: AccessSubject, siteId: string, enabled:
     let carried = 0;
     let mirrored = 0;
     let notMirrored: string[] = [];
+    let leaveCarry: AuditEntryInput | null = null;
     if (enabled) {
       const open = await openLegacyClockIns(siteId, today, tx);
       if (open > 0) {
         throw new ConflictError(`${open} ${open === 1 ? 'person is' : 'people are'} clocked in on the old clock. Switch after they clock out.`, 'OPEN_LEGACY_CLOCK_IN', { open });
       }
       carried = (await carryLegacyIn(tx, siteId, today)).carried;
+      leaveCarry = (await carryLegacyLeave(tx, siteId, site.companyId, ctx.auditActor, now)).entry;
     } else {
       await assertMaySwitchOff(siteId); // Payroll: not while a month that includes this site is unpaid
       const result = await mirrorBack(tx, siteId, today);
       mirrored = result.mirrored;
       notMirrored = result.notMirrored;
+      leaveCarry = (await mirrorLegacyLeave(tx, siteId, site.companyId, ctx.auditActor, now)).entry;
     }
 
     const row = await switchRepository.set(tx, siteId, enabled, subject.id, now);
@@ -97,7 +102,7 @@ export async function setSwitch(subject: AccessSubject, siteId: string, enabled:
         : null;
     return {
       result: { ...viewOf(siteId, site.name, row), carriedFromLegacy: carried, mirroredToLegacy: mirrored, notMirrored },
-      entries: carry ? [entry, carry] : [entry],
+      entries: [entry, ...(carry ? [carry] : []), ...(leaveCarry ? [leaveCarry] : [])],
       events: [eventOf('attendance.switch_changed', { siteId, enabled, changedById: subject.id }, now)],
     };
   });

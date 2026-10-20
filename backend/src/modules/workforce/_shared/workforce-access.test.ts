@@ -54,6 +54,7 @@ leave.request                own  -    own  own  own  own  -
 leave.acknowledge            -    dept -    -    -    -    -
 leave.read                   -    dept -    unit all  all  all
 leave.approve                -    -    -    unit all  all  all
+leave.balance_adjust         -    -    -    -    all  -    -
 employee.read_basic          -    dept all  unit all  all  all
 employee.read_sensitive      -    -    all  -    all  all  -
 employee.write_basic         -    -    -    unit all  -    all

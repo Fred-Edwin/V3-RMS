@@ -1,0 +1,130 @@
+// ============================================================================
+// Workforce segment 4 (Leave), back end. Spec: docs/features/workforce/specs/4-leave-spec.md section 2.
+// Additive only: no legacy table is altered. Plain id columns, no relations, so no back-relation edits in other files.
+// Raw SQL in the migration: the ledger refuses UPDATE and DELETE (trigger), the slip number sequence, the partial unique
+// indexes on the ledger (one OPENING and one CARRY_OVER per person, type and year) and the checks on dates and days.
+// ============================================================================
+
+enum LeaveApplicationStatus {
+  WAITING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum LeaveStage {
+  MANAGER
+  HR
+  DIRECTOR
+}
+
+enum LeaveOrigin {
+  NEW
+  LEGACY
+}
+
+enum LeaveCountedIn {
+  CALENDAR_DAYS
+  WORKING_DAYS
+}
+
+enum LeaveEntryKind {
+  OPENING
+  CARRY_OVER
+  ADJUSTMENT
+}
+
+enum LeaveEventKind {
+  ASKED
+  MOVED_TO_HR
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+/// One request for leave. `days` are calendar days (a carried legacy row keeps the old working-day count). The type's label,
+/// pay flag and approver are frozen in `typeSnapshot` when it is asked. `version` guards two people deciding at once.
+model LeaveApplication {
+  id                 String                 @id @default(uuid())
+  companyId          String                 @map("company_id")
+  siteId             String                 @map("organization_id")
+  employeeId         String                 @map("employee_id")
+  typeCode           String                 @map("type_code")
+  typeSnapshot       Json                   @map("type_snapshot")
+  startDate          DateTime               @map("start_date") @db.Date
+  endDate            DateTime               @map("end_date") @db.Date
+  days               Int
+  unpaidTailDays     Int                    @default(0) @map("unpaid_tail_days")
+  note               String?
+  status             LeaveApplicationStatus @default(WAITING)
+  stage              LeaveStage             @default(MANAGER)
+  routedToRole       String                 @map("routed_to_role") // the role that decides first: BRANCH_MANAGER, STORE_MANAGER, HR_MANAGER, DIRECTOR
+  askedAt            DateTime               @map("asked_at")
+  withHrAt           DateTime?              @map("with_hr_at")
+  decidedAt          DateTime?              @map("decided_at")
+  decidedBy          String?                @map("decided_by")
+  deciderRole        String?                @map("decider_role")
+  decisionReasonCode String?                @map("decision_reason_code")
+  decisionNote       String?                @map("decision_note")
+  cancelledAt        DateTime?              @map("cancelled_at")
+  cancelledBy        String?                @map("cancelled_by")
+  cancelReason       String?                @map("cancel_reason")
+  slipNumber         Int?                   @unique @map("slip_number")
+  slipSnapshot       Json?                  @map("slip_snapshot")
+  slipHash           String?                @map("slip_hash")
+  balanceBefore      Int?                   @map("balance_before")
+  balanceAfter       Int?                   @map("balance_after")
+  version            Int                    @default(1)
+  origin             LeaveOrigin            @default(NEW)
+  legacyRequestId    String?                @unique @map("legacy_request_id")
+  countedIn          LeaveCountedIn         @default(CALENDAR_DAYS) @map("counted_in")
+  idempotencyKey     String?                @map("idempotency_key")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([employeeId, idempotencyKey])
+  @@index([siteId, status, askedAt])
+  @@index([employeeId, startDate])
+  @@index([status, stage, askedAt])
+  @@index([companyId, status, startDate])
+  @@index([siteId, startDate, endDate])
+  @@map("leave_applications")
+}
+
+/// The balance ledger: append-only (a trigger refuses UPDATE and DELETE). A wrong entry is fixed with a linked correction.
+model LeaveBalanceEntry {
+  id           String         @id @default(uuid())
+  companyId    String         @map("company_id")
+  employeeId   String         @map("employee_id")
+  typeCode     String         @map("type_code")
+  leaveYear    Int            @map("leave_year")
+  kind         LeaveEntryKind
+  days         Int // signed
+  asOf         DateTime       @map("as_of") @db.Date
+  reasonCode   String?        @map("reason_code")
+  reasonNote   String?        @map("reason_note")
+  byUser       String?        @map("by_user") // null for a system entry (carry-over, legacy opening)
+  correctsId   String?        @map("corrects_id")
+  idempotencyKey String?      @map("idempotency_key")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@unique([employeeId, idempotencyKey])
+  @@index([employeeId, typeCode, leaveYear])
+  @@map("leave_balance_entries")
+}
+
+/// Status history for the stepper on one request.
+model LeaveEvent {
+  id            String         @id @default(uuid())
+  applicationId String         @map("application_id")
+  kind          LeaveEventKind
+  at            DateTime
+  byUser        String?        @map("by_user")
+  role          String?
+  /// The Idempotency-Key of the decision or cancel that wrote this event: a repeat of the same key returns the first result.
+  idempotencyKey String?       @map("idempotency_key")
+
+  @@unique([applicationId, idempotencyKey])
+  @@index([applicationId, at])
+  @@map("leave_events")
+}

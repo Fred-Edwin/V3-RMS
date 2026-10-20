@@ -1,0 +1,146 @@
+made ZZ Proof Leave Waiter, Casual, Manager and HR in Nyeri Town
+
+== 1. HR grants days; only HR may
+PASS  the seeded Rules give Annual no days, so the waiter starts at 0: proof.lv.waiter GET /me/overview -> 200
+PASS  adjust without the capability: proof.lv.waiter POST /balances/adjust -> 403
+PASS  adjust without the capability: proof.lv.manager POST /balances/adjust -> 403
+PASS  adjust without the capability: bm.town POST /balances/adjust -> 403
+PASS  adjust without the capability: accountant POST /balances/adjust -> 403
+PASS  adjust without the capability: director POST /balances/adjust -> 403
+PASS  adjust without the capability: admin POST /balances/adjust -> 403
+PASS  adjust without the capability: store.manager POST /balances/adjust -> 403
+PASS  adjust without the capability: kitchen.head.town POST /balances/adjust -> 403
+PASS  adjust preview shows now and new: proof.lv.hr POST /balances/adjust/preview -> 200
+PASS  adjust with no Idempotency-Key: proof.lv.hr POST /balances/adjust -> 400
+PASS  adjust with a wrong PIN: proof.lv.hr POST /balances/adjust -> 403 PIN_INVALID
+PASS  adjust below zero: proof.lv.hr POST /balances/adjust -> 409 BALANCE_BELOW_ZERO
+PASS  HR grants 21 days with a PIN: proof.lv.hr POST /balances/adjust -> 201
+PASS  before 0, after 21
+PASS  the same key again: proof.lv.hr POST /balances/adjust -> 200
+PASS  answers the first result (repeat) and adds nothing
+PASS  a casual worker has no balance to adjust: proof.lv.hr POST /balances/adjust -> 409 CASUAL_NO_LEAVE
+PASS  the waiter sees the days: proof.lv.waiter GET /me/overview -> 200
+PASS  21 days of Annual, Annual is a chip
+
+== 2. ask: preview, send, repeat, overlap, the casual worker
+PASS  preview: proof.lv.waiter POST /applications/preview -> 200
+PASS  3 days, 18 left after, sent to the Branch Manager, nothing counted
+PASS  ask with no Idempotency-Key: proof.lv.waiter POST /applications -> 400
+PASS  ask with an unknown field: proof.lv.waiter POST /applications -> 400
+PASS  the waiter asks: proof.lv.waiter POST /applications -> 201
+PASS  waiting, version 1, with the Branch Manager
+PASS  the same key again: proof.lv.waiter POST /applications -> 200
+PASS  the same request, flagged repeat
+PASS  overlapping days: proof.lv.waiter POST /applications -> 409 OVERLAP
+PASS  the casual worker reads an empty, calm answer: proof.lv.casual GET /me/overview -> 200
+PASS  casual: true, no cards, a plain message
+PASS  the casual worker lists requests: proof.lv.casual GET /me/applications -> 200
+PASS  empty page
+PASS  the casual worker cannot send: proof.lv.casual POST /applications -> 409 CASUAL_NO_LEAVE
+
+== 3. who may read and decide
+PASS  open the request: proof.lv.waiter GET /applications/:id -> 200
+PASS  open the request: bm.town GET /applications/:id -> 200
+PASS  open the request: proof.lv.manager GET /applications/:id -> 200
+PASS  open the request: proof.lv.hr GET /applications/:id -> 200
+PASS  open the request: director GET /applications/:id -> 200
+PASS  open the request: admin GET /applications/:id -> 200
+PASS  open the request: bm.highway GET /applications/:id -> 404
+PASS  open the request: proof.lv.casual GET /applications/:id -> 404
+PASS  the Highway manager cannot open its rota strip: bm.highway GET /applications/:id/rota -> 404
+PASS  the Town manager has it in "needs you"
+PASS  the Highway manager does not see it in any list
+PASS  approve without the capability: proof.lv.waiter POST /applications/:id/approve -> 403
+PASS  approve without the capability: proof.lv.casual POST /applications/:id/approve -> 403
+PASS  approve without the capability: accountant POST /applications/:id/approve -> 403
+PASS  approve without the capability: kitchen.head.town POST /applications/:id/approve -> 403
+PASS  the Store Manager is another site: not found: store.manager POST /applications/:id/approve -> 404
+PASS  approve from another branch: bm.highway POST /applications/:id/approve -> 404
+PASS  HR before the 72 hours: proof.lv.hr POST /applications/:id/approve -> 403 NOT_WITH_YOU_YET
+PASS  the Director is not the deciding role: director POST /applications/:id/approve -> 403 NOT_YOUR_DECISION
+PASS  the System Admin only decides when nobody holds the role: admin POST /applications/:id/approve -> 403 NOT_YOUR_DECISION
+PASS  approve with no Idempotency-Key: proof.lv.manager POST /applications/:id/approve -> 400
+PASS  approve with a wrong PIN signs nothing: proof.lv.manager POST /applications/:id/approve -> 403
+PASS  approve a stale version: proof.lv.manager POST /applications/:id/approve -> 409 STALE_REQUEST
+PASS  still waiting after the refusals
+PASS  the Branch Manager approves with a PIN: proof.lv.manager POST /applications/:id/approve -> 200
+PASS  an LVE number, approved status
+PASS  the same key again: proof.lv.manager POST /applications/:id/approve -> 200
+PASS  the first result, same slip number
+PASS  someone else decides afterwards: bm.town POST /applications/:id/decline -> 409 ALREADY_DECIDED
+PASS  18 days left after the approval
+
+== 4. the slip, as data and as a PDF
+PASS  the slip data: proof.lv.waiter GET /applications/:id/slip -> 200
+PASS  the slip data: proof.lv.manager GET /applications/:id/slip -> 200
+PASS  the slip data: proof.lv.hr GET /applications/:id/slip -> 200
+PASS  the slip data: bm.highway GET /applications/:id/slip -> 404
+PASS  the slip data: proof.lv.casual GET /applications/:id/slip -> 404
+PASS  the approved slip PDF is a PDF
+PASS  the other branch gets no PDF
+
+== 5. decline, then cancel (own and a manager's)
+PASS  decline with Other and no note: proof.lv.manager POST /applications/:id/decline -> 400
+PASS  the Branch Manager declines (no PIN): proof.lv.manager POST /applications/:id/decline -> 200
+PASS  declined
+PASS  a declined request cannot be cancelled: proof.lv.waiter POST /applications/:id/cancel -> 403 NOT_CANCELLABLE
+PASS  a stranger cannot cancel it: proof.lv.casual POST /applications/:id/cancel -> 404
+PASS  a manager cancelling needs a reason and a PIN: proof.lv.manager POST /applications/:id/cancel -> 400
+PASS  the Branch Manager cancels with a reason and a PIN: proof.lv.manager POST /applications/:id/cancel -> 200
+PASS  cancelled
+PASS  the cancelled slip PDF is a PDF
+PASS  the waiter cancels their own waiting request (no PIN): proof.lv.waiter POST /applications/:id/cancel -> 200
+PASS  cancelled
+PASS  the days are back: 18 left (only the first approval counts)
+
+== 6. the reads, per role
+PASS  read balances: bm.town GET /balances -> 200
+PASS  read balances: proof.lv.hr GET /balances -> 200
+PASS  read balances: director GET /balances -> 200
+PASS  read balances: admin GET /balances -> 200
+PASS  read balances: store.manager GET /balances -> 200
+PASS  read balances: accountant GET /balances -> 403
+PASS  read balances: proof.lv.waiter GET /balances -> 403
+PASS  read calendar: bm.town GET /calendar -> 200
+PASS  read calendar: proof.lv.hr GET /calendar -> 200
+PASS  read calendar: director GET /calendar -> 200
+PASS  read calendar: admin GET /calendar -> 200
+PASS  read calendar: store.manager GET /calendar -> 200
+PASS  read calendar: accountant GET /calendar -> 403
+PASS  read calendar: proof.lv.waiter GET /calendar -> 403
+PASS  read requests: bm.town GET /requests -> 200
+PASS  read requests: proof.lv.hr GET /requests -> 200
+PASS  read requests: director GET /requests -> 200
+PASS  read requests: admin GET /requests -> 200
+PASS  read requests: store.manager GET /requests -> 200
+PASS  read requests: accountant GET /requests -> 403
+PASS  read requests: proof.lv.waiter GET /requests -> 403
+PASS  read needs-you: bm.town GET /needs-you -> 200
+PASS  read needs-you: proof.lv.hr GET /needs-you -> 200
+PASS  read needs-you: director GET /needs-you -> 200
+PASS  read needs-you: admin GET /needs-you -> 200
+PASS  read needs-you: store.manager GET /needs-you -> 200
+PASS  read needs-you: accountant GET /needs-you -> 403
+PASS  read needs-you: proof.lv.waiter GET /needs-you -> 403
+PASS  who is away: bm.town GET /away -> 200
+PASS  the waiter's approved days appear
+PASS  the badge: proof.lv.waiter GET /badge -> 200
+PASS  a balance drawer: bm.town GET /balances/:id -> 200
+PASS  it lists the adjustment and the requests
+PASS  another branch cannot open the drawer: bm.highway GET /balances/:id -> 404
+
+== 7. the old leave routes once the branch is switched on
+PASS  System Admin switches Nyeri Town on: admin PUT /workforce/attendance/switch -> 200
+PASS  the old submit is refused with LEAVE_IN_NEW_SYSTEM
+PASS  System Admin switches Nyeri Town off again: admin PUT /workforce/attendance/switch -> 200
+PASS  the old leave tables are as they were
+
+== 8. the audit log
+PASS  audit has leave.requested
+PASS  audit has leave.approved
+PASS  audit has leave.declined
+PASS  audit has leave.cancelled
+PASS  audit has leave.balance_adjusted
+PASS  no PIN in any leave audit entry
+
+127 passed, 0 failed

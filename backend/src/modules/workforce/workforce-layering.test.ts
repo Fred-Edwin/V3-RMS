@@ -104,6 +104,8 @@ describe('the public door (contract 7.2)', () => {
       'workforceAttendanceRouter', 'refuseLegacyClockWhenSwitched', 'sweepAutoClose', 'setPeriodClosedCheck', 'getOnShiftNow',
       // timesheets (slice 4a)
       'workforceTimesheetsRouter', 'registerTimesheets', 'sweepTimesheets', 'getApprovedHours',
+      // leave (segment 4)
+      'workforceLeaveRouter', 'registerLeave', 'sweepLeave', 'assertLegacyLeaveWritable', 'verifyLeaveSlip', 'registerLeaveSlipDocument',
       // payroll (segment 2A)
       'isSitePeriodOnNewPayroll', 'registerPayroll', 'workforcePayrollRouter', 'sweepPayroll', 'refreshPayrollEstimates',
       // casual pay (segment 3)
