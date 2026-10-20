@@ -1,9 +1,9 @@
 [
   { "id": 1, "item": "Data: tables, migration, WRN sequence", "built": true, "verified": false, "note": "Migration applied on lane DB; copy-proof not run" },
   { "id": 2, "item": "Rules: ladder, status machine, dates, letters, facts, appeals", "built": true, "verified": false, "note": "Unit tests pass; full suite not run" },
-  { "id": 3, "item": "Signing and not-signed with witness and PIN", "built": true, "verified": false, "note": "Services built; no db-flow test yet" },
-  { "id": 4, "item": "Endpoints, badge counts, Needs-you source", "built": false, "verified": false, "note": "Services and source object built; routes, controllers, registration not written" },
-  { "id": 5, "item": "Notice document: PDF, QR, versions, registration function", "built": false, "verified": false, "note": "Model and renderer built; document service, route and registration function not written" },
+  { "id": 3, "item": "Signing and not-signed with witness and PIN", "built": true, "verified": false, "note": "Services built; db-flow test passes on the lane database (11 tests); not-signed with witness has no db-flow test yet" },
+  { "id": 4, "item": "Endpoints, badge counts, Needs-you source", "built": true, "verified": false, "note": "Routes, controllers, badge service built; source registered, router mounted, sweep job scheduled 00:10; tsc clean; no HTTP proof yet" },
+  { "id": 5, "item": "Notice document: PDF, QR, versions, registration function", "built": true, "verified": false, "note": "Document service, versions, draft preview, registerConductDocuments + stub test; PDF open/audit covered in db-flow test" },
   { "id": 6, "item": "Access rows, audit events, notifications, events", "built": true, "verified": false, "note": "discipline.decide, 12 audit codes, wording; events emitted in appeal and decision" },
-  { "id": 7, "item": "Coexistence guard on the old routes", "built": true, "verified": false, "note": "Guard in hr-service create and acknowledge; test both directions not written" }
+  { "id": 7, "item": "Coexistence guard on the old routes", "built": true, "verified": false, "note": "Guard in hr-service create and acknowledge; guard tested both directions in the db-flow test" }
 ]
