@@ -17,12 +17,15 @@ export interface FileTab {
 }
 
 /** Tabs by what the viewer may see: Job and pay needs pay, Documents needs documents (a Branch Manager has neither). */
-export function tabsFor(file: Pick<EmployeeFile, 'locked'>): FileTab[] {
+export function tabsFor(file: Pick<EmployeeFile, 'locked'>, show: { conduct?: boolean } = {}): FileTab[] {
   const tabs: FileTab[] = [{ value: 'overview', label: 'Overview' }];
   if (!file.locked.includes('pay')) tabs.push({ value: 'job-pay', label: 'Job and pay' });
   tabs.push({ value: 'time', label: 'Time', disabled: true }, { value: 'leave', label: 'Leave', disabled: true });
   if (!file.locked.includes('documents')) tabs.push({ value: 'documents', label: 'Documents' });
-  tabs.push({ value: 'conduct', label: 'Conduct', disabled: true }, { value: 'activity', label: 'Activity' });
+  // Conduct (Segment 5): offered only to a reader with `discipline.read` (hidden by omission otherwise). Left out of `show`, it keeps its old "waits" look.
+  if (show.conduct === undefined) tabs.push({ value: 'conduct', label: 'Conduct', disabled: true });
+  else if (show.conduct) tabs.push({ value: 'conduct', label: 'Conduct' });
+  tabs.push({ value: 'activity', label: 'Activity' });
   return tabs;
 }
 
@@ -220,8 +223,7 @@ export function pageActions(file: EmployeeFile, tab: FileTabKey, canWriteSensiti
   return out;
 }
 
-export const TAB_WAITS: Record<'time' | 'leave' | 'conduct', string> = {
+export const TAB_WAITS: Record<'time' | 'leave', string> = {
   time: 'Hours and timesheets appear here when Attendance is built.',
   leave: 'Leave balances and requests appear here when Leave is built.',
-  conduct: 'Warnings and commendations appear here when Conduct is built.',
 };

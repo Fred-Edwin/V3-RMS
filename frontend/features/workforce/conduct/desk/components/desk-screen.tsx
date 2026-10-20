@@ -6,8 +6,6 @@ import * as React from 'react';
 import { Button } from '@/components/ui2/button';
 import { useAuthStore } from '@/store/authStore';
 
-import { peopleReads, type Lookups } from '@/features/workforce/people';
-
 import { PageHeader, useRemote, useWorkforcePermissions, WorkforceFrame, WorkforceKpiStrip } from '../../../_shared';
 import { LegendLine } from '../../_shared/components/legend-line';
 import { longDate } from '../../_shared/lib/conduct-dates';
@@ -19,7 +17,7 @@ import { DeskDialogs, type DeskDialog } from './desk-dialogs';
 import { NoticeDetailPanel } from './notice-detail-panel';
 
 /** "Conduct · Nyeri Town" for a manager, "Conduct · All sites" for HR and the Director (or the site they picked). */
-function titleFor(siteName: string | null, picked: string | undefined, sites: Lookups['organizations'] | null, readsAll: boolean): string {
+function titleFor(siteName: string | null, picked: string | undefined, sites: { id: string; name: string }[] | null, readsAll: boolean): string {
   if (readsAll) return `Conduct · ${picked ? (sites?.find((s) => s.id === picked)?.name ?? 'One site') : 'All sites'}`;
   return `Conduct · ${siteName ?? 'your site'}`;
 }
@@ -37,7 +35,7 @@ export function DeskScreen() {
   const siteName = useAuthStore((s) => s.user?.organizationName ?? null);
   const readsAll = permissions.ready && permissions.scopeOf('discipline.read') === 'all';
   const canIssue = permissions.ready && permissions.can('discipline.issue');
-  const lookups = useRemote(() => peopleReads.lookups(), 'conduct-sites', readsAll);
+  const lookups = useRemote(() => conductReads.sites(), 'conduct-sites', readsAll);
   const [list, setList] = React.useState<DeskList | null>(null);
   const [dialog, setDialog] = React.useState<DeskDialog | null>(null);
   const [reloadToken, setReloadToken] = React.useState(0);
@@ -45,7 +43,7 @@ export function DeskScreen() {
   const today = React.useMemo(() => longDate(new Date()), []);
 
   const selectedId = params.get('id');
-  const sites = lookups.data ? lookups.data.organizations : null;
+  const sites = lookups.data ?? null;
   const filters = React.useMemo(() => buildDeskFilters(readsAll ? sites : null), [readsAll, sites]);
 
   const setParam = React.useCallback(

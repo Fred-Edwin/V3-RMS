@@ -6,6 +6,7 @@ export { StaffListScreen } from './staff/components/staff-list-screen';
 export { NoticeScreen } from './staff/components/notice-screen';
 export { SignScreen } from './staff/components/sign-screen';
 export { AppealScreen } from './staff/components/appeal-screen';
+export { ConductFileTab } from './file-tab/components/conduct-file-tab';
 export { WitnessCardScreen } from './record/components/witness-card-screen';
 export { DeskScreen } from './desk/components/desk-screen';
 export { ConductDocumentScreen } from './document/components/document-screen';

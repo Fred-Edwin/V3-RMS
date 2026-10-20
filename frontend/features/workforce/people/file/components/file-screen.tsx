@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui2/button';
 import { formatApiErrorMessage } from '@/types/api';
 
+import { ConductFileTab } from '@/features/workforce/conduct';
+
 import { EmptyState, ErrorBlock, ListSkeleton, UnderlineTabs, UndoToast, useWorkforcePermissions } from '../../../_shared';
 import { PeopleFrame } from '../../_shared/components/people-frame';
 import { useEmployeeFile } from '../../_shared/hooks/use-people-data';
@@ -34,7 +36,9 @@ export function FileScreen({ id }: { id: string }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const file = useEmployeeFile(id);
-  const canWriteSensitive = useWorkforcePermissions().can('employee.write_sensitive');
+  const permissions = useWorkforcePermissions();
+  const canWriteSensitive = permissions.can('employee.write_sensitive');
+  const canReadConduct = permissions.can('discipline.read');
   const today = React.useMemo(() => nairobiDay(), []);
 
   const requested = params.get('tab');
@@ -91,7 +95,7 @@ export function FileScreen({ id }: { id: string }) {
   };
   const actions = pageActions(data, tab, canWriteSensitive);
   const bar = actions.length > 0 ? <ActionButtons actions={actions} onAction={runAction} /> : null;
-  const tabs = tabsFor(data);
+  const tabs = tabsFor(data, { conduct: canReadConduct });
   const branchView = data.completeness === null && data.status !== 'EXITED';
 
   return (
@@ -133,7 +137,8 @@ function TabBody({ file, tab, today, open, reloadKey }: { file: EmployeeFile; ta
   if (tab === 'job-pay') return <JobPayTab file={file} today={today} open={open} reloadKey={reloadKey} />;
   if (tab === 'documents') return <DocumentsTab file={file} reloadKey={reloadKey} />;
   if (tab === 'activity') return <ActivityTab file={file} />;
-  if (tab === 'time' || tab === 'leave' || tab === 'conduct') return <EmptyState kind="nothingYet" title="Comes with a later slice" line={TAB_WAITS[tab]} />;
+  if (tab === 'conduct') return <ConductFileTab employeeId={file.id} personName={file.name} />;
+  if (tab === 'time' || tab === 'leave') return <EmptyState kind="nothingYet" title="Comes with a later slice" line={TAB_WAITS[tab]} />;
   return <OverviewTab file={file} open={open} />;
 }
 

@@ -47,6 +47,10 @@ describe('tabs follow what is locked', () => {
   it('marks the tabs of later slices as waiting', () => {
     expect(tabsFor(joy()).filter((t) => t.disabled).map((t) => t.value)).toEqual(['time', 'leave', 'conduct']);
   });
+  it('opens Conduct for a reader with discipline.read and leaves it out for one without', () => {
+    expect(tabsFor(joy(), { conduct: true }).find((t) => t.value === 'conduct')).toEqual({ value: 'conduct', label: 'Conduct' });
+    expect(tabsFor(joy(), { conduct: false }).map((t) => t.value)).not.toContain('conduct');
+  });
 });
 
 describe('the header', () => {

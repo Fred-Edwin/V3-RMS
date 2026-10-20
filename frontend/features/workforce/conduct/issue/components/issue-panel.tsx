@@ -92,7 +92,7 @@ export function IssuePanel({ open, onClose, onDone, presetPerson }: { open: bool
           <FormField label="Who" hint="required">
             {() => <PersonPicker person={person} siteLabel={siteLabel} disabled={act.busy} onPick={(p) => { setPerson(p); setLevelTouched(false); setMonth(undefined); }} onClear={() => { setPerson(null); setLevelTouched(false); }} />}
           </FormField>
-          {person && !person.hasLogin ? <Callout tone="warning" size="sm">This person has no login. Print the letter, give it by hand, then record that it was given.</Callout> : null}
+          {person && (draftData ? !draftData.hasLogin : !person.hasLogin) ? <Callout tone="warning" size="sm">This person has no login. Print the letter, give it by hand, then record that it was given.</Callout> : null}
           {draftData?.justIssued ? <Callout tone="warning" size="sm">A manager just issued a notice to this person. Check the list before you send.</Callout> : null}
           {draftData?.finalAlreadyActive ? <Callout tone="error" size="sm" role="alert">A final written warning is already on file. Speak to HR.</Callout> : null}
 

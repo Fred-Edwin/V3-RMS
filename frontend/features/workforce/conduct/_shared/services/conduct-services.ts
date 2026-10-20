@@ -42,6 +42,8 @@ export const conductReads = {
   witnessOptions: (id: string, q: string): Promise<WitnessOption[]> => apiClient.get(`${BASE}/${id}/witness-options${query({ q })}`, token()),
   witnessCard: (id: string): Promise<WitnessCard> => apiClient.get(`${BASE}/${id}/witness`, token()),
   fileTab: (employeeId: string): Promise<FileTab> => apiClient.get(`/workforce/people/${employeeId}/conduct`, token()),
+  /** The sites for HR's and the Director's Site select: only the names are used. (People's lookups; read here so Conduct never imports People.) */
+  sites: async (): Promise<{ id: string; name: string }[]> => (await apiClient.get<{ organizations: { id: string; name: string }[] }>('/workforce/people/lookups', token())).organizations.map((o) => ({ id: o.id, name: o.name })),
 };
 
 /** The letter. `version` is 1 (as issued, for HR, the Director and the issuer), 2, 3 or the latest. */
