@@ -67,6 +67,8 @@ export interface DataTableProps<Row> {
   onRowActivate?: (row: Row) => void;
   /** Adds a class to a row, e.g. to mark a negative balance. */
   rowClassName?: (row: Row) => string | undefined;
+  /** The row a detail panel beside the table is showing: it gets `data-state="selected"` (the Workforce look draws the caramel bar) and `aria-current`. */
+  isRowSelected?: (row: Row) => boolean;
   /** Chip counts from a separate call (a summary endpoint). Takes precedence over `result.counts` and may arrive after the rows. */
   counts?: Record<string, Record<string, number>>;
   /** Change this number to reload the current page (after a save elsewhere on the screen). */
@@ -150,6 +152,7 @@ export function DataTable<Row>({
   searchable = true,
   onRowActivate,
   rowClassName,
+  isRowSelected,
   counts,
   refreshToken = 0,
   enabled = true,
@@ -254,6 +257,8 @@ export function DataTable<Row>({
                         key={getRowId(row)}
                         size={rowSize}
                         tabIndex={interactive ? 0 : undefined}
+                        data-state={isRowSelected?.(row) ? 'selected' : undefined}
+                        aria-current={isRowSelected?.(row) ? 'true' : undefined}
                         onClick={interactive ? () => onRowActivate(row) : undefined}
                         onKeyDown={
                           interactive
