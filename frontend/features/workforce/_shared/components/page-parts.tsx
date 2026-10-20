@@ -166,6 +166,8 @@ export function UnderlineTabs({
 export interface SegmentItem {
   value: string;
   label: string;
+  /** Cannot be chosen (the screen shows the reason in words beside the control). */
+  disabled?: boolean;
 }
 
 export function SegmentedControl({
@@ -182,7 +184,7 @@ export function SegmentedControl({
   className?: string;
 }) {
   const refs = React.useRef(new Map<string, HTMLButtonElement>());
-  const values = items.map((i) => i.value);
+  const enabledValues = items.filter((i) => !i.disabled).map((i) => i.value);
   return (
     <div role="radiogroup" aria-label={label} className={cn('flex', className)}>
       {items.map((item) => {
@@ -197,10 +199,11 @@ export function SegmentedControl({
             type="button"
             role="radio"
             aria-checked={chosen}
+            aria-disabled={item.disabled || undefined}
             tabIndex={chosen ? 0 : -1}
-            onClick={() => onChange(item.value)}
+            onClick={() => (item.disabled ? undefined : onChange(item.value))}
             onKeyDown={(e) => {
-              const next = nextInGroup(e.key, values, value);
+              const next = nextInGroup(e.key, enabledValues, value);
               if (next === null) return;
               e.preventDefault();
               onChange(next);
@@ -210,6 +213,7 @@ export function SegmentedControl({
               'px-3.5 font-wds-sans text-[13px] leading-4',
               MOTION,
               FOCUS_RING,
+              item.disabled && 'cursor-not-allowed opacity-60',
               chosen
                 ? 'bg-wds-text-ink py-2 text-wds-primary-fg'
                 : cn('border border-wds-border-strong bg-wds-surface py-[7px] text-wds-text-ink', onHover('bg-wds-neutral-50'))
