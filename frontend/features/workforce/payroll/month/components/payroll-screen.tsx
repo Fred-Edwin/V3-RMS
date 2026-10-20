@@ -97,10 +97,10 @@ export function PayrollScreen() {
           <WorkforceKpiStrip aria-label={`${view.label}, where it stands`} cells={stripCells(view, stored)} />
         ) : null}
         {/* The hairline is this row's own top border, so the months list's vertical divider meets it. The row fills the rest of the page at any screen height. */}
-        <div className="flex min-h-0 flex-1 flex-col border-t border-wds-neutral-950 min-[1100px]:min-h-[520px] min-[1100px]:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col border-t border-wds-neutral-950 min-[1360px]:min-h-[520px] min-[1360px]:flex-row">
           <MonthPicker data={list.data} selected={monthKey} onSelect={chooseMonth} />
           <MonthsList status={list.status === 'error' ? 'error' : list.status} data={list.data} selected={monthKey} page={listPage} onSelect={chooseMonth} onPage={setListPage} onRetry={list.reload} onEmptyLink={() => oldPayslips && router.push(oldPayslips)} />
-          <section aria-label={view ? `${view.label}, the month` : 'The month'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 pb-6 pt-4 min-[1100px]:pl-6">
+          <section aria-label={view ? `${view.label}, the month` : 'The month'} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 pb-6 pt-4 min-[1360px]:pl-6">
             {view && monthKey ? (
               <>
                 {view.state === 'OPEN' ? null : <StageLine stages={view.stages} />}

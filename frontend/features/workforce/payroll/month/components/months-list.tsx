@@ -31,8 +31,8 @@ function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (
 
 /**
  * The company's months, newest first (spec S-shell). The chosen month is grey with a dark bar, never amber. Up and Down move between
- * the months; the list scrolls by itself. A failed list says so and leaves the month panel working. Below 1100 px the page swaps this
- * for a month picker, so this list is shown from 1100 px.
+ * the months; the list scrolls by itself. A failed list says so and leaves the month panel working. Below 1360 px (the shell's menu
+ * leaves the month panel too narrow beside a 280 px list) the page swaps this for a month picker, so this list is shown from 1360 px.
  */
 export function MonthsList({
   status,
@@ -100,7 +100,7 @@ export function MonthsList({
   }
 
   return (
-    <nav aria-label="Months, company" className="hidden min-h-0 w-[280px] shrink-0 flex-col border-r border-wds-neutral-950 pt-4 min-[1100px]:flex">
+    <nav aria-label="Months, company" className="hidden min-h-0 w-[280px] shrink-0 flex-col border-r border-wds-neutral-950 pt-4 min-[1360px]:flex">
       <h2 className="m-0 pb-2.5 pr-4 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.08em] text-wds-text-secondary">Months · Company</h2>
       <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
       {data && data.total > 0 ? (

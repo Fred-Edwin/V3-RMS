@@ -7,7 +7,8 @@
  *         24 people, one blocking line, some lines to tick. Nothing past review is done: walk the rest by hand.
  *   down  removes the payroll data this made (the audit entries stay: the log is append-only). Then run `timesheets-demo-seed.ts down`.
  * Logins (password123, PIN 4321): hr@, accountant@, director@, admin@, demo.bm@wendo.test.
- * Usage: API=http://localhost:4101 pnpm exec tsx src/scripts/payroll-demo-seed.ts up|down
+ * Usage: API=http://localhost:4101 pnpm exec tsx src/scripts/payroll-demo-seed.ts up [waiting] | sweep | down
+ *   `up waiting` stops before the tax tables are confirmed, so September is Waiting; confirm them in the browser, then `sweep`.
  */
 import 'dotenv/config';
 import { prisma } from '../config/database';
@@ -148,6 +149,10 @@ async function up(): Promise<void> {
   const expectedTotals = { workedMinutes: sheet['kpis'].workedMinutes, overtimeAuthorisedMinutes: sheet['kpis'].overtime.approvedMinutes, headcount: sheet['kpis'].headcount };
   await must('the Branch Manager approves September timesheets', MANAGER, 'POST', '/workforce/timesheets/months/2026-09/approve', { pin: PIN, idempotencyKey: nextKey('approve'), expectedTotals, site: townId });
 
+  if (process.argv[3] === 'waiting') {
+    out('\nStopped before confirming the tax tables: September is Waiting. Confirm them as accountant@ in Rules (Statutory, then Overtime), then run `sweep`.');
+    return;
+  }
   await must('the Accountant confirms the tax tables', ACCOUNTANT, 'POST', `/workforce/rules/versions/${statutory.id}/confirm`, { scope: 'statutory', pin: PIN });
   await must('the Accountant confirms the overtime rates', ACCOUNTANT, 'POST', `/workforce/rules/versions/${overtimeRules.id}/confirm`, { scope: 'overtime.multipliers', pin: PIN });
   const swept = await sweepPayroll();
@@ -157,8 +162,14 @@ async function up(): Promise<void> {
   out('\nDone. Walk it as hr@ / accountant@ / director@wendo.test (password123, PIN 4321).');
 }
 
+/** The calculating job, run by hand (it runs every 15 minutes on its own): after the tax tables are confirmed in the browser. */
+async function sweep(): Promise<void> {
+  const swept = await sweepPayroll();
+  out(`the sweep calculated ${swept.calculated} month(s)`);
+}
+
 const mode = process.argv[2];
-(mode === 'up' ? up() : mode === 'down' ? down() : Promise.reject(new Error('Usage: payroll-demo-seed.ts up|down')))
+(mode === 'up' ? up() : mode === 'down' ? down() : mode === 'sweep' ? sweep() : Promise.reject(new Error('Usage: payroll-demo-seed.ts up [waiting] | sweep | down')))
   .catch((err: unknown) => {
     process.stderr.write(`${err instanceof Error ? err.stack : String(err)}\n`);
     process.exitCode = 1;
