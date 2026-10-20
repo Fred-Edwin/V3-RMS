@@ -9,4 +9,5 @@ export { HistoryScreen } from './mine/history/components/history-screen';
 export { FollowScreen } from './mine/follow/components/follow-screen';
 export { SlipScreen } from './slip/components/slip-screen';
 export { LEAVE_PAGE, MY_LEAVE, RULES_LEAVE, requestsHref } from './_shared/lib/leave-routes';
+export { addDays, daySmall, nairobiToday, rangeShort } from './_shared/lib/leave-dates';
 export { leaveReads } from './_shared/services/leave-services';
