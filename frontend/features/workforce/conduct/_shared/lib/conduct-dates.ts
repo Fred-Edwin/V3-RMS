@@ -33,5 +33,15 @@ export const factsDay = (date: string): string => shortDay(date);
 /** "06:06" from a stored clock time (an ISO instant or already "06:06"). */
 export const factsClock = (value: string | null): string => (value ? (value.length <= 5 ? value : clockTime(value)) : '—');
 
+/** Whole calendar months from the issue day to the end day ("6 months"): the staff detail does not send the count, the two dates give it. */
+export function monthsBetween(issuedAt: string | Date, validUntil: string | Date): number {
+  const [y1, m1, d1] = nairobiDay(issuedAt).split('-').map(Number);
+  const [y2, m2, d2] = nairobiDay(validUntil).split('-').map(Number);
+  if (!y1 || !m1 || !d1 || !y2 || !m2 || !d2) return 0;
+  // An end date clamped to month end (31 Jan + 1 month = 28 Feb) still counts the month.
+  const whole = (y2 - y1) * 12 + (m2 - m1);
+  return d2 >= d1 || d2 >= 28 ? whole : whole - 1;
+}
+
 /** The Nairobi calendar day of an instant, "2026-10-09": used to compare days without server-local time. */
 export const nairobiDay = (value: string | Date): string => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(asDate(value));

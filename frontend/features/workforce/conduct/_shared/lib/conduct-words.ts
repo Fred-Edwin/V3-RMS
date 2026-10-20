@@ -67,12 +67,12 @@ export const NOT_SIGNED_CHIPS: ReadonlyArray<{ value: Exclude<NotSignedReason, '
 export const NOT_SIGNED_WORDS: Record<NotSignedReason, string> = { REFUSED: 'refused to sign', NOT_REACHED: 'could not be reached', NO_LOGIN: 'has no login' };
 
 /** Status words and tones. Staff see "To sign" where the desk sees "Issued" (the server sends the word; the tone is chosen here). */
-export type WordTone = 'default' | 'success' | 'warning' | 'muted' | 'ink';
+export type WordTone = 'default' | 'success' | 'warning' | 'muted';
 
 export function staffTone(status: ConductStatus, waiting: boolean): WordTone {
   if (waiting) return 'warning';
   if (status === 'SIGNED' || status === 'RECORDED' || status === 'KEPT') return 'success';
-  if (status === 'APPEALED') return 'ink';
+  if (status === 'APPEALED') return 'default';
   if (status === 'ISSUED' || status === 'GIVEN_NOT_SIGNED') return 'warning';
   return 'muted';
 }
@@ -80,7 +80,7 @@ export function staffTone(status: ConductStatus, waiting: boolean): WordTone {
 export function deskTone(status: ConductStatus): WordTone {
   if (status === 'SIGNED' || status === 'KEPT') return 'success';
   if (status === 'ISSUED' || status === 'GIVEN_NOT_SIGNED') return 'warning';
-  if (status === 'APPEALED') return 'ink';
+  if (status === 'APPEALED') return 'default';
   return 'muted';
 }
 
@@ -101,6 +101,8 @@ export const STATUS_HELP: ReadonlyArray<{ word: string; means: string; next: str
 const ERROR_WORDS: Record<string, string> = {
   PIN_INVALID: 'That code is not right.',
   CODE_WRONG: 'That code is not right.',
+  PIN_SLOWED: 'Too many tries. Wait a moment, then try again.',
+  PIN_NOT_SET: 'Choose your code first.',
   ALREADY_APPEALED: 'You have already appealed this notice.',
   APPEAL_WINDOW_CLOSED: 'The days to appeal have ended. Speak to HR.',
   NOT_APPEALABLE: 'This notice can no longer be appealed.',
