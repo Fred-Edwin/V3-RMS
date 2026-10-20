@@ -26,7 +26,7 @@ Working document. Delete it when Workforce ships. Every build brief points here.
 ## Rules that hold in both parts
 - **No cheating to go green:** fix the cause. Never delete a test, skip an assertion, loosen a check, or catch-and-ignore an error to pass a gate.
 - **Two attempts, then stop:** if the same failure survives two fix attempts, stop, record it, and report it instead of looping.
-- Edit and Write tools only, a `Why:` line before each; no subagents; say any rule slip plainly in the final message.
+- Edit and Write tools only (no `Why:` line needed; the owner dropped that rule on 20 Oct 2026); no subagents; say any rule slip plainly in the final message.
 
 ## Known gotchas (do not rediscover)
 - `prisma migrate dev --create-only` adds a bogus "drop payroll_payslip_seq" block at the top of every new migration: delete it by hand (the migration must be additive).
