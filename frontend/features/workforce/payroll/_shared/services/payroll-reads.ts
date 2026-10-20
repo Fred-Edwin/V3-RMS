@@ -1,5 +1,7 @@
-import { apiClient } from '@/lib/apiClient';
+import { apiClient as rawClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
+
+import { fromWire } from '../lib/wire';
 
 import type { PayoutView, ReviewList, ReviewQuery, CorrectionInputs } from '../types/action-types';
 import type { MonthList, MonthView } from '../types/month-types';
@@ -8,6 +10,8 @@ import type { CasualView, EstimateView, PayslipDetail, PayslipList, RulesApplied
 /** Every Payroll read (API_CONTRACT §40 P1 to P10, §41 P23 and P26), one function each. */
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
+/** The read client: the wire's "organization" words become "site" before any screen sees them. */
+const apiClient = { get: async <T>(url: string, accessToken?: string): Promise<T> => fromWire<T>(await rawClient.get<unknown>(url, accessToken)) };
 export const BASE = '/workforce/payroll';
 
 export function query(params: Record<string, string | number | undefined>): string {
