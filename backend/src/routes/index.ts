@@ -55,6 +55,10 @@ import {
   registerTimesheets,
   workforceAttendanceRouter,
   workforceAuditRouter,
+  workforceDocumentsRouter,
+  workforceVerifyRouter,
+  publicVerifyRouter,
+  registerDocuments,
   workforceNotificationsRouter,
   registerWorkforceNotifier,
   registerPinTries,
@@ -138,6 +142,7 @@ apiRouter.use('/inventory/carriers', carriersRoutes);
 apiRouter.use('/inventory/deliveries', deliveriesRoutes);
 apiRouter.use('/inventory/discrepancies', discrepanciesRoutes);
 registerPeople(); // the real "clocks in" lookup (Workforce slice 1)
+apiRouter.use(publicVerifyRouter); // PUBLIC: what a printed QR opens; no sign-in, role and date only (Segment 6b)
 apiRouter.use('/workforce', workforceSessionGate); // an ended session, a required password reset or a removed phone is refused before any Workforce route (Segment 6a)
 apiRouter.use(workforcePermissionsRouter);
 apiRouter.use(workforceSecurityRouter);
@@ -153,6 +158,9 @@ registerSecurity(); // payslip code reads the shared phone list; the 3rd wrong s
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
 apiRouter.use(workforceAuditRouter); // the company Audit log, Activity on my record and the chain check (Segment 6b)
+registerDocuments(); // where the Signed documents index finds what is already issued (Segment 6b)
+apiRouter.use(workforceVerifyRouter); // before the documents router so /documents/verify is not read as a number
+apiRouter.use(workforceDocumentsRouter);
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
 apiRouter.use(workforceNeedsYouRouter);
 apiRouter.use(workforceTimesheetsRouter);

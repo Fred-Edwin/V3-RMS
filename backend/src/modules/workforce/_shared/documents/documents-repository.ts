@@ -98,6 +98,11 @@ export const documentsRepository = {
     return new Map(rows.map((r) => [r.id, r.name]));
   },
 
+  personOf: async (userId: string): Promise<{ name: string; role: string } | null> => {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, role: true } });
+    return u ? { name: u.name, role: u.role } : null;
+  },
+
   sites: (companyId: string) => prisma.site.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
 
   /** The numbers the index already holds for a kind, from `after` on, for the reconciliation. */

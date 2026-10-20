@@ -1,5 +1,5 @@
 import type { Queue } from 'bullmq';
-import { backfillAllAuditIndexes, runNightlyChainCheck } from '../modules/workforce';
+import { backfillAllAuditIndexes, reconcileDocuments, registerDocuments, runNightlyChainCheck } from '../modules/workforce';
 import { logger } from '../utils/logger';
 
 export const WORKFORCE_AUDIT_JOB = 'workforce.audit.nightly';
@@ -10,6 +10,9 @@ export const WORKFORCE_AUDIT_JOB = 'workforce.audit.nightly';
  */
 export const runWorkforceAuditJob = async (): Promise<void> => {
   const indexed = await backfillAllAuditIndexes();
+  registerDocuments(); // the worker process does not mount the routes, so it registers the sources itself (idempotent)
+  const documents = await reconcileDocuments();
+  if (documents.registered > 0 || documents.failed > 0) logger.info(documents, 'Signed documents indexed');
   const result = await runNightlyChainCheck();
   if (indexed > 0 || result.failed > 0 || result.checked > 0) logger.info({ ...result, indexed }, 'Workforce audit nightly check');
 };
