@@ -45,7 +45,7 @@ export const leaveReads = {
   /** M1: the cards, the waiting strip and the types that can be asked for. A casual worker gets `casual: true` and no cards. */
   overview: (year?: number): Promise<MyOverview> => apiClient.get(`${BASE}/me/overview${query({ year })}`, token()),
   /** M2 */
-  mine: (q: MineQuery): Promise<Page<MyRow>> => apiClient.get(`${BASE}/me/applications${query({ year: q.year, status: q.status?.join(','), page: q.page, rows: q.rows })}`, token()),
+  mine: (q: MineQuery): Promise<Page<MyRow>> => apiClient.get(`${BASE}/me/applications${query({ year: q.year, status: q.status?.join(','), type: q.type, page: q.page, rows: q.rows })}`, token()),
   /** M3 */
   detail: (id: string): Promise<ApplicationDetail> => apiClient.get(`${BASE}/applications/${id}`, token()),
   /** D1 */

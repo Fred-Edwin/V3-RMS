@@ -278,6 +278,7 @@ export interface BalancesQuery {
 export interface MineQuery {
   year: number;
   status?: LeaveStatus[];
+  type?: string;
   page: number;
   rows: number;
 }
