@@ -44,7 +44,10 @@ export function PersonMonthScreen() {
 
   const go = (patch: Record<string, string | null>, path = `/app/workforce/timesheets/month/${monthKey}/${employeeId}`): void => {
     const next = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(patch)) (v === null ? next.delete(k) : next.set(k, v));
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null) next.delete(k);
+      else next.set(k, v);
+    }
     router.replace(`${path}?${next.toString()}`, { scroll: false });
   };
   const toPerson = (id: string): void => router.push(`/app/workforce/timesheets/month/${monthKey}/${id}?${params.toString()}`);
