@@ -142,6 +142,11 @@ export function PayrollScreen() {
                     Export ▾
                   </DialogButton>
                 ) : null}
+                {action === 'APPROVE' ? (
+                  <DialogButton kind="cancel" size="lg" onClick={() => setDialog('sendBack')}>
+                    Send back to HR
+                  </DialogButton>
+                ) : null}
                 {action ? (
                   <span className="flex flex-col items-end gap-1">
                     <DialogButton kind="primary" size="lg" disabled={sendBlock !== null} aria-describedby={sendBlock ? 'send-reason' : undefined} onClick={() => setDialog(actionDialog[action] ?? null)}>
