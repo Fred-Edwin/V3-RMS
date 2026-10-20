@@ -105,9 +105,9 @@ export function PayrollScreen() {
               <>
                 {view.state === 'OPEN' ? null : <StageLine stages={view.stages} />}
                 {isLocked(view) ? (
-                  <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-                    Locked on {view.lockedAt ? new Date(view.lockedAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi', weekday: 'short', day: 'numeric', month: 'short' }) : 'payment'}. Nothing can be changed.
-                  </p>
+                  <Callout role="status" title={`Locked. ${view.label.split(' ')[0]} was marked paid on ${view.lockedAt ? new Date(view.lockedAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi', weekday: 'short', day: 'numeric', month: 'short' }) : 'payment'}.`}>
+                    The month can no longer be changed. If something is wrong, ask the developer to correct it, and the change is recorded.
+                  </Callout>
                 ) : null}
                 <PayrollTabs view={view} url={url} refresh={refresh} onChanged={changed} onOpenDialog={setDialog} estimate={estimate.data} canEstimate={permissions.can('payroll.estimate.read')} oldPayslipsHref={oldPayslips} />
               </>
@@ -127,12 +127,12 @@ export function PayrollScreen() {
           size="lg"
           title="Payroll"
           subtitle={
-            <>
+            <span className="block max-w-[680px]">
               One page for each month: the timesheets, the rules applied, tax, casual pay, the totals and the payslips.{' '}
               <button type="button" onClick={() => setHelpOpen(true)} className={LINK_BUTTON}>
                 How payroll works
               </button>
-            </>
+            </span>
           }
           actions={
             view ? (
