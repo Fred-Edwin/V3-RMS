@@ -18,6 +18,7 @@ describe('buildStages', () => {
     const waiting = buildStages('WAITING', facts);
     expect(waiting[0]).toMatchObject({ text: '3 of 4 sites' });
     expect(buildStages('IN_REVIEW', facts)[2]).toMatchObject({ who: 'HR', text: '5 lines' });
+    expect(buildStages('IN_REVIEW', { ...facts, openLines: 0 })[2]).toMatchObject({ who: 'HR', text: 'All checked' });
     expect(buildStages('TO_APPROVE', facts)[2]).toMatchObject({ who: 'Hannah, HR', at: '2026-10-19T12:20:00.000Z' });
     expect(buildStages('TO_PUBLISH', facts)[3]).toMatchObject({ who: 'Anne, Accountant', status: 'DONE' });
     expect(buildStages('IN_REVIEW', { ...facts, openLines: 1 })[2]?.text).toBe('1 line');
