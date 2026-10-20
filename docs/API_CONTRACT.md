@@ -5473,6 +5473,8 @@ Errors: `400` `VALIDATION_ERROR`; `403` `PIN_INVALID`, `SELF_APPROVAL` (the appr
 
 ## 41. Workforce — Payroll, part 2 (segment 2B, BUILT 20 Oct 2026, back end only)
 
+**Browser headers (20 Oct 2026, front-end session):** the file downloads (P27 and P29) send `Access-Control-Expose-Headers` for `X-Bank-File-Hash`, `X-Document-Number` and `X-Revision`, so the page (on another origin) can read them; Mark as paid needs the hash. Test: `bank/bank-headers.test.ts`.
+
 Same base, guards and wire names as §40. Source of truth: `backend/src/modules/workforce/payroll/README.md` and `docs/features/workforce/decisions-2b-payroll-backend.md`. Every POST takes an `idempotencyKey` (8 to 80 characters): the same key answers the first result (`repeat: true`), the same key for another action or month is `409 IDEMPOTENCY_KEY_REUSED`. A paid month answers every write below (and P11 to P21) with `409 MONTH_LOCKED`.
 
 | # | Method and path | Capability | Body or query | Success |
