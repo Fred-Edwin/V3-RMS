@@ -3,7 +3,9 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 
-import { Callout, EmptyState, ErrorBlock, FIELD_CLASS, ListSkeleton, useRemote } from '../../../_shared';
+import { Picker } from '@/components/ui2/picker';
+
+import { Callout, EmptyState, ErrorBlock, ListSkeleton, useRemote } from '../../../_shared';
 import { useDepartments } from '../../_shared/hooks/use-departments';
 import { dayList } from '../../requests/lib/rota-view';
 import { dayLong, daySmall, nairobiToday } from '../../_shared/lib/leave-dates';
@@ -72,20 +74,15 @@ export function CalendarTab({ site }: { site: string | undefined }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         {departments.length > 0 ? (
-          <label className="flex items-center gap-2 font-wds-sans text-[13px] text-wds-text-secondary">
+          <div className="flex items-center gap-2 font-wds-sans text-[13px] text-wds-text-secondary">
             Department
-            <select className={`${FIELD_CLASS} h-8 w-auto`} value={dept ?? ''} onChange={(e) => setParam('dept', e.target.value || undefined)}>
-              <option value="">All departments</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </label>
+            <Picker className="h-8 w-[200px]" aria-label="Department" value={dept ?? ''} onValueChange={(v) => setParam('dept', v || undefined)} options={[{ value: '', label: 'All departments' }, ...departments.map((d) => ({ value: d.id, label: d.name }))]} />
+          </div>
         ) : null}
-        <label className="flex items-center gap-2 font-wds-sans text-[13px] text-wds-text-secondary">
+        <div className="flex items-center gap-2 font-wds-sans text-[13px] text-wds-text-secondary">
           From
-          <select className={`${FIELD_CLASS} h-8 w-auto`} value={from} onChange={(e) => setParam('from', e.target.value === starts[0] ? undefined : e.target.value)}>
-            {starts.map((s) => <option key={s} value={s}>{daySmall(s)}{s === starts[0] ? ' (this week)' : ''}</option>)}
-          </select>
-        </label>
+          <Picker className="h-8 w-[200px]" aria-label="First week shown" value={from} onValueChange={(v) => setParam('from', v === starts[0] ? undefined : v)} options={starts.map((s) => ({ value: s, label: `${daySmall(s)}${s === starts[0] ? ' (this week)' : ''}` }))} />
+        </div>
         <span className="ml-auto"><Legend /></span>
       </div>
       {body}

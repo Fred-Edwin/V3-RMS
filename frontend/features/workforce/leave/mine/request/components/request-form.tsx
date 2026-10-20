@@ -161,7 +161,7 @@ export function RequestForm({ chips, initial, online, onSent, onOpenExisting }: 
         <>
           {type ? (
             <FormField label={needsReason ? `Why? (needed for ${type.label.toLowerCase()})` : `A note for ${waitingOn(preview?.sendTo ?? null)} (optional)`} helper={note.length >= 250 ? `${note.length} of ${NOTE_MAX}` : undefined}>
-              {(ids) => <textarea id={ids.id} aria-describedby={ids.describedBy} rows={2} maxLength={NOTE_MAX} value={note} onChange={(e) => { changed(); setNote(e.target.value); }} className={`${FIELD_CLASS} h-auto resize-none py-2`} />}
+              {(ids) => <textarea id={ids.id} aria-describedby={ids.describedBy} autoComplete="off" rows={2} maxLength={NOTE_MAX} value={note} onChange={(e) => { changed(); setNote(e.target.value); }} className={`${FIELD_CLASS} h-auto resize-none py-2`} />}
             </FormField>
           ) : null}
           <div className="flex flex-col gap-1.5">

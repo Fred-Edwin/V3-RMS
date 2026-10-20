@@ -177,6 +177,17 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return role !== 'SYSTEM_ADMIN';
   }
 
+  // My leave (Segment 4): everyone who can ask for leave, floor staff and the desktop roles' own leave. The System Admin has none.
+  if (under('/app/workforce/my-leave')) {
+    return role !== 'SYSTEM_ADMIN';
+  }
+
+  // Leave (Segment 4): the people who decide or read it, with the rota in front of them. A department head is told by notice and sees Leave
+  // on the rota, so has no page; the Accountant has none. The API's leave.read, leave.approve and leave.balance_adjust decide the rest.
+  if (under('/app/workforce/leave')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // Casual pay (Segment 3): the head records, the Branch Manager and the Director approve; HR, the Accountant and the Store Manager read.
   // The API's casual.record / casual.approve / casual.read decide what each can do.
   if (under('/app/workforce/casuals')) {

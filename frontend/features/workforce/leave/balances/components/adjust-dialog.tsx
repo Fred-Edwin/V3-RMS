@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 
+import { PadNumberInput } from '@/components/ui2/quantity-field';
+import { Picker } from '@/components/ui2/picker';
+
 import { Callout, ChoiceChips, FIELD_CLASS, FormField, WorkforcePinDialog } from '../../../_shared';
 import { useIdempotencyKey } from '../../_shared/lib/idempotency';
 import { ADJUST_CHIPS, leaveErrorText } from '../../_shared/lib/leave-copy';
@@ -21,7 +24,10 @@ export function AdjustDialog({ open, onOpenChange, prefill, site, onAdjusted }: 
   const [person, setPerson] = React.useState<PickedPerson | null>(null);
   const [types, setTypes] = React.useState<{ code: string; label: string }[]>([]);
   const [typeCode, setTypeCode] = React.useState<string | null>(null);
-  const [addText, setAddText] = React.useState('');
+  // The ADD box is the in-app number pad (digits only), so add and take off are a choice beside it; the sign is applied here.
+  const [digits, setDigits] = React.useState('');
+  const [direction, setDirection] = React.useState<'add' | 'take'>('add');
+  const addText = direction === 'take' && digits ? `-${digits}` : digits;
   const [reason, setReason] = React.useState<AdjustReason | null>(null);
   const [note, setNote] = React.useState('');
   const [preview, setPreview] = React.useState<AdjustPreview | null>(null);
@@ -30,13 +36,14 @@ export function AdjustDialog({ open, onOpenChange, prefill, site, onAdjusted }: 
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>();
   const key = useIdempotencyKey();
-  const addRef = React.useRef<HTMLInputElement>(null);
+  const addRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
     setPerson(prefill?.person ?? null);
     setTypeCode(prefill?.typeCode ?? null);
-    setAddText('');
+    setDigits('');
+    setDirection('add');
     setReason(null);
     setNote('');
     setPreview(null);
@@ -118,26 +125,23 @@ export function AdjustDialog({ open, onOpenChange, prefill, site, onAdjusted }: 
           {prefill ? <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{`${prefill.person.name} · ${prefill.person.roleLabel}`}</p> : <PersonPicker value={person} onChange={(p) => { key.fresh(); setPerson(p); }} site={site} />}
           {types.length > 0 ? (
             <FormField label="Leave type">
-              {(ids) => (
-                <select id={ids.id} className={FIELD_CLASS} value={typeCode ?? ''} onChange={(e) => { key.fresh(); setTypeCode(e.target.value); }}>
-                  {types.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
-                </select>
-              )}
+              {(ids) => <Picker id={ids.id} aria-label="Leave type" value={typeCode ?? ''} onValueChange={(v) => { key.fresh(); setTypeCode(v); }} options={types.map((t) => ({ value: t.code, label: t.label }))} className="h-9" />}
             </FormField>
           ) : null}
           <AdjustFigures
             now={preview?.now ?? null}
             next={preview?.new ?? null}
             loading={previewing && !preview}
-            input={<input ref={addRef} inputMode="numeric" aria-label="Days to add (use a minus to take off)" aria-invalid={add.kind === 'invalid'} value={addText} onChange={(e) => { key.fresh(); setAddText(e.target.value); }} className="h-10 w-full border border-wds-text-ink bg-wds-surface px-3 font-wds-mono text-[16px] leading-5 text-wds-text-ink focus-visible:outline-none focus-visible:shadow-wds-ring" />}
+            input={<PadNumberInput label={direction === 'take' ? 'Days to take off' : 'Days to add'} decimal={false} maxLength={2} aria-invalid={add.kind === 'invalid'} inputRef={(node) => { addRef.current = node; }} value={digits} onChange={(v) => { key.fresh(); setDigits(v); }} className="h-10 w-full border-wds-text-ink px-3 font-wds-mono text-[16px] leading-5" />}
           />
+          <ChoiceChips legend="Add or take off" legendStyle="caps" size="sm" value={direction} onChange={(v) => { key.fresh(); setDirection(v as 'add' | 'take'); }} options={[{ value: 'add', label: 'Add days' }, { value: 'take', label: 'Take days off' }]} />
           {add.kind === 'invalid' ? <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{add.message}</p> : null}
           {previewErrors.map((m) => <p key={m} role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{m}</p>)}
           {stale ? <Callout tone="warning" size="sm" role="alert">This balance changed a moment ago. Check the new figure.</Callout> : null}
           <ChoiceChips legend="Why? (required)" legendStyle="sentence" size="sm" options={ADJUST_CHIPS} value={reason} onChange={(v) => { key.fresh(); setReason(v as AdjustReason); }} />
           {reason === 'OTHER' ? (
             <FormField label="A short note (needed for Other)" error={!note.trim() ? 'Say why, in a few words.' : undefined}>
-              {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} aria-invalid={ids.invalid} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
+              {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} aria-invalid={ids.invalid} autoComplete="off" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
             </FormField>
           ) : null}
           {blocker ? <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{blocker}</p> : null}

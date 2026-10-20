@@ -73,7 +73,7 @@ export function DeclineDialog({ open, onOpenChange, detail, onDeclined, onChange
       <div className="flex flex-col gap-4">
         <ChoiceChips legend="Why? (the person will see this)" legendStyle="sentence" size="sm" options={DECLINE_CHIPS} value={reason} onChange={(v) => setReason(v as DeclineReason)} />
         <FormField label={other ? 'A short note (needed for Other)' : 'A short note'} hint={other ? undefined : 'optional'} error={error ?? undefined}>
-          {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} aria-invalid={ids.invalid} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
+          {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} aria-invalid={ids.invalid} autoComplete="off" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
         </FormField>
         <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{toldLine(detail, 'This is recorded in the audit log with your name and the time.')}</p>
       </div>

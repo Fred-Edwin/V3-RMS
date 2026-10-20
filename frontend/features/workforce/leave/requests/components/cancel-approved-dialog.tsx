@@ -60,7 +60,7 @@ export function CancelApprovedDialog({ open, onOpenChange, detail, onCancelled, 
         <div className="flex flex-col gap-3">
           <ChoiceChips legend="Why?" legendStyle="sentence" size="sm" options={CANCEL_CHIPS} value={reason} onChange={(v) => setReason(v as CancelReason)} />
           <FormField label={other ? 'A short note (needed for Other)' : 'A short note'} hint={other ? undefined : 'optional'}>
-            {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
+            {(ids) => <input id={ids.id} aria-describedby={ids.describedBy} autoComplete="off" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className={FIELD_CLASS} />}
           </FormField>
         </div>
       }
