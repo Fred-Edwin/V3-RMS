@@ -5489,3 +5489,49 @@ Same base, guards and wire names as §40. Source of truth: `backend/src/modules/
 Also changed: P2's `capabilities` now has `canPay` (published) and `canCorrect` (published); the month carries `lockedAt`, `publishedAt`, `paidAt`; P7 takes `status=corrected` and returns `counts { all, corrected, leftOut }`, `documentNumber` (`PS-nnnn`) and `locked`; P8 returns `replacesVersion`, `replacedBy`, `versions[]`; P6 and P2's KPIs follow the latest payslip versions.
 
 Errors added: `403` `SELF_CORRECTION`; `404` `NO_PAYSLIP`; `409` `ALREADY_PUBLISHED`, `ALREADY_PAID`, `MONTH_LOCKED`, `MONTH_NOT_APPROVED`, `CORRECTIONS_NOT_OPEN`, `PAYSLIP_CHANGED` (the version moved), `BANK_FILE_REQUIRED`, `BANK_FILE_CHANGED`, `BANK_FILE_NOT_AVAILABLE`, `PEOPLE_CANNOT_BE_PAID`, `NOTHING_CALCULATED`, `PAYSLIPS_NOT_PUBLISHED`; `422` `NO_CHANGE`, `NEGATIVE_NET`, `CORRECTION_NOT_ALLOWED`, `CORRECTION_NOT_CALCULABLE`; `413` `EXPORT_TOO_LARGE`; `429` `EXPORT_RATE_LIMIT`, `BANK_FILE_RATE_LIMIT`; `504` `EXPORT_TOO_SLOW`.
+
+## 42. Workforce — Payslips, casual pay and the P9 (segment 3, BUILT 20 Oct 2026, back end only)
+
+All routes: `authenticate`, `attachWorkforceSubject`, a capability. Success is `{ success: true, data }`. Errors: `400` validation; `403` missing capability (and the codes below); `404` a payslip, sheet or card outside the caller's reach (the same answer as a missing one); `409` state or version. Money is a string with two decimals; no pay figure is ever in a notification or audit entry.
+
+### Payslips, base `/workforce/payslips`
+
+Staff reads that show pay need two headers: `x-device-id` (the phone's own random id, 8 to 64 characters) and `x-payslip-unlock` (the token from Unlock). Without a live token they answer `403 UNLOCK_REQUIRED` (not 401: the apps would sign the person out). The System Admin has no payslip (`403`).
+
+| Route | Capability | Notes |
+|---|---|---|
+| `GET /me` | `me.payslip` | Locked list, no amounts, no token: `{ unlockRequired, hasCode, items[{id, month, versionNumber, correctedAt, payDay, paidOn, status}], legacyAvailable, legacy{onNewSystem, hasOldPayslips, card, historyRow, emptyReason} }` |
+| `POST /me/unlock` | `me.payslip` | `{ code, deviceId }` -> `{ unlockToken, expiresAt, idleSeconds }`. `403 CODE_WRONG` (`details.waitSeconds` from the 5th wrong try), `429 CODE_SLOWED` (`details.waitSeconds`), `409 NO_CODE_SET` |
+| `POST /me/code` | `me.payslip` | First code `{ code, deviceId }`, `201`, returns an unlock token; `409 CODE_EXISTS` |
+| `POST /me/lock` | `me.payslip` | `{ deviceId }` |
+| `GET /me/home` | unlock | `{ latest, ytd{fromMonth,toMonth,earned,takenOff,net}, recent[], legacy }` |
+| `GET /me/history?year=` | unlock | `{ years[], items[], p9{year,status,availableFrom}, legacy }` |
+| `GET /me/:id?v=` | unlock | One payslip: this month and year to date, working lines, `correctedFrom`, bank (last 4), `hrContact`, `versions[]`, document path. Audited |
+| `GET /me/:id/versions` | unlock | `[{versionNumber, createdAt, replacedAt, current}]` |
+| `GET /me/:id/document?v=&purpose=view\|download\|share` | unlock | The stored A4 PDF, inline, `Cache-Control: private, no-store`. Audited with its purpose |
+| `GET /me/p9/:year` | `me.payslip` | `{ year, status: NOT_YET\|WAITING_FORMAT\|READY, availableFrom, formatConfirmed }` |
+| `GET /me/p9/:year/document` | unlock | The P9 PDF; `409 P9_NOT_AVAILABLE`, `P9_NO_KRA_PIN`, `P9_MONTH_MISSING`. Audited |
+| `GET /:id`, `GET /:id/document` | `payslip.read_any` (HR, Accountant) | Anyone's published payslip, no staff code, audited, counted for the Director |
+| `GET /opens?day=` | `audit.read.payslip_access` (Director) | `[{openerId, name, role, day, count}]` |
+| `POST /p9/format/confirm` | `p9.confirm_format` (Accountant) | `{ pin }` |
+| `POST /p9/:year/people/:employeeId/generate` | `p9.generate` (HR, Accountant) | Returns the P9 PDF for that person |
+
+### Casual pay, base `/workforce/casuals`
+
+Capabilities `casual.record` (a department head, own department), `casual.approve` (Branch or Store Manager, own site; the Director), `casual.read` (head, manager, HR, Accountant, Director); any of the three may read.
+
+| Route | Capability | Notes |
+|---|---|---|
+| `GET /sheets?siteId&departmentId&date` | read | The day's sheet or an empty one with the rate (`noRate` when Rules have none) |
+| `PUT /sheets/lines` | record | `{ siteId, departmentId, date, version, idempotencyKey, lines[{casualId,start,end,endsNextDay?}] }` creates or replaces; `409 CHANGED_UNDERNEATH`, `WORKER_OVERLAP`, `NO_DAILY_RATE`, `SHEET_NOT_EDITABLE`; `400/422` `DAY_TOO_OLD`, `DAY_IN_FUTURE`, `DAY_TOO_LONG`, `END_BEFORE_START`, `DUPLICATE_WORKER` |
+| `GET /sheets/waiting` | approve | `{ toApprove[], unsigned[] }` |
+| `GET /sheets/recent?siteId&departmentId?` | read | Last 7 days |
+| `GET /sheets/:id` | read | One sheet |
+| `GET /people?siteId&departmentId&q` / `POST /people` | read / record | My casuals / add one (`409 CASUAL_EXISTS` returns the existing record) |
+| `POST /sheets/:id/send`, `/take-back` | record | `{ version, idempotencyKey }`; `409 SHIFT_NOT_ENDED`, `RATE_CHANGED` |
+| `POST /sheets/:id/approve` | approve | `{ pin, version, expectedTotal, idempotencyKey }`; `403 PIN_INVALID`, `SELF_APPROVAL`, `DIRECTOR_ONLY`; `409 CHANGED_UNDERNEATH`, `SHEET_NOT_WAITING`, `ALREADY_DECIDED` |
+| `POST /sheets/:id/send-back`, `/void` | approve | reason (and PIN for void); `409 ALREADY_SIGNED` |
+| `POST /sheets/:id/corrections`, `DELETE /sheets/:id/corrections/:correctionId` | record | `201`; `422 NO_SIGNED_DAY`, `TOTAL_NEGATIVE` |
+| `POST /sheets/:id/lines/:lineId/receive` | record | `{ name, idempotencyKey }`; `409 ALREADY_RECEIVED`, `SHEET_NOT_APPROVED` |
+| `GET /sheets/:id/preview`, `/document` | read | Draft PDF (`CPS-draft`) / approved PDF |
+| `GET /months/:monthKey/summary` | `payroll.read` | Approved sheets of the month for Payroll's Casual pay tab |

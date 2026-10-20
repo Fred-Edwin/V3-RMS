@@ -84,6 +84,9 @@ export const CAPABILITIES = [
   'payroll.remind', // HR, Accountant, Director: remind a site that has not approved
   'payroll.estimate.read', // the Director's estimate of the open month
   'payroll.approve_site_late', // Director: approve a site's timesheet month for it, 5 days after month end (P4)
+  'payslip.read_any', // HR, Accountant: open anyone's payslip from Payroll, no staff code, audited, the Director told (Segment 3, PD5)
+  'p9.generate', // HR, Accountant: build a P9 for a leaver (Segment 3, PD13)
+  'p9.confirm_format', // Accountant: confirm the P9 layout once, with a PIN (Segment 3, PD14)
   // conduct
   'discipline.read_own',
   'discipline.read',
@@ -205,6 +208,10 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'payroll.export': 'all',
     'payroll.remind': 'all',
     'payroll.estimate.read': 'all',
+    'payslip.read_any': 'all',
+    'p9.generate': 'all',
+    'p9.confirm_format': 'all',
+    'casual.read': 'all',
     'audit.read.pay_run_decide': 'all',
     'audit.read.rules_pay': 'all',
   },
@@ -243,6 +250,8 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'payroll.export': 'all',
     'payroll.remind': 'all',
     'payroll.estimate.read': 'all',
+    'payslip.read_any': 'all',
+    'p9.generate': 'all',
     'discipline.read': 'all',
     'discipline.issue': 'all',
     'audit.read.people': 'all',
@@ -261,6 +270,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'timesheet.close': 'unit', // approves the month of the site the Director belongs to (Head office; Segment 1A D7)
     'manager_time.decide': 'all', // a site manager's own days and overtime go to the Director
     'casual.read': 'all',
+    'casual.approve': 'all', // Head office and any sheet a Branch Manager recorded (PD24); the service narrows it
     'leave.read': 'all',
     'leave.approve': 'all', // fallback only: the approvals sub-module routes to the Director when the approver is the subject or absent
     'employee.read_basic': 'all',

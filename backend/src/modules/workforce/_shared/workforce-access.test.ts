@@ -48,8 +48,8 @@ time_request.answer          -    -    -    unit all  -    all
 manager_time.decide          -    -    -    -    -    all  -
 clock_mistake.resolve       -    -    -    unit -    -    all
 casual.record                -    dept -    -    -    -    -
-casual.approve               -    -    -    unit -    -    -
-casual.read                  -    dept -    unit all  all  -
+casual.approve               -    -    -    unit -    all  -
+casual.read                  -    dept all  unit all  all  -
 leave.request                own  -    own  own  own  own  -
 leave.acknowledge            -    dept -    -    -    -    -
 leave.read                   -    dept -    unit all  all  all
@@ -92,6 +92,9 @@ payroll.export               -    -    all  -    all  all  -
 payroll.remind               -    -    all  -    all  all  -
 payroll.estimate.read        -    -    all  -    all  all  all
 payroll.approve_site_late    -    -    -    -    -    all  -
+payslip.read_any             -    -    all  -    all  -    -
+p9.generate                  -    -    all  -    all  -    -
+p9.confirm_format            -    -    all  -    -    -    -
 discipline.read_own          own  -    own  own  own  own  -
 discipline.read              -    -    -    unit all  all  -
 discipline.issue             -    -    -    unit all  -    -

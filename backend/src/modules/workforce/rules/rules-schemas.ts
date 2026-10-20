@@ -98,6 +98,8 @@ export const LeaveBase = z.object({
   defaultPolicy: z.record(z.string(), z.number().min(0).max(366)), // leave type code to days, used until a contract is assigned
   minimumCover: z.record(z.string(), z.number().int().min(0)), // department id to the fewest people on at once; only ever a warning
   unpaidDayDivisor: z.number().int().min(20).max(31).default(30), // payroll P11: one unpaid day = basic ÷ this
+  // Segment 3 (PD11): who staff phone about leave and pay. null = not set, the payslip says "Questions? Ask HR."
+  hrContact: z.object({ phone: z.string().trim().regex(/^\+?[0-9 ]{7,16}$/, 'Use digits, spaces and an optional +'), hoursText: z.string().trim().max(60) }).nullable().default(null),
 });
 const leaveConsistent = (v: z.infer<typeof LeaveBase>) =>
   new Set(v.leaveTypes.map((t) => t.code)).size === v.leaveTypes.length &&

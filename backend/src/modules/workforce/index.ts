@@ -27,6 +27,8 @@ export { isSitePeriodOnNewPayroll } from './payroll/rollout/rollout-guard'; // t
 export { registerPayroll } from './payroll/register-payroll'; // a branch's clock cannot be switched off while its payroll month is unpaid
 export { default as workforcePayrollRouter } from './payroll/payroll-routes'; // Payroll part 1: the month, the engine, the review and the approval (Segment 2A)
 export { sweepPayroll, refreshEstimates as refreshPayrollEstimates } from './payroll/payroll-sweep'; // the job: month rows, automatic calculation, nightly estimate
+export { workforceCasualRouter, casualMonthSummary } from './casual'; // Casual pay: workers, daily sheets, approval, receipts, the payroll memo line (Segment 3)
+export { workforcePayslipsRouter, setPublicationSource, setDeviceConfirmationSource, ensureFileForPayslip } from './payslips'; // Staff payslips: the code, reads, A4 file, P9 (Segment 3)
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 

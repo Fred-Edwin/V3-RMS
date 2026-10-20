@@ -98,6 +98,21 @@ export const AUDIT_ACTIONS = {
   'payroll.bank_file_voided': ['PAY_RUN_PREPARE', 'PAY_RUN_DECIDE'], // a correction (by HR or the Accountant) or a changed account moved the file
   'payroll.marked_paid': ['PAY_RUN_DECIDE'], // the Accountant locked the month
   'payroll.exported': ['PAY_RUN_PREPARE', 'PAY_RUN_DECIDE'], // kind, format, month, document number or draft, revision
+  // Segment 3 (Payslips, casual pay, the P9). Document numbers, counts, device labels and reasons; never a pay figure, a code or a PIN.
+  'payslip.code_tried': ['PAYSLIP_ACCESS', 'SECURITY'], // a try at the payslip code: success is PAYSLIP_ACCESS, a wrong one SECURITY (the System Admin reads it)
+  'payslip.code_set': ['SECURITY'], // the person chose their first code
+  'payslip.opened': ['PAYSLIP_ACCESS'], // number, version, purpose, device, confirmed, opener role, ownerOpened
+  'payslip.p9_opened': ['PAYSLIP_ACCESS'],
+  'p9.format_confirmed': ['PAY_RUN_DECIDE'], // the Accountant vouched for the P9 layout (PD14)
+  'p9.generated': ['DOCUMENTS'], // a P9 was built and stored: year, number, who for
+  'casual.person_added': ['PAY_RUN_PREPARE'], // a casual worker record; initials only
+  'casual.sheet_sent': ['PAY_RUN_PREPARE'],
+  'casual.sheet_taken_back': ['PAY_RUN_PREPARE'], // the head took a waiting sheet back
+  'casual.sheet_approved': ['PAY_RUN_DECIDE'], // CPS number, department, worker count, method PIN
+  'casual.sheet_sent_back': ['PAY_RUN_DECIDE'],
+  'casual.sheet_voided': ['PAY_RUN_DECIDE'],
+  'casual.received': ['PAY_RUN_PREPARE'], // a worker signed for cash: initials and time
+  'casual.correction_added': ['PAY_RUN_PREPARE'],
   // someone looked at something sensitive (written when it is not the person's own)
   'people.sensitive_revealed': ['SENSITIVE_VIEW'],
   'people.pay_opened': ['SENSITIVE_VIEW'],

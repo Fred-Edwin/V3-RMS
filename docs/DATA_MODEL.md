@@ -3263,6 +3263,27 @@ CHECK constraints: `payroll_months_approved_has_signature` now covers `TO_PUBLIS
 
 **The lock.** Trigger function `payroll_locked_month_guard` (BEFORE INSERT, UPDATE and DELETE) on `payroll_months`, `payroll_month_sites`, `payroll_runs`, `payroll_payslips`, `payroll_payslip_lines`, `payroll_review_lines`, `payroll_adjustments`, `payroll_left_out`, `payroll_snapshots`, `pay_bank_files`, `payroll_publications` refuses any write once the month's `locked_at` is set (`MONTH_LOCKED: ...`, SQLSTATE 23001). The dev teardown door `set_config('wendo.allow_payroll_edit','on',true)` opens it too.
 
+### 4.87 Workforce Segment 3: payslips, casual pay and the P9 (20 Oct 2026, migration `20261020031326_workforce_payslips_casual`, additive)
+
+Files `backend/prisma/schema/workforce/payslips.prisma` and `casual.prisma`. No existing table is changed (proved on a copy of the lane database: all 155 existing tables identical, a second `migrate deploy` changes nothing, no schema drift). Users, employees, sites and departments are plain ids checked by the services.
+
+| Table | What it holds | Notes |
+|---|---|---|
+| `payslip_code_tries` | One row per try at the payslip code: user, device id, success, confirmed, alerted, time | Never the digits. DELETE refused by trigger. Window counts are by user and time |
+| `payslip_unlocks` | One unlock of My payslips on one phone: user, device, SHA-256 of the token, last used, expiry, revoked | The token itself is never stored |
+| `payslip_open_digests` | One row per opener per Nairobi day with the count of other people's payslips opened | Unique (opener, day); the Director's daily count |
+| `payslip_documents` | The stored A4 payslip per payroll payslip row and variant (ORIGINAL or REPLACED): number, bytes, SHA-256 | Unique (payslip, variant). UPDATE and DELETE refused by trigger |
+| `p9_format_confirmations` | The Accountant's one-time confirmation of a P9 layout version | Unique (company, layout version) |
+| `p9_documents` | A built P9 per employee, year and layout version: number, bytes, hash, the twelve rows | Unique (employee, year, layout). UPDATE and DELETE refused by trigger |
+| `casual_workers` | A casual worker: name, national ID number, phone | Unique (company, national ID number) |
+| `casual_sheets` | One department, site and day: status (`DRAFT`, `SENT`, `SENT_BACK`, `APPROVED`, `VOID`), version, rate and rate version, recorder, sent, sent back, approved (by, at), `number` (CPS-n), `total`, frozen `snapshot` and `document_hash`, cash holder, void | Partial unique index: one live (not void) sheet per company, site, department and day. Check: an approved sheet has number, total, snapshot, hash and approver |
+| `casual_sheet_lines` | One worker's shift: start and end minute (end may pass 1440), minutes, amount, receipt (time, typed name, head) | Unique (sheet, worker). Check: 1 minute to 16 hours |
+| `casual_corrections` | A plus or minus line on a later sheet for a signed day, with reason and key | Counts in that sheet's total |
+| `casual_counters` | The next CPS number per company | Locked in the approving transaction; gaps allowed |
+| `casual_request_keys` | A write that already happened under this key | An offline retry makes one record |
+
+Enum `CasualSheetStatus`. Rules: `LEAVE` gains `hrContact` (stored in the rule version JSON, no column).
+
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS. Any structural change must be reflected here, in the Prisma schema, and in a corresponding migration file.*
