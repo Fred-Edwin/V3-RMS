@@ -32,6 +32,8 @@ export { workforcePayslipsRouter, setPublicationSource, setDeviceConfirmationSou
 // Segment 6a (Shared parts): the real notifier. Leave and Conduct call `notify` / `notifyMany`; the worker calls `dispatchHeldWorkforcePush`.
 export { notify, notifyMany, registerWorkforceNotifier, workforceNotificationsRouter, dispatchHeldWorkforcePush, WORKFORCE_NOTICE_JOB, renderNotification, knownKinds } from './notifications';
 export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification, HeldPush } from './notifications';
+export { registerPinTries } from './_shared/pin/register-pin'; // wrong PIN tries live in the database
+export { attemptWithPause, type PinAttempt, type PinPurpose } from './_shared/pin/pin-door'; // the shared door Conduct signing will use
 export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 

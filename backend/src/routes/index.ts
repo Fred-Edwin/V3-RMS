@@ -56,6 +56,7 @@ import {
   workforceAttendanceRouter,
   workforceNotificationsRouter,
   registerWorkforceNotifier,
+  registerPinTries,
   workforceCasualRouter,
   workforceOrgRouter,
   workforcePayslipsRouter,
@@ -139,6 +140,7 @@ apiRouter.use(workforceRotaRouter);
 apiRouter.use(workforceAttendanceRouter);
 registerTimesheets(); // a closed timesheet period refuses clock fixes (Workforce slice 4a)
 registerPayroll(); // a branch with an unpaid payroll month cannot switch its new clock off (Workforce Segment 2A)
+registerPinTries(); // wrong signing-PIN tries are stored; the pause survives a restart (Workforce Segment 6a, SD16)
 registerWorkforceNotifier(); // every Workforce "is told" is really delivered: Inbox row, socket nudge, push (Workforce Segment 6a)
 apiRouter.use(workforceNotificationsRouter);
 apiRouter.use(workforceTimesheetsRouter);

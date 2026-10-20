@@ -5,30 +5,11 @@
  * (2, 4, 8, 16, then 30 seconds): a pause, never a lock. After the 3rd wrong try in the window the System Admin and the person are
  * told, once per window. A correct code ends the count.
  */
-export const WINDOW_MS = 15 * 60_000;
-export const ALERT_AT = 3;
-export const SLOW_AFTER = 5;
-export const MAX_PAUSE_SECONDS = 30;
+// The pause schedule is the shared door's (`_shared/pin/pin-pause.ts`): one schedule for the payslip code and every PIN.
+export { WINDOW_MS, ALERT_AT, SLOW_AFTER, MAX_PAUSE_SECONDS, pauseSeconds, waitRemaining, shouldAlert } from '../../_shared/pin/pin-pause';
 /** PD2: a screen lock, not a sign-out. 10 minutes without a tap relocks; the hard cap bounds a token that is somehow kept alive. */
 export const IDLE_MS = 10 * 60_000;
 export const HARD_CAP_MS = 8 * 3_600_000;
-
-/** The pause that follows the n-th wrong try of the window: none before the 5th, then 2, 4, 8, 16 and 30 seconds. */
-export function pauseSeconds(wrongInWindow: number): number {
-  if (wrongInWindow < SLOW_AFTER) return 0;
-  return Math.min(MAX_PAUSE_SECONDS, 2 ** (wrongInWindow - SLOW_AFTER + 1));
-}
-
-/** Seconds still to wait before a try is answered, given the wrong tries of the window and when the last one happened. */
-export function waitRemaining(wrongInWindow: number, lastWrongAt: Date | null, now: Date): number {
-  const pause = pauseSeconds(wrongInWindow);
-  if (pause === 0 || lastWrongAt === null) return 0;
-  const left = lastWrongAt.getTime() + pause * 1000 - now.getTime();
-  return left > 0 ? Math.ceil(left / 1000) : 0;
-}
-
-/** The third wrong try of a window raises the notices, and only if this window has not raised them already. */
-export const shouldAlert = (wrongInWindow: number, alreadyAlertedInWindow: boolean): boolean => wrongInWindow >= ALERT_AT && !alreadyAlertedInWindow;
 
 export interface UnlockTimes {
   lastUsedAt: Date;

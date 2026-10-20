@@ -123,7 +123,7 @@ describe('the notifier', () => {
     expect(deps.nudge).toHaveBeenCalledTimes(1);
     expect(deps.push).not.toHaveBeenCalled();
     expect(deps.hold).toHaveBeenCalledTimes(1);
-    expect(deps.hold.mock.calls[0]![1].toISOString()).toBe(at('05:00', '2026-10-21').toISOString());
+    expect(vi.mocked(deps.hold).mock.calls[0]![1].toISOString()).toBe(at('05:00', '2026-10-21').toISOString());
   });
 
   it('sends a problem at night, at once', async () => {

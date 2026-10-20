@@ -225,10 +225,10 @@ describe('the PIN', () => {
     await expect(create('dir', 'LATENESS')).resolves.toBeTruthy();
   });
 
-  it('five wrong PINs lock signing for ten minutes, even for the right PIN', async () => {
+  it('five wrong PINs pause signing for a few seconds, even for the right PIN, and never lock it (SD16)', async () => {
     for (let i = 0; i < 5; i += 1) await expect(create('dir', 'LATENESS', { pin: '0000' })).rejects.toMatchObject({ code: 'PIN_INVALID' });
-    await expect(create('dir', 'LATENESS')).rejects.toMatchObject({ statusCode: 429, code: 'PIN_LOCKED' });
-    await expect(create('dir', 'LATENESS', {}, new Date(NOW.getTime() + 11 * 60 * 1000))).resolves.toBeTruthy();
+    await expect(create('dir', 'LATENESS')).rejects.toMatchObject({ statusCode: 429, code: 'PIN_SLOWED' });
+    await expect(create('dir', 'LATENESS', {}, new Date(NOW.getTime() + 3 * 1000))).resolves.toBeTruthy();
   });
 });
 
