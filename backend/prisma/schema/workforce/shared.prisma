@@ -1,0 +1,138 @@
+// ============================================================================
+// Workforce segment 6, back end A (Shared parts): the notifier, security alerts, phones, PIN pauses, Needs you.
+// Spec: docs/features/workforce/specs/6a-audit-and-security-spec.md and 6b-needs-you-and-messages-spec.md.
+// Additive only: no legacy table is altered. Plain id columns, no relations, so no back-relation edits in other files.
+// ============================================================================
+
+/// One "told" row of the Inbox Notifications tab. The wording is rendered on the server at send time, so a stored row never
+/// changes. Never a pay figure. `dedupeKey` (kind, subject and window) stops a duplicate for the same user.
+model WorkforceNotification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  kind      String
+  tone      String // information | changed | needsLook | done | problem
+  area      String // PAY | TIME | LEAVE | PEOPLE | RULES | SECURITY | CONDUCT | DOCUMENTS
+  title     String
+  body      String
+  href      String?
+  dedupeKey String?   @map("dedupe_key")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  readAt    DateTime? @map("read_at")
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("workforce_notifications")
+}
+
+/// A phone that has signed in as a person. Only the SHA-256 of the browser's random device id is kept, never the id itself.
+model WorkforceDevice {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  deviceIdHash  String    @map("device_id_hash")
+  label         String // 'Tecno, Android' from the user agent
+  placeLabel    String?   @map("place_label")
+  firstSeenAt   DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at")
+  confirmedAt   DateTime? @map("confirmed_at")
+  confirmedMode String? // REMEMBER | ONCE
+  removedAt     DateTime? @map("removed_at")
+
+  @@unique([userId, deviceIdHash])
+  @@index([userId, removedAt])
+  @@map("workforce_devices")
+}
+
+/// An alert for the System Admin. Written in the same transaction as the audit entry that raised it. Never an amount or a code.
+model WorkforceSecurityAlert {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  siteId        String?   @map("organization_id")
+  kind          String // WASNT_ME | UNCONFIRMED_PHONE | WRONG_CODES | CHAIN_FAILED
+  subjectUserId String?   @map("subject_user_id")
+  deviceId      String?   @map("device_id")
+  deviceLabel   String?   @map("device_label")
+  placeLabel    String?   @map("place_label")
+  detail        String? // a month name or an entry number, never an amount
+  occurredAt    DateTime  @default(now()) @map("occurred_at")
+  auditEntryId  String?   @map("audit_entry_id")
+  status        String    @default("OPEN") // OPEN | CLEARED
+  clearedById   String?   @map("cleared_by_id")
+  clearedAt     DateTime? @map("cleared_at")
+  clearNote     String?   @map("clear_note")
+  clearKey      String?   @map("clear_key")
+
+  @@index([companyId, status, occurredAt(sort: Desc)])
+  @@index([subjectUserId, kind, occurredAt])
+  @@map("workforce_security_alerts")
+}
+
+/// Per company: the System Admin pressed "Start alerts" (security pushes are held until then).
+model WorkforceSecuritySetting {
+  companyId       String    @id @map("company_id")
+  alertsStartedAt DateTime? @map("alerts_started_at")
+  startedById     String?   @map("started_by_id")
+
+  @@map("workforce_security_settings")
+}
+
+/// Set by "This wasn't me": the person must choose a new password before any Workforce route answers.
+model WorkforceSecurityFlag {
+  userId             String   @id @map("user_id")
+  mustChangePassword Boolean  @default(true) @map("must_change_password")
+  raisedAt           DateTime @default(now()) @map("raised_at")
+
+  @@map("workforce_security_flags")
+}
+
+/// A try at a PIN or code, by purpose (SIGNER: approve, publish, pay; later CONDUCT_SIGN). Never the digits. Drives the pause.
+model WorkforcePinTry {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  purpose   String
+  success   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, purpose, createdAt])
+  @@map("workforce_pin_tries")
+}
+
+/// The audit entry index: the columns the append-only entry table must not carry (it cannot be altered after the fact).
+model WorkforceAuditEntryIndex {
+  entryId    String   @id @map("entry_id")
+  companyId  String   @map("company_id")
+  siteId     String?  @map("organization_id")
+  seq        BigInt
+  occurredAt DateTime @map("occurred_at")
+  area       String   @default("WORKFORCE")
+  flagged    Boolean  @default(false)
+  title      String
+  searchText String   @map("search_text")
+
+  @@index([companyId, occurredAt(sort: Desc)])
+  @@index([companyId, flagged, occurredAt(sort: Desc)])
+  @@index([companyId, area, occurredAt(sort: Desc)])
+  @@map("workforce_audit_entry_index")
+}
+
+/// Needs you: when a person last opened Home (rows newer than this are "new").
+model WorkforceNeedsYouState {
+  userId         String   @id @map("user_id")
+  lastSeenHomeAt DateTime @default(now()) @map("last_seen_home_at")
+
+  @@map("workforce_needs_you_state")
+}
+
+/// A Director's reminder. One per item per day (the unique key), so two presses at once send one.
+model WorkforceNeedsYouReminder {
+  id           String   @id @default(uuid())
+  itemId       String   @map("item_id")
+  day          String // YYYY-MM-DD, Nairobi
+  sentById     String   @map("sent_by_id")
+  sentToUserId String?  @map("sent_to_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([itemId, day])
+  @@map("workforce_needs_you_reminders")
+}

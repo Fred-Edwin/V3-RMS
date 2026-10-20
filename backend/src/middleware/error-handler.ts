@@ -4,6 +4,8 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AppError } from '../utils/errors';
 import { Sentry } from '../config/sentry';
 import { keyToWire } from '../shared/utils/wire-names';
+import { faultReference } from '../shared/utils/fault-reference';
+import { logger } from '../utils/logger';
 
 interface ErrorWithStatus extends Error {
   statusCode?: number;
@@ -12,7 +14,7 @@ interface ErrorWithStatus extends Error {
 
 export const errorHandler = (
   error: ErrorWithStatus,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void => {
@@ -55,15 +57,21 @@ export const errorHandler = (
   const code = error.code ?? 'INTERNAL_ERROR';
 
   // Capture unexpected errors in Sentry (fire-and-forget)
+  let sentryEventId: string | undefined;
   if (statusCode === 500) {
-    Sentry.captureException(error);
+    sentryEventId = Sentry.captureException(error);
   }
+
+  // Workforce segment 6 (SD31): every 5xx carries a short reference the screen shows, so support can find the log line.
+  const reference = statusCode >= 500 ? faultReference(req) : undefined;
+  if (reference) logger.error({ err: error, reference, sentryEventId, route: `${req.method} ${req.originalUrl}` }, 'server fault');
 
   res.status(statusCode).json({
     success: false,
     error: {
       code,
       message: statusCode === 500 ? 'An unexpected error occurred' : error.message,
+      ...(reference ? { reference } : {}),
     },
   });
 };
