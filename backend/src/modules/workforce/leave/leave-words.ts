@@ -19,12 +19,19 @@ const ROLE_WORDS: Partial<Record<UserRole, string>> = {
   STORE_MANAGER: 'Store Manager',
   STORE_ATTENDANT: 'Store Attendant',
   DEPARTMENT_HEAD: 'Department head',
+  WAITER: 'Waiter',
+  CHEF: 'Chef',
+  BARISTA: 'Barista',
+  KITCHEN_DISPLAY: 'Kitchen screen',
+  BARISTA_DISPLAY: 'Barista screen',
+  STEWARD: 'Steward',
+  HOUSEKEEPING: 'Housekeeping',
 };
 
 /** "Name, Role" for records (never a bare name, spec L29 and section 16). */
 export const nameAndRole = (name: string, positionName: string | null, role: UserRole | null): string => `${name}, ${positionName ?? (role ? ROLE_WORDS[role] : undefined) ?? 'Staff'}`;
 
-export const roleWord = (role: string | null): string => (role && (ROLE_WORDS[role as UserRole] ?? DECIDER_WORDS[role as DeciderRole])) || 'HR';
+export const roleWord = (role: string | null): string => (role && (ROLE_WORDS[role as UserRole] ?? DECIDER_WORDS[role as DeciderRole])) || 'Staff';
 
 export const snapshotOfType = (type: LeaveTypeRule): TypeSnapshot => ({
   code: type.code,
