@@ -1,6 +1,7 @@
 'use client';
 
 import type { DeskDetail } from '../../_shared/types/conduct-types';
+import { DecideDialog } from '../../decide/components/decide-dialog';
 import { IssuePanel } from '../../issue/components/issue-panel';
 import { RecordDialog } from '../../record/components/record-dialog';
 
@@ -15,5 +16,5 @@ export function DeskDialogs({ dialog, onClose, onDone }: { dialog: DeskDialog | 
   if (!dialog) return null;
   if (dialog.kind === 'issue') return <IssuePanel open onClose={onClose} onDone={onDone} />;
   if (dialog.kind === 'record') return <RecordDialog detail={dialog.detail} onClose={onClose} onDone={onDone} />;
-  return null;
+  return <DecideDialog detail={dialog.detail} mode={dialog.kind === 'change' ? 'change' : 'decide'} onClose={onClose} onDone={onDone} />;
 }
