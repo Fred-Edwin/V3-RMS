@@ -123,6 +123,14 @@ describe.skipIf(!enabled)('Security flows in the database', { timeout: 60_000 },
     await expect(devices.removePhone(a, aPhone.id, 'device-cccc-3333', T0)).rejects.toMatchObject({ code: 'THIS_PHONE' });
   });
 
+  it('two first calls from the same new phone at once make one phone and neither fails', async () => {
+    const { prisma, devices } = await load();
+    const p = await person();
+    const call = () => devices.phoneSeen(p, { deviceId: 'device-dddd-4444', label: 'Linux', placeLabel: null }, T0);
+    await expect(Promise.all([call(), call()])).resolves.toHaveLength(2);
+    expect(await prisma.workforceDevice.count({ where: { userId: p.id } })).toBe(1);
+  });
+
   it('three wrong payslip codes raise one alert for the System Admin, with no amount, and a fourth adds none', async () => {
     const { unlock, alerts } = await load();
     const p = await person(true);
