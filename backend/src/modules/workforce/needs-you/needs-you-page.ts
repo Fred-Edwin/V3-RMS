@@ -1,6 +1,6 @@
 import { workforceCan, type AccessSubject } from '../_shared/workforce-access';
 import { NotFoundError } from '../../../utils/errors';
-import { OVERDUE_KEY, groupCounts, groupOf, orderForHome, type GroupCount, type MarkedRow } from './needs-you-groups';
+import { OVERDUE_KEY, actionOf, groupCounts, groupOf, lineOf, orderForHome, type GroupCount, type MarkedRow } from './needs-you-groups';
 import { contextFor, listNeedsYou } from './needs-you-service';
 import { attentionRows } from './sources/attention-source';
 
@@ -20,7 +20,7 @@ export interface NeedsYouPageQuery {
 }
 
 export interface NeedsYouPage {
-  rows: MarkedRow[];
+  rows: Array<MarkedRow & { kindLabel: string; line: string; action: string }>;
   total: number;
   /** All rows the person has, before any filter. */
   all: number;
@@ -66,7 +66,7 @@ export async function pageNeedsYou(subject: AccessSubject, query: NeedsYouPageQu
   for (const r of rows) if (r.siteId && r.siteName) sites.set(r.siteId, r.siteName);
   const start = (query.page - 1) * query.pageSize;
   return {
-    rows: found.slice(start, start + query.pageSize),
+    rows: found.slice(start, start + query.pageSize).map((r) => ({ ...r, kindLabel: groupOf(r.kind).label, line: lineOf(r, now), action: actionOf(r.kind) })),
     total: found.length,
     all: rows.length,
     overdue: rows.filter((r) => r.overdue).length,

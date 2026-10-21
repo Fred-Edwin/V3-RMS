@@ -70,6 +70,16 @@ const SUMMARY: Record<string, { many: (n: number) => string; action: string }> =
 
 export const OVERDUE_KEY = 'overdue';
 
+/** The button on a row of the See all list. */
+export const actionOf = (kind: string): string => (SUMMARY[groupOf(kind).key] ?? (SUMMARY['other'] as (typeof SUMMARY)[string])).action;
+
+/** The grey second line of a row: who it waits on, and for how long. The server's `text` is the first line. */
+export function lineOf(row: Pick<NeedsYouRow, 'since' | 'waitingOnRole'>, now: Date): string {
+  const days = Math.max(0, Math.floor((now.getTime() - new Date(row.since).getTime()) / DAY_MS));
+  const who = row.waitingOnRole.toLowerCase().split('_').join(' ');
+  return `Waiting for ${who}${days > 0 ? `, ${days} ${days === 1 ? 'day' : 'days'}` : ', since today'}.`;
+}
+
 export interface HomeSummaryRow {
   key: string;
   /** "Pay changes · 2" for the Kind column. */
