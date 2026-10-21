@@ -116,6 +116,13 @@ describe('pay shows "starts <date>" before its start day', () => {
     expect(payAmountLine(pay({ payType: 'DAILY_RATE', amount: '1200.00' }), '2026-10-05').text).toBe('KES 1,200 / day');
     expect(payAmountLine(pay({ amount: null, history: [] }), '2026-10-05').text).toBe('Not set yet');
   });
+  it('says which amount applies to which days of the run when the change is mid-month (finding 54)', () => {
+    const mid = pay({ history: [change({}), change({ id: 'c2', amount: '26000.00', effectiveFrom: '2026-10-22', reason: 'CORRECTION' })] });
+    const row = payRows(mid, 'ACTIVE', '2026-10-21').find((r) => r.label === 'Pay in the October run');
+    expect(row?.value).toBe('KES 28,000 until 21 Oct, then KES 26,000 from 22 Oct');
+    const first = pay({ history: [change({}), change({ id: 'c2', amount: '26000.00', effectiveFrom: '2026-11-01', reason: 'CORRECTION' })] });
+    expect(payRows(first, 'ACTIVE', '2026-10-21').some((r) => r.label.startsWith('Pay in the'))).toBe(false);
+  });
   it('flags the lateness rule while there is no contract', () => {
     expect(payRows(pay(), 'NONE', '2026-10-05')[3]).toMatchObject({ value: 'Company default · no contract yet', tone: 'warning' });
     expect(payRows(pay(), 'ACTIVE', '2026-10-05')[3]?.tone).toBe('default');

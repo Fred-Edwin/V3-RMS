@@ -1,5 +1,5 @@
 import type { KeyValueRow } from '../../../_shared';
-import { daysBetween, formatDayMonth, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
+import { addDays, daysBetween, formatDayMonth, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, PayChangeReason, PayChangeRow, PayView } from '../../_shared/types/people-types';
 import { firstName } from './file-model';
 
@@ -128,6 +128,9 @@ export function payAmountLine(pay: PayView, today: string): { text: string; star
   return { text: `${formatKes(pay.amount)} / ${unit}`, startsOn };
 }
 
+/** "October" for a date, so the payroll reader sees which run a mid-month change falls in (finding 54). */
+const monthName = (date: string): string => new Date(`${date}T00:00:00Z`).toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' });
+
 export function payRows(pay: PayView, contractStatus: EmployeeFile['contractStatus'], today: string): KeyValueRow[] {
   const line = payAmountLine(pay, today);
   const monthly = pay.payType === 'MONTHLY_SALARY';
@@ -136,6 +139,9 @@ export function payRows(pay: PayView, contractStatus: EmployeeFile['contractStat
   return [
     { label: 'Basic pay', value: line.startsOn ? `${line.text} · starts ${formatWeekdayDayMonth(line.startsOn)}` : line.text, mono: true, tone: line.startsOn ? 'warning' : 'default' },
     ...(next && !line.startsOn ? [{ label: 'Next change', value: `${formatKes(next.amount)} / ${unit} · starts ${formatWeekdayDayMonth(next.effectiveFrom)}`, mono: true, tone: 'warning' as const }] : []),
+    ...(next && monthly && next.effectiveFrom.slice(0, 7) === today.slice(0, 7) && !next.effectiveFrom.endsWith('-01')
+      ? [{ label: `Pay in the ${monthName(next.effectiveFrom)} run`, value: `${formatKes(pay.amount)} until ${formatDayMonth(addDays(next.effectiveFrom, -1))}, then ${formatKes(next.amount)} from ${formatDayMonth(next.effectiveFrom)}`, mono: true, tone: 'warning' as const }]
+      : []),
     { label: 'Statutory deductions', value: monthly ? 'NSSF, SHIF, Housing levy, PAYE' : 'None on a daily rate' },
     { label: 'Overtime rule', value: pay.overtimeEligible ? 'Company standard · set by the Director' : 'Not eligible for overtime', tone: pay.overtimeEligible ? 'default' : 'muted' },
     { label: 'Lateness rule', value: monthly && contractStatus === 'NONE' ? 'Company default · no contract yet' : 'Company default · set by the Director', tone: monthly && contractStatus === 'NONE' ? 'warning' : 'default' },
