@@ -1,12 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { signInLocalPart, suggestSignInEmail } from './sign-in-email';
+import { SWAHILI_WORDS } from './swahili-words';
 import { WORD_LIST, generateTemporaryPassword } from './temporary-password';
 
+/** True when one word becomes the other by changing, adding or removing a single letter. */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  let i = 0;
+  while (i < short.length && short[i] === long[i]) i += 1;
+  if (short.length === long.length) return short.slice(i + 1) === long.slice(i + 1);
+  return short.slice(i) === long.slice(i + 1);
+}
+
 describe('temporary password (finding 43)', () => {
-  it('has at least 250 different words, lowercase letters only', () => {
-    expect(WORD_LIST.length).toBeGreaterThanOrEqual(250);
-    expect(new Set(WORD_LIST).size).toBe(WORD_LIST.length);
-    expect(WORD_LIST.every((w) => /^[a-z]{3,}$/.test(w))).toBe(true);
+  it('has at least 250 different words, 3 to 7 lowercase letters each', () => {
+    expect(SWAHILI_WORDS.length).toBeGreaterThanOrEqual(250);
+    expect(new Set(SWAHILI_WORDS).size).toBe(SWAHILI_WORDS.length);
+    expect(SWAHILI_WORDS.filter((w) => !/^[a-z]{3,7}$/.test(w))).toEqual([]);
+  });
+
+  it('has no two words one letter apart (easy to misread)', () => {
+    const close: string[] = [];
+    for (let i = 0; i < SWAHILI_WORDS.length; i += 1) {
+      for (let j = i + 1; j < SWAHILI_WORDS.length; j += 1) {
+        if (oneEditApart(SWAHILI_WORDS[i]!, SWAHILI_WORDS[j]!)) close.push(`${SWAHILI_WORDS[i]}/${SWAHILI_WORDS[j]}`);
+      }
+    }
+    expect(close).toEqual([]);
   });
 
   it('is word.word.1234 with two different words, over many draws', () => {
