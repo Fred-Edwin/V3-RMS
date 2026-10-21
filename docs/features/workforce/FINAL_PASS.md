@@ -76,6 +76,7 @@ Added by the People review, 21 Oct 2026 (details in `final-pass/1-people-finding
 - **Role Homes:** better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).
 - **"Phone" wording at sign-in on a desktop:** section 9.
 - **Payout methods:** Cash and M-Pesa stay (owner, 21 Oct); screen and API must offer the same set (sections 1 and 5).
+- **Sign-in identity (owner, 21 Oct):** `firstname.secondname@wendo.co.ke`; optional personal email at hire; temporary password `word.word.1234` from about 250 Swahili food words, server-generated, unused expires after 7 days, never forced to change (PIN stays compulsory). Fixed in section 1; the sign-in and security screens follow in section 9.
 
 ## Demo videos
 Planned in `docs/sessions/final-pass-demo-lane-setup.md` (the clean demo lane and the recording method). One video per section, recorded after the fix, from a lane with realistic fictional data. Nothing shown contains real staff, pay or client data. The owner decides when to send each video.
