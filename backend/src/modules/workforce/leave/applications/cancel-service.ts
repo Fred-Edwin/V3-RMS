@@ -1,5 +1,6 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
+import { withdrawDocument } from '../../_shared/documents/register-document';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
 import { nairobiToday } from '../../_shared/time/nairobi-time';
 import { assertInScope, type AccessSubject } from '../../_shared/workforce-access';
@@ -12,6 +13,8 @@ import { currentDecider } from '../engine/leave-routing';
 import { asJson, leaveEntry } from '../leave-audit';
 import { deciderUserIds, headUserId, tell } from '../leave-notify';
 import type { CancelBody } from '../leave-validators';
+import { roleWord } from '../leave-words';
+import { slipCode } from '../slip/slip-snapshot';
 import { summaryOf, type ApplicationSummary } from './application-summary';
 import { lockedApplication } from './decide-guard';
 
@@ -63,6 +66,8 @@ export async function cancelLeave(subject: AccessSubject, id: string, body: Canc
       }),
     ];
     if (wasApproved && locked.slipNumber !== null) {
+      // The slip keeps its number; the index (and so the verify page) reads it as voided from this moment.
+      await withdrawDocument(tx, { companyId: ctx.companyId, number: slipCode(locked.slipNumber), byRole: roleWord(subject.role), at: now });
       entries.push(leaveEntry({ companyId: ctx.companyId, siteId: locked.siteId, actor: ctx.auditActor, action: 'leave.slip_cancelled_stamped', subjectId: locked.id, userId: person.userId, after: asJson({ slipNumber: locked.slipNumber }) }));
     }
     const updated = (await applicationsRepository.byId(ctx.companyId, locked.id, tx)) as ApplicationRow;

@@ -37,7 +37,15 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     const { resolveActor } = await import('../people/people-context');
     const { auditRepository } = await import('../_shared/audit/audit-repository');
     const { verifyAuditChain } = await import('../_shared/audit/audit-hash');
-    return { prisma, time, hashPin, createAsk, approveLeave, declineLeave, cancelLeave, adjustBalance, balancesOf, balanceDrawer, rulesToday, myOverview, carryLegacyLeave, peopleRepository, resolveActor, auditRepository, verifyAuditChain };
+    const { vi } = await import('vitest');
+    const { eventsRepository } = await import('./data/events-repository');
+    const { slipOf } = await import('./slip/slip-service');
+    const { hashPrefixOf } = await import('../_shared/documents/qr-hash');
+    const { checkDocument } = await import('../verify/verify-service');
+    const { resetRateLimits } = await import('../_shared/limits/rate-limit');
+    const { reconcileDocuments, registerDocuments } = await import('../documents');
+    const docs = { slipOf, hashPrefixOf, checkDocument, resetRateLimits, reconcileDocuments, registerDocuments };
+    return { vi, eventsRepository, docs, prisma, time, hashPin, createAsk, approveLeave, declineLeave, cancelLeave, adjustBalance, balancesOf, balanceDrawer, rulesToday, myOverview, carryLegacyLeave, peopleRepository, resolveActor, auditRepository, verifyAuditChain };
   };
 
   let m: Mods;
@@ -101,6 +109,8 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
   afterAll(async () => {
     if (!m) return;
     const apps = await m.prisma.leaveApplication.findMany({ where: { employeeId: { in: employeeIds } }, select: { id: true } });
+    // The index rows these slips made go with them (the index has no append-only rule; the audit log and ledger do).
+    await m.prisma.workforceDocument.deleteMany({ where: { companyId, kind: 'LVE', OR: apps.map((a) => ({ openHref: { contains: a.id } })) } });
     await m.prisma.leaveEvent.deleteMany({ where: { applicationId: { in: apps.map((a) => a.id) } } });
     await m.prisma.leaveApplication.deleteMany({ where: { employeeId: { in: employeeIds } } });
     await m.prisma.employee.deleteMany({ where: { id: { in: employeeIds } } });
@@ -164,6 +174,74 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     const cancelled = await m.cancelLeave(waiter, asked.application.id, {}, nextKey('cancel'), NOW);
     expect(cancelled.application.status).toBe('CANCELLED');
     expect(await annualLeft()).toBe(withIt + 2);
+  });
+
+  describe('the Signed documents index', () => {
+    const who = () => ({ address: `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, deviceLabel: null });
+    const rowOf = async (applicationId: string) => m.prisma.workforceDocument.findFirstOrThrow({ where: { companyId, kind: 'LVE', openHref: { contains: applicationId } } });
+
+    it('approve indexes the slip in its own transaction; the QR carries the index hash; nothing private reaches the row; the public page says genuine', async () => {
+      const { checkDocument, resetRateLimits, slipOf, hashPrefixOf } = m.docs;
+      resetRateLimits();
+      const asked = await askDays(140, 142, 'index');
+      const done = await approve(asked.application.id, asked.application.version);
+      const row = await rowOf(asked.application.id);
+      expect(row).toMatchObject({ number: done.slipCode, version: 1, title: 'Leave slip', status: 'CURRENT', subjectUserId: waiter.id, signedByRole: 'Branch Manager', method: 'PIN' });
+      const stored = await m.prisma.leaveApplication.findUniqueOrThrow({ where: { id: asked.application.id }, select: { slipHash: true } });
+      expect(row.hash).toBe(stored.slipHash);
+      expect(row.hashPrefix).toBe(hashPrefixOf(stored.slipHash as string));
+      expect((await slipOf(manager, asked.application.id)).qrUrl).toBe(`${(await import('../../../config/env')).env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/lve/${done.slipCode}?h=${row.hashPrefix}`);
+      expect(row.about).toMatch(/^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} to [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}$/);
+      expect(`${row.title} ${row.about} ${row.searchText}`).not.toMatch(/annual|sick|balance|\bdays?\b|\d+\.\d{2}/i);
+      const verdict = await checkDocument('lve', done.slipCode, row.hashPrefix, who());
+      expect(verdict.answer).toMatchObject({ outcome: 'GENUINE', number: done.slipCode, signedByRole: 'Branch Manager' });
+      expect(JSON.stringify(verdict.answer)).not.toContain('ZZ Leave');
+      expect((await checkDocument('lve', 'LVE-999999', row.hashPrefix, who())).answer.outcome).toBe('NOT_VERIFIED');
+    });
+
+    it('a failure after the door call rolls the index row back with the slip', async () => {
+      const asked = await askDays(150, 150, 'rollback');
+      const spy = m.vi.spyOn(m.eventsRepository, 'add').mockRejectedValueOnce(new Error('the issuer failed after registering'));
+      await expect(approve(asked.application.id, asked.application.version)).rejects.toThrow('the issuer failed');
+      spy.mockRestore();
+      expect(await m.prisma.workforceDocument.count({ where: { companyId, openHref: { contains: asked.application.id } } })).toBe(0);
+      expect(await m.prisma.leaveApplication.findUniqueOrThrow({ where: { id: asked.application.id }, select: { status: true, slipNumber: true } })).toEqual({ status: 'WAITING', slipNumber: null });
+    });
+
+    it('cancelling a slip keeps its number and the verify page reads it as voided', async () => {
+      const { checkDocument, resetRateLimits } = m.docs;
+      resetRateLimits();
+      const asked = await askDays(160, 161, 'void');
+      const done = await approve(asked.application.id, asked.application.version);
+      const hash = (await rowOf(asked.application.id)).hashPrefix;
+      await m.cancelLeave(waiter, asked.application.id, {}, nextKey('void'), NOW);
+      const row = await rowOf(asked.application.id);
+      expect(row).toMatchObject({ number: done.slipCode, status: 'WITHDRAWN' });
+      expect(row.withdrawnAt).not.toBeNull();
+      const verdict = await checkDocument('lve', done.slipCode, hash, who());
+      expect(verdict.answer.outcome).toBe('WITHDRAWN');
+      expect(verdict.answer.withdrawnByRole).toBeTruthy();
+    });
+
+    it('the reconciliation indexes slips issued before the wiring, voided ones as withdrawn, and a second run adds nothing', async () => {
+      const { reconcileDocuments, registerDocuments } = m.docs;
+      registerDocuments();
+      const slips = await m.prisma.leaveApplication.findMany({ where: { employeeId: waiterEmployee, slipNumber: { not: null } }, select: { id: true, status: true, slipNumber: true } });
+      expect(slips.some((s) => s.status === 'CANCELLED') && slips.some((s) => s.status === 'APPROVED')).toBe(true);
+      const mine = { companyId, kind: 'LVE', OR: slips.map((s) => ({ openHref: { contains: s.id } })) };
+      const before = await m.prisma.workforceDocument.findMany({ where: mine, select: { number: true, hash: true, status: true } });
+      await m.prisma.workforceDocument.deleteMany({ where: mine });
+      const first = await reconcileDocuments(companyId);
+      expect(first.failed).toBe(0);
+      expect(first.registered).toBeGreaterThanOrEqual(slips.length);
+      const rebuilt = await m.prisma.workforceDocument.findMany({ where: mine, select: { number: true, hash: true, status: true } });
+      const order = (a: { number: string }, b: { number: string }) => a.number.localeCompare(b.number);
+      expect(rebuilt.sort(order)).toEqual(before.sort(order));
+      expect(rebuilt.some((r) => r.status === 'WITHDRAWN')).toBe(true);
+      const second = await reconcileDocuments(companyId);
+      expect(second.registered).toBe(0);
+      expect(await m.prisma.workforceDocument.count({ where: mine })).toBe(slips.length);
+    });
   });
 
   it('carry-over is written once per type, however often the new year is read', async () => {

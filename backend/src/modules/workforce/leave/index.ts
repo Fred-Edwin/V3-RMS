@@ -8,4 +8,5 @@ export { sweepLeave } from './applications/escalation-service';
 export { assertLegacyLeaveWritable } from './carry/legacy-guard';
 export { carryLegacyLeave, mirrorLegacyLeave } from './carry/carry-service';
 export { onLeaveAt, comingUp } from './reads/away-on';
+export { issuedLeaveSlips } from './slip/slip-document'; // the Signed documents index reads issued slips through this source
 export { verifyLeaveSlip, leaveSlipDocument, registerLeaveSlipDocument, type LeaveSlipVerdict, type DocumentKindRegistration } from './slip/slip-service';

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { stableStringify } from '../../timesheets/approval/snapshot';
+import { hashPrefixOf } from '../../_shared/documents/qr-hash';
 import { addDays, type NairobiDate } from '../../_shared/time/nairobi-time';
 
 export const SLIP_TEMPLATE_VERSION = 1;
@@ -71,5 +72,5 @@ export function buildSlipSnapshot(input: SlipInput): SlipSnapshot {
 /** Keys sorted at every level, so the same snapshot always hashes the same. */
 export const hashSlip = (snapshot: SlipSnapshot): string => createHash('sha256').update(stableStringify(snapshot)).digest('hex');
 
-/** The first characters of the hash, as the QR carries them. */
-export const hashPrefix = (hash: string | null): string => (hash ?? '').slice(0, 8);
+/** The first 10 characters of the hash, as the QR carries them and the Signed documents index stores them. */
+export const hashPrefix = (hash: string | null): string => hashPrefixOf(hash ?? '');
