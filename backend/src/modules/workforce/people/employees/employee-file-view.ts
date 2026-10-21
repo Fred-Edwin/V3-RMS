@@ -15,6 +15,7 @@ import {
   checklistPercent,
   checklistRows,
   fileParts,
+  BLOCKS_PAYROLL_PARTS,
   gapsOf,
   NEEDS_FINISHING_PARTS,
   ringPercent,
@@ -112,6 +113,9 @@ export function listRowOf(subject: AccessSubject, row: ListRow): { view: Employe
 
 /** True when a list row has a gap that makes the file "Needs finishing" (question 10). */
 export const needsFinishing = (gaps: readonly FilePart[]): boolean => gaps.some((g) => (NEEDS_FINISHING_PARTS as readonly string[]).includes(g));
+
+/** True when a gap stops pay or the rota. Gaps the viewer may not see are already left out, so each role counts what it can act on. */
+export const blocksPayroll = (gaps: readonly FilePart[]): boolean => gaps.some((g) => (BLOCKS_PAYROLL_PARTS as readonly string[]).includes(g));
 
 const IDS_KEYS = REVEALABLE_FIELDS.ids;
 const BANK_KEYS = REVEALABLE_FIELDS.bank;

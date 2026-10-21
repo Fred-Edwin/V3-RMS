@@ -39,10 +39,10 @@ export function jobRows(file: EmployeeFile): KeyValueRow[] {
   return [
     { label: 'Position', value: file.position?.name ?? 'Not set' },
     { label: 'Department', value: file.department ? `${file.department.name} · ${file.organization.name}` : file.organization.name },
-    { label: 'Reports to', value: file.reportsTo ? `${file.reportsTo.name}${file.reportsTo.isHead ? ' (head)' : ''}` : 'Nobody yet', tone: file.reportsTo ? 'default' : 'muted' },
+    { label: 'Reports to', value: file.reportsTo ? `${file.reportsTo.name}${file.reportsTo.isHead ? ' (head)' : ''}` : 'No head yet', tone: file.reportsTo ? 'default' : 'muted' },
     { label: 'Employment', value: employment },
     { label: 'Started', value: formatDayMonthYear(file.startDate), mono: true },
-    { label: 'Clocks in and out', value: file.tracksTime ? (file.tracksTimeFromPosition ? 'Yes, from their position' : 'Yes, set on this file') : 'No' },
+    { label: 'Clocks in and out', value: file.tracksTime ? (file.tracksTimeFromPosition ? 'Yes, from the position' : 'Yes, set on this file') : 'No' },
     { label: 'Login role', value: file.hasLogin ? (LOGIN_ROLE_LABELS[file.loginRole ?? ''] ?? file.loginRole ?? 'Has a login') : 'No login', tone: file.hasLogin ? 'default' : 'muted' },
   ];
 }

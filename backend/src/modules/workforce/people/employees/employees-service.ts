@@ -14,7 +14,7 @@ import { payRepository } from '../pay/pay-repository';
 import { EXIT_REASONS, EXIT_UNDO_DAYS, HIRE_LOGIN_ROLES, PAY_CHANGE_REASONS, PROBATION_VERDICTS, type FileRequestKind } from '../people.constants';
 import type { EmployeeFileView, EmployeeListRow, FileRequestRow, ListResponse, Lookups, Pagination, PeopleSummary, UnlinkedAccount } from '../people.types';
 import type { ListQuerySchema } from '../people-validators';
-import { buildFileView, instantDate, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
+import { blocksPayroll, buildFileView, instantDate, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
 import { employeesRepository } from './employees-repository';
 
 export type ListQuery = z.infer<typeof ListQuerySchema>;
@@ -78,9 +78,9 @@ export const employeesService = {
       ...(query.q ? { q: query.q } : {}),
       today: toDateColumn(today),
     };
-    if (query.filter === 'needs_finishing') {
+    if (query.filter === 'needs_finishing' || query.filter === 'blocks_payroll') {
       const all = (await employeesRepository.listAll(base)).map((row) => listRowOf(subject, row));
-      const matches = all.filter((r) => needsFinishing(r.gaps));
+      const matches = all.filter((r) => (query.filter === 'blocks_payroll' ? blocksPayroll(r.gaps) : needsFinishing(r.gaps)));
       const start = (query.page - 1) * query.perPage;
       return { success: true, data: matches.slice(start, start + query.perPage).map((r) => r.view), pagination: pagination(matches.length, query.page, query.perPage) };
     }
@@ -95,8 +95,8 @@ export const employeesService = {
     const monthStart = parseNairobiDate(`${today.slice(0, 7)}-01`);
     const counts = await employeesRepository.summary(ctx.companyId, scope, siteId, toDateColumn(today), toDateColumn(monthStart));
     const list = await employeesRepository.listAll({ companyId: ctx.companyId, scope, ...(siteId ? { siteId } : {}), filter: 'needs_finishing', today: toDateColumn(today) });
-    const needsFinishingCount = list.map((row) => listRowOf(subject, row)).filter((r) => needsFinishing(r.gaps)).length;
-    return { ...counts, needsFinishing: needsFinishingCount };
+    const rows = list.map((row) => listRowOf(subject, row));
+    return { ...counts, needsFinishing: rows.filter((r) => needsFinishing(r.gaps)).length, blocksPayroll: rows.filter((r) => blocksPayroll(r.gaps)).length };
   },
 
   async lookups(subject: AccessSubject): Promise<Lookups> {

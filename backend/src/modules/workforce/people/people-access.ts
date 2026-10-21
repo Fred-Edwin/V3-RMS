@@ -49,12 +49,21 @@ export const mayHireInto = (subject: AccessSubject, position: { loginRole: UserR
   !(subject.role === 'STORE_MANAGER' && position.loginRole !== null && (ABOVE_STORE_MANAGER.includes(position.loginRole) || position.loginRole === 'STORE_MANAGER'));
 
 /** A manager (unit scope) edits a file only while it is onboarding; HR and the System Admin always (question 2). */
-export function assertCanEditBasics(subject: AccessSubject, row: TargetRow & { status: string }): void {
+export function assertCanEditBasics(
+  subject: AccessSubject,
+  row: TargetRow & { status: string; hiredById?: string | null; createdAt?: Date },
+  now: Date = new Date(),
+): void {
   const scope = scopeOf(subject, 'employee.write_basic');
   if (scope === null) throw new ForbiddenError('You do not have permission to perform this action');
   assertInScope(subject, 'employee.write_basic', targetOf(row));
   if (row.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
-  if (scope !== 'all' && row.status !== 'ONBOARDING') {
-    throw new ForbiddenError('Ask HR to change this file', 'FILE_LOCKED_FOR_EDIT');
+  if (scope !== 'all' && row.status !== 'ONBOARDING' && !madeThisHireRecently(subject, row, now)) {
+    throw new ForbiddenError('Ask HR to change this', 'FILE_LOCKED_FOR_EDIT');
   }
 }
+
+/** The manager who made the hire may correct it for 24 hours (owner decision Q5, 21 Oct 2026); after that it goes through HR. */
+export const HIRE_CORRECTION_HOURS = 24;
+const madeThisHireRecently = (subject: AccessSubject, row: { hiredById?: string | null; createdAt?: Date }, now: Date): boolean =>
+  !!row.hiredById && row.hiredById === subject.id && !!row.createdAt && now.getTime() - row.createdAt.getTime() < HIRE_CORRECTION_HOURS * 3_600_000;

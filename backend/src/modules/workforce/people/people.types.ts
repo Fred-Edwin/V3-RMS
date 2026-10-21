@@ -49,6 +49,8 @@ export interface PeopleSummary {
   active: number;
   exited: number;
   needsFinishing: number;
+  /** Files with a gap that stops pay or the rota (job, pay, payout, NSSF and SHA), counted for what this viewer can see. */
+  blocksPayroll: number;
   noContract: number;
   joinedThisMonth: number;
   stillInProbation: number;

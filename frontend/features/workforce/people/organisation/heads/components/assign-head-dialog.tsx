@@ -84,17 +84,19 @@ export function AssignHeadDialog({ target, mode, onClose, done }: { target: Assi
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={action.busy}>Cancel</DialogButton>
-          <DialogButton kind="primary" size="lg" onClick={save} disabled={action.busy || !ready}>
-            {action.busy ? 'Saving…' : mode === 'ACTING' ? `Name ${who ? firstName(who) : 'them'} acting head` : `Assign ${who ? firstName(who) : 'them'} as head`}
-          </DialogButton>
+          {list && list.length === 0 ? null : (
+            <DialogButton kind="primary" size="lg" onClick={save} disabled={action.busy || !ready}>
+              {action.busy ? 'Saving…' : mode === 'ACTING' ? `Name ${who ? firstName(who) : 'them'} acting head` : `Assign ${who ? firstName(who) : 'them'} as head`}
+            </DialogButton>
+          )}
         </>
       }
     >
       {candidates.status === 'error' ? (
         <Callout tone="error" role="alert" size="sm">The people who could lead did not load. {candidates.error.message}</Callout>
       ) : list && list.length === 0 ? (
-        <Callout tone="warning" size="sm" title="Nobody here can lead yet">
-          Only people in this department with a login can lead it. Casuals are not shown. Someone from another department can move here first.
+        <Callout tone="warning" size="sm" title="Nobody here has a login yet">
+          Only people in this department with a login can lead it. Casuals are not shown. Give a login first: <a className="underline" href="/app/workforce/employees">open the person in Employees</a> and choose Create login. Or someone from another department can move here first.
         </Callout>
       ) : list ? (
         <>

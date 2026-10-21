@@ -95,7 +95,7 @@ export interface ListQuery {
   scope: ScopeFilter;
   siteId?: string;
   departmentId?: string;
-  filter: 'all' | 'needs_finishing' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
+  filter: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
   q?: string;
   today: Date;
 }
@@ -127,6 +127,7 @@ const filterWhere = (query: ListQuery): Prisma.EmployeeWhereInput => {
       and.push({ status: { not: 'EXITED' }, probationEndsOn: { gte: query.today }, probationConfirmedOn: null });
       break;
     case 'needs_finishing':
+    case 'blocks_payroll':
       and.push({ status: { not: 'EXITED' } });
       break;
     case 'all':

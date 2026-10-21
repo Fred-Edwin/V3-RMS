@@ -28,7 +28,7 @@ export const DocumentParamsSchema = z.object({ id, docId: id });
 export const ChangeParamsSchema = z.object({ changeId: id });
 export const RequestParamsSchema = z.object({ id, requestId: id });
 
-export const EMPLOYEE_FILTERS = ['all', 'needs_finishing', 'no_contract', 'casual_pool', 'on_probation', 'exited'] as const;
+export const EMPLOYEE_FILTERS = ['all', 'needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'exited'] as const;
 export const ListQuerySchema = z.object({
   siteId: id.optional(),
   departmentId: id.optional(),

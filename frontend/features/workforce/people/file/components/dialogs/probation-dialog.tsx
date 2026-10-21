@@ -66,7 +66,7 @@ export function ProbationDialog({ file, onClose, done }: FileDialogProps) {
         value={form.choice}
         onChange={(v) => set({ choice: v as ProbationChoice })}
         options={[
-          { value: 'CONFIRM', title: `Confirm ${first}`, description: `${first} becomes permanent the day after probation ends. The contract must be signed first.` },
+          { value: 'CONFIRM', title: `Confirm ${first}`, description: `${first} becomes permanent the day after probation ends. Make sure the contract is recorded on the file.` },
           { value: 'EXTEND', title: `Extend ${first}'s probation`, description: `Once only, by 1 to ${rule.maxExtensionMonths} months. ${first} is told, with the reason.`, disabled: left <= 0 },
           { value: 'END', title: 'End employment', description: `Opens the exit step with ${ends || 'the end date'} as the last day.` },
         ]}

@@ -1,5 +1,5 @@
 import type { StatusTagTone } from '../../../_shared';
-import { daysBetween, formatDayMonth, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
+import { daysBetween, formatDayMonth, formatWeekdayDayMonth, nairobiDay } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, FilePart, FileRequestKind } from '../../_shared/types/people-types';
 
 /**
@@ -124,7 +124,8 @@ export function probationCard(file: EmployeeFile): ProbationCard | null {
     startedOn: file.startDate,
     endsOn: p.endsOn,
     report: headNote ? `Report from ${firstName(headNote.authorName)}: ${headNote.verdict === 'GOOD' ? 'good' : 'concerns'}` : 'No report from the head yet',
-    decideBy: `Decide by ${formatDayMonth(p.endsOn)}`,
+    // An ended probation with no decision reads as overdue, not calm (finding 5).
+    decideBy: p.endsOn < nairobiDay() ? `Ended ${daysBetween(p.endsOn, nairobiDay())} ${daysBetween(p.endsOn, nairobiDay()) === 1 ? 'day' : 'days'} ago, decision overdue` : `Decide by ${formatDayMonth(p.endsOn)}`,
     waitingForContract: p.confirmationWaitingForContract,
   };
 }

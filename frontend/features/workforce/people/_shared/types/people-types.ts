@@ -58,6 +58,7 @@ export interface PeopleSummary {
   active: number;
   exited: number;
   needsFinishing: number;
+  blocksPayroll: number;
   noContract: number;
   joinedThisMonth: number;
   stillInProbation: number;
@@ -248,7 +249,7 @@ export interface Lookups {
 export interface EmployeeListQuery {
   siteId?: string;
   departmentId?: string;
-  filter?: 'all' | 'needs_finishing' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
+  filter?: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
   q?: string;
   page?: number;
   perPage?: number;

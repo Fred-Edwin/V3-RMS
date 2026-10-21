@@ -43,7 +43,7 @@ export function ActivityTab({ file }: { file: EmployeeFile }) {
         </section>
       )}
       <Callout tone="neutral">
-        This lists what the file itself records. The full trail for {file.name.split(' ')[0]}, including every time someone opened an ID, bank detail or contract, arrives with the Audit log. Nobody can edit or remove a line.
+        This lists what the file itself records. The full trail for {file.name.split(' ')[0]}, including every time someone opened an ID, bank detail or contract, is in the Audit log. Nobody can edit or remove a line.
       </Callout>
     </div>
   );

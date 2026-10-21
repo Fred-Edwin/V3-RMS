@@ -29,7 +29,7 @@ const COPY: TableCopy = {
   permissionDescription: 'Your role does not open the employee list.',
 };
 
-const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'no_contract', 'casual_pool', 'on_probation', 'exited']);
+const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'exited']);
 
 export function buildFilters(lookups: Lookups | null): TableFilter[] {
   const sites = lookups?.organizations ?? [];
@@ -41,10 +41,11 @@ export function buildFilters(lookups: Lookups | null): TableFilter[] {
       key: 'filter',
       options: [
         { value: '', label: 'All' },
-        { value: 'needs_finishing', label: 'Needs finishing' },
+        { value: 'needs_finishing', label: 'Incomplete files' },
+        { value: 'blocks_payroll', label: 'Blocks payroll' },
         { value: 'no_contract', label: 'No contract yet' },
-        { value: 'casual_pool', label: 'Casual pool' },
-        { value: 'exited', label: 'Exited' },
+        { value: 'casual_pool', label: 'Casuals' },
+        { value: 'exited', label: 'Left' },
       ],
     },
   ];

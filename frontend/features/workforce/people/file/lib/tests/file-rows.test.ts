@@ -45,7 +45,7 @@ describe('job rows', () => {
       'Reports to: Victor Maina (head)',
       'Employment: Monthly, on probation',
       'Started: 14 Jul 2026',
-      'Clocks in and out: Yes, from their position',
+      'Clocks in and out: Yes, from the position',
       'Login role: Barista',
     ]);
   });
