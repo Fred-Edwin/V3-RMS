@@ -47,7 +47,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | written; live role walkthrough in progress (HR, Director, Branch Manager, Accountant done, 4 roles to go), 54 findings so far | | | |
+| 1 People | written; live role walkthrough in progress (HR, Director, Branch Manager, Accountant, Store Manager done, 3 roles to go), 59 findings so far | | | |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
