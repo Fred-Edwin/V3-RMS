@@ -83,7 +83,7 @@ export interface UpdateEmployeeBody {
   dateOfBirth?: DateString | null;
   physicalAddress?: string | null;
 }
-/** What a person may change in My file. National ID, bank and account number are theirs to enter too (Q2); HR verifies. */
+/** What a person may change in My file. National ID, KRA PIN, NSSF, SHA, HELB, bank and account are theirs to change at any time; it saves at once with no HR re-check. */
 export type PatchMeBody = Omit<UpdateEmployeeBody, 'name' | 'positionId' | 'reportsToId' | 'tracksTime'> & {
   bankName?: string | null;
   accountNumber?: string | null;

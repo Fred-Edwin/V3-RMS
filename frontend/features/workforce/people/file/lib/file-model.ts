@@ -20,7 +20,8 @@ export interface FileTab {
 /** Tabs by what the viewer may see: Job and pay needs pay, Documents needs documents (a Branch Manager has neither). */
 export function tabsFor(file: Pick<EmployeeFile, 'locked'>, show: { conduct?: boolean } = {}): FileTab[] {
   const tabs: FileTab[] = [{ value: 'overview', label: 'Overview' }];
-  if (!file.locked.includes('pay')) tabs.push({ value: 'job-pay', label: 'Job and pay' });
+  // A viewer who may not see pay still gets the Job tab (frame 12.1): the job, and two locked cards that say who handles the rest.
+  tabs.push({ value: 'job-pay', label: file.locked.includes('pay') ? 'Job' : 'Job and pay' });
   tabs.push({ value: 'time', label: 'Time', disabled: true }, { value: 'leave', label: 'Leave', disabled: true });
   if (!file.locked.includes('documents')) tabs.push({ value: 'documents', label: 'Documents' });
   // Conduct (Segment 5): offered only to a reader with `discipline.read` (hidden by omission otherwise). Left out of `show`, it keeps its old "waits" look.

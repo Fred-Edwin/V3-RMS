@@ -8,6 +8,7 @@ import {
   PayChangeDecisionSchema,
   PayChangeSchema,
   ProbationDecisionSchema,
+  ProbationNoteSchema,
   StatutorySchema,
   UpdateEmployeeSchema,
 } from './people-validators';
@@ -17,6 +18,15 @@ const baseHire = {
   who: { name: 'Joy Wanjiru', phone: '0712 345 678', nationalId: '12345678' },
   job: { siteId: uuid, departmentId: uuid, positionId: uuid, employment: 'MONTHLY_WITH_CONTRACT', startDate: '2026-11-01' },
 };
+
+describe('the head’s probation report', () => {
+  it('accepts Good, Needs work and Not good, with an optional note, and refuses anything else', () => {
+    for (const verdict of ['GOOD', 'NEEDS_WORK', 'NOT_GOOD']) expect(ProbationNoteSchema.safeParse({ verdict, note: 'Late twice.' }).success).toBe(true);
+    expect(ProbationNoteSchema.safeParse({ verdict: 'GOOD' }).success).toBe(true);
+    expect(ProbationNoteSchema.safeParse({ verdict: 'FINE' }).success).toBe(false);
+    expect(ProbationNoteSchema.safeParse({ verdict: 'GOOD', extra: 1 }).success).toBe(false);
+  });
+});
 
 describe('people validators', () => {
   it('accepts a monthly hire and a casual hire without a login', () => {

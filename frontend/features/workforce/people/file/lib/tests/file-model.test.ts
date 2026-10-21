@@ -40,9 +40,9 @@ describe('undo while on notice', () => {
 });
 
 describe('tabs follow what is locked', () => {
-  it('gives HR the seven tabs and a Branch Manager five', () => {
+  it('gives HR the seven tabs and a Branch Manager six, with "Job" instead of "Job and pay" (frame 12.1)', () => {
     expect(tabsFor(joy()).map((t) => t.label)).toEqual(['Overview', 'Job and pay', 'Time', 'Leave', 'Documents', 'Conduct', 'Activity']);
-    expect(tabsFor(joy({ locked: ['pay', 'bank', 'ids', 'documents'] })).map((t) => t.label)).toEqual(['Overview', 'Time', 'Leave', 'Conduct', 'Activity']);
+    expect(tabsFor(joy({ locked: ['pay', 'bank', 'ids', 'documents'] })).map((t) => t.label)).toEqual(['Overview', 'Job', 'Time', 'Leave', 'Conduct', 'Activity']);
   });
   it('marks the tabs of later slices as waiting', () => {
     expect(tabsFor(joy()).filter((t) => t.disabled).map((t) => t.value)).toEqual(['time', 'leave', 'conduct']);

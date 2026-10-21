@@ -8,6 +8,7 @@ import { useEmployeePay } from '../../../_shared/hooks/use-people-data';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { jobRows } from '../../lib/file-rows';
 import { SensitivePanel } from '../sensitive/sensitive-panel';
+import { IDS_BANK_RESTRICTED, PAY_RESTRICTED, RestrictedCard } from './restricted-card';
 import { PayHistory, PayPanel, PendingPayChange } from './pay-panels';
 import type { OpenDialog } from './overview-parts';
 
@@ -17,7 +18,9 @@ import type { OpenDialog } from './overview-parts';
  */
 export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile; today: string; open: OpenDialog; reloadKey: number }) {
   const permissions = useWorkforcePermissions();
-  const pay = useEmployeePay(file.id, true);
+  // A viewer who may not see pay (the Branch Manager) never asks for it: the right column is two locked cards (frame 12.1).
+  const payLocked = file.locked.includes('pay');
+  const pay = useEmployeePay(file.id, !payLocked);
   const reloadPay = pay.reload;
   const lastKey = React.useRef(reloadKey);
   React.useEffect(() => {
@@ -41,7 +44,12 @@ export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile
         <SensitivePanel file={file} onEdit={file.actions.editIds || file.actions.editBank ? () => open('ids-bank') : undefined} />
       </div>
       <div className="flex flex-col gap-4">
-        {pay.status === 'error' && !pay.data ? (
+        {payLocked ? (
+          <>
+            <RestrictedCard title="IDs and bank" line={IDS_BANK_RESTRICTED} />
+            <RestrictedCard title="Pay" line={PAY_RESTRICTED} />
+          </>
+        ) : pay.status === 'error' && !pay.data ? (
           <ErrorBlock title="The pay did not load" line="Nothing was changed. Try again." onRetry={pay.reload} />
         ) : pay.data ? (
           <>
