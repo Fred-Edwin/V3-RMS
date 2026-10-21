@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { ErrorBlock, KeyValueRows, ListSkeleton, useWorkforcePermissions } from '../../../../_shared';
-import { PANEL_ROWS, PanelLink, TitledPanel } from '../../../_shared/components/titled-panel';
+import { PANEL_ROWS, PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/components/titled-panel';
 import { useEmployeePay } from '../../../_shared/hooks/use-people-data';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { jobRows } from '../../lib/file-rows';
@@ -32,13 +32,13 @@ export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile
   return (
     <div className="grid grid-cols-[minmax(0,480px)_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1">
       <div className="flex flex-col gap-5">
-        <TitledPanel title="Job" aside={file.actions.editJob ? <PanelLink onClick={() => open('edit-job')}>Edit</PanelLink> : undefined}>
+        <TitledPanel title="Job" aside={file.actions.editJob ? <PanelLink onClick={() => open('edit-job')}>Edit</PanelLink> : <PanelReadOnlyTag>EDITED BY HR</PanelReadOnlyTag>}>
           <KeyValueRows rows={jobRows(file)} aria-label="Job" topRule={false} className={PANEL_ROWS} />
           {!file.actions.editJob && file.status !== 'EXITED' ? (
             <p className="m-0 border-t border-wds-border px-[18px] py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Ask HR to change this.</p>
           ) : null}
         </TitledPanel>
-        <SensitivePanel file={file} />
+        <SensitivePanel file={file} onEdit={file.actions.editIds || file.actions.editBank ? () => open('ids-bank') : undefined} />
       </div>
       <div className="flex flex-col gap-4">
         {pay.status === 'error' && !pay.data ? (
@@ -46,7 +46,7 @@ export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile
         ) : pay.data ? (
           <>
             {pay.data.pending ? <PendingPayChange change={pay.data.pending} canDecide={canDecide} onDecide={() => open('pay-decision', pay.data?.pending?.id)} /> : null}
-            <PayPanel pay={pay.data} file={file} today={today} />
+            <PayPanel pay={pay.data} file={file} today={today} onEdit={file.actions.changePay ? () => open('change-pay') : undefined} />
             <PayHistory history={pay.data.history} />
             <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
               A pay change asks for the date it starts and goes to the Director to approve. The Branch Manager never sees these amounts. Opening this card is written to the audit log.

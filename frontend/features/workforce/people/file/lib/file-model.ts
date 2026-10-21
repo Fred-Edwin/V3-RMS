@@ -138,7 +138,7 @@ export function withWendo(startDate: string, today: string): { value: string; de
 }
 
 export type FileDialogKey =
-  | 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'bank' | 'ask' | 'photo'
+  | 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'ids-bank' | 'ask' | 'photo'
   | 'undo-exit' | 'verify' | 'pay-decision';
 
 /** What a file request asked for, in the words of the checklist ("Emergency contact, asked of Joy on 2 Oct"). */
@@ -176,10 +176,10 @@ export function nextStepRows(file: EmployeeFile): NextStepRow[] {
 export function finishTarget(file: EmployeeFile, canWriteSensitive = false): FileDialogKey | null {
   const open = (part: FilePart): boolean => file.completeness?.parts.some((p) => p.part === part && p.applicable && !p.done) ?? false;
   // ID and statutory numbers are HR's (`employee.write_sensitive`); the emergency contact is a basic field a manager may also edit.
-  if ((open('IDENTITY') || open('NSSF_SHA')) && canWriteSensitive) return 'details';
+  if ((open('IDENTITY') || open('NSSF_SHA')) && canWriteSensitive) return 'ids-bank';
   if (open('EMERGENCY_CONTACT') && (canWriteSensitive || file.actions.editJob)) return 'details';
   if (open('PAY') && file.actions.changePay) return 'change-pay';
-  if (open('BANK') && file.actions.changePay) return 'bank';
+  if (open('BANK') && file.actions.editBank) return 'ids-bank';
   if (open('LOGIN') && file.actions.createLogin) return 'login';
   if (open('PHOTO_AND_DETAILS') && file.actions.remind) return 'ask';
   if (open('CONTRACT') && file.actions.createContract) return 'contract';

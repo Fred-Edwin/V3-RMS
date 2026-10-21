@@ -4,15 +4,15 @@ import { Button } from '@/components/ui2/button';
 import { cn } from '@/lib/cn';
 
 import { KeyValueRows, VALUE_TONE_CLASS } from '../../../../_shared';
-import { PANEL_ROWS, PanelCaption, TitledPanel } from '../../../_shared/components/titled-panel';
+import { PANEL_ROWS, PanelCaption, PanelLink, TitledPanel } from '../../../_shared/components/titled-panel';
 import { formatDayMonthYear, formatKes } from '../../../_shared/lib/people-dates';
 import type { EmployeeFile, PayChangeRow, PayView } from '../../../_shared/types/people-types';
 import { payHistoryLines, payRows } from '../../lib/file-rows';
 
 /** "Pay · HR AND ACCOUNTANT ONLY": the amount (with "starts <date>" before its day), overtime, lateness. */
-export function PayPanel({ pay, file, today }: { pay: PayView; file: EmployeeFile; today: string }) {
+export function PayPanel({ pay, file, today, onEdit }: { pay: PayView; file: EmployeeFile; today: string; onEdit?: () => void }) {
   return (
-    <TitledPanel title="Pay" aside={<PanelCaption>HR AND ACCOUNTANT ONLY</PanelCaption>}>
+    <TitledPanel title="Pay" aside={onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelCaption>HR AND ACCOUNTANT ONLY</PanelCaption>}>
       <KeyValueRows rows={payRows(pay, file.contractStatus, today)} aria-label="Pay" topRule={false} className={PANEL_ROWS} />
     </TitledPanel>
   );

@@ -12,7 +12,7 @@ import { LoginDialog } from './login-dialog';
 import { LoanDialog } from './move/loan-dialog';
 import { RehireDialog, UndoExitDialog } from './move/exit-dialogs';
 import { MoveDialog } from './move-dialog';
-import { BankDialog } from './pay/bank-dialog';
+import { IdsBankDialog } from './ids-bank-dialog';
 import { ChangePayDialog } from './pay/change-pay-dialog';
 import { PayDecisionDialog } from './pay/pay-decision-dialog';
 import { NoteDialog, ProbationDialog } from './probation-dialog';
@@ -50,7 +50,7 @@ const DIALOGS: Record<FileDialogKey, React.ComponentType<FileDialogProps>> = {
   'undo-exit': UndoExitDialog,
   login: LoginDialog,
   details: DetailsDialog,
-  bank: BankDialog,
+  'ids-bank': IdsBankDialog,
   ask: AskDialog,
   verify: VerifyDialog,
 };

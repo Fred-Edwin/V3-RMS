@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { TitledPanel, PanelCaption } from '../../../_shared/components/titled-panel';
+import { TitledPanel, PanelCaption, PanelLink } from '../../../_shared/components/titled-panel';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { useReveal } from '../../hooks/use-reveal';
 import { sensitiveRows } from '../../lib/sensitive-fields';
@@ -13,12 +13,14 @@ import { sensitiveRows } from '../../lib/sensitive-fields';
  * IDs and bank on the Job and pay tab: masked ("•••• 5678"), with a "Show" button that asks the server, which writes the opening to
  * the audit log. The clear value stays for 30 seconds, or until "Hide". A person's own file arrives in clear and has no button.
  */
-export function SensitivePanel({ file, own = false }: { file: EmployeeFile; own?: boolean }) {
+export function SensitivePanel({ file, own = false, onEdit }: { file: EmployeeFile; own?: boolean; onEdit?: () => void }) {
   const reveal = useReveal(file.id);
   const rows = sensitiveRows(file);
   if (rows.length === 0) return null;
+  // "Edit" (amber, underlined) when the viewer may change anything on the card; otherwise the grey tag in the same place.
+  const aside = onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelCaption>{own ? 'ONLY YOU AND HR' : 'EVERY OPENING IS LOGGED'}</PanelCaption>;
   return (
-    <TitledPanel title="IDs and bank" aside={<PanelCaption>{own ? 'ONLY YOU AND HR' : 'EVERY OPENING IS LOGGED'}</PanelCaption>}>
+    <TitledPanel title="IDs and bank" aside={aside}>
       <dl className="m-0 flex flex-col">
         {rows.map((r) => {
           const clear = r.key in reveal.shown;

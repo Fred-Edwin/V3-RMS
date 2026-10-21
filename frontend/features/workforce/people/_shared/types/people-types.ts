@@ -23,7 +23,8 @@ export type ExitReason = (typeof EXIT_REASONS)[number];
 export const PAY_CHANGE_REASONS = ['HIRING', 'PROBATION_CONFIRMED', 'PROMOTION', 'ANNUAL_REVIEW', 'CORRECTION', 'OTHER'] as const;
 export type PayChangeReason = (typeof PAY_CHANGE_REASONS)[number];
 export type FileRequestKind = 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS' | 'ID_NUMBER' | 'BANK_DETAILS';
-export type ProbationVerdict = 'GOOD' | 'CONCERNS';
+/** The head's report is Good, Needs work or Not good; CONCERNS is the older wording on notes already written. */
+export type ProbationVerdict = 'GOOD' | 'NEEDS_WORK' | 'NOT_GOOD' | 'CONCERNS';
 export type PayoutMethod = 'BANK' | 'MPESA' | 'CASH';
 export type HireLoginRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'STEWARD' | 'HOUSEKEEPING' | 'STORE_ATTENDANT';
 
@@ -116,6 +117,10 @@ export interface NextStep {
 export interface EmployeeActions {
   editJob: boolean;
   changePay: boolean;
+  /** The IDs card's Edit (HR and above). */
+  editIds: boolean;
+  /** The bank and account (HR and above, and the Accountant). */
+  editBank: boolean;
   transfer: boolean;
   sendToSite: boolean;
   exit: boolean;
