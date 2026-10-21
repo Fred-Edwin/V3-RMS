@@ -72,7 +72,20 @@ export type WorkforceCapability =
   | 'security.phones.own'
   | 'security.alerts.read'
   | 'security.alerts.clear'
-  | 'audit.verify_chain';
+  | 'audit.verify_chain'
+  // Shared parts, front end B (segment 6b): the per-category log reads (the Audit log page and its tabs ask these, never a role name).
+  | 'audit.read.people'
+  | 'audit.read.time'
+  | 'audit.read.leave'
+  | 'audit.read.pay_setup'
+  | 'audit.read.pay_run_prepare'
+  | 'audit.read.pay_run_decide'
+  | 'audit.read.rules_operating'
+  | 'audit.read.rules_pay'
+  | 'audit.read.discipline'
+  | 'audit.read.security'
+  | 'audit.read.documents'
+  | 'audit.read.log_access';
 
 export type WorkforceScope = 'own' | 'dept' | 'unit' | 'all';
 
