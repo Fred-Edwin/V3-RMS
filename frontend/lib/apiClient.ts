@@ -101,8 +101,23 @@ const requestEnvelope = async <T>(
   return payload;
 };
 
+/**
+ * Identical reads that are in flight at the same moment share one call (finding 28): the shell asks for the same four numbers
+ * from several components at once, and opening a pay card asked twice and wrote the audit entry twice. The entry is removed the
+ * moment the call settles, so a later read (after a save, say) always asks again.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+const sharedGet = <T>(path: string, token?: string): Promise<T> => {
+  const key = `${token ?? ''}|${path}`;
+  const running = inFlight.get(key);
+  if (running) return running as Promise<T>;
+  const call = request<T>('GET', path, undefined, token).finally(() => inFlight.delete(key));
+  inFlight.set(key, call);
+  return call;
+};
+
 export const apiClient = {
-  get: <T>(path: string, token?: string): Promise<T> => request<T>('GET', path, undefined, token),
+  get: <T>(path: string, token?: string): Promise<T> => sharedGet<T>(path, token),
   getWithEnvelope: <T>(path: string, token?: string): Promise<ApiResponseEnvelope<T>> =>
     requestEnvelope<T>('GET', path, undefined, token),
   post: <T>(path: string, body: unknown, token?: string, headers?: Record<string, string>): Promise<T> =>

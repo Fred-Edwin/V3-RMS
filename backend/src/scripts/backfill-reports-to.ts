@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { prisma } from '../config/database';
-import { backfillReportsTo } from '../modules/workforce';
+import { backfillReportsTo } from '../modules/workforce/people/hire/reports-to-backfill'; // a one-off script, not part of the public door
 
 /** People fix 12: give people hired before the default the site manager as their boss. Safe to run again. */
 const run = async (): Promise<void> => {

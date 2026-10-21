@@ -14,7 +14,6 @@ export { default as workforceRulesRouter } from './rules/rules-routes';
 export { default as workforcePeopleRouter } from './people/people-routes';
 export { default as workforceOrgRouter } from './people/org-routes'; // Organisation: departments, heads, positions (slice 1b)
 export { default as workforceRotaRouter } from './rota/rota-routes'; // Rota: shift templates, the week grid, edits (slice 2)
-export { backfillReportsTo } from './people/hire/reports-to-backfill'; // People fix 12: default boss for existing rows
 export { carryOverLegacyRota } from './rota/legacy/legacy-carry-over'; // the repeatable legacy-to-rota copy (slice 2)
 export { default as workforceAttendanceRouter } from './attendance/attendance-routes'; // Attendance: clock, Today board, fixes, lateness, the switch (slice 3)
 export { refuseLegacyClockWhenSwitched } from './attendance/switch/legacy-clock-guard'; // the four legacy clock routes answer 409 for a switched site
