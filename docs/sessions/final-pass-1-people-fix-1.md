@@ -1,0 +1,36 @@
+# Workforce final pass, section 1: People, fix batch 1 (code and copy)
+
+Working document. Delete it when Workforce ships. Paste everything below the divider into a fresh session started in the **lane 2** worktree. **Start only after the owner has answered the five questions in `final-pass/1-people-decisions.md`** (the orchestrator writes the answers into its "Answers" section).
+
+---
+
+You are a tech lead on Wendo RMS fixing the People findings the owner has decided. Read, in full and once: `docs/sessions/workforce-two-part-method.md` (two parts, the **150 tool-call cap with a planned stop**, fresh servers, background commands, no cheating, known gotchas) and `docs/sessions/workforce-frontend-common.md` (code, interaction and shared-file rules). Then read `docs/features/workforce/final-pass/1-people-decisions.md` (what is in your batch) and look up each finding by number in `1-people-findings.md` (read only the rows you need, using `grep -n "^| 43 "` style searches; the file is large). Section name for files: `1-people-fix-1`.
+
+### Where you work
+Lane 2 worktree. `git status` must be clean; then `git checkout -b fix/workforce-1-people-batch-1 origin/feat/workforce-stack-complete`. Run `git log --oneline -1` and confirm `docs/features/workforce/final-pass/1-people-decisions.md` exists; if not, stop and say so. In `backend/` run `pnpm exec prisma migrate deploy` and `pnpm exec prisma generate`. Ports follow the lane (front end 3102, API 4102, browser `http://lane2.localhost:3102`, database `wendo_rms_lane2`). The lane database is dirty with old test people; that is fine for fixes, and you must not tidy it. Nothing is pushed; commit before your final message.
+
+### Scope: only the findings marked "Batch 1" (and the answered questions)
+Do **not** touch anything marked Design, Batch 2, Access, Act-as or a later section. If a fix needs a new screen layout, skip it and list it under "Not done". The decisions in force:
+- **Cash and M-Pesa stay** as payout choices (owner). Findings 1, 2, 3 are *not* removed. Make the hire screen and the API offer the **same set**; Bank is the default for monthly staff; follow the answer to Q3 for Cash on the casual path; a change of payout method is audited and the Accountant is told (a notification with no amounts).
+- **Sign-in email** `firstname.secondname@wendo.co.ke`: lowercase, letters only, accents, spaces, hyphens and apostrophes removed; a two-word name uses its last word; a clash gets a number (`joy.chebet2@`). The wizard shows **one** address; HR edits it only for a clash or a spelling fix. **Personal email** is optional at step 1, used only for the first sign-in link and password reset, with a one-line purpose and a short privacy notice (placeholder wording for the lawyer).
+- **Temporary password** `word.word.1234`: two *different* Swahili food and drink words from a list of about 250 short words (a first draft is in `1-people-findings.md`, finding 43 and the owner decisions block; put the list in one file, 250 words, reviewed later by a Swahili speaker), four digits, joined by dots, **generated on the server**, shown once, never emailed. HR can generate another; each generation is audited (no password in the audit). An unused one expires after 7 days. The person is **never forced to change it**. The PIN stays compulsory.
+- Statutory numbers: validate formats on screen **and** in the schema (KRA PIN letter, nine digits, letter; NSSF and SHA with the best known format, lenient where unsure and say so in the report). On My file the sheet shows the current value masked ("On file, ends 0037"), asks to confirm a change, keeps the old value in the audit entry (masked, never the number), and lets the person correct until HR has verified.
+- No he, she, her or his; role alone or name plus role, never a bare name.
+
+### Groups (build in this order; the checklist rows follow)
+1. **Rules and safety:** 1 and 22 (Q3), 4 (Q1), 15 (Q2), 16, 17 and 54 (future pay changes: warn on overlap in the dialog, show "Starts 22 Oct" in history and on the Pay card, history in date order), 21, 65, 55 (a Store Manager's list and reach exclude head-office and company-level people; the service refuses conduct on anyone above the manager's level; test it), 56 (offer only departments and positions the role may create), 57 (the Organisation menu row and route guard follow the access table; one table is the authority).
+2. **Sign-in:** 43 and 44.
+3. **Things that fail or are noisy:** 64 (photo: a clear message with the reference; add a ship-checklist item in `docs/sessions/workforce-ship-prep.md` for a real storage key per environment and a test upload), 28 (check in a production build, dedupe the shell calls and the double `people.pay_opened` entry), 46 (a 429 shows "The system is busy, trying again" and retries on its own), 50 (a 404 is a state, not a console error), 37 (confirmation after the Director's Approve).
+4. **Wrong results and words:** 5, 8, 49 and 52 ("Incomplete files" counts everything missing; a separate "Blocks payroll" chip and card counts only what stops pay or the rota; each role sees the count it can act on), 10, 12, 19 (Q4), 20 (list people without a login with "Give a login first" linking to their file; hide the empty button), 23, 24, 25 (the copy list in the finding), 27 (the name is a link), 29 (a bank list), 40 (the label changes listed in the finding, only those not tied to the Home redesign), 48 (Q5), 58 (copy), 60 (one top bar on Home), 66, 69 (copy only; the details form is Batch 2).
+
+### Part 1 (build) and Part 2 (verify)
+Follow the method file. **Part 1** builds all four groups with a type check and the tests for each change, a small flow test per rule (formats, payout set, overlap warning, scope, the password generator and expiry), and one commit per group; it stops at the cap or when built, writes `docs/features/workforce/handoff-1-people-fix-1.md` and prints the starter prompt in a code block. **Part 2** (fresh context) runs the gates once (`pnpm build`, the backend suite, `pnpm check:imports` not worse, ESLint on changed code, front-end type check and tests), then a **real-browser walk of only what changed**, as the roles concerned (HR, Director, Branch Manager, Accountant, Store Manager, department head, staff at 390 px), one screenshot per changed screen, the audit entries checked (no password, PIN or amount), console clean, and the switch left off. This walk is also the rehearsal for the People demo video: note anything awkward for the video.
+
+### Checklist
+Create `docs/features/workforce/checklist-1-people-fix-1.md` as a Markdown table, one row per finding number above plus a row for each answered question (columns: row, finding, built, verified, note).
+
+### Rules
+Edit and Write tools only (no `Why:` line needed); no subagents; files at most 350 lines and folders at most 12 files for anything you add or touch; a live task list; never write to the owner's main database (the Postgres MCP is read-only); commit with `git add <explicit paths>` ending with the attribution line you were given; commit before your final message.
+
+### Final message
+(1) decisions table, (2) 5-line recap, (3) findings fixed, findings skipped and why, new gaps, rule slips, lane state. Nothing "to do". **Do not draft the next session's prompt.** Stop for the owner's review.
