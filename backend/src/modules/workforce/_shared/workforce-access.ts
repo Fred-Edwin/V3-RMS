@@ -128,7 +128,20 @@ export const AUDIT_CAPABILITIES_COMPLETE: Exclude<AuditReadCapability, Capabilit
 
 export const auditReadCapability = (category: AuditCategoryCode): Capability => `audit.read.${category.toLowerCase()}` as AuditReadCapability;
 
-const ALL_AUDIT_READS: Grants = Object.fromEntries(CAPABILITIES.filter((c) => c.startsWith('audit.read.')).map((c) => [c, 'all' as const]));
+/**
+ * What the Director and the System Admin do NOT get at scope all. Own-file capabilities (the Director has them at scope
+ * own; the System Admin has no file); steps that belong to one role by design (the Accountant approves and pays, HR
+ * prepares and publishes payroll, HR decides conduct notices it issues, the site's own manager closes the month);
+ * opening anyone's payslip (HR, Accountant, audited, the Director told).
+ */
+const NOT_FULL: ReadonlySet<Capability> = new Set<Capability>([
+  'me.file', 'me.payslip', 'me.payprofile', 'time.own', 'leave.request', 'discipline.read_own', 'audit.read_own',
+  'notifications.own', 'security.phones.own',
+  'timesheet.close', 'discipline.decide', 'payslip.read_any',
+  'payroll.review', 'payroll.approve', 'payroll.publish', 'payroll.pay', 'payroll.correct',
+  'p9.generate', 'p9.confirm_format', 'rules.confirm.pay_rates', 'rules.confirm.statutory',
+]);
+const FULL_ACCESS: Grants = Object.fromEntries(CAPABILITIES.filter((c) => !NOT_FULL.has(c)).map((c) => [c, 'all' as const]));
 
 const OWN_FILE: Grants = {
   'me.file': 'own',
@@ -284,80 +297,10 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'audit.read.rules_pay': 'all',
     'needs_you.read': 'all', // Segment 6a
   },
-  DIRECTOR: {
-    ...OWN_FILE,
-    ...OWN_SHARED_6A,
-    'needs_you.read': 'all', // Segment 6a
-    'needs_you.remind': 'all',
-    'audit.verify_chain': 'all',
-    'rota.read': 'all',
-    'rota.template_write': 'all', // HR and the Director edit company-wide shifts (Chapter 5, step 6)
-    'today.read': 'all',
-    'timesheet.read': 'all',
-    'timesheet.close': 'unit', // approves the month of the site the Director belongs to (Head office; Segment 1A D7)
-    'manager_time.decide': 'all', // a site manager's own days and overtime go to the Director
-    'casual.read': 'all',
-    'casual.approve': 'all', // Head office and any sheet a Branch Manager recorded (PD24); the service narrows it
-    'leave.read': 'all',
-    'leave.approve': 'all', // fallback only: the approvals sub-module routes to the Director when the approver is the subject or absent
-    'employee.read_basic': 'all',
-    'employee.read_sensitive': 'all',
-    'payprofile.read': 'all',
-    'payprofile.approve': 'all',
-    'org.read': 'all',
-    'rules.read': 'all',
-    'rules.edit.lateness': 'all',
-    'rules.edit.overtime': 'all',
-    'rules.edit.attendance': 'all',
-    'rules.edit.min_cover': 'all',
-    'rules.edit.probation': 'all',
-    'rules.edit.casual_work': 'all',
-    'rules.edit.conduct': 'all',
-    'rules.edit.holidays': 'all',
-    'rules.edit.week_breaks': 'all',
-    'rules.confirm.holiday_list': 'all',
-    'payroll.read': 'all',
-    'payroll.export': 'all',
-    'payroll.remind': 'all',
-    'payroll.estimate.read': 'all',
-    'payroll.approve_site_late': 'all',
-    'discipline.read': 'all',
-    'discipline.decide': 'all', // only for notices HR issued: assertMayDecide in conduct/appeals narrows it
-    ...ALL_AUDIT_READS,
-  },
-  SYSTEM_ADMIN: {
-    // no "me.*": the System Admin has no payslip, no file and no clock (decisions D2, D15)
-    'rota.read': 'all',
-    'rota.write': 'all',
-    'rota.template_write': 'all',
-    'today.read': 'all',
-    'today.act': 'all',
-    'time.fix': 'all',
-    'attendance.switch': 'all', // the owner pilots one branch at a time; only the System Admin moves a site (owner, 18 Oct 2026)
-    'timesheet.read': 'all',
-    'time_request.answer': 'all',
-    'clock_mistake.resolve': 'all',
-    'leave.read': 'all',
-    'leave.approve': 'all',
-    'employee.read_basic': 'all',
-    'employee.write_basic': 'all',
-    'employee.lifecycle': 'all',
-    'org.read': 'all',
-    'org.write': 'all',
-    'org.write_heads': 'all',
-    'rules.read': 'all',
-    'rules.edit.min_cover': 'all', // reads every tab; changes minimum cover only (1B, decision D6)
-    'payroll.read': 'all',
-    'payroll.estimate.read': 'all',
-    'audit.read.security': 'all',
-    'audit.read.rules_operating': 'all',
-    'audit.read.rules_pay': 'all',
-    ...OWN_SHARED_6A, // Segment 6a
-    'needs_you.read': 'all',
-    'security.alerts.read': 'all',
-    'security.alerts.clear': 'all',
-    'audit.verify_chain': 'all',
-  },
+  // Owner decision, 21 Oct 2026 (replaces D2 and D15): the Director and the System Admin read and write everything
+  // except the steps in NOT_FULL. The System Admin still has no file, payslip or clock of its own.
+  DIRECTOR: { ...FULL_ACCESS, ...OWN_FILE, ...OWN_SHARED_6A, 'timesheet.close': 'unit', 'discipline.decide': 'all' /* the service narrows it to notices HR issued */ },
+  SYSTEM_ADMIN: { ...FULL_ACCESS, ...OWN_SHARED_6A },
 };
 
 export interface AccessSubject {

@@ -32,14 +32,14 @@ describe('auditReadScopeOf', () => {
     expect(cats('DIRECTOR')).toEqual([...AUDIT_CATEGORIES].sort());
   });
 
-  it('the System Admin reads security and rule changes, not payslip opens', () => {
-    expect(cats('SYSTEM_ADMIN')).toEqual(['RULES_OPERATING', 'RULES_PAY', 'SECURITY']);
-    expect(cats('SYSTEM_ADMIN')).not.toContain('PAYSLIP_ACCESS');
+  it('the System Admin reads every category the Director reads, but has no record of its own (21 Oct 2026)', () => {
+    expect(cats('SYSTEM_ADMIN')).toEqual(cats('DIRECTOR'));
+    expect(cats('SYSTEM_ADMIN')).toContain('PAYSLIP_ACCESS');
     expect(auditReadScopeOf(as('SYSTEM_ADMIN')).ownRecord).toBe(false);
   });
 
-  it('nobody except the Director can read LOG_ACCESS or PAYSLIP_ACCESS', () => {
-    const roles: UserRole[] = ['WAITER', 'CHEF', 'STORE_ATTENDANT', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'SYSTEM_ADMIN'];
+  it('nobody except the Director and the System Admin can read LOG_ACCESS or PAYSLIP_ACCESS', () => {
+    const roles: UserRole[] = ['WAITER', 'CHEF', 'STORE_ATTENDANT', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER'];
     for (const role of roles) {
       expect(cats(role)).not.toContain('LOG_ACCESS');
       expect(cats(role)).not.toContain('PAYSLIP_ACCESS');

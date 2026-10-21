@@ -87,7 +87,7 @@ const WITHOUT: Record<Cap, string> = {
   'timesheet.approve': as('ACCOUNTANT'),
   'overtime.approve': as('HR_MANAGER'),
   'timesheet.close': as('HR_MANAGER'),
-  'timesheet.export': as('DIRECTOR'),
+  'timesheet.export': as('WAITER'),
   'overtime.note': as('MANAGER'),
   'time_request.answer': as('ACCOUNTANT'),
 };
@@ -162,8 +162,15 @@ describe('Timesheets routes', () => {
     expect((await request(app).get(`${T}/requests/${id}`).set('x-test-user', as('MANAGER'))).status).toBe(200);
   });
 
-  it('the Accountant, HR and the System Admin read timesheets and approve nothing', async () => {
-    for (const role of ['ACCOUNTANT', 'HR_MANAGER', 'SYSTEM_ADMIN']) {
+  it('the System Admin decides days and overtime like the Director (21 Oct 2026), but does not close a month', async () => {
+    const user = as('SYSTEM_ADMIN');
+    expect((await request(app).post(`${T}/days/${id}/decision`).set('x-test-user', user).send({ outcome: 'ACCEPT' })).status).toBe(200);
+    expect((await request(app).post(`${T}/overtime/${id}/decision`).set('x-test-user', user).send({ decision: 'APPROVE_ALL', pin: '1234', version: 0 })).status).toBe(200);
+    expect((await request(app).post(`${M}/approve`).set('x-test-user', user).send({ pin: '1234', idempotencyKey: key, expectedTotals: { workedMinutes: 1, overtimeAuthorisedMinutes: 0, headcount: 1 } })).status).toBe(403);
+  });
+
+  it('the Accountant and HR read timesheets and approve nothing', async () => {
+    for (const role of ['ACCOUNTANT', 'HR_MANAGER']) {
       const user = as(role);
       expect((await request(app).get(`${T}/months`).set('x-test-user', user)).status).toBe(200);
       expect((await request(app).post(`${T}/days/${id}/decision`).set('x-test-user', user).send({ outcome: 'ACCEPT' })).status).toBe(403);
@@ -172,10 +179,10 @@ describe('Timesheets routes', () => {
     }
   });
 
-  it('HR and the Accountant export; the Director and the System Admin do not', async () => {
+  it('HR, the Accountant, the managers, the Director and the System Admin export; a waiter does not', async () => {
     const body = { format: 'xlsx', idempotencyKey: key };
-    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER']) expect((await request(app).post(`${M}/exports`).set('x-test-user', as(role)).send(body)).status).toBe(200);
-    for (const role of ['DIRECTOR', 'SYSTEM_ADMIN', 'WAITER']) expect((await request(app).post(`${M}/exports`).set('x-test-user', as(role)).send(body)).status).toBe(403);
+    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN']) expect((await request(app).post(`${M}/exports`).set('x-test-user', as(role)).send(body)).status).toBe(200);
+    for (const role of ['WAITER']) expect((await request(app).post(`${M}/exports`).set('x-test-user', as(role)).send(body)).status).toBe(403);
   });
 
   it('the Director approves a month (Head office) and decides a site manager\'s own days; nobody else at head level does', async () => {

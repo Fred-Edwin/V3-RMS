@@ -1,5 +1,5 @@
 import { ForbiddenError, NotFoundError } from '../../../../utils/errors';
-import { inScope, type Capability } from '../../_shared/workforce-access';
+import { assertNotSelf, inScope, type Capability } from '../../_shared/workforce-access';
 import { targetOf } from '../people-access';
 import type { ActorCtx } from '../people-context';
 import type { Doer } from './lifecycle-engine';
@@ -20,5 +20,6 @@ export async function loadForWrite(ctx: ActorCtx, id: string, capability: Capabi
     if (!inScope(ctx.subject, 'employee.read_basic', target)) throw new NotFoundError('Employee not found');
     throw new ForbiddenError('You do not have permission to perform this action');
   }
+  assertNotSelf(ctx.subject, target); // nobody exits, transfers or confirms themself
   return emp;
 }

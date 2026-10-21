@@ -65,9 +65,6 @@ describe('who may write', () => {
   it.each([
     ['hr', 'LATENESS'],
     ['acc', 'LATENESS'],
-    ['adm', 'LATENESS'],
-    ['adm', 'OVERTIME'],
-    ['adm', 'ATTENDANCE'],
     ['w1', 'LATENESS'],
     ['bm1', 'PROBATION'],
   ])('%s cannot change %s', async (actor, group) => {
@@ -75,17 +72,22 @@ describe('who may write', () => {
     expect(state.rows).toHaveLength(0);
   });
 
-  it('only HR changes leave types, only the Director the holiday list, only the Accountant the holiday rate and statutory', async () => {
+  it('the System Admin writes the company rule of lateness, overtime and attendance like the Director (21 Oct 2026)', async () => {
+    await expect(create('adm')).resolves.toMatchObject({ version: { group: 'LATENESS', changedFields: ['graceMinutes'] } });
+  });
+
+  it('leave types: HR, the Director and the System Admin; the holiday list: the Director and System Admin (HR and the Accountant cannot); the holiday rate: the Accountant, Director and System Admin', async () => {
     const types = { leaveTypes: [...RULE_DEFAULTS.LEAVE.leaveTypes, { ...RULE_DEFAULTS.LEAVE.leaveTypes[0]!, code: 'STUDY', label: 'Study leave' }] };
-    await expect(create('dir', 'LEAVE', { values: types })).rejects.toMatchObject({ statusCode: 403, code: 'RULE_FIELD_NOT_EDITABLE' });
-    await expect(create('hr', 'LEAVE', { values: types })).resolves.toMatchObject({ version: { changedFields: ['leaveTypes'] } });
+    await expect(create('dir', 'LEAVE', { values: types })).resolves.toMatchObject({ version: { changedFields: ['leaveTypes'] } });
+    const more = { leaveTypes: [...types.leaveTypes, { ...RULE_DEFAULTS.LEAVE.leaveTypes[0]!, code: 'SABBATICAL', label: 'Sabbatical' }] };
+    await expect(create('hr', 'LEAVE', { values: more })).resolves.toBeTruthy();
 
     const holiday = { holidays: [{ date: '2026-12-25', name: 'Christmas Day' }] };
     await expect(create('hr', 'HOLIDAYS', { values: holiday })).rejects.toMatchObject({ statusCode: 403 });
     await expect(create('acc', 'HOLIDAYS', { values: holiday })).rejects.toMatchObject({ statusCode: 403 });
     await expect(create('dir', 'HOLIDAYS', { values: holiday })).resolves.toBeTruthy();
 
-    await expect(create('dir', 'HOLIDAYS', { values: { payMultiplier: '2.0' } })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(create('hr', 'HOLIDAYS', { values: { payMultiplier: '2.0' } })).rejects.toMatchObject({ statusCode: 403 });
     await expect(create('acc', 'HOLIDAYS', { values: { payMultiplier: '2.0' } })).resolves.toBeTruthy();
   });
 

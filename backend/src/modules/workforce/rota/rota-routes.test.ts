@@ -56,9 +56,9 @@ const cases: Case[] = [
   { method: 'post', path: `${R}/copy/preview`, body: { weekStart: '2026-10-26' }, capability: 'rota.write', status: 200 },
   { method: 'post', path: `${R}/copy`, body: { weekStart: '2026-10-26' }, capability: 'rota.write', status: 200 },
 ];
-// A role that holds the capability and one that does not (a Director reads but cannot edit; a waiter only reads their own).
+// A role that holds the capability and one that does not (a waiter only reads their own).
 const WITH: Record<Cap, string> = { 'rota.read': 'WAITER', 'rota.write': 'MANAGER', 'rota.template_write': 'HR_MANAGER' };
-const WITHOUT: Record<Cap, string> = { 'rota.read': 'KITCHEN_DISPLAY', 'rota.write': 'DIRECTOR', 'rota.template_write': 'WAITER' };
+const WITHOUT: Record<Cap, string> = { 'rota.read': 'KITCHEN_DISPLAY', 'rota.write': 'WAITER', 'rota.template_write': 'WAITER' };
 const call = (c: Case, user?: string) => {
   const r = request(app)[c.method](c.path);
   return (user ? r.set('x-test-user', user) : r).send(c.body);

@@ -11,7 +11,7 @@ describe('who holds the organisation capabilities', () => {
     // role, org.read, org.write, org.write_heads
     ['HR_MANAGER', 'all', 'all', 'all'],
     ['SYSTEM_ADMIN', 'all', 'all', 'all'],
-    ['DIRECTOR', 'all', null, null],
+    ['DIRECTOR', 'all', 'all', 'all'],
     ['MANAGER', 'unit', null, 'unit'],
     ['STORE_MANAGER', 'unit', null, 'unit'],
     ['ACCOUNTANT', null, null, null],
@@ -49,7 +49,8 @@ describe('scope checks', () => {
 
   it('only a company-wide writer changes positions', () => {
     expect(() => assertCompanyWideWrite(subject('MANAGER'))).toThrow(ForbiddenError);
-    expect(() => assertCompanyWideWrite(subject('DIRECTOR'))).toThrow(ForbiddenError);
+    expect(() => assertCompanyWideWrite(subject('ACCOUNTANT'))).toThrow(ForbiddenError);
+    expect(() => assertCompanyWideWrite(subject('DIRECTOR'))).not.toThrow();
   });
 
   it('a viewer with no organisation read, or a branch viewer with no branch, is refused', () => {

@@ -32,94 +32,94 @@ me.payslip                   own  -    own  own  own  own  -
 me.payprofile                own  -    own  own  own  own  -
 time.own                     own  -    own  -    -    -    -
 rota.read                    own  dept own  unit all  all  all
-rota.write                   -    dept -    unit all  -    all
+rota.write                   -    dept -    unit all  all  all
 rota.template_write          -    -    -    unit all  all  all
 today.read                   -    dept -    unit all  all  all
-today.act                    -    dept -    unit -    -    all
-time.fix                     -    -    -    unit all  -    all
-attendance.switch            -    -    -    -    -    -    all
+today.act                    -    dept -    unit -    all  all
+time.fix                     -    -    -    unit all  all  all
+attendance.switch            -    -    -    -    -    all  all
 timesheet.read               -    -    all  unit all  all  all
-timesheet.approve            -    -    -    unit -    -    -
-overtime.approve             -    -    -    unit -    -    -
+timesheet.approve            -    -    -    unit -    all  all
+overtime.approve             -    -    -    unit -    all  all
 timesheet.close              -    -    -    unit -    unit -
-timesheet.export             -    -    all  unit all  -    -
-overtime.note                -    dept -    -    -    -    -
-time_request.answer          -    -    -    unit all  -    all
-manager_time.decide          -    -    -    -    -    all  -
-clock_mistake.resolve       -    -    -    unit -    -    all
-casual.record                -    dept -    -    -    -    -
-casual.approve               -    -    -    unit -    all  -
-casual.read                  -    dept all  unit all  all  -
+timesheet.export             -    -    all  unit all  all  all
+overtime.note                -    dept -    -    -    all  all
+time_request.answer          -    -    -    unit all  all  all
+manager_time.decide          -    -    -    -    -    all  all
+clock_mistake.resolve       -    -    -    unit -    all  all
+casual.record                -    dept -    -    -    all  all
+casual.approve               -    -    -    unit -    all  all
+casual.read                  -    dept all  unit all  all  all
 leave.request                own  -    own  own  own  own  -
-leave.acknowledge            -    dept -    -    -    -    -
+leave.acknowledge            -    dept -    -    -    all  all
 leave.read                   -    dept -    unit all  all  all
 leave.approve                -    -    -    unit all  all  all
-leave.balance_adjust         -    -    -    -    all  -    -
+leave.balance_adjust         -    -    -    -    all  all  all
 employee.read_basic          -    dept all  unit all  all  all
-employee.read_sensitive      -    -    all  -    all  all  -
-employee.write_basic         -    -    -    unit all  -    all
-employee.write_sensitive     -    -    -    -    all  -    -
-employee.lifecycle           -    -    -    -    all  -    all
-probation.note               -    dept -    unit all  -    -
-payprofile.read              -    -    all  -    all  all  -
-payprofile.write             -    -    -    -    all  -    -
-payprofile.approve           -    -    -    -    -    all  -
+employee.read_sensitive      -    -    all  -    all  all  all
+employee.write_basic         -    -    -    unit all  all  all
+employee.write_sensitive     -    -    -    -    all  all  all
+employee.lifecycle           -    -    -    -    all  all  all
+probation.note               -    dept -    unit all  all  all
+payprofile.read              -    -    all  -    all  all  all
+payprofile.write             -    -    -    -    all  all  all
+payprofile.approve           -    -    -    -    -    all  all
 org.read                     -    dept -    unit all  all  all
-org.write                    -    -    -    -    all  -    all
-org.write_heads              -    -    -    unit all  -    all
+org.write                    -    -    -    -    all  all  all
+org.write_heads              -    -    -    unit all  all  all
 rules.read                   -    -    all  unit all  all  all
-rules.edit.lateness          -    -    -    unit -    all  -
-rules.edit.overtime          -    -    -    unit -    all  -
-rules.edit.attendance        -    -    -    -    -    all  -
-rules.edit.leave_types       -    -    -    -    all  -    -
+rules.edit.lateness          -    -    -    unit -    all  all
+rules.edit.overtime          -    -    -    unit -    all  all
+rules.edit.attendance        -    -    -    -    -    all  all
+rules.edit.leave_types       -    -    -    -    all  all  all
 rules.edit.min_cover         -    -    -    unit -    all  all
-rules.edit.holiday_pay       -    -    all  -    -    -    -
-rules.edit.probation         -    -    -    -    -    all  -
-rules.edit.casual_work       -    -    -    -    -    all  -
-rules.edit.conduct           -    -    -    -    -    all  -
-rules.edit.statutory         -    -    all  -    -    -    -
-rules.edit.holidays          -    -    -    -    -    all  -
-rules.edit.week_breaks       -    -    -    -    -    all  -
+rules.edit.holiday_pay       -    -    all  -    -    all  all
+rules.edit.probation         -    -    -    -    -    all  all
+rules.edit.casual_work       -    -    -    -    -    all  all
+rules.edit.conduct           -    -    -    -    -    all  all
+rules.edit.statutory         -    -    all  -    -    all  all
+rules.edit.holidays          -    -    -    -    -    all  all
+rules.edit.week_breaks       -    -    -    -    -    all  all
 rules.confirm.pay_rates      -    -    all  -    -    -    -
 rules.confirm.statutory      -    -    all  -    -    -    -
-rules.confirm.holiday_list   -    -    -    -    -    all  -
+rules.confirm.holiday_list   -    -    -    -    -    all  all
 payroll.read                 -    -    all  -    all  all  all
 payroll.review               -    -    -    -    all  -    -
 payroll.approve              -    -    all  -    -    -    -
 payroll.publish              -    -    -    -    all  -    -
 payroll.pay                  -    -    all  -    -    -    -
 payroll.correct              -    -    all  -    all  -    -
-payroll.export               -    -    all  -    all  all  -
-payroll.remind               -    -    all  -    all  all  -
+payroll.export               -    -    all  -    all  all  all
+payroll.remind               -    -    all  -    all  all  all
 payroll.estimate.read        -    -    all  -    all  all  all
-payroll.approve_site_late    -    -    -    -    -    all  -
+payroll.approve_site_late    -    -    -    -    -    all  all
 payslip.read_any             -    -    all  -    all  -    -
 p9.generate                  -    -    all  -    all  -    -
 p9.confirm_format            -    -    all  -    -    -    -
 discipline.read_own          own  -    own  own  own  own  -
-discipline.read              -    -    -    unit all  all  -
-discipline.issue             -    -    -    unit all  -    -
+discipline.read              -    -    -    unit all  all  all
+discipline.issue             -    -    -    unit all  all  all
 discipline.decide            -    -    -    -    all  all  -
 audit.read_own              own  -    own  own  own  own  -
-audit.read.people            -    -    -    -    all  all  -
-audit.read.time              -    -    -    unit all  all  -
-audit.read.leave             -    -    -    unit all  all  -
-audit.read.pay_setup         -    -    -    -    all  all  -
-audit.read.pay_run_prepare   -    -    all  -    all  all  -
-audit.read.pay_run_decide    -    -    all  -    -    all  -
+audit.read.people            -    -    -    -    all  all  all
+audit.read.time              -    -    -    unit all  all  all
+audit.read.leave             -    -    -    unit all  all  all
+audit.read.pay_setup         -    -    -    -    all  all  all
+audit.read.pay_run_prepare   -    -    all  -    all  all  all
+audit.read.pay_run_decide    -    -    all  -    -    all  all
 audit.read.rules_operating   -    -    -    unit all  all  all
 audit.read.rules_pay         -    -    all  -    all  all  all
-audit.read.payslip_access    -    -    -    -    -    all  -
-audit.read.sensitive_view    -    -    -    -    -    all  -
-audit.read.discipline        -    -    -    -    all  all  -
+audit.read.payslip_access    -    -    -    -    -    all  all
+audit.read.sensitive_view    -    -    -    -    -    all  all
+audit.read.discipline        -    -    -    -    all  all  all
 audit.read.security          -    -    -    -    -    all  all
-audit.read.documents         -    -    -    -    -    all  -
-audit.read.log_access        -    -    -    -    -    all  -
+audit.read.documents         -    -    -    -    -    all  all
+audit.read.log_access        -    -    -    -    -    all  all
 needs_you.read               -    -    all  unit all  all  all
-needs_you.remind             -    -    -    -    -    all  -
+needs_you.remind             -    -    -    -    -    all  all
 notifications.own            own  -    own  own  own  own  own
-security.alerts.read         -    -    -    -    -    -    all
-security.alerts.clear        -    -    -    -    -    -    all
+security.alerts.read         -    -    -    -    -    all  all
+security.alerts.clear        -    -    -    -    -    all  all
 security.phones.own          own  -    own  own  own  own  own
 audit.verify_chain           -    -    -    -    -    all  all
 `;
@@ -240,11 +240,34 @@ describe('department heads', () => {
 });
 
 describe('the pay-change split', () => {
-  it('only the Director approves and only HR requests, so nobody approves their own', () => {
+  it('HR requests and the Director approves; the Director and System Admin hold both, and the service keeps requester and approver apart', () => {
     expect(scopeOf(subject('DIRECTOR'), 'payprofile.approve')).toBe('all');
-    expect(scopeOf(subject('DIRECTOR'), 'payprofile.write')).toBeNull();
+    expect(scopeOf(subject('DIRECTOR'), 'payprofile.write')).toBe('all');
+    expect(scopeOf(subject('SYSTEM_ADMIN'), 'payprofile.approve')).toBe('all');
+    expect(scopeOf(subject('SYSTEM_ADMIN'), 'payprofile.write')).toBe('all');
     expect(scopeOf(subject('HR_MANAGER'), 'payprofile.write')).toBe('all');
     expect(scopeOf(subject('HR_MANAGER'), 'payprofile.approve')).toBeNull();
+  });
+
+  it('the Accountant steps stay with the Accountant: neither the Director nor the System Admin approves, pays or confirms', () => {
+    for (const role of ['DIRECTOR', 'SYSTEM_ADMIN'] as UserRole[]) {
+      for (const capability of ['payroll.approve', 'payroll.pay', 'p9.confirm_format', 'rules.confirm.pay_rates', 'rules.confirm.statutory'] as Capability[]) {
+        expect(scopeOf(subject(role), capability), `${role} ${capability}`).toBeNull();
+      }
+      expect(scopeOf(subject(role), 'payroll.read')).toBe('all');
+    }
+  });
+
+  it('the System Admin still has no file, payslip or clock of its own', () => {
+    for (const capability of ['me.file', 'me.payslip', 'me.payprofile', 'time.own', 'leave.request'] as Capability[]) expect(scopeOf(subject('SYSTEM_ADMIN'), capability), capability).toBeNull();
+  });
+
+  it('a Branch Manager or Store Manager cannot reach a Director or System Admin (hidden from unit managers)', () => {
+    const store = subject('STORE_MANAGER');
+    for (const userRole of ['DIRECTOR', 'SYSTEM_ADMIN'] as UserRole[]) {
+      expect(inScope(store, 'employee.read_basic', { userId: 'x', siteId: 's1', userRole })).toBe(false);
+      expect(inScope(store, 'employee.write_basic', { userId: 'x', siteId: 's1', userRole })).toBe(false);
+    }
   });
 });
 
@@ -341,9 +364,10 @@ describe('sensitive fields', () => {
   it('Accountant sees pay, bank, ids and documents; discipline and payslip opens are locked', () => {
     expect(lockedGroupsFor(subject('ACCOUNTANT'), someoneElse).sort()).toEqual(['discipline', 'payslip_opens']);
   });
-  it('the Director sees everything, payslip opens included; nobody else does', () => {
+  it('the Director and the System Admin see everything, payslip opens included; nobody else does', () => {
     expect(lockedGroupsFor(subject('DIRECTOR'), someoneElse)).toEqual([]);
-    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'MANAGER', 'SYSTEM_ADMIN'] as UserRole[]) {
+    expect(lockedGroupsFor(subject('SYSTEM_ADMIN'), someoneElse)).toEqual([]);
+    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'MANAGER'] as UserRole[]) {
       expect(lockedGroupsFor(subject(role), someoneElse)).toContain('payslip_opens');
     }
   });
@@ -354,8 +378,9 @@ describe('sensitive fields', () => {
     const head = subject('WAITER', { isDepartmentHead: true, departmentTag: 'SERVICE' as never });
     expect(lockedGroupsFor(head, { userId: 'x', siteId: 's1', departmentTag: 'SERVICE' as never })).toContain('pay');
   });
-  it('the System Admin sees no pay, bank, ids or documents', () => {
-    expect(lockedGroupsFor(subject('SYSTEM_ADMIN'), someoneElse)).toEqual(expect.arrayContaining(['pay', 'bank', 'ids', 'documents']));
+  it('the System Admin sees pay, bank, ids and documents (owner decision, 21 Oct 2026, reverses D2 and D15)', () => {
+    expect(lockedGroupsFor(subject('SYSTEM_ADMIN'), someoneElse)).not.toEqual(expect.arrayContaining(['pay']));
+    expect(lockedGroupsFor(subject('SYSTEM_ADMIN'), someoneElse)).toEqual([]);
   });
 
   it('redactSensitive removes locked keys and says which groups are locked', () => {
@@ -415,9 +440,9 @@ describe('Rules permissions table (1B, section 14)', () => {
     expect(scopeOf(subject('WAITER', { isDepartmentHead: true }), 'rules.read')).toBeNull();
   });
 
-  it('Lateness, all rows but the cap: the Director changes, Branch and Store Managers change their own site, the rest read', () => {
+  it('Lateness, all rows but the cap: the Director and System Admin change, Branch and Store Managers change their own site, the rest read', () => {
     for (const field of ['graceMinutes', 'policy', 'afterLatesPerMonth', 'makeUpSameDay', 'excuseWindowHours']) {
-      row('LATENESS', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+      row('LATENESS', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
     }
   });
 
@@ -429,31 +454,32 @@ describe('Rules permissions table (1B, section 14)', () => {
 
   it('Overtime tail, caps, budget and window: the Director and a manager at their own site', () => {
     for (const field of ['serviceTailMinutes', 'weeklyCapMinutes', 'branchBudgetMinutesPerPeriod', 'approvalWindowHours']) {
-      row('OVERTIME', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+      row('OVERTIME', field, { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
     }
   });
 
-  it('Overtime multiplier: the Director changes it and the Accountant confirms it', () => {
-    row('OVERTIME', 'multipliers', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  it('Overtime multiplier: the Director and System Admin change it and only the Accountant confirms it', () => {
+    row('OVERTIME', 'multipliers', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
     expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.pay_rates')).toBe('all');
     expect(scopeOf(subject('DIRECTOR'), 'rules.confirm.pay_rates')).toBeNull();
+    expect(scopeOf(subject('SYSTEM_ADMIN'), 'rules.confirm.pay_rates')).toBeNull();
   });
 
-  it('Attendance: the Director alone changes it', () => {
-    row('ATTENDANCE', 'undoWindowSeconds', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  it('Attendance: the Director and System Admin change it', () => {
+    row('ATTENDANCE', 'undoWindowSeconds', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
   });
 
-  it('Leave types and the default policy: HR alone (the Director does not)', () => {
-    for (const field of ['leaveTypes', 'defaultPolicy']) row('LEAVE', field, { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'C', Accountant: 'P', 'System Admin': 'P' });
+  it('Leave types and the default policy: HR, the Director and the System Admin', () => {
+    for (const field of ['leaveTypes', 'defaultPolicy']) row('LEAVE', field, { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'C', Accountant: 'P', 'System Admin': 'C' });
   });
 
   it('Leave minimum cover: the Director and System Admin anywhere, the manager at their own site; HR and the Accountant read', () => {
     row('LEAVE', 'minimumCover', { Director: 'C', 'Branch Manager': 'own', 'Store Manager': 'own', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
   });
 
-  it('Probation, casual rates and the cash holder, conduct months and limits: the Director alone', () => {
+  it('Probation, casual rates and the cash holder, conduct months and limits: the Director and System Admin', () => {
     for (const [group, field] of [['PROBATION', 'defaultMonths'], ['PROBATION', 'reportDays'], ['CASUAL_WORK', 'rates'], ['CASUAL_WORK', 'pettyCashHolder'], ['CONDUCT', 'levels'], ['CONDUCT', 'appealWithinDays']] as const) {
-      row(group, field, { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+      row(group, field, { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
     }
   });
 
@@ -463,30 +489,33 @@ describe('Rules permissions table (1B, section 14)', () => {
     expect(policy['WEEK_AND_BREAKS']?.['timesheetPeriod']?.edit).toBeNull();
   });
 
-  it('Statutory: the Accountant changes and confirms; the Director, HR and System Admin read it; a manager has no payroll.read and gets the locked card', () => {
-    row('STATUTORY', 'tables', { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'P' });
+  it('Statutory: the Accountant changes and alone confirms; the Director and System Admin also change (the Accountant then confirms); HR reads; a manager has no payroll.read and gets the locked card', () => {
+    row('STATUTORY', 'tables', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'C' });
     expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.statutory')).toBe('all');
+    expect(scopeOf(subject('DIRECTOR'), 'rules.confirm.statutory')).toBeNull();
+    expect(scopeOf(subject('SYSTEM_ADMIN'), 'rules.confirm.statutory')).toBeNull();
     for (const role of ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT'] as UserRole[]) expect(scopeOf(subject(role), 'payroll.read'), role).toBe('all');
     for (const role of ['MANAGER', 'STORE_MANAGER'] as UserRole[]) expect(scopeOf(subject(role), 'payroll.read'), role).toBeNull();
   });
 
-  it('Holidays list: the Director changes and confirms it', () => {
-    row('HOLIDAYS', 'holidays', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  it('Holidays list: the Director and System Admin change and confirm it', () => {
+    row('HOLIDAYS', 'holidays', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
     expect(scopeOf(subject('DIRECTOR'), 'rules.confirm.holiday_list')).toBe('all');
+    expect(scopeOf(subject('SYSTEM_ADMIN'), 'rules.confirm.holiday_list')).toBe('all');
   });
 
-  it('Holiday pay rate: the Accountant changes and confirms it; the Director only reads', () => {
-    row('HOLIDAYS', 'payMultiplier', { Director: 'P', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'P' });
+  it('Holiday pay rate: the Accountant, the Director and the System Admin change it; only the Accountant confirms', () => {
+    row('HOLIDAYS', 'payMultiplier', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'C', 'System Admin': 'C' });
     expect(scopeOf(subject('ACCOUNTANT'), 'rules.confirm.pay_rates')).toBe('all');
   });
 
-  it('Week starts on: the Director alone; the unpaid break is Fixed', () => {
-    row('WEEK_AND_BREAKS', 'weekStartsOn', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'P' });
+  it('Week starts on: the Director and System Admin; the unpaid break is Fixed', () => {
+    row('WEEK_AND_BREAKS', 'weekStartsOn', { Director: 'C', 'Branch Manager': 'P', 'Store Manager': 'P', HR: 'P', Accountant: 'P', 'System Admin': 'C' });
   });
 
-  it('the System Admin and HR hold no capability that changes lateness, overtime or attendance (decision D6)', () => {
+  it('HR holds no capability that changes lateness, overtime or attendance; the System Admin now does (owner decision, 21 Oct 2026, reverses D6)', () => {
     for (const capability of ['rules.edit.lateness', 'rules.edit.overtime', 'rules.edit.attendance', 'rules.edit.holidays', 'rules.edit.statutory'] as Capability[]) {
-      expect(scopeOf(subject('SYSTEM_ADMIN'), capability), capability).toBeNull();
+      expect(scopeOf(subject('SYSTEM_ADMIN'), capability), capability).toBe('all');
       expect(scopeOf(subject('HR_MANAGER'), capability), capability).toBeNull();
     }
   });

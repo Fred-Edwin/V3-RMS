@@ -1,8 +1,9 @@
 import type { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
+import type { AuditEntryInput } from '../../_shared/audit/audit.types';
 import { fromDateColumn, nairobiDateOf, parseNairobiDate, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
-import { assertInScope, inScope, lockedGroupsFor, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
+import { assertInScope, assertNotSelf, inScope, lockedGroupsFor, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { employeesRepository } from '../employees/employees-repository';
 import { targetOf } from '../people-access';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
@@ -115,6 +116,7 @@ export const payService = {
     const ctx = await resolveActor(subject);
     const employee = await loadScoped(subject, ctx.companyId, id);
     assertInScope(subject, 'payprofile.write', targetOf(employee));
+    assertNotSelf(subject, targetOf(employee)); // nobody changes their own bank or pay details
     if (employee.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
 
     const { reason, ...fields } = body;
@@ -188,41 +190,69 @@ export const payService = {
     const today = todayOf(now);
     const employee = await loadScoped(subject, ctx.companyId, id);
     assertInScope(subject, 'payprofile.write', targetOf(employee));
+    assertNotSelf(subject, targetOf(employee)); // nobody changes their own pay
     if (employee.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
     const effectiveFrom = parseNairobiDate(body.effectiveFrom);
     if (effectiveFrom < today) throw new ValidationError('A pay change cannot start in the past', 'EFFECTIVE_DATE_PAST');
     await verifySignerPin(subject.id, body.pin, now.getTime());
+    // Owner decision, 21 Oct 2026: a Director's own change needs no second Director. It applies at once; HR and the Accountant are told.
+    const byDirector = subject.role === 'DIRECTOR';
+    const startsNow = effectiveFrom <= today;
 
     const created = await runAudited(async (tx) => {
       if (await payRepository.findPending(tx, employee.id)) throw new ConflictError('There is already a pay change waiting for the Director', 'PAY_CHANGE_PENDING');
-      const change = await payRepository.createChange(tx, {
+      let change = await payRepository.createChange(tx, {
         employeeId: employee.id,
         amount: body.amount,
         effectiveFrom: toDateColumn(effectiveFrom),
         reason: body.reason,
         requestedById: subject.id,
       });
+      if (byDirector) {
+        await payRepository.decide(tx, change.id, { status: 'APPROVED', decidedById: subject.id, decidedAt: now, decisionNote: null, appliedAt: startsNow ? now : null });
+        if (startsNow) await payRepository.setAmount(tx, employee.id, change.amount.toFixed(2), subject.id);
+        change = (await payRepository.findChangeIn(tx, ctx.companyId, change.id)) ?? change;
+      }
+      const entries: AuditEntryInput[] = [
+        {
+          companyId: ctx.companyId,
+          siteId: employee.siteId,
+          actor: ctx.auditActor,
+          action: 'people.pay_change_requested',
+          category: 'PAY_SETUP',
+          subjectType: 'PayChange',
+          subjectId: change.id,
+          subjectUserId: employee.userId,
+          after: { reason: body.reason, effectiveFrom: body.effectiveFrom },
+        },
+      ];
+      if (byDirector) {
+        entries.push({
+          companyId: ctx.companyId,
+          siteId: employee.siteId,
+          actor: ctx.auditActor,
+          action: 'people.pay_change_decided',
+          category: 'PAY_SETUP',
+          subjectType: 'PayChange',
+          subjectId: change.id,
+          subjectUserId: employee.userId,
+          after: { decision: 'APPROVED', appliedNow: startsNow, byDirector: true }, // no amount
+        });
+      }
       return {
         result: change,
-        entries: [
-          {
-            companyId: ctx.companyId,
-            siteId: employee.siteId,
-            actor: ctx.auditActor,
-            action: 'people.pay_change_requested',
-            category: 'PAY_SETUP' as const,
-            subjectType: 'PayChange',
-            subjectId: change.id,
-            subjectUserId: employee.userId,
-            after: { reason: body.reason, effectiveFrom: body.effectiveFrom },
-          },
-        ],
+        entries,
         events: [
           { name: 'pay.change_requested' as const, occurredAt: now.toISOString(), payload: { employeeId: employee.id, payChangeId: change.id, requestedById: subject.id } },
         ],
       };
     });
-    await told(await payRepository.directorUserIds(ctx.companyId), 'pay.change_requested', { employeeId: employee.id });
+    if (byDirector) {
+      const hr = await employeesRepository.userIdsByRole(ctx.companyId, 'HR_MANAGER');
+      await told([...hr, ...(await payRepository.accountantUserIds(ctx.companyId))], 'pay.changed_by_director', { employeeId: employee.id }); // no amount
+    } else {
+      await told(await payRepository.directorUserIds(ctx.companyId), 'pay.change_requested', { employeeId: employee.id });
+    }
     return (await changeRows([created], employee.name))[0]!;
   },
 

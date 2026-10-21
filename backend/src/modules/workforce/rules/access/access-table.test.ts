@@ -34,47 +34,48 @@ describe('the Who edits what table', () => {
     expect(table.map((r) => r.group)).toEqual(GROUPS);
   });
 
-  it('is generated from the access table: lateness is the Director for any site and the Branch Manager for their own', () => {
+  it('is generated from the access table: lateness is the Director and System Admin for any site and the Branch Manager for their own', () => {
     expect(row('lateness').changedBy).toEqual([
       { role: 'DIRECTOR', scope: 'ALL', rows: null },
       { role: 'BRANCH_MANAGER', scope: 'OWN_SITE', rows: ['graceMinutes', 'afterGrace', 'excuseWindow', 'makeUpSameDay'] },
+      { role: 'SYSTEM_ADMIN', scope: 'ALL', rows: null },
     ]);
-    expect(row('lateness').text.changedBy).toBe('Director · Branch Manager for own site (all but the deduction cap)');
+    expect(row('lateness').text.changedBy).toBe('Director · Branch Manager for own site (all but the deduction cap) · System Admin');
     expect(row('lateness').confirmedBy).toEqual([]);
     expect(row('lateness').text.confirmedBy).toBe('No one, starts on its date');
   });
 
   it('overtime: the Director changes everything, the Branch Manager the tail, caps, budget and window, the Accountant confirms the multiplier', () => {
-    expect(row('overtime').text.changedBy).toBe('Director · Branch Manager for own site (all but the multiplier)');
+    expect(row('overtime').text.changedBy).toBe('Director · Branch Manager for own site (all but the multiplier) · System Admin');
     expect(row('overtime').text.confirmedBy).toBe('Accountant (the multiplier)');
     expect(row('overtime').text.told).toBe('Accountant, HR');
   });
 
-  it('single-owner tabs: attendance, probation, casual work, conduct, week and breaks are the Director’s alone', () => {
+  it('single-owner tabs: attendance, probation, casual work, conduct, week and breaks are the Director’s and the System Admin’s', () => {
     for (const slug of ['attendance', 'probation', 'casual', 'conduct', 'week']) {
-      expect(row(slug).changedBy, slug).toEqual([{ role: 'DIRECTOR', scope: 'ALL', rows: null }]);
+      expect(row(slug).changedBy, slug).toEqual([{ role: 'DIRECTOR', scope: 'ALL', rows: null }, { role: 'SYSTEM_ADMIN', scope: 'ALL', rows: null }]);
       expect(row(slug).confirmedBy, slug).toEqual([]);
     }
   });
 
-  it('leave: HR changes the types; the Branch Manager (own site), the Director and the System Admin change minimum cover', () => {
-    expect(row('leave').text.changedBy).toBe('Director (minimum cover) · HR (leave types) · Branch Manager for own site (minimum cover) · System Admin (minimum cover)');
+  it('leave: the Director, HR and the System Admin change everything; the Branch Manager only minimum cover at their own site', () => {
+    expect(row('leave').text.changedBy).toBe('Director · HR (leave types) · Branch Manager for own site (minimum cover) · System Admin');
   });
 
-  it('statutory: the Accountant alone changes it and confirms it', () => {
-    expect(row('statutory').changedBy).toEqual([{ role: 'ACCOUNTANT', scope: 'ALL', rows: null }]);
+  it('statutory: the Accountant, the Director and the System Admin change it; only the Accountant confirms it', () => {
+    expect(row('statutory').changedBy.map((c) => c.role)).toEqual(['DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN']);
     expect(row('statutory').confirmedBy).toEqual([{ role: 'ACCOUNTANT', what: 'tables' }]);
     expect(row('statutory').text.told).toBe('Director, HR');
   });
 
-  it('holidays: the Director the list, the Accountant the rate, each confirms their own', () => {
-    expect(row('holidays').text.changedBy).toBe('Director (the list) · Accountant (the pay rate)');
-    expect(row('holidays').text.confirmedBy).toBe('Director (the list) · Accountant (the pay rate)');
+  it('holidays: the Director and System Admin change both, the Accountant the rate; each confirms their own', () => {
+    expect(row('holidays').text.changedBy).toBe('Director · Accountant (the pay rate) · System Admin');
+    expect(row('holidays').text.confirmedBy).toBe('Director (the list) · System Admin (the list) · Accountant (the pay rate)');
   });
 
-  it('the System Admin changes minimum cover and nothing else; HR changes leave types and nothing else', () => {
+  it('the System Admin changes every tab; HR changes leave types and nothing else', () => {
     const rolesOf = (role: string) => table.filter((r) => r.changedBy.some((c) => c.role === role)).map((r) => r.slug);
-    expect(rolesOf('SYSTEM_ADMIN')).toEqual(['leave']);
+    expect(rolesOf('SYSTEM_ADMIN')).toEqual(table.map((r) => r.slug));
     expect(rolesOf('HR_MANAGER')).toEqual(['leave']);
     expect(rolesOf('ACCOUNTANT')).toEqual(['statutory', 'holidays']);
     expect(rolesOf('BRANCH_MANAGER')).toEqual(['lateness', 'overtime', 'leave']);

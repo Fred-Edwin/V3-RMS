@@ -35,53 +35,62 @@ describe('a tab with nothing set', () => {
   });
 });
 
+const whoCan = (row: { lockedReason?: { whoCan: { role: string }[] } | null } | undefined): string[] => row?.lockedReason?.whoCan.map((w) => w.role) ?? [];
+
 describe('the padlock answers who can change a row', () => {
   it('a Branch Manager: their own site’s rows are active, the company rows are locked and name the Director', async () => {
     const bm = await page('bm1', 'LATENESS');
     expect(bm).toMatchObject({ siteId: 's1', siteName: 'Nyeri Town' });
     expect(bm.rows['graceMinutes']).toMatchObject({ canChange: true });
-    expect(bm.rows['deductionCap']).toMatchObject({ canChange: false, kind: 'EDITABLE', lockedReason: { whoCan: [{ role: 'DIRECTOR' }] } });
+    expect(bm.rows['deductionCap']).toMatchObject({ canChange: false, kind: 'EDITABLE' });
+    expect(whoCan(bm.rows['deductionCap'])).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
     const overtime = await page('bm1', 'OVERTIME');
     expect(overtime.rows['serviceTail']).toMatchObject({ canChange: true });
-    expect(overtime.rows['multiplier']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'DIRECTOR' }] } });
-    expect((await page('bm1', 'ATTENDANCE')).rows['clockInOpens']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'DIRECTOR' }] } });
+    expect(overtime.rows['multiplier']).toMatchObject({ canChange: false });
+    expect(whoCan(overtime.rows['multiplier'])).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
+    expect(whoCan((await page('bm1', 'ATTENDANCE')).rows['clockInOpens'])).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
   });
 
-  it('HR, looking at a site: lateness is locked and names the Director and that site’s manager', async () => {
+  it('HR, looking at a site: lateness is locked and names the Director, that site’s manager and the System Admin', async () => {
     const hr = await page('hr', 'LATENESS', 's1');
-    expect(hr.rows['graceMinutes']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'DIRECTOR' }, { role: 'MANAGER', siteName: 'Nyeri Town' }] } });
+    expect(hr.rows['graceMinutes']).toMatchObject({ canChange: false });
+    expect(whoCan(hr.rows['graceMinutes'])).toEqual(['DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN']);
+    expect(hr.rows['graceMinutes']?.lockedReason?.whoCan.find((w) => w.role === 'MANAGER')).toMatchObject({ siteName: 'Nyeri Town' });
     const company = await page('hr', 'LATENESS');
-    expect(company.rows['graceMinutes']).toMatchObject({ lockedReason: { whoCan: [{ role: 'DIRECTOR' }] } });
+    expect(whoCan(company.rows['graceMinutes'])).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
   });
 
   it('for the Central Store the manager named is the Store Manager', async () => {
     const hr = await page('hr', 'OVERTIME', 'sc');
-    expect(hr.rows['serviceTail']?.lockedReason?.whoCan).toEqual([{ role: 'DIRECTOR' }, { role: 'STORE_MANAGER', siteName: 'Central Store' }]);
+    expect(hr.rows['serviceTail']?.lockedReason?.whoCan).toEqual([{ role: 'DIRECTOR' }, { role: 'STORE_MANAGER', siteName: 'Central Store' }, { role: 'SYSTEM_ADMIN' }]);
   });
 
-  it('leave: HR changes the types and not the minimum cover (which names the branch manager, the Director and the System Admin)', async () => {
+  it('leave: HR changes the types and not the minimum cover (which names the Director, the branch manager and the System Admin)', async () => {
     const hr = await page('hr', 'LEAVE', 's1');
     expect(hr.rows['leaveTypes']).toMatchObject({ canChange: true });
-    expect(hr.rows['minimumCover']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'DIRECTOR' }, { role: 'MANAGER', siteName: 'Nyeri Town' }, { role: 'SYSTEM_ADMIN' }] } });
+    expect(hr.rows['minimumCover']).toMatchObject({ canChange: false });
+    expect(whoCan(hr.rows['minimumCover'])).toEqual(['DIRECTOR', 'MANAGER', 'SYSTEM_ADMIN']);
     const bm = await page('bm1', 'LEAVE');
     expect(bm.rows['minimumCover']).toMatchObject({ canChange: true });
-    expect(bm.rows['leaveTypes']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'HR_MANAGER' }] } });
+    expect(bm.rows['leaveTypes']).toMatchObject({ canChange: false });
+    expect(whoCan(bm.rows['leaveTypes'])).toEqual(['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN']);
     expect((await page('adm', 'LEAVE', 's2')).rows['minimumCover']).toMatchObject({ canChange: true });
   });
 
-  it('holidays: the Director has the list, the Accountant the rate, each is locked for the other', async () => {
+  it('holidays: the Director and System Admin have the list and the rate, the Accountant the rate only', async () => {
     const dir = await page('dir', 'HOLIDAYS');
     expect(dir.rows['holidays']).toMatchObject({ canChange: true });
-    expect(dir.rows['payRate']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'ACCOUNTANT' }] } });
+    expect(dir.rows['payRate']).toMatchObject({ canChange: true });
     const acc = await page('acc', 'HOLIDAYS');
     expect(acc.rows['payRate']).toMatchObject({ canChange: true });
-    expect(acc.rows['holidays']).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'DIRECTOR' }] } });
+    expect(acc.rows['holidays']).toMatchObject({ canChange: false });
+    expect(whoCan(acc.rows['holidays'])).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
   });
 
-  it('nobody but the Director changes casual rates, probation, conduct, attendance or the week', async () => {
+  it('only the Director and System Admin change casual rates, probation, conduct, attendance or the week', async () => {
     for (const [group, row] of [['CASUAL_WORK', 'rates'], ['PROBATION', 'defaultMonths'], ['CONDUCT', 'levels'], ['ATTENDANCE', 'undoWindow'], ['WEEK_AND_BREAKS', 'weekStartsOn']] as const) {
-      expect((await page('dir', group)).rows[row]?.canChange, `dir ${group}`).toBe(true);
-      for (const actor of ['hr', 'acc', 'bm1', 'adm']) expect((await page(actor, group)).rows[row]?.canChange, `${actor} ${group}`).toBe(false);
+      for (const actor of ['dir', 'adm']) expect((await page(actor, group)).rows[row]?.canChange, `${actor} ${group}`).toBe(true);
+      for (const actor of ['hr', 'acc', 'bm1']) expect((await page(actor, group)).rows[row]?.canChange, `${actor} ${group}`).toBe(false);
     }
   });
 });
@@ -101,7 +110,9 @@ describe('who may open the tab, and which site', () => {
   it('Statutory: a card with nothing in it for a Branch Manager, the tab for the Accountant, Director, HR and System Admin', async () => {
     expect(await getRulesPage(as('bm1'), 'STATUTORY', null, NOW)).toEqual({ group: 'STATUTORY', locked: true } satisfies LockedRuleGroup);
     expect((await page('acc', 'STATUTORY')).rows['tables']).toMatchObject({ canChange: true });
-    for (const actor of ['dir', 'hr', 'adm']) expect((await page(actor, 'STATUTORY')).rows['tables'], actor).toMatchObject({ canChange: false, lockedReason: { whoCan: [{ role: 'ACCOUNTANT' }] } });
+    for (const actor of ['dir', 'adm']) expect((await page(actor, 'STATUTORY')).rows['tables'], actor).toMatchObject({ canChange: true });
+    expect((await page('hr', 'STATUTORY')).rows['tables']).toMatchObject({ canChange: false });
+    expect(whoCan((await page('hr', 'STATUTORY')).rows['tables'])).toEqual(['DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN']);
   });
 });
 

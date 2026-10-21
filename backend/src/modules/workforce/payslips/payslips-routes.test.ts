@@ -101,9 +101,9 @@ describe('payslip routes: HR, the Accountant and the Director', () => {
     for (const role of ['HR_MANAGER', 'ACCOUNTANT']) expect((await request(app).get(path).set('x-test-user', as(role))).status).toBe(200);
     for (const role of ['BARISTA', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'DEPARTMENT_HEAD']) expect((await request(app).get(path).set('x-test-user', as(role))).status).toBe(403);
   });
-  it('the daily openings are the Director’s alone (the System Admin reads the audit log, not this)', async () => {
-    expect((await request(app).get(`${P}/opens`).set('x-test-user', as('DIRECTOR'))).status).toBe(200);
-    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'MANAGER', 'BARISTA']) expect((await request(app).get(`${P}/opens`).set('x-test-user', as(role))).status).toBe(403);
+  it('the daily openings are the Director’s and the System Admin’s (21 Oct 2026)', async () => {
+    for (const role of ['DIRECTOR', 'SYSTEM_ADMIN']) expect((await request(app).get(`${P}/opens`).set('x-test-user', as(role))).status).toBe(200);
+    for (const role of ['HR_MANAGER', 'ACCOUNTANT', 'MANAGER', 'BARISTA']) expect((await request(app).get(`${P}/opens`).set('x-test-user', as(role))).status).toBe(403);
   });
   it('only the Accountant confirms the P9 layout; only HR and the Accountant build a card for someone', async () => {
     const confirm = (role: string) => request(app).post(`${P}/p9/format/confirm`).set('x-test-user', as(role)).send({ pin: '1234' });

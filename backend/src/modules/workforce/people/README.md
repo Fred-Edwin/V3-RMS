@@ -38,7 +38,7 @@ Wire names say `organization` (the API's `wire-names` layer): a response has `or
 | W7 | `PATCH /workforce/people/me` | `me.file` |
 | W8 | `POST /workforce/people/:id/photo`, `/me/photo` | `employee.write_basic` or `me.file` |
 | W9 | `PUT /workforce/people/:id/pay-profile` | `payprofile.write` |
-| W10 | `POST /workforce/people/:id/pay-changes` | `payprofile.write` |
+| W10 | `POST /workforce/people/:id/pay-changes` | `payprofile.write`. Never for your own file (403). A Director's request is decided at once (APPROVED, applied if the day has come; HR and the Accountant are told, no amount); an HR or System Admin request waits for a different Director. |
 | W11 | `POST /workforce/people/pay-changes/:changeId/decision` | `payprofile.approve` |
 | W12 | `POST /workforce/people/:id/contract` | `employee.write_sensitive` |
 | W13 | `POST /workforce/people/:id/probation-decision` | `employee.lifecycle` |
@@ -71,14 +71,14 @@ Out of scope reads answer `404`; out of scope writes `403`. A Branch Manager ask
 | O8 | `POST .../departments/:id/head` | `org.write_heads` | `{ employeeId, mode: REPLACE \| ACTING, returnsOn?, replaceActing?, reason? }`. 409 `HEAD_NOT_ELIGIBLE`, `ALREADY_HEAD`, `ACTING_HEAD_EXISTS`, `HUB_HAS_NO_HEADS`, `INVALID_RETURN_DATE` (400). |
 | O9 | `POST .../departments/:id/head/end` | `org.write_heads` | `{ which: HEAD \| ACTING, reason }`. 409 `NO_HEAD_TO_END`. |
 | O10 to O11 | `GET /workforce/org/positions` (`?departmentId&includeRetired&q`), `.../positions/:id` | `org.read` | Holder names only for those the viewer may see. |
-| O12 | `POST /workforce/org/positions` | `org.write` | Company-wide write (HR, System Admin). |
+| O12 | `POST /workforce/org/positions` | `org.write` | Company-wide write (HR, Director, System Admin). |
 | O13 | `GET .../positions/:id/impact?defaultTracksTime=` | `org.write` | People who would switch, and machine-readable impacts. |
 | O14 | `PATCH .../positions/:id` | `org.write` | Changing "clocks in" needs `acknowledgedPeople` = the impact count (409 `ACKNOWLEDGE_IMPACT`). |
 | O15 | `POST .../positions/:id/retire`, `.../restore` | `org.write` | 409 `POSITION_HELD` lists holders. |
 
 Out of scope reads (O1, O2, O11) answer `404`; a role with no organisation capability answers `403`; out of scope writes `403`.
 
-**Who sees what in the organisation:** HR and the System Admin read and write everything; the Director reads everything (writes nothing); a Branch Manager or Store Manager reads their own site and may name or end heads there (not add departments or positions); a department head reads their own departments only; the Accountant and staff have no access. The Central Store never has heads.
+**Who sees what in the organisation:** HR, the Director and the System Admin read and write everything (the Director and System Admin since 21 Oct 2026); a Branch Manager or Store Manager reads their own site and may name or end heads there (not add departments or positions); a department head reads their own departments only; the Accountant and staff have no access. The Central Store never has heads.
 
 **The head claims (one place).** `User.isDepartmentHead` and `departmentTag` are written only through `accountGateway.setHeadClaims` (`organisation/heads/head-sync.ts` calls it), inside the transaction of every flow that changes a head row: assign, replace, acting, end, exit, transfer, undo exit and the nightly `reconcileHeadClaims`. The claim is true only for a head of a department with an inventory tag. `department.head_changed` is emitted after commit with the previous and new head. `workforce-layering.test.ts` fails if any other file writes the claim.
 
@@ -87,11 +87,11 @@ Out of scope reads (O1, O2, O11) answer `404`; a role with no organisation capab
 | Viewer | Pay, bank, ids, documents | Hire | Exit, transfer, rehire |
 |---|---|---|---|
 | HR Manager | all | yes | yes |
-| Director | all (and payslip opens) | no | no |
+| Director | all (and payslip opens) | yes | yes (never their own file) |
 | Accountant | all | no | no |
 | Branch Manager / Store Manager (own site) | locked | basics, onboarding files only | no |
 | Department head (the departments they head) | locked | no | no |
-| System Admin | locked | basics | yes |
+| System Admin | all (and payslip opens) | yes | yes |
 | The person themself | all, in clear | no | no |
 
 ## Scheduler (`scheduler/people-scheduler.ts`, job `people.scheduler`, 00:05 Nairobi)

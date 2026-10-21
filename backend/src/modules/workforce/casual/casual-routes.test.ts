@@ -66,9 +66,10 @@ const cases: Case[] = [
 
 const ROLES = ['DEPARTMENT_HEAD', 'WAITER', 'BARISTA', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'] as const;
 const ALLOWED: Record<Cap, readonly string[]> = {
-  record: ['DEPARTMENT_HEAD'],
-  approve: ['MANAGER', 'STORE_MANAGER', 'DIRECTOR'],
-  read: ['DEPARTMENT_HEAD', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR'],
+  // The Director and the System Admin hold every casual capability since 21 Oct 2026; the service still refuses a sheet they recorded or sent themselves.
+  record: ['DEPARTMENT_HEAD', 'DIRECTOR', 'SYSTEM_ADMIN'],
+  approve: ['MANAGER', 'STORE_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'],
+  read: ['DEPARTMENT_HEAD', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'],
   payroll: ['HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'],
 };
 

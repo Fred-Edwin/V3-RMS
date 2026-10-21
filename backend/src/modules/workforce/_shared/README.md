@@ -12,6 +12,15 @@ One table, **role by capability by scope** (`own`, `dept`, `unit`, `all`), read 
 
 - Routes use `requireCapability(...)` after `authenticate`. Services check the record with `assertInScope` (writes refuse
   with 403, reads answer 404) and `assertNotSelf`. Never add a `requireRole(...)` list.
+- **The Director and the System Admin read and write everything (owner decision, 21 Oct 2026; reverses D2 and D15).**
+  Their grants are `FULL_ACCESS` (every capability at scope `all`) minus `NOT_FULL` in `workforce-access.ts`: the
+  own-file capabilities (the Director keeps them at scope `own`; the System Admin has no file, payslip or clock), the steps
+  that belong to one role (Accountant: `payroll.approve`, `payroll.pay`, `p9.confirm_format`, `rules.confirm.pay_rates`,
+  `rules.confirm.statutory`; HR: `payroll.review`, `payroll.publish`, `payroll.correct`, `p9.generate`, `payslip.read_any`,
+  `discipline.decide` for the System Admin), and `timesheet.close` (the Director keeps it at `unit`). Nobody approves,
+  decides, signs, exits or changes the pay of **their own** file (`assertNotSelf`); PIN steps stay the actor's own PIN; a
+  Director's pay change applies at once and tells HR and the Accountant (no amount), while an HR or System Admin request
+  still needs a different Director. Choices and reasons: `docs/features/workforce/decisions-access-change.md`.
 - A **department head is a marker on a base role**, not a role: `grantsOf` merges the base role's grants with the head
   extras, the wider scope winning. Heads' department scope uses `sameDepartmentGroup` (Kitchen covers Pastry).
 - **Tracks time** drops `time.own`. Until slice 1 gives each person a flag, `defaultTracksTime(role)` applies (decision

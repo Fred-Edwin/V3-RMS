@@ -35,11 +35,8 @@ describe('who reads which category (A7)', () => {
     expect(c).not.toContain('PAYSLIP_ACCESS');
   });
 
-  it('the System Admin reads security and rules, never pay', () => {
-    const c = scopeOf(who('SYSTEM_ADMIN')).categories;
-    expect(c).toEqual(expect.arrayContaining(['SECURITY', 'RULES_OPERATING', 'RULES_PAY']));
-    expect(c).not.toContain('PAY_RUN_DECIDE');
-    expect(c).not.toContain('PAY_RUN_PREPARE');
+  it('the System Admin reads every category, as the Director does (21 Oct 2026)', () => {
+    expect(scopeOf(who('SYSTEM_ADMIN')).categories).toEqual([...AUDIT_CATEGORIES]);
   });
 
   it('a Branch Manager reads time, leave and operating rules for their own site only', () => {

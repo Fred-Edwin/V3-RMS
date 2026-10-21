@@ -65,7 +65,7 @@ const cases: Case[] = [
 ];
 // A role that holds the capability and one that does not.
 const WITH: Record<Cap, string> = { 'time.own': 'WAITER', 'today.read': 'MANAGER', 'today.act': 'MANAGER', 'timesheet.read': 'MANAGER', 'time.fix': 'HR_MANAGER', 'attendance.switch': 'SYSTEM_ADMIN' };
-const WITHOUT: Record<Cap, string> = { 'time.own': 'DIRECTOR', 'today.read': 'WAITER', 'today.act': 'HR_MANAGER', 'timesheet.read': 'WAITER', 'time.fix': 'DIRECTOR', 'attendance.switch': 'DIRECTOR' };
+const WITHOUT: Record<Cap, string> = { 'time.own': 'DIRECTOR', 'today.read': 'WAITER', 'today.act': 'HR_MANAGER', 'timesheet.read': 'WAITER', 'time.fix': 'WAITER', 'attendance.switch': 'HR_MANAGER' };
 const call = (c: Case, user?: string) => {
   const r = request(app)[c.method](c.path);
   return (user ? r.set('x-test-user', user) : r).send(c.body);

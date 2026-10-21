@@ -98,7 +98,7 @@ const WITHOUT: Record<Cap, string> = {
   'payroll.read': as('MANAGER'),
   'payroll.review': as('ACCOUNTANT'),
   'payroll.approve': as('HR_MANAGER'),
-  'payroll.remind': as('SYSTEM_ADMIN'),
+  'payroll.remind': as('MANAGER'),
   'payroll.estimate.read': as('MANAGER'),
   'payroll.approve_site_late': as('HR_MANAGER'),
   'payroll.publish': as('ACCOUNTANT'),
@@ -136,7 +136,7 @@ describe('Payroll routes', () => {
     }
   });
 
-  it('who may do what in part 2: HR publishes, the Accountant pays, both correct, three export, the bank file is the Accountant only', async () => {
+  it('who may do what in part 2: HR publishes, the Accountant pays, both correct, four export (the Director and System Admin too), the bank file is the Accountant only', async () => {
     const as2 = { hr: as('HR_MANAGER'), acc: as('ACCOUNTANT'), dir: as('DIRECTOR'), admin: as('SYSTEM_ADMIN'), bm: as('MANAGER'), sm: as('STORE_MANAGER'), waiter: as('WAITER') };
     const status = async (path: string, user: string, body: object) => (await request(app).post(path).set('x-test-user', user).send(body)).status;
     const publish = { pin, idempotencyKey: key, stateVersion: 3 };
@@ -152,8 +152,8 @@ describe('Payroll routes', () => {
       expect(await status(`${M}/mark-paid`, u, pay)).toBe(403);
       expect(await status(`${M}/bank-file`, u, { idempotencyKey: key })).toBe(403);
     }
-    for (const u of [as2.acc, as2.hr, as2.dir]) expect(await status(`${M}/exports`, u, exp)).toBe(200);
-    for (const u of [as2.admin, as2.bm, as2.sm, as2.waiter]) expect(await status(`${M}/exports`, u, exp)).toBe(403);
+    for (const u of [as2.acc, as2.hr, as2.dir, as2.admin]) expect(await status(`${M}/exports`, u, exp)).toBe(200);
+    for (const u of [as2.bm, as2.sm, as2.waiter]) expect(await status(`${M}/exports`, u, exp)).toBe(403);
   });
 
   it('400 for a bad part 2 body, and nothing reaches a service', async () => {

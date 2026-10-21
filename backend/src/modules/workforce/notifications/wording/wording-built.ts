@@ -63,6 +63,7 @@ export const BUILT_WORDING: Record<string, Wording> = {
   'file_request.reminded': () => row('needsLook', 'PEOPLE', '/app/workforce/my-time', 'A reminder from HR', 'HR reminds you to add a detail to your file.'),
   'pay.bank_changed': () => row('information', 'PAY', '/app/workforce/employees', 'Bank details changed', 'A person\'s bank details were changed. The next bank file uses them.', false),
   'pay.change_requested': () => row('needsLook', 'PAY', '/app/workforce/employees', 'A pay change waits', 'A pay change waits for your decision.'),
+  'pay.changed_by_director': () => row('information', 'PAY', '/app/workforce/employees', 'A pay change was made', 'The Director changed a person\'s pay. It applies on the date set.', false),
   'pay.change_decided': (d) => row('changed', 'PAY', '/app/workforce/employees', 'A pay change was decided', `Your pay change request was ${text(d, 'decision', 'decided').toLowerCase()}.`),
   'department.head_changed': () => row('changed', 'PEOPLE', '/app/workforce/organisation', 'A department head changed', 'The head of a department changed.'),
 };

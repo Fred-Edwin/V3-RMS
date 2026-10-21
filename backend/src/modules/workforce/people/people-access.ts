@@ -1,6 +1,6 @@
 import type { UserRole } from '@prisma/client';
 import { ConflictError, ForbiddenError } from '../../../utils/errors';
-import { ABOVE_STORE_MANAGER, assertInScope, scopeOf, type AccessSubject, type AccessTarget } from '../_shared/workforce-access';
+import { ABOVE_STORE_MANAGER, assertInScope, assertNotSelf, scopeOf, type AccessSubject, type AccessTarget } from '../_shared/workforce-access';
 import type { ScopeFilter } from './employees/employees-repository';
 
 /**
@@ -57,6 +57,7 @@ export function assertCanEditBasics(
   const scope = scopeOf(subject, 'employee.write_basic');
   if (scope === null) throw new ForbiddenError('You do not have permission to perform this action');
   assertInScope(subject, 'employee.write_basic', targetOf(row));
+  assertNotSelf(subject, targetOf(row)); // someone else changes the job details; people edit their own contact details elsewhere
   if (row.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
   if (scope !== 'all' && row.status !== 'ONBOARDING' && !madeThisHireRecently(subject, row, now)) {
     throw new ForbiddenError('Ask HR to change this', 'FILE_LOCKED_FOR_EDIT');

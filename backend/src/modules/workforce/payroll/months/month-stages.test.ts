@@ -43,10 +43,10 @@ describe('capabilitiesFor: from the access table and the state, never the role n
     expect(capabilitiesFor(subject('ACCOUNTANT'), 'TO_APPROVE')).toMatchObject({ canApprove: true, canReview: false });
     expect(capabilitiesFor(subject('ACCOUNTANT'), 'IN_REVIEW').canApprove).toBe(false);
   });
-  it('gives the Director and the System Admin no write button, and the Director the late approval and a reminder', () => {
-    const director = capabilitiesFor(subject('DIRECTOR'), 'WAITING');
-    expect(director).toMatchObject({ canReview: false, canApprove: false, canRemind: true, canApproveSiteLate: true, canExport: false });
-    expect(capabilitiesFor(subject('SYSTEM_ADMIN'), 'WAITING')).toMatchObject({ canRemind: false, canApproveSiteLate: false, canReview: false });
+  it('gives the Director and the System Admin no review or approve button, and both the late approval and a reminder (21 Oct 2026)', () => {
+    for (const role of ['DIRECTOR', 'SYSTEM_ADMIN'] as const) {
+      expect(capabilitiesFor(subject(role), 'WAITING'), role).toMatchObject({ canReview: false, canApprove: false, canRemind: true, canApproveSiteLate: true, canExport: false });
+    }
   });
   it('gives a Branch Manager nothing', () => {
     expect(Object.values(capabilitiesFor(subject('MANAGER'), 'WAITING')).every((v) => v === false)).toBe(true);

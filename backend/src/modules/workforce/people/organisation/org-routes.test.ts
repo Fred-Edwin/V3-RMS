@@ -60,7 +60,7 @@ const cases: Case[] = [
 ];
 // One role per capability that holds it, and one that does not.
 const WITH: Record<Case['capability'], string> = { 'org.read': 'DIRECTOR', 'org.write': 'HR_MANAGER', 'org.write_heads': 'HR_MANAGER' };
-const WITHOUT: Record<Case['capability'], string> = { 'org.read': 'ACCOUNTANT', 'org.write': 'MANAGER', 'org.write_heads': 'DIRECTOR' };
+const WITHOUT: Record<Case['capability'], string> = { 'org.read': 'ACCOUNTANT', 'org.write': 'MANAGER', 'org.write_heads': 'ACCOUNTANT' };
 const call = (c: Case, user?: string) => {
   const r = request(app)[c.method](c.path);
   return (user ? r.set('x-test-user', user) : r).send(c.body);
