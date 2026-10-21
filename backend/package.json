@@ -9,6 +9,7 @@
         "build": "pnpm prisma:generate && node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true})\" && tsc -p tsconfig.json",
         "start": "node dist/server.js",
         "lint": "eslint .",
+        "demo:seed": "tsx src/scripts/demo-data/workforce-demo-seed.ts",
         "check:imports": "depcruise src tests --config .dependency-cruiser.cjs",
         "format": "prettier --write .",
         "test": "vitest run",
