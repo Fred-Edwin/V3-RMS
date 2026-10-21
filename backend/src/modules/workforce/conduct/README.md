@@ -24,5 +24,11 @@ Warning notices on three fixed levels (verbal note, written warning, final writt
 - Time maths goes through the Nairobi helpers. The old `disciplinary_records` table is never altered.
 - A site is on Conduct the day its Attendance switch is on; before that the old HR screen runs.
 
+## Signed documents index (WRN)
+
+`documents/notice-index.ts` `indexNotice(tx, notice)` is the one call into the documents door. Sign, appeal, decide (the old notice, and a reduction's new notice) and the nightly end each call it inside their own transaction. A notice is indexed once it has a letter and number and its receipt is final (`receiptIsFinal`: signed, appealed, decided, ended, or recorded by a reduction). Issued and given-not-signed notices wait; verbal notes have no number and are never indexed. Version 1 is the issuer's, each decision adds the next version (the old one reads replaced), and a withdrawn notice is withdrawn on every version. The row carries `Warning notice · <level>`, the issue day, and a role word; never a reason, category, fact or the person's own line.
+
+The hash (`documents/notice-hash.ts`) is taken from the frozen snapshot plus the decisions the version includes, not from the PDF (the QR sits inside the PDF). The QR is `/verify/wrn/WRN-nnnn?h=` plus its first 10 characters. The old `?c=<verifyCode>` address is gone; `verifyCode` stays on the row, unused. `issuedConductNotices` is the reconcile source (every version of every indexable notice), safe to run twice.
+
 ## Tests
 Unit: ladder, status, dates, letters, issue rules, decision rules, named dates, steps, my list, registration. Database flow (lane database only): `conduct-flow-db.test.ts`.

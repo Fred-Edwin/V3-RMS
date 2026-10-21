@@ -10,7 +10,7 @@ export const decisionsRepository = {
     data: { noticeId: string; version: number; outcome: string; viaAppeal: boolean; reason: string; decidedById: string; decidedByName: string; decidedByRole: string; decidedAt: Date; newNoticeId: string | null; idempotencyKey: string },
   ): Promise<ConductDecision> => tx.conductDecision.create({ data }),
 
-  forNotice: (noticeId: string): Promise<ConductDecision[]> => prisma.conductDecision.findMany({ where: { noticeId }, orderBy: { version: 'asc' } }),
+  forNotice: (noticeId: string, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<ConductDecision[]> => db.conductDecision.findMany({ where: { noticeId }, orderBy: { version: 'asc' } }),
 
   byKey: (decidedById: string, idempotencyKey: string): Promise<ConductDecision | null> =>
     prisma.conductDecision.findUnique({ where: { decidedById_idempotencyKey: { decidedById, idempotencyKey } } }),

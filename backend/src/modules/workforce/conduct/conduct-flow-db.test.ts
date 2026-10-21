@@ -31,6 +31,10 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     ...(await import('./appeals/decision-service')),
     ...(await import('./documents/document-service')),
     ...(await import('./rollout/rollout-guard')),
+    ...(await import('./documents/document-model')),
+    ...(await import('../verify/verify-service')),
+    ...(await import('../_shared/limits/rate-limit')),
+    ...(await import('../documents')),
   });
   let m: Awaited<ReturnType<typeof load>>;
 
@@ -75,6 +79,9 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     if (!m) return;
     const ids = await m.prisma.conductNotice.findMany({ where: { employeeId }, select: { id: true } });
     const all = ids.map((n) => n.id);
+    // The index rows these notices made go with them (the index has no append-only rule; the audit log does).
+    const made = await m.prisma.conductNotice.findMany({ where: { id: { in: all }, number: { not: null } }, select: { companyId: true, number: true } });
+    await m.prisma.workforceDocument.deleteMany({ where: { kind: 'WRN', OR: made.map((n) => ({ companyId: n.companyId, number: `WRN-${String(n.number).padStart(4, '0')}` })) } });
     await m.prisma.conductNoticeDocument.deleteMany({ where: { noticeId: { in: all } } });
     await m.prisma.conductDecision.deleteMany({ where: { noticeId: { in: all } } });
     await m.prisma.conductNoticeEvent.deleteMany({ where: { noticeId: { in: all } } });
@@ -106,6 +113,8 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     expect(b.id).toBe(a.id);
     first = { id: a.id, number: a.number };
     noticeIds.push(a.id);
+    // Still waiting for the person: numbered, but not in the Signed documents index yet.
+    expect(await m.prisma.workforceDocument.count({ where: { number: a.number as string } })).toBe(0);
     await expect(m.issueNotice(barista, { ...body, idempotencyKey: nextKey('self') }, null)).rejects.toMatchObject({ statusCode: 403 });
   });
 
@@ -126,6 +135,22 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     expect(signed).toMatchObject({ status: 'SIGNED', alreadySigned: false });
     expect(await m.signNotice(barista, first.id, { code: PIN, deviceId: 'phone-1', idempotencyKey: nextKey('sign') }, null)).toMatchObject({ alreadySigned: true });
     await expect(m.signNotice(highwayManager, first.id, { code: PIN, deviceId: 'x', idempotencyKey: nextKey('other') }, null)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  const whoChecks = () => ({ address: `10.8.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, deviceLabel: null });
+  const indexed = (number: string) => m.prisma.workforceDocument.findMany({ where: { kind: 'WRN', number }, orderBy: { version: 'asc' } });
+
+  it('signing puts the letter in the Signed documents index in the same transaction; the QR carries the index hash; no reason or category reaches the index', async () => {
+    m.resetRateLimits();
+    const [row] = await indexed(first.number as string);
+    expect(row).toMatchObject({ version: 1, status: 'CURRENT', title: 'Warning notice · Written warning', signedByRole: 'Branch Manager', method: 'PIN' });
+    expect(row?.subjectUserId).toBe(barista.id);
+    expect(`${row?.title} ${row?.about} ${row?.searchText}`).not.toMatch(/behaviour|briefing|arrived|called|lateness|absence/i);
+    const notice = await m.prisma.conductNotice.findUniqueOrThrow({ where: { id: first.id } });
+    const qr = m.buildConductDoc({ notice, version: 1, decisions: [], withdrawn: false, witness: null, recordedBy: null, origin: ORIGIN }).qrUrl;
+    expect(qr).toBe(`${ORIGIN}/verify/wrn/${first.number}?h=${row?.hashPrefix}`);
+    expect(await m.checkDocument('wrn', first.number as string, row?.hashPrefix as string, whoChecks())).toMatchObject({ answer: { outcome: 'GENUINE', number: first.number, signedByRole: 'Branch Manager' } });
+    expect((await m.checkDocument('wrn', 'WRN-9999', row?.hashPrefix as string, whoChecks())).answer.outcome).toBe('NOT_VERIFIED');
   });
 
   it('the letter is a PDF kept once the receipt is final; a manager opening it is audited, the person is not', async () => {
@@ -155,6 +180,48 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     expect(await m.prisma.conductNotice.findUniqueOrThrow({ where: { id: decided.newNoticeId as string } })).toMatchObject({ level: 'VERBAL_NOTE', replacesNoticeId: first.id, number: null });
   });
 
+  it('the decision page is version 2 of the same number: version 1 reads replaced, version 2 genuine; the verbal replacement has no number so it is not indexed', async () => {
+    m.resetRateLimits();
+    const [v1, v2, ...rest] = await indexed(first.number as string);
+    expect(rest).toEqual([]);
+    expect(v1).toMatchObject({ version: 1, status: 'REPLACED', replacedByVersion: 2 });
+    expect(v2).toMatchObject({ version: 2, status: 'CURRENT', signedByRole: 'HR' });
+    expect(v2?.hash).not.toBe(v1?.hash);
+    expect((await m.checkDocument('wrn', first.number as string, v1?.hashPrefix as string, whoChecks())).answer).toMatchObject({ outcome: 'REPLACED', version: 1, replacedByVersion: 2 });
+    expect((await m.checkDocument('wrn', first.number as string, v2?.hashPrefix as string, whoChecks())).answer).toMatchObject({ outcome: 'GENUINE', version: 2 });
+    const notice = await m.prisma.conductNotice.findUniqueOrThrow({ where: { id: first.id } });
+    const decisions = await m.prisma.conductDecision.findMany({ where: { noticeId: first.id }, orderBy: { version: 'asc' } });
+    const qr2 = m.buildConductDoc({ notice, version: 2, decisions, withdrawn: false, witness: null, recordedBy: null, origin: ORIGIN }).qrUrl;
+    expect(qr2).toBe(`${ORIGIN}/verify/wrn/${first.number}?h=${v2?.hashPrefix}`);
+    expect(`${v2?.title} ${v2?.about} ${v2?.searchText}`).not.toMatch(/call was made|verbal note is enough/i);
+  });
+
+  it('a failure after the door call rolls the index row back with the signature', async () => {
+    const fifth = await issue(townManager, 'fifth');
+    noticeIds.push(fifth.id);
+    const { conductNoticesRepository } = await import('./_shared/conduct-notices-repository');
+    const { vi } = await import('vitest');
+    const spy = vi.spyOn(conductNoticesRepository, 'addEvent').mockRejectedValueOnce(new Error('the signer failed after registering'));
+    await expect(m.signNotice(barista, fifth.id, { code: PIN, deviceId: 'phone-1', idempotencyKey: nextKey('sign5') }, null)).rejects.toThrow('the signer failed');
+    spy.mockRestore();
+    expect(await indexed(fifth.number as string)).toHaveLength(0);
+    expect(await m.prisma.conductNotice.findUniqueOrThrow({ where: { id: fifth.id }, select: { status: true, signedAt: true } })).toEqual({ status: 'ISSUED', signedAt: null });
+  });
+
+  it('a notice HR withdraws reads withdrawn on every version of its number', async () => {
+    m.resetRateLimits();
+    const fourth = await issue(townManager, 'fourth');
+    noticeIds.push(fourth.id);
+    await m.signNotice(barista, fourth.id, { code: PIN, deviceId: 'phone-1', idempotencyKey: nextKey('sign4') }, null);
+    await m.decideNotice(hr, fourth.id, { outcome: 'WITHDRAW', reason: 'Issued to the wrong person by mistake.', pin: PIN, idempotencyKey: nextKey('withdraw') }, null);
+    const rows = await indexed(fourth.number as string);
+    expect(rows.map((r) => [r.version, r.status])).toEqual([[1, 'WITHDRAWN'], [2, 'WITHDRAWN']]);
+    expect(rows[0]?.withdrawnByRole).toBe('HR');
+    const verdict = await m.checkDocument('wrn', fourth.number as string, rows[1]?.hashPrefix as string, whoChecks());
+    expect(verdict.answer).toMatchObject({ outcome: 'WITHDRAWN', withdrawnByRole: 'HR' });
+    expect(JSON.stringify(verdict.answer)).not.toMatch(/mistake|wrong person/i);
+  });
+
   it('two deciders at once: one wins, the other is told it was already decided', async () => {
     const second = await issue(townManager, 'second');
     noticeIds.push(second.id);
@@ -180,6 +247,27 @@ describe.skipIf(!enabled)('Conduct flows in the database', () => {
     expect(run.ended).toBeGreaterThanOrEqual(1);
     expect(await m.prisma.conductNotice.count({ where: { id: { in: noticeIds }, status: 'ENDED' } })).toBeGreaterThanOrEqual(1);
     expect(await m.sweepConduct(later)).toMatchObject({ ended: 0 });
+  });
+
+  it('a notice that ended while still waiting for the person is indexed when it ends; the reconciliation rebuilds every row exactly and a second run adds nothing', async () => {
+    const third = (await m.prisma.conductNotice.findFirstOrThrow({ where: { id: { in: noticeIds }, signedAt: null, status: 'ENDED', number: { not: null } } })).number;
+    expect(await indexed(`WRN-${String(third).padStart(4, '0')}`)).toHaveLength(1);
+
+    const mine = await m.prisma.conductNotice.findMany({ where: { id: { in: noticeIds }, number: { not: null } }, select: { companyId: true, number: true } });
+    const where = { kind: 'WRN', OR: mine.map((n) => ({ companyId: n.companyId, number: `WRN-${String(n.number).padStart(4, '0')}` })) };
+    const shape = { number: true, version: true, hash: true, hashPrefix: true, status: true, title: true, about: true, signedByRole: true, withdrawnByRole: true, replacedByVersion: true } as const;
+    const byKey = (a: { number: string; version: number }, b: { number: string; version: number }) => a.number.localeCompare(b.number) || a.version - b.version;
+    const before = (await m.prisma.workforceDocument.findMany({ where, select: shape })).sort(byKey);
+    expect(before.length).toBeGreaterThanOrEqual(5);
+
+    await m.prisma.workforceDocument.deleteMany({ where });
+    m.registerDocuments();
+    const companyId = (await m.prisma.conductNotice.findFirstOrThrow({ where: { id: noticeIds[0] as string } })).companyId;
+    const run = await m.reconcileDocuments(companyId);
+    expect(run.failed).toBe(0);
+    expect((await m.prisma.workforceDocument.findMany({ where, select: shape })).sort(byKey)).toEqual(before);
+    expect((await m.reconcileDocuments(companyId)).registered).toBe(0);
+    expect(await m.prisma.workforceDocument.count({ where })).toBe(before.length);
   });
 
   it('the notices repository has no delete: nothing in it can remove a notice', () => {

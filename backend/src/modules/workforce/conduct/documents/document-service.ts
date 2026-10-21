@@ -11,6 +11,7 @@ import { hasLetter, noticeNumberLabel } from '../_shared/conduct-model';
 import type { ConductNotice } from '../_shared/conduct-notices-repository';
 import { conductPeopleRepository } from '../_shared/conduct-people-repository';
 import { isSubject } from '../_shared/conduct-scope';
+import { receiptIsFinal } from '../_shared/conduct-status';
 import { decisionsRepository } from '../appeals/decisions-repository';
 import { factsFor, personForIssue } from '../notices/issue-service';
 import type { PreviewBody } from '../notices/notices-validators';
@@ -25,8 +26,7 @@ export interface RenderedDocument {
   hash: string;
 }
 
-/** The receipt is final when the person signed or the notice has moved past waiting for it: only then is a copy kept (else v1 would freeze "not yet signed"). */
-export const receiptIsFinal = (notice: Pick<ConductNotice, 'signedAt' | 'status'>): boolean => notice.signedAt !== null || (notice.status !== 'ISSUED' && notice.status !== 'GIVEN_NOT_SIGNED');
+export { receiptIsFinal };
 
 const sha = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
 
