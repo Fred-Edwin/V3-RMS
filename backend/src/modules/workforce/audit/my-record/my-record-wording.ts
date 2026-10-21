@@ -65,6 +65,16 @@ export function wordForPerson(entry: StoredEntry, viewerId: string): PersonWordi
   return { title, line, flagged: base.flagged, needsAnswer: answerable };
 }
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** The card's "When": "Today 05:58", "Yesterday 22:16", otherwise "19 Oct 23:41", the same words as the list. Days are Nairobi days. */
+export function whenWords(day: string, clock: string, today: string, yesterday: string): string {
+  if (day === today) return `Today ${clock}`;
+  if (day === yesterday) return `Yesterday ${clock}`;
+  const month = SHORT_MONTHS[Number(day.slice(5, 7)) - 1] ?? day.slice(5, 7);
+  return `${Number(day.slice(8, 10))} ${month} ${clock}`;
+}
+
 export interface CardRow {
   label: string;
   value: string;

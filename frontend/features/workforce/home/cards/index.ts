@@ -1,4 +1,5 @@
 import { registerHomeCard } from '../lib/card-registry';
+import { payslipOpensCard } from './audit-cards';
 import { branchKpisCard, todayBoardCard } from './branch-cards';
 import { comingUpCard, hrAttentionCard, hrKpisCard, peopleByBranchCard } from './hr-cards';
 import { needsYouCard, needsYouPhoneCard, overdueCard } from './needs-you-cards';
@@ -20,6 +21,7 @@ export const HOME_CARDS = [
   todayBoardCard,
   payRunKpisCard,
   companyHeadcountCard,
+  payslipOpensCard,
   comingUpCard,
   // Phone, in Paper's order
   clockCard,

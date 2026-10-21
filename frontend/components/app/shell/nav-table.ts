@@ -311,11 +311,14 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-rules-admin', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
   // Security alerts (Segment 6a): the System Admin's list of account and sign-in events that need a person to look. Desktop only.
   { key: 'wf-security', label: 'Security alerts', group: 'wf-settings', icon: ico.shield, newHref: '/app/workforce/security', roles: [SYSTEM_ADMIN], badge: 'workforce-security', match: ['/app/workforce/security'] },
-  { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: WF_DESKTOP, notBuilt: true },
+  // Audit log (Segment 6b): the Company log and the Signed documents tab in one page. Which tabs and categories show comes from the API.
+  { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: [...WF_DESKTOP, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/audit-log'] },
   // ME
   { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
   { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, needsAttendance: true, match: ['/app/workforce/my-leave'] },
   { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP },
+  // Activity on my record (Segment 6b): what was done to my own file. Everyone with a file; shown where the new clock is on.
+  { key: 'wf-my-record', label: 'Activity on my record', group: 'wf-me', icon: ico.shield, newHref: '/app/workforce/my-record', roles: WF_DESKTOP, needsAttendance: true, match: ['/app/workforce/my-record'] },
   // Conduct (Segment 5): the notices a person was given. A Branch Manager, Store Manager, HR or Director who is also a staff member reads "My notices"
   // (their desk link is "Conduct" under People); the Accountant has no desk link, so theirs reads "Conduct".
   { key: 'wf-my-conduct', label: 'My notices', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: WF_PEOPLE, needsAttendance: true, match: ['/app/conduct'] },
@@ -346,6 +349,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   },
   { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true, match: ['/app/workforce/my-leave'] },
   { key: 'wf-staff-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
+  { key: 'wf-staff-my-record', label: 'Activity on my record', group: 'wf-me', icon: ico.shield, newHref: '/app/workforce/my-record', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true, match: ['/app/workforce/my-record'] },
   { key: 'wf-staff-conduct', label: 'Conduct', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true, match: ['/app/conduct'] },
   { key: 'wf-staff-profile', label: 'Profile and security', group: 'wf-me', icon: ico.shield, newHref: '/app/profile', roles: SHIFT_STAFF, notBuilt: true },
 ];
