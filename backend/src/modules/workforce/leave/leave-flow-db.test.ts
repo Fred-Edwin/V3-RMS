@@ -195,7 +195,7 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     expect(await annualLeft()).toBe(left + 2);
     expect(await m.prisma.leaveBalanceEntry.count({ where: { employeeId: waiterEmployee, kind: 'ADJUSTMENT', idempotencyKey: k } })).toBe(1);
     // Who may adjust is the route's `requireCapability('leave.balance_adjust')`; the per-role HTTP proof (leave-proof.ts) shows the 403.
-  });
+  }, 30_000); // three real bcrypt checks and the drawer read: about 2.5 s alone, over the 5 s default when the whole suite runs
 
   it('a casual worker gets an empty, well-formed answer, a calm refusal to send, and no adjustment', async () => {
     const overview = await m.myOverview(casual, undefined, NOW);
