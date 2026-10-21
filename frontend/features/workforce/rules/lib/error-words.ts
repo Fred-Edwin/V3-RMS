@@ -28,6 +28,9 @@ export function wordsForCode(code: string, message: string, details: Details = {
       return { kind: 'pin', text: 'That PIN is not right. Try again.' };
     case 'PIN_LOCKED':
       return { kind: 'locked', text: 'Too many wrong PINs. Signing is locked for 10 minutes. Try again later, or ask the System Admin to reset your PIN.' };
+    case 'PIN_SLOWED':
+      // Segment 6a (SD16): a pause, never a lock.
+      return { kind: 'pin', text: 'Too many wrong PINs just now. Wait a few seconds, then try again.' };
     case 'PIN_NOT_SET':
       return { kind: 'pin', text: 'You have not set a signing PIN yet. Set one, then try again.' };
     case 'RULE_STALE':

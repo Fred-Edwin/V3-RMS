@@ -3,17 +3,16 @@
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { useWorkforcePermissions, type WorkforceKpiCell } from '../../_shared';
-import { dayWords, kpiCells, lookItems, useBoard, useMyDay, withWorked, type Board } from '../../attendance';
+import { useAuthStore } from '@/store/authStore';
+
+import type { WorkforceKpiCell } from '../../_shared';
+import { kpiCells, useBoard, useMyDay, withWorked, type Board } from '../../attendance';
 import { hmWords, useMyTime } from '../../timesheets';
-import type { WaitingItem } from '../components/waiting-for-you';
 import type { CardDataState } from '../lib/card-registry';
-import type { WaitingData } from './branch-cards';
 import type { KpiData } from './hr-cards';
 import { noSource } from './no-source';
 import type { ClockSlot, TeamSlot, WeekCardData } from './phone-cards-defs';
 import { useThisWeekCard } from './rota-data';
-import { useTimesheetWaitingItems } from './timesheet-data';
 
 /**
  * The Home cards Attendance feeds. Every one of them answers "no source" when the person's branch is still on the old clock (the
@@ -23,9 +22,11 @@ import { useTimesheetWaitingItems } from './timesheet-data';
 const OFF = <T>(): CardDataState<T> => noSource<T>()();
 
 /** The live Today board for the Home cards (B1), asked every 30 seconds. */
-function useHomeBoard(): { board: Board | null; reload: () => void; failed: boolean; loading: boolean } {
-  const remote = useBoard(undefined, undefined, true);
-  return { board: remote.data, reload: remote.reload, failed: remote.status === 'error' && !remote.data, loading: remote.status === 'loading' };
+function useHomeBoard(): { board: Board | null; reload: () => void; failed: boolean; loading: boolean; noSite: boolean } {
+  // The System Admin and the Director belong to no branch: there is no board to ask for (the server says SITE_REQUIRED), so the cards leave themselves out.
+  const noSite = useAuthStore((s) => s.organizationId === null);
+  const remote = useBoard(undefined, undefined, true, !noSite);
+  return { board: remote.data, reload: remote.reload, failed: remote.status === 'error' && !remote.data, loading: remote.status === 'loading', noSite };
 }
 
 /** The phone clock card (C1): a person on a branch with the new clock on. */
@@ -59,61 +60,40 @@ export function useWeekCardData(): CardDataState<WeekCardData> {
 
 /** A department head's "team today" (B1 scoped to their departments). */
 export function useTeamCardData(): CardDataState<TeamSlot> {
-  const { board, reload, failed, loading } = useHomeBoard();
+  const { board, reload, failed, loading, noSite } = useHomeBoard();
   return useMemo((): CardDataState<TeamSlot> => {
+    if (noSite) return OFF();
     if (failed) return { status: 'error', retry: reload };
     if (loading || !board) return { status: 'loading' };
     if (!board.enabled) return OFF();
     return { status: 'ready', data: { live: { board, reload } } };
-  }, [board, reload, failed, loading]);
+  }, [board, reload, failed, loading, noSite]);
 }
 
 /** The branch strip: on shift, late, not in, on leave. */
 export function useBranchKpis(): CardDataState<KpiData> {
   const router = useRouter();
-  const { board, reload, failed, loading } = useHomeBoard();
+  const { board, reload, failed, loading, noSite } = useHomeBoard();
   return useMemo((): CardDataState<KpiData> => {
+    if (noSite) return OFF();
     if (failed) return { status: 'error', retry: reload };
     if (loading || !board) return { status: 'loading' };
     if (!board.enabled) return OFF();
     const go = (): void => router.push('/app/workforce/today');
     const cells: WorkforceKpiCell[] = kpiCells(board, { late: go, notIn: go });
     return { status: 'ready', data: { cells } };
-  }, [board, reload, failed, loading, router]);
+  }, [board, reload, failed, loading, noSite, router]);
 }
 
 /** The board itself on the Branch Manager's Home. */
 export function useBoardCardData(): CardDataState<{ live: { board: Board; reload: () => void } }> {
-  const { board, reload, failed, loading } = useHomeBoard();
+  const { board, reload, failed, loading, noSite } = useHomeBoard();
   return useMemo((): CardDataState<{ live: { board: Board; reload: () => void } }> => {
+    if (noSite) return OFF();
     if (failed) return { status: 'error', retry: reload };
     if (loading || !board) return { status: 'loading' };
     if (!board.enabled) return OFF();
     return { status: 'ready', data: { live: { board, reload } } };
-  }, [board, reload, failed, loading]);
+  }, [board, reload, failed, loading, noSite]);
 }
 
-/** "Waiting for you": the overtime and requests waiting on a manager (Timesheets, slice 4a), then the shifts the phone closed for a manager to put right. */
-export function useWaitingCardData(): CardDataState<WaitingData> {
-  const router = useRouter();
-  const { can } = useWorkforcePermissions();
-  const canFix = can('time.fix');
-  const { board, reload, failed, loading } = useHomeBoard();
-  const timesheets = useTimesheetWaitingItems();
-  const timesheetItems = timesheets.status === 'ready' ? timesheets.data : null;
-  return useMemo((): CardDataState<WaitingData> => {
-    if (failed) return { status: 'error', retry: reload };
-    if (loading || !board) return { status: 'loading' };
-    if (!board.enabled || !canFix) return OFF();
-    const items: WaitingItem[] = lookItems(board)
-      .filter((i) => i.kind === 'AUTO_CLOSED')
-      .map((i) => ({
-        key: i.key,
-        title: `Shift closed by the phone · ${i.name}`,
-        detail: `${dayWords(i.date)}. ${i.name.split(/\s+/)[0] ?? i.name} did not answer the end-of-shift question.`,
-        kind: 'request',
-        actions: [{ label: 'Review', kind: 'primary', onClick: () => router.push(`/app/workforce/today?review=${encodeURIComponent(i.entryId)}&employee=${encodeURIComponent(i.employeeId)}&date=${i.date}`) }],
-      }));
-    return { status: 'ready', data: { items: [...(timesheetItems ?? []), ...items] } };
-  }, [board, reload, failed, loading, canFix, router, timesheetItems]);
-}

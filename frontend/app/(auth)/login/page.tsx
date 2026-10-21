@@ -30,6 +30,8 @@ export default function Page(): JSX.Element {
     setIsOffline(typeof navigator !== 'undefined' ? !navigator.onLine : false);
     const urlParams = new URLSearchParams(window.location.search);
     setNextPath(urlParams.get('next'));
+    // The Workforce session gate sends a person here when their sign-in was ended on the server (never for inactivity).
+    if (urlParams.get('reason') === 'ended') setErrorMessage('Please sign in again.');
 
     const onOnline = (): void => setIsOffline(false);
     const onOffline = (): void => setIsOffline(true);

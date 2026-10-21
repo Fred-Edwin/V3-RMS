@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
 import { useAttendanceOn } from '@/features/workforce/attendance/shell';
+import { useNeedsYouBadges } from '@/features/workforce/needs-you';
+import { useWorkforceUnread } from '@/features/workforce/notifications';
 import { usePayrollOn } from '@/features/workforce/payroll/shell';
 import { env } from '@/lib/env';
 import { branchService } from '@/services/branchService';
@@ -59,6 +61,9 @@ function orgLabelFor(role: AppRole | null, organizationName: string | null | und
 
 const initialsOf = (name: string | undefined): string => sharedInitialsOf(name) || '—';
 
+/** The roles whose Workforce access table holds `needs_you.read` (API_CONTRACT §43). The server decides; this only avoids asking for nothing. */
+const NEEDS_YOU_ROLES: readonly AppRole[] = ['MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN'];
+
 export interface ShellBarLink {
   key: string;
   label: string;
@@ -98,7 +103,9 @@ export function useShellNav(): ShellNav {
   const attendanceOn = useAttendanceOn(role, isDepartmentHead);
   // Whether Payroll has a month for the company: the Payroll row waits for it (asked of Payroll itself, so it holds for the Accountant too).
   const payrollOn = usePayrollOn(role);
-  const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
+  // The Inbox badge adds the unread Workforce notifications to the old message counts (Segment 6a).
+  const unreadNotifications = useWorkforceUnread(role !== null);
+  const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount) + unreadNotifications;
   // Only someone who may read flags is told how many runs need a look (the hook asks the server nothing otherwise).
   const needsLook = useNeedsLookCount(hasHubRows(role) && can('prep.read_flags'));
   // What waits for this role on Requisitions (R2), refetched on the `inventory:badges` nudge.
@@ -111,6 +118,8 @@ export function useShellNav(): ShellNav {
   const purchasingBadges = usePurchasingBadges(hasHubRows(role) && can('orders.request') && !can('orders.approve'));
   // What blocks the close today, beside Today in the Branch Manager's Day group (only someone who closes the day is told).
   const dayTodo = useBranchDayBadge(role === 'MANAGER' && can('branch_day.close'));
+  // The Workforce menu numbers: only the roles that hold `needs_you.read` ask (the server answers 404 to anyone else).
+  const workforceBadges = useNeedsYouBadges(role !== null && NEEDS_YOU_ROLES.includes(role));
 
   const tableGroups = React.useMemo(
     () =>
@@ -140,13 +149,15 @@ export function useShellNav(): ShellNav {
       'purchasing-receiving': purchasingBadges?.receiving ?? 0,
       'purchasing-restock': purchasingBadges?.restock ?? 0,
       'purchasing-my-orders': purchasingBadges?.myOrders ?? 0,
-      // Workforce slots: no slice feeds a count yet, so these draw nothing. Slice 4 (approvals) and slice 5 (leave) wire them.
-      'workforce-waiting': 0,
-      'workforce-timesheets': 0,
-      'workforce-leave': 0,
+      // Workforce: the Needs you counts, from the same rows the card lists (Segment 6a). Zero draws nothing.
+      'workforce-timesheets': workforceBadges['workforce-timesheets'],
+      'workforce-leave': workforceBadges['workforce-leave'],
+      'workforce-conduct': workforceBadges['workforce-conduct'],
+      'workforce-payroll': workforceBadges['workforce-payroll'],
+      'workforce-security': workforceBadges['workforce-security'],
     };
     return (badge) => (badge && counts[badge] > 0 ? counts[badge] : undefined);
-  }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges]);
+  }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges, workforceBadges]);
 
   const groups = React.useMemo((): SidebarNavGroup[] => {
     return tableGroups.map((group) => ({

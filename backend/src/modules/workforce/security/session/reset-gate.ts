@@ -60,7 +60,8 @@ export async function workforceSessionGate(req: Request, _res: Response, next: N
     // Mounted under /workforce (and the API prefix), so req.path alone is shortened: compare from "/workforce" on.
     const path = `${req.baseUrl}${req.path}`.replace(/^.*?(?=\/workforce)/, '').replace(/\/+$/, '');
     if (state.mustChangePassword && !OPEN_WHILE_RESETTING.includes(path)) throw new ForbiddenError('Choose a new password to come back in.', 'PASSWORD_RESET_REQUIRED');
-    if (state.phoneRemoved && !OPEN_FOR_REMOVED_PHONE.includes(path)) throw new UnauthorizedError('This phone was removed. Sign in again.', 'PHONE_REMOVED');
+    // "This wasn't me" removes this phone too: the reset (already the only thing open above) must work from it, then the phone is asked again.
+    if (state.phoneRemoved && !state.mustChangePassword && !OPEN_FOR_REMOVED_PHONE.includes(path)) throw new UnauthorizedError('This phone was removed. Sign in again.', 'PHONE_REMOVED');
     next();
   } catch (error) {
     next(error);

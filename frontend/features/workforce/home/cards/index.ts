@@ -1,8 +1,9 @@
 import { registerHomeCard } from '../lib/card-registry';
-import { branchKpisCard, todayBoardCard, waitingDesktopCard } from './branch-cards';
+import { branchKpisCard, todayBoardCard } from './branch-cards';
 import { comingUpCard, hrAttentionCard, hrKpisCard, peopleByBranchCard } from './hr-cards';
-import { clockCard, jobCardsCard, teamTodayCard, waitingPhoneCard, weekCard } from './phone-cards-defs';
-import { companyHeadcountCard, overdueApprovalsCard, payRunKpisCard, payRunStepsCard } from './payrun-cards';
+import { needsYouCard, needsYouPhoneCard, overdueCard } from './needs-you-cards';
+import { clockCard, jobCardsCard, teamTodayCard, weekCard } from './phone-cards-defs';
+import { companyHeadcountCard, payRunKpisCard } from './payrun-cards';
 
 /**
  * Every Home card that exists. A slice adds its card by writing its definition in `cards/` and listing it here; the page needs no
@@ -11,19 +12,18 @@ import { companyHeadcountCard, overdueApprovalsCard, payRunKpisCard, payRunSteps
 export const HOME_CARDS = [
   // Desktop, in Paper's order
   hrKpisCard,
+  needsYouCard,
+  overdueCard,
   hrAttentionCard,
   peopleByBranchCard,
   branchKpisCard,
   todayBoardCard,
-  waitingDesktopCard,
   payRunKpisCard,
-  payRunStepsCard,
-  overdueApprovalsCard,
   companyHeadcountCard,
   comingUpCard,
   // Phone, in Paper's order
   clockCard,
-  waitingPhoneCard,
+  needsYouPhoneCard,
   jobCardsCard,
   teamTodayCard,
   weekCard,

@@ -16,6 +16,8 @@ export * from './hooks/use-workforce-permissions';
 export * from './hooks/use-nav-drawer';
 export * from './hooks/use-remote';
 export * from './hooks/use-action';
+export * from './hooks/use-workforce-nudge';
+export * from './hooks/use-now';
 
 export * from './components/kpi-strip';
 export * from './components/status-tag';
@@ -48,6 +50,8 @@ export * from './components/workforce-document';
 export * from './components/workforce-frame';
 export * from './components/pdf-viewer';
 export * from './components/circle-stepper';
+export * from './components/message-cards';
+export * from './lib/messages';
 export * from './lib/pinch-zoom';
 export * from './lib/role-words';
 export * from './lib/document-palette';

@@ -14,6 +14,8 @@ Chapter 1 of the approved Paper designs ("Role homes and navigation"): the Workf
 | Stack | `components/home-stack.tsx`: runs each card's data hook, arranges by urgency, draws desktop columns or the phone stack, the loading, empty and card-error states |
 | Cards | `cards/*.tsx`, listed in `cards/index.ts` (each has a `noSource` data hook today) |
 | Blocks | `components/`: `AttentionList`, `PeopleByBranch`, `ComingUpSection`, `NeedsALook`, `OnTimeByDepartment`, `DepartmentChips`, `BranchNowHeader`, `WaitingForYouColumn`, `WaitingForYouCard`, `ServiceTeamCard`, `JobCardsSlot`, `WeekCard`, `PhoneHomeBar`, `SectionHeader`, `HomeButton` |
+| Needs you (6a, 21 Oct 2026) | `cards/needs-you-cards.tsx` registers `workforce.needs-you` (desktop `main`, phone stack) and `workforce.overdue` (Director). They replace `workforce.waiting-for-you.desktop`, `workforce.waiting-for-you.phone`, `workforce.overdue-approvals` and `workforce.payrun-steps`, which are gone. The card comes from `../needs-you`. The KPI strips no longer carry a "Waiting for you" cell. |
+| Branch cards for a person with no branch | `cards/attendance-data.ts`: the numbers strip, Today board and team card answer "no source" for a login with no branch (System Admin, Director), so the System Admin's Home is the Needs-you card only |
 | Permissions | `hooks/use-workforce-permissions.ts` (`GET /workforce/permissions/me`) |
 | Fixtures | `fixtures/home-fixtures.ts` (Paper's names and numbers; gallery only) |
 | Menu | `components/app/shell/nav-table.ts` (`WORKFORCE_ROWS`) |

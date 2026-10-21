@@ -17,11 +17,12 @@ export const devicesRepository = {
   /** Race-safe: two first calls at once create one phone. A removed phone that comes back is asked about again. */
   async seen(tx: Tx, userId: string, deviceId: string, label: string, placeLabel: string | null, now: Date): Promise<SeenResult> {
     const deviceIdHash = hashDeviceId(deviceId);
-    try {
-      const device = await tx.workforceDevice.create({ data: { userId, deviceIdHash, label, placeLabel, firstSeenAt: now, lastSeenAt: now } });
+    // ON CONFLICT DO NOTHING: a plain create that hits the unique key would abort the surrounding Postgres transaction (25P02)
+    // and the read below would fail with a 500.
+    const inserted = await tx.workforceDevice.createMany({ data: [{ userId, deviceIdHash, label, placeLabel, firstSeenAt: now, lastSeenAt: now }], skipDuplicates: true });
+    if (inserted.count === 1) {
+      const device = await tx.workforceDevice.findUniqueOrThrow({ where: { userId_deviceIdHash: { userId, deviceIdHash } } });
       return { device, created: true };
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
     }
     const existing = await tx.workforceDevice.findUniqueOrThrow({ where: { userId_deviceIdHash: { userId, deviceIdHash } } });
     if (existing.removedAt !== null) {

@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { AccessSubject } from '../../_shared/workforce-access';
+import { roleLabel } from '../../notifications';
 import { securityActor, securityEntry } from '../security-context';
 import type { AlertKind, AlertRow, AlertStatus } from '../security-types';
 import { alertsRepository } from './alerts-repository';
@@ -10,7 +11,11 @@ type AlertRecord = Awaited<ReturnType<typeof alertsRepository.findIn>> & object;
 async function present(rows: AlertRecord[]): Promise<AlertRow[]> {
   const ids = rows.flatMap((r) => [r.subjectUserId, r.clearedById]).filter((id): id is string => id !== null);
   const names = await alertsRepository.namesOf(ids);
-  const who = (id: string | null) => (id ? (names.get(id) ?? null) : null);
+  // The screen prints the role as given, so it is worded here ("HR Manager"), never the stored code.
+  const who = (id: string | null) => {
+    const user = id ? names.get(id) : undefined;
+    return user ? { ...user, role: roleLabel(user.role) } : null;
+  };
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind as AlertKind,

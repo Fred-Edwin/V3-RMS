@@ -206,6 +206,22 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'HR_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
 
+  // Security alerts (Segment 6a): the System Admin's alone; everyone else is bounced (the API answers 404 to them).
+  if (under('/app/workforce/security')) {
+    return role === 'SYSTEM_ADMIN';
+  }
+
+  // My phones (Segment 6a): everyone with a login lists, confirms and removes their own phones. The API shows only the person's own.
+  // "This wasn't me" is the same person's own page.
+  if (under('/app/workforce/my-phones') || under('/app/workforce/wasnt-me')) {
+    return true;
+  }
+
+  // The System Admin's Home: its one card is Needs you (open security alerts). The other desktop roles reach Home through the rule below.
+  if (pathname === '/app/workforce' && role === 'SYSTEM_ADMIN') {
+    return true;
+  }
+
   // The Home of the floor staff and department heads: their clock card. The menu shows the link only on a branch with the new clock on;
   // a branch that is off has no clock card, so the page would only say that nothing needs them.
   if (pathname === '/app/workforce' && (isDepartmentHead || role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_ATTENDANT')) {

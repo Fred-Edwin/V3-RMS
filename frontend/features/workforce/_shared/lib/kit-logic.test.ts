@@ -119,7 +119,7 @@ describe('undo window (30 seconds)', () => {
 // The screens of the Paper table "Workforce · States kit" (1Q84-0), in order. If a screen is added in
 // Paper, add it here AND to STATES_COPY; this list is what fails the build when a key goes missing.
 const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string]> = [
-  ['waitingForYou', 'Waiting for you'],
+  ['waitingForYou', 'Needs you'],
   ['rota', 'Rota'],
   ['todayBoard', 'Today board'],
   ['timesheets', 'Timesheets'],
@@ -130,6 +130,10 @@ const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string
   ['people', 'Employees and Organisation'],
   ['audit', 'Audit log and Signed documents'],
   ['rules', 'Rules'],
+  // Added in production (Segment 6a, 6b M3).
+  ['myPayslips', 'My payslips'],
+  ['securityAlerts', 'Security alerts'],
+  ['phones', 'Phones'],
 ];
 
 describe('per-screen copy table (States kit)', () => {
@@ -162,6 +166,7 @@ describe('per-screen copy table (States kit)', () => {
   });
   it('fills the term and range holes, and leaves a missing value visible', () => {
     expect(statesCopy('waitingForYou', 'nothingFound', { term: 'Overtime' })).toBe('No request matches "Overtime". Clear the filter.');
+    expect(statesCopy('waitingForYou', 'nothingYet')).toBe('Nothing needs you. New requests show here, in the bell and as badges on the menu.');
     expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No rota for 19 to 25 Oct yet. Start from last week or from a template.');
     expect(fillCopy('No shift matches "{term}".')).toBe('No shift matches "{term}".');
   });

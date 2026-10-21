@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Megaphone, FileText, MessageCircle, PenLine } from 'lucide-react';
+import { Bell, Megaphone, FileText, MessageCircle, PenLine } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useCommsStore } from '@/store/commsStore';
 import { commsService } from '@/services/commsService';
@@ -9,6 +9,7 @@ import type { DirectConversationRecord, BroadcastRecord, FormalNoticeRecord } fr
 import type { StaffDto } from '@/services/staffService';
 
 import { useUiStore } from '@/store/uiStore';
+import { NotificationsTab, useWorkforceUnreadCount } from '@/features/workforce/notifications';
 import { ConversationList } from './ConversationList';
 import { BroadcastList } from './BroadcastList';
 import { NoticeList } from './NoticeList';
@@ -19,7 +20,7 @@ import { ComposeBroadcastModal } from './ComposeBroadcastModal';
 import { IssueNoticeModal } from './IssueNoticeModal';
 import { ContactPickerSheet } from './ContactPickerSheet';
 
-type Tab = 'messages' | 'broadcasts' | 'notices';
+type Tab = 'notifications' | 'messages' | 'broadcasts' | 'notices';
 type DetailView =
   | 'message-thread'
   | 'broadcast-detail'
@@ -57,6 +58,8 @@ export function initials(name: string): string {
 // ── Tab config ────────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string; Icon: typeof Megaphone }[] = [
+  // Workforce notifications (Segment 6a): first, with the unread count; the other tabs are unchanged.
+  { id: 'notifications', label: 'Notifications', Icon: Bell },
   { id: 'broadcasts', label: 'Broadcasts', Icon: Megaphone },
   { id: 'notices',    label: 'Notices',    Icon: FileText },
   { id: 'messages',  label: 'Messages',   Icon: MessageCircle },
@@ -71,7 +74,8 @@ export function InboxShell() {
   const unreadDmCount        = useCommsStore((s) => s.unreadDmCount);
   const unreadBroadcastCount = useCommsStore((s) => s.unreadBroadcastCount);
   const unreadNoticeCount    = useCommsStore((s) => s.unreadNoticeCount);
-  const resetUnreadDm        = useCommsStore((s) => s.resetUnreadDm);
+  const unreadNotificationCount = useWorkforceUnreadCount();
+  const resetUnreadDm       = useCommsStore((s) => s.resetUnreadDm);
   const resetUnreadBroadcast = useCommsStore((s) => s.resetUnreadBroadcast);
   const resetUnreadNotice    = useCommsStore((s) => s.resetUnreadNotice);
   const setActiveConversationId = useCommsStore((s) => s.setActiveConversationId);
@@ -173,7 +177,7 @@ export function InboxShell() {
 
   // Unread counts per tab
   const unreadForTab = (tab: Tab) =>
-    tab === 'messages' ? unreadDmCount : tab === 'broadcasts' ? unreadBroadcastCount : unreadNoticeCount;
+    tab === 'notifications' ? unreadNotificationCount : tab === 'messages' ? unreadDmCount : tab === 'broadcasts' ? unreadBroadcastCount : unreadNoticeCount;
 
   // Slide-in open state
   const slideOpen = (view: DetailView) => detailView === view;
@@ -214,6 +218,7 @@ export function InboxShell() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
+          {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'messages' && <ConversationList activeConversationId={activeConversation?.id ?? null} onSelect={handleSelectConversation} />}
           {activeTab === 'broadcasts' && <BroadcastList key={broadcastListKey} onSelect={handleSelectBroadcast} />}
           {activeTab === 'notices' && <NoticeList key={noticeListKey} onSelect={handleSelectNotice} />}
@@ -301,6 +306,7 @@ export function InboxShell() {
           style={{ transform: desktopComposeOpen ? 'translateX(-100%)' : 'translateX(0)' }}
         >
           <div className="flex-1 overflow-y-auto">
+            {activeTab === 'notifications' && <NotificationsTab />}
             {activeTab === 'messages' && <ConversationList activeConversationId={activeConversation?.id ?? null} onSelect={handleSelectConversation} />}
             {activeTab === 'broadcasts' && <BroadcastList key={broadcastListKey} onSelect={handleSelectBroadcast} />}
             {activeTab === 'notices' && <NoticeList key={noticeListKey} onSelect={handleSelectNotice} />}

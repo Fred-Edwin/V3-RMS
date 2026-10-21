@@ -1,5 +1,10 @@
+import { deviceHeader } from './device-id';
 import { env } from './env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
+
+/** The browser event the Workforce session gate raises (`SESSION_ENDED`, `PHONE_REMOVED`, `PASSWORD_RESET_REQUIRED`). */
+export const SESSION_GATE_EVENT = 'workforce:session-gate';
+const SESSION_GATE_CODES: readonly string[] = ['SESSION_ENDED', 'PHONE_REMOVED', 'PASSWORD_RESET_REQUIRED'];
 
 const request = async <T>(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
@@ -15,6 +20,8 @@ const request = async <T>(
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Every Workforce call says which phone it is (the server uses it for the phone list and the payslip code).
+      ...(path.startsWith('/workforce') ? deviceHeader() : {}),
       ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -28,9 +35,14 @@ const request = async <T>(
       response.status,
       payload.error?.code ?? 'UNKNOWN_ERROR',
       payload.error?.details,
+      payload.error?.reference,
     );
     // Log the real error details so they appear in the browser console
     console.error(`[apiClient] ${method} ${path} → ${response.status}`, payload.error ?? payload);
+    // Workforce session gate (Segment 6a): the app shell listens and signs the person in again, asks the phone question or shows the reset.
+    if (SESSION_GATE_CODES.includes(err.code) && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(SESSION_GATE_EVENT, { detail: { code: err.code } }));
+    }
     throw err;
   }
 

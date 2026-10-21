@@ -2,6 +2,8 @@ export interface ApiErrorPayload {
   code: string;
   message: string;
   details?: unknown;
+  /** On a fault of ours (5xx): the short "WF-XXXX" code support finds in the log (Segment 6a). */
+  reference?: string;
 }
 
 export interface ApiResponseEnvelope<T> {
@@ -22,12 +24,14 @@ export class ApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
   readonly details?: unknown;
+  readonly reference?: string;
 
-  constructor(message: string, statusCode: number, code: string, details?: unknown) {
+  constructor(message: string, statusCode: number, code: string, details?: unknown, reference?: string) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
+    this.reference = reference;
   }
 }
 

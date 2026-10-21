@@ -78,10 +78,13 @@ export type NavBadge =
   | 'purchasing-receiving'
   | 'purchasing-restock'
   | 'purchasing-my-orders'
-  // Workforce slots (Paper Chapter 1, step 01). The shell draws a count only when a slice feeds it; today none does, so they draw nothing.
-  | 'workforce-waiting'
+  // Workforce numbers (Segment 6a). They come from GET /workforce/needs-you/counts, the same rows the Needs you card lists, and are drawn
+  // only for the roles whose row carries them. "Waiting for you" and "Overdue approvals" no longer exist: Needs you replaced them.
   | 'workforce-timesheets'
-  | 'workforce-leave';
+  | 'workforce-leave'
+  | 'workforce-conduct'
+  | 'workforce-payroll'
+  | 'workforce-security';
 
 /** A badge that only some people may see: it is dropped (not just hidden) for anyone without the capability. */
 export const BADGE_CAPABILITY: Partial<Record<NavBadge, Capability>> = { 'prep-needs-look': 'prep.read_flags', requisitions: 'requisitions.read', discrepancies: 'requisitions.read', 'branch-day-todo': 'branch_day.close' };
@@ -267,12 +270,11 @@ const WF_PAY: readonly AppRole[] = [WF_HR, ACCOUNTANT, DIRECTOR];
 
 export const WORKFORCE_ROWS: readonly NavRow[] = [
   // WORKFORCE
-  { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: WF_DESKTOP },
-  // The per-branch switch for the new clock: the System Admin's alone (owner, 18 Oct 2026). It has no Home, so this is its one Workforce row.
+  // The System Admin gets a Home too (Segment 6a): its one card is Needs you, whose rows are the open security alerts.
+  { key: 'wf-home', label: 'Home', group: 'wf-workforce', icon: ico.home, newHref: '/app/workforce', roles: [...WF_DESKTOP, SYSTEM_ADMIN] },
+  // The per-branch switch for the new clock: the System Admin's alone (owner, 18 Oct 2026).
   { key: 'wf-attendance-switch', label: 'Attendance clock', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
   { key: 'wf-today', label: 'Today board', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/today', roles: [WF_HR, DIRECTOR], needsAttendance: true },
-  { key: 'wf-waiting', label: 'Waiting for you', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [...WF_APPROVERS, ACCOUNTANT], badge: 'workforce-waiting', notBuilt: true },
-  { key: 'wf-overdue', label: 'Overdue approvals', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: [DIRECTOR], badge: 'workforce-waiting', notBuilt: true },
   {
     key: 'wf-schedule',
     label: 'Schedule',
@@ -289,21 +291,26 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // Branch and Store Managers keep a Timesheets link (they approve the month). HR and the Accountant read it by address, from Payroll later.
   // The Director has no Timesheets link and approves Head office timesheets from their own row (built beyond Paper).
   { key: 'wf-timesheets', label: 'Timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [MANAGER, STORE_MANAGER], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets'] },
-  { key: 'wf-head-office-timesheets', label: 'Head office timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [DIRECTOR], needsAttendance: true, match: ['/app/workforce/timesheets'] },
-  { key: 'wf-requests', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true },
+  { key: 'wf-head-office-timesheets', label: 'Head office timesheets', group: 'wf-workforce', icon: ico.timesheets, newHref: '/app/workforce/timesheets', roles: [DIRECTOR], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets'] },
+  // Requests carries the Timesheets number for HR only (their one timesheets link: "Report a problem" lands there). The two managers have the
+  // number on Timesheets and the Director on Head office timesheets, so no one sees the same count twice.
+  { key: 'wf-requests-hr', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [WF_HR], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/requests'] },
+  { key: 'wf-requests', label: 'Requests', group: 'wf-workforce', icon: ico.waiting, newHref: '/app/workforce/requests', roles: [MANAGER, STORE_MANAGER, DIRECTOR], needsAttendance: true },
   { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
   { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
   { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], match: ['/app/workforce/organisation'] },
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', needsAttendance: true, match: ['/app/workforce/leave'] },
-  { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, needsAttendance: true, match: ['/app/workforce/conduct'] },
+  { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, badge: 'workforce-conduct', needsAttendance: true, match: ['/app/workforce/conduct'] },
   // PAY (the Branch Manager and Store Manager see no pay)
   // Payroll (segment 2) replaces "Pay runs". It shows only once Payroll has a month (a branch is on the new clock), so a company with every switch off sees the old payroll menu unchanged.
-  { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], needsPayroll: true, match: ['/app/workforce/payroll'] },
+  { key: 'wf-pay-runs', label: 'Payroll', group: 'wf-pay', icon: ico.money, newHref: '/app/workforce/payroll', roles: [...WF_PAY, SYSTEM_ADMIN], badge: 'workforce-payroll', needsPayroll: true, match: ['/app/workforce/payroll'] },
   { key: 'wf-payslips', label: 'Payslips', group: 'wf-pay', icon: ico.payslips, newHref: '/app/workforce/payslips', roles: WF_PAY, notBuilt: true },
   // SETTINGS
   { key: 'wf-rules', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: WF_DESKTOP, match: ['/app/workforce/rules'] },
   { key: 'wf-rules-admin', label: 'Rules', group: 'wf-settings', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
+  // Security alerts (Segment 6a): the System Admin's list of account and sign-in events that need a person to look. Desktop only.
+  { key: 'wf-security', label: 'Security alerts', group: 'wf-settings', icon: ico.shield, newHref: '/app/workforce/security', roles: [SYSTEM_ADMIN], badge: 'workforce-security', match: ['/app/workforce/security'] },
   { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: WF_DESKTOP, notBuilt: true },
   // ME
   { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
@@ -318,7 +325,6 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // Not shown: the Workforce Home link for floor staff waits for Attendance (slice 3), which gives their Home a clock card. Job and Inbox
   // are the legacy rows above until the Orders redo. The route gate keeps these roles out of /app/workforce until the slice that builds each page widens it.
   { key: 'wf-staff-home', label: 'Home', group: 'wf-home', icon: ico.home, newHref: '/app/workforce', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true },
-  { key: 'wf-head-waiting', label: 'Waiting for you', group: 'wf-team', icon: ico.waiting, newHref: '/app/workforce/waiting', roles: SHIFT_STAFF, departmentHead: true, badge: 'workforce-waiting', notBuilt: true },
   { key: 'wf-head-today', label: 'Team today', group: 'wf-team', icon: ico.staff, newHref: '/app/workforce/today', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
   { key: 'wf-head-rota', label: 'Rota', group: 'wf-team', icon: ico.shifts, newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, departmentHead: true, needsAttendance: true },
   { key: 'wf-head-casuals', label: 'Casuals', group: 'wf-team', icon: ico.me, newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, departmentHead: true },

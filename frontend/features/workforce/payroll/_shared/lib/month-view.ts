@@ -116,6 +116,8 @@ export const REFUSAL_WORDS: Record<string, string> = {
   PAYSLIP_CHANGED: 'This payslip changed while you were looking. Check it again.',
   PIN_INVALID: 'That PIN is not right.',
   PIN_LOCKED: 'Too many wrong PINs. Wait ten minutes and try again.',
+  // Segment 6a: a wrong PIN pauses for a few seconds and never locks (SD16); the server's answer carries the seconds.
+  PIN_SLOWED: 'Too many wrong PINs just now. Wait a few seconds, then try again.',
   MONTH_LOCKED: 'This month is paid and locked. Nothing can be changed now.',
   ALREADY_PAID: 'Someone marked this month paid a moment ago.',
   ALREADY_PUBLISHED: 'Someone published this month a moment ago.',
