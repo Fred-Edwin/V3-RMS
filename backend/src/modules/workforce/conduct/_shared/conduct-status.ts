@@ -36,5 +36,8 @@ export const ACTIVE_STATUSES: readonly ConductStatus[] = ['ISSUED', 'RECORDED', 
 
 export const isLive = (status: ConductStatus): boolean => ACTIVE_STATUSES.includes(status);
 
+/** The receipt is final when the person signed or the notice has moved past waiting for it: only then is a copy kept and the letter indexed (else v1 would freeze "not yet signed"). */
+export const receiptIsFinal = (notice: { signedAt: Date | null; status: ConductStatus }): boolean => notice.signedAt !== null || (notice.status !== 'ISSUED' && notice.status !== 'GIVEN_NOT_SIGNED');
+
 /** Statuses the person may still appeal from. */
 export const APPEALABLE_STATUSES: readonly ConductStatus[] = statusesAllowing('APPEAL');

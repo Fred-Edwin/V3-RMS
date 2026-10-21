@@ -20,7 +20,7 @@ export interface SlipView {
   qrUrl: string;
 }
 
-const qrUrlOf = (app: ApplicationRow): string => `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/lve/${app.slipNumber}?h=${hashPrefix(app.slipHash)}`;
+const qrUrlOf = (app: ApplicationRow): string => `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/lve/${slipCode(app.slipNumber ?? 0)}?h=${hashPrefix(app.slipHash)}`;
 
 async function loadSlip(subject: AccessSubject, id: string): Promise<{ app: ApplicationRow; view: SlipView }> {
   const ctx = await resolveActor(subject);
@@ -84,7 +84,7 @@ export interface DocumentKindRegistration {
 export const leaveSlipDocument: DocumentKindRegistration = {
   kind: 'LEAVE_SLIP',
   prefix: 'LVE',
-  verifyPath: (number, hash) => `/verify/lve/${number}?h=${hash.slice(0, 8)}`,
+  verifyPath: (number, hash) => `/verify/lve/${slipCode(number)}?h=${hashPrefix(hash)}`,
   verify: verifyLeaveSlip,
 };
 

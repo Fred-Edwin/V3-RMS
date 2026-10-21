@@ -30,10 +30,14 @@ A person asks for leave, the Branch Manager (HR after 72 hours, HR for a manager
 
 `index.ts` is the only door. Routes mount through `routes/index.ts` with `registerLeave()`; the hourly job is `jobs/leave-escalation-job.ts`.
 
+## Signed documents index (LVE)
+
+`approve-service.ts` calls `registerDocument` inside the approve transaction (`slip/slip-document.ts` builds the input), so a rollback leaves no row. `cancel-service.ts` calls `withdrawDocument` when an approved slip is cancelled; the slip keeps its number and the verify page reads it as voided. The index row carries the title `Leave slip`, the day or range as words, the signer's role word and the slip hash; never a type, day count, balance or reason. The QR is `/verify/lve/LVE-nnnn?h=` plus the first 10 characters of the hash (`hashPrefix`, the same value the index stores). `issuedLeaveSlips` (`slip-document.ts`, exported from `index.ts`) is the reconcile source: it lists every approved and cancelled slip, so numbers issued before the wiring are indexed by the nightly job, before an index read and on a verify miss. Running it twice changes nothing.
+
 ## Tests
 
 `engine/leave-engine.test.ts`, `applications/ask-check.test.ts`, `slip/slip.test.ts`, `leave-routes.test.ts` (400s for bad input and a missing key, the PDF headers, no `requireRole`), and `leave-flow-db.test.ts` (lane database only: ask and overlap, same key twice, double decision, idempotent approve, wrong PIN, cancel, carry-over once, adjust below zero, casual worker, the legacy carry run twice, the audit chain). The per-role HTTP proof is `src/scripts/leave-proof.ts up|down`.
 
 ## Known gaps (not built here)
 
-Timesheet `leaveDays`, the snapshot's paid and unpaid leave days and payroll `UNPAID_ABSENCE` (decision 9); the Home "Coming up" card (segment 6); Inbox rows with names and balances (decision 6); the documents door registration (decision 18). The seeded Rules give Annual leave no days a year (`defaultPolicy` is empty), so until HR sets them every balance starts at 0.
+Timesheet `leaveDays`, the snapshot's paid and unpaid leave days and payroll `UNPAID_ABSENCE` (decision 9); the Home "Coming up" card (segment 6); Inbox rows with names and balances (decision 6). (The documents door registration, decision 18, is now wired: see "Signed documents index".) The seeded Rules give Annual leave no days a year (`defaultPolicy` is empty), so until HR sets them every balance starts at 0.

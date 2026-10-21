@@ -9,6 +9,7 @@ import { jobLabelOf } from '../_shared/conduct-load';
 import { signLimitDate } from '../_shared/conduct-dates';
 import { LEVEL_LABELS, noticeNumberLabel } from '../_shared/conduct-model';
 import { conductNoticesRepository, type ConductNotice } from '../_shared/conduct-notices-repository';
+import { indexNotice } from '../documents/notice-index';
 import { conductPeopleRepository } from '../_shared/conduct-people-repository';
 import { statusesAllowing, tryNextStatus } from '../_shared/conduct-status';
 import type { SignBody } from './notices-validators';
@@ -58,6 +59,7 @@ export async function signNotice(subject: AccessSubject, noticeId: string, body:
   const signed = await runAudited<ConductNotice | null>(async (tx) => {
     const updated = await conductNoticesRepository.transition(tx, ctx.companyId, notice.id, statusesAllowing('SIGN'), 'SIGNED', { signedAt: now, signedDeviceId: body.deviceId });
     if (!updated) return { result: null, entries: [] };
+    await indexNotice(tx, updated);
     await conductNoticesRepository.addEvent(tx, { noticeId: notice.id, at: now, kind: late ? 'SIGNED_LATE' : 'SIGNED', actor: { id: subject.id, name: ctx.name, role: roleName(subject.role) }, payload: { deviceId: body.deviceId } });
     return {
       result: updated,

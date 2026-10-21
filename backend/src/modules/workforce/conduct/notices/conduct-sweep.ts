@@ -5,6 +5,7 @@ import { conductEntry, directorUserIds, hrUserIds, SYSTEM_ACTOR, tellAbout } fro
 import { overdueDays } from '../_shared/conduct-dates';
 import { LEVEL_LABELS, noticeNumberLabel, WITNESS_WAIT_DAYS } from '../_shared/conduct-model';
 import { conductNoticesRepository, type ConductNotice } from '../_shared/conduct-notices-repository';
+import { indexNotice } from '../documents/notice-index';
 import { statusesAllowing } from '../_shared/conduct-status';
 import { sweepRepository } from './sweep-repository';
 import { tellWitnessUnconfirmed } from './witness-service';
@@ -22,6 +23,7 @@ async function endOne(notice: ConductNotice, now: Date): Promise<boolean> {
   return runAudited<boolean>(async (tx) => {
     const ended = await conductNoticesRepository.transition(tx, notice.companyId, notice.id, statusesAllowing('END'), 'ENDED', { endedAt: now });
     if (!ended) return { result: false, entries: [] };
+    await indexNotice(tx, ended);
     await conductNoticesRepository.addEvent(tx, { noticeId: notice.id, at: now, kind: 'ENDED', payload: { validUntil: notice.validUntil.toISOString().slice(0, 10) } });
     return {
       result: true,

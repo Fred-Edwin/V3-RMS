@@ -3,6 +3,7 @@ import { longDateOf } from '../letters/letter-text';
 import { shortDayTime } from '../_shared/conduct-format';
 import type { ConductNotice } from '../_shared/conduct-notices-repository';
 import type { ConductDecision } from '../appeals/decisions-repository';
+import { verifyAddressOf } from './notice-hash';
 
 /** Everything the A4 letter draws, built from the frozen snapshot, the signatures and the decisions up to the version asked for. */
 export interface ConductDoc {
@@ -71,7 +72,7 @@ export function buildConductDoc(args: {
     decision: last ? { outcome: OUTCOME_TITLE[last.outcome] ?? 'Decision', reason: last.reason, byName: last.decidedByName, byRole: last.decidedByRole, signedLine: `Signed with PIN · ${shortDayTime(last.decidedAt)}` } : null,
     watermark: args.withdrawn ? 'WITHDRAWN' : null,
     stamp: args.withdrawn ? 'WITHDRAWN' : null,
-    qrUrl: `${args.origin.replace(/\/$/, '')}/verify/WRN-${String(notice.number ?? 0).padStart(4, '0')}?c=${notice.verifyCode}`,
+    qrUrl: verifyAddressOf(args.origin, notice, args.version, args.decisions),
     created: last?.decidedAt ?? notice.issuedAt,
   };
 }

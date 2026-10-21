@@ -13,6 +13,7 @@ import { loadReadable, jobLabelOf, type LoadedNotice } from '../_shared/conduct-
 import { hasLetter, LEVEL_LABELS, noticeNumberLabel, type ConductLevel, type DecisionOutcome } from '../_shared/conduct-model';
 import { asJson, conductNoticesRepository, type ConductNotice } from '../_shared/conduct-notices-repository';
 import type { FactsSnapshot } from '../_shared/conduct-snapshots';
+import { indexNotice } from '../documents/notice-index';
 import { buildLetter } from '../letters/letter-fill';
 import type { DecisionBody } from '../notices/notices-validators';
 import { assertMayDecide, planDecision, type DecisionPlan } from './decision-rules';
@@ -150,6 +151,9 @@ export async function decideNotice(subject: AccessSubject, noticeId: string, bod
     const replacement = plan.move === 'REDUCE' ? await createReplacement(tx, { old: notice, plan, loaded, deciderId: subject.id, deciderName: name, deciderRole, key: body.idempotencyKey, now }) : null;
     const linked = replacement ? ((await conductNoticesRepository.patch(tx, companyId, notice.id, {}, { replacedById: replacement.id })) ?? updated) : updated;
     await decisionsRepository.create(tx, { noticeId: notice.id, version, outcome: body.outcome, viaAppeal: plan.viaAppeal, reason: body.reason, decidedById: subject.id, decidedByName: name, decidedByRole: deciderRole, decidedAt: now, newNoticeId: replacement?.id ?? null, idempotencyKey: body.idempotencyKey });
+    // Signed documents door: the old number gains its decision page as the next version (or is withdrawn); a reduction's new notice is indexed under its own number.
+    await indexNotice(tx, linked);
+    if (replacement) await indexNotice(tx, replacement);
     await conductNoticesRepository.addEvent(tx, { noticeId: notice.id, at: now, kind: plan.viaAppeal ? 'DECIDED' : 'CHANGED', actor: { id: subject.id, name, role: deciderRole }, payload: { outcome: body.outcome, version, newNoticeId: replacement?.id ?? null } });
     if (replacement) await conductNoticesRepository.addEvent(tx, { noticeId: replacement.id, at: now, kind: 'ISSUED', actor: { id: subject.id, name, role: deciderRole }, payload: { level: replacement.level, number: replacement.number, replaces: notice.id } });
     return {

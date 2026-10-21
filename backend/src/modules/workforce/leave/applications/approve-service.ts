@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { ConflictError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
+import { registerDocument } from '../../_shared/documents/register-document';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
 import { nairobiToday, type NairobiDate } from '../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../_shared/workforce-access';
@@ -14,6 +15,7 @@ import { asJson, eventOf, leaveEntry } from '../leave-audit';
 import { tell } from '../leave-notify';
 import type { ApproveBody } from '../leave-validators';
 import { nameAndRole, roleWord } from '../leave-words';
+import { slipDocumentInput } from '../slip/slip-document';
 import { buildSlipSnapshot, hashSlip, slipCode } from '../slip/slip-snapshot';
 import { summaryOf, type ApplicationSummary } from './application-summary';
 import { assertMayDecide, assertWaitingAndFresh, loadDecision, lockedApplication } from './decide-guard';
@@ -83,6 +85,11 @@ export async function approveLeave(subject: AccessSubject, id: string, body: App
       ...(locked.origin === 'LEGACY' ? { origin: 'NEW', countedIn: 'CALENDAR_DAYS', days: counted.days, unpaidTailDays: counted.unpaidTailDays } : {}),
     });
     if (!changed) throw new ConflictError('This request changed while you were looking. It has been reloaded.', 'STALE_REQUEST');
+    // The Signed documents door, in this same transaction: a rollback leaves no LVE row in the index.
+    await registerDocument(tx, slipDocumentInput({
+      companyId: ctx.companyId, siteId: locked.siteId, applicationId: locked.id, slipNumber: number, slipHash: hashSlip(snapshot), start: locked.start, end: locked.end,
+      employeeUserId: person.userId, signer: { id: subject.id, name: ctx.name, role: subject.role }, signedAt: now,
+    }));
     await eventsRepository.add(tx, { applicationId: locked.id, kind: 'APPROVED', at: now, byUser: subject.id, role: subject.role, idempotencyKey: key });
     const rota = await clearCellsForLeave(tx, { companyId: ctx.companyId, siteId: locked.siteId, employeeId: person.id, userId: person.userId, personLabel: nameAndRole(person.name, person.positionName, person.role), from: locked.start, to: locked.end, applicationId: locked.id, actor: ctx.auditActor });
     cleared = rota.dates;

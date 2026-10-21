@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hashPrefixOf } from '../../_shared/documents/qr-hash';
 import type { NairobiDate } from '../../_shared/time/nairobi-time';
 import { renderNotification } from '../../notifications';
 import { buildSlipSnapshot, hashPrefix, hashSlip, slipCode, type SlipInput } from './slip-snapshot';
@@ -21,7 +22,9 @@ describe('slip snapshot and wording', () => {
   it('hashes the same snapshot to the same value and a changed one differently', () => {
     expect(hashSlip(buildSlipSnapshot(input()))).toBe(hashSlip(buildSlipSnapshot(input())));
     expect(hashSlip(buildSlipSnapshot(input({ days: 4 })))).not.toBe(hashSlip(buildSlipSnapshot(input())));
-    expect(hashPrefix(hashSlip(buildSlipSnapshot(input())))).toHaveLength(8);
+    const hash = hashSlip(buildSlipSnapshot(input()));
+    expect(hashPrefix(hash)).toHaveLength(10);
+    expect(hashPrefix(hash)).toBe(hashPrefixOf(hash));
   });
   it('fills the fixed template with no title and the singular day', () => {
     const lines = slipLines(buildSlipSnapshot(input()));
@@ -66,7 +69,7 @@ describe('documents registration', () => {
     const seen: string[] = [];
     registerLeaveSlipDocument((registration) => seen.push(`${registration.kind}:${registration.prefix}`));
     expect(seen).toEqual(['LEAVE_SLIP:LVE']);
-    expect(leaveSlipDocument.verifyPath(31, 'abcdef1234567890')).toBe('/verify/lve/31?h=abcdef12');
+    expect(leaveSlipDocument.verifyPath(31, 'abcdef1234567890')).toBe('/verify/lve/LVE-0031?h=abcdef1234');
   });
 });
 

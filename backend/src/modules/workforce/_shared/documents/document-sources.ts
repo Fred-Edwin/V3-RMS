@@ -3,8 +3,8 @@ import type { DocumentSource } from './documents.types';
 
 /**
  * Who has issued documents already. The built issuers (payroll, payslips, casual, timesheets, P9) register a source at start-up; the
- * reconciliation reads each source and writes what is missing through `registerDocument`. Leave and Conduct register no source:
- * they call `registerDocument` from their own signing transaction.
+ * reconciliation reads each source and writes what is missing through `registerDocument`. Leave and Conduct also call
+ * `registerDocument` from their own signing transaction; their sources catch what was issued before that wiring.
  */
 const sources = new Map<DocumentKind, DocumentSource>();
 

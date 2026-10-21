@@ -8,6 +8,7 @@ import { appealDeadline, decisionDueBy } from '../_shared/conduct-dates';
 import { jobLabelOf } from '../_shared/conduct-load';
 import { HR_DECISION_DAYS, LEVEL_LABELS, noticeNumberLabel } from '../_shared/conduct-model';
 import { conductNoticesRepository, type ConductNotice } from '../_shared/conduct-notices-repository';
+import { indexNotice } from '../documents/notice-index';
 import { conductPeopleRepository } from '../_shared/conduct-people-repository';
 import { APPEALABLE_STATUSES } from '../_shared/conduct-status';
 import type { AppealBody } from '../notices/notices-validators';
@@ -68,6 +69,7 @@ export async function appealNotice(subject: AccessSubject, noticeId: string, bod
       appealDecisionDueBy: dueBy,
     });
     if (!updated) return { result: null, entries: [] };
+    await indexNotice(tx, updated);
     await conductNoticesRepository.addEvent(tx, { noticeId: notice.id, at: now, kind: 'APPEALED', actor: { id: subject.id, name: ctx.name, role: roleName(subject.role) }, payload: { key: body.idempotencyKey, reasonKey: body.reasonKey } });
     return {
       result: updated,
