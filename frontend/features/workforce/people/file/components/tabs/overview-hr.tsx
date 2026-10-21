@@ -20,9 +20,9 @@ export function HrOverview({ file, open }: { file: EmployeeFile; open: OpenDialo
         <StatBoxes
           variant="figures"
           cells={[
-            { label: 'ON TIME', value: '—', detail: 'arrives with Attendance' },
-            { label: 'OVERTIME', value: '—', detail: 'arrives with Attendance' },
-            { label: 'LEAVE LEFT', value: '—', detail: 'arrives with Leave' },
+            { label: 'ON TIME', value: '—', detail: 'not available yet' },
+            { label: 'OVERTIME', value: '—', detail: 'not available yet' },
+            { label: 'LEAVE LEFT', value: '—', detail: 'not available yet' },
           ]}
         />
       </div>

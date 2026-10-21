@@ -15,7 +15,7 @@ describe('departmentKpis', () => {
     const cells = departmentKpis(view());
     expect(cells.map((c) => c.value)).toEqual(['10', '3', '–', '2']);
     expect(cells[3]?.detail).toBe('Waiter, Host');
-    expect(cells[2]?.detail).toBe('arrives with Approvals');
+    expect(cells[2]?.detail).toBe('not available yet');
   });
 });
 

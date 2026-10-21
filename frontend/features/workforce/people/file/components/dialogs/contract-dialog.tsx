@@ -72,8 +72,8 @@ export function ContractDialog({ file, onClose, done }: FileDialogProps) {
           <ContractCell label="LATENESS AND OVERTIME" value="Company standard, set by the Director in Rules" />
         </div>
         <div className="grid grid-cols-2 border-t border-wds-border max-sm:grid-cols-1">
-          <ContractCell label="SIGNED FOR WENDO" value="Signing with a PIN arrives with Documents" muted />
-          <ContractCell label="SIGNED BY THE EMPLOYEE" value="Signing arrives with Documents" muted divided />
+          <ContractCell label="SIGNED FOR WENDO" value="Signing with a PIN is added later" muted />
+          <ContractCell label="SIGNED BY THE EMPLOYEE" value="Signing is added later" muted divided />
         </div>
       </section>
       <DialogError message={action.error} />

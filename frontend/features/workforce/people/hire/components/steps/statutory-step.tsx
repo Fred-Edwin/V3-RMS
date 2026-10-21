@@ -4,7 +4,8 @@ import * as React from 'react';
 
 import { RadioCards } from '../../../../_shared';
 import { firstNameOf } from '../../lib/hire-copy';
-import { HireField, HireInput, NumberField } from '../hire-field';
+import { KENYAN_BANKS, OTHER_BANK, isListedBank } from '../../../_shared/lib/kenyan-banks';
+import { HireField, HireInput, HireSelect, NumberField } from '../hire-field';
 import type { StepProps } from './who-step';
 
 /** Step 4, Statutory and bank (Paper `RV0-0`): KRA PIN and the numbers HR has; NSSF and SHA are left for the person to add themselves. */
@@ -33,7 +34,20 @@ export function StatutoryStep({ state, errors, set }: StepProps) {
       />
       {state.payoutMethod === 'BANK' ? (
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-          <HireField label="Bank" error={errors.bankName}>{(ids) => <HireInput ids={ids} value={state.bankName} onChange={(e) => set({ bankName: e.target.value })} />}</HireField>
+          <HireField label="Bank" error={errors.bankName}>
+            {(ids) => (
+              <HireSelect
+                ids={ids}
+                value={state.bankName === '' ? '' : isListedBank(state.bankName) ? state.bankName : OTHER_BANK}
+                placeholder="Choose the bank"
+                options={[...KENYAN_BANKS, OTHER_BANK].map((b) => ({ value: b, label: b }))}
+                onChange={(v) => set({ bankName: v === OTHER_BANK ? ' ' : v })}
+              />
+            )}
+          </HireField>
+          {state.bankName !== '' && !isListedBank(state.bankName) ? (
+            <HireField label="Name of the bank" error={errors.bankName}>{(ids) => <HireInput ids={ids} value={state.bankName.trim() === '' ? '' : state.bankName} autoFocus onChange={(e) => set({ bankName: e.target.value === '' ? ' ' : e.target.value })} />}</HireField>
+          ) : null}
           <HireField label="Account number" error={errors.accountNumber}>
             {(ids) => <NumberField ids={ids} code decimal={false} maxLength={20} value={state.accountNumber} onChange={(v) => set({ accountNumber: v })} />}
           </HireField>

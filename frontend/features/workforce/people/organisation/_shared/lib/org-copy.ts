@@ -14,7 +14,7 @@ export function overviewKpis(o: OrgOverview, casualPool: number | null, onGaps: 
   return [
     { key: 'departments', label: 'DEPARTMENTS', value: String(departments), detail: `across ${plural(organizations, 'site')}` },
     { key: 'gaps', label: 'WITHOUT A HEAD', value: String(gaps), detail: 'approvals go to the Branch Manager', actionable: gaps > 0, onSelect: onGaps },
-    { key: 'leave', label: 'HEADS ON LEAVE', value: '–', detail: 'arrives with Leave' },
+    { key: 'leave', label: 'HEADS ON LEAVE', value: '–', detail: 'not available yet' },
     { key: 'casual', label: 'CASUAL POOLS', value: casualPool === null ? '–' : String(casualPool), detail: 'people, paid by the day, no login' },
   ];
 }
