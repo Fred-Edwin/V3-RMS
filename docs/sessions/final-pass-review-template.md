@@ -1,6 +1,6 @@
 # Workforce final pass: the review standard (used by every section's review brief)
 
-Working document. Delete it when Workforce ships. A section review brief points here. A review session **changes no code and no Paper**; it uses the part as a real person would, writes down what it finds, and explains how the part works. Read `docs/sessions/workforce-two-part-method.md` first (fresh servers, background commands, the 150 tool-call cap with a planned stop, no cheating, known gotchas).
+Working document. Delete it when Workforce ships. A section review brief points here. A review session **changes no code and no Paper**; it uses the part as a real person would, writes down what it finds, and explains how the part works. Read `docs/sessions/workforce-two-part-method.md` first (fresh servers, background commands, no cheating, known gotchas).
 
 ## What you produce (two files, committed before your final message)
 1. `docs/features/workforce/final-pass/<n>-<name>-findings.md`: a table with one row per finding: `# | Where (screen or endpoint) | Role | What is wrong or missing | Why it matters (one line) | Severity | Recommendation (fix, leave or defer) | Evidence`. Severity: **A** = wrong result, data risk, crash, a role seeing or doing what it should not, or a flow that cannot be finished; **B** = confusing, a missing state, wrong copy, a visible difference from Paper, an accessibility gap; **C** = polish. Evidence is a screenshot path (in your scratchpad, named in full), a request and response line, or a file and line. Leave a **"Decisions"** column empty for the owner. Put the cross-cutting findings in a separate short table at the bottom.
@@ -15,7 +15,7 @@ Working document. Delete it when Workforce ships. A section review brief points 
 6. **Look for the same mistake class everywhere** (wire names, stale copy such as "Waiting for you", bare person names, he or she, raw role codes like `HR_MANAGER`, raw ISO dates, a missing loading or empty state, a console error, a failed network call). When you find one, search the section for more of it.
 7. **Read the code only where the behaviour is unclear.** Do not review style.
 8. **Do not fix anything.** If a fix is one line and obvious, still record it; fixes happen in the next step so the owner decides first.
-9. At the **150 tool-call cap**, stop, commit what you have, write the handoff (`final-pass/handoff-<n>-review.md`, 60 lines or fewer, the fixed shape in the method file) and the starter prompt in a code block, and tell the owner to clear the context. The next session continues from your coverage list.
+9. If the owner asks for a handover (there is no call cap), stop, commit what you have, write the handoff (`final-pass/handoff-<n>-review.md`, 60 lines or fewer, the fixed shape in the method file) and the starter prompt in a code block, and tell the owner to clear the context. The next session continues from your coverage list.
 
 ## Final message
 (1) A table of the findings by severity (counts) and the five most important ones in one line each, (2) a 5-line plain-English recap of how the part works, (3) anything you could not check and why, rule slips said plainly, and the lane state you left (switches off, servers stopped). Nothing "to do". **Do not draft the next session's prompt.** Stop for the owner.

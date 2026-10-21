@@ -17,7 +17,9 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 2. **Cross-cutting findings** (menu, kit component, wording rule, a shared helper) go on the running list at the bottom of this file. They are fixed in the section that owns them; every later review checks the list first, so nothing is found twice.
 3. **A findings file is final once the owner has decided.** A new idea found later goes into the next section's list, never back into a closed one.
 4. **One review standard**, the same for every section: the checklist in `docs/sessions/final-pass-review-template.md`.
-5. Sessions follow `docs/sessions/workforce-two-part-method.md` (including the **150 tool-call cap with a planned stop**, the fresh-server rule and the no-cheating rules) and `docs/sessions/workforce-frontend-common.md` for fixes that touch screens.
+5. Sessions follow `docs/sessions/workforce-two-part-method.md` (including the planned stop between part 1 and part 2, the fresh-server rule and the no-cheating rules) and `docs/sessions/workforce-frontend-common.md` for fixes that touch screens.
+6. **Delete as you go (owner, 21 Oct 2026).** A fix batch deletes the old code, pages, copy and menu rows it replaces, after a search that nothing else (another feature, Inventory, the legacy HR pages still in use) reads them. Its final message lists "Deleted" and "Kept, because X still uses it". Section 10 keeps only the splitting of long files, the automatic size test and ship preparation.
+7. **No tool-call cap.** Sessions still stop between part 1 and part 2 for a fresh context.
 
 ## The order, and why
 | # | Section | Contents | Why here |
