@@ -217,6 +217,17 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return true;
   }
 
+  // Activity on my record (Segment 6b): everyone with a login reads their own file's activity; the API shows only their own.
+  if (under('/app/workforce/my-record')) {
+    return true;
+  }
+
+  // The Audit log and its Signed documents tab (Segment 6b): the five desktop roles and the System Admin. What each may read, per category
+  // and per document type, is the API's decision (a reader with nothing to read gets a 404 there).
+  if (under('/app/workforce/audit-log')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // The System Admin's Home: its one card is Needs you (open security alerts). The other desktop roles reach Home through the rule below.
   if (pathname === '/app/workforce' && role === 'SYSTEM_ADMIN') {
     return true;
