@@ -9,6 +9,7 @@ import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { employeesRepository } from '../employees/employees-repository';
 import { employeesService } from '../employees/employees-service';
 import { accountGateway } from '../people-account-gateway';
+import { mayHireInto } from '../people-access';
 import { resolveActor, told, todayOf } from '../people-context';
 import { probationEnd } from '../people-dates';
 import type { FileRequestKind } from '../people.constants';
@@ -75,6 +76,7 @@ export const hireService = {
     if (department.status !== 'ACTIVE') throw new ValidationError('That department is retired');
     const position = await hireRepository.findPosition(ctx.companyId, job.positionId);
     if (!position || !position.isActive) throw new ValidationError('That position is not available');
+    if (!mayHireInto(subject, position)) throw new ForbiddenError('You cannot hire into this position', 'POSITION_NOT_ALLOWED');
     if (!position.departments.some((d) => d.departmentId === job.departmentId)) throw new ConflictError('That department does not offer this position', 'POSITION_NOT_OFFERED');
     if (casual && !position.casualsAllowed) throw new ConflictError('This position does not take casuals', 'CASUALS_NOT_ALLOWED');
     if (job.reportsToId) {

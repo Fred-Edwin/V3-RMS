@@ -54,7 +54,7 @@ export const hireRepository = {
   findPosition: (companyId: string, id: string) =>
     prisma.position.findFirst({
       where: { id, companyId },
-      select: { id: true, isActive: true, defaultTracksTime: true, casualsAllowed: true, departments: { select: { departmentId: true } } },
+      select: { id: true, isActive: true, loginRole: true, defaultTracksTime: true, casualsAllowed: true, departments: { select: { departmentId: true } } },
     }),
 
   findActiveEmployee: (companyId: string, id: string) =>

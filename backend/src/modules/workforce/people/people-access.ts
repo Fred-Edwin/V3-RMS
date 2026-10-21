@@ -1,5 +1,6 @@
+import type { UserRole } from '@prisma/client';
 import { ConflictError, ForbiddenError } from '../../../utils/errors';
-import { assertInScope, scopeOf, type AccessSubject, type AccessTarget } from '../_shared/workforce-access';
+import { ABOVE_STORE_MANAGER, assertInScope, scopeOf, type AccessSubject, type AccessTarget } from '../_shared/workforce-access';
 import type { ScopeFilter } from './employees/employees-repository';
 
 /**
@@ -13,6 +14,7 @@ export interface TargetRow {
   siteId: string;
   departmentId: string | null;
   department?: { key: AccessTarget['departmentTag'] } | null;
+  user?: { role: AccessTarget['userRole'] } | null;
 }
 
 export const targetOf = (row: TargetRow): AccessTarget => ({
@@ -20,6 +22,7 @@ export const targetOf = (row: TargetRow): AccessTarget => ({
   siteId: row.siteId,
   departmentId: row.departmentId,
   departmentTag: row.department?.key ?? null,
+  userRole: row.user?.role ?? null,
 });
 
 /** What the viewer's read scope lets them list. Refuses a viewer with no read capability at all. */
@@ -30,13 +33,20 @@ export function readScopeOf(subject: AccessSubject): ScopeFilter {
       return { kind: 'all' };
     case 'unit':
       if (!subject.siteId) throw new ForbiddenError('You do not have permission to perform this action');
-      return { kind: 'site', siteId: subject.siteId };
+      return { kind: 'site', siteId: subject.siteId, ...(subject.role === 'STORE_MANAGER' ? { excludeUserRoles: ABOVE_STORE_MANAGER } : {}) };
     case 'dept':
       return { kind: 'departments', departmentIds: subject.headOfDepartmentIds ?? [] };
     default:
       throw new ForbiddenError('You do not have permission to perform this action');
   }
 }
+
+/**
+ * The positions this viewer may hire into (finding 56). A Store Manager hires floor staff, never a position whose login sits
+ * at or above the manager's own level. HR and the Branch Manager are not narrowed here.
+ */
+export const mayHireInto = (subject: AccessSubject, position: { loginRole: UserRole | null }): boolean =>
+  !(subject.role === 'STORE_MANAGER' && position.loginRole !== null && (ABOVE_STORE_MANAGER.includes(position.loginRole) || position.loginRole === 'STORE_MANAGER'));
 
 /** A manager (unit scope) edits a file only while it is onboarding; HR and the System Admin always (question 2). */
 export function assertCanEditBasics(subject: AccessSubject, row: TargetRow & { status: string }): void {

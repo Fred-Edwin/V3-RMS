@@ -33,7 +33,7 @@ const issuedView = (notice: ConductNotice): IssuedNotice => ({ id: notice.id, nu
 export async function personForIssue(subject: AccessSubject, companyId: string, personId: string): Promise<ConductPerson> {
   const person = await conductPeopleRepository.personById(companyId, personId);
   if (!person || person.status === 'EXITED') throw new NotFoundError('We could not find that person.', 'PERSON_NOT_FOUND');
-  if (!inScope(subject, 'discipline.issue', { userId: person.userId, siteId: person.siteId })) throw new NotFoundError('We could not find that person.', 'PERSON_NOT_FOUND');
+  if (!inScope(subject, 'discipline.issue', { userId: person.userId, siteId: person.siteId, userRole: person.role })) throw new NotFoundError('We could not find that person.', 'PERSON_NOT_FOUND');
   if (person.userId !== null && person.userId === subject.id) throw new ForbiddenError('Nobody issues a notice to themself.', 'ISSUE_NOT_ALLOWED');
   if (!(await switchRepository.isEnabled(person.siteId))) throw new ConflictError('This site records conduct in the old HR screen until its new clock is switched on.', 'CONDUCT_NOT_ENABLED');
   return person;

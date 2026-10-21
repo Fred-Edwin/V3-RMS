@@ -8,7 +8,10 @@
  * pay rows it makes; the audit entries it writes stay (the log is append-only by design).
  */
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+// The seeded lane users have no signing PIN. The PIN check itself is covered in pay-pin.test.ts and signer-pin.test.ts.
+vi.mock('../_shared/pin/signer-pin', () => ({ verifySignerPin: vi.fn(async () => ({ method: 'PIN', signedAt: new Date() })) }));
 
 const url = process.env['DATABASE_URL'] ?? '';
 const enabled = /_lane\d*(\?|$)/.test(url) || /_lane\d*_/.test(url);
@@ -214,18 +217,18 @@ describe.skipIf(!enabled)('People flows in the database', () => {
   });
 
   it('a pay change waits for the Director; nobody approves their own; a future change is applied by the scheduler', async () => {
-    const request = await m.payService.requestChange(hr, employeeId, { amount: raise, effectiveFrom: plus(3), reason: 'PROMOTION' }, at(today()));
+    const request = await m.payService.requestChange(hr, employeeId, { amount: raise, effectiveFrom: plus(3), reason: 'PROMOTION', pin: '1234' }, at(today()));
     expect(request.status).toBe('PENDING');
-    await expect(m.payService.requestChange(hr, employeeId, { amount: raise, effectiveFrom: plus(3), reason: 'PROMOTION' })).rejects.toMatchObject({ code: 'PAY_CHANGE_PENDING' });
-    await expect(m.payService.decide(hr, request.id, { decision: 'APPROVE' })).rejects.toMatchObject({ statusCode: 403 });
-    const decided = await m.payService.decide(director, request.id, { decision: 'APPROVE' });
+    await expect(m.payService.requestChange(hr, employeeId, { amount: raise, effectiveFrom: plus(3), reason: 'PROMOTION', pin: '1234' })).rejects.toMatchObject({ code: 'PAY_CHANGE_PENDING' });
+    await expect(m.payService.decide(hr, request.id, { decision: 'APPROVE', pin: '1234' })).rejects.toMatchObject({ statusCode: 403 });
+    const decided = await m.payService.decide(director, request.id, { decision: 'APPROVE', pin: '1234' });
     expect(decided.status).toBe('APPROVED');
     expect((await m.payService.viewQuiet(hr, employeeId)).amount).toBe(monthly); // not yet: it starts in three days
     expect(await m.payAmountOn(employeeId, plus(3))).toBe(raise);
     expect(await m.payAmountOn(employeeId, today())).toBeNull(); // the hire pay starts tomorrow
     expect(await m.payAmountOn(employeeId, plus(1))).toBe(monthly);
     expect(await m.payAmountOn(employeeId, plus(2))).toBe(monthly);
-    await expect(m.payService.decide(director, request.id, { decision: 'APPROVE' })).rejects.toMatchObject({ code: 'PAY_CHANGE_NOT_PENDING' });
+    await expect(m.payService.decide(director, request.id, { decision: 'APPROVE', pin: '1234' })).rejects.toMatchObject({ code: 'PAY_CHANGE_NOT_PENDING' });
 
     const first = await m.runPeopleScheduler(plus(3), at(plus(3)));
     expect(first.find((r) => r.task === 'applyPayChanges')?.changed).toBe(1);

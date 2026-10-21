@@ -8,14 +8,21 @@ import { prisma } from '../../../../config/database';
 export type Db = Prisma.TransactionClient | typeof prisma;
 
 /** Who the list or lookup may show: the repository turns this into a where clause so services never build one. */
-export type ScopeFilter = { kind: 'all' } | { kind: 'site'; siteId: string } | { kind: 'departments'; departmentIds: readonly string[] };
+export type ScopeFilter =
+  | { kind: 'all' }
+  | { kind: 'site'; siteId: string; excludeUserRoles?: readonly UserRole[] }
+  | { kind: 'departments'; departmentIds: readonly string[] };
 
 const scopeWhere = (scope: ScopeFilter): Prisma.EmployeeWhereInput => {
   switch (scope.kind) {
     case 'all':
       return {};
     case 'site':
-      return { siteId: scope.siteId };
+      // People without a login stay in; a login at or above the viewer's level goes out.
+      return {
+        siteId: scope.siteId,
+        ...(scope.excludeUserRoles ? { OR: [{ userId: null }, { user: { role: { notIn: [...scope.excludeUserRoles] } } }] } : {}),
+      };
     case 'departments':
       return { departmentId: { in: [...scope.departmentIds] } };
   }

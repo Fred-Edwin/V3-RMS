@@ -50,7 +50,7 @@ describe('people validators', () => {
   });
 
   it('wants money as a string with up to two decimals', () => {
-    const ok = { amount: '28000.50', effectiveFrom: '2026-11-01', reason: 'PROMOTION' };
+    const ok = { amount: '28000.50', effectiveFrom: '2026-11-01', reason: 'PROMOTION', pin: '1234' };
     expect(PayChangeSchema.safeParse(ok).success).toBe(true);
     expect(PayChangeSchema.safeParse({ ...ok, amount: 28000 }).success).toBe(false);
     expect(PayChangeSchema.safeParse({ ...ok, amount: '28000.555' }).success).toBe(false);
@@ -58,9 +58,9 @@ describe('people validators', () => {
   });
 
   it('needs a note to decline a pay change', () => {
-    expect(PayChangeDecisionSchema.safeParse({ decision: 'DECLINE' }).success).toBe(false);
-    expect(PayChangeDecisionSchema.safeParse({ decision: 'DECLINE', note: 'Not now' }).success).toBe(true);
-    expect(PayChangeDecisionSchema.safeParse({ decision: 'APPROVE' }).success).toBe(true);
+    expect(PayChangeDecisionSchema.safeParse({ decision: 'DECLINE', pin: '1234' }).success).toBe(false);
+    expect(PayChangeDecisionSchema.safeParse({ decision: 'DECLINE', note: 'Not now', pin: '1234' }).success).toBe(true);
+    expect(PayChangeDecisionSchema.safeParse({ decision: 'APPROVE', pin: '1234' }).success).toBe(true);
   });
 
   it('checks date order on contracts and loans', () => {

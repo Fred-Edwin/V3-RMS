@@ -8,6 +8,7 @@ import {
   PROBATION_VERDICTS,
   REVEALABLE_FIELD_LIST,
 } from './people.constants';
+import { PAYOUT_CASH_REFUSAL, PAYOUT_METHODS, kraPinField, nssfField, payoutAllowed, shaField } from './statutory-formats';
 
 const id = z.uuid();
 const nairobiDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
@@ -16,6 +17,7 @@ const hours = z.string().regex(/^\d{1,3}(\.\d{1,2})?$/, 'Use hours such as 48 or
 const text = (max: number) => z.string().trim().min(1).max(max);
 const phone = z.string().trim().regex(/^[0-9 +()-]{7,20}$/, 'Not a phone number');
 const email = z.email().max(254).transform((value) => value.toLowerCase());
+const pin = z.string().regex(/^\d{4}$/, 'Your PIN is 4 digits'); // the signing PIN, checked in the request, never stored
 const paging = { page: z.coerce.number().int().min(1).default(1), perPage: z.coerce.number().int().min(1).max(100).default(20) };
 const notEmpty = (value: object): boolean => Object.keys(value).length > 0;
 
@@ -66,11 +68,11 @@ export const PaySchema = z.object({
 });
 export const StatutorySchema = z
   .object({
-    kraPin: text(20).optional(),
-    nssfNumber: text(30).optional(),
-    shaNumber: text(30).optional(),
+    kraPin: kraPinField.optional(),
+    nssfNumber: nssfField.optional(),
+    shaNumber: shaField.optional(),
     helbNumber: text(30).optional(),
-    payoutMethod: z.enum(['BANK', 'MPESA', 'CASH']),
+    payoutMethod: z.enum(PAYOUT_METHODS),
     bankName: text(80).optional(),
     bankBranch: text(80).optional(),
     accountName: text(120).optional(),
@@ -107,6 +109,9 @@ export const HireBodySchema = z
     const casual = v.job.employment === 'CASUAL';
     if (casual && v.login) ctx.addIssue({ code: 'custom', path: ['login'], message: 'A casual has no login' });
     if (casual && v.statutory) ctx.addIssue({ code: 'custom', path: ['statutory'], message: 'A casual has no statutory or bank step' });
+    if (v.statutory && !payoutAllowed(casual, v.statutory.payoutMethod)) {
+      ctx.addIssue({ code: 'custom', path: ['statutory', 'payoutMethod'], message: PAYOUT_CASH_REFUSAL });
+    }
     if (casual && v.existingUserId) ctx.addIssue({ code: 'custom', path: ['existingUserId'], message: 'A casual has no account' });
     if (v.existingUserId && v.login) ctx.addIssue({ code: 'custom', path: ['login'], message: 'The account already exists' });
   });
@@ -130,9 +135,9 @@ export const UpdateEmployeeSchema = z
     emergencyRelation: text(60).nullable(),
     emergencyPhone: phone.nullable(),
     nationalId: text(20).nullable(),
-    kraPin: text(20).nullable(),
-    shaNumber: text(30).nullable(),
-    nssfNumber: text(30).nullable(),
+    kraPin: kraPinField.nullable(),
+    shaNumber: shaField.nullable(),
+    nssfNumber: nssfField.nullable(),
     helbNumber: text(30).nullable(),
     dateOfBirth: nairobiDate.nullable(),
     physicalAddress: text(200).nullable(),
@@ -148,11 +153,14 @@ export const PatchMeSchema = z
     emergencyName: text(120).nullable(),
     emergencyRelation: text(60).nullable(),
     emergencyPhone: phone.nullable(),
-    nssfNumber: text(30).nullable(),
-    shaNumber: text(30).nullable(),
+    nssfNumber: nssfField.nullable(),
+    shaNumber: shaField.nullable(),
     helbNumber: text(30).nullable(),
-    kraPin: text(20).nullable(),
+    kraPin: kraPinField.nullable(),
     dateOfBirth: nairobiDate.nullable(),
+    nationalId: text(20).nullable(),
+    bankName: text(80).nullable(),
+    accountNumber: text(40).nullable(),
   })
   .partial()
   .refine(notEmpty, 'Nothing to change');
@@ -164,7 +172,7 @@ export const FileRequestSchema = z.strictObject({ kind: z.enum(FILE_REQUEST_KIND
 // ---- pay and contract ----------------------------------------------------------------------
 export const PayProfileSchema = z
   .strictObject({
-    payoutMethod: z.enum(['BANK', 'MPESA', 'CASH']),
+    payoutMethod: z.enum(PAYOUT_METHODS),
     bankName: text(80).nullable(),
     bankBranch: text(80).nullable(),
     accountName: text(120).nullable(),
@@ -182,9 +190,10 @@ export const PayChangeSchema = z.strictObject({
   effectiveFrom: nairobiDate, // not in the past (the service checks against today)
   reason: z.enum(PAY_CHANGE_REASONS),
   note: text(300).optional(),
+  pin,
 });
 export const PayChangeDecisionSchema = z
-  .strictObject({ decision: z.enum(['APPROVE', 'DECLINE']), note: text(300).optional() })
+  .strictObject({ decision: z.enum(['APPROVE', 'DECLINE']), note: text(300).optional(), pin })
   .refine((v) => v.decision === 'APPROVE' || v.note !== undefined, { message: 'Say why it is declined', path: ['note'] });
 export const ContractSchema = z
   .strictObject({ contractTypeId: id.optional(), startsOn: nairobiDate, endsOn: nairobiDate.optional() })
