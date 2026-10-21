@@ -33,6 +33,16 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | 9 | Shared parts | Needs you, phones and security, Audit log, Signed documents, the QR page | Cuts across everything above |
 | 10 | Whole feature | Role Homes and menus together, the tidy-up, ship preparation, end-to-end demo | Last |
 
+## Lane map (owner preference, 21 Oct 2026: use lanes 1 to 4)
+| Lane | Use |
+|---|---|
+| 1 | Review of the current section |
+| 2 | Fixes for the section the review just finished |
+| 3 | A second review or fix running in parallel (for example the next section's review while a video records) |
+| 4 | Spare, or the next section's review |
+| 5 | Small jobs (docs, wiring) |
+| 6 | The demo lane: its own database and seed, reset freely, never used for review or fixes |
+
 ## Status
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
