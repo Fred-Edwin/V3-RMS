@@ -10,9 +10,9 @@ People is the employee file: who works at Wendo, in which branch and department,
 - **Director** reads everything and is the one who **approves or declines a pay change**. The Director cannot hire or exit anyone.
 - **Accountant** reads the people list and pay details. Cannot hire, cannot see the Organisation page.
 - **Branch Manager and Store Manager** see only their own site. They can add a new person with the basics (name, phone, ID, job, start date) and can edit that file only while it is still being set up. Pay, bank, IDs and documents show as "Locked for your role". They can name or end a department head at their own site.
-- **Department head** sees only the people of the department they head. Staff and heads do not get the desktop People screens; they use My file.
+- **Department head** may read the basics of their department's people and write a probation report for HR (by the rules). In the browser today a head has no People screen and no menu link to My file (findings 60 to 63); the owner agreed to add a probation-report card on their Home, a read-only "My team" list and a My file link.
 - **A staff member** opens **My file**: they see their own job, IDs and bank in clear, can add an emergency contact, a photo and personal numbers, and cannot change their job.
-- **System Admin** can read the list and the Organisation page and has the lifecycle actions in the API, but has no Workforce menu.
+- **System Admin** is not an employee (no file, no payslip, no clock). The access table lets them hire and edit basics, exit, transfer and manage departments and heads, but never see pay, IDs or bank. In the browser they have the Workforce Home, Attendance clock and Security alerts, and no People or Organisation screen (finding 75; the owner is deciding their scope).
 
 ## The normal flow
 1. **Add employee** (five steps: Who, Job, Pay, Statutory and bank, Login). It saves as a draft as you go. A casual has three steps and no login. A Branch Manager sees two steps (Who, Job); HR finishes the rest. A duplicate ID or phone is caught on the way.
@@ -42,5 +42,11 @@ Before: Access (logins and roles) and Inventory's departments. After: the rota u
 ## Deliberately not built (or not yet)
 Contract signing with a PIN, contract text templates and the signed-document index (later slices); a full audit trail per person on the Activity tab; asking HR for a change from a Branch Manager's screen; a global "find a person" box; the employment type edit; the exit checklist screens for final pay and leave. The legacy staff and department screens still exist but are not linked from the new menu rows.
 
-## What this review found that breaks the owner's rules
-Pay is meant to be bank only, but both the hire wizard and the API still accept M-Pesa and Cash (findings 1 to 3). The pay change has no PIN step (finding 4), which the owner should decide.
+## What the live walkthrough changed (21 Oct 2026)
+The review was followed by a walk of all eight roles in a browser (HR, Director, Branch Manager, Accountant, Store Manager, department head, staff at phone size, System Admin). It found 77 items (`1-people-findings.md`). The owner decided:
+- **Payout:** Cash and M-Pesa stay as choices, because casuals are paid that way (findings 1, 2, 22 are "leave"). The pay change has no PIN step; this is still for the owner to confirm (finding 4).
+- **Sign-in identity:** `firstname.secondname@wendo.co.ke` (a clash gets a number); an optional personal email at hire; a temporary password like `kahawa.nyota.4721` (two Swahili food words and four digits, made by the server, an unused one expires after 7 days), which the person is never forced to change; the PIN stays compulsory.
+- **Conventions everywhere:** a person is always shown as name, position and site; every card the role may change has an Edit button; wording is short, professional and clear.
+- **Notifications:** no Inbox inside Workforce; notifications go on each role's Home with a bell.
+- **Director:** to read and write everything, with "nobody approves their own request" kept (finding 42).
+- **Still to be designed in Paper, then built:** a proper Home for every role, the menu by feature with one naming convention, and the "Is this your phone?" step (the "Welcome back" login is not to be touched).

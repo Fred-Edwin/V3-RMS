@@ -204,7 +204,7 @@ Evidence folder (screenshots): `/tmp/claude-1000/-home-fred-Projects-V3-RMS-lane
 
 ## Could not check, and why
 
-- Most dialogs, documents and the Branch Manager, Accountant, Director and head screens in a browser: the review stopped at the 150-call cap.
+- After the live walk of all eight roles (21 Oct) these are still not covered: the Contract and Rehire dialogs, the certificate of service, the printed documents (offer letter, contract, appointment, pay change, probation, transfer), Replace head, Add, Edit and Retire department, Add casual, the Details form on My file (address, email, date of birth), the payslip gate, the dated-change scheduler, whether the server would accept a warning to the Director (finding 55), and real devices. The first review's cap note is superseded.
 - Whether "Joy is told when it starts" sends a notification: not tested.
 - The named petty-cash holder gap and the P9 and contract wording: not reviewed (the wording is placeholder for the lawyer).
 - Two lane logins (`grace.wairimu@`, `samuel.kiptoo@`) do not accept `password123`.
