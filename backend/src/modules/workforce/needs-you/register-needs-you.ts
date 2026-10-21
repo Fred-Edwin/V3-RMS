@@ -4,6 +4,7 @@ import { scopeOf } from '../_shared/workforce-access';
 import { nudgeUsers } from '../notifications';
 import { needsYouQueries } from './needs-you-repository';
 import { monthSource } from './sources/month-source';
+import { payChangeSource } from './sources/pay-change-source';
 import { paySource } from './sources/pay-source';
 import { registerNeedsYouSource } from './sources/registry';
 import { securitySource } from './sources/security-source';
@@ -42,7 +43,7 @@ const NUDGING_EVENTS: WorkforceEventName[] = [
 
 /** Start-up: the built sources join the registry and every listed event nudges the people who hold `needs_you.read` at that site. */
 export function registerNeedsYou(): void {
-  for (const source of [timeSource, monthSource, paySource, securitySource]) registerNeedsYouSource(source);
+  for (const source of [timeSource, monthSource, paySource, securitySource, payChangeSource]) registerNeedsYouSource(source);
   for (const name of NUDGING_EVENTS) {
     workforceEvents.on(name, (event) => {
       const siteId = 'siteId' in event.payload && typeof event.payload.siteId === 'string' ? event.payload.siteId : null;

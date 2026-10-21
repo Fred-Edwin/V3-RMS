@@ -34,6 +34,8 @@ export { notify, notifyMany, registerWorkforceNotifier, workforceNotificationsRo
 export type { NotifyData, NotifyOptions, NotificationTone, RenderedNotification, HeldPush } from './notifications';
 export { workforceSecurityRouter, workforceSessionGate, registerSecurity, wasntMe, claimAlertWindow, insertAlertForEntry, tellAdminsOfAlert } from './security'; // phones, alerts, "This wasn't me", the session gate
 export { workforceNeedsYouRouter, registerNeedsYou, registerNeedsYouSource, type NeedsYouSource, type NeedsYouRow, type NeedsYouContext } from './needs-you'; // the card, badges, Overdue; Leave and Conduct register a source
+export { default as workforcePageForRouter } from './home/page-for-routes'; // who a page is for, for the refusal screen
+export { default as workforceHomeRouter } from './home/home-routes'; // Home for every role: the five numbers, the top Needs you rows, Latest (final pass 1, batch 2A)
 // Segment 4 (Leave): the router, start-up registration, the hourly sweep, the guard the old leave code calls, and the slip hooks back end B uses.
 export { workforceLeaveRouter, registerLeave, sweepLeave, assertLegacyLeaveWritable, verifyLeaveSlip, registerLeaveSlipDocument } from './leave';
 export type { LeaveSlipVerdict, DocumentKindRegistration } from './leave';

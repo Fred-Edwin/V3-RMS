@@ -67,6 +67,8 @@ import {
   registerConduct,
   workforceConductRouter,
   workforceNeedsYouRouter,
+  workforceHomeRouter,
+  workforcePageForRouter,
   workforceLeaveRouter,
   registerLeave,
   workforceSecurityRouter,
@@ -168,6 +170,8 @@ apiRouter.use(workforceDocumentsRouter);
 registerNeedsYou(); // the built sources join the Needs you registry; events nudge the card (Segment 6a)
 registerConduct(); // Conduct's rows (to sign, to record, appeals waiting) join the same card and badge (Segment 5)
 apiRouter.use(workforceNeedsYouRouter);
+apiRouter.use(workforcePageForRouter);
+apiRouter.use(workforceHomeRouter); // Home for every role (final pass 1, batch 2A)
 apiRouter.use(workforceConductRouter);
 apiRouter.use(workforceTimesheetsRouter);
 registerLeave(); // the rota's leave lookup and the Leave source of Needs you (Segment 4)

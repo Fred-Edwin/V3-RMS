@@ -19,6 +19,7 @@ const remindsToo = [authenticate, attachWorkforceSubject, hiddenUnless('needs_yo
 
 router.get(P, ...reads, c.list);
 router.get(`${P}/counts`, ...reads, c.counts);
+router.get(`${P}/page`, ...reads, c.page); // See all (Paper 1.12): search, group chip, site, pager
 router.get(`${P}/attention`, ...reads, c.attention);
 router.post(`${P}/seen`, ...reads, c.seen);
 router.get(`${P}/overdue`, ...remindsToo, c.overdue);
