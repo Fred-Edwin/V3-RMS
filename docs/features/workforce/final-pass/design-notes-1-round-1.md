@@ -52,4 +52,7 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 | "Jump box" | Search | menu |
 
 ## Not designed (second round)
-Edit button and person label, My file on the phone, the department head's probation card, the refusal screen, Act as (sketch promised after this round), Kitchen/Bar/Service work pages.
+Edit button and person label, My file on the phone, the department head's probation card, the refusal screen, Act as full design (a five-screen sketch exists: frames 6.1 to 6.5), Kitchen/Bar/Service work pages.
+
+## Act as sketch (frames 6.1 to 6.5, for owner reaction, not approved)
+Users row "Act as" (System Admin only) -> dialog: reason chips, optional note, the admin's own PIN, 30-minute limit -> banner "Acting as <name> · <position> · <site>", reason, minutes left, End session -> summary of changes, "recorded as Wendo Admin, acting as <name>" -> Directors' read-only "Support sessions" page. In 6.1, 6.3 and 6.5 the cloned sidebar highlights the wrong row; fix when built.
