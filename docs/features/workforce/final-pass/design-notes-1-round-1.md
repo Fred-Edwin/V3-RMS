@@ -22,7 +22,7 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 - Left out: Inbox, old HR group, Leave Calendar, Contract Types as links.
 
 ## Group 3 and sign-in family (frames 3.1 to 3.2, 4.1 to 4.5, 5.1)
-- Left panel 560 px (desktop): gradient 3 (amber to red-brown, eased stops) with a second red-brown light bottom-right, grain 35%, centred badge 112 px, "Wendo Coffee / Bistro" (Geist 40, semibold cream over light caramel), headline "Run every branch from one place.", three proof points, footer "Built and supported by Fred" and WhatsApp +254 113 176 613. Phone hero: 240 to 300 px, same gradient and grain, centred; PIN screen uses a 104 px left-aligned bar.
+- Left panel 560 px (desktop): gradient 3 (amber to red-brown, eased stops) with a second red-brown light bottom-right, grain 35%, centred badge 112 px, "Wendo Coffee / Bistro" (Geist 40, semibold cream over light caramel), headline "Run every branch from one place.", three proof points, footer "Built and supported by Fred" and WhatsApp +254 113 176 613. Phone hero: 240 to 300 px, same gradient and grain, centred; PIN screen uses a 200 px centred hero (64 px badge, 26 px name).
 - Right side stays white. Cards 480 px (3.1, 4.3), caramel rule above headings, caramel hairline at the column join, support strip 64 px: "Need help? Call or WhatsApp Fred on +254 113 176 613 · Every day, 6 a.m. to 10 p.m." On every sign-in screen.
 - Device step copy: "Confirm this device", "This is your first sign-in on this computer/phone.", "Trust this device", "Use just this once", "We will ask again next time". Device shown as "Chrome on Linux" or "Android phone" plus place and time chips.
 - Steps marker (Password, This device, PIN) is kept large: 20 px icons desktop, 18 px phone.
