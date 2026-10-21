@@ -73,6 +73,8 @@ Added by the People review, 21 Oct 2026 (details in `final-pass/1-people-finding
 - **Stale "arrives with Attendance / Leave / Approvals" copy and greyed Time and Leave tabs:** sections 2 and 7, then the sweep in 10.
 - **Menu:** old HR group beside the new one; proposal to organise by feature with sub-links, a jump box and personal items in the account block (section 10).
 - **No Inbox in Workforce:** notifications live on Home with a bell; communication is a separate feature refactored later (sections 9 and 10).
+- **System Admin (owner, 21 Oct):** reads and writes everything, like the Director (reverses decisions D2 and D15); can act as any user without a password, with every change stamped with both names and a Directors' "Support sessions" view (finding 78). One back-end and one front-end session (sections 9 and 10).
+- **IDs and bank hidden by default on My file** with a Show button (owner, 21 Oct).
 - **"Is this your phone?" step redesign (owner, 21 Oct):** only this first-time step is redesigned, as one responsive design (desktop and phone), Paper first, then built (section 9). The "Welcome back" login is not to be touched.
 - **Navigation naming (owner, 21 Oct):** Home is always called "Home"; no "Dashboard" as a landing page; one word for one thing; a test fails on duplicate or off-convention labels (section 10; convention in `final-pass/1-people-findings.md`).
 - **Role Homes:** every role gets a proper Workforce Home and lands on it after sign-in; better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).

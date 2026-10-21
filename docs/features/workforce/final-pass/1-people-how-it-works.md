@@ -49,4 +49,5 @@ The review was followed by a walk of all eight roles in a browser (HR, Director,
 - **Conventions everywhere:** a person is always shown as name, position and site; every card the role may change has an Edit button; wording is short, professional and clear.
 - **Notifications:** no Inbox inside Workforce; notifications go on each role's Home with a bell.
 - **Director:** to read and write everything, with "nobody approves their own request" kept (finding 42).
+- **System Admin:** to read and write everything like the Director, and to be able to act as any user without a password, with every change stamped with both names and a Directors' "Support sessions" view (finding 78).
 - **Still to be designed in Paper, then built:** a proper Home for every role, the menu by feature with one naming convention, and the "Is this your phone?" step (the "Welcome back" login is not to be touched).
