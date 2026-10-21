@@ -63,7 +63,10 @@ export function tracksTimeOf(state: Pick<HireState, 'positionId' | 'tracksTime'>
   return lookups.positions.find((p) => p.id === state.positionId)?.defaultTracksTime ?? true;
 }
 
-/** The sign-in email starts as the one given on step one, until the person types a different one. */
-export function loginEmailDefault(state: Pick<HireState, 'email' | 'loginEmail'>): string {
-  return state.loginEmail === '' ? state.email.trim() : state.loginEmail;
+/**
+ * The sign-in address is its own thing (finding 44): the server suggests it from the name. The personal email from step one is
+ * never copied into it.
+ */
+export function loginEmailDefault(state: Pick<HireState, 'loginEmail'>): string {
+  return state.loginEmail.trim();
 }

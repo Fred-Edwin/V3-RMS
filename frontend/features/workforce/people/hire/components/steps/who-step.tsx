@@ -94,9 +94,10 @@ export function WhoStep({
           {(ids) => <NumberField ids={ids} code decimal={false} maxLength={20} value={state.nationalId} onChange={(v) => set({ nationalId: v })} />}
         </HireField>
       </div>
-      <HireField label="Email" note="needed for their login" error={errors.email}>
+      <HireField label="Personal email" note="optional" helper={STEP_NOTES.personalEmailPurpose} error={errors.email}>
         {(ids) => <HireInput ids={ids} type="email" value={state.email} onChange={(e) => set({ email: e.target.value })} />}
       </HireField>
+      <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{STEP_NOTES.personalEmailPrivacy}</p>
       <DuplicateNotice duplicate={duplicate} confirmed={state.confirmDuplicatePhone} onConfirm={(v) => set({ confirmDuplicatePhone: v })} />
     </>
   );

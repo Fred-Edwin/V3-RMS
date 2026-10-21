@@ -1,5 +1,5 @@
 import type { LifeEvent } from '../../../_shared';
-import { formatDayMonth, formatDayMonthYear } from '../../_shared/lib/people-dates';
+import { formatDayMonth, formatDayMonthYear, nairobiDay } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, TimelineEvent } from '../../_shared/types/people-types';
 
 /**
@@ -41,8 +41,11 @@ export function eventText(e: TimelineEvent, file: Pick<EmployeeFile, 'position' 
       return 'Rehired, a new start';
     case 'DOCUMENT':
       return DOCUMENT_WORDS[String(d.type)] ?? 'Document received';
-    case 'PAY_CHANGE':
-      return PAY_WORDS[String(d.reason)] ?? 'Pay changed';
+    case 'PAY_CHANGE': {
+      const words = PAY_WORDS[String(d.reason)] ?? 'Pay changed';
+      // A change dated after today has not happened yet (finding 17).
+      return e.on > nairobiDay() ? `Starts ${formatDayMonth(e.on)}: ${words.replace(/^Pay changed: /, 'pay change, ').replace(/^Hired at basic pay$/, 'basic pay set')}` : words;
+    }
     case 'TRANSFER':
       return `Moved to ${d.toSite ?? 'another site'}`;
     case 'LOAN':

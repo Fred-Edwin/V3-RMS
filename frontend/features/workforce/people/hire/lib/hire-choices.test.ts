@@ -60,7 +60,7 @@ describe('hire choices', () => {
     expect(tracksTimeOf({ positionId: 'p3', tracksTime: true }, lookups)).toBe(true);
   });
   it('starts the sign-in email as the one from step one', () => {
-    expect(loginEmailDefault({ email: ' a@b.co ', loginEmail: '' })).toBe('a@b.co');
-    expect(loginEmailDefault({ email: 'a@b.co', loginEmail: 'x@y.co' })).toBe('x@y.co');
+    expect(loginEmailDefault({ loginEmail: '' })).toBe('');
+    expect(loginEmailDefault({ loginEmail: ' x@y.co ' })).toBe('x@y.co');
   });
 });

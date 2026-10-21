@@ -40,6 +40,9 @@ export function stepHeading(step: HireStepKey, first: string, casual: boolean): 
 }
 
 export const STEP_NOTES = {
+  personalEmailPurpose: 'Used only to send the first sign-in link and to reset a password.',
+  // Placeholder wording: the lawyer who reviews the contract wording confirms this notice (Data Protection Act 2019).
+  personalEmailPrivacy: 'We keep this address only for sign-in help. It is not shown to colleagues and is not used for anything else. The person can ask HR to remove it.',
   draftSaved: 'Saved as a draft as you go',
   casualSteps: 'Casual · 3 steps instead of 5',
   noDuplicate: 'We checked: no one with this ID number or phone is already on file.',

@@ -83,7 +83,11 @@ export interface UpdateEmployeeBody {
   dateOfBirth?: DateString | null;
   physicalAddress?: string | null;
 }
-export type PatchMeBody = Omit<UpdateEmployeeBody, 'name' | 'positionId' | 'reportsToId' | 'tracksTime' | 'nationalId'>;
+/** What a person may change in My file. National ID, bank and account number are theirs to enter too (Q2); HR verifies. */
+export type PatchMeBody = Omit<UpdateEmployeeBody, 'name' | 'positionId' | 'reportsToId' | 'tracksTime'> & {
+  bankName?: string | null;
+  accountNumber?: string | null;
+};
 
 export interface PayProfileBody {
   payoutMethod?: PayoutMethod;
@@ -102,10 +106,13 @@ export interface PayChangeBody {
   effectiveFrom: DateString;
   reason: PayChangeReason;
   note?: string;
+  /** The signer's own 4-digit PIN: a pay change moves money (Q1). Never stored or logged. */
+  pin: string;
 }
 export interface PayChangeDecisionBody {
   decision: 'APPROVE' | 'DECLINE';
   note?: string;
+  pin: string;
 }
 export interface ContractBody {
   contractTypeId?: string;

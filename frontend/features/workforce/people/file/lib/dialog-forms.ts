@@ -32,7 +32,8 @@ export function validatePayChange(f: PayChangeForm, today: string, current: stri
   return errors;
 }
 
-export function toPayChangeBody(f: PayChangeForm): PayChangeBody {
+/** The body without the PIN: the dialog adds the signer's PIN at the moment of sending, and nothing keeps it. */
+export function toPayChangeBody(f: PayChangeForm): Omit<PayChangeBody, 'pin'> {
   return { amount: Number(f.amount).toFixed(2), effectiveFrom: f.startsOn, reason: f.reason as PayChangeReason, ...(f.note.trim() ? { note: f.note.trim() } : {}) };
 }
 

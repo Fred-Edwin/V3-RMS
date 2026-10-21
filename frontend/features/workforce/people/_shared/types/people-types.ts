@@ -175,6 +175,8 @@ export interface PayChangeRow {
   employeeName: string;
   amount: MoneyString;
   effectiveFrom: DateString;
+  /** The start date is still ahead: say "Starts 22 Oct", not "changed". */
+  startsInFuture: boolean;
   reason: PayChangeReason;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
   requestedByName: string | null;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { addMonths, hourlyEquivalent, hourlyWorking, probationEndsOn } from './hire-figures';
-import { emptyHire, fromDraft, generateTemporaryPassword, stepsFor, toDraft, toHireBody, type HireState } from './hire-model';
+import { emptyHire, fromDraft, stepsFor, toDraft, toHireBody, type HireState } from './hire-model';
 import { hasErrors, validateStep } from './hire-validation';
 
 const filled = (over: Partial<HireState> = {}): HireState => ({
@@ -77,14 +77,6 @@ describe('drafts', () => {
   });
   it('mark a casual draft as casual', () => {
     expect(toDraft(filled({ employment: 'CASUAL' }), 3).kind).toBe('CASUAL');
-  });
-});
-
-describe('the temporary password', () => {
-  it('is two words and four digits, and long enough for the server', () => {
-    const pw = generateTemporaryPassword((n) => n - 1);
-    expect(pw).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
-    expect(pw.length).toBeGreaterThanOrEqual(10);
   });
 });
 

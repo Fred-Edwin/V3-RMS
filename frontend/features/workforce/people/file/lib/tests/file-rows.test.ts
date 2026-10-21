@@ -28,7 +28,7 @@ const joy = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   }) as unknown as EmployeeFile;
 
 const change = (over: Partial<PayChangeRow>): PayChangeRow => ({
-  id: 'c1', employeeId: 'e1', employeeName: 'Joy Chebet', amount: '28000.00', effectiveFrom: '2026-07-14', reason: 'HIRING', status: 'APPROVED',
+  id: 'c1', employeeId: 'e1', employeeName: 'Joy Chebet', amount: '28000.00', effectiveFrom: '2026-07-14', startsInFuture: false, reason: 'HIRING', status: 'APPROVED',
   requestedByName: 'Mercy Achieng', requestedOn: '2026-07-14', decidedByName: null, decidedOn: null, decisionNote: null, ...over,
 });
 const pay = (over: Partial<PayView> = {}): PayView => ({

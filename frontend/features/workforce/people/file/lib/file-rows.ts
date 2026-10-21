@@ -131,8 +131,11 @@ export function payAmountLine(pay: PayView, today: string): { text: string; star
 export function payRows(pay: PayView, contractStatus: EmployeeFile['contractStatus'], today: string): KeyValueRow[] {
   const line = payAmountLine(pay, today);
   const monthly = pay.payType === 'MONTHLY_SALARY';
+  const next = pay.history.filter((h) => h.status === 'APPROVED' && h.effectiveFrom > today).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];
+  const unit = monthly ? 'month' : 'day';
   return [
     { label: 'Basic pay', value: line.startsOn ? `${line.text} · starts ${formatWeekdayDayMonth(line.startsOn)}` : line.text, mono: true, tone: line.startsOn ? 'warning' : 'default' },
+    ...(next && !line.startsOn ? [{ label: 'Next change', value: `${formatKes(next.amount)} / ${unit} · starts ${formatWeekdayDayMonth(next.effectiveFrom)}`, mono: true, tone: 'warning' as const }] : []),
     { label: 'Statutory deductions', value: monthly ? 'NSSF, SHIF, Housing levy, PAYE' : 'None on a daily rate' },
     { label: 'Overtime rule', value: pay.overtimeEligible ? 'Company standard · set by the Director' : 'Not eligible for overtime', tone: pay.overtimeEligible ? 'default' : 'muted' },
     { label: 'Lateness rule', value: monthly && contractStatus === 'NONE' ? 'Company default · no contract yet' : 'Company default · set by the Director', tone: monthly && contractStatus === 'NONE' ? 'warning' : 'default' },
@@ -157,8 +160,14 @@ export function payHistoryLines(history: PayChangeRow[]): PayHistoryLine[] {
       from: formatDayMonthYear(h.effectiveFrom),
       amount: formatKes(h.amount),
       by: h.requestedByName ?? 'System',
-      reason: h.status === 'APPROVED' ? PAY_REASON_LABELS[h.reason] : `${PAY_REASON_LABELS[h.reason]} · ${h.status === 'PENDING' ? 'waiting for the Director' : h.status === 'DECLINED' ? 'declined' : 'cancelled'}`,
-      tone: h.status === 'APPROVED' ? 'success' : h.status === 'PENDING' ? 'warning' : h.status === 'DECLINED' ? 'error' : 'muted',
+      // A change that has not started reads "Starts 22 Oct", never as something already done (findings 17 and 54).
+      reason:
+        h.status === 'APPROVED'
+          ? h.startsInFuture
+            ? `${PAY_REASON_LABELS[h.reason]} · starts ${formatDayMonth(h.effectiveFrom)}`
+            : PAY_REASON_LABELS[h.reason]
+          : `${PAY_REASON_LABELS[h.reason]} · ${h.status === 'PENDING' ? 'waiting for the Director' : h.status === 'DECLINED' ? 'declined' : 'cancelled'}`,
+      tone: h.status === 'APPROVED' ? (h.startsInFuture ? 'warning' : 'success') : h.status === 'PENDING' ? 'warning' : h.status === 'DECLINED' ? 'error' : 'muted',
     }));
 }
 

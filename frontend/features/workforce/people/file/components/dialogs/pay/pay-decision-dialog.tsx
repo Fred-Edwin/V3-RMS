@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { DialogButton, KeyValueRows, KitDialog } from '../../../../../_shared';
+import { DialogButton, KeyValueRows, KitDialog, PIN_LENGTH, PinField } from '../../../../../_shared';
 import { formatDayMonthYear, formatKes } from '../../../../_shared/lib/people-dates';
 import { peopleReads } from '../../../../_shared/services/people-reads';
 import { peopleWrites } from '../../../../_shared/services/people-writes';
@@ -18,6 +18,7 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
   const [change, setChange] = React.useState<PayChangeRow | null>(null);
   const [decline, setDecline] = React.useState(false);
   const [note, setNote] = React.useState('');
+  const [pin, setPin] = React.useState('');
   const [shown, setShown] = React.useState(false);
   const action = useFileAction((m) => done(m ?? 'Answered.'));
 
@@ -32,8 +33,8 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
   const decide = (decision: 'APPROVE' | 'DECLINE'): void => {
     if (!change) return;
     setShown(true);
-    if (validateDecision(decision, note)) return;
-    void action.run(() => peopleWrites.decidePayChange(change.id, { decision, ...(note.trim() ? { note: note.trim() } : {}) }), decision === 'APPROVE' ? 'Approved. The new pay applies from its start day.' : 'Declined. The sender can see why.');
+    if (validateDecision(decision, note) || pin.length !== PIN_LENGTH) return;
+    void action.run(() => peopleWrites.decidePayChange(change.id, { decision, pin, ...(note.trim() ? { note: note.trim() } : {}) }), decision === 'APPROVE' ? 'Approved. The new pay applies from its start day.' : 'Declined. The sender can see why.');
   };
   return (
     <KitDialog
@@ -70,6 +71,11 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
         <p role="status" className="m-0 font-wds-sans text-[13px] text-wds-text-secondary">Loading the change…</p>
       )}
       {decline ? <DialogTextArea label="If you decline, say why" hint="required" value={note} onChange={setNote} rows={2} error={shown ? (validateDecision('DECLINE', note) ?? undefined) : undefined} /> : null}
+      <div className="flex flex-col gap-1.5">
+        <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">Your PIN</span>
+        <PinField value={pin} onChange={setPin} label="Your signing PIN" invalid={shown && pin.length !== PIN_LENGTH} disabled={action.busy} />
+        {shown && pin.length !== PIN_LENGTH ? <span role="alert" className="font-wds-sans text-[12px] leading-4 text-wds-error-fg">Enter your 4-digit PIN to answer.</span> : null}
+      </div>
       <DialogError message={action.error} />
     </KitDialog>
   );
