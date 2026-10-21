@@ -49,7 +49,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | pre-filled in `final-pass/1-people-decisions.md`; owner to answer 5 questions and override | Batch 1 (lane 2, brief written); **design pass round 1 drawn and owner-approved 21 Oct (lane 3, Paper page "Workforce · Final pass designs", notes in `final-pass/design-notes-1-round-1.md`, branch `design/workforce-1-people-round-1`)**; **design round 2 drawn and owner-approved 21 Oct (all six groups, frames 7.x to 12.x, notes in `final-pass/design-notes-1-round-2.md`)**; then Access change, Batch 2, Act-as | not started |
+| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | answered 21 Oct in `final-pass/1-people-decisions.md` | **Batch 1 built, gates pass, merged into the stack (21 Oct; owner's walk pending)**; **Access change built and merged (153527c5)**; **Batch 2A shell (lane 2) and 2B People screens (lane 4): briefs written, not started**; Act-as: later; **design pass round 1 drawn and owner-approved 21 Oct (lane 3, Paper page "Workforce · Final pass designs", notes in `final-pass/design-notes-1-round-1.md`, branch `design/workforce-1-people-round-1`)**; **design round 2 drawn and owner-approved 21 Oct (all six groups, frames 7.x to 12.x, notes in `final-pass/design-notes-1-round-2.md`)**; then Access change, Batch 2, Act-as | not started |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
