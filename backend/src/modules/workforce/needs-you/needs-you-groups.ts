@@ -53,6 +53,78 @@ export function orderForHome(rows: readonly NeedsYouRow[], now: Date): MarkedRow
   return marked.sort((a, b) => rank(a) - rank(b) || a.since.localeCompare(b.since) || a.id.localeCompare(b.id));
 }
 
+/** What each group says on Home (Paper 1.1): the sentence for several, the button, and where it opens. */
+const SUMMARY: Record<string, { many: (n: number) => string; action: string }> = {
+  leave: { many: (n) => `${n} leave requests to decide`, action: 'Decide' },
+  timesheets: { many: (n) => `${n} timesheet items to check`, action: 'Review' },
+  casual: { many: (n) => `${n} casual pay sheets to approve`, action: 'Review' },
+  payroll: { many: (n) => `${n} payroll steps waiting`, action: 'Open' },
+  security: { many: (n) => `${n} security alerts open`, action: 'Look' },
+  conduct: { many: (n) => `${n} conduct items waiting`, action: 'Open' },
+  'pay-changes': { many: (n) => `${n} pay changes waiting for the Director`, action: 'Review' },
+  hiring: { many: (n) => `${n} files to finish`, action: 'Finish file' },
+  probation: { many: (n) => `${n} probation decisions to take`, action: 'Decide' },
+  departments: { many: (n) => `${n} departments without a head`, action: 'Assign heads' },
+  other: { many: (n) => `${n} requests waiting`, action: 'Open' },
+};
+
+export const OVERDUE_KEY = 'overdue';
+
+export interface HomeSummaryRow {
+  key: string;
+  /** "Pay changes · 2" for the Kind column. */
+  kindLabel: string;
+  count: number;
+  title: string;
+  line: string;
+  action: string;
+  opens: string;
+  /** The oldest item's date. */
+  since: string;
+  overdue: boolean;
+}
+
+const daysOld = (iso: string, now: Date): number => Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS));
+
+/**
+ * The rows of Home's Needs you table (Paper 1.1): one row per kind, with a count, and every overdue item together in a first
+ * "Overdue" row. Several items become one sentence ("2 pay changes waiting for the Director") and "The oldest is 2 days old.";
+ * a single item keeps its own words. `rows` are already ordered by `orderForHome`.
+ */
+export function summariseForHome(rows: readonly MarkedRow[], now: Date, limit: number): { summary: HomeSummaryRow[]; kinds: number } {
+  const buckets = new Map<string, { label: string; rows: MarkedRow[] }>();
+  const put = (key: string, label: string, row: MarkedRow): void => {
+    const b = buckets.get(key);
+    if (b) b.rows.push(row);
+    else buckets.set(key, { label, rows: [row] });
+  };
+  for (const row of rows) {
+    if (row.overdue) put(OVERDUE_KEY, 'Overdue', row);
+    else put(groupOf(row.kind).key, groupOf(row.kind).label, row);
+  }
+  const summary = [...buckets.entries()].map(([key, b]): HomeSummaryRow => {
+    const oldest = [...b.rows].sort((x, y) => x.since.localeCompare(y.since))[0] as MarkedRow;
+    const first = b.rows[0] as MarkedRow;
+    const kindGroup = groupOf(first.kind);
+    const spec = SUMMARY[key === OVERDUE_KEY ? kindGroup.key : key] ?? (SUMMARY['other'] as (typeof SUMMARY)[string]);
+    const one = b.rows.length === 1;
+    const sameTarget = b.rows.every((r) => r.opens.split('?')[0] === first.opens.split('?')[0]);
+    return {
+      key,
+      kindLabel: `${b.label} · ${b.rows.length}`,
+      count: b.rows.length,
+      title: one ? first.text : key === OVERDUE_KEY ? `${b.rows.length} requests are overdue` : spec.many(b.rows.length),
+      line: one ? (first.siteName ?? `Waiting ${daysOld(first.since, now)} days`) : `The oldest is ${daysOld(oldest.since, now)} days old.`,
+      action: spec.action,
+      opens: one || sameTarget ? first.opens : `/app/workforce/needs-you?group=${key}`,
+      since: oldest.since,
+      overdue: key === OVERDUE_KEY,
+    };
+  });
+  // Overdue first (it is built first, because `rows` start with the overdue ones), then the groups in the order their oldest item waits.
+  return { summary: summary.slice(0, limit), kinds: summary.length };
+}
+
 export interface GroupCount extends KindGroup {
   count: number;
 }

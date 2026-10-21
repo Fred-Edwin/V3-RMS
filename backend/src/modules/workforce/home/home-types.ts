@@ -1,3 +1,5 @@
+import type { HomeSummaryRow } from '../needs-you/needs-you-groups';
+
 /** Which Home a person gets (Paper frames 1.1 to 1.11). Worked out from the access table, see home-audience.ts. */
 export const HOME_AUDIENCES = ['HR', 'DIRECTOR', 'ACCOUNTANT', 'BRANCH_MANAGER', 'STORE_MANAGER', 'HEAD', 'STAFF', 'SYSTEM_ADMIN'] as const;
 export type HomeAudience = (typeof HOME_AUDIENCES)[number];
@@ -8,7 +10,8 @@ export interface HomeKpi {
   label: string;
   value: string;
   detail: string;
-  tone: 'normal' | 'problem';
+  /** `attention` is the amber number (something to act on), `problem` the red-brown one (overdue, late, security). */
+  tone: 'normal' | 'attention' | 'problem';
   /** Where a click goes; null when the number opens nothing. */
   href: string | null;
 }
@@ -78,12 +81,14 @@ export interface HomeLatestItem {
   read: boolean;
 }
 
-/** The Needs you part of Home: the top rows, grouped, with the totals the headline uses. */
+/** The Needs you part of Home: the top rows (one per kind), with the totals the headline and "See all" use. */
 export interface HomeNeedsYou {
+  /** Every item waiting for the person. */
   total: number;
   overdue: number;
-  groups: Array<{ kind: string; label: string; count: number }>;
-  rows: Array<{ id: string; kind: string; text: string; opens: string; since: string; siteName: string | null; overdue: boolean }>;
+  /** How many kinds the items fall into ("14 in 5 kinds"). */
+  kinds: number;
+  rows: HomeSummaryRow[];
 }
 
 export interface HomeView {

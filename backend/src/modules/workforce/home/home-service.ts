@@ -1,6 +1,6 @@
 import { addDays, monthKey, nairobiToday, toDateColumn } from '../_shared/time/nairobi-time';
 import { scopeOf, workforceCan, type AccessSubject } from '../_shared/workforce-access';
-import { groupCounts } from '../needs-you/needs-you-groups';
+import { summariseForHome } from '../needs-you/needs-you-groups';
 import { allRowsFor } from '../needs-you/needs-you-page';
 import { countNeedsYou } from '../needs-you/needs-you-service';
 import { notificationRepository } from '../notifications/notification-repository';
@@ -95,12 +95,8 @@ export async function collectFacts(subject: AccessSubject, audience: HomeAudienc
 async function needsYouOf(subject: AccessSubject, now: Date): Promise<HomeNeedsYou | null> {
   if (!workforceCan(subject, 'needs_you.read')) return null;
   const { rows } = await allRowsFor(subject, now);
-  return {
-    total: rows.length,
-    overdue: rows.filter((r) => r.overdue).length,
-    groups: groupCounts(rows).map((g) => ({ kind: g.key, label: g.label, count: g.count })),
-    rows: rows.slice(0, HOME_ROWS).map((r) => ({ id: r.id, kind: r.kind, text: r.text, opens: r.opens, since: r.since, siteName: r.siteName, overdue: r.overdue })),
-  };
+  const { summary, kinds } = summariseForHome(rows, now, HOME_ROWS);
+  return { total: rows.length, overdue: rows.filter((r) => r.overdue).length, kinds, rows: summary };
 }
 
 export async function homeView(subject: AccessSubject, now: Date = new Date()): Promise<HomeView> {

@@ -16,32 +16,42 @@ const card = (key: string, label: string, value: string | number, detail: string
   href: extra.href ?? null,
 });
 
+const attention = (n: number): 'attention' | 'normal' => (n > 0 ? 'attention' : 'normal');
+
 const people = (f: HomeFacts, where: string): HomeKpi =>
-  card('active', 'Active people', f.active, f.joinedThisMonth > 0 ? `${f.joinedThisMonth} joined this month` : where, { href: '/app/workforce/employees' });
+  card('active', 'Active staff', f.active, f.joinedThisMonth > 0 ? `${f.joinedThisMonth} joined this month` : where, { href: '/app/workforce/employees' });
 
 const probation = (f: HomeFacts): HomeKpi =>
-  card('probation', 'Probation decisions', f.probationDueSoon + f.probationOverdue, f.probationOverdue > 0 ? `${f.probationOverdue} overdue` : 'due in the next 30 days', {
+  card('probation', 'Probation due', f.probationDueSoon + f.probationOverdue, probationLine(f), {
     tone: f.probationOverdue > 0 ? 'problem' : 'normal',
     href: '/app/workforce/employees?filter=probation',
   });
 
+/** "1 overdue, 2 in 30 days" / "3 in 30 days" / "nothing due". */
+function probationLine(f: HomeFacts): string {
+  const parts = [f.probationOverdue > 0 ? `${f.probationOverdue} overdue` : '', f.probationDueSoon > 0 ? `${f.probationDueSoon} in 30 days` : ''].filter(Boolean);
+  return parts.length ? parts.join(', ') : 'nothing due';
+}
+
 const blocks = (f: HomeFacts): HomeKpi =>
-  card('blocks-payroll', 'Blocks payroll', f.blocksPayroll, f.blocksPayroll === 0 ? 'every file is ready' : 'files with a missing number', {
-    tone: f.blocksPayroll > 0 ? 'problem' : 'normal',
+  card('blocks-payroll', 'Blocks payroll', f.blocksPayroll, f.blocksPayroll === 0 ? 'every file is ready' : 'files missing bank or IDs', {
+    tone: attention(f.blocksPayroll),
     href: '/app/workforce/employees?filter=blocks_payroll',
   });
 
 const noHead = (f: HomeFacts): HomeKpi =>
-  card('no-head', 'Departments without a head', f.departmentsWithoutHead, f.departmentsWithoutHead === 0 ? 'every department has one' : 'approvals go to the manager', {
+  card('no-head', 'No head', f.departmentsWithoutHead, f.departmentsWithoutHead === 0 ? 'every department has one' : 'departments without a head', {
+    tone: attention(f.departmentsWithoutHead),
     href: '/app/workforce/organisation',
   });
 
-const payChanges = (f: HomeFacts, detail: string): HomeKpi => card('pay-changes', 'Pay changes waiting', f.payChangesWaiting, detail, { href: '/app/workforce/employees?filter=pay_change' });
+const payChanges = (f: HomeFacts, detail: string): HomeKpi =>
+  card('pay-changes', 'Pay changes', f.payChangesWaiting, detail, { tone: attention(f.payChangesWaiting), href: '/app/workforce/employees?filter=pay_change' });
 
 const onLeave = (f: HomeFacts, where: string): HomeKpi => card('on-leave', 'On leave today', f.onLeaveToday, where, { href: '/app/workforce/leave' });
 
 const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
-  HR: (f) => [people(f, 'on file today'), probation(f), blocks(f), noHead(f), payChanges(f, 'with the Director')],
+  HR: (f) => [people(f, 'on file today'), probation(f), blocks(f), noHead(f), payChanges(f, 'waiting for the Director')],
   DIRECTOR: (f) => [people(f, 'across the company'), probation(f), noHead(f), payChanges(f, f.payChangesWaiting === 0 ? 'nothing to decide' : 'for you to decide'), onLeave(f, 'across the company')],
   ACCOUNTANT: (f) => [
     blocks(f),
@@ -53,15 +63,15 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
   BRANCH_MANAGER: (f) => [
     people(f, 'at this branch'),
     onLeave(f, 'at this branch'),
-    card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { href: '/app/workforce/leave' }),
-    card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { href: '/app/workforce/timesheets' }),
+    card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { tone: attention(f.leaveWaiting), href: '/app/workforce/leave' }),
+    card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { tone: attention(f.timesheetsWaiting), href: '/app/workforce/timesheets' }),
     noHead(f),
   ],
   STORE_MANAGER: (f) => [
     people(f, 'at the Central Store'),
     onLeave(f, 'at the Central Store'),
-    card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { href: '/app/workforce/leave' }),
-    card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { href: '/app/workforce/timesheets' }),
+    card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { tone: attention(f.leaveWaiting), href: '/app/workforce/leave' }),
+    card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { tone: attention(f.timesheetsWaiting), href: '/app/workforce/timesheets' }),
     noHead(f),
   ],
   HEAD: (f) => [

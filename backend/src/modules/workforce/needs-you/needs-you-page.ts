@@ -1,6 +1,6 @@
 import { workforceCan, type AccessSubject } from '../_shared/workforce-access';
 import { NotFoundError } from '../../../utils/errors';
-import { groupCounts, groupOf, orderForHome, type GroupCount, type MarkedRow } from './needs-you-groups';
+import { OVERDUE_KEY, groupCounts, groupOf, orderForHome, type GroupCount, type MarkedRow } from './needs-you-groups';
 import { contextFor, listNeedsYou } from './needs-you-service';
 import { attentionRows } from './sources/attention-source';
 
@@ -42,13 +42,21 @@ export async function allRowsFor(subject: AccessSubject, now: Date): Promise<{ r
 }
 
 const matches = (row: MarkedRow, query: NeedsYouPageQuery): boolean => {
-  if (query.group && groupOf(row.kind).key !== query.group) return false;
+  if (query.group === OVERDUE_KEY) {
+    if (!row.overdue) return false;
+  } else if (query.group && groupOf(row.kind).key !== query.group) return false;
   if (query.siteId && row.siteId !== query.siteId) return false;
   if (query.q) {
     const needle = query.q.toLowerCase();
     return `${row.text} ${row.siteName ?? ''} ${groupOf(row.kind).label}`.toLowerCase().includes(needle);
   }
   return true;
+};
+
+/** The kind chips, with an "Overdue" chip first when anything is overdue. */
+const chips = (rows: readonly MarkedRow[]): GroupCount[] => {
+  const overdue = rows.filter((r) => r.overdue).length;
+  return [...(overdue > 0 ? [{ key: OVERDUE_KEY, label: 'Overdue', count: overdue }] : []), ...groupCounts(rows)];
 };
 
 export async function pageNeedsYou(subject: AccessSubject, query: NeedsYouPageQuery, now: Date = new Date()): Promise<NeedsYouPage> {
@@ -63,7 +71,7 @@ export async function pageNeedsYou(subject: AccessSubject, query: NeedsYouPageQu
     all: rows.length,
     overdue: rows.filter((r) => r.overdue).length,
     // The chips count what the search and site filter leave, so the numbers match what a click shows.
-    groups: groupCounts(rows.filter((r) => matches(r, { ...query, group: undefined }))),
+    groups: chips(rows.filter((r) => matches(r, { ...query, group: undefined }))),
     sites: [...sites.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
     page: query.page,
     pageSize: query.pageSize,

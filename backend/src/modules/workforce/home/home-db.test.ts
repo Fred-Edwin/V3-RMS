@@ -38,10 +38,11 @@ describe.skipIf(!enabled)('Home', () => {
     expect(view.audience).toBe('DIRECTOR');
     expect(view.kpis).toHaveLength(5);
     expect(view.needsYou?.total).toBeGreaterThanOrEqual(7);
-    expect(view.needsYou?.rows).toHaveLength(5);
     expect(view.needsYou?.overdue).toBeGreaterThanOrEqual(4);
-    expect(view.needsYou?.rows[0]?.overdue).toBe(true);
-    expect(view.needsYou?.groups.find((g) => g.kind === 'leave')?.count).toBe(7);
+    // One row per kind: the overdue leave items together first, then the rest of the leave.
+    expect(view.needsYou?.rows[0]).toMatchObject({ overdue: true, kindLabel: expect.stringMatching(/^Overdue · \d+$/) });
+    expect(view.needsYou?.rows.length).toBeLessThanOrEqual(5);
+    expect(view.needsYou?.kinds).toBeGreaterThanOrEqual(2);
   });
 
   it('gives a person without Needs you a Home with no Needs you table', async () => {
