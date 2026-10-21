@@ -194,6 +194,8 @@ export interface BalanceDrawer {
   person: { id: string; name: string; roleLabel: string; department: string | null; organization: string; onPolicy: boolean; note: string | null };
   year: number;
   cards: TypeBalance[];
+  /** Every kind of leave HR may adjust for this person, including a type with no days yet (no card). */
+  adjustable: { code: string; label: string }[];
   requests: ApplicationSummary[];
   adjustments: { at: string; typeCode: string; days: number; reasonCode: string | null; by: string | null }[];
 }

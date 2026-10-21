@@ -54,14 +54,14 @@ export function AdjustDialog({ open, onOpenChange, prefill, site, onAdjusted }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // The kinds of leave the person has days in (and any HR may grant), from the same read the drawer uses.
+  // The kinds of leave HR may adjust for this person (a type with no days yet is still listed), from the same read the drawer uses.
   React.useEffect(() => {
     if (!open || !person) { setTypes([]); return; }
     let cancelled = false;
     leaveReads.drawer(person.id).then(
       (d) => {
         if (cancelled) return;
-        const list = d.cards.map((c) => ({ code: c.typeCode, label: c.label }));
+        const list = d.adjustable;
         setTypes(list);
         setTypeCode((current) => (current && list.some((t) => t.code === current) ? current : list[0]?.code ?? null));
       },
