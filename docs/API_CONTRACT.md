@@ -5596,7 +5596,7 @@ Base `/workforce/leave`. All routes: `authenticate`, `attachWorkforceSubject`, a
 | `GET /applications/:id/rota` | `leave.read` | The rota strip and minimum-cover warning (warns only) |
 | `POST /applications/:id/approve { pin, expectedVersion }` | `leave.approve` | Slip number `LVE-nnnn` issued once, frozen snapshot, rota cells cleared, same transaction |
 | `POST /applications/:id/decline { reasonCode, note?, expectedVersion }` | `leave.approve` | No PIN; `note` required for `OTHER` |
-| `GET /balances?site&dept&filter&q&year&page&rows`, `GET /balances/:employeeId?year` | `leave.read` | At most 500 people are read, paged in memory |
+| `GET /balances?site&dept&filter&q&year&page&rows`, `GET /balances/:employeeId?year` | `leave.read` | At most 500 people are read, paged in memory. The drawer (`/balances/:employeeId`) also returns `adjustable: [{ code, label }]`: every kind of leave HR may adjust for that person, including one with no days yet (21 Oct 2026) |
 | `POST /balances/adjust/preview { employeeId, typeCode, add? }`, `POST /balances/adjust { employeeId, typeCode, add, reasonCode, note?, pin, expectedNow? }` | `leave.balance_adjust` | Whole days, -60 to +60, never below 0; appends one ledger line |
 | `GET /calendar?site&dept&from` | `leave.read` | |
 | `GET /applications/:id/slip`, `GET /applications/:id/slip.pdf` | `leave.request` or `leave.read` | Slip data, and the A4 PDF (`application/pdf`; a cancelled slip is stamped VOID) |

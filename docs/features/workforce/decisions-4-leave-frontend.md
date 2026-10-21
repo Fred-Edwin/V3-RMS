@@ -27,5 +27,23 @@ Branch `feat/workforce-4-leave-frontend`, 20 Oct 2026, part 1 (build). Each row:
 | 21 | Home | "On leave" on the Today board already reads `onLeave.available`; no front-end change. "Coming up" gets `GET /away` (next 14 days) merged in by `home/cards/leave-data.ts`. The Needs-you card and badge are Shared parts'. | Spec section 9. | n/a |
 | 22 | Not drawn in Paper, added | Year stepper, pager, offline states, "Show all N days" for long requests, the cancelled-slip bar note, desktop Ask drawer. | "Production adds" in the spec. | n/a |
 
-## Gaps left (for part 2 or later)
-Timesheet and payroll leave days (back end, not built); documents-door registration; Inbox rows still generic (back end); Conduct, Shared parts not here.
+## Part 2 (browser walk, 21 Oct 2026)
+| # | Question | Choice | Why | Changing it takes |
+|---|---|---|---|---|
+| 23 | The Balances page crashed for HR (`Cannot read properties of undefined (reading 'reduce')`) | Response types now use the wire names: `organizations`, `organizationName`, `organization` (person), `organizationId` (away). A check in `_shared/lib/wire-names.test.ts` keeps them. | The API sends `organization*` on purpose (`wire-names.ts`); the part 1 types said `site*`. | n/a |
+| 24 | HR could not grant a first balance: the Adjust dialog took its kinds of leave from the drawer's cards, and a card exists only once days do | Back-end fix (own commit, with a test in `leave-flow-db.test.ts`, no migration): `GET /balances/:employeeId` also returns `adjustable`, every type the adjust rule accepts. The dialog reads it. | The seeded Annual leave is 0, so every person started with no cards and no kinds to pick. | Return `adjustable` from a rules read instead. |
+| 25 | A wrong PIN showed no message in approve, decline, cancel and adjust | `useIdempotencyKey` returns one memoised object. | Each dialog listed `key` in an effect; a new object per render re-ran the effect after every render, clearing the error at once and renewing the key on a retry. | n/a |
+| 26 | The Requests list wrapped dates onto three lines | Columns follow Paper (list 448 here, 470 in Paper; DATES Geist Mono 12, not 13 as the spec said); the PERSON cell truncates (`max-w-0`); DATES is 180 px and on one line. | Paper's own row "26 to 28 Oct · 3 d" did not fit our 118 px column. | Widen the list. |
+| 27 | History header figures TAKEN and DECLINED were dark on the dark band | White (WAITING keeps `#EFCF9E`). | A missing colour class. | n/a |
+| 28 | The Adjust note repeated the person's name | Uses the server's label alone. | `told.label` already holds "name, role". | n/a |
+| 29 | With the switch off, `/app/workforce/my-leave` and `/leave` still open when typed | Left as it is; only the menu rows follow the switch. | The route gate is by role (decision 6), like the other Workforce pages. The old and new Leave screens read the same data (the back end carries it). | Add `needsAttendance` to the route gate. |
+| 30 | A signer with no PIN sees "Set your signing PIN" before the form's fields | Left (kit behaviour, first use only). | The kit dialog owns it (decision 15). | Show the fields first. |
+
+## Gaps left
+- Timesheet and payroll leave days (back end, not built); documents-door registration; Inbox rows still generic (back end); Conduct and Shared parts are not here.
+- Calendar department chips on "All sites" list only the viewer's own site's departments (decision 16): the leave back end has no list of departments across sites.
+- The Balances tile "PEOPLE · on the leave policy" counts everyone in the list, including people the rows call "Not on the leave policy".
+- After a decision the detail panel still says "IF APPROVED" and "balance 21 days, 14 after this", and the person's rota row says "Asking".
+- The approved ending labels the 7 booked days "TAKEN" before the leave has started.
+- The Requests row line shows the site even to a Branch Manager who has one site.
+- Not checked in the browser: the offline states and Slow 3G, the cancel-approved send (opened and closed only), hover and disabled on every new control, keyboard on the Balances and Calendar tabs. Request form, approve and decline were run with the keyboard.
