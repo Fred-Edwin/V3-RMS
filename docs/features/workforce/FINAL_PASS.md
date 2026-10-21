@@ -47,7 +47,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | written; live role walkthrough in progress (HR, Director, Branch Manager, Accountant, Store Manager, Department head, Staff done, 1 role to go), 71 findings so far | | | |
+| 1 People | written; live role walkthrough in progress (HR, Director, Branch Manager, Accountant, Store Manager, Department head, Staff done, 1 role to go), 74 findings so far | | | |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
@@ -73,7 +73,9 @@ Added by the People review, 21 Oct 2026 (details in `final-pass/1-people-finding
 - **Stale "arrives with Attendance / Leave / Approvals" copy and greyed Time and Leave tabs:** sections 2 and 7, then the sweep in 10.
 - **Menu:** old HR group beside the new one; proposal to organise by feature with sub-links, a jump box and personal items in the account block (section 10).
 - **No Inbox in Workforce:** notifications live on Home with a bell; communication is a separate feature refactored later (sections 9 and 10).
-- **Role Homes:** better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).
+- **Sign-in flow redesign (owner, 21 Oct):** the login and the first-time "Is this your phone?" step are to be redesigned as one responsive design (desktop and phone), Paper first, then built (section 9).
+- **Navigation naming (owner, 21 Oct):** Home is always called "Home"; no "Dashboard" as a landing page; one word for one thing; a test fails on duplicate or off-convention labels (section 10; convention in `final-pass/1-people-findings.md`).
+- **Role Homes:** every role gets a proper Workforce Home and lands on it after sign-in; better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).
 - **"Phone" wording at sign-in on a desktop:** section 9.
 - **Payout methods:** Cash and M-Pesa stay (owner, 21 Oct); screen and API must offer the same set (sections 1 and 5).
 - **Sign-in identity (owner, 21 Oct):** `firstname.secondname@wendo.co.ke`; optional personal email at hire; temporary password `word.word.1234` from about 250 Swahili food words, server-generated, unused expires after 7 days, never forced to change (PIN stays compulsory). Fixed in section 1; the sign-in and security screens follow in section 9.
