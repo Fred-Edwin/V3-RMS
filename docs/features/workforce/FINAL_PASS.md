@@ -49,7 +49,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | pre-filled in `final-pass/1-people-decisions.md`; owner to answer 5 questions and override | Batch 1 (lane 2, brief written); design pass round 1 (lane 3, brief written); then Access change, Batch 2, Act-as | not started |
+| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | pre-filled in `final-pass/1-people-decisions.md`; owner to answer 5 questions and override | Batch 1 (lane 2, brief written); **design pass round 1 drawn and owner-approved 21 Oct (lane 3, Paper page "Workforce · Final pass designs", notes in `final-pass/design-notes-1-round-1.md`, branch `design/workforce-1-people-round-1`)**; then design round 2, Access change, Batch 2, Act-as | not started |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
@@ -75,9 +75,11 @@ Added by the People review, 21 Oct 2026 (details in `final-pass/1-people-finding
 - **Stale "arrives with Attendance / Leave / Approvals" copy and greyed Time and Leave tabs:** sections 2 and 7, then the sweep in 10.
 - **Menu:** old HR group beside the new one; proposal to organise by feature with sub-links, a jump box and personal items in the account block (section 10).
 - **No Inbox in Workforce:** notifications live on Home with a bell; communication is a separate feature refactored later (sections 9 and 10).
-- **System Admin (owner, 21 Oct):** reads and writes everything, like the Director (reverses decisions D2 and D15); can act as any user without a password, with every change stamped with both names and a Directors' "Support sessions" view (finding 78). One back-end and one front-end session (sections 9 and 10).
+- **System Admin (owner, 21 Oct, revised later the same day):** does **not** get the Director's People, Time or Pay screens; the admin menu is Home and Company only (Security alerts, Audit log, Users, Branches, Menu items), because the admin can act as any user without a password, with every change stamped with both names and a Directors' "Support sessions" view (finding 78; five-screen sketch in frames 6.1 to 6.5). One back-end and one front-end session (sections 9 and 10).
+- **No account locking (owner, 21 Oct):** accounts are never locked for wrong password tries; the System Admin Home shows "Password resets" instead of "Locked out".
+- **Menu and Homes, design round 1 approved (owner, 21 Oct):** top link "Home", each feature opens with "Overview"; Workforce labels Staff, Time, Pay, Setup; "jump box" is called Search; heads and staff get short own menus; phone Homes are the design standard for every phone screen. See `final-pass/design-notes-1-round-1.md`.
 - **IDs and bank hidden by default on My file** with a Show button (owner, 21 Oct).
-- **"Is this your phone?" step redesign (owner, 21 Oct):** only this first-time step is redesigned, as one responsive design (desktop and phone), Paper first, then built (section 9). The "Welcome back" login is not to be touched.
+- **Sign-in family redesign (owner, 21 Oct, approved):** the device step ("Confirm this device"), the login ("Welcome back", the owner later chose to redesign it too), Set your PIN and the error states are drawn for desktop and phone, with a brand panel (proof points, "Built and supported by Fred", support line +254 113 176 613, 6 a.m. to 10 p.m.) on every screen. Built in section 9. Login email placeholder is `firstname.secondname@wendo.co.ke`; "Real-time visibility" wording must be checked against the product before it ships.
 - **Navigation naming (owner, 21 Oct):** Home is always called "Home"; no "Dashboard" as a landing page; one word for one thing; a test fails on duplicate or off-convention labels (section 10; convention in `final-pass/1-people-findings.md`).
 - **Role Homes:** every role gets a proper Workforce Home and lands on it after sign-in; better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).
 - **"Phone" wording at sign-in on a desktop:** section 9.

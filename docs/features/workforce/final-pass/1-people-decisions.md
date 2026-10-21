@@ -1,5 +1,7 @@
 # Final pass, section 1: People. Decisions
 
+**Update, 21 Oct 2026 (end of design round 1):** Design 1, 2 and 3 rows are drawn and approved (`design-notes-1-round-1.md`). Two decisions changed: the System Admin does not get People, Time or Pay screens (rows 42 and 75 now mean the Director only; the admin acts as users instead), and accounts are never locked for wrong tries. The design round 2 rows (32, 33, 36, 47, 53, 61 to 63, 67, 68, 70) are still to draw.
+
 Written 21 Oct 2026 by the orchestrator from `1-people-findings.md` (78 findings) and the owner's decisions during the live walk. **The Decision column is pre-filled with the recommendation. Change only the rows you disagree with** (write the new word in the Your call column), then answer the five questions. This file, once you have answered, is final for section 1 (FINAL_PASS rule 3).
 
 Words: **Fix** = fix it. **Leave** = do nothing. **Defer** = a later section owns it. **Batch 1** = code and copy, no new design. **Design** = drawn in Paper first (design pass, groups 1 to 3 or the second round). **Batch 2** = built after the designs are approved. **Access** and **Act-as** = their own small projects (see the bottom).
