@@ -139,6 +139,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
   }
 
+  // People, batch 2B: a head's probation report and My team (read only). Heads, and the roles that already see their people.
+  if (pathname === '/app/workforce/team' || pathname.startsWith('/app/workforce/team/') || pathname === '/app/workforce/probation' || pathname.startsWith('/app/workforce/probation/')) {
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
   // Attendance (slice 3). The Today board is for the roles that read it (and a department head, for their own people); the per-site
   // switch is the System Admin's alone (owner, 18 Oct 2026). Both pages show nothing for a branch whose new clock is off.
   if (pathname === '/app/workforce/today' || pathname.startsWith('/app/workforce/today/')) {

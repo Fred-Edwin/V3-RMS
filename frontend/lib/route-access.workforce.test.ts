@@ -31,6 +31,14 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     expect(isAllowedPath('/app/workforce/organisationx', 'WAITER', false)).toBe(false);
   });
 
+  it('opens My team and the probation report to heads and the roles that see their people (batch 2B)', () => {
+    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'];
+    for (const path of ['/app/workforce/team', '/app/workforce/probation/abc/report']) {
+      for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(OPENS.includes(role));
+      expect(isAllowedPath(path, 'CHEF', true), `a head on ${path}`).toBe(true);
+    }
+  });
+
   it('opens the Home for floor staff and department heads (their clock card), and nothing else under Workforce', () => {
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT'] as AppRole[]) {
       expect(isAllowedPath('/app/workforce', role, false), `${role} on Home`).toBe(true);
