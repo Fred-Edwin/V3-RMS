@@ -3,12 +3,13 @@
 import * as React from 'react';
 
 import { ChoiceChips, DialogButton, KitDialog } from '../../../_shared';
+import { KENYAN_BANKS, OTHER_BANK, isListedBank } from '../../_shared/lib/kenyan-banks';
 import { nssfError, onFileEnding, shaError } from '../../_shared/lib/statutory-formats';
 import { peopleWrites } from '../../_shared/services/people-writes';
 import type { EmployeeFile } from '../../_shared/types/people-types';
-import { DialogError, DialogText, FooterNote } from '../../file/components/dialogs/dialog-fields';
+import { DialogError, DialogPicker, DialogText, FooterNote } from '../../file/components/dialogs/dialog-fields';
 import { useFileAction } from '../../file/hooks/use-file-action';
-import { RELATIONS, numbersEmpty, toEmergencyBody, toNumbersBody, validateEmergency, type EmergencyForm, type NumbersForm } from '../lib/own-file';
+import { RELATIONS, idBankEmpty, numbersEmpty, toEmergencyBody, toIdBankBody, toNumbersBody, validateEmergency, validateIdBank, type EmergencyForm, type IdBankForm, type NumbersForm } from '../lib/own-file';
 
 interface OwnDialogProps {
   onClose: () => void;
@@ -46,6 +47,53 @@ export function EmergencyDialog({ onClose, done }: OwnDialogProps) {
       <ChoiceChips legend="How are they related to you?" value={form.relation || null} onChange={(v) => setForm((f) => ({ ...f, relation: v }))} options={RELATIONS.map((r) => ({ value: r, label: r }))} />
       {shown && errors.relation ? <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{errors.relation}</p> : null}
       <DialogText label="Their phone number" type="tel" mono value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} error={shown ? errors.phone : undefined} />
+      <DialogError message={action.error} />
+    </KitDialog>
+  );
+}
+
+/** National ID, bank and account number (finding 15, Q2): you may enter them yourself; HR verifies, and after that only HR changes them. */
+export function IdBankDialog({ onClose, done }: OwnDialogProps) {
+  const [form, setForm] = React.useState<IdBankForm>({ nationalId: '', bank: '', accountNumber: '' });
+  const [otherBank, setOtherBank] = React.useState(false);
+  const [shown, setShown] = React.useState(false);
+  const action = useFileAction((m) => done(m ?? 'Saved.'));
+  const errors = validateIdBank(form);
+  const save = (): void => {
+    setShown(true);
+    if (Object.keys(errors).length > 0) return;
+    void action.run(() => peopleWrites.patchMe(toIdBankBody(form)), 'Saved. HR will check your ID and bank details.');
+  };
+  const picked = otherBank ? OTHER_BANK : form.bank;
+  return (
+    <KitDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Your ID and bank details"
+      description="Only you and HR see these. HR checks them before they are used for pay; after that, ask HR to change them."
+      width={440}
+      busy={action.busy}
+      footer={
+        <>
+          <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={action.busy}>Cancel</DialogButton>
+          <DialogButton kind="primary" size="lg" onClick={save} disabled={action.busy || idBankEmpty(form)}>{action.busy ? 'Saving…' : 'Save'}</DialogButton>
+        </>
+      }
+    >
+      <DialogText label="National ID number" mono value={form.nationalId} onChange={(v) => setForm((f) => ({ ...f, nationalId: v }))} autoFocus helper="Leave empty to keep the one on file." error={shown ? errors.nationalId : undefined} />
+      <DialogPicker
+        label="Bank"
+        value={isListedBank(form.bank) ? form.bank : picked}
+        placeholder="Choose your bank"
+        options={[...KENYAN_BANKS, OTHER_BANK].map((b) => ({ value: b, label: b }))}
+        onChange={(v) => {
+          setOtherBank(v === OTHER_BANK);
+          setForm((f) => ({ ...f, bank: v === OTHER_BANK ? '' : v }));
+        }}
+        error={shown ? errors.bank : undefined}
+      />
+      {otherBank ? <DialogText label="Name of your bank" value={form.bank} onChange={(v) => setForm((f) => ({ ...f, bank: v }))} /> : null}
+      <DialogText label="Account number" mono value={form.accountNumber} onChange={(v) => setForm((f) => ({ ...f, accountNumber: v }))} error={shown ? errors.accountNumber : undefined} />
       <DialogError message={action.error} />
     </KitDialog>
   );
