@@ -29,7 +29,7 @@ const COPY: TableCopy = {
   permissionDescription: 'Your role does not open the employee list.',
 };
 
-const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'no_contract', 'casual_pool', 'on_probation', 'exited']);
+const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'exited']);
 
 export function buildFilters(lookups: Lookups | null): TableFilter[] {
   const sites = lookups?.organizations ?? [];
@@ -41,10 +41,11 @@ export function buildFilters(lookups: Lookups | null): TableFilter[] {
       key: 'filter',
       options: [
         { value: '', label: 'All' },
-        { value: 'needs_finishing', label: 'Needs finishing' },
+        { value: 'needs_finishing', label: 'Incomplete files' },
+        { value: 'blocks_payroll', label: 'Blocks payroll' },
         { value: 'no_contract', label: 'No contract yet' },
-        { value: 'casual_pool', label: 'Casual pool' },
-        { value: 'exited', label: 'Exited' },
+        { value: 'casual_pool', label: 'Casuals' },
+        { value: 'exited', label: 'Left' },
       ],
     },
   ];
@@ -93,7 +94,10 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
         width: '280px',
         cell: (row, { term }) => (
           <AvatarCell name={row.name} sub={row.positionName ?? undefined} photoUrl={row.photoUrl}>
-            <HighlightMatch text={row.name} term={term} />
+            {/* A real link: open in a new tab, and a screen reader hears who it opens (finding 27). The row click still works. */}
+            <a href={`/app/workforce/employees/${row.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open ${row.name}'s file`} className="text-inherit no-underline outline-none hover:underline focus-visible:shadow-wds-ring">
+              <HighlightMatch text={row.name} term={term} />
+            </a>
           </AvatarCell>
         ),
       },
@@ -108,7 +112,7 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
           return <StatusTag tone={file.tone}>{file.label}</StatusTag>;
         },
       },
-      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? ''}</span> },
+      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? 'No head yet'}</span> },
     ],
     []
   );

@@ -6,7 +6,7 @@ import { activityRows } from '../../lib/file-timeline';
 
 /**
  * Activity (Paper `Z7M-0`). The API has no audit read by person yet, so this shows what the file itself knows (hires, pay changes,
- * moves, decisions, documents) and says plainly that the full trail, with every opening, arrives with the Audit log.
+ * moves, decisions, documents) with who made the change where it is known, and points to the Audit log for the full trail.
  */
 export function ActivityTab({ file }: { file: EmployeeFile }) {
   const rows = activityRows(file);
@@ -19,7 +19,7 @@ export function ActivityTab({ file }: { file: EmployeeFile }) {
           <table className="w-full min-w-[560px] border-collapse text-left">
             <thead>
               <tr className="border-b border-wds-text-ink">
-                {['WHEN', 'KIND', 'WHAT'].map((h) => (
+                {['WHEN', 'KIND', 'WHAT', 'BY'].map((h) => (
                   <th key={h} scope="col" className="px-4 py-3 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">
                     {h}
                   </th>
@@ -36,6 +36,7 @@ export function ActivityTab({ file }: { file: EmployeeFile }) {
                     </StatusTag>
                   </td>
                   <td className="px-4 py-3 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{r.what}</td>
+                  <td className="px-4 py-3 font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{r.by ?? '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -43,7 +44,7 @@ export function ActivityTab({ file }: { file: EmployeeFile }) {
         </section>
       )}
       <Callout tone="neutral">
-        This lists what the file itself records. The full trail for {file.name.split(' ')[0]}, including every time someone opened an ID, bank detail or contract, arrives with the Audit log. Nobody can edit or remove a line.
+        This lists what the file itself records. The full trail for {file.name.split(' ')[0]}, including every time someone opened an ID, bank detail or contract, is in the Audit log. Nobody can edit or remove a line.
       </Callout>
     </div>
   );

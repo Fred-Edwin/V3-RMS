@@ -40,6 +40,9 @@ export function stepHeading(step: HireStepKey, first: string, casual: boolean): 
 }
 
 export const STEP_NOTES = {
+  personalEmailPurpose: 'Used only to send the first sign-in link and to reset a password.',
+  // Placeholder wording: the lawyer who reviews the contract wording confirms this notice (Data Protection Act 2019).
+  personalEmailPrivacy: 'We keep this address only for sign-in help. It is not shown to colleagues and is not used for anything else. The person can ask HR to remove it.',
   draftSaved: 'Saved as a draft as you go',
   casualSteps: 'Casual · 3 steps instead of 5',
   noDuplicate: 'We checked: no one with this ID number or phone is already on file.',
@@ -60,20 +63,20 @@ export const JOB_PANEL = (first: string, department: string | null, head: string
   `Casual. Choosing it skips the login step and puts ${first} in the department's casual pool.`,
 ];
 
-export const JOB_PANEL_NOTE = 'A Branch Manager can fill this step for their own site. Pay, statutory and bank stay with HR.';
+export const JOB_PANEL_NOTE = 'The site manager can fill this step for their own site. Pay, statutory and bank stay with HR.';
 export const NOT_HR_NOTE = 'Pay, statutory and bank details stay with HR. HR is told this file needs finishing.';
 
 export const PAY_PANEL = {
   heading: (first: string) => `${first}'s hourly equivalent`,
   lateness: 'Lateness and overtime use this. The working is shown on every payslip.',
   rules: 'The overtime multiplier and the legal limits on deductions are rules set by the Director and confirmed by the Accountant. They are not typed here.',
-  hidden: 'Branch Managers and heads never see this step. A head sees only their own pay, on their own payslip.',
+  hidden: 'Site managers and heads never see this step. A head sees only their own pay, on their own payslip.',
   latenessDefault: 'Company default · set by the Director in Rules',
 } as const;
 
 export const CASUAL_PANEL = (first: string, head: string | null, manager: string): string[] => [
   `1 · ${cap(first)} turns up. ${head ?? 'The department head'} ticks them in and adjusts their arrival and leave times on a phone.`,
-  `2 · ${manager}, the Branch Manager, approves the day.`,
+  `2 · ${manager} approves the day.`,
   `3 · A daily pay voucher is printed. ${cap(first)} signs it, and the person paying signs with their PIN.`,
   '4 · Lateness reduces that day\'s payout, and is shown on the voucher.',
 ];
@@ -87,7 +90,7 @@ export const STATUTORY_PANEL = {
     { label: 'Bank account', value: 'Entered by HR', tone: 'success' },
   ],
   audit: 'Changing a bank account later asks for a reason and tells the Accountant. Every view of these details is logged on the audit trail.',
-  held: 'Payroll is held until NSSF, SHA and a payout method are complete. It shows as "Needs finishing" on HR Home.',
+  held: 'Payroll is held until NSSF, SHA and a payout method are complete. It shows as "Blocks payroll" on HR Home.',
 } as const;
 
 export const LOGIN_PANEL = {

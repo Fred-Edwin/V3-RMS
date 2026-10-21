@@ -15,6 +15,7 @@ import {
   checklistPercent,
   checklistRows,
   fileParts,
+  BLOCKS_PAYROLL_PARTS,
   gapsOf,
   NEEDS_FINISHING_PARTS,
   ringPercent,
@@ -112,6 +113,9 @@ export function listRowOf(subject: AccessSubject, row: ListRow): { view: Employe
 
 /** True when a list row has a gap that makes the file "Needs finishing" (question 10). */
 export const needsFinishing = (gaps: readonly FilePart[]): boolean => gaps.some((g) => (NEEDS_FINISHING_PARTS as readonly string[]).includes(g));
+
+/** True when a gap stops pay or the rota. Gaps the viewer may not see are already left out, so each role counts what it can act on. */
+export const blocksPayroll = (gaps: readonly FilePart[]): boolean => gaps.some((g) => (BLOCKS_PAYROLL_PARTS as readonly string[]).includes(g));
 
 const IDS_KEYS = REVEALABLE_FIELDS.ids;
 const BANK_KEYS = REVEALABLE_FIELDS.bank;
@@ -228,7 +232,12 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     timeline.push({ on: fromDateColumn(m.startsOn), kind: m.kind, detail: { toSite: siteNames.get(m.toSiteId) ?? null } });
   }
   for (const c of row.contracts) timeline.push({ on: fromDateColumn(c.startsOn), kind: 'CONTRACT', detail: { type: c.contractType?.name ?? null } });
-  if (row.probationDecidedOn) timeline.push({ on: fromDateColumn(row.probationDecidedOn), kind: 'PROBATION', detail: {} });
+  if (row.probationDecidedOn) {
+    const decided = await employeesRepository.lastActorOf(row.companyId, row.id, ['people.probation_decided']);
+    timeline.push({ on: fromDateColumn(row.probationDecidedOn), kind: 'PROBATION', detail: { decision: 'CONFIRM', by: decided?.actorName ?? null } });
+  }
+  const hiredEntry = await employeesRepository.lastActorOf(row.companyId, row.id, ['people.hired', 'people.adopted']);
+  for (const t of timeline) if (t.kind === 'HIRED') t.detail = { ...t.detail, by: hiredEntry?.actorName ?? null };
   if (canSeePay) {
     for (const p of row.payChanges.filter((x) => x.status === 'APPROVED')) {
       timeline.push({ on: fromDateColumn(p.effectiveFrom), kind: 'PAY_CHANGE', detail: { reason: p.reason } });

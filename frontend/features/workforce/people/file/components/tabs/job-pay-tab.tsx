@@ -34,6 +34,9 @@ export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile
       <div className="flex flex-col gap-5">
         <TitledPanel title="Job" aside={file.actions.editJob ? <PanelLink onClick={() => open('edit-job')}>Edit</PanelLink> : undefined}>
           <KeyValueRows rows={jobRows(file)} aria-label="Job" topRule={false} className={PANEL_ROWS} />
+          {!file.actions.editJob && file.status !== 'EXITED' ? (
+            <p className="m-0 border-t border-wds-border px-[18px] py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Ask HR to change this.</p>
+          ) : null}
         </TitledPanel>
         <SensitivePanel file={file} />
       </div>

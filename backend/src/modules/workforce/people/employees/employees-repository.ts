@@ -8,14 +8,21 @@ import { prisma } from '../../../../config/database';
 export type Db = Prisma.TransactionClient | typeof prisma;
 
 /** Who the list or lookup may show: the repository turns this into a where clause so services never build one. */
-export type ScopeFilter = { kind: 'all' } | { kind: 'site'; siteId: string } | { kind: 'departments'; departmentIds: readonly string[] };
+export type ScopeFilter =
+  | { kind: 'all' }
+  | { kind: 'site'; siteId: string; excludeUserRoles?: readonly UserRole[] }
+  | { kind: 'departments'; departmentIds: readonly string[] };
 
 const scopeWhere = (scope: ScopeFilter): Prisma.EmployeeWhereInput => {
   switch (scope.kind) {
     case 'all':
       return {};
     case 'site':
-      return { siteId: scope.siteId };
+      // People without a login stay in; a login at or above the viewer's level goes out.
+      return {
+        siteId: scope.siteId,
+        ...(scope.excludeUserRoles ? { OR: [{ userId: null }, { user: { role: { notIn: [...scope.excludeUserRoles] } } }] } : {}),
+      };
     case 'departments':
       return { departmentId: { in: [...scope.departmentIds] } };
   }
@@ -88,7 +95,7 @@ export interface ListQuery {
   scope: ScopeFilter;
   siteId?: string;
   departmentId?: string;
-  filter: 'all' | 'needs_finishing' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
+  filter: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
   q?: string;
   today: Date;
 }
@@ -120,6 +127,7 @@ const filterWhere = (query: ListQuery): Prisma.EmployeeWhereInput => {
       and.push({ status: { not: 'EXITED' }, probationEndsOn: { gte: query.today }, probationConfirmedOn: null });
       break;
     case 'needs_finishing':
+    case 'blocks_payroll':
       and.push({ status: { not: 'EXITED' } });
       break;
     case 'all':
@@ -165,6 +173,15 @@ export const employeesRepository = {
 
   findUserNames: (ids: readonly string[]) =>
     prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } }),
+
+  /** Who made the latest entry of one kind about a person, for the Activity tab ("confirmed by Mercy Achieng"). */
+  async lastActorOf(companyId: string, employeeId: string, actions: readonly string[]): Promise<{ action: string; actorName: string; after: unknown } | null> {
+    return prisma.auditEntry.findFirst({
+      where: { companyId, subjectType: 'Employee', subjectId: employeeId, action: { in: [...actions] } },
+      orderBy: { seq: 'desc' },
+      select: { action: true, actorName: true, after: true },
+    });
+  },
 
   // ---- the file --------------------------------------------------------------------------
   findFileById: (companyId: string, id: string, today: Date): Promise<FileRow | null> =>

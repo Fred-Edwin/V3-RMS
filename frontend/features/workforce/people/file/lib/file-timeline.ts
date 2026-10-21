@@ -1,5 +1,5 @@
 import type { LifeEvent } from '../../../_shared';
-import { formatDayMonth, formatDayMonthYear } from '../../_shared/lib/people-dates';
+import { formatDayMonth, formatDayMonthYear, nairobiDay } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, TimelineEvent } from '../../_shared/types/people-types';
 
 /**
@@ -41,14 +41,17 @@ export function eventText(e: TimelineEvent, file: Pick<EmployeeFile, 'position' 
       return 'Rehired, a new start';
     case 'DOCUMENT':
       return DOCUMENT_WORDS[String(d.type)] ?? 'Document received';
-    case 'PAY_CHANGE':
-      return PAY_WORDS[String(d.reason)] ?? 'Pay changed';
+    case 'PAY_CHANGE': {
+      const words = PAY_WORDS[String(d.reason)] ?? 'Pay changed';
+      // A change dated after today has not happened yet (finding 17).
+      return e.on > nairobiDay() ? `Starts ${formatDayMonth(e.on)}: ${words.replace(/^Pay changed: /, 'pay change, ').replace(/^Hired at basic pay$/, 'basic pay set')}` : words;
+    }
     case 'TRANSFER':
       return `Moved to ${d.toSite ?? 'another site'}`;
     case 'LOAN':
       return `Sent to ${d.toSite ?? 'another site'}`;
     case 'PROBATION':
-      return 'Probation decided';
+      return d.decision === 'CONFIRM' ? 'Probation confirmed' : 'Probation decided';
     case 'CONTRACT':
       return `Contract recorded${d.type ? `: ${d.type}` : ''}`;
     case 'EXIT':
@@ -61,6 +64,8 @@ export interface ActivityRow {
   when: string;
   kind: 'Change' | 'Document' | 'Decision';
   what: string;
+  /** Who made the change, when the trail says; null shows a dash. */
+  by: string | null;
 }
 
 const KIND_WORDS: Record<TimelineEvent['kind'], ActivityRow['kind']> = {
@@ -71,7 +76,7 @@ const KIND_WORDS: Record<TimelineEvent['kind'], ActivityRow['kind']> = {
 export function activityRows(file: EmployeeFile): ActivityRow[] {
   return [...file.timeline]
     .sort((a, b) => b.on.localeCompare(a.on))
-    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, when: formatDayMonthYear(e.on), kind: KIND_WORDS[e.kind], what: eventText(e, file) }));
+    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, when: formatDayMonthYear(e.on), kind: KIND_WORDS[e.kind], what: eventText(e, file), by: typeof e.detail.by === 'string' ? e.detail.by : null }));
 }
 
 /** The last `limit` events (default four, the width of the band) in date order, and the probation decision after them. */

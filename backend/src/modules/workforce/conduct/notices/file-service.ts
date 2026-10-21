@@ -52,7 +52,7 @@ const EVENT_TEXT: Record<string, (who: string, payload: Record<string, unknown>)
 export async function fileTab(subject: AccessSubject, employeeId: string, now: Date = new Date()): Promise<FileTab> {
   const ctx = await conductActor(subject, 'discipline.read');
   const person = await conductPeopleRepository.personById(ctx.companyId, employeeId);
-  if (!person || !inScope(subject, 'discipline.read', { userId: person.userId, siteId: person.siteId })) throw new NotFoundError('We could not find that person.', 'PERSON_NOT_FOUND');
+  if (!person || !inScope(subject, 'discipline.read', { userId: person.userId, siteId: person.siteId, userRole: person.role })) throw new NotFoundError('We could not find that person.', 'PERSON_NOT_FOUND');
   const notices = await conductNoticesRepository.forEmployee(ctx.companyId, employeeId);
   const decisions = await decisionsRepository.latestFor(notices.map((n) => n.id));
   const timeline: FileTab['timeline'] = [];

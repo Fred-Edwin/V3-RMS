@@ -15,6 +15,8 @@ vi.mock('../repositories/auth-repository', () => ({
     updatePinHash: vi.fn(),
     findUserByIdWithPassword: vi.fn(),
     hasPin: vi.fn(),
+    findUserByEmail: vi.fn(),
+    setTemporaryPasswordExpiry: vi.fn(),
   },
 }));
 
@@ -33,6 +35,51 @@ vi.mock('../utils/jwt', () => ({
 const hashToken = (token: string): string => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
+
+describe('authService.login temporary password expiry', () => {
+  const loginUser = (temporaryPasswordExpiresAt: Date | null) => ({
+    id: 'user-9',
+    name: 'New Hire',
+    email: 'new.hire@wendo.co.ke',
+    role: 'WAITER' as const,
+    siteId: 'org-1',
+    departmentTag: null,
+    isDepartmentHead: false,
+    isActive: true,
+    passwordHash: 'hash',
+    pinHash: null,
+    temporaryPasswordExpiresAt,
+    site: { name: 'Wendo Nyeri' },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(comparePassword).mockResolvedValue(true);
+    vi.mocked(signAccessToken).mockReturnValue('access');
+    vi.mocked(signRefreshToken).mockReturnValue('refresh');
+    vi.mocked(authRepository.saveRefreshToken).mockResolvedValue({} as never);
+    vi.mocked(authRepository.setTemporaryPasswordExpiry).mockResolvedValue({} as never);
+  });
+
+  it('refuses a temporary password after its last day, without issuing tokens', async () => {
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue(loginUser(new Date(Date.now() - 1000)));
+    await expect(authService.login({ email: 'new.hire@wendo.co.ke', password: 'x' })).rejects.toMatchObject({ code: 'TEMPORARY_PASSWORD_EXPIRED' });
+    expect(authRepository.saveRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('lets an unexpired one in and clears the date at the first sign-in', async () => {
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue(loginUser(new Date(Date.now() + 60_000)));
+    const result = await authService.login({ email: 'new.hire@wendo.co.ke', password: 'x' });
+    expect(result.accessToken).toBe('access');
+    expect(authRepository.setTemporaryPasswordExpiry).toHaveBeenCalledWith('user-9', null);
+  });
+
+  it('does nothing extra for an ordinary account', async () => {
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue(loginUser(null));
+    await authService.login({ email: 'new.hire@wendo.co.ke', password: 'x' });
+    expect(authRepository.setTemporaryPasswordExpiry).not.toHaveBeenCalled();
+  });
+});
 
 describe('authService.refresh', () => {
   beforeEach(() => {

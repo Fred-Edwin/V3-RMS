@@ -407,14 +407,24 @@ export interface AccessTarget {
   departmentTag?: DepartmentTag | null;
   /** Slice 1: the employee's department id (compared with the subject's head rows). */
   departmentId?: string | null;
+  /** The person's login role, when the caller loaded it. A Store Manager's reach stops at this line (finding 55). */
+  userRole?: UserRole | null;
 }
+
+/**
+ * The Central Store site also holds head-office and company-level people. A Store Manager's unit reach leaves out every
+ * login at or above the manager's own level, so they are neither listed, opened nor disciplined by that manager.
+ */
+export const ABOVE_STORE_MANAGER: readonly UserRole[] = ['DIRECTOR', 'HR_MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'MANAGER'];
+export const hiddenFromUnitManager = (subject: AccessSubject, userRole: UserRole | null | undefined): boolean =>
+  subject.role === 'STORE_MANAGER' && !!userRole && ABOVE_STORE_MANAGER.includes(userRole);
 
 const withinScope = (subject: AccessSubject, scope: Scope, target: AccessTarget): boolean => {
   switch (scope) {
     case 'all':
       return true;
     case 'unit':
-      return subject.siteId !== null && target.siteId === subject.siteId;
+      return subject.siteId !== null && target.siteId === subject.siteId && !hiddenFromUnitManager(subject, target.userRole);
     case 'dept': {
       if (subject.siteId === null || target.siteId !== subject.siteId) return false;
       // Slice 1: the head rows are the only source when present (a Pastry head no longer needs Kitchen cover).

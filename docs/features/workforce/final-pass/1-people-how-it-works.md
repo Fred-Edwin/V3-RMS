@@ -45,7 +45,7 @@ Contract signing with a PIN, contract text templates and the signed-document ind
 ## What the live walkthrough changed (21 Oct 2026)
 The review was followed by a walk of all eight roles in a browser (HR, Director, Branch Manager, Accountant, Store Manager, department head, staff at phone size, System Admin). It found 77 items (`1-people-findings.md`). The owner decided:
 - **Payout:** Cash and M-Pesa stay as choices, because casuals are paid that way (findings 1, 2, 22 are "leave"). The pay change has no PIN step; this is still for the owner to confirm (finding 4).
-- **Sign-in identity:** `firstname.secondname@wendo.co.ke` (a clash gets a number); an optional personal email at hire; a temporary password like `kahawa.nyota.4721` (two Swahili food words and four digits, made by the server, an unused one expires after 7 days), which the person is never forced to change; the PIN stays compulsory.
+- **Sign-in identity:** `firstname.secondname@wendo.co.ke` (a clash gets a number); an optional personal email at hire; a temporary password like `kahawa.nyota.4721` (two different short Swahili words and four digits, made by the server, an unused one expires after 7 days), which the person is never forced to change; the PIN stays compulsory.
 - **Conventions everywhere:** a person is always shown as name, position and site; every card the role may change has an Edit button; wording is short, professional and clear.
 - **Notifications:** no Inbox inside Workforce; notifications go on each role's Home with a bell.
 - **Director:** to read and write everything, with "nobody approves their own request" kept (finding 42).

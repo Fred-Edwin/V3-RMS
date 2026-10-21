@@ -80,7 +80,12 @@ describe('the completeness ring', () => {
 
 describe('probation and time with Wendo', () => {
   it('reads the head report', () => {
-    expect(probationCard(joy())).toMatchObject({ dayNumber: 80, daysLeft: 10, report: 'Report from Victor: good', decideBy: 'Decide by 14 Oct' });
+    expect(probationCard(joy())).toMatchObject({ dayNumber: 80, daysLeft: 10, report: 'Report from Victor: good' });
+  });
+  it('says plainly when the end has passed and no decision is made (finding 5), and counts down before that', () => {
+    const at = (endsOn: string) => probationCard(joy({ probation: { ...joy().probation!, endsOn } }))?.decideBy ?? '';
+    expect(at('2020-01-01')).toMatch(/^Ended \d+ days ago, decision overdue$/);
+    expect(at('2099-01-01')).toBe('Decide by 1 Jan');
   });
   it('has no card once confirmed', () => {
     expect(probationCard(joy({ probation: { ...joy().probation!, confirmedOn: '2026-10-15' } }))).toBeNull();
@@ -98,7 +103,7 @@ describe('next steps and buttons come from the actions the server allows', () =>
   });
   it('puts the brown button last on each tab, and only what is allowed', () => {
     expect(pageActions(joy(), 'overview').map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit']);
-    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview', true).map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Finish the file']);
+    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview', true).map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Complete file']);
     expect(pageActions(joy(), 'job-pay').map((a) => a.label)).toEqual(['Transfer or exit', 'Change pay']);
     expect(pageActions(joy(), 'documents').map((a) => a.label)).toEqual(['Upload a document', 'Create contract']);
     expect(pageActions(joy({ actions: NO }), 'job-pay')).toEqual([]);

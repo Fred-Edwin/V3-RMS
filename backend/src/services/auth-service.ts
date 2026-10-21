@@ -59,6 +59,14 @@ export const authService = {
       throw new UnauthorizedError('Account deactivated');
     }
 
+    // An unused temporary password stops working after its last day (People fix 43). The first sign-in clears the date.
+    if (user.temporaryPasswordExpiresAt) {
+      if (user.temporaryPasswordExpiresAt.getTime() <= Date.now()) {
+        throw new UnauthorizedError('This temporary password has expired. Ask HR for a new one.', 'TEMPORARY_PASSWORD_EXPIRED');
+      }
+      await authRepository.setTemporaryPasswordExpiry(user.id, null);
+    }
+
     const accessToken = signAccessToken({
       userId: user.id,
       role: user.role,

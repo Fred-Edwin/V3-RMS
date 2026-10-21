@@ -299,7 +299,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-employees-acc', label: 'Employees', group: 'wf-workforce', icon: ico.staff, newHref: '/app/workforce/employees', roles: [ACCOUNTANT] },
   // PEOPLE
   { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
-  { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], match: ['/app/workforce/organisation'] },
+  { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR], match: ['/app/workforce/organisation'] },
   { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', needsAttendance: true, match: ['/app/workforce/leave'] },
   { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, badge: 'workforce-conduct', needsAttendance: true, match: ['/app/workforce/conduct'] },
   // PAY (the Branch Manager and Store Manager see no pay)
@@ -778,7 +778,8 @@ export function activeFor(groups: readonly NavGroup[], pathname: string): Active
     }
   }
   const hit = best as { link: NavLink; sub?: NavLinkSub; group: NavGroup } | null;
-  if (!hit) return { activeKey: '', framed: SELF_FRAMED_PREFIXES.some((p) => under(pathname, p)) };
+  // Workforce Home draws its own top bar for every role, including a department head who has no Home row yet (finding 60).
+  if (!hit) return { activeKey: '', framed: pathname.replace(/\/+$/, '') === '/app/workforce' || SELF_FRAMED_PREFIXES.some((p) => under(pathname, p)) };
   return {
     activeKey: hit.link.key,
     activeSubKey: hit.sub?.key,

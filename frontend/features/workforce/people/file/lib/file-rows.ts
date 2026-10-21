@@ -1,5 +1,5 @@
 import type { KeyValueRow } from '../../../_shared';
-import { daysBetween, formatDayMonth, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
+import { addDays, daysBetween, formatDayMonth, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, PayChangeReason, PayChangeRow, PayView } from '../../_shared/types/people-types';
 import { firstName } from './file-model';
 
@@ -39,10 +39,10 @@ export function jobRows(file: EmployeeFile): KeyValueRow[] {
   return [
     { label: 'Position', value: file.position?.name ?? 'Not set' },
     { label: 'Department', value: file.department ? `${file.department.name} · ${file.organization.name}` : file.organization.name },
-    { label: 'Reports to', value: file.reportsTo ? `${file.reportsTo.name}${file.reportsTo.isHead ? ' (head)' : ''}` : 'Nobody yet', tone: file.reportsTo ? 'default' : 'muted' },
+    { label: 'Reports to', value: file.reportsTo ? `${file.reportsTo.name}${file.reportsTo.isHead ? ' (head)' : ''}` : 'No head yet', tone: file.reportsTo ? 'default' : 'muted' },
     { label: 'Employment', value: employment },
     { label: 'Started', value: formatDayMonthYear(file.startDate), mono: true },
-    { label: 'Clocks in and out', value: file.tracksTime ? (file.tracksTimeFromPosition ? 'Yes, from their position' : 'Yes, set on this file') : 'No' },
+    { label: 'Clocks in and out', value: file.tracksTime ? (file.tracksTimeFromPosition ? 'Yes, from the position' : 'Yes, set on this file') : 'No' },
     { label: 'Login role', value: file.hasLogin ? (LOGIN_ROLE_LABELS[file.loginRole ?? ''] ?? file.loginRole ?? 'Has a login') : 'No login', tone: file.hasLogin ? 'default' : 'muted' },
   ];
 }
@@ -128,11 +128,20 @@ export function payAmountLine(pay: PayView, today: string): { text: string; star
   return { text: `${formatKes(pay.amount)} / ${unit}`, startsOn };
 }
 
+/** "October" for a date, so the payroll reader sees which run a mid-month change falls in (finding 54). */
+const monthName = (date: string): string => new Date(`${date}T00:00:00Z`).toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' });
+
 export function payRows(pay: PayView, contractStatus: EmployeeFile['contractStatus'], today: string): KeyValueRow[] {
   const line = payAmountLine(pay, today);
   const monthly = pay.payType === 'MONTHLY_SALARY';
+  const next = pay.history.filter((h) => h.status === 'APPROVED' && h.effectiveFrom > today).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];
+  const unit = monthly ? 'month' : 'day';
   return [
     { label: 'Basic pay', value: line.startsOn ? `${line.text} · starts ${formatWeekdayDayMonth(line.startsOn)}` : line.text, mono: true, tone: line.startsOn ? 'warning' : 'default' },
+    ...(next && !line.startsOn ? [{ label: 'Next change', value: `${formatKes(next.amount)} / ${unit} · starts ${formatWeekdayDayMonth(next.effectiveFrom)}`, mono: true, tone: 'warning' as const }] : []),
+    ...(next && monthly && next.effectiveFrom.slice(0, 7) === today.slice(0, 7) && !next.effectiveFrom.endsWith('-01')
+      ? [{ label: `Pay in the ${monthName(next.effectiveFrom)} run`, value: `${formatKes(pay.amount)} until ${formatDayMonth(addDays(next.effectiveFrom, -1))}, then ${formatKes(next.amount)} from ${formatDayMonth(next.effectiveFrom)}`, mono: true, tone: 'warning' as const }]
+      : []),
     { label: 'Statutory deductions', value: monthly ? 'NSSF, SHIF, Housing levy, PAYE' : 'None on a daily rate' },
     { label: 'Overtime rule', value: pay.overtimeEligible ? 'Company standard · set by the Director' : 'Not eligible for overtime', tone: pay.overtimeEligible ? 'default' : 'muted' },
     { label: 'Lateness rule', value: monthly && contractStatus === 'NONE' ? 'Company default · no contract yet' : 'Company default · set by the Director', tone: monthly && contractStatus === 'NONE' ? 'warning' : 'default' },
@@ -157,8 +166,14 @@ export function payHistoryLines(history: PayChangeRow[]): PayHistoryLine[] {
       from: formatDayMonthYear(h.effectiveFrom),
       amount: formatKes(h.amount),
       by: h.requestedByName ?? 'System',
-      reason: h.status === 'APPROVED' ? PAY_REASON_LABELS[h.reason] : `${PAY_REASON_LABELS[h.reason]} · ${h.status === 'PENDING' ? 'waiting for the Director' : h.status === 'DECLINED' ? 'declined' : 'cancelled'}`,
-      tone: h.status === 'APPROVED' ? 'success' : h.status === 'PENDING' ? 'warning' : h.status === 'DECLINED' ? 'error' : 'muted',
+      // A change that has not started reads "Starts 22 Oct", never as something already done (findings 17 and 54).
+      reason:
+        h.status === 'APPROVED'
+          ? h.startsInFuture
+            ? `${PAY_REASON_LABELS[h.reason]} · starts ${formatDayMonth(h.effectiveFrom)}`
+            : PAY_REASON_LABELS[h.reason]
+          : `${PAY_REASON_LABELS[h.reason]} · ${h.status === 'PENDING' ? 'waiting for the Director' : h.status === 'DECLINED' ? 'declined' : 'cancelled'}`,
+      tone: h.status === 'APPROVED' ? (h.startsInFuture ? 'warning' : 'success') : h.status === 'PENDING' ? 'warning' : h.status === 'DECLINED' ? 'error' : 'muted',
     }));
 }
 

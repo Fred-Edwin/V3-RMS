@@ -82,6 +82,12 @@ export const PART_GROUP: Partial<Record<FilePart, SensitiveGroup>> = {
 /** Parts that make a file "Needs finishing" (question 10). Contract and emergency contact have their own filter and request. */
 export const NEEDS_FINISHING_PARTS = ['IDENTITY', 'JOB', 'PAY', 'BANK', 'LOGIN', 'NSSF_SHA', 'PHOTO_AND_DETAILS'] as const satisfies readonly FilePart[];
 
+/**
+ * Parts whose gap stops the pay run or the rota (findings 8, 49, 52): the job, the pay amount, the payout details and the NSSF and SHA
+ * numbers. A missing login, photo or emergency contact makes a file incomplete but blocks neither.
+ */
+export const BLOCKS_PAYROLL_PARTS = ['JOB', 'PAY', 'BANK', 'NSSF_SHA'] as const satisfies readonly FilePart[];
+
 export const gapsOf = (states: readonly PartState[], locked: readonly SensitiveGroup[]): FilePart[] =>
   states
     .filter((s) => s.applicable && !s.done)

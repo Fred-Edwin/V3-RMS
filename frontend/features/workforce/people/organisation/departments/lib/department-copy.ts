@@ -11,7 +11,7 @@ export function departmentKpis(d: DepartmentView): WorkforceKpiCell[] {
   return [
     { key: 'people', label: 'PEOPLE', value: String(d.peoplePage.total), detail: 'on the monthly list' },
     { key: 'casual', label: 'CASUAL POOL', value: String(d.casualPool.total), detail: 'paid by the day, no login' },
-    { key: 'waiting', label: 'WAITING ON THE HEAD', value: '–', detail: 'arrives with Approvals' },
+    { key: 'waiting', label: 'WAITING ON THE HEAD', value: '–', detail: 'not available yet' },
     { key: 'positions', label: 'POSITIONS', value: String(positions.length), detail: positions.slice(0, 3).map((p) => p.name).join(', ') || 'none offered yet' },
   ];
 }

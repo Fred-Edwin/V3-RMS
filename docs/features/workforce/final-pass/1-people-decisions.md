@@ -15,6 +15,13 @@ Words: **Fix** = fix it. **Leave** = do nothing. **Defer** = a later section own
 | Q4 | 19 | The Decide probation dialog says "the contract must be signed first" but nothing enforces it. Block the decision until the contract is signed, or just fix the wording? | **Fix the wording only** (signing a contract with a PIN is built later; do not block HR). |
 | Q5 | 48 | May the Branch Manager who made a hire correct it for 24 hours, or must they ask HR? | **Ask HR** with a clear "Ask HR to change this" line (simpler, safer). |
 
+## Answers (owner, 21 Oct 2026)
+- **Q1: Yes.** A pay change asks for a PIN, both when HR sends it and when the Director decides.
+- **Q2: Yes.** A person may enter their own National ID, bank and account number in My file; HR verifies.
+- **Q3: Yes.** Cash only on the casual path, Bank the default for monthly staff, same set on screen and API, a change of method is audited and the Accountant is told.
+- **Q4: Fix the wording only.** No blocking.
+- **Q5: The Branch Manager who made a hire may correct it for 24 hours.** (Differs from the recommendation, which was "Ask HR".) After 24 hours the screen says "Ask HR to change this".
+
 ## The 78 findings
 Sev = severity A, B or C. Where = which piece of work does it.
 

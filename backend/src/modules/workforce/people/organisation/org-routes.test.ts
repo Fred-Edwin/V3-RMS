@@ -22,7 +22,7 @@ vi.mock('../employees/employees-repository', () => ({
 const answer = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 vi.mock('./departments/departments-read-service', () => ({ departmentsReadService: { overview: answer, getDepartment: answer } }));
 vi.mock('./departments/departments-service', () => ({ departmentsService: { create: answer, update: answer, retire: answer, restore: answer } }));
-vi.mock('./heads/heads-service', () => ({ headsService: { candidates: answer, preview: answer, assign: answer, end: answer } }));
+vi.mock('./heads/heads-service', () => ({ headsService: { candidates: answer, withoutLogin: answer, preview: answer, assign: answer, end: answer } }));
 vi.mock('./positions/positions-service', () => ({ positionsService: { list: answer, get: answer, create: answer, impact: answer, update: answer, retire: answer, restore: answer } }));
 
 import router from '../org-routes';
@@ -46,6 +46,7 @@ const cases: Case[] = [
   { method: 'post', path: `${O}/departments/${id}/retire`, capability: 'org.write', status: 200 },
   { method: 'post', path: `${O}/departments/${id}/restore`, capability: 'org.write', status: 200 },
   { method: 'get', path: `${O}/departments/${id}/head-candidates`, capability: 'org.write_heads', status: 200 },
+  { method: 'get', path: `${O}/departments/${id}/head-candidates/no-login`, capability: 'org.write_heads', status: 200 },
   { method: 'post', path: `${O}/departments/${id}/head/preview`, body: head, capability: 'org.write_heads', status: 200 },
   { method: 'post', path: `${O}/departments/${id}/head`, body: head, capability: 'org.write_heads', status: 200 },
   { method: 'post', path: `${O}/departments/${id}/head/end`, body: { reason: 'Left' }, capability: 'org.write_heads', status: 200 },

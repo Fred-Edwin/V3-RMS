@@ -73,6 +73,14 @@ export const headsRepository = {
       orderBy: [{ startDate: 'asc' }, { name: 'asc' }],
     }),
 
+  /** Monthly, active staff of a department with no login yet: who could lead once given one (finding 20). */
+  withoutLoginOf: (companyId: string, departmentId: string) =>
+    prisma.employee.findMany({
+      where: { companyId, departmentId, status: 'ACTIVE', payType: 'MONTHLY_SALARY', userId: null },
+      select: { id: true, name: true, position: { select: { name: true } } },
+      orderBy: [{ startDate: 'asc' }, { name: 'asc' }],
+    }),
+
   /** A department of the company, with what an event needs (site and inventory tag). */
   departmentOf: (db: Db, companyId: string, departmentId: string) =>
     db.department.findFirst({ where: { id: departmentId, site: { companyId } }, select: { id: true, siteId: true, key: true } }),

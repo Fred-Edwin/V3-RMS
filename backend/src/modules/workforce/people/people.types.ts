@@ -49,6 +49,8 @@ export interface PeopleSummary {
   active: number;
   exited: number;
   needsFinishing: number;
+  /** Files with a gap that stops pay or the rota (job, pay, payout, NSSF and SHA), counted for what this viewer can see. */
+  blocksPayroll: number;
   noContract: number;
   joinedThisMonth: number;
   stillInProbation: number;
@@ -165,6 +167,8 @@ export interface PayChangeRow {
   employeeName: string;
   amount: MoneyString;
   effectiveFrom: DateString;
+  /** True while the start date is still ahead (the screens say "Starts 22 Oct", not "changed"). */
+  startsInFuture: boolean;
   reason: PayChangeReason;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
   requestedByName: string | null;

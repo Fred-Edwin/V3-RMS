@@ -27,6 +27,7 @@ router.patch(`${O}/departments/:id`, ...base, requireCapability('org.write'), c.
 router.post(`${O}/departments/:id/retire`, ...base, requireCapability('org.write'), c.retireDepartment); // O5
 router.post(`${O}/departments/:id/restore`, ...base, requireCapability('org.write'), c.restoreDepartment); // O5
 router.get(`${O}/departments/:id/head-candidates`, ...base, requireCapability('org.write_heads'), c.headCandidates); // O6
+router.get(`${O}/departments/:id/head-candidates/no-login`, ...base, requireCapability('org.write_heads'), c.headCandidatesWithoutLogin); // O6b
 router.post(`${O}/departments/:id/head/preview`, ...base, requireCapability('org.write_heads'), c.previewHead); // O7
 router.post(`${O}/departments/:id/head/end`, ...base, requireCapability('org.write_heads'), c.endHead); // O9
 router.post(`${O}/departments/:id/head`, ...base, requireCapability('org.write_heads'), c.assignHead); // O8

@@ -6,9 +6,9 @@ import type { PeopleSummary } from '../../_shared/types/people-types';
 export const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 export function employeesSubtitle(summary: PeopleSummary | null, siteCount: number): string {
-  if (!summary) return 'Nobody is deleted: an employee who leaves is exited, and the record stays.';
+  if (!summary) return 'Nobody is deleted. Leavers are marked Left and kept on file.';
   const sites = siteCount > 0 ? ` across ${plural(siteCount, 'site', 'sites')}` : '';
-  return `${plural(summary.onFile, 'person', 'people')}${sites}. Nobody is deleted: an employee who leaves is exited, and the record stays.`;
+  return `${plural(summary.onFile, 'person', 'people')}${sites}. Nobody is deleted. Leavers are marked Left and kept on file.`;
 }
 
 /**
@@ -17,14 +17,27 @@ export function employeesSubtitle(summary: PeopleSummary | null, siteCount: numb
  */
 export function employeesKpiCells(summary: PeopleSummary, onFilter: (filter: string) => void): WorkforceKpiCell[] {
   return [
-    { key: 'on-file', label: 'PEOPLE ON FILE', value: String(summary.onFile), detail: `${summary.active} active, ${summary.exited} exited` },
+    {
+      key: 'on-file',
+      label: 'ACTIVE STAFF',
+      value: String(summary.active),
+      detail: `${summary.joinedThisMonth} new this month, ${summary.stillInProbation} on probation`,
+    },
     {
       key: 'needs-finishing',
-      label: 'NEEDS FINISHING',
+      label: 'INCOMPLETE FILES',
       value: String(summary.needsFinishing),
-      detail: 'bank, contract or photo missing',
+      detail: 'missing bank, login, photo or other details',
       actionable: summary.needsFinishing > 0,
       onSelect: () => onFilter('needs_finishing'),
+    },
+    {
+      key: 'blocks-payroll',
+      label: 'BLOCKS PAYROLL',
+      value: String(summary.blocksPayroll),
+      detail: 'missing pay, bank, NSSF or SHA',
+      actionable: summary.blocksPayroll > 0,
+      onSelect: () => onFilter('blocks_payroll'),
     },
     {
       key: 'no-contract',
@@ -34,7 +47,6 @@ export function employeesKpiCells(summary: PeopleSummary, onFilter: (filter: str
       actionable: summary.noContract > 0,
       onSelect: () => onFilter('no_contract'),
     },
-    { key: 'joined', label: 'JOINED THIS MONTH', value: String(summary.joinedThisMonth), detail: `${summary.stillInProbation} still in probation` },
   ];
 }
 
@@ -44,6 +56,7 @@ export function employeeChipCounts(summary: PeopleSummary): Record<string, Recor
     filter: {
       '': summary.onFile,
       needs_finishing: summary.needsFinishing,
+      blocks_payroll: summary.blocksPayroll,
       no_contract: summary.noContract,
       casual_pool: summary.casualPool,
       exited: summary.exited,

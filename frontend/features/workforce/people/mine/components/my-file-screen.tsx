@@ -12,8 +12,8 @@ import { PhotoDialog } from '../../file/components/dialogs/upload-dialogs';
 import { SensitivePanel } from '../../file/components/sensitive/sensitive-panel';
 import { firstName } from '../../file/lib/file-model';
 import { jobRows } from '../../file/lib/file-rows';
-import { finishProgress, stillToFinish, type OwnForm } from '../lib/own-file';
-import { EmergencyDialog, NumbersDialog } from './own-dialogs';
+import { finishProgress, stillToFinish, type OwnDialog, type OwnForm } from '../lib/own-file';
+import { EmergencyDialog, IdBankDialog, NumbersDialog } from './own-dialogs';
 
 /**
  * My file (Paper `SJY-0` steps 2 and 3, `12UL-0`): a dark header with how far you are, "Still to finish" with an Add button for each
@@ -21,7 +21,7 @@ import { EmergencyDialog, NumbersDialog } from './own-dialogs';
  */
 export function MyFileScreen() {
   const file = useEmployeeFile('me');
-  const [form, setForm] = React.useState<OwnForm | null>(null);
+  const [form, setForm] = React.useState<OwnDialog | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const noticeRef = React.useRef<HTMLParagraphElement>(null);
   // The row that opened a dialog may be gone once it is saved, so focus would fall to the page; put it on the confirmation.
@@ -61,12 +61,21 @@ export function MyFileScreen() {
             <KeyValueRows rows={jobRows(data)} aria-label="Your job" topRule={false} className="[&>div]:px-[18px]" />
           </Panel>
           <SensitivePanel file={data} own />
+          {data.sensitive.nssfNumber || data.sensitive.shaNumber ? (
+            <Button type="button" variant="flat" className="self-start" onClick={() => setForm('numbers')}>
+              Check or correct my NSSF and SHA numbers
+            </Button>
+          ) : null}
+          <Button type="button" variant="flat" className="self-start" onClick={() => setForm('idbank')}>
+            Add or correct my ID and bank details
+          </Button>
           <Button type="button" variant="flat" className="self-start" onClick={() => setForm('photo')}>
             {data.photoUrl ? 'Change my photo' : 'Add a photo'}
           </Button>
           {form === 'emergency' ? <EmergencyDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'numbers' ? <NumbersDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'photo' ? <PhotoDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'numbers' ? <NumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'idbank' ? <IdBankDialog onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'photo' ? <PhotoDialog own file={data} onClose={() => setForm(null)} done={done} /> : null}
         </div>
       )}
     </PeopleFrame>

@@ -22,8 +22,8 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     }
   });
 
-  it('opens Organisation and a department only for HR, the Branch Manager and the Director (the roles whose menu draws it)', () => {
-    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'DIRECTOR'];
+  it('opens Organisation and a department only for HR, the Branch Manager, the Store Manager and the Director (the roles the access table gives org.read)', () => {
+    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'];
     for (const path of ['/app/workforce/organisation', '/app/workforce/organisation/abc']) {
       for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(OPENS.includes(role));
     }

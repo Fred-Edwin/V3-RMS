@@ -70,6 +70,8 @@ router.post(`${P}/:id/exit/undo`, ...base, requireCapability('employee.lifecycle
 router.post(`${P}/:id/exit`, ...base, requireCapability('employee.lifecycle'), c.exit); // W20
 router.patch(`${P}/:id/exit/checklist`, ...base, requireCapability('employee.lifecycle'), c.exitChecklist); // W21
 router.post(`${P}/:id/rehire`, ...base, requireCapability('employee.lifecycle'), c.rehire); // W23
+router.get(`${P}/sign-in/suggest`, ...base, requireCapability('employee.lifecycle'), c.suggestSignIn); // finding 44
+router.post(`${P}/sign-in/password`, ...base, requireCapability('employee.lifecycle'), c.newTemporaryPassword); // finding 43
 router.post(`${P}/:id/login`, ...base, requireCapability('employee.lifecycle'), c.createLogin); // W24
 router.post(`${P}/:id/file-requests`, ...base, requireCapability('employee.write_basic'), c.askForDetail); // W25
 router.post(`${P}/:id/file-requests/:requestId/remind`, ...base, requireCapability('employee.write_basic'), c.remind); // W25

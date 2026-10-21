@@ -61,7 +61,7 @@ export function HeadCard({
             <DialogButton kind="cancel" onClick={onReplace}>{head ? 'Replace head' : 'Assign head'}</DialogButton>
             <DialogButton kind="cancel" onClick={onActing}>{actingHead ? 'Change acting head' : 'Name an acting head'}</DialogButton>
             {actingHead ? <DialogButton kind="cancel" onClick={() => onEnd('ACTING')}>End acting head</DialogButton> : null}
-            {head ? <DialogButton kind="cancel" onClick={() => onEnd('HEAD')}>End head</DialogButton> : null}
+            {head ? <DialogButton kind="cancel" onClick={() => onEnd('HEAD')}>Remove as head</DialogButton> : null}
           </div>
         ) : null}
       </div>

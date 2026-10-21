@@ -16,6 +16,8 @@ export interface NewLogin {
   role: HireLoginRole;
   siteId: string;
   temporaryPassword: string;
+  /** The last moment the unused temporary password works (People fix 43). */
+  passwordExpiresAt: Date;
 }
 export interface LoginCreated {
   userId: string;
@@ -68,6 +70,7 @@ export const accountGateway: AccountGateway = {
       },
       systemActor(actorId),
     );
+    await authRepository.setTemporaryPasswordExpiry(created.id, input.passwordExpiresAt);
     const profile = await hrRepository.findProfileByUserId(created.id);
     return { userId: created.id, legacyProfileId: profile?.id ?? null };
   },

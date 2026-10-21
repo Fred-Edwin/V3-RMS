@@ -59,7 +59,7 @@ export function EditJobDialog({ file, onClose, done }: FileDialogProps) {
       <DialogPicker label="Reports to" value={reportsToId} onChange={setReportsToId} options={heads} />
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
         <ReadOnlyField label="Employment" value={file.employment === 'CASUAL' ? 'Casual, daily' : 'Monthly'} />
-        <ReadOnlyField label="Clocks in and out" value={file.tracksTime ? 'Yes, from their position' : 'No'} />
+        <ReadOnlyField label="Clocks in and out" value={file.tracksTime ? 'Yes, from the position' : 'No'} />
       </div>
       <Callout tone="neutral" bullet size="sm">To change {first}&apos;s department or site, use Transfer or Send to another site. Those keep a dated history and tell the heads involved.</Callout>
       <DialogError message={action.error} />

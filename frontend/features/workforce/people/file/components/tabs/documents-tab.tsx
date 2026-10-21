@@ -94,7 +94,7 @@ export function DocumentsTab({ file, reloadKey }: { file: EmployeeFile; reloadKe
         </section>
         <section className="flex flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 px-4 py-3.5">
           <h3 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">HOW A CONTRACT IS RECORDED</h3>
-          <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">A contract is recorded here with its dates. Signing it with a PIN comes with the documents slice, and a signed copy cannot be edited: a change is a new version.</p>
+          <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">A contract is recorded here with its dates. A signed copy cannot be edited: a change is a new version. Signing with a PIN is added later.</p>
         </section>
       </div>
     </div>

@@ -28,7 +28,7 @@ const joy = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   }) as unknown as EmployeeFile;
 
 const change = (over: Partial<PayChangeRow>): PayChangeRow => ({
-  id: 'c1', employeeId: 'e1', employeeName: 'Joy Chebet', amount: '28000.00', effectiveFrom: '2026-07-14', reason: 'HIRING', status: 'APPROVED',
+  id: 'c1', employeeId: 'e1', employeeName: 'Joy Chebet', amount: '28000.00', effectiveFrom: '2026-07-14', startsInFuture: false, reason: 'HIRING', status: 'APPROVED',
   requestedByName: 'Mercy Achieng', requestedOn: '2026-07-14', decidedByName: null, decidedOn: null, decisionNote: null, ...over,
 });
 const pay = (over: Partial<PayView> = {}): PayView => ({
@@ -45,7 +45,7 @@ describe('job rows', () => {
       'Reports to: Victor Maina (head)',
       'Employment: Monthly, on probation',
       'Started: 14 Jul 2026',
-      'Clocks in and out: Yes, from their position',
+      'Clocks in and out: Yes, from the position',
       'Login role: Barista',
     ]);
   });
@@ -115,6 +115,13 @@ describe('pay shows "starts <date>" before its start day', () => {
   it('uses the day for a daily rate and says nothing is set when there is no pay', () => {
     expect(payAmountLine(pay({ payType: 'DAILY_RATE', amount: '1200.00' }), '2026-10-05').text).toBe('KES 1,200 / day');
     expect(payAmountLine(pay({ amount: null, history: [] }), '2026-10-05').text).toBe('Not set yet');
+  });
+  it('says which amount applies to which days of the run when the change is mid-month (finding 54)', () => {
+    const mid = pay({ history: [change({}), change({ id: 'c2', amount: '26000.00', effectiveFrom: '2026-10-22', reason: 'CORRECTION' })] });
+    const row = payRows(mid, 'ACTIVE', '2026-10-21').find((r) => r.label === 'Pay in the October run');
+    expect(row?.value).toBe('KES 28,000 until 21 Oct, then KES 26,000 from 22 Oct');
+    const first = pay({ history: [change({}), change({ id: 'c2', amount: '26000.00', effectiveFrom: '2026-11-01', reason: 'CORRECTION' })] });
+    expect(payRows(first, 'ACTIVE', '2026-10-21').some((r) => r.label.startsWith('Pay in the'))).toBe(false);
   });
   it('flags the lateness rule while there is no contract', () => {
     expect(payRows(pay(), 'NONE', '2026-10-05')[3]).toMatchObject({ value: 'Company default · no contract yet', tone: 'warning' });

@@ -9,8 +9,8 @@ describe('the File column', () => {
   it('names the one gap that blocks payroll', () => {
     expect(fileCellOf({ status: 'ACTIVE', gaps: ['BANK'], probationEndsOn: null }).label).toBe('Bank details missing');
   });
-  it('says Needs finishing when several gaps block', () => {
-    expect(fileCellOf({ status: 'ONBOARDING', gaps: ['BANK', 'NSSF_SHA'], probationEndsOn: null }).label).toBe('Needs finishing');
+  it('says Incomplete when several gaps block', () => {
+    expect(fileCellOf({ status: 'ONBOARDING', gaps: ['BANK', 'NSSF_SHA'], probationEndsOn: null }).label).toBe('Incomplete');
   });
   it('shows the probation end when only a contract or emergency contact is missing', () => {
     expect(fileCellOf({ status: 'ACTIVE', gaps: ['CONTRACT', 'EMERGENCY_CONTACT'], probationEndsOn: '2026-10-14' })).toEqual({ tone: 'warning', label: 'Probation ends 14 Oct' });

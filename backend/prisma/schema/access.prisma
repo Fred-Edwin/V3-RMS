@@ -142,6 +142,8 @@ model User {
    */
   pinHash                            String?                       @map("pin_hash")
   fcmToken                           String?                       @map("fcm_token")
+  /// Set when HR creates a login with a temporary password; sign-in refuses after it. Cleared at first sign-in or password change (People fix 43).
+  temporaryPasswordExpiresAt         DateTime?                     @map("temporary_password_expires_at")
   role                               UserRole
   departmentTag                      DepartmentTag?                @map("department_tag")
   /// Id link to the branch's Department row; dual-written with departmentTag until the contract migration (Block 4).

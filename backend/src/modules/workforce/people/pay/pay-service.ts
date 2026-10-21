@@ -5,7 +5,9 @@ import { fromDateColumn, nairobiDateOf, parseNairobiDate, toDateColumn, type Nai
 import { assertInScope, inScope, lockedGroupsFor, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { employeesRepository } from '../employees/employees-repository';
 import { targetOf } from '../people-access';
+import { verifySignerPin } from '../../_shared/pin/signer-pin';
 import { resolveActor, told, todayOf } from '../people-context';
+import { PAYOUT_CASH_REFUSAL, payoutAllowed } from '../statutory-formats';
 import { maskTail } from '../people-masking';
 import type { PayChangeReason } from '../people.constants';
 import type { PayChangeRow, PayView } from '../people.types';
@@ -31,6 +33,7 @@ async function changeRows(rows: readonly ChangeRow[], employeeName: string): Pro
     employeeName,
     amount: money(r.amount),
     effectiveFrom: fromDateColumn(r.effectiveFrom),
+    startsInFuture: fromDateColumn(r.effectiveFrom) > todayOf(),
     reason: r.reason as PayChangeReason,
     status: r.status,
     requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,
@@ -116,6 +119,10 @@ export const payService = {
 
     const { reason, ...fields } = body;
     const profile = employee.payProfile;
+    if (fields.payoutMethod && !payoutAllowed(employee.payType === 'DAILY_RATE', fields.payoutMethod)) {
+      throw new ValidationError(PAYOUT_CASH_REFUSAL, 'PAYOUT_NOT_ALLOWED');
+    }
+    const methodChanged = !!fields.payoutMethod && fields.payoutMethod !== (profile?.payoutMethod ?? null);
     const bankKeys = ['payoutMethod', 'bankName', 'bankBranch', 'accountName', 'accountNumber', 'mpesaPhone'] as const;
     const touchesBank = bankKeys.some((k) => fields[k] !== undefined);
     const hadBank = !!profile?.accountNumber || !!profile?.mpesaPhone;
@@ -137,13 +144,15 @@ export const payService = {
             subjectType: 'Employee',
             subjectId: employee.id,
             subjectUserId: employee.userId,
-            after: { changed: names },
+            // The method is a label, not a secret; account numbers and amounts never go in the entry.
+            ...(methodChanged ? { before: { payoutMethod: profile?.payoutMethod ?? null } } : {}),
+            after: { changed: names, ...(methodChanged ? { payoutMethod: fields.payoutMethod ?? null } : {}) },
             reason: bankChanged ? (reason ?? null) : null,
           },
         ],
       };
     });
-    if (bankChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: employee.id });
+    if (bankChanged || methodChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: employee.id });
     return payService.viewQuiet(subject, employee.id);
   },
 
@@ -182,6 +191,7 @@ export const payService = {
     if (employee.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
     const effectiveFrom = parseNairobiDate(body.effectiveFrom);
     if (effectiveFrom < today) throw new ValidationError('A pay change cannot start in the past', 'EFFECTIVE_DATE_PAST');
+    await verifySignerPin(subject.id, body.pin, now.getTime());
 
     const created = await runAudited(async (tx) => {
       if (await payRepository.findPending(tx, employee.id)) throw new ConflictError('There is already a pay change waiting for the Director', 'PAY_CHANGE_PENDING');
@@ -228,6 +238,7 @@ export const payService = {
       throw new ForbiddenError('You cannot decide your own pay change', 'SELF_APPROVAL');
     }
     if (found.status !== 'PENDING') throw new ConflictError('This pay change has already been decided', 'PAY_CHANGE_NOT_PENDING');
+    await verifySignerPin(subject.id, body.pin, now.getTime());
 
     const approve = body.decision === 'APPROVE';
     const startsNow = fromDateColumn(found.effectiveFrom) <= today;
@@ -282,6 +293,7 @@ export const payService = {
       employeeName: r.employee.name,
       amount: money(r.amount),
       effectiveFrom: fromDateColumn(r.effectiveFrom),
+      startsInFuture: fromDateColumn(r.effectiveFrom) > todayOf(),
       reason: r.reason as PayChangeReason,
       status: r.status,
       requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,

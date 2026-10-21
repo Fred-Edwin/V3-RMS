@@ -7,7 +7,7 @@ import { formatApiErrorMessage } from '@/types/api';
 import { Callout, ChangeSummary, DialogButton, KitDialog, PersonRadioList, SingleDateField } from '../../../../_shared';
 import { useAction } from '../../../_shared/hooks/use-action';
 import { addDays, nairobiDay } from '../../../_shared/lib/people-dates';
-import { useHeadCandidates } from '../../_shared/hooks/use-org-data';
+import { useHeadCandidates, useWithoutLogin } from '../../_shared/hooks/use-org-data';
 import { firstName } from '../../_shared/lib/org-copy';
 import { orgWrites } from '../../_shared/services/org-services';
 import type { HeadPreview } from '../../_shared/types/org-types';
@@ -32,6 +32,7 @@ export interface AssignHeadTarget {
 export function AssignHeadDialog({ target, mode, onClose, done }: { target: AssignHeadTarget; mode: HeadMode; onClose: () => void; done: (message: string) => void }) {
   const today = React.useMemo(() => nairobiDay(), []);
   const candidates = useHeadCandidates(target.id);
+  const noLogin = useWithoutLogin(target.id, candidates.status === 'ready' && candidates.data.length === 0);
   const [picked, setPicked] = React.useState<string | null>(null);
   const [returnsOn, setReturnsOn] = React.useState<string | null>(null);
   const [shown, setShown] = React.useState(false);
@@ -84,17 +85,32 @@ export function AssignHeadDialog({ target, mode, onClose, done }: { target: Assi
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={action.busy}>Cancel</DialogButton>
-          <DialogButton kind="primary" size="lg" onClick={save} disabled={action.busy || !ready}>
-            {action.busy ? 'Saving…' : mode === 'ACTING' ? `Name ${who ? firstName(who) : 'them'} acting head` : `Assign ${who ? firstName(who) : 'them'} as head`}
-          </DialogButton>
+          {list && list.length === 0 ? null : (
+            <DialogButton kind="primary" size="lg" onClick={save} disabled={action.busy || !ready}>
+              {action.busy ? 'Saving…' : mode === 'ACTING' ? `Name ${who ? firstName(who) : 'them'} acting head` : `Assign ${who ? firstName(who) : 'them'} as head`}
+            </DialogButton>
+          )}
         </>
       }
     >
       {candidates.status === 'error' ? (
         <Callout tone="error" role="alert" size="sm">The people who could lead did not load. {candidates.error.message}</Callout>
       ) : list && list.length === 0 ? (
-        <Callout tone="warning" size="sm" title="Nobody here can lead yet">
+        <Callout tone="warning" size="sm" title="Nobody here has a login yet">
           Only people in this department with a login can lead it. Casuals are not shown. Someone from another department can move here first.
+          {noLogin.status === 'ready' && noLogin.data.length > 0 ? (
+            <ul className="m-0 mt-2 flex list-none flex-col gap-1 p-0">
+              {noLogin.data.map((p) => (
+                <li key={p.employeeId}>
+                  {p.name}
+                  {p.positionName ? `, ${p.positionName}` : ''}:{' '}
+                  <a className="underline" href={`/app/workforce/employees/${p.employeeId}`}>Give a login first</a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <> Add the person in <a className="underline" href="/app/workforce/employees">Employees</a> first.</>
+          )}
         </Callout>
       ) : list ? (
         <>

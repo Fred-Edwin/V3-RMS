@@ -54,11 +54,31 @@ export const hireRepository = {
   findPosition: (companyId: string, id: string) =>
     prisma.position.findFirst({
       where: { id, companyId },
-      select: { id: true, isActive: true, defaultTracksTime: true, casualsAllowed: true, departments: { select: { departmentId: true } } },
+      select: { id: true, isActive: true, loginRole: true, defaultTracksTime: true, casualsAllowed: true, departments: { select: { departmentId: true } } },
     }),
 
   findActiveEmployee: (companyId: string, id: string) =>
     prisma.employee.findFirst({ where: { id, companyId, status: { not: 'EXITED' } }, select: { id: true, siteId: true } }),
+
+  /** The person a hire reports to when nobody is named: the site's own manager (finding 12). Null when there is none. */
+  findSiteManager: (companyId: string, siteId: string) =>
+    prisma.employee.findFirst({
+      where: { companyId, siteId, status: { not: 'EXITED' }, user: { role: { in: ['MANAGER', 'STORE_MANAGER'] }, isActive: true } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+
+  /** People still on file with nobody named to report to, oldest first (finding 12 backfill). */
+  findWithoutBoss: (companyId: string) =>
+    prisma.employee.findMany({
+      where: { companyId, reportsToId: null, status: { not: 'EXITED' } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, siteId: true, userId: true },
+    }),
+
+  /** Sets the boss only while none is named, so a later edit by a person is never overwritten. */
+  setBossIfNone: (tx: Prisma.TransactionClient, companyId: string, id: string, bossId: string) =>
+    tx.employee.updateMany({ where: { id, companyId, reportsToId: null }, data: { reportsToId: bossId } }),
 
   /** Employee numbers are one series per company: lock the company, take the highest "W-####", add one. */
   async nextEmployeeNumber(tx: Prisma.TransactionClient, companyId: string): Promise<string> {

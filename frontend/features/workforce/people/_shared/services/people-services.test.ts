@@ -61,12 +61,12 @@ describe('people reads', () => {
 
 describe('people writes', () => {
   it('sends a pay change to the person it is about', async () => {
-    await peopleWrites.requestPayChange('p1', { amount: '31000', effectiveFrom: '2026-11-01', reason: 'PROBATION_CONFIRMED' });
+    await peopleWrites.requestPayChange('p1', { amount: '31000', effectiveFrom: '2026-11-01', reason: 'PROBATION_CONFIRMED', pin: '1234' });
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/workforce/people/p1/pay-changes', token: 'tok' });
-    expect(calls[0]?.body).toEqual({ amount: '31000', effectiveFrom: '2026-11-01', reason: 'PROBATION_CONFIRMED' });
+    expect(calls[0]?.body).toEqual({ amount: '31000', effectiveFrom: '2026-11-01', reason: 'PROBATION_CONFIRMED', pin: '1234' });
   });
   it('sends the Director decision to the change, not the person', async () => {
-    await peopleWrites.decidePayChange('c9', { decision: 'DECLINE', note: 'Not yet' });
+    await peopleWrites.decidePayChange('c9', { decision: 'DECLINE', note: 'Not yet', pin: '1234' });
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/workforce/people/pay-changes/c9/decision' });
   });
   it('previews a transfer and an exit without writing', async () => {

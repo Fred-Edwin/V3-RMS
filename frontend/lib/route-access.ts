@@ -127,10 +127,10 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return true;
   }
 
-  // Organisation (slice 1b): the roles whose menu draws the row (HR, Branch Manager, Director). The Accountant and the Store Manager
-  // are not drawn one in Paper, and the API gives the Accountant no organisation access at all.
+  // Organisation: the roles the access table gives `org.read` (HR, Branch Manager, Store Manager, Director). The table is the
+  // authority (finding 57); the API gives the Accountant no organisation access at all.
   if (pathname === '/app/workforce/organisation' || pathname.startsWith('/app/workforce/organisation/')) {
-    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
 
   // The Rota (slice 2): a department head plans their own team on a phone, so the Rota pages (the grid and its printed page) open for a

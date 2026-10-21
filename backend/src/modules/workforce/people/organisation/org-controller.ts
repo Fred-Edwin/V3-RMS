@@ -55,6 +55,9 @@ export const orgController = {
   headCandidates: async (req: Request, res: Response): Promise<void> => {
     ok(res, await headsService.candidates(subjectOf(req), idOf(req)));
   },
+  headCandidatesWithoutLogin: async (req: Request, res: Response): Promise<void> => {
+    ok(res, await headsService.withoutLogin(subjectOf(req), idOf(req)));
+  },
   previewHead: async (req: Request, res: Response): Promise<void> => {
     ok(res, await headsService.preview(subjectOf(req), idOf(req), AssignHeadSchema.parse(req.body)));
   },

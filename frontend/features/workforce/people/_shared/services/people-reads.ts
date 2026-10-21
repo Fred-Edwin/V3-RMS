@@ -74,6 +74,8 @@ export const peopleReads = {
   /** R4: booleans only, so a screen can say "someone with this ID is already on file" without showing who. */
   duplicateCheck: (query: { nationalId?: string; phone?: string; email?: string }): Promise<DuplicateCheck> =>
     apiClient.get(`${BASE}/duplicate-check${queryString(query)}`, token()),
+  /** Finding 44: the one sign-in address for a name, numbered if taken. */
+  suggestSignIn: (name: string): Promise<{ email: string }> => apiClient.get(`${BASE}/sign-in/suggest${queryString({ name })}`, token()),
   /** R6 */
   mine: (): Promise<EmployeeFile> => apiClient.get(`${BASE}/me`, token()),
   /** R7 */

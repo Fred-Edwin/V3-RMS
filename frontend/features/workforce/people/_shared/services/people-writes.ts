@@ -78,6 +78,9 @@ export const peopleWrites = {
   undoExit: (id: string): Promise<unknown> => apiClient.post(`${BASE}/${id}/exit/undo`, {}, token()),
   rehire: (id: string, body: RehireBody): Promise<unknown> => apiClient.post(`${BASE}/${id}/rehire`, body, token()),
   // Login, file requests, statutory, documents, reveal (W24 to W28)
+  /** Finding 43: a new temporary password from the server (audited, never emailed). `employeeId` is absent during a hire. */
+  newTemporaryPassword: (employeeId?: string): Promise<{ password: string; expiresOn: string }> =>
+    apiClient.post(`${BASE}/sign-in/password`, employeeId ? { employeeId } : {}, token()),
   createLogin: (id: string, body: CreateLoginBody): Promise<unknown> => apiClient.post(`${BASE}/${id}/login`, body, token()),
   askForDetail: (id: string, body: FileRequestBody): Promise<unknown> => apiClient.post(`${BASE}/${id}/file-requests`, body, token()),
   remind: (id: string, requestId: string): Promise<unknown> => apiClient.post(`${BASE}/${id}/file-requests/${requestId}/remind`, {}, token()),

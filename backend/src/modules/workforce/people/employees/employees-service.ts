@@ -1,17 +1,20 @@
 import type { z } from 'zod';
 import { uploadImageBuffer } from '../../../../utils/cloudinary';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
+import { logger } from '../../../../utils/logger';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { JsonValue } from '../../_shared/audit/audit.types';
 import { nairobiDateOf, parseNairobiDate, toDateColumn } from '../../_shared/time/nairobi-time';
 import { inScope, scopeOf, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
-import { assertCanEditBasics, readScopeOf, targetOf } from '../people-access';
+import { assertCanEditBasics, mayHireInto, readScopeOf, targetOf } from '../people-access';
 import { resolveActor, told, todayOf } from '../people-context';
+import { maskTail } from '../people-masking';
+import { payRepository } from '../pay/pay-repository';
 import { EXIT_REASONS, EXIT_UNDO_DAYS, HIRE_LOGIN_ROLES, PAY_CHANGE_REASONS, PROBATION_VERDICTS, type FileRequestKind } from '../people.constants';
 import type { EmployeeFileView, EmployeeListRow, FileRequestRow, ListResponse, Lookups, Pagination, PeopleSummary, UnlinkedAccount } from '../people.types';
 import type { ListQuerySchema } from '../people-validators';
-import { buildFileView, instantDate, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
+import { blocksPayroll, buildFileView, instantDate, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
 import { employeesRepository } from './employees-repository';
 
 export type ListQuery = z.infer<typeof ListQuerySchema>;
@@ -27,8 +30,12 @@ const SELF_KINDS: Record<string, FileRequestKind> = {
   personalPhone: 'PHOTO_AND_DETAILS',
   physicalAddress: 'PHOTO_AND_DETAILS',
   nationalId: 'ID_NUMBER',
+  bankName: 'BANK_DETAILS',
+  accountNumber: 'BANK_DETAILS',
 };
 const STATUTORY_FIELDS = ['nssfNumber', 'shaNumber', 'helbNumber', 'kraPin'] as const;
+/** What HR verifies on My file: a change here resets the check, and is closed to the person once HR has verified. */
+const SELF_CHECKED_FIELDS = [...STATUTORY_FIELDS, 'nationalId', 'bankName', 'accountNumber'] as const;
 
 /** Only these may be changed under `employee.write_basic`; the rest need `employee.write_sensitive`. */
 const BASIC_FIELDS = ['name', 'positionId', 'reportsToId', 'tracksTime', 'personalPhone', 'personalEmail', 'emergencyName', 'emergencyRelation', 'emergencyPhone'] as const;
@@ -71,9 +78,9 @@ export const employeesService = {
       ...(query.q ? { q: query.q } : {}),
       today: toDateColumn(today),
     };
-    if (query.filter === 'needs_finishing') {
+    if (query.filter === 'needs_finishing' || query.filter === 'blocks_payroll') {
       const all = (await employeesRepository.listAll(base)).map((row) => listRowOf(subject, row));
-      const matches = all.filter((r) => needsFinishing(r.gaps));
+      const matches = all.filter((r) => (query.filter === 'blocks_payroll' ? blocksPayroll(r.gaps) : needsFinishing(r.gaps)));
       const start = (query.page - 1) * query.perPage;
       return { success: true, data: matches.slice(start, start + query.perPage).map((r) => r.view), pagination: pagination(matches.length, query.page, query.perPage) };
     }
@@ -88,8 +95,8 @@ export const employeesService = {
     const monthStart = parseNairobiDate(`${today.slice(0, 7)}-01`);
     const counts = await employeesRepository.summary(ctx.companyId, scope, siteId, toDateColumn(today), toDateColumn(monthStart));
     const list = await employeesRepository.listAll({ companyId: ctx.companyId, scope, ...(siteId ? { siteId } : {}), filter: 'needs_finishing', today: toDateColumn(today) });
-    const needsFinishingCount = list.map((row) => listRowOf(subject, row)).filter((r) => needsFinishing(r.gaps)).length;
-    return { ...counts, needsFinishing: needsFinishingCount };
+    const rows = list.map((row) => listRowOf(subject, row));
+    return { ...counts, needsFinishing: rows.filter((r) => needsFinishing(r.gaps)).length, blocksPayroll: rows.filter((r) => blocksPayroll(r.gaps)).length };
   },
 
   async lookups(subject: AccessSubject): Promise<Lookups> {
@@ -102,12 +109,16 @@ export const employeesService = {
       employeesRepository.positionsOfCompany(ctx.companyId),
       employeesRepository.contractTypesOfCompany(ctx.companyId),
     ]);
+    // Offer only what this role may create (finding 56): positions it may hire into, and departments that still offer one.
+    const hirable = positions.filter((p) => mayHireInto(subject, p));
+    const offeredDepartmentIds = new Set(hirable.flatMap((p) => p.departments.map((d) => d.departmentId)));
+    const shownDepartments = subject.role === 'STORE_MANAGER' ? departments.filter((d) => offeredDepartmentIds.has(d.id)) : departments;
     const ruleSite = sites[0]?.id ?? subject.siteId;
     const rule = ruleSite ? (await getEffectiveRuleGroup(ruleSite, todayOf(), 'PROBATION')).values : { defaultMonths: 0, maxExtensions: 0, maxExtensionMonths: 0 };
     return {
       sites: sites.map((s) => ({ id: s.id, name: s.name, type: s.type, isHub: s.isHub })),
-      departments: departments.map((d) => ({ id: d.id, siteId: d.siteId, name: d.name, inventoryTag: d.key, isActive: d.status === 'ACTIVE' })),
-      positions: positions.map((p) => ({
+      departments: shownDepartments.map((d) => ({ id: d.id, siteId: d.siteId, name: d.name, inventoryTag: d.key, isActive: d.status === 'ACTIVE' })),
+      positions: hirable.map((p) => ({
         id: p.id,
         name: p.name,
         defaultTracksTime: p.defaultTracksTime,
@@ -258,11 +269,34 @@ export const employeesService = {
     if (row.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
     const fields = Object.keys(input).filter((k) => input[k] !== undefined);
     const kinds = [...new Set(fields.flatMap((k) => (SELF_KINDS[k] ? [SELF_KINDS[k]] : [])))];
+    const touchesChecked = fields.some((k) => (SELF_CHECKED_FIELDS as readonly string[]).includes(k));
+    // Until HR has verified, the person may correct a typo; after that a change goes through HR (finding 65).
+    if (touchesChecked && row.statutoryVerifiedAt) {
+      throw new ConflictError('HR has already checked these details. Ask HR to change them.', 'STATUTORY_VERIFIED');
+    }
+    if (typeof input.nationalId === 'string' && input.nationalId !== row.nationalId && (await employeesRepository.nationalIdTaken(ctx.companyId, input.nationalId, row.id))) {
+      throw new ConflictError('Someone on file already has this ID number', 'DUPLICATE_NATIONAL_ID');
+    }
+    const { bankName, accountNumber, ...employeeInput } = input;
+    // The old value goes in the entry masked (last four at most), never the number itself.
+    const previous: Record<string, JsonValue> = {};
+    for (const key of SELF_CHECKED_FIELDS) {
+      if (input[key] === undefined) continue;
+      const oldValue = key === 'bankName' ? row.payProfile?.bankName : key === 'accountNumber' ? row.payProfile?.accountNumber : (row as unknown as Record<string, string | null>)[key];
+      previous[key] = key === 'bankName' ? (oldValue ?? null) : (maskTail(oldValue) ?? null);
+    }
     await runAudited(async (tx) => {
       await employeesRepository.updateEmployee(tx, row.id, ctx.companyId, {
-        ...toDbFields(input),
-        ...(touchesStatutory(fields) ? { statutoryVerifiedAt: null, statutoryVerifiedById: null } : {}),
+        ...toDbFields(employeeInput),
+        ...(touchesChecked ? { statutoryVerifiedAt: null, statutoryVerifiedById: null } : {}),
       });
+      if (bankName !== undefined || accountNumber !== undefined) {
+        await payRepository.updateProfile(tx, row.id, {
+          ...(bankName !== undefined ? { bankName: typeof bankName === 'string' ? bankName : null } : {}),
+          ...(accountNumber !== undefined ? { accountNumber: typeof accountNumber === 'string' ? accountNumber : null } : {}),
+          updatedById: subject.id,
+        });
+      }
       if (kinds.length > 0) await employeesRepository.resolveFileRequests(tx, row.id, kinds, new Date());
       return {
         result: null,
@@ -276,6 +310,7 @@ export const employeesService = {
             subjectType: 'Employee',
             subjectId: row.id,
             subjectUserId: row.userId,
+            ...(Object.keys(previous).length > 0 ? { before: previous } : {}),
             after: { changed: Object.keys(input) },
           },
         ],
@@ -296,7 +331,11 @@ export const employeesService = {
       if (!inScope(subject, 'employee.read_basic', target) && !inScope(subject, 'employee.write_basic', target)) throw new NotFoundError('Employee not found');
       assertCanEditBasics(subject, row);
     }
-    const photoUrl = await uploadImageBuffer(buffer, 'employee-photos');
+    // A storage fault (no key, bad key, service down) is a 502 with a plain message; the error handler adds the reference (finding 64).
+    const photoUrl = await uploadImageBuffer(buffer, 'employee-photos').catch((error: unknown) => {
+      logger.error({ err: error instanceof Error ? error.message : 'unknown' }, 'photo storage failed');
+      throw new AppError(502, 'PHOTO_STORAGE_FAILED', 'We could not save your photo. Try again, or tell HR and give them the reference below.');
+    });
     await runAudited(async (tx) => {
       await employeesRepository.setPhoto(tx, row.id, ctx.companyId, photoUrl);
       await employeesRepository.resolveFileRequests(tx, row.id, ['PHOTO_AND_DETAILS'], new Date());

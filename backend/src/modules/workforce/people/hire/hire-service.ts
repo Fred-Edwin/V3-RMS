@@ -9,11 +9,13 @@ import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { employeesRepository } from '../employees/employees-repository';
 import { employeesService } from '../employees/employees-service';
 import { accountGateway } from '../people-account-gateway';
+import { mayHireInto } from '../people-access';
 import { resolveActor, told, todayOf } from '../people-context';
 import { probationEnd } from '../people-dates';
 import type { FileRequestKind } from '../people.constants';
 import type { HireResult } from '../people.types';
 import type { CreateLoginSchema, DraftBodySchema, HireBodySchema } from '../people-validators';
+import { TEMPORARY_PASSWORD_DAYS } from '../sign-in/temporary-password';
 import { draftsRepository } from './drafts-repository';
 import { hireRepository } from './hire-repository';
 
@@ -75,12 +77,15 @@ export const hireService = {
     if (department.status !== 'ACTIVE') throw new ValidationError('That department is retired');
     const position = await hireRepository.findPosition(ctx.companyId, job.positionId);
     if (!position || !position.isActive) throw new ValidationError('That position is not available');
+    if (!mayHireInto(subject, position)) throw new ForbiddenError('You cannot hire into this position', 'POSITION_NOT_ALLOWED');
     if (!position.departments.some((d) => d.departmentId === job.departmentId)) throw new ConflictError('That department does not offer this position', 'POSITION_NOT_OFFERED');
     if (casual && !position.casualsAllowed) throw new ConflictError('This position does not take casuals', 'CASUALS_NOT_ALLOWED');
     if (job.reportsToId) {
       const boss = await hireRepository.findActiveEmployee(ctx.companyId, job.reportsToId);
       if (!boss) throw new ValidationError('That manager is not an active employee');
     }
+    // Nobody named (a department with no head): the site manager is the real approver, so the file says so.
+    const reportsToId = job.reportsToId ?? (await hireRepository.findSiteManager(ctx.companyId, job.siteId))?.id ?? null;
 
     // 3. Duplicates, and the account being adopted.
     if (await employeesRepository.nationalIdTaken(ctx.companyId, who.nationalId)) {
@@ -119,7 +124,7 @@ export const hireService = {
         name: who.name,
         departmentId: job.departmentId,
         positionId: job.positionId,
-        reportsToId: job.reportsToId ?? null,
+        reportsToId,
         status,
         payType: casual ? 'DAILY_RATE' : 'MONTHLY_SALARY',
         contractStatus: 'NONE',
@@ -225,7 +230,7 @@ export const hireService = {
 
     // The account is created through the legacy staff service (never logs or stores the password).
     const created = await accountGateway.createLogin(
-      { name: row.name, email: body.email, phone: row.personalPhone, role: body.loginRole, siteId: row.siteId, temporaryPassword: body.temporaryPassword },
+      { name: row.name, email: body.email, phone: row.personalPhone, role: body.loginRole, siteId: row.siteId, temporaryPassword: body.temporaryPassword, passwordExpiresAt: new Date(now.getTime() + TEMPORARY_PASSWORD_DAYS * 86_400_000) },
       subject.id,
     );
     try {
