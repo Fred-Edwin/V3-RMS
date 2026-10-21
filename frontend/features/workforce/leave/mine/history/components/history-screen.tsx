@@ -21,7 +21,7 @@ const ROWS = 25;
 const stat = (label: string, value: number, accent?: string) => (
   <div key={label} className="flex flex-1 flex-col gap-0.5">
     <span className="font-wds-mono text-[10px] leading-3 tracking-[0.08em] text-wds-neutral-300">{label}</span>
-    <span className="font-wds-mono text-[18px] leading-6" style={accent ? { color: accent } : undefined}>{value}</span>
+    <span className="font-wds-mono text-[18px] leading-6 text-white" style={accent ? { color: accent } : undefined}>{value}</span>
   </div>
 );
 
