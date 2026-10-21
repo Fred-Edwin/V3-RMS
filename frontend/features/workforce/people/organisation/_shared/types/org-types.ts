@@ -77,6 +77,13 @@ export interface HeadCandidate {
   recommended: boolean;
 }
 
+/** Monthly staff of the department with no login yet (O6b). */
+export interface PersonWithoutLogin {
+  employeeId: string;
+  name: string;
+  positionName: string | null;
+}
+
 export interface HeadPreview {
   department: { id: string; name: string; organizationId?: string };
   employee: { id: string; name: string };

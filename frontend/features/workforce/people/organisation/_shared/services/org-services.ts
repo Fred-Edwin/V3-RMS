@@ -10,6 +10,7 @@ import type {
   EndHeadBody,
   HeadCandidate,
   HeadPreview,
+  PersonWithoutLogin,
   OrgOverview,
   PositionCreateBody,
   PositionDetail,
@@ -30,6 +31,8 @@ export const orgReads = {
   department: (id: string, page = 1, perPage = 50): Promise<DepartmentView> => apiClient.get(`${BASE}/departments/${id}${queryString({ page, perPage })}`, token()),
   /** O6 */
   headCandidates: (id: string): Promise<HeadCandidate[]> => apiClient.get(`${BASE}/departments/${id}/head-candidates`, token()),
+  /** O6b */
+  withoutLogin: (id: string): Promise<PersonWithoutLogin[]> => apiClient.get(`${BASE}/departments/${id}/head-candidates/no-login`, token()),
   /** O10 */
   positions: (query: { q?: string; departmentId?: string; includeRetired?: boolean } = {}): Promise<PositionView[]> =>
     apiClient.get(`${BASE}/positions${queryString({ q: query.q, departmentId: query.departmentId, includeRetired: query.includeRetired ? 'true' : undefined })}`, token()),

@@ -66,6 +66,7 @@ Out of scope reads answer `404`; out of scope writes `403`. A Branch Manager ask
 | O4 | `PATCH /workforce/org/departments/:id` | `org.write` | Name, description, offered positions. |
 | O5 | `POST .../departments/:id/retire`, `.../restore` | `org.write` | 409 `DEPARTMENT_HAS_PEOPLE`; the five standard departments: 409 `DEPARTMENT_MANAGED_BY_INVENTORY`. |
 | O6 | `GET .../departments/:id/head-candidates` | `org.write_heads` | Eligible people, longest tenure first; one `recommended`. |
+| O6b | `GET .../departments/:id/head-candidates/no-login` | `org.write_heads` | Monthly staff of the department with no login yet (`employeeId`, `name`, `positionName`). |
 | O7 | `POST .../departments/:id/head/preview` | `org.write_heads` | What changes: rows ended, claims before and after, impacts from later slices, who is told. Writes nothing. |
 | O8 | `POST .../departments/:id/head` | `org.write_heads` | `{ employeeId, mode: REPLACE \| ACTING, returnsOn?, replaceActing?, reason? }`. 409 `HEAD_NOT_ELIGIBLE`, `ALREADY_HEAD`, `ACTING_HEAD_EXISTS`, `HUB_HAS_NO_HEADS`, `INVALID_RETURN_DATE` (400). |
 | O9 | `POST .../departments/:id/head/end` | `org.write_heads` | `{ which: HEAD \| ACTING, reason }`. 409 `NO_HEAD_TO_END`. |

@@ -45,6 +45,14 @@ export const headsService = {
     }));
   },
 
+  /** O6b: monthly staff of the department with no login yet, so the screen can say "Give a login first" (finding 20). */
+  async withoutLogin(subject: AccessSubject, departmentId: string): Promise<{ employeeId: string; name: string; positionName: string | null }[]> {
+    const ctx = await resolveActor(subject);
+    const department = await loadDepartmentForHeads(subject, ctx, departmentId, 'write');
+    const people = await headsRepository.withoutLoginOf(ctx.companyId, department.id);
+    return people.map((p) => ({ employeeId: p.id, name: p.name, positionName: p.position?.name ?? null }));
+  },
+
   /** O7: what the change would do. Nothing is written. */
   async preview(subject: AccessSubject, departmentId: string, body: AssignHeadBody, now: Date = new Date()): Promise<HeadPreview> {
     const ctx = await resolveActor(subject);
