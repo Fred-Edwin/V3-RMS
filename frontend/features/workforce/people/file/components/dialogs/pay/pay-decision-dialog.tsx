@@ -34,7 +34,7 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
     if (!change) return;
     setShown(true);
     if (validateDecision(decision, note) || pin.length !== PIN_LENGTH) return;
-    void action.run(() => peopleWrites.decidePayChange(change.id, { decision, pin, ...(note.trim() ? { note: note.trim() } : {}) }), decision === 'APPROVE' ? 'Approved. The new pay applies from its start day.' : 'Declined. The sender can see why.');
+    void action.run(() => peopleWrites.decidePayChange(change.id, { decision, pin, ...(note.trim() ? { note: note.trim() } : {}) }), decision === 'APPROVE' ? `Approved: ${change.employeeName}'s pay is ${formatKes(change.amount)} from ${formatDayMonthYear(change.effectiveFrom)}.` : `Declined: ${change.employeeName}'s pay stays as it is. The sender can see why.`);
   };
   return (
     <KitDialog

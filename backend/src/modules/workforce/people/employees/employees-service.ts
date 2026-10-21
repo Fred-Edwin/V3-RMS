@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { uploadImageBuffer } from '../../../../utils/cloudinary';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
+import { logger } from '../../../../utils/logger';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { JsonValue } from '../../_shared/audit/audit.types';
 import { nairobiDateOf, parseNairobiDate, toDateColumn } from '../../_shared/time/nairobi-time';
@@ -330,7 +331,11 @@ export const employeesService = {
       if (!inScope(subject, 'employee.read_basic', target) && !inScope(subject, 'employee.write_basic', target)) throw new NotFoundError('Employee not found');
       assertCanEditBasics(subject, row);
     }
-    const photoUrl = await uploadImageBuffer(buffer, 'employee-photos');
+    // A storage fault (no key, bad key, service down) is a 502 with a plain message; the error handler adds the reference (finding 64).
+    const photoUrl = await uploadImageBuffer(buffer, 'employee-photos').catch((error: unknown) => {
+      logger.error({ err: error instanceof Error ? error.message : 'unknown' }, 'photo storage failed');
+      throw new AppError(502, 'PHOTO_STORAGE_FAILED', 'We could not save your photo. Try again, or tell HR and give them the reference below.');
+    });
     await runAudited(async (tx) => {
       await employeesRepository.setPhoto(tx, row.id, ctx.companyId, photoUrl);
       await employeesRepository.resolveFileRequests(tx, row.id, ['PHOTO_AND_DETAILS'], new Date());
