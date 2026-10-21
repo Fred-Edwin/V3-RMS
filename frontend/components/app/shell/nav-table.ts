@@ -778,7 +778,8 @@ export function activeFor(groups: readonly NavGroup[], pathname: string): Active
     }
   }
   const hit = best as { link: NavLink; sub?: NavLinkSub; group: NavGroup } | null;
-  if (!hit) return { activeKey: '', framed: SELF_FRAMED_PREFIXES.some((p) => under(pathname, p)) };
+  // Workforce Home draws its own top bar for every role, including a department head who has no Home row yet (finding 60).
+  if (!hit) return { activeKey: '', framed: pathname.replace(/\/+$/, '') === '/app/workforce' || SELF_FRAMED_PREFIXES.some((p) => under(pathname, p)) };
   return {
     activeKey: hit.link.key,
     activeSubKey: hit.sub?.key,

@@ -796,6 +796,11 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     for (const role of ['MANAGER', 'STORE_MANAGER', 'WAITER', 'STORE_ATTENDANT'] as AppRole[]) expect(payroll(role, true), `${role} never sees it`).toBe(false);
   });
 
+  it('gives a department head one top bar on Workforce Home even without a Home row (finding 60)', () => {
+    const groups = navFor(ctxFor('CHEF', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: false }));
+    expect(activeFor(groups, '/app/workforce').framed).toBe(true);
+  });
+
   it('lights Home on /app/workforce', () => {
     const groups = navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }));
     expect(activeFor(groups, '/app/workforce')).toMatchObject({ activeKey: 'wf-home', framed: true, groupLabel: 'WORKFORCE', label: 'Home' });
