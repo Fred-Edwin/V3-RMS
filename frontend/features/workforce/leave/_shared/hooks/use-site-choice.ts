@@ -16,7 +16,7 @@ export function useSiteChoice() {
   const pathname = usePathname();
   const search = useSearchParams();
   const all = permissions.ready && permissions.scopeOf('leave.read') === 'all';
-  const sites = useRemote(() => leaveReads.balances({ filter: 'all', page: 1, rows: 1 }).then((p) => p.sites), 'leave-sites', all);
+  const sites = useRemote(() => leaveReads.balances({ filter: 'all', page: 1, rows: 1 }).then((p) => p.organizations), 'leave-sites', all);
   const site = all ? search.get('site') ?? undefined : undefined;
 
   const choose = useCallback(

@@ -5,7 +5,7 @@ import { circleStepsOf } from './follow-steps';
 
 const base: ApplicationDetail = {
   application: { id: 'a', employeeId: 'e', typeCode: 'ANNUAL', typeLabel: 'Annual leave', paid: true, start: '2026-10-26', end: '2026-10-28', days: 3, unpaidTailDays: 0, status: 'WAITING', phase: 'WAITING', stage: 'MANAGER', decidingRole: 'Branch Manager', askedAt: '2026-10-09T12:10:00.000Z', movesToHrAt: '2026-10-12T12:10:00.000Z', decidedAt: null, slipNumber: null, version: 1, slipCode: null },
-  person: { id: 'e', name: 'Cynthia Wairimu', roleLabel: 'Barista', department: 'Barista', site: 'Nyeri Town', head: null },
+  person: { id: 'e', name: 'Cynthia Wairimu', roleLabel: 'Barista', department: 'Barista', organization: 'Nyeri Town', head: null },
   note: null,
   decision: null,
   steps: [],

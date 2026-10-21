@@ -78,7 +78,7 @@ export function RequestsTab({ site, siteLabel }: { site: string | undefined; sit
         cell: (r, { term }) => (
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink"><HighlightMatch text={r.person.name} term={term} /></span>
-            <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{`${r.person.roleLabel} · ${r.application.typeLabel}${siteLabel === null && r.person.site ? ` · ${r.person.site}` : ''}`}</span>
+            <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{`${r.person.roleLabel} · ${r.application.typeLabel}${siteLabel === null && r.person.organization ? ` · ${r.person.organization}` : ''}`}</span>
           </span>
         ),
       },

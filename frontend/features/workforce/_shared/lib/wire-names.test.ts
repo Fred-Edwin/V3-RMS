@@ -26,4 +26,13 @@ describe('response types use the wire names for a branch', () => {
     expect(source.match(/organizationName:\s*string/g)).toHaveLength(2);
     expect(source).not.toMatch(/\bsiteName\b/);
   });
+
+  it('the Leave balances, requests and away shapes carry organization, organizations, organizationName and organizationId', () => {
+    const source = read('leave/_shared/types/leave-types.ts');
+    expect(source).toMatch(/organizations:\s*\{ id: string/);
+    expect(source).toMatch(/organizationName:\s*string/);
+    expect(source).toMatch(/organizationId:\s*string/);
+    expect(source.match(/organization:\s*string/g)).toHaveLength(3);
+    expect(source).not.toMatch(/\bsites?:\s|\bsiteName\b|\bsiteId:\s*string;/);
+  });
 });

@@ -87,7 +87,7 @@ export interface LeaveStep {
 
 export interface ApplicationDetail {
   application: ApplicationSummary & { slipCode: string | null };
-  person: { id: string; name: string; roleLabel: string; department: string | null; site: string; head: string | null };
+  person: { id: string; name: string; roleLabel: string; department: string | null; organization: string; head: string | null };
   note: string | null;
   decision: { reasonCode: string | null; note: string | null; byRole: string | null; at: string | null } | null;
   steps: LeaveStep[];
@@ -141,7 +141,7 @@ export interface ApproveResult extends WriteResult {
 
 export interface RequestRow {
   application: ApplicationSummary;
-  person: { id: string; name: string; roleLabel: string; department: string | null; site: string };
+  person: { id: string; name: string; roleLabel: string; department: string | null; organization: string };
   rota: 'CLASH' | 'OK' | 'NOT_PLANNED' | null;
   routedToMe: boolean;
   can: { approve: boolean; decline: boolean; cancel: boolean };
@@ -177,7 +177,7 @@ export interface BalanceRow {
   name: string;
   roleLabel: string;
   department: string | null;
-  siteName: string;
+  organizationName: string;
   annualLeft: number | null;
   annualBooked: number | null;
   sickUsed: number | null;
@@ -187,11 +187,11 @@ export interface BalanceRow {
 
 export interface BalancesPage extends Page<BalanceRow> {
   kpis: { people: number; lowBalance: number; adjustedThisMonth: number; bookedDays: number };
-  sites: { id: string; name: string; people: number }[];
+  organizations: { id: string; name: string; people: number }[];
 }
 
 export interface BalanceDrawer {
-  person: { id: string; name: string; roleLabel: string; department: string | null; site: string; onPolicy: boolean; note: string | null };
+  person: { id: string; name: string; roleLabel: string; department: string | null; organization: string; onPolicy: boolean; note: string | null };
   year: number;
   cards: TypeBalance[];
   requests: ApplicationSummary[];
@@ -249,7 +249,7 @@ export interface AwayPerson {
   name: string;
   roleLabel: string;
   department: string | null;
-  siteId: string;
+  organizationId: string;
   applicationId: string;
   start: string;
   end: string;

@@ -58,7 +58,7 @@ export function BalanceDrawer({ employeeId, onClose, canAdjust, onAdjust }: { em
   const remote = useRemote(() => leaveReads.drawer(employeeId ?? ''), `drawer:${employeeId}`, Boolean(employeeId));
   const data = remote.data && remote.data.person.id === employeeId ? remote.data : null;
   return (
-    <WorkforceDrawer open={Boolean(employeeId)} onOpenChange={(o) => { if (!o) onClose(); }} title={data?.person.name ?? 'Leave'} subtitle={data ? `${data.person.roleLabel}${data.person.department ? ` · ${data.person.department}` : ''} · ${data.person.site}` : undefined} initials={data ? initialsOf(data.person.name) : undefined}>
+    <WorkforceDrawer open={Boolean(employeeId)} onOpenChange={(o) => { if (!o) onClose(); }} title={data?.person.name ?? 'Leave'} subtitle={data ? `${data.person.roleLabel}${data.person.department ? ` · ${data.person.department}` : ''} · ${data.person.organization}` : undefined} initials={data ? initialsOf(data.person.name) : undefined}>
       {remote.status === 'error' && !data ? <ErrorBlock title="Their leave did not load" line="Nothing was changed. Try again." onRetry={remote.reload} /> : !data ? <ListSkeleton rows={5} columns={['fill']} label="Loading their leave" /> : <Body data={data} canAdjust={canAdjust} onAdjust={() => onAdjust({ id: data.person.id, name: data.person.name, roleLabel: data.person.roleLabel })} />}
     </WorkforceDrawer>
   );

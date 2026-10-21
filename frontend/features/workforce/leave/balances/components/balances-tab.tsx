@@ -103,7 +103,7 @@ export function BalancesTab({ site, canAdjust, adjustOpen, onAdjustOpenChange, s
       <WorkforceKpiStrip cells={cells} aria-label="Balances in numbers" />
       {canAdjust ? <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Where leave is defined: <a className="text-wds-primary underline" href={RULES_LEAVE}>Leave rules</a></p> : null}
       {sitesAllowed && page ? (
-        <ListDetailLayout listWidth={280} list={<SitesPanel sites={page.sites} chosen={site} onChoose={chooseSite} />} detail={<div className="min-w-0">{table}</div>} showDetail />
+        <ListDetailLayout listWidth={280} list={<SitesPanel sites={page.organizations} chosen={site} onChoose={chooseSite} />} detail={<div className="min-w-0">{table}</div>} showDetail />
       ) : table}
       <BalanceDrawer employeeId={drawerId} onClose={() => setDrawerId(null)} canAdjust={canAdjust} onAdjust={(person) => { setPrefill({ person }); setDrawerId(null); onAdjustOpenChange(true); }} />
       {canAdjust ? <AdjustDialog open={adjustOpen} onOpenChange={(o) => { onAdjustOpenChange(o); if (!o) setPrefill(undefined); }} prefill={prefill} site={site} onAdjusted={() => setRefresh((n) => n + 1)} /> : null}

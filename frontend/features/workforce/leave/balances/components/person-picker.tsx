@@ -12,7 +12,7 @@ export interface PickedPerson {
   roleLabel: string;
 }
 
-const lineOf = (row: BalanceRow): string => `${row.roleLabel}${row.department ? ` · ${row.department}` : ''} · ${row.siteName}`;
+const lineOf = (row: BalanceRow): string => `${row.roleLabel}${row.department ? ` · ${row.department}` : ''} · ${row.organizationName}`;
 
 /** Type-ahead for the Person field of Adjust a balance: type two letters, pick one of at most six matches. */
 export function PersonPicker({ value, onChange, site }: { value: PickedPerson | null; onChange: (person: PickedPerson) => void; site: string | undefined }) {

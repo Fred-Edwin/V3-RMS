@@ -61,7 +61,7 @@ export function RequestDetail({ id, onChanged }: { id: string; onChanged: () => 
         <h2 ref={heading} tabIndex={-1} className="m-0 font-wds-sans text-[20px] font-semibold leading-[26px] text-wds-text-ink focus-visible:outline-none">{`${detail.person.name}, ${detail.person.roleLabel} · ${a.typeLabel}`}</h2>
         <p className="m-0 font-wds-mono text-[13px] leading-4 text-wds-text-ink">{`${rangeLong(a.start, a.end)} · ${a.days} ${a.days === 1 ? 'day' : 'days'}${a.unpaidTailDays ? ` (${a.unpaidTailDays} unpaid)` : ''}`}</p>
         <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-          {[`Asked ${momentLabel(a.askedAt)}`, rotaData && rotaData.balanceBefore !== null ? `balance ${rotaData.balanceBefore} days, ${rotaData.balanceAfter ?? '–'} after this` : null, detail.person.department ? `${detail.person.department}${detail.person.head ? `, head ${detail.person.head}` : ''}` : null, detail.person.site].filter(Boolean).join(' · ')}
+          {[`Asked ${momentLabel(a.askedAt)}`, rotaData && rotaData.balanceBefore !== null ? `balance ${rotaData.balanceBefore} days, ${rotaData.balanceAfter ?? '–'} after this` : null, detail.person.department ? `${detail.person.department}${detail.person.head ? `, head ${detail.person.head}` : ''}` : null, detail.person.organization].filter(Boolean).join(' · ')}
         </p>
         {detail.note ? <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{`“${detail.note}”`}</p> : null}
       </div>
