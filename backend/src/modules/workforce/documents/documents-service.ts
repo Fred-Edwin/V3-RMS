@@ -7,7 +7,7 @@ import type { AccessSubject } from '../_shared/workforce-access';
 import { rangeOf } from '../audit/audit-range';
 import { noteLogViewed } from '../audit/log-views';
 import { resolveActor } from '../people/people-context';
-import { toItem, toPanel, type DocumentItem, type DocumentPanel } from './document-view';
+import { siteOptionsFor, toItem, toPanel, type DocumentItem, type DocumentPanel } from './document-view';
 import { INDEX_READ_FRESH_MS, reconcileIfStale } from './reconcile';
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -35,6 +35,7 @@ export interface DocumentsPage {
   page: number;
   pageSize: number;
   types: { code: string; label: string }[];
+  sites: { id: string; name: string }[];
 }
 
 /** D2. Only the types this reader may read; a type they may not read is neither listed nor counted. */
@@ -55,6 +56,7 @@ export async function listDocuments(subject: AccessSubject, q: DocumentsQuery, n
     page: q.page,
     pageSize: q.pageSize,
     types: kinds.map((k) => ({ code: k.kind, label: KIND_INFO[k.kind].label })),
+    sites: siteOptionsFor(kinds, await documentsRepository.sites(ctx.companyId)),
   };
 }
 

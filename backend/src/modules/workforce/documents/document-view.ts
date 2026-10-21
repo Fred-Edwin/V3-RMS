@@ -14,6 +14,11 @@ export function statusOf(row: Pick<DocumentRow, 'status' | 'signedAt'>, now: Dat
 export const verifyUrlOf = (row: Pick<DocumentRow, 'kind' | 'number' | 'hashPrefix'>): string =>
   `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/verify/${KIND_INFO[row.kind as DocumentKind].slug}/${row.number}?h=${row.hashPrefix}`;
 
+/** The Site filter lists sites only to a reader who reads some type across the company; a reader limited to one site has no filter. */
+export function siteOptionsFor<S>(kinds: readonly { siteId: string | null }[], sites: readonly S[]): S[] {
+  return kinds.some((k) => k.siteId === null) ? [...sites] : [];
+}
+
 export interface DocumentItem {
   number: string;
   version: number;
