@@ -57,7 +57,7 @@ router.get(`${P}/:id/documents`, ...base, requireCapability('employee.read_sensi
 router.get(`${P}/:id/documents/:docId`, ...base, requireCapability('employee.read_sensitive', 'me.file'), c.openDocument); // R10
 router.patch(`${P}/:id`, ...base, requireCapability('employee.write_basic', 'employee.write_sensitive'), c.update); // W6
 router.post(`${P}/:id/photo`, ...base, requireCapability('employee.write_basic', 'me.file'), imageUpload.single('file'), c.photo); // W8
-router.put(`${P}/:id/pay-profile`, ...base, requireCapability('payprofile.write'), c.updatePayProfile); // W9
+router.put(`${P}/:id/pay-profile`, ...base, requireCapability('payprofile.write', 'payprofile.write_bank'), c.updatePayProfile); // W9
 router.post(`${P}/:id/pay-changes`, ...base, requireCapability('payprofile.write'), c.requestPayChange); // W10
 router.post(`${P}/:id/contract`, ...base, requireCapability('employee.write_sensitive'), c.createContract); // W12
 router.post(`${P}/:id/probation-decision`, ...base, requireCapability('employee.lifecycle'), c.decideProbation); // W13

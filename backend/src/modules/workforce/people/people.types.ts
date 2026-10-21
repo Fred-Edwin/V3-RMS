@@ -108,6 +108,10 @@ export interface NextStep {
 export interface EmployeeActions {
   editJob: boolean;
   changePay: boolean;
+  /** The IDs card's Edit (National ID, KRA PIN, NSSF, SHA, HELB): HR and above. */
+  editIds: boolean;
+  /** The bank and account: HR and above, and the Accountant. */
+  editBank: boolean;
   transfer: boolean;
   sendToSite: boolean;
   exit: boolean;

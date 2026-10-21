@@ -115,11 +115,16 @@ export const payService = {
   async updateProfile(subject: AccessSubject, id: string, body: PayProfileBody): Promise<PayView> {
     const ctx = await resolveActor(subject);
     const employee = await loadScoped(subject, ctx.companyId, id);
-    assertInScope(subject, 'payprofile.write', targetOf(employee));
+    // The Accountant's Edit is the bank and account only; HR and above also set overtime and hours.
+    const bankOnly = !inScope(subject, 'payprofile.write', targetOf(employee));
+    assertInScope(subject, bankOnly ? 'payprofile.write_bank' : 'payprofile.write', targetOf(employee));
     assertNotSelf(subject, targetOf(employee)); // nobody changes their own bank or pay details
     if (employee.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
 
     const { reason, ...fields } = body;
+    if (bankOnly && (['overtimeEligible', 'standardWeekHours', 'standardDayHours'] as const).some((k) => fields[k] !== undefined)) {
+      throw new ForbiddenError('You can change the bank and account only', 'FIELD_NOT_ALLOWED');
+    }
     const profile = employee.payProfile;
     if (fields.payoutMethod && !payoutAllowed(employee.payType === 'DAILY_RATE', fields.payoutMethod)) {
       throw new ValidationError(PAYOUT_CASH_REFUSAL, 'PAYOUT_NOT_ALLOWED');

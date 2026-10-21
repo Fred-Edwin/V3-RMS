@@ -63,6 +63,7 @@ employee.lifecycle           -    -    -    -    all  all  all
 probation.note               -    dept -    unit all  all  all
 payprofile.read              -    -    all  -    all  all  all
 payprofile.write             -    -    -    -    all  all  all
+payprofile.write_bank        -    -    all  -    all  all  all
 payprofile.approve           -    -    -    -    -    all  all
 org.read                     -    dept -    unit all  all  all
 org.write                    -    -    -    -    all  all  all

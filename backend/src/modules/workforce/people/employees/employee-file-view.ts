@@ -271,6 +271,8 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
   const actions: EmployeeActions = {
     editJob: canEditBasics,
     changePay: inScope(subject, 'payprofile.write', target) && notExited,
+    editIds: inScope(subject, 'employee.write_sensitive', target) && notExited,
+    editBank: (inScope(subject, 'payprofile.write', target) || inScope(subject, 'payprofile.write_bank', target)) && notExited,
     transfer: lifecycle && notExited,
     sendToSite: lifecycle && notExited && row.payType === 'MONTHLY_SALARY',
     exit: lifecycle && notExited && status !== 'NOTICE',
