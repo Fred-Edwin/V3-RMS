@@ -34,7 +34,7 @@ const SELF_KINDS: Record<string, FileRequestKind> = {
   accountNumber: 'BANK_DETAILS',
 };
 const STATUTORY_FIELDS = ['nssfNumber', 'shaNumber', 'helbNumber', 'kraPin'] as const;
-/** What HR verifies on My file: a change here resets the check, and is closed to the person once HR has verified. */
+/** The numbers the person edits on My file at any time; the old value goes in the audit entry masked. */
 const SELF_CHECKED_FIELDS = [...STATUTORY_FIELDS, 'nationalId', 'bankName', 'accountNumber'] as const;
 
 /** Only these may be changed under `employee.write_basic`; the rest need `employee.write_sensitive`. */
@@ -269,11 +269,10 @@ export const employeesService = {
     if (row.status === 'EXITED') throw new ConflictError('This file is closed', 'ALREADY_EXITED');
     const fields = Object.keys(input).filter((k) => input[k] !== undefined);
     const kinds = [...new Set(fields.flatMap((k) => (SELF_KINDS[k] ? [SELF_KINDS[k]] : [])))];
-    const touchesChecked = fields.some((k) => (SELF_CHECKED_FIELDS as readonly string[]).includes(k));
-    // Until HR has verified, the person may correct a typo; after that a change goes through HR (finding 65).
-    if (touchesChecked && row.statutoryVerifiedAt) {
-      throw new ConflictError('HR has already checked these details. Ask HR to change them.', 'STATUTORY_VERIFIED');
-    }
+    // Owner decision, 22 Oct 2026: the person edits their own numbers and bank at any time; it saves at once and HR does not re-check.
+    const bankChanged =
+      (input.bankName !== undefined && input.bankName !== (row.payProfile?.bankName ?? null)) ||
+      (input.accountNumber !== undefined && input.accountNumber !== (row.payProfile?.accountNumber ?? null));
     if (typeof input.nationalId === 'string' && input.nationalId !== row.nationalId && (await employeesRepository.nationalIdTaken(ctx.companyId, input.nationalId, row.id))) {
       throw new ConflictError('Someone on file already has this ID number', 'DUPLICATE_NATIONAL_ID');
     }
@@ -288,7 +287,6 @@ export const employeesService = {
     await runAudited(async (tx) => {
       await employeesRepository.updateEmployee(tx, row.id, ctx.companyId, {
         ...toDbFields(employeeInput),
-        ...(touchesChecked ? { statutoryVerifiedAt: null, statutoryVerifiedById: null } : {}),
       });
       if (bankName !== undefined || accountNumber !== undefined) {
         await payRepository.updateProfile(tx, row.id, {
@@ -316,6 +314,8 @@ export const employeesService = {
         ],
       };
     });
+    // The Accountant is told that a bank or account changed; the notification never carries the number (wording-built).
+    if (bankChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: row.id });
     return employeesService.getMine(subject);
   },
 
