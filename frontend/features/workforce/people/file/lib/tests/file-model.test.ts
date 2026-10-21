@@ -103,7 +103,7 @@ describe('next steps and buttons come from the actions the server allows', () =>
   });
   it('puts the brown button last on each tab, and only what is allowed', () => {
     expect(pageActions(joy(), 'overview').map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit']);
-    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview', true).map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Finish the file']);
+    expect(pageActions(joy({ nextSteps: [{ code: 'FINISH_FILE', dueOn: null }] }), 'overview', true).map((a) => a.label)).toEqual(['Send to another site', 'Transfer or exit', 'Complete file']);
     expect(pageActions(joy(), 'job-pay').map((a) => a.label)).toEqual(['Transfer or exit', 'Change pay']);
     expect(pageActions(joy(), 'documents').map((a) => a.label)).toEqual(['Upload a document', 'Create contract']);
     expect(pageActions(joy({ actions: NO }), 'job-pay')).toEqual([]);

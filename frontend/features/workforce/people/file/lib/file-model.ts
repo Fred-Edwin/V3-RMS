@@ -211,7 +211,7 @@ export function pageActions(file: EmployeeFile, tab: FileTabKey, canWriteSensiti
     if (a.undoExit) out.push({ key: 'undo', label: 'Undo exit', dialog: 'undo-exit' });
     if (a.sendToSite) out.push({ key: 'loan', label: 'Send to another site', dialog: 'loan' });
     if (moveOrExit) out.push({ key: 'move', label: 'Transfer or exit', dialog: 'move' });
-    if (hasFinishStep(file, canWriteSensitive)) out.push({ key: 'finish', label: 'Finish the file', dialog: 'finish', primary: true });
+    if (hasFinishStep(file, canWriteSensitive)) out.push({ key: 'finish', label: 'Complete file', dialog: 'finish', primary: true });
   }
   if (tab === 'job-pay') {
     if (moveOrExit) out.push({ key: 'move', label: 'Transfer or exit', dialog: 'move' });

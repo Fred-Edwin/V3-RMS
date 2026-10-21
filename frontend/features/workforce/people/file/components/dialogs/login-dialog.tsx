@@ -63,7 +63,7 @@ export function LoginDialog({ file, onClose, done }: FileDialogProps) {
       }
     >
       <DialogText label="Sign-in email" type="email" value={form.email} onChange={(v) => setForm((f) => ({ ...f, email: v }))} error={shown ? errors.email : undefined} />
-      <DialogPicker label="Access" value={form.loginRole} onChange={(v) => setForm((f) => ({ ...f, loginRole: v }))} options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] ?? r }))} error={shown ? errors.loginRole : undefined} />
+      <DialogPicker label="Login role" value={form.loginRole} onChange={(v) => setForm((f) => ({ ...f, loginRole: v }))} options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] ?? r }))} error={shown ? errors.loginRole : undefined} />
       <div className="flex items-end gap-2">
         <DialogText label="Temporary password" mono value={form.temporaryPassword} onChange={(v) => setForm((f) => ({ ...f, temporaryPassword: v }))} helper={`Shown once. It stops working after 7 days if ${first} has not signed in. ${first} sets a PIN at the first sign-in.`} error={shown ? (errors.temporaryPassword ?? passwordError ?? undefined) : (passwordError ?? undefined)} className="grow" />
         <Button type="button" variant="flat" className="mb-6 h-9 shrink-0" onClick={newPassword}>Generate another</Button>

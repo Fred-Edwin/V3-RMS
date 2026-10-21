@@ -90,7 +90,7 @@ export const STATUTORY_PANEL = {
     { label: 'Bank account', value: 'Entered by HR', tone: 'success' },
   ],
   audit: 'Changing a bank account later asks for a reason and tells the Accountant. Every view of these details is logged on the audit trail.',
-  held: 'Payroll is held until NSSF, SHA and a payout method are complete. It shows as "Needs finishing" on HR Home.',
+  held: 'Payroll is held until NSSF, SHA and a payout method are complete. It shows as "Blocks payroll" on HR Home.',
 } as const;
 
 export const LOGIN_PANEL = {

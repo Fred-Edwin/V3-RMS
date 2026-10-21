@@ -30,7 +30,7 @@ export function onboardingRows(file: EmployeeFile): OnboardingRow[] {
     .filter((c) => c.applicable)
     .map((c): OnboardingRow => {
       const base = { key: c.row, title: TITLES[c.row], done: c.done };
-      if (c.row === 'WHO_AND_JOB') return { ...base, status: c.done ? 'Done' : 'Needs finishing', waiting: false, action: !c.done && file.actions.editJob ? { label: 'Edit', dialog: 'edit-job' } : null };
+      if (c.row === 'WHO_AND_JOB') return { ...base, status: c.done ? 'Done' : 'Incomplete', waiting: false, action: !c.done && file.actions.editJob ? { label: 'Edit', dialog: 'edit-job' } : null };
       if (c.row === 'PAY_AND_BANK') return { ...base, status: c.done ? 'Done' : 'Waiting on HR', waiting: !c.done, action: !c.done && file.actions.changePay ? { label: 'Add pay', dialog: 'change-pay' } : null };
       if (c.row === 'LOGIN') return { ...base, status: c.done ? 'Link sent to their email' : 'No login yet', waiting: !c.done, action: !c.done && file.actions.createLogin ? { label: 'Create login', dialog: 'login' } : null };
       if (c.row === 'CONTRACT') return { ...base, status: c.done ? 'On file' : 'not urgent', waiting: false, action: !c.done && file.actions.createContract ? { label: 'Assign contract', dialog: 'contract' } : null };

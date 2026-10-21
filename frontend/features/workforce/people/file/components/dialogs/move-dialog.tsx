@@ -67,7 +67,7 @@ export function MoveDialog({ file, onClose, done }: FileDialogProps) {
     <KitDialog
       open
       onOpenChange={(o) => !o && onClose()}
-      title={`Move ${file.name}`}
+      title={`${first}'s move or exit`}
       description={[file.position?.name, file.department ? `${file.department.name} department` : null, file.organization.name].filter(Boolean).join(' · ')}
       width={620}
       busy={action.busy}

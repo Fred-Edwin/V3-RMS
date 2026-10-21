@@ -32,7 +32,7 @@ export function fileCellOf(row: Pick<EmployeeListRow, 'status' | 'gaps' | 'proba
   if (row.status === 'EXITED') return { tone: 'neutral', label: 'Exited' };
   const blocking = row.gaps.filter((g) => BLOCKING_GAPS.includes(g));
   if (blocking.length === 1 && blocking[0]) return { tone: 'warning', label: GAP_WORDS[blocking[0]] };
-  if (blocking.length > 1) return { tone: 'warning', label: 'Needs finishing' };
+  if (blocking.length > 1) return { tone: 'warning', label: 'Incomplete' };
   if (row.probationEndsOn) return { tone: 'warning', label: `Probation ends ${formatDayMonth(row.probationEndsOn)}` };
   return { tone: 'success', label: 'Complete' };
 }
