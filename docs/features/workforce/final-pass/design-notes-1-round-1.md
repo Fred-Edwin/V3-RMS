@@ -26,7 +26,7 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 - Right side stays white. Cards 480 px (3.1, 4.1, 4.3); the step marker also shows on 4.1 and 4.2 with Password active, caramel rule above headings, caramel hairline at the column join, support strip 64 px: "Need help? Call or WhatsApp Fred on +254 113 176 613 · Every day, 6 a.m. to 10 p.m." On every sign-in screen.
 - Device step copy: "Confirm this device", "This is your first sign-in on this computer/phone.", "Trust this device", "Use just this once", "We will ask again next time". Device shown as "Chrome on Linux" or "Android phone" plus place and time chips.
 - Steps marker (Password, This device, PIN) is kept large: 20 px icons desktop, 18 px phone.
-- PIN: four digits, choose then enter again, not 1234 or one repeated digit. States (4.5): wrong password, locked, offline, session ended.
+- PIN: four digits, choose then enter again, not 1234 or one repeated digit. States (4.5): wrong password, offline, session ended. **Accounts are never locked for wrong tries (owner, 21 Oct)**; the admin Home shows "Password resets" instead of "Locked out".
 - Login placeholder: `firstname.secondname@wendo.co.ke`; "Forgot your password? Ask your manager or HR for a new one."
 
 ## Naming table
@@ -55,4 +55,4 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 Edit button and person label, My file on the phone, the department head's probation card, the refusal screen, Act as full design (a five-screen sketch exists: frames 6.1 to 6.5), Kitchen/Bar/Service work pages.
 
 ## Act as sketch (frames 6.1 to 6.5, for owner reaction, not approved)
-Users row "Act as" (System Admin only) -> dialog: reason chips, optional note, the admin's own PIN, 30-minute limit -> banner "Acting as <name> · <position> · <site>", reason, minutes left, End session -> summary of changes, "recorded as Wendo Admin, acting as <name>" -> Directors' read-only "Support sessions" page. In 6.1, 6.3 and 6.5 the cloned sidebar highlights the wrong row; fix when built.
+Users row "Act as" (System Admin only) -> dialog: reason chips, optional note, the admin's own PIN, 30-minute limit -> banner "Acting as <name> · <position> · <site>", reason, minutes left, End session -> summary of changes, "recorded as Wendo Admin, acting as <name>" -> Directors' read-only "Support sessions" page. Sidebars in 6.1, 6.3, 6.5 highlight Users, HR Overview and Audit log.
