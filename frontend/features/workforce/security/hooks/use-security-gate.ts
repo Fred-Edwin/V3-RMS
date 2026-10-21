@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { SESSION_GATE_EVENT } from '@/lib/apiClient';
@@ -25,20 +25,32 @@ export function useSecurityGate(enabled: boolean) {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [state, setState] = useState<{ userId: string; gate: GateState } | null>(null);
 
-  const check = useCallback(async (id: string): Promise<void> => {
+  // One check at a time: a refused call raises the gate event again, and that must not start a second check on top of the first.
+  const running = useRef(false);
+
+  /** `phoneOnly` skips the password state: a removed phone is refused on that route too, so reading it would only raise the event again. */
+  const check = useCallback(async (id: string, phoneOnly = false): Promise<void> => {
+    if (running.current) return;
+    running.current = true;
     try {
-      if ((await sessionReads.state()).mustChangePassword) {
-        setState({ userId: id, gate: { step: 'reset' } });
-        return;
+      if (!phoneOnly) {
+        try {
+          if ((await sessionReads.state()).mustChangePassword) {
+            setState({ userId: id, gate: { step: 'reset' } });
+            return;
+          }
+        } catch {
+          // No signal or a refusal: carry on to the phone check.
+        }
       }
-    } catch {
-      // No signal or a refusal: carry on to the phone check.
-    }
-    try {
-      const seen = await phoneWrites.seen();
-      setState({ userId: id, gate: seen.phoneQuestion ? { step: 'phone', phone: seen.phone } : { step: 'clear' } });
-    } catch {
-      setState({ userId: id, gate: { step: 'clear' } });
+      try {
+        const seen = await phoneWrites.seen();
+        setState({ userId: id, gate: seen.phoneQuestion ? { step: 'phone', phone: seen.phone } : { step: 'clear' } });
+      } catch {
+        setState({ userId: id, gate: { step: 'clear' } });
+      }
+    } finally {
+      running.current = false;
     }
   }, []);
 
@@ -57,8 +69,8 @@ export function useSecurityGate(enabled: boolean) {
           router.replace(`/login?reason=ended&next=${encodeURIComponent(here)}`);
         });
       } else {
-        // PASSWORD_RESET_REQUIRED: ask the state; PHONE_REMOVED: the phone is asked again.
-        void check(userId);
+        // PASSWORD_RESET_REQUIRED: ask the state; PHONE_REMOVED: the phone is asked again (the state route refuses a removed phone).
+        void check(userId, code === 'PHONE_REMOVED');
       }
     };
     window.addEventListener(SESSION_GATE_EVENT, onGate);
