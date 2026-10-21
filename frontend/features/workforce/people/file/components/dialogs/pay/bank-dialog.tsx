@@ -8,7 +8,8 @@ import type { PayProfileBody } from '../../../../_shared/types/people-requests';
 import type { PayoutMethod } from '../../../../_shared/types/people-types';
 import { useFileAction } from '../../../hooks/use-file-action';
 import { firstName } from '../../../lib/file-model';
-import { DialogError, DialogText, FooterNote } from '../dialog-fields';
+import { KENYAN_BANKS, OTHER_BANK, isListedBank } from '../../../../_shared/lib/kenyan-banks';
+import { DialogError, DialogPicker, DialogText, FooterNote } from '../dialog-fields';
 import type { FileDialogProps } from '../file-dialogs';
 
 interface BankForm {
@@ -51,7 +52,7 @@ export function BankDialog({ file, onClose, done }: FileDialogProps) {
       open
       onOpenChange={(o) => !o && onClose()}
       title={`How ${first} is paid`}
-      description="Bank account, M-Pesa or cash."
+      description={file.employment === 'CASUAL' ? 'Bank account, M-Pesa or cash.' : 'Bank account or M-Pesa.'}
       busy={action.busy}
       footer={
         <>
@@ -61,10 +62,19 @@ export function BankDialog({ file, onClose, done }: FileDialogProps) {
         </>
       }
     >
-      <ChoiceChips legend="How are they paid out?" value={form.method} onChange={(v) => set({ method: v as PayoutMethod })} options={[{ value: 'BANK', label: 'Bank account' }, { value: 'MPESA', label: 'M-Pesa' }, { value: 'CASH', label: 'Cash' }]} />
+      <ChoiceChips legend="How are they paid out?" value={form.method} onChange={(v) => set({ method: v as PayoutMethod })} options={[{ value: 'BANK', label: 'Bank account' }, { value: 'MPESA', label: 'M-Pesa' }, ...(file.employment === 'CASUAL' ? [{ value: 'CASH', label: 'Cash' }] : [])]} />
       {form.method === 'BANK' ? (
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <DialogText label="Bank" value={form.bankName} onChange={(v) => set({ bankName: v })} />
+          <DialogPicker
+            label="Bank"
+            value={form.bankName === '' ? '' : isListedBank(form.bankName) ? form.bankName : OTHER_BANK}
+            placeholder="Choose the bank"
+            options={[...KENYAN_BANKS, OTHER_BANK].map((b) => ({ value: b, label: b }))}
+            onChange={(v) => set({ bankName: v === OTHER_BANK ? ' ' : v })}
+          />
+          {form.bankName !== '' && !isListedBank(form.bankName) ? (
+            <DialogText label="Name of the bank" value={form.bankName.trim() === '' ? '' : form.bankName} onChange={(v) => set({ bankName: v === '' ? ' ' : v })} />
+          ) : null}
           <DialogText label="Account number" mono value={form.accountNumber} onChange={(v) => set({ accountNumber: v })} />
           <DialogText label="Account name" value={form.accountName} onChange={(v) => set({ accountName: v })} className="col-span-2 max-sm:col-span-1" />
           <DialogText label="Reason" hint="optional" value={form.reason} onChange={(v) => set({ reason: v })} helper="Needed when you replace an account that is already on file." className="col-span-2 max-sm:col-span-1" />
