@@ -41,6 +41,8 @@ export const PageQuerySchema = z.object(paging);
 export const DuplicateQuerySchema = z
   .object({ nationalId: text(20).optional(), phone: phone.optional(), email: email.optional() })
   .refine((v) => v.nationalId !== undefined || v.phone !== undefined || v.email !== undefined, 'Give at least one to check');
+export const SignInSuggestQuerySchema = z.object({ name: z.string().trim().min(1).max(120) });
+export const TemporaryPasswordBodySchema = z.strictObject({ employeeId: id.optional() });
 export const PayChangesQuerySchema = z.object({ status: z.enum(['PENDING', 'APPROVED', 'DECLINED', 'CANCELLED']).default('PENDING') });
 
 // ---- hire (the five steps; a casual has three) ---------------------------------------------

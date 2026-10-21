@@ -8,7 +8,10 @@ import { exitService } from './lifecycle/exit-service';
 import { movesService } from './lifecycle/moves-service';
 import { probationService } from './lifecycle/probation-service';
 import { payService } from './pay/pay-service';
+import { signInService } from './sign-in/sign-in-service';
 import {
+  SignInSuggestQuerySchema,
+  TemporaryPasswordBodySchema,
   ChangeParamsSchema,
   ContractSchema,
   CreateLoginSchema,
@@ -136,6 +139,12 @@ export const employeesController = {
   },
   verifyStatutory: async (req: Request, res: Response): Promise<void> => {
     ok(res, await employeesService.verifyStatutory(subjectOf(req), IdParamsSchema.parse(req.params).id));
+  },
+  suggestSignIn: async (req: Request, res: Response): Promise<void> => {
+    ok(res, await signInService.suggestEmail(subjectOf(req), SignInSuggestQuerySchema.parse(req.query).name));
+  },
+  newTemporaryPassword: async (req: Request, res: Response): Promise<void> => {
+    ok(res, await signInService.newTemporaryPassword(subjectOf(req), TemporaryPasswordBodySchema.parse(req.body).employeeId), 201);
   },
   createLogin: async (req: Request, res: Response): Promise<void> => {
     ok(res, await hireService.createLogin(subjectOf(req), IdParamsSchema.parse(req.params).id, CreateLoginSchema.parse(req.body)));
