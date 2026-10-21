@@ -12,6 +12,7 @@ const userAuthSelect = {
   isActive: true,
   passwordHash: true,
   pinHash: true,
+  temporaryPasswordExpiresAt: true,
   site: {
     select: {
       name: true,
@@ -85,7 +86,15 @@ export const authRepository = {
   updatePassword: async (userId: string, passwordHash: string) => {
     return prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, temporaryPasswordExpiresAt: null },
+    });
+  },
+
+  /** Sets the last moment an unused temporary password works, or clears it with null. */
+  setTemporaryPasswordExpiry: async (userId: string, expiresAt: Date | null) => {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { temporaryPasswordExpiresAt: expiresAt },
     });
   },
 

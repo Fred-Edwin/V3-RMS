@@ -15,6 +15,7 @@ import { probationEnd } from '../people-dates';
 import type { FileRequestKind } from '../people.constants';
 import type { HireResult } from '../people.types';
 import type { CreateLoginSchema, DraftBodySchema, HireBodySchema } from '../people-validators';
+import { TEMPORARY_PASSWORD_DAYS } from '../sign-in/temporary-password';
 import { draftsRepository } from './drafts-repository';
 import { hireRepository } from './hire-repository';
 
@@ -229,7 +230,7 @@ export const hireService = {
 
     // The account is created through the legacy staff service (never logs or stores the password).
     const created = await accountGateway.createLogin(
-      { name: row.name, email: body.email, phone: row.personalPhone, role: body.loginRole, siteId: row.siteId, temporaryPassword: body.temporaryPassword },
+      { name: row.name, email: body.email, phone: row.personalPhone, role: body.loginRole, siteId: row.siteId, temporaryPassword: body.temporaryPassword, passwordExpiresAt: new Date(now.getTime() + TEMPORARY_PASSWORD_DAYS * 86_400_000) },
       subject.id,
     );
     try {
