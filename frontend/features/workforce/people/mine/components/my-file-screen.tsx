@@ -12,7 +12,7 @@ import { PhotoDialog } from '../../file/components/dialogs/upload-dialogs';
 import { SensitivePanel } from '../../file/components/sensitive/sensitive-panel';
 import { firstName } from '../../file/lib/file-model';
 import { jobRows } from '../../file/lib/file-rows';
-import { finishProgress, stillToFinish, type OwnDialog } from '../lib/own-file';
+import { finishProgress, stillToFinish, type OwnDialog, type OwnForm } from '../lib/own-file';
 import { EmergencyDialog, IdBankDialog, NumbersDialog } from './own-dialogs';
 
 /**
