@@ -1,13 +1,13 @@
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
-import { nairobiClockOf, nairobiDateOf, nairobiToday } from '../../_shared/time/nairobi-time';
+import { addDays, nairobiClockOf, nairobiDateOf, nairobiToday } from '../../_shared/time/nairobi-time';
 import { workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { resolveActor } from '../../people/people-context';
 import { wasntMe } from '../../security';
 import { rangeOf } from '../audit-range';
 import type { MyRecordQuery } from '../audit-validators';
 import { myRecordRepository, type RecordFilter } from './my-record-repository';
-import { cardRows, categoriesOfChip, chipOfCategory, needsAnswer, wordForPerson, type CardRow, type RecordChip } from './my-record-wording';
+import { cardRows, categoriesOfChip, chipOfCategory, needsAnswer, whenWords, wordForPerson, type CardRow, type RecordChip } from './my-record-wording';
 import type { AuditCategoryCode } from '../../_shared/audit/audit.types';
 
 export interface RecordItem {
@@ -79,7 +79,8 @@ export async function myRecordEntry(subject: AccessSubject, id: string): Promise
   if (!entry) throw new NotFoundError('We could not find that entry.', 'ENTRY_NOT_FOUND');
   const word = wordForPerson(entry, subject.id);
   const answered = (await myRecordRepository.answersOf(subject.id, [id])).get(id);
-  const when = `${nairobiDateOf(entry.occurredAt)} ${nairobiClockOf(entry.occurredAt)}`;
+  const today = nairobiToday(new Date());
+  const when = whenWords(nairobiDateOf(entry.occurredAt), nairobiClockOf(entry.occurredAt), today, addDays(today, -1));
   return { id, title: word.title, flagged: word.flagged, rows: cardRows(entry, subject.id, when), needsAnswer: word.needsAnswer && !answered, ...(answered ? { answered } : {}), note: word.needsAnswer ? NOT_ME_NOTE : null };
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StoredEntry } from '../audit-rows';
-import { cardRows, categoriesOfChip, chipOfCategory, needsAnswer, wordForPerson } from './my-record-wording';
+import { cardRows, categoriesOfChip, chipOfCategory, needsAnswer, whenWords, wordForPerson } from './my-record-wording';
 
 const entry = (over: Partial<StoredEntry>): StoredEntry => ({
   id: 'e1', seq: 1n, occurredAt: new Date('2026-10-19T09:48:00.000Z'), siteId: null, action: 'payslip.opened', category: 'PAYSLIP_ACCESS', subjectType: 'Payslip', subjectId: 'p1',
@@ -45,6 +45,12 @@ describe('chips', () => {
   it('"All" holds every chip category and never the log itself', () => {
     expect(categoriesOfChip('all')).not.toContain('LOG_ACCESS');
     expect(categoriesOfChip('all')).toEqual(expect.arrayContaining(['PAYSLIP_ACCESS', 'TIME', 'LEAVE', 'SECURITY', 'PEOPLE', 'DISCIPLINE']));
+  });
+
+  it('the card says Today, Yesterday or a short date, never a raw timestamp', () => {
+    expect(whenWords('2026-10-21', '05:58', '2026-10-21', '2026-10-20')).toBe('Today 05:58');
+    expect(whenWords('2026-10-20', '22:16', '2026-10-21', '2026-10-20')).toBe('Yesterday 22:16');
+    expect(whenWords('2026-10-09', '23:41', '2026-10-21', '2026-10-20')).toBe('9 Oct 23:41');
   });
 
   it('each category maps to one chip, and File and Conduct exist (SD11)', () => {
