@@ -1,0 +1,9 @@
+{
+  "id": "people-sample",
+  "kicker": "WORKFORCE · 01",
+  "title": "People",
+  "summary": "Hiring, files and pay details, in one place.",
+  "list": ["Find anyone", "Open their file", "See pay and documents"],
+  "recap": "PEOPLE · WHAT YOU SAW",
+  "scenes": ["people-sample"]
+}

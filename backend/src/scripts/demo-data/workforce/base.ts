@@ -69,7 +69,7 @@ export async function seedBase(): Promise<World> {
       data: {
         companyId: company.id, siteId: siteIds[p.site], userId: user.id, employeeNumber: `WND-${String(PEOPLE.indexOf(p) + 1).padStart(3, '0')}`, name: p.name,
         positionId: positions.get(p.position) ?? null, ...(deptId ? { departmentId: deptId } : {}), ...(reportsTo ? { reportsToId: reportsTo } : {}),
-        status: 'ACTIVE', payType: 'MONTHLY_SALARY', tracksTime: tracked, startDate: date(p.start), probationConfirmedOn: date(p.start),
+        status: 'ACTIVE', contractStatus: 'ACTIVE', photoUrl: avatar(p.name, i), payType: 'MONTHLY_SALARY', tracksTime: tracked, startDate: date(p.start), probationConfirmedOn: date(p.start),
         nationalId: String(30000000 + PEOPLE.indexOf(p) * 7919), kraPin: `A0${String(10000000 + PEOPLE.indexOf(p) * 137)}Z`, nssfNumber: `NS${String(500000 + PEOPLE.indexOf(p))}`, shaNumber: `SH${String(700000 + PEOPLE.indexOf(p))}`,
         dateOfBirth: date(`${1984 + (i % 16)}-0${(i % 9) + 1}-1${i % 9}`), personalPhone: phone(i), physicalAddress: 'Nyeri', emergencyName: 'Demo Contact', emergencyRelation: 'Sibling', emergencyPhone: phone(i + 40),
       },
@@ -86,6 +86,13 @@ export async function seedBase(): Promise<World> {
   return { companyId: company.id, siteIds, employeeIds, userIds, departments };
 }
 
+/** A self-contained initials avatar (an inline SVG): the demo has no real photos and loads nothing from outside. */
+const TINTS = ['#9FB4FF', '#C7D2FE', '#A7C7E7', '#B8C0CC', '#C3B8E8', '#9CC5C0'];
+const avatar = (name: string, n: number): string => {
+  const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="${TINTS[n % TINTS.length]}"/><text x="48" y="58" font-family="Arial" font-size="34" font-weight="600" text-anchor="middle" fill="#1B2140">${initials}</text></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+};
 const phone = (n: number): string => `07${String(10000000 + n * 3571).slice(0, 8)}`;
 
 async function seedPay(people: Person[], employees: Map<string, string>, users: Map<string, string>): Promise<void> {
