@@ -59,6 +59,8 @@ export interface PeopleSummary {
 
 export interface ProbationNoteView {
   authorName: string;
+  /** "Head of Kitchen": the author's position when they have a file (HR's Decide dialog shows it). */
+  authorPosition: string | null;
   authorKind: 'HEAD' | 'BRANCH_MANAGER' | 'HR';
   verdict: ProbationVerdict;
   note: string | null;
@@ -176,6 +178,9 @@ export interface PayChangeRow {
   reason: PayChangeReason;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
   requestedByName: string | null;
+  /** "HR Manager · Head Office": the asker's position and site when they have a file; null otherwise. */
+  requestedByPosition: string | null;
+  requestedBySite: string | null;
   requestedOn: DateString;
   decidedByName: string | null;
   decidedOn: DateString | null;

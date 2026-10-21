@@ -25,9 +25,15 @@ type ChangeRow = Awaited<ReturnType<typeof payRepository.historyOf>>[number];
 
 const money = (amount: { toFixed(places: number): string }): string => amount.toFixed(2);
 
+async function askerBriefs(userIds: readonly string[]): Promise<Map<string, { position: string | null; site: string | null }>> {
+  const rows = await employeesRepository.findBriefsByUserIds(userIds);
+  return new Map(rows.flatMap((r) => (r.userId ? [[r.userId, { position: r.position?.name ?? null, site: r.site.name }] as const] : [])));
+}
+
 async function changeRows(rows: readonly ChangeRow[], employeeName: string): Promise<PayChangeRow[]> {
   const ids = [...new Set(rows.flatMap((r) => [r.requestedById, r.decidedById]).filter((id): id is string => !!id))];
   const names = new Map((await employeesRepository.findUserNames(ids)).map((u) => [u.id, u.name]));
+  const briefs = await askerBriefs(ids);
   return rows.map((r) => ({
     id: r.id,
     employeeId: r.employeeId,
@@ -38,6 +44,8 @@ async function changeRows(rows: readonly ChangeRow[], employeeName: string): Pro
     reason: r.reason as PayChangeReason,
     status: r.status,
     requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,
+    requestedByPosition: r.requestedById ? (briefs.get(r.requestedById)?.position ?? null) : null,
+    requestedBySite: r.requestedById ? (briefs.get(r.requestedById)?.site ?? null) : null,
     requestedOn: nairobiDateOf(r.requestedAt),
     decidedByName: r.decidedById ? (names.get(r.decidedById) ?? null) : null,
     decidedOn: r.decidedAt ? nairobiDateOf(r.decidedAt) : null,
@@ -322,6 +330,7 @@ export const payService = {
     const rows = await payRepository.listChanges(ctx.companyId, status);
     const ids = [...new Set(rows.flatMap((r) => [r.requestedById, r.decidedById]).filter((id): id is string => !!id))];
     const names = new Map((await employeesRepository.findUserNames(ids)).map((u) => [u.id, u.name]));
+    const briefs = await askerBriefs(ids);
     return rows.map((r) => ({
       id: r.id,
       employeeId: r.employeeId,
@@ -332,6 +341,8 @@ export const payService = {
       reason: r.reason as PayChangeReason,
       status: r.status,
       requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,
+      requestedByPosition: r.requestedById ? (briefs.get(r.requestedById)?.position ?? null) : null,
+      requestedBySite: r.requestedById ? (briefs.get(r.requestedById)?.site ?? null) : null,
       requestedOn: nairobiDateOf(r.requestedAt),
       decidedByName: r.decidedById ? (names.get(r.decidedById) ?? null) : null,
       decidedOn: r.decidedAt ? nairobiDateOf(r.decidedAt) : null,

@@ -174,6 +174,10 @@ export const employeesRepository = {
   findUserNames: (ids: readonly string[]) =>
     prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } }),
 
+  /** Position and site of people who have a file, by their login (for "Asked by Mercy Achieng, HR Manager, Head Office"). */
+  findBriefsByUserIds: (ids: readonly string[]) =>
+    prisma.employee.findMany({ where: { userId: { in: [...ids] } }, select: { userId: true, position: { select: { name: true } }, site: { select: { name: true } } } }),
+
   /** Who made the latest entry of one kind about a person, for the Activity tab ("confirmed by Mercy Achieng"). */
   async lastActorOf(companyId: string, employeeId: string, actions: readonly string[]): Promise<{ action: string; actorName: string; after: unknown } | null> {
     return prisma.auditEntry.findFirst({

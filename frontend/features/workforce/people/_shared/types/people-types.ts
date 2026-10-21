@@ -68,6 +68,7 @@ export interface PeopleSummary {
 
 export interface ProbationNoteView {
   authorName: string;
+  authorPosition: string | null;
   authorKind: 'HEAD' | 'BRANCH_MANAGER' | 'HR';
   verdict: ProbationVerdict;
   note: string | null;

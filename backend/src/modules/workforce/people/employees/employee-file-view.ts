@@ -173,6 +173,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
   const rule = await getEffectiveRuleGroup(row.siteId, today, 'PROBATION');
   const authorIds = [...row.probationNotes.map((n) => n.authorId), ...(spell?.endedById ? [spell.endedById] : [])];
   const names = new Map((await employeesRepository.findUserNames([...new Set(authorIds)])).map((u) => [u.id, u.name]));
+  const authorPositions = new Map((await employeesRepository.findBriefsByUserIds([...new Set(authorIds)])).flatMap((b) => (b.userId ? [[b.userId, b.position?.name ?? null] as const] : [])));
 
   const probationEndsOn = dateOrNull(row.probationEndsOn);
   const startDate = fromDateColumn(row.startDate);
@@ -189,6 +190,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
         confirmationWaitingForContract: row.probationDecidedOn !== null && row.probationConfirmedOn === null,
         notes: row.probationNotes.map((n) => ({
           authorName: names.get(n.authorId) ?? 'Unknown',
+          authorPosition: authorPositions.get(n.authorId) ?? null,
           authorKind: n.authorKind as 'HEAD' | 'BRANCH_MANAGER' | 'HR',
           verdict: n.verdict as ProbationVerdict,
           note: n.note,

@@ -2,14 +2,14 @@
 
 import * as React from 'react';
 
-import { Callout, ChoiceChips, DialogButton, KitDialog, RadioCards } from '../../../../_shared';
-import type { ProbationVerdict } from '../../../_shared/types/people-types';
+import { Callout, DialogButton, KitDialog, RadioCards } from '../../../../_shared';
 import { useLookups } from '../../../_shared/hooks/use-people-data';
 import { formatDayMonth } from '../../../_shared/lib/people-dates';
 import { peopleWrites } from '../../../_shared/services/people-writes';
 import { useFileAction } from '../../hooks/use-file-action';
 import { hasErrors, toProbationBody, validateProbation, type ProbationChoice, type ProbationForm } from '../../lib/dialog-forms';
 import { firstName, probationCard } from '../../lib/file-model';
+import { headReportBlock } from '../../lib/probation-report';
 import { DialogError, DialogNumber, DialogTextArea, FooterNote } from './dialog-fields';
 import type { FileDialogProps } from './file-dialogs';
 
@@ -18,6 +18,7 @@ export function ProbationDialog({ file, onClose, done }: FileDialogProps) {
   const lookups = useLookups();
   const probation = file.probation;
   const card = probationCard(file);
+  const report = headReportBlock(file);
   const first = firstName(file.name);
   const [form, setForm] = React.useState<ProbationForm>({ choice: 'CONFIRM', months: '1', reason: '' });
   const [shown, setShown] = React.useState(false);
@@ -53,13 +54,22 @@ export function ProbationDialog({ file, onClose, done }: FileDialogProps) {
       <div className="grid grid-cols-2 border border-wds-border max-sm:grid-cols-1">
         <div className="flex flex-col gap-0.5 px-3.5 py-2.5">
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Head&apos;s report</span>
-          <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{card?.report?.replace('Report from ', '') ?? 'No report yet'}</span>
+          <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{report ? report.verdictLabel : 'No report yet'}</span>
         </div>
         <div className="flex flex-col gap-0.5 border-l border-wds-border px-3.5 py-2.5 max-sm:border-l-0 max-sm:border-t">
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Branch Manager</span>
           <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{probation?.notes.some((n) => n.authorKind === 'BRANCH_MANAGER') ? 'Note sent' : 'No note yet'}</span>
         </div>
       </div>
+      {report ? (
+        <section aria-label="The head's report" className="flex flex-col gap-1 border border-wds-border bg-wds-neutral-50 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{report.from}</span>
+            <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">{report.sent}</span>
+          </div>
+          {report.note ? <p className="m-0 font-wds-sans text-[14px] leading-5 text-wds-text-ink">{report.note}</p> : null}
+        </section>
+      ) : null}
       <RadioCards
         legend="Your decision"
         legendStyle="caps"
@@ -85,38 +95,3 @@ export function ProbationDialog({ file, onClose, done }: FileDialogProps) {
   );
 }
 
-/** A note on a probation (W14): good or concerns, and a few words. It goes to HR with the head's report. */
-export function NoteDialog({ file, onClose, done }: FileDialogProps) {
-  const [verdict, setVerdict] = React.useState<ProbationVerdict | null>(null);
-  const [note, setNote] = React.useState('');
-  const [shown, setShown] = React.useState(false);
-  const action = useFileAction((m) => done(m ?? 'Note sent to HR.'));
-  const first = firstName(file.name);
-  const needsWords = verdict === 'CONCERNS' && note.trim() === '';
-  const send = (): void => {
-    setShown(true);
-    if (!verdict || needsWords) return;
-    void action.run(() => peopleWrites.probationNote(file.id, { verdict, ...(note.trim() ? { note: note.trim() } : {}) }), 'Your note is with HR.');
-  };
-  return (
-    <KitDialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={`Your view on ${first}'s probation`}
-      description="HR decides. Your note goes with the head's report."
-      busy={action.busy}
-      footer={
-        <>
-          <FooterNote>Logged, with your name.</FooterNote>
-          <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={action.busy}>Cancel</DialogButton>
-          <DialogButton kind="primary" size="lg" onClick={send} disabled={action.busy}>{action.busy ? 'Sending…' : 'Send to HR'}</DialogButton>
-        </>
-      }
-    >
-      <ChoiceChips legend="How has it gone?" hint="required" value={verdict} onChange={(v) => setVerdict(v as ProbationVerdict)} options={[{ value: 'GOOD', label: 'Good' }, { value: 'CONCERNS', label: 'I have concerns' }]} />
-      {shown && !verdict ? <p role="alert" className="m-0 font-wds-sans text-[12px] text-wds-error-fg">Choose one.</p> : null}
-      <DialogTextArea label="A few words" hint={verdict === 'CONCERNS' ? 'required' : 'optional'} value={note} onChange={setNote} rows={3} error={shown && needsWords ? 'Say what the concerns are.' : undefined} />
-      <DialogError message={action.error} />
-    </KitDialog>
-  );
-}

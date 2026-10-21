@@ -15,7 +15,8 @@ import { MoveDialog } from './move-dialog';
 import { IdsBankDialog } from './ids-bank-dialog';
 import { ChangePayDialog } from './pay/change-pay-dialog';
 import { PayDecisionDialog } from './pay/pay-decision-dialog';
-import { NoteDialog, ProbationDialog } from './probation-dialog';
+import { ProbationDialog } from './probation-dialog';
+import { ProbationReportDialog } from './report-dialog';
 import { PhotoDialog, UploadDialog } from './upload-dialogs';
 
 /**
@@ -42,7 +43,7 @@ const DIALOGS: Record<FileDialogKey, React.ComponentType<FileDialogProps>> = {
   move: MoveDialog,
   loan: LoanDialog,
   probation: ProbationDialog,
-  note: NoteDialog,
+  note: ProbationReportDialog,
   contract: ContractDialog,
   upload: UploadDialog,
   photo: PhotoDialog,
