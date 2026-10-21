@@ -106,7 +106,7 @@ describe.skipIf(!enabled)('Needs you', () => {
         if (r.siteId && ['overtime', 'clock-fix', 'shift-closed', 'month', 'casual-pay'].includes(r.kind)) expect(switches.map((s) => s.siteId), `${email} ${r.id}`).toContain(r.siteId);
       }
     }
-    expect(registry.registeredSources().map((s) => s.id)).toEqual(['time', 'month-and-casual', 'pay', 'security']);
+    expect(registry.registeredSources().map((s) => s.id)).toEqual(['time', 'month-and-casual', 'pay', 'security', 'pay-change']);
   });
 
   it('a Director reminds once per item per day; a second press is REMINDER_ALREADY_SENT and a non-Director gets 404', async () => {

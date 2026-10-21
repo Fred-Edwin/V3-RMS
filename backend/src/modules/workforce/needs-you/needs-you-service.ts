@@ -2,6 +2,7 @@ import { NotFoundError } from '../../../utils/errors';
 import { logger } from '../../../utils/logger';
 import { workforceCan, type AccessSubject } from '../_shared/workforce-access';
 import { resolveActor } from '../people/people-context';
+import { isOverdue } from './needs-you-groups';
 import { needsYouQueries } from './needs-you-repository';
 import { emptyBadges, type BadgeCounts, type NeedsYouContext, type NeedsYouRow, type NeedsYouSource } from './needs-you-types';
 import { kindOrder, registeredSources, sourceForRow } from './sources/registry';
@@ -58,32 +59,39 @@ export async function listNeedsYou(subject: AccessSubject, now: Date = new Date(
 }
 
 /** Counts only, for the menu badges. A source with no `count` is tallied from its rows, so a badge equals the card by construction. */
-export async function countNeedsYou(subject: AccessSubject, now: Date = new Date()): Promise<{ total: number; badges: BadgeCounts; partial: boolean }> {
+export async function countNeedsYou(subject: AccessSubject, now: Date = new Date()): Promise<{ total: number; badges: BadgeCounts; overdue: BadgeCounts; partial: boolean }> {
   assertReader(subject);
   const ctx = await contextFor(subject, now);
   const badges = emptyBadges();
+  const overdue = emptyBadges();
   let total = 0;
   const results = await Promise.all(
     registeredSources().map((s) =>
       guarded(
         s,
-        async (): Promise<Partial<BadgeCounts>> => {
-          if (s.count) return s.count(subject, ctx);
-          const tally: Partial<BadgeCounts> = {};
-          for (const row of await s.list(subject, ctx)) if (row.badge) tally[row.badge] = (tally[row.badge] ?? 0) + 1;
-          return tally;
+        async (): Promise<{ counts: Partial<BadgeCounts>; late: Partial<BadgeCounts> }> => {
+          if (s.count) return { counts: await s.count(subject, ctx), late: {} };
+          const counts: Partial<BadgeCounts> = {};
+          const late: Partial<BadgeCounts> = {};
+          for (const row of await s.list(subject, ctx)) {
+            if (!row.badge) continue;
+            counts[row.badge] = (counts[row.badge] ?? 0) + 1;
+            if (isOverdue(row, now)) late[row.badge] = (late[row.badge] ?? 0) + 1;
+          }
+          return { counts, late };
         },
-        {},
+        { counts: {}, late: {} },
       ),
     ),
   );
   for (const r of results) {
-    for (const [key, n] of Object.entries(r.value) as [keyof BadgeCounts, number][]) {
+    for (const [key, n] of Object.entries(r.value.counts) as [keyof BadgeCounts, number][]) {
       badges[key] += n;
       total += n;
     }
+    for (const [key, n] of Object.entries(r.value.late) as [keyof BadgeCounts, number][]) overdue[key] += n;
   }
-  return { total, badges, partial: results.some((r) => r.failed) };
+  return { total, badges, overdue, partial: results.some((r) => r.failed) };
 }
 
 /** Home was opened: everything older than now stops being "New". */
