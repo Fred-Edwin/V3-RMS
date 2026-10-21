@@ -5,7 +5,6 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
-import { ShellSearch } from '@/components/app/shell/search/shell-search';
 import { Topbar } from '@/components/app/shell/topbar';
 import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
@@ -13,7 +12,7 @@ import { Picker } from '@/components/ui2/picker';
 import { SearchInput } from '@/components/ui2/search-input';
 import { useAuthStore } from '@/store/authStore';
 
-import { EmptyState, FOCUS_RING, FilterChip, MOTION, initialsOf, onHover, useNow, useWorkforceNavDrawer, useWorkforcePermissions } from '../../../_shared';
+import { EmptyState, FOCUS_RING, FilterChip, MOTION, initialsOf, onHover, useNow, useWorkforceNavDrawer } from '../../../_shared';
 import { useUnreadStore } from '../../../notifications';
 import { useNeedsYouPage } from '../hooks/use-needs-you-page';
 import { needsYouPageLine, safeOpens, sinceWords } from '../lib/role-home-words';
@@ -70,7 +69,6 @@ function Rows({ page }: { page: NeedsYouPage }) {
  */
 export function NeedsYouPageScreen() {
   const user = useAuthStore((s) => s.user);
-  const permissions = useWorkforcePermissions();
   const { open: openMenu } = useWorkforceNavDrawer();
   const unread = useUnreadStore((s) => s.unread);
   const { filters, change, remote } = useNeedsYouPage();
@@ -82,7 +80,7 @@ export function NeedsYouPageScreen() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar
         breadcrumb={{ root: 'Workforce', section: 'Overview', sectionHref: '/app/workforce', screen: 'Needs you' }}
-        searchSlot={<ShellSearch canSeePeople={permissions.can('employee.read_basic')} />}
+        hideSearch
         actions={<TopbarBell href="/app/workforce/notifications" unread={unread} />}
         className="hidden lg:flex"
       />

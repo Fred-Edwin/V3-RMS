@@ -10,7 +10,7 @@ import { BottomBar } from './bottom-bar';
 import { BusyNotice } from './busy-notice';
 import { MobileTopbar } from './mobile-topbar';
 import { ShellNavDrawer } from './shell-nav-drawer';
-import { SidebarNav } from './sidebar-nav';
+import { SidebarMenu } from './menu/sidebar-menu';
 import { Topbar } from './topbar';
 import { useShellNav } from './use-shell-nav';
 
@@ -33,8 +33,6 @@ export interface AppShellProps {
   children: React.ReactNode;
 }
 
-const titleCase = (label: string): string => label.charAt(0) + label.slice(1).toLowerCase();
-
 /** "/app/orders/new" with no row of its own: the last segment, as words. */
 const fallbackScreen = (pathname: string): string => {
   const last = pathname.split('/').filter(Boolean).at(-1) ?? 'Home';
@@ -45,7 +43,7 @@ const fallbackScreen = (pathname: string): string => {
 export function AppShell({ mode, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { groups, active, user, orgLabel, bar } = useShellNav();
+  const { menu, active, user, orgLabel, bar } = useShellNav();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const handleSignOut = React.useCallback(async (): Promise<void> => {
@@ -54,7 +52,7 @@ export function AppShell({ mode, children }: AppShellProps) {
   }, [router]);
 
   const breadcrumb = React.useMemo(
-    () => ({ section: active.groupLabel ? titleCase(active.groupLabel) : 'Wendo RMS', screen: active.label ?? fallbackScreen(pathname) }),
+    () => ({ section: active.groupLabel || 'Wendo RMS', screen: active.label ?? fallbackScreen(pathname) }),
     [active.groupLabel, active.label, pathname]
   );
 
@@ -63,7 +61,7 @@ export function AppShell({ mode, children }: AppShellProps) {
     <div className={cn('h-[calc(100dvh-var(--number-pad-h,0px))] min-h-0 w-full bg-wds-canvas print:block print:h-auto', mode === 'desktop' ? 'hidden lg:flex' : 'flex')}>
       <BusyNotice />
       <div className={cn('print:hidden', mode === 'desktop' ? 'flex' : 'hidden lg:flex')}>
-        <SidebarNav groups={groups} activeKey={active.activeKey} activeSubKey={active.activeSubKey} user={user} orgLabel={orgLabel} logoSrc={WENDO_LOGO_SRC} onSignOut={handleSignOut} />
+        <SidebarMenu menu={menu} activeKey={active.activeKey} activeSubKey={active.activeSubKey} user={user} orgLabel={orgLabel} logoSrc={WENDO_LOGO_SRC} onSignOut={handleSignOut} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden print:overflow-visible">
         {active.framed ? (

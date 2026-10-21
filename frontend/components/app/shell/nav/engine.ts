@@ -20,6 +20,7 @@ const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   (!rule.needsAttendance || ctx.attendanceOn === true) &&
   (!rule.oldOnlyWhenSwitchOff || ctx.attendanceOn !== true) &&
   (!rule.needsPayroll || ctx.payrollOn === true) &&
+  (!rule.oldOnlyWhenPayrollOff || ctx.payrollOn !== true) &&
   rule.roles.includes(actor) &&
   (!rule.capability || ctx.can(rule.capability)) &&
   (!rule.anyCapability || rule.anyCapability.some(ctx.can)) &&

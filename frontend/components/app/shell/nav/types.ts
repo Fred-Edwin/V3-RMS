@@ -52,6 +52,8 @@ export interface Visibility {
   needsAttendance?: boolean;
   /** An old screen that a rebuilt one replaces where the new clock is on: shown only while `NavContext.attendanceOn` is not true (Leave, segment 4). */
   oldOnlyWhenSwitchOff?: boolean;
+  /** An old payroll page that Workforce Payroll replaces once it has a month: shown only while `NavContext.payrollOn` is not true. */
+  oldOnlyWhenPayrollOff?: boolean;
   /** Shows only when Payroll has a month for the company (`NavContext.payrollOn`), whichever site the person belongs to. */
   needsPayroll?: boolean;
 }

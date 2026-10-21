@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { useBranchDayBadge, useNeedsLookCount, usePermissions, usePurchasingBadges, useRequisitionBadges } from '@/features/inventory';
 import { useAttendanceOn } from '@/features/workforce/attendance/shell';
-import { useNeedsYouBadges } from '@/features/workforce/needs-you';
+import { useNeedsYouMenuCounts } from '@/features/workforce/needs-you';
 import { useWorkforceUnread } from '@/features/workforce/notifications';
 import { usePayrollOn } from '@/features/workforce/payroll/shell';
 import { env } from '@/lib/env';
@@ -14,10 +14,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useCommsStore } from '@/store/commsStore';
 import type { AppRole } from '@/types/auth';
 import { initialsOf as sharedInitialsOf } from '@/lib/initials';
-import { activeFor, hasHubRows, navFor, quickLinksFor, showsBottomBar, type ActiveNav, type NavBadge } from './nav-table';
+import { activeFor, hasHubRows, menuFor, menuGroups, navFor, quickLinksFor, showsBottomBar, type ActiveNav, type NavBadge, type NavLink } from './nav-table';
 import type { NavIcon } from './nav-icons';
 import { roleLabel } from './role-label';
-import type { SidebarNavGroup, SidebarNavUser } from './sidebar-nav';
+import type { MenuItem, MenuNavModel, MenuUser } from './menu/menu-types';
 
 /** The Director's branches for the rows that expand (the hub is a supply facility, not a branch). Fetched only for a Director. */
 function useBranches(enabled: boolean): Array<{ id: string; name: string }> {
@@ -80,9 +80,9 @@ export interface ShellBar {
 
 export interface ShellNav {
   bar: ShellBar;
-  groups: SidebarNavGroup[];
+  menu: MenuNavModel;
   active: ActiveNav;
-  user: SidebarNavUser;
+  user: MenuUser;
   orgLabel: string;
 }
 
@@ -119,22 +119,24 @@ export function useShellNav(): ShellNav {
   // What blocks the close today, beside Today in the Branch Manager's Day group (only someone who closes the day is told).
   const dayTodo = useBranchDayBadge(role === 'MANAGER' && can('branch_day.close'));
   // The Workforce menu numbers: only the roles that hold `needs_you.read` ask (the server answers 404 to anyone else).
-  const workforceBadges = useNeedsYouBadges(role !== null && NEEDS_YOU_ROLES.includes(role));
+  const { badges: workforceBadges, overdue: workforceOverdue } = useNeedsYouMenuCounts(role !== null && NEEDS_YOU_ROLES.includes(role));
 
-  const tableGroups = React.useMemo(
-    () =>
-      navFor({
-        role: role ?? undefined,
-        isDepartmentHead,
-        isDepartmentMember,
-        can,
-        creditAccounts: env.creditAccounts,
-        branches,
-        attendanceOn,
-        payrollOn,
-      }),
+  const navContext = React.useMemo(
+    () => ({
+      role: role ?? undefined,
+      isDepartmentHead,
+      isDepartmentMember,
+      can,
+      creditAccounts: env.creditAccounts,
+      branches,
+      attendanceOn,
+      payrollOn,
+    }),
     [role, isDepartmentHead, isDepartmentMember, can, branches, attendanceOn, payrollOn]
   );
+  // The old flat groups still drive the phone bottom bar (floor staff); the sidebar and the drawer draw the three-level menu.
+  const tableGroups = React.useMemo(() => navFor(navContext), [navContext]);
+  const menuModel = React.useMemo(() => menuFor(navContext), [navContext]);
 
   // The counts are the only thing added to the table's rows here. A zero count draws nothing, so a role without prep.read_flags
   // (count 0) simply has no badge.
@@ -159,20 +161,30 @@ export function useShellNav(): ShellNav {
     return (badge) => (badge && counts[badge] > 0 ? counts[badge] : undefined);
   }, [unreadInbox, needsLook, requisitionCount, discrepancyCount, requisitionBadges?.deliveries, dayTodo, purchasingBadges, workforceBadges]);
 
-  const groups = React.useMemo((): SidebarNavGroup[] => {
-    return tableGroups.map((group) => ({
-      key: group.key,
-      label: group.label,
-      items: group.items.map((link) => ({
-        key: link.key,
-        label: link.label,
-        href: link.href,
-        icon: link.icon,
-        count: countOf(link.badge),
-        subItems: link.subItems?.map(({ key, label, href, badge }) => ({ key, label, href, count: countOf(badge) })),
-      })),
-    }));
-  }, [tableGroups, countOf]);
+  // A link is urgent (the red-brown dot) when the badge it carries holds something overdue. Only the Workforce badges know that.
+  const urgentOf = React.useMemo((): ((badge: NavBadge | undefined) => boolean) => {
+    const overdue: Partial<Record<NavBadge, number>> = {
+      'workforce-timesheets': workforceOverdue['workforce-timesheets'],
+      'workforce-leave': workforceOverdue['workforce-leave'],
+      'workforce-conduct': workforceOverdue['workforce-conduct'],
+      'workforce-payroll': workforceOverdue['workforce-payroll'],
+      'workforce-security': workforceOverdue['workforce-security'],
+    };
+    return (badge) => (badge ? (overdue[badge] ?? 0) > 0 : false);
+  }, [workforceOverdue]);
+
+  const menu = React.useMemo((): MenuNavModel => {
+    const item = (link: NavLink): MenuItem => ({
+      key: link.key,
+      label: link.label,
+      href: link.href,
+      icon: link.icon,
+      count: countOf(link.badge),
+      urgent: urgentOf(link.badge),
+      subItems: link.subItems?.map((s) => ({ key: s.key, label: s.label, href: s.href, count: countOf(s.badge), urgent: urgentOf(s.badge), section: s.section })),
+    });
+    return { top: menuModel.top.map(item), features: menuModel.features.map(item), account: menuModel.account.map(item) };
+  }, [menuModel, countOf, urgentOf]);
 
   // The phone bottom bar (floor staff): the table's quick links with the same counts, and whether this page shows it.
   const bar = React.useMemo(
@@ -183,12 +195,13 @@ export function useShellNav(): ShellNav {
     [tableGroups, countOf, pathname]
   );
 
-  const active = React.useMemo(() => activeFor(tableGroups, pathname), [tableGroups, pathname]);
+  // Which link lights, and whether the page draws its own top bar: the menu's links, then the personal items (My payslips has no sidebar row).
+  const active = React.useMemo(() => activeFor(menuGroups(menuModel), pathname), [menuModel, pathname]);
 
   const sidebarUser = React.useMemo(
-    (): SidebarNavUser => ({ name: user?.name ?? roleLabel(role), role: roleLabel(role), initials: initialsOf(user?.name) }),
+    (): MenuUser => ({ name: user?.name ?? roleLabel(role), role: roleLabel(role), initials: initialsOf(user?.name) }),
     [user?.name, role]
   );
 
-  return { groups, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName), bar };
+  return { menu, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName), bar };
 }

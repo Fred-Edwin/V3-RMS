@@ -9,6 +9,7 @@
 export { NAV_GROUP_LABELS } from './nav/shared';
 export { NAV_ROWS, WORKFORCE_ROWS } from './nav/rows';
 export { activeFor, hasHubRows, navFor, quickLinksFor, showsBottomBar } from './nav/engine';
+export { FEATURE_LABEL, menuFor, menuGroups, type FeatureKey, type MenuModel } from './nav/menu';
 export { FLOOR_ROLES, isBareRoute, usesAppShell, usesDesktopShell } from './nav/shell-roles';
 export { BADGE_CAPABILITY } from './nav/types';
 export type { ActiveNav, NavBadge, NavContext, NavFlag, NavGroup, NavLink, NavLinkSub, NavRow, NavSubRow } from './nav/types';

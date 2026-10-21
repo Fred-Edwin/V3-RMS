@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import { peopleReads } from '@/features/workforce/people';
-import { useShellNav } from '../use-shell-nav';
-import { flatLinks, highlight, personLine, searchLinks } from './search-logic';
+import { highlight, personLine, searchLinks, type SearchLink } from './search-logic';
 
 /**
  * Search (Ctrl K), in place of the old "jump box" (Paper 2.x). One field finds a page of the menu (matching letters in bold) and, for
@@ -32,9 +31,8 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-export function ShellSearch({ canSeePeople, className }: { canSeePeople: boolean; className?: string }) {
+export function ShellSearch({ links, canSeePeople, variant = 'light', className }: { links: readonly SearchLink[]; canSeePeople: boolean; variant?: 'light' | 'sidebar'; className?: string }) {
   const router = useRouter();
-  const { groups } = useShellNav();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [people, setPeople] = React.useState<Hit[]>([]);
@@ -73,7 +71,7 @@ export function ShellSearch({ canSeePeople, className }: { canSeePeople: boolean
     };
   }, [debounced, open, canSeePeople]);
 
-  const pages = React.useMemo(() => searchLinks(flatLinks(groups), query), [groups, query]);
+  const pages = React.useMemo(() => searchLinks(links, query), [links, query]);
   const hits: Hit[] = React.useMemo(() => [...pages.map((l) => ({ key: l.key, label: l.label, hint: l.group, href: l.href, kind: 'page' as const })), ...people], [pages, people]);
   React.useEffect(() => setIndex(0), [query]);
 
@@ -105,10 +103,16 @@ export function ShellSearch({ canSeePeople, className }: { canSeePeople: boolean
         onClick={() => setOpen(true)}
         aria-label="Search"
         aria-keyshortcuts="Control+K"
-        className={cn('flex h-8 w-[380px] max-w-full items-center justify-between border border-wds-border-strong bg-wds-surface px-3 text-left outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring', className)}
+        className={cn(
+          'flex h-8 max-w-full items-center justify-between border px-3 text-left outline-none transition-colors focus-visible:shadow-wds-ring',
+          variant === 'sidebar'
+            ? 'w-full border-[#4A3A2C] bg-transparent text-wds-sidebar-fg-muted hover:bg-wds-sidebar-active-bg'
+            : 'w-[380px] border-wds-border-strong bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50',
+          className
+        )}
       >
-        <span className="truncate font-wds-sans text-[13px] leading-4 text-wds-text-secondary">Find a person, a request or a page</span>
-        <kbd className="ml-3 shrink-0 border border-wds-border bg-wds-neutral-50 px-1.5 font-wds-mono text-[10px] leading-4 text-wds-text-secondary">Ctrl K</kbd>
+        <span className="truncate font-wds-sans text-[13px] leading-4">{variant === 'sidebar' ? 'Search' : 'Find a person, a request or a page'}</span>
+        <kbd className={cn('ml-3 shrink-0 border px-1.5 font-wds-mono text-[10px] leading-4', variant === 'sidebar' ? 'border-[#4A3A2C] text-wds-sidebar-fg-muted' : 'border-wds-border bg-wds-neutral-50 text-wds-text-secondary')}>Ctrl K</kbd>
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="top" className="inset-x-auto left-1/2 top-16 w-[560px] max-w-[94vw] -translate-x-1/2 border border-wds-border bg-wds-surface p-0 [&>button]:hidden">

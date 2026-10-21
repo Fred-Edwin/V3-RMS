@@ -5,7 +5,6 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
-import { ShellSearch } from '@/components/app/shell/search/shell-search';
 import { Topbar } from '@/components/app/shell/topbar';
 import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
@@ -98,7 +97,7 @@ export function RoleHomeScreen() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar
         breadcrumb={crumb}
-        searchSlot={<ShellSearch canSeePeople={permissions.can('employee.read_basic')} />}
+        hideSearch
         actions={
           <>
             <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} />

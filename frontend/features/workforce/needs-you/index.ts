@@ -5,7 +5,7 @@
 export { NeedsYouCard } from './components/needs-you-card';
 export { OverdueCard } from './components/overdue-card';
 export { useNeedsYou, type NeedsYouState } from './hooks/use-needs-you';
-export { useNeedsYouBadges } from './hooks/use-needs-you-badges';
+export { useNeedsYouBadges, useNeedsYouMenuCounts, type NeedsYouMenuCounts } from './hooks/use-needs-you-badges';
 export { useOverdue, type OverdueState } from './hooks/use-overdue';
 export { badgeText, badgeSpoken } from './lib/needs-you-words';
 export type { NeedsYouBadgeKey, NeedsYouBadges, NeedsYouList, NeedsYouRow, OverdueList, OverdueRow } from './types/needs-you-types';

@@ -6,6 +6,8 @@ export type NeedsYouBadges = Record<NeedsYouBadgeKey, number>;
 export interface NeedsYouCounts {
   total: number;
   badges: NeedsYouBadges;
+  /** How many of each badge's items are overdue (the red-brown dot). */
+  overdue?: NeedsYouBadges;
   /** A source failed: the numbers are the ones that could be counted, never a guess. */
   partial: boolean;
 }

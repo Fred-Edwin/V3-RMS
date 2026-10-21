@@ -67,7 +67,7 @@ export const CENTRAL_STORE_ROWS: readonly NavRow[] = [
   { key: 'dispatch', label: 'Dispatch', group: 'central-store', icon: DispatchIcon, newHref: '/app/inventory/dispatch', roles: [STORE_ATTENDANT], hub: true },
   {
     key: 'stock-counts',
-    label: 'Stock & counts',
+    label: 'Stock and counts',
     group: 'central-store',
     icon: StockCountsIcon,
     match: ['/app/inventory/stock'],
@@ -85,7 +85,7 @@ export const CENTRAL_STORE_ROWS: readonly NavRow[] = [
   { key: 'suppliers', label: 'Suppliers', group: 'procurement', icon: SuppliersIcon, newHref: '/app/inventory/suppliers', roles: DESKTOP_HUB, capability: 'suppliers.read', hub: true },
   { key: 'catalog', label: 'Catalog', group: 'procurement', icon: CatalogIcon, newHref: '/app/inventory/catalog', roles: HUB_ALL, capability: 'catalog.read', hub: true },
   // The Branch Manager has the 'branch-audit-log' row (the same screen), so the hub row leaves them out: one link, not two.
-  { key: 'audit-log', label: 'Audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB.filter((r) => r !== MANAGER), capability: 'audit.read', hub: true },
+  { key: 'audit-log', label: 'Stock audit log', group: 'procurement', icon: AuditLogIcon, newHref: '/app/inventory/audit-log', roles: DESKTOP_HUB.filter((r) => r !== MANAGER), capability: 'audit.read', hub: true },
   { key: 'carriers', label: 'Carriers', group: 'procurement', icon: ico.truck, newHref: '/app/inventory/carriers', roles: [STORE_MANAGER, DIRECTOR, ACCOUNTANT, SYSTEM_ADMIN], capability: 'carriers.read', hub: true },
-  { key: 'inventory-settings', label: 'Settings', group: 'procurement', icon: SettingsIcon, oldHref: '/app/inventory/settings', framed: true, roles: [STORE_MANAGER], hub: true },
+  { key: 'inventory-settings', label: 'Inventory settings', group: 'procurement', icon: SettingsIcon, oldHref: '/app/inventory/settings', framed: true, roles: [STORE_MANAGER], hub: true },
 ];
