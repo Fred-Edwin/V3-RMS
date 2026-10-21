@@ -105,6 +105,9 @@ describe.skipIf(!enabled)('Security flows in the database', { timeout: 60_000 },
     const fresh = signAccessToken({ userId: p.id, role: 'WAITER', siteId: p.siteId });
     expect(await run(fresh, '/people/me')).toMatchObject({ code: 'PASSWORD_RESET_REQUIRED' });
     expect(await run(fresh, '/security/reset-password')).toBeNull();
+    // the press removed this phone too: the reset still works from it, everything else waits for the reset, then the phone is asked again
+    expect(await run(fresh, '/security/reset-password', 'device-bbbb-2222')).toBeNull();
+    expect(await run(fresh, '/people/me', 'device-bbbb-2222')).toMatchObject({ code: 'PASSWORD_RESET_REQUIRED' });
     await reset.resetPassword(p, { newPassword: 'another-pass-9', confirm: 'another-pass-9' });
     expect(await run(fresh, '/people/me')).toBeNull();
   });
