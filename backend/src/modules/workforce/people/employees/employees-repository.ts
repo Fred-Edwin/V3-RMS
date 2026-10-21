@@ -174,6 +174,15 @@ export const employeesRepository = {
   findUserNames: (ids: readonly string[]) =>
     prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } }),
 
+  /** Who made the latest entry of one kind about a person, for the Activity tab ("confirmed by Mercy Achieng"). */
+  async lastActorOf(companyId: string, employeeId: string, actions: readonly string[]): Promise<{ action: string; actorName: string; after: unknown } | null> {
+    return prisma.auditEntry.findFirst({
+      where: { companyId, subjectType: 'Employee', subjectId: employeeId, action: { in: [...actions] } },
+      orderBy: { seq: 'desc' },
+      select: { action: true, actorName: true, after: true },
+    });
+  },
+
   // ---- the file --------------------------------------------------------------------------
   findFileById: (companyId: string, id: string, today: Date): Promise<FileRow | null> =>
     prisma.employee.findFirst({ where: { companyId, id }, include: FILE_INCLUDE(today) }),

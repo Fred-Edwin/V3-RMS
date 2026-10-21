@@ -51,7 +51,7 @@ export function eventText(e: TimelineEvent, file: Pick<EmployeeFile, 'position' 
     case 'LOAN':
       return `Sent to ${d.toSite ?? 'another site'}`;
     case 'PROBATION':
-      return 'Probation decided';
+      return d.decision === 'CONFIRM' ? 'Probation confirmed' : 'Probation decided';
     case 'CONTRACT':
       return `Contract recorded${d.type ? `: ${d.type}` : ''}`;
     case 'EXIT':
@@ -64,6 +64,8 @@ export interface ActivityRow {
   when: string;
   kind: 'Change' | 'Document' | 'Decision';
   what: string;
+  /** Who made the change, when the trail says; null shows a dash. */
+  by: string | null;
 }
 
 const KIND_WORDS: Record<TimelineEvent['kind'], ActivityRow['kind']> = {
@@ -74,7 +76,7 @@ const KIND_WORDS: Record<TimelineEvent['kind'], ActivityRow['kind']> = {
 export function activityRows(file: EmployeeFile): ActivityRow[] {
   return [...file.timeline]
     .sort((a, b) => b.on.localeCompare(a.on))
-    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, when: formatDayMonthYear(e.on), kind: KIND_WORDS[e.kind], what: eventText(e, file) }));
+    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, when: formatDayMonthYear(e.on), kind: KIND_WORDS[e.kind], what: eventText(e, file), by: typeof e.detail.by === 'string' ? e.detail.by : null }));
 }
 
 /** The last `limit` events (default four, the width of the band) in date order, and the probation decision after them. */

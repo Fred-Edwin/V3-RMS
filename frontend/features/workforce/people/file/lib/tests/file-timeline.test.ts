@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EmployeeFile, TimelineEvent } from '../../../_shared/types/people-types';
-import { eventText, lifeEvents } from '../file-timeline';
+import { activityRows, eventText, lifeEvents } from '../file-timeline';
 
 const file = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   ({ status: 'ACTIVE', position: { id: 'p', name: 'Barista' }, probation: { endsOn: '2026-10-14', confirmedOn: null }, timeline: [], ...over }) as unknown as EmployeeFile;
@@ -13,6 +13,12 @@ describe('Life at Wendo', () => {
     expect(eventText(ev('2026-07-15', 'DOCUMENT', { type: 'ID_COPY' }), file())).toBe('ID received');
     expect(eventText(ev('2026-10-31', 'EXIT', { reason: 'RESIGNED' }), file())).toBe('Left: Resigned');
     expect(eventText(ev('2026-11-01', 'TRANSFER', { toSite: 'Nyeri Highway' }), file())).toBe('Moved to Nyeri Highway');
+  });
+  it('names the probation outcome and who made it (finding 24)', () => {
+    const decided = ev('2026-10-02', 'PROBATION', { decision: 'CONFIRM', by: 'Mercy Achieng' });
+    expect(eventText(decided, file())).toBe('Probation confirmed');
+    const rows = activityRows(file({ timeline: [decided, ev('2026-07-14', 'DOCUMENT', { type: 'ID_COPY' })] }));
+    expect(rows.map((r) => r.by)).toEqual(['Mercy Achieng', null]);
   });
   it('orders by date and ends with the decision still to come, dashed', () => {
     const f = file({ timeline: [ev('2026-10-02', 'PROBATION'), ev('2026-07-14', 'HIRED'), ev('2026-07-15', 'DOCUMENT', { type: 'ID_COPY' })] });
