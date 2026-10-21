@@ -19,6 +19,17 @@ Built in part 1. Specs: `specs/6a-...` (A1 to A9), `specs/6c-...` (D1 to D3). Ba
 | F13 | Timesheet document open | Sends no `site`. A Director reading a branch's timesheet report may need it. Unproven (the lane has no issued documents). | Cannot test. | Add the document's site id to the panel and pass `site`. |
 | F14 | Payslip-opens digest | Home side card, last 7 days, newest first; the whole row links to the log on that opener and day (`event=payslips&actor=&from=&to=`). | Spec A9. | `audit-cards.tsx`. |
 
+| F15 | Site fields in answers (found in the browser walk, 21 Oct 2026) | The types use the API's wire names: `facets.organizations`, `organizationId`, `organizationName`, and the documents list's `organizations`. | The page read `sites` and crashed ("Cannot read properties of undefined"). `wire-names.ts` turns every `site*` field into `organization*` on the way out. | None. (F7's back-end `sites` field reaches the wire as `organizations`.) |
+
+## Parity (one line per screen, walked in Chrome 21 Oct 2026 as the Director; **not compared to a Paper frame: the Paper MCP server timed out on three calls in a row, so no Paper screenshot was taken**)
+- Audit log: loads, 3 real entries, Area/Event/Site/dates/sort present; the filter row wraps to a second line at 1440 wide (Area, Event, Site sit under the search): compare with Paper 14.1 `1O17-0` when Paper answers.
+- Entry drawer: Before/After and Proof read right; Check the chain ran once: "Chain intact from entry 1 to 2".
+- Signed documents: three rows, the replaced version marked, panel with Open document and Copy link; Site filter lists the three sites.
+- Activity on my record: chips, cards, one entry, "That was me" stored ("Thank you. Noted."). The headline reads "N entries / done to your file this month" over two lines: check against Paper 14.2 `1OBD-0`. The entry's When row shows `2026-10-21 06:35` (back-end wording).
+- Payslip openings card: not drawn on an empty week (by design); not seen with data.
+- Public verify: genuine, replaced and mismatch in a private window with no sign-in; unknown reads like mismatch. Signed in: signer named, Open the document; wrong hash shows Tell the Branch Manager and one tap sends "The Branch Manager has been told."
+- Not done: keyboard-only run of each screen, narrow widths and phone frames (17.1 `1PSD-0`, 17.2 `1Q3D-0`), opening a real PDF, the other roles in a browser (checked by API only: Branch Manager, Accountant, Store Manager and System Admin read the log and index; only the Director reads payslip opens; System Admin has no Activity on my record). With the switch off, the Director's menu showed none of the new rows.
+
 ## Shared-file line changes
 - `frontend/components/app/shell/nav-table.ts`: `wf-audit-log` (built, System Admin added, needsAttendance, match), new `wf-my-record` and `wf-staff-my-record`.
 - `frontend/components/app/shell/nav-table.test.ts`: expectations for the new rows; the notBuilt example row is now `wf-payslips`.

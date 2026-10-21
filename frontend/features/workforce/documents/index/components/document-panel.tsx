@@ -12,7 +12,7 @@ function rowsOf(p: DocumentPanelData): KeyValueRow[] {
   const rows: KeyValueRow[] = [{ label: 'Approved by', value: `${nameAndRole(p.approvedBy.name, p.approvedBy.role)}, ${dateTime(p.approvedBy.at)}` }];
   if (p.reviewedBy) rows.push({ label: 'Reviewed by', value: `${nameAndRole(p.reviewedBy.name, p.reviewedBy.role)}, ${dateTime(p.reviewedBy.at)}` });
   rows.push({ label: 'Signed with', value: p.method });
-  if (p.siteName) rows.push({ label: 'Site', value: p.siteName });
+  if (p.organizationName) rows.push({ label: 'Site', value: p.organizationName });
   if (p.forPerson) rows.push({ label: 'For', value: nameAndRole(p.forPerson.name, p.forPerson.role) });
   return rows;
 }

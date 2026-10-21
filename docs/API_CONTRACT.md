@@ -5625,4 +5625,6 @@ Audit read, the documents door and index, and verify. No new capability: each ro
 | `GET /workforce/documents/verify/:kind/:number?h=` | signed in | Adds `signedBy`, `canOpen`, `openHref`, `readableBy`; writes `document.verified` |
 | `POST /workforce/documents/verify/:kind/:number/report { h, idempotencyKey }` | signed in | "Tell the ...": `document.mismatch_reported`, issuer and Director notified, once per person, number and day |
 
+**Wire names (found in the front end B walk, 21 Oct 2026):** answers say `organization`, never `site`. The audit list's `facets.organizations`, each audit row's `organizationId` and `organizationName`, and the documents list's `organizations` (the Site filter's options: every company site to a reader who reads some type across the company, an empty list to a one-site reader) and each document's `organizationName`. Query filters accept `siteId` or `organizationId`.
+
 The documents door (`registerDocument(tx, input)`, `withdrawDocument(tx, input)`) is called inside the issuer's own transaction; see `backend/src/modules/workforce/documents/README.md`. The payroll-export QR hash changed to the shared payslip hash (decisions-6b-backend B14).

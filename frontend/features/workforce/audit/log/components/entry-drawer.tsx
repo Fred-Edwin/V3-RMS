@@ -13,7 +13,7 @@ function detailRows(e: AuditDetail): KeyValueRow[] {
     { label: 'When', value: whenLong(e.occurredAt), mono: true },
     { label: 'Who', value: whoLine(e) },
   ];
-  if (e.siteName) rows.push({ label: 'Site', value: e.siteName });
+  if (e.organizationName) rows.push({ label: 'Site', value: e.organizationName });
   if (e.subjectUser) rows.push({ label: 'About', value: e.subjectUser.name });
   if (e.reason) rows.push({ label: 'Reason', value: e.reason });
   // The server leaves these out for readers without the right; the drawer only draws what it was given.

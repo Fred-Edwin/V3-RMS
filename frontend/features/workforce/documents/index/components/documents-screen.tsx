@@ -77,12 +77,12 @@ export function DocumentsScreen({ tabs }: { tabs?: React.ReactNode }) {
                   {data?.types.map((t) => <SelectItem key={t.code} value={t.code}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {data && data.sites.length > 0 ? (
+              {data && data.organizations.length > 0 ? (
                 <Select value={d.query.siteId || ANY} onValueChange={(v) => d.change({ siteId: v === ANY ? '' : v })}>
                   <SelectTrigger aria-label="Site" className="w-[160px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ANY}>All sites</SelectItem>
-                    {data.sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    {data.organizations.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : null}

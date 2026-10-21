@@ -8,7 +8,8 @@ export interface DocumentItem {
   kind: string;
   title: string;
   about: string;
-  siteName: string | null;
+  /** The API still says "organization" for a site (wire names). */
+  organizationName: string | null;
   signedBy: { name: string; role: string };
   signedAt: string;
   status: DocumentStatus;
@@ -23,7 +24,7 @@ export interface DocumentsPage {
   pageSize: number;
   types: { code: string; label: string }[];
   /** Empty for a reader limited to one site: no Site filter then. */
-  sites: { id: string; name: string }[];
+  organizations: { id: string; name: string }[];
 }
 
 export interface DocumentPanelData extends DocumentItem {

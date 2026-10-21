@@ -62,7 +62,7 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
   }, []);
 
   const showArea = (facets?.areas.length ?? 0) > 1;
-  const showSites = (facets?.sites.length ?? 0) > 0;
+  const showSites = (facets?.organizations.length ?? 0) > 0;
   return (
     <FilterBar
       search={<SearchInput ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={AUDIT_COPY.searchPlaceholder} shortcutHint="/" aria-label="Search the audit log" maxLength={80} className="w-[300px] max-sm:w-full" />}
@@ -90,7 +90,7 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
           {showSites ? (
             <Menu label="Site" value={query.siteId} onChange={(v) => onChange({ siteId: v })} width="w-[160px]">
               <SelectItem value={ANY}>All sites</SelectItem>
-              {facets?.sites.map((s) => (
+              {facets?.organizations.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
                 </SelectItem>

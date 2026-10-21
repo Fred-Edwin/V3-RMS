@@ -47,7 +47,7 @@ describe('the words of the index', () => {
 
   it('writes the panel line for withdrawn, replaced and archived', () => {
     const p = (over: Partial<DocumentPanelData>): DocumentPanelData => ({
-      number: 'PS-0987', version: 1, kind: 'PS', title: 'Payslip', about: 'September 2026', siteName: null, signedBy: { name: 'A', role: 'ACCOUNTANT' }, signedAt: '2026-10-19T08:00:00.000Z', status: 'CURRENT', replacesVersion: null,
+      number: 'PS-0987', version: 1, kind: 'PS', title: 'Payslip', about: 'September 2026', organizationName: null, signedBy: { name: 'A', role: 'ACCOUNTANT' }, signedAt: '2026-10-19T08:00:00.000Z', status: 'CURRENT', replacesVersion: null,
       approvedBy: { name: 'A', role: 'ACCOUNTANT', at: '2026-10-19T08:00:00.000Z' }, reviewedBy: null, method: 'PIN', replacedBy: null, withdrawn: null, forPerson: null, verifyUrl: 'x', openHref: '/x', ...over,
     });
     expect(statusLine(p({ status: 'WITHDRAWN', withdrawn: { on: '2026-10-20T09:00:00.000Z', byRole: 'ACCOUNTANT', replacedByNumber: 'PS-0987' } }))).toBe('Withdrawn on 20 Oct 2026 by the Accountant. Replaced by PS-0987.');

@@ -17,8 +17,9 @@ export interface AuditRow {
   detail: string;
   subject: { type: string; id: string; label: string };
   subjectUser: { id: string; name: string } | null;
-  siteId: string | null;
-  siteName: string | null;
+  /** The API still says "organization" for a site (wire names). */
+  organizationId: string | null;
+  organizationName: string | null;
   flagged: boolean;
   reason: string | null;
   deviceLabel: string | null;
@@ -28,7 +29,7 @@ export interface AuditRow {
 export interface AuditFacets {
   areas: string[];
   events: { code: string; label: string }[];
-  sites: { id: string; name: string }[];
+  organizations: { id: string; name: string }[];
 }
 
 export interface AuditPage {
