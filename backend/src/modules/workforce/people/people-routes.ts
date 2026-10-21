@@ -4,6 +4,7 @@ import { authenticate } from '../../../middleware/authenticate';
 import { requireCapability } from '../_shared/workforce-access';
 import { employeesController as c } from './employees-controller';
 import { attachWorkforceSubject } from './people-subject';
+import { teamController } from './team/team-controller';
 
 /**
  * Every /workforce/people route: authenticate, then attachWorkforceSubject (head rows and "clocks in"), then the
@@ -37,6 +38,7 @@ router.get(`${P}/summary`, ...base, requireCapability('employee.read_basic'), c.
 router.get(`${P}/lookups`, ...base, requireCapability('employee.read_basic', 'org.read'), c.lookups); // R3
 router.get(`${P}/duplicate-check`, ...base, requireCapability('employee.write_basic'), c.duplicateCheck); // R4
 router.get(`${P}/unlinked-accounts`, ...base, requireCapability('employee.lifecycle'), c.unlinkedAccounts); // R5
+router.get(`${P}/team`, ...base, requireCapability('today.read'), teamController.list); // My team (read only)
 router.get(`${P}/me`, ...base, requireCapability('me.file'), c.mine); // R6
 router.get(`${P}/pay-changes`, ...base, requireCapability('payprofile.approve', 'payprofile.write'), c.payChanges); // R11
 router.get(`${P}/drafts`, ...base, requireCapability('employee.write_basic'), c.listDrafts); // W1
