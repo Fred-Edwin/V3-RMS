@@ -68,6 +68,18 @@ export const hireRepository = {
       select: { id: true },
     }),
 
+  /** People still on file with nobody named to report to, oldest first (finding 12 backfill). */
+  findWithoutBoss: (companyId: string) =>
+    prisma.employee.findMany({
+      where: { companyId, reportsToId: null, status: { not: 'EXITED' } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, siteId: true, userId: true },
+    }),
+
+  /** Sets the boss only while none is named, so a later edit by a person is never overwritten. */
+  setBossIfNone: (tx: Prisma.TransactionClient, companyId: string, id: string, bossId: string) =>
+    tx.employee.updateMany({ where: { id, companyId, reportsToId: null }, data: { reportsToId: bossId } }),
+
   /** Employee numbers are one series per company: lock the company, take the highest "W-####", add one. */
   async nextEmployeeNumber(tx: Prisma.TransactionClient, companyId: string): Promise<string> {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))::text`;
