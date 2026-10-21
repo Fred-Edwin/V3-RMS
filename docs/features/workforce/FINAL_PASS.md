@@ -47,7 +47,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | not started | | | |
+| 1 People | written; live role walkthrough in progress (HR and Director done, 6 roles to go), 42 findings so far | | | |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
@@ -66,7 +66,16 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 - Files over 350 lines and folders over 12 files (the tidy-up): section 10, plus an automatic size and folder-limit test.
 
 ## Running list of cross-cutting findings
-(empty; review agents append one line each: *what, where it lives, which section fixes it*)
+Added by the People review, 21 Oct 2026 (details in `final-pass/1-people-findings.md`):
+- **Wording rule:** short, professional, clear; chips and card labels up to 3 words; buttons start with a verb; no "arrives with ...", no "slice" on screen. Every role pass lists copy fixes. Fixed section by section, final sweep in 10.
+- **Person label:** every picker and list shows Name, position and site. Everywhere (one shared component).
+- **Edit convention:** an "Edit" button on every card the role may change; the page header holds only whole-person actions. Everywhere.
+- **Stale "arrives with Attendance / Leave / Approvals" copy and greyed Time and Leave tabs:** sections 2 and 7, then the sweep in 10.
+- **Menu:** old HR group beside the new one; proposal to organise by feature with sub-links, a jump box and personal items in the account block (section 10).
+- **No Inbox in Workforce:** notifications live on Home with a bell; communication is a separate feature refactored later (sections 9 and 10).
+- **Role Homes:** better KPI cards, a paged "Needs your attention" list, and a built Director Home (section 10; the Director's access change, read and write everything, is one back-end session).
+- **"Phone" wording at sign-in on a desktop:** section 9.
+- **Payout methods:** Cash and M-Pesa stay (owner, 21 Oct); screen and API must offer the same set (sections 1 and 5).
 
 ## Demo videos
 Planned in `docs/sessions/final-pass-demo-lane-setup.md` (the clean demo lane and the recording method). One video per section, recorded after the fix, from a lane with realistic fictional data. Nothing shown contains real staff, pay or client data. The owner decides when to send each video.
