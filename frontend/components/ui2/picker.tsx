@@ -18,6 +18,11 @@ export interface PickerOption {
   label: string;
   /** A second, quieter line (a role, a code). */
   hint?: string;
+  /**
+   * Draws the row (and the closed field) instead of `label` and `hint`, for a person label. `query` is what was typed in the search
+   * box so matching letters can be marked. `label` is still what the search matches against, so put the searchable words in it.
+   */
+  render?: (context: { query: string; inField: boolean }) => React.ReactNode;
 }
 
 export interface PickerProps {
@@ -133,7 +138,7 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
           className
         )}
       >
-        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        {selected?.render ? <span className="min-w-0 flex-1">{selected.render({ query: '', inField: true })}</span> : <span className="truncate">{selected ? selected.label : placeholder}</span>}
         <span aria-hidden="true" className="shrink-0 text-[10px] text-wds-text-secondary">
           &#9662;
         </span>
@@ -167,8 +172,14 @@ export function Picker({ value, onValueChange, options, placeholder = 'Choose', 
                     o.value === value ? 'bg-wds-espresso-50 font-medium text-wds-primary' : 'text-wds-text-ink hover:bg-wds-neutral-50'
                   )}
                 >
-                  <span className="truncate">{o.label}</span>
-                  {o.hint ? <span className="shrink-0 text-[12px] text-wds-text-secondary">{o.hint}</span> : null}
+                  {o.render ? (
+                    <span className="min-w-0 flex-1">{o.render({ query, inField: false })}</span>
+                  ) : (
+                    <>
+                      <span className="truncate">{o.label}</span>
+                      {o.hint ? <span className="shrink-0 text-[12px] text-wds-text-secondary">{o.hint}</span> : null}
+                    </>
+                  )}
                 </button>
               </li>
             ))}

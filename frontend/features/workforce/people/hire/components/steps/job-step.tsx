@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { RadioCards, SingleDateField } from '../../../../_shared';
+import { PersonLabel, RadioCards, SingleDateField } from '../../../../_shared';
 import { addDays } from '../../../_shared/lib/people-dates';
 import type { Lookups } from '../../../_shared/types/people-types';
 import { useReportsTo } from '../../hooks/use-reports-to';
@@ -92,7 +92,18 @@ export function JobStep({
               ids={ids}
               value={state.reportsToId}
               disabled={state.departmentId === ''}
-              options={[{ value: '', label: state.departmentId ? 'No one' : 'Department first' }, ...reports.options.map((o) => ({ value: o.id, label: o.isHead ? `${o.name} · head` : o.name }))]}
+              options={
+                state.departmentId === ''
+                  ? [{ value: '', label: 'Department first' }]
+                  : [
+                      ...reports.options.map((o) => ({
+                        value: o.id,
+                        label: [o.name, o.positionName, o.siteName].filter(Boolean).join(' '),
+                        render: ({ query }: { query: string }) => <PersonLabel name={o.name} position={o.isHead ? `${o.positionName ?? 'Head'} · head` : o.positionName} site={o.siteName} query={query} />,
+                      })),
+                      { value: '', label: 'Nobody' },
+                    ]
+              }
               onChange={(v) => set({ reportsToId: v })}
             />
           )}

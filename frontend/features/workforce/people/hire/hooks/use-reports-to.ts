@@ -14,6 +14,8 @@ export interface ReportsToOption {
   id: string;
   name: string;
   isHead: boolean;
+  positionName: string | null;
+  siteName: string;
 }
 
 export function useReportsTo(departmentId: string): { options: ReportsToOption[]; head: ReportsToOption | null; loading: boolean } {
@@ -22,7 +24,7 @@ export function useReportsTo(departmentId: string): { options: ReportsToOption[]
     const rows: EmployeeListRow[] = departmentId === '' ? [] : (result.data?.rows ?? []);
     const options = rows
       .filter((r) => r.status !== 'EXITED')
-      .map((r) => ({ id: r.id, name: r.name, isHead: r.isHead }))
+      .map((r) => ({ id: r.id, name: r.name, isHead: r.isHead, positionName: r.positionName, siteName: r.organizationName }))
       .sort((a, b) => Number(b.isHead) - Number(a.isHead) || a.name.localeCompare(b.name));
     return { options, head: options.find((o) => o.isHead) ?? null, loading: departmentId !== '' && result.status === 'loading' };
   }, [result.data, result.status, departmentId]);

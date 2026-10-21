@@ -40,7 +40,7 @@ export function AssignHeadDialog({ target, mode, onClose, done }: { target: Assi
   const action = useAction((m) => done(m ?? 'Saved.'));
 
   const list = candidates.data;
-  const choices = React.useMemo(() => candidateChoices(list ?? []), [list]);
+  const choices = React.useMemo(() => candidateChoices(list ?? [], target.organizationName), [list, target.organizationName]);
   const chosen = picked ?? list?.find((c) => c.recommended)?.employeeId ?? list?.[0]?.employeeId ?? null;
   const returnError = mode === 'ACTING' ? validateReturnDay(returnsOn, today) : undefined;
   const wanted = chosen && !returnError ? `${chosen}|${mode}|${returnsOn ?? ''}` : null;

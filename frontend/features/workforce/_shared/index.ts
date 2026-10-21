@@ -41,6 +41,8 @@ export * from './components/callout';
 export * from './components/panel-parts';
 export * from './components/choice-controls';
 export * from './components/person-radio-list';
+export * from './components/person-label';
+export * from './lib/person-label';
 export * from './components/form-parts';
 export * from './components/schedule-parts';
 export * from './components/phone-parts';

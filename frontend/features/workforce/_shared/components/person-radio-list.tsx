@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 
 import { FOCUS_RING, MOTION } from '../lib/interaction';
 import { PersonAvatar } from './person-avatar';
+import { PersonLabel } from './person-label';
 
 /**
  * A short list of people to choose one from (Paper Chapter 3 step 03, "Who should lead it"): a radio, the avatar, the name, a grey
@@ -15,8 +16,11 @@ import { PersonAvatar } from './person-avatar';
 export interface PersonChoice {
   value: string;
   name: string;
-  /** "Housekeeper · since Mar 2025 · has a login". */
+  /** "Housekeeper · since Mar 2025 · has a login". Not drawn when `position` or `site` is given: the person label draws "position · site". */
   line: string;
+  /** With `position` or `site` the row is the shared person label (frame 7.5). */
+  position?: string | null;
+  site?: string | null;
   marker?: string;
 }
 
@@ -26,8 +30,11 @@ export function PersonRadioList({
   value,
   onChange,
   disabled = false,
+  query,
   className,
 }: {
+  /** What was typed in the search, so matching letters are marked. */
+  query?: string;
   /** Spoken name of the group; also drawn as the mono caption. */
   legend: string;
   people: readonly PersonChoice[];
@@ -58,11 +65,17 @@ export function PersonRadioList({
               <span aria-hidden className={cn('flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border', chosen ? 'border-wds-primary' : 'border-wds-border-strong')}>
                 {chosen ? <span className="h-2 w-2 rounded-full bg-wds-primary" /> : null}
               </span>
-              <PersonAvatar name={p.name} size="sm" />
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{p.name}</span>
-                <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{p.line}</span>
-              </span>
+              {p.position !== undefined || p.site !== undefined ? (
+                <PersonLabel name={p.name} position={p.position} site={p.site} query={query} className="flex-1" />
+              ) : (
+                <>
+                  <PersonAvatar name={p.name} size="sm" />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-wds-sans text-[14px] font-medium leading-5 text-wds-text-ink">{p.name}</span>
+                    <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{p.line}</span>
+                  </span>
+                </>
+              )}
               {p.marker ? <span className="shrink-0 font-wds-sans text-[12px] leading-4 text-wds-success-fg">{p.marker}</span> : null}
             </label>
           );

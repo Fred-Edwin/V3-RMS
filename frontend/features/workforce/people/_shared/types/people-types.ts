@@ -186,6 +186,9 @@ export interface PayChangeRow {
   reason: PayChangeReason;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
   requestedByName: string | null;
+  /** The asker's position and site when they have a file (the Director's review shows them). */
+  requestedByPosition: string | null;
+  requestedBySite: string | null;
   requestedOn: DateString;
   decidedByName: string | null;
   decidedOn: DateString | null;

@@ -18,7 +18,7 @@ const preview = (over: Partial<HeadPreview> = {}): HeadPreview => ({
 describe('candidateChoices', () => {
   it('writes the position, the month they started, and marks the recommended one', () => {
     const c: HeadCandidate[] = [{ employeeId: 'e1', userId: 'u1', name: 'Grace Wairimu', positionName: 'Housekeeper', startDate: '2025-03-04', isActingHere: false, recommended: true }];
-    expect(candidateChoices(c)).toEqual([{ value: 'e1', name: 'Grace Wairimu', line: 'Housekeeper · since Mar 2025 · has a login', marker: 'Recommended' }]);
+    expect(candidateChoices(c, 'Nyeri Town')).toEqual([{ value: 'e1', name: 'Grace Wairimu', line: 'Housekeeper · since Mar 2025 · has a login', position: 'Housekeeper', site: 'Nyeri Town', marker: 'Recommended' }]);
   });
 });
 
