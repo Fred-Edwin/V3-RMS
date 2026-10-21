@@ -67,7 +67,8 @@ export function AuditLogScreen({ tabs }: { tabs?: React.ReactNode }) {
       <div className={list.status === 'ready' && !online ? 'opacity-60' : undefined}>
         <AuditTable rows={rows} term={q.query.q} openId={open?.id ?? null} page={data?.page ?? 1} total={countWords(total, exact)} onOpen={(row) => setOpen(row)} />
         <TablePager page={q.query.page} perPage={q.query.pageSize} shown={rows.length} total={total} onPageChange={q.goToPage} onPerPageChange={(n) => q.change({ pageSize: n as 25 | 50 | 100 })} />
-        <p role="status" className="m-0 px-4 pt-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+        {/* The pager already shows the range; this line is drawn only over the cap, where it says how to narrow the count. */}
+        <p role="status" className={`m-0 px-4 pt-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary${exact ? ' sr-only' : ''}`}>
           {footerText(data?.page ?? 1, data?.pageSize ?? q.query.pageSize, rows.length, total, exact)}
         </p>
         {data?.range.reachesArchive ? <p className="m-0 px-4 pt-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{AUDIT_COPY.archived}</p> : null}

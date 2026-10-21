@@ -54,7 +54,7 @@ export function MyRecordScreen() {
           }}
         />
         <TablePager page={record.page} perPage={record.pageSize} shown={items.length} total={total} onPageChange={record.setPage} onPerPageChange={record.changePageSize} />
-        <p role="status" className="m-0 font-wds-mono text-[11px] leading-[14px] text-wds-text-secondary">{showing(items.length, total)}</p>
+        <p role="status" className="sr-only">{showing(items.length, total)}</p>
       </>
     );
   }

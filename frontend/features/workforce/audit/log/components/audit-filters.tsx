@@ -65,12 +65,12 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
   const showSites = (facets?.organizations.length ?? 0) > 0;
   return (
     <FilterBar
-      search={<SearchInput ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={AUDIT_COPY.searchPlaceholder} shortcutHint="/" aria-label="Search the audit log" maxLength={80} className="w-[300px] max-sm:w-full" />}
+      search={<SearchInput ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={AUDIT_COPY.searchPlaceholder} shortcutHint="/" aria-label="Search the audit log" maxLength={80} className="w-[260px] max-sm:w-full" />}
       chips={<FilterChip label="Flagged only" selected={query.flagged} onClick={() => onChange({ flagged: !query.flagged })} />}
       trailing={
         <>
           {showArea ? (
-            <Menu label="Area" value={query.area} onChange={(v) => onChange({ area: v as AuditQuery['area'] })} width="w-[150px]">
+            <Menu label="Area" value={query.area} onChange={(v) => onChange({ area: v as AuditQuery['area'] })} width="w-[130px]">
               <SelectItem value={ANY}>All areas</SelectItem>
               {facets?.areas.map((a) => (
                 <SelectItem key={a} value={a}>
@@ -79,7 +79,7 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
               ))}
             </Menu>
           ) : null}
-          <Menu label="Event" value={query.event === 'all' ? '' : query.event} onChange={(v) => onChange({ event: (v || 'all') as AuditQuery['event'] })} width="w-[190px]">
+          <Menu label="Event" value={query.event === 'all' ? '' : query.event} onChange={(v) => onChange({ event: (v || 'all') as AuditQuery['event'] })} width="w-[160px]">
             <SelectItem value={ANY}>All events</SelectItem>
             {facets?.events.map((e) => (
               <SelectItem key={e.code} value={e.code}>
@@ -88,7 +88,7 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
             ))}
           </Menu>
           {showSites ? (
-            <Menu label="Site" value={query.siteId} onChange={(v) => onChange({ siteId: v })} width="w-[160px]">
+            <Menu label="Site" value={query.siteId} onChange={(v) => onChange({ siteId: v })} width="w-[130px]">
               <SelectItem value={ANY}>All sites</SelectItem>
               {facets?.organizations.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
@@ -105,7 +105,7 @@ export function AuditFilters({ query, facets, today, onChange }: { query: AuditQ
             buttonClassName={cn('h-8 px-3 text-[12px]')}
             onChange={(r) => r && onChange({ from: r.from, to: r.to })}
           />
-          <Menu label="Sort" value={query.sort} onChange={(v) => onChange({ sort: v === 'oldest' ? 'oldest' : 'newest' })} width="w-[150px]">
+          <Menu label="Sort" value={query.sort} onChange={(v) => onChange({ sort: v === 'oldest' ? 'oldest' : 'newest' })} width="w-[130px]">
             <SelectItem value="newest">Newest first</SelectItem>
             <SelectItem value="oldest">Oldest first</SelectItem>
           </Menu>

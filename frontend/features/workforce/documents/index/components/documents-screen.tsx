@@ -56,7 +56,7 @@ export function DocumentsScreen({ tabs }: { tabs?: React.ReactNode }) {
       <>
         <DocumentsTable items={items} term={d.query.q} chosen={chosenKey} onChoose={(i) => d.select({ number: i.number, version: i.version })} />
         <TablePager page={d.query.page} perPage={d.query.pageSize} shown={items.length} total={data.total} onPageChange={d.goToPage} onPerPageChange={(n) => d.change({ pageSize: n as 25 | 50 | 100 })} />
-        <p role="status" className="m-0 px-4 pt-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footer(data.page, data.pageSize, items.length, data.total, data.totalIsExact)}</p>
+        <p role="status" className={`m-0 px-4 pt-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary${data.totalIsExact ? ' sr-only' : ''}`}>{footer(data.page, data.pageSize, items.length, data.total, data.totalIsExact)}</p>
       </>
     );
   }
