@@ -105,6 +105,8 @@ interface Visibility {
   notBuilt?: boolean;
   /** Shows only when the new clock is on for the person's branch (`NavContext.attendanceOn`). */
   needsAttendance?: boolean;
+  /** An old screen that a rebuilt one replaces where the new clock is on: shown only while `NavContext.attendanceOn` is not true (Leave, segment 4). */
+  oldOnlyWhenSwitchOff?: boolean;
   /** Shows only when Payroll has a month for the company (`NavContext.payrollOn`), whichever site the person belongs to. */
   needsPayroll?: boolean;
 }
@@ -293,7 +295,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // PEOPLE
   { key: 'wf-employees', label: 'Employees', group: 'wf-people', icon: ico.staff, newHref: '/app/workforce/employees', roles: WF_PEOPLE, match: ['/app/workforce/employees'] },
   { key: 'wf-organisation', label: 'Organisation', group: 'wf-people', icon: ico.organisation, newHref: '/app/workforce/organisation', roles: [WF_HR, MANAGER, DIRECTOR], match: ['/app/workforce/organisation'] },
-  { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', notBuilt: true },
+  { key: 'wf-leave', label: 'Leave', group: 'wf-people', icon: ico.leave, newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', needsAttendance: true, match: ['/app/workforce/leave'] },
   { key: 'wf-conduct', label: 'Conduct', group: 'wf-people', icon: ico.shield, newHref: '/app/workforce/conduct', roles: WF_PEOPLE, needsAttendance: true, match: ['/app/workforce/conduct'] },
   // PAY (the Branch Manager and Store Manager see no pay)
   // Payroll (segment 2) replaces "Pay runs". It shows only once Payroll has a month (a branch is on the new clock), so a company with every switch off sees the old payroll menu unchanged.
@@ -305,7 +307,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-audit-log', label: 'Audit log', group: 'wf-settings', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: WF_DESKTOP, notBuilt: true },
   // ME
   { key: 'wf-my-time', label: 'My time', group: 'wf-me', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
-  { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, notBuilt: true },
+  { key: 'wf-my-leave', label: 'My leave', group: 'wf-me', icon: ico.me, newHref: '/app/workforce/my-leave', roles: WF_DESKTOP, needsAttendance: true, match: ['/app/workforce/my-leave'] },
   { key: 'wf-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: WF_DESKTOP },
   // Conduct (Segment 5): the notices a person was given. A Branch Manager, Store Manager, HR or Director who is also a staff member reads "My notices"
   // (their desk link is "Conduct" under People); the Accountant has no desk link, so theirs reads "Conduct".
@@ -336,7 +338,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'requests', label: 'My requests', newHref: '/app/workforce/my-time/requests', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
     ],
   },
-  { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: SHIFT_STAFF, notBuilt: true },
+  { key: 'wf-staff-my-leave', label: 'My leave', group: 'wf-me', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true, match: ['/app/workforce/my-leave'] },
   { key: 'wf-staff-my-payslips', label: 'My payslips', group: 'wf-me', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: [...SHIFT_STAFF, STORE_ATTENDANT] },
   { key: 'wf-staff-conduct', label: 'Conduct', group: 'wf-me', icon: ico.shield, newHref: '/app/conduct', roles: [...SHIFT_STAFF, STORE_ATTENDANT], needsAttendance: true, match: ['/app/conduct'] },
   { key: 'wf-staff-profile', label: 'Profile and security', group: 'wf-me', icon: ico.shield, newHref: '/app/profile', roles: SHIFT_STAFF, notBuilt: true },
@@ -446,7 +448,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'accountant-payments', label: 'My Payments', group: 'acc-financials', icon: ico.payslips, oldHref: '/app/payslips', roles: [ACCOUNTANT] },
   { key: 'accountant-credit', label: 'Credit Accounts', group: 'acc-credit', icon: ico.credit, oldHref: '/app/accountant/credit', roles: [ACCOUNTANT] },
   { key: 'accountant-inbox', label: 'Inbox', group: 'acc-comms', icon: ico.inbox, oldHref: '/app/inbox', roles: [ACCOUNTANT], badge: 'inbox' },
-  { key: 'accountant-leave', label: 'My Leave', group: 'acc-leave', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [ACCOUNTANT] },
+  { key: 'accountant-leave', label: 'My Leave', group: 'acc-leave', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: [ACCOUNTANT], oldOnlyWhenSwitchOff: true },
 
   // ── System Admin ──────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'admin-branches', label: 'Branches & Users', group: 'adm-admin', icon: ico.settings, oldHref: '/app/admin', roles: [SYSTEM_ADMIN] },
@@ -473,8 +475,8 @@ export const NAV_ROWS: readonly NavRow[] = [
   // ── HR Manager ────────────────────────────────────────────────────────────────────────────────────────────────────────────
   { key: 'hr-overview', label: 'HR Overview', group: 'hr', icon: ico.dashboard, oldHref: '/app/hr', roles: [HR_MANAGER] },
   { key: 'hr-contracts', label: 'Contract Types', group: 'hr', icon: ico.contracts, oldHref: '/app/hr/contract-types', roles: [HR_MANAGER] },
-  { key: 'hr-leave', label: 'Leave Requests', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave', roles: [HR_MANAGER] },
-  { key: 'hr-leave-calendar', label: 'Leave Calendar', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave/calendar', roles: [HR_MANAGER] },
+  { key: 'hr-leave', label: 'Leave Requests', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave', roles: [HR_MANAGER], oldOnlyWhenSwitchOff: true },
+  { key: 'hr-leave-calendar', label: 'Leave Calendar', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/leave/calendar', roles: [HR_MANAGER], oldOnlyWhenSwitchOff: true },
   { key: 'hr-attendance', label: 'Attendance', group: 'hr', icon: ico.analytics, oldHref: '/app/hr/attendance', roles: [HR_MANAGER] },
   { key: 'hr-shifts', label: 'Shifts', group: 'hr', icon: ico.shifts, oldHref: '/app/hr/shifts', roles: [HR_MANAGER] },
   { key: 'hr-payroll', label: 'Payroll', group: 'hr', icon: ico.payslips, oldHref: '/app/hr/payroll', roles: [HR_MANAGER] },
@@ -488,7 +490,7 @@ export const NAV_ROWS: readonly NavRow[] = [
   { key: 'staff-kitchen', label: 'Kitchen', group: 'staff-nav', icon: ico.chef, oldHref: '/app/kitchen', roles: [CHEF], quick: { [CHEF]: 1 } },
   { key: 'staff-barista', label: 'Barista', group: 'staff-nav', icon: ico.coffee, oldHref: '/app/barista', roles: [BARISTA], quick: { [BARISTA]: 1 } },
   { key: 'staff-shifts', label: 'Shifts', group: 'staff-nav', icon: ico.shifts, oldHref: '/app/shifts', roles: SHIFT_STAFF },
-  { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: SHIFT_STAFF },
+  { key: 'staff-leave', label: 'My Leave', group: 'staff-nav', icon: ico.leaveOff, oldHref: '/app/hr/my-leave', roles: SHIFT_STAFF, oldOnlyWhenSwitchOff: true },
   { key: 'staff-performance', label: 'Performance', group: 'staff-nav', icon: ico.analytics, oldHref: '/app/performance', roles: [WAITER, CHEF, BARISTA] },
   { key: 'staff-history', label: 'History', group: 'staff-nav', icon: ico.history, oldHref: '/app/history', roles: [CHEF, BARISTA], hideForDepartmentHead: true },
   // The waiter's own order history (tips and sales) shows for every waiter, department or not; a department member's Deliveries History is a different page.
@@ -656,6 +658,7 @@ export interface NavGroup {
 const visible = (rule: Visibility, actor: AppRole, ctx: NavContext): boolean =>
   !rule.notBuilt &&
   (!rule.needsAttendance || ctx.attendanceOn === true) &&
+  (!rule.oldOnlyWhenSwitchOff || ctx.attendanceOn !== true) &&
   (!rule.needsPayroll || ctx.payrollOn === true) &&
   rule.roles.includes(actor) &&
   (!rule.capability || ctx.can(rule.capability)) &&

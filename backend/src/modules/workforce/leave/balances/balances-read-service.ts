@@ -77,6 +77,8 @@ export interface BalanceDrawer {
   person: { id: string; name: string; roleLabel: string; department: string | null; site: string; onPolicy: boolean; note: string | null };
   year: number;
   cards: (TypeBalance & { spoken: string })[];
+  /** The kinds of leave HR may adjust for this person: every type with a balance, even one with no days yet (a card is shown only once days exist). */
+  adjustable: { code: string; label: string }[];
   requests: ApplicationSummary[];
   adjustments: { at: string; typeCode: string; days: number; reasonCode: string | null; by: string | null }[];
 }
@@ -97,6 +99,7 @@ export async function balanceDrawer(subject: AccessSubject, employeeId: string, 
     person: { id: person.id, name: person.name, roleLabel: person.positionName ?? roleWord(person.role), department: person.departmentName, site: person.siteName, onPolicy: balances.cards.length > 0, note: person.isCasual ? 'Leave starts when the contract starts.' : null },
     year,
     cards: balances.cards.map((entry) => ({ ...entry, spoken: spokenLabel(entry) })),
+    adjustable: balances.requestable.filter((entry) => entry.left !== null).map((entry) => ({ code: entry.code, label: entry.label })),
     requests: rows.map((row) => summaryOf(row, now)),
     adjustments: history.map((line) => ({ at: line.createdAt.toISOString(), typeCode: line.typeCode, days: line.days, reasonCode: line.reasonCode, by: line.byUser ? (names.get(line.byUser)?.name ?? null) : null })),
   };

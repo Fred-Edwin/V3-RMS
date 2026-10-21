@@ -7,6 +7,7 @@ import { attentionRows, comingUpRows, gapRows, nairobiDay, onboardingCount, peop
 
 import type { CardDataState } from '../lib/card-registry';
 import type { AttentionData, ComingUpData, KpiData, PeopleData } from './hr-cards';
+import { useLeaveComingUp } from './leave-data';
 import { useRequestAttention, useTimesheetCloseEvents } from './timesheet-data';
 
 /**
@@ -93,6 +94,7 @@ export function useComingUpData(): CardDataState<ComingUpData> {
   const closes = useTimesheetCloseEvents();
   const closeEvents = closes.status === 'ready' ? closes.data : null;
   const probation = people.status === 'ready' ? people.data : null;
+  const leave = useLeaveComingUp();
   // The same answer until something changes: the Home page compares answers by identity.
-  return useMemo((): CardDataState<ComingUpData> => (probation ? { status: 'ready', data: { events: [...(closeEvents ?? []), ...probation.events].slice(0, 4) } } : people), [probation, closeEvents, people]);
+  return useMemo((): CardDataState<ComingUpData> => (probation ? { status: 'ready', data: { events: [...(closeEvents ?? []), ...leave, ...probation.events].slice(0, 4) } } : people), [probation, closeEvents, leave, people]);
 }

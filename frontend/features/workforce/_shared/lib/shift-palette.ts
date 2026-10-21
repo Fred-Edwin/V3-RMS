@@ -9,6 +9,8 @@
  *   this file changes.
  */
 export type ShiftTone = 'morning' | 'afternoon' | 'midday' | 'earlyBake' | 'leave';
+/** What a chip can be drawn as: a shift colour, or `asked` (leave asked for, not approved yet; Leave only, never pickable). */
+export type ShiftChipTone = ShiftTone | 'asked';
 
 export const SHIFT_TONES: readonly ShiftTone[] = ['morning', 'afternoon', 'midday', 'earlyBake', 'leave'];
 
@@ -19,7 +21,7 @@ export interface ShiftPaint {
   label: string;
 }
 
-export const SHIFT_PAINT: Record<ShiftTone, ShiftPaint> = {
+export const SHIFT_PAINT: Record<ShiftChipTone, ShiftPaint> = {
   morning: { chip: 'border-wds-info-border bg-wds-info-bg text-wds-info-fg', label: 'Morning' },
   afternoon: { chip: 'border-wds-success-border bg-wds-success-bg text-wds-success-fg', label: 'Afternoon' },
   midday: { chip: 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg', label: 'Mid-day' },
@@ -28,6 +30,8 @@ export const SHIFT_PAINT: Record<ShiftTone, ShiftPaint> = {
     label: 'Early bake',
   },
   leave: { chip: 'border-wds-border-strong bg-wds-neutral-100 text-wds-text-secondary', label: 'Leave' },
+  // Leave step 10: asked for, not approved yet. Transparent with a dashed caramel border on the warm row (Paper #B5823E / #8A5A16).
+  asked: { chip: 'border-dashed border-wds-caramel-600 bg-transparent text-wds-warning-fg', label: 'Asked for' },
 };
 
 /** "06–14" for a cell: start and end hour, an en dash between (Paper 16G8-0). */

@@ -29,6 +29,7 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     const { cancelLeave } = await import('./applications/cancel-service');
     const { adjustBalance } = await import('./balances/adjust-service');
     const { balancesOf } = await import('./balances/balance-service');
+    const { balanceDrawer } = await import('./balances/balances-read-service');
     const { rulesToday } = await import('./balances/rules-loader');
     const { myOverview } = await import('./reads/mine-service');
     const { carryLegacyLeave } = await import('./carry/carry-service');
@@ -36,7 +37,7 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     const { resolveActor } = await import('../people/people-context');
     const { auditRepository } = await import('../_shared/audit/audit-repository');
     const { verifyAuditChain } = await import('../_shared/audit/audit-hash');
-    return { prisma, time, hashPin, createAsk, approveLeave, declineLeave, cancelLeave, adjustBalance, balancesOf, rulesToday, myOverview, carryLegacyLeave, peopleRepository, resolveActor, auditRepository, verifyAuditChain };
+    return { prisma, time, hashPin, createAsk, approveLeave, declineLeave, cancelLeave, adjustBalance, balancesOf, balanceDrawer, rulesToday, myOverview, carryLegacyLeave, peopleRepository, resolveActor, auditRepository, verifyAuditChain };
   };
 
   let m: Mods;
@@ -181,6 +182,8 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
 
   it('adjusting a balance needs a PIN and a reason, cannot go below zero, and a repeated key adjusts once', async () => {
     const left = await annualLeft();
+    // HR can pick a kind of leave to adjust even when the person has no days yet (no card): the drawer lists every adjustable type.
+    expect((await m.balanceDrawer(hr, waiterEmployee, undefined, NOW)).adjustable).toEqual(expect.arrayContaining([{ code: 'ANNUAL', label: 'Annual leave' }]));
     await expect(m.adjustBalance(hr, { employeeId: waiterEmployee, typeCode: 'ANNUAL', add: -(left + 1), reasonCode: 'CORRECTION', pin: PIN }, nextKey('below'), NOW)).rejects.toMatchObject({ statusCode: 409, code: 'BALANCE_BELOW_ZERO' });
     await expect(m.adjustBalance(hr, { employeeId: waiterEmployee, typeCode: 'ANNUAL', add: 2, reasonCode: 'CORRECTION', pin: '0000' }, nextKey('pin'), NOW)).rejects.toMatchObject({ statusCode: 403 });
     expect(await annualLeft()).toBe(left);
@@ -192,7 +195,7 @@ describe.skipIf(!enabled)('Leave flows in the database', () => {
     expect(await annualLeft()).toBe(left + 2);
     expect(await m.prisma.leaveBalanceEntry.count({ where: { employeeId: waiterEmployee, kind: 'ADJUSTMENT', idempotencyKey: k } })).toBe(1);
     // Who may adjust is the route's `requireCapability('leave.balance_adjust')`; the per-role HTTP proof (leave-proof.ts) shows the 403.
-  });
+  }, 30_000); // three real bcrypt checks and the drawer read: about 2.5 s alone, over the 5 s default when the whole suite runs
 
   it('a casual worker gets an empty, well-formed answer, a calm refusal to send, and no adjustment', async () => {
     const overview = await m.myOverview(casual, undefined, NOW);

@@ -12,7 +12,7 @@ import { cn } from '@/lib/cn';
  *
  * Paper's ring colour #B0610F and fill #FCF2E4 have no token; `caramel-600` and `warning-bg` are the nearest, as in the Inbox row.
  */
-export type CircleStepState = 'done' | 'current' | 'todo' | 'amber' | 'declined';
+export type CircleStepState = 'done' | 'current' | 'todo' | 'amber' | 'declined' | 'passed' | 'cancelled';
 
 export interface CircleStep {
   key: string;
@@ -23,7 +23,7 @@ export interface CircleStep {
   action?: React.ReactNode;
 }
 
-const SPOKEN: Record<CircleStepState, string> = { done: 'Done: ', current: 'Now: ', todo: 'To come: ', amber: 'Done, needs a look: ', declined: 'Declined: ' };
+const SPOKEN: Record<CircleStepState, string> = { done: 'Done: ', current: 'Now: ', todo: 'To come: ', amber: 'Done, needs a look: ', declined: 'Declined: ', passed: 'Passed by time: ', cancelled: 'Cancelled: ' };
 
 function Dot({ state }: { state: CircleStepState }) {
   if (state === 'done' || state === 'amber') {
@@ -33,10 +33,18 @@ function Dot({ state }: { state: CircleStepState }) {
       </span>
     );
   }
-  if (state === 'declined') {
+  if (state === 'declined' || state === 'cancelled') {
     return (
-      <span aria-hidden className="flex size-6 items-center justify-center rounded-full bg-wds-error-fg text-[13px] font-semibold leading-none text-white">
+      <span aria-hidden className={cn('flex size-6 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-white', state === 'declined' ? 'bg-wds-error-fg' : 'bg-wds-neutral-400')}>
         ×
+      </span>
+    );
+  }
+  // Passed by time (Leave: the 3-day step a request moves past). No Paper token for the fill; caramel-700 is the nearest, as in the Leave decisions file.
+  if (state === 'passed') {
+    return (
+      <span aria-hidden className="flex size-6 items-center justify-center rounded-full bg-wds-caramel-700 text-[13px] font-semibold leading-none text-white">
+        ✓
       </span>
     );
   }
@@ -55,7 +63,7 @@ export function CircleStepper({ steps, label, className }: { steps: readonly Cir
     <ol aria-label={label} className={cn('m-0 flex list-none flex-col p-0', className)}>
       {steps.map((step, index) => {
         const last = index === steps.length - 1;
-        const lineTone = step.state === 'done' || step.state === 'amber' ? 'bg-wds-success-fg' : 'bg-wds-border-strong';
+        const lineTone = step.state === 'done' || step.state === 'amber' || step.state === 'passed' ? 'bg-wds-success-fg' : 'bg-wds-border-strong';
         return (
           <li key={step.key} aria-current={step.state === 'current' ? 'step' : undefined} className={cn('flex gap-3.5', !last && 'pb-5')}>
             <div className="relative flex w-6 shrink-0 flex-col items-center">

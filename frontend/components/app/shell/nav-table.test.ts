@@ -664,10 +664,10 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
   it('gives floor staff a Home link, and a head the Today board and the Rota, only where the new clock is on', () => {
     const wf = (groups: NavGroup[]) => keys(groups).filter((k) => k.startsWith('wf-'));
     for (const role of ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_ATTENDANT'] as AppRole[]) {
-      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }))), role).toEqual(['wf-staff-home', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
+      expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: true }))), role).toEqual(['wf-staff-home', 'wf-staff-my-time', 'wf-staff-my-leave', 'wf-staff-my-payslips', 'wf-staff-conduct']);
       expect(wf(navFor(ctxFor(role, { can: EVERYTHING, attendanceOn: false }))), role).toEqual(['wf-staff-my-payslips']);
     }
-    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
+    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true })))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-leave', 'wf-staff-my-payslips', 'wf-staff-conduct']);
     // The links open: the route gate lets the same people in.
     expect(isAllowedPath('/app/workforce', 'WAITER', false)).toBe(true);
   });
@@ -732,7 +732,7 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     const staff = wf(navFor(ctxFor('WAITER', { can: EVERYTHING, attendanceOn: true }), everything));
     expect(staff.map((g) => g.label)).toEqual(['HOME', 'ME']);
     // Today (new clock on) a head gets the Home link, Team today and the Rota; the rest of the drawer waits for its slices.
-    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true }))).flatMap((g) => g.items.map((i) => i.key))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-payslips', 'wf-staff-conduct']);
+    expect(wf(navFor(ctxFor('WAITER', { isDepartmentHead: true, can: EVERYTHING, attendanceOn: true }))).flatMap((g) => g.items.map((i) => i.key))).toEqual(['wf-staff-home', 'wf-head-today', 'wf-head-rota', 'wf-head-casuals', 'wf-staff-my-time', 'wf-staff-my-leave', 'wf-staff-my-payslips', 'wf-staff-conduct']);
   });
 
   it('shows the Timesheets, Requests and My time rows only where the branch’s new clock is on, and every link opens for the role that sees it', () => {
