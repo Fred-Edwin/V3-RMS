@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 /** A fresh key for one intent. 8 to 80 characters is what the server accepts; a UUID is 36. */
 export const newKey = (): string => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
@@ -18,5 +18,7 @@ export function useIdempotencyKey(): { current: () => string; fresh: () => void 
   const fresh = useCallback(() => {
     ref.current = null;
   }, []);
-  return { current, fresh };
+  // One object for the life of the component: dialogs list `key` in effect dependencies, and a new object each render re-ran
+  // those effects after every render (clearing a wrong-PIN message the moment it appeared and renewing the key on a retry).
+  return useMemo(() => ({ current, fresh }), [current, fresh]);
 }

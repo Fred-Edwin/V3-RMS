@@ -114,7 +114,7 @@ export function AdjustDialog({ open, onOpenChange, prefill, site, onAdjusted }: 
     }
   };
 
-  const told = preview?.told.map((t) => `${t.name}, ${t.label}`).join(' and ') ?? (person ? `${person.name}, ${person.roleLabel}` : 'The person');
+  const told = preview?.told.map((t) => t.label).join(' and ') ?? (person ? `${person.name}, ${person.roleLabel}` : 'The person');
   return (
     <WorkforcePinDialog
       open={open}
