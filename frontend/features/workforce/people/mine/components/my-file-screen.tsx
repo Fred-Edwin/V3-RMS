@@ -61,11 +61,16 @@ export function MyFileScreen() {
             <KeyValueRows rows={jobRows(data)} aria-label="Your job" topRule={false} className="[&>div]:px-[18px]" />
           </Panel>
           <SensitivePanel file={data} own />
+          {data.sensitive.nssfNumber || data.sensitive.shaNumber ? (
+            <Button type="button" variant="flat" className="self-start" onClick={() => setForm('numbers')}>
+              Check or correct my NSSF and SHA numbers
+            </Button>
+          ) : null}
           <Button type="button" variant="flat" className="self-start" onClick={() => setForm('photo')}>
             {data.photoUrl ? 'Change my photo' : 'Add a photo'}
           </Button>
           {form === 'emergency' ? <EmergencyDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'numbers' ? <NumbersDialog onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'numbers' ? <NumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
           {form === 'photo' ? <PhotoDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
         </div>
       )}

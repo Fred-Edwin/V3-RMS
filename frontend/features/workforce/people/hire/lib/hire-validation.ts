@@ -1,3 +1,4 @@
+import { kraPinError, nssfError, shaError } from '../../_shared/lib/statutory-formats';
 import type { Lookups } from '../../_shared/types/people-types';
 import { isCasual, type HireState, type HireStepKey } from './hire-model';
 
@@ -37,6 +38,12 @@ export function validateStep(step: HireStepKey, s: HireState, lookups: Lookups |
     } else if (!isHours(s.weekHours) || Number(s.weekHours) <= 0) e.weekHours = 'Enter hours such as 48.';
   }
   if (step === 'statutory') {
+    const kra = kraPinError(s.kraPin);
+    if (kra) e.kraPin = kra;
+    const nssf = nssfError(s.nssfNumber);
+    if (nssf) e.nssfNumber = nssf;
+    const sha = shaError(s.shaNumber);
+    if (sha) e.shaNumber = sha;
     if (s.payoutMethod === 'BANK') {
       if (s.bankName.trim() === '') e.bankName = 'Enter the bank.';
       if (s.accountNumber.trim() === '') e.accountNumber = 'Enter the account number.';
