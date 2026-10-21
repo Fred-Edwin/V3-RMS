@@ -83,6 +83,8 @@ export const hireService = {
       const boss = await hireRepository.findActiveEmployee(ctx.companyId, job.reportsToId);
       if (!boss) throw new ValidationError('That manager is not an active employee');
     }
+    // Nobody named (a department with no head): the site manager is the real approver, so the file says so.
+    const reportsToId = job.reportsToId ?? (await hireRepository.findSiteManager(ctx.companyId, job.siteId))?.id ?? null;
 
     // 3. Duplicates, and the account being adopted.
     if (await employeesRepository.nationalIdTaken(ctx.companyId, who.nationalId)) {
@@ -121,7 +123,7 @@ export const hireService = {
         name: who.name,
         departmentId: job.departmentId,
         positionId: job.positionId,
-        reportsToId: job.reportsToId ?? null,
+        reportsToId,
         status,
         payType: casual ? 'DAILY_RATE' : 'MONTHLY_SALARY',
         contractStatus: 'NONE',

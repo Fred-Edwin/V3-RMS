@@ -5,13 +5,17 @@ import { finishProgress, numbersEmpty, stillToFinish, toEmergencyBody, toNumbers
 
 const parts = (open: FilePart[]) => (['EMERGENCY_CONTACT', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'PAY'] as FilePart[]).map((part) => ({ part, applicable: true, done: !open.includes(part) }));
 const file = (open: FilePart[], nextSteps: EmployeeFile['nextSteps'] = []): EmployeeFile =>
-  ({ completeness: { ringPercent: 50, checklistPercent: 50, parts: parts(open), checklist: [] }, nextSteps }) as unknown as EmployeeFile;
+  ({ completeness: { ringPercent: 50, checklistPercent: 50, parts: parts(open), checklist: [] }, nextSteps, sensitive: {} }) as unknown as EmployeeFile;
 const words = (d: string): string => `on ${d}`;
 
 describe('what is still to finish', () => {
   it('lists the three things the person can add, only the open ones', () => {
     expect(stillToFinish(file(['NSSF_SHA']), words).map((r) => r.key)).toEqual(['numbers']);
     expect(stillToFinish(file([]), words)).toEqual([]);
+  });
+  it('does not ask for numbers that are already on the file (finding 66)', () => {
+    const done = { ...file(['NSSF_SHA']), sensitive: { nssfNumber: '900037', shaNumber: '5000091' } } as unknown as EmployeeFile;
+    expect(stillToFinish(done, words)).toEqual([]);
   });
   it('says when HR asked', () => {
     const rows = stillToFinish(file(['EMERGENCY_CONTACT'], [{ code: 'FILE_REQUEST', dueOn: null, fileRequestId: 'r', fileRequestKind: 'EMERGENCY_CONTACT', fileRequestAskedOn: '2026-10-02' }]), words);

@@ -71,7 +71,7 @@ export function MyFileScreen() {
           </Button>
           {form === 'emergency' ? <EmergencyDialog onClose={() => setForm(null)} done={done} /> : null}
           {form === 'numbers' ? <NumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'photo' ? <PhotoDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'photo' ? <PhotoDialog own file={data} onClose={() => setForm(null)} done={done} /> : null}
         </div>
       )}
     </PeopleFrame>

@@ -94,7 +94,10 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
         width: '280px',
         cell: (row, { term }) => (
           <AvatarCell name={row.name} sub={row.positionName ?? undefined} photoUrl={row.photoUrl}>
-            <HighlightMatch text={row.name} term={term} />
+            {/* A real link: open in a new tab, and a screen reader hears who it opens (finding 27). The row click still works. */}
+            <a href={`/app/workforce/employees/${row.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open ${row.name}'s file`} className="text-inherit no-underline outline-none hover:underline focus-visible:shadow-wds-ring">
+              <HighlightMatch text={row.name} term={term} />
+            </a>
           </AvatarCell>
         ),
       },
@@ -109,7 +112,7 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
           return <StatusTag tone={file.tone}>{file.label}</StatusTag>;
         },
       },
-      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? ''}</span> },
+      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? 'No head yet'}</span> },
     ],
     []
   );

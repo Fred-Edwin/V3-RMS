@@ -75,7 +75,7 @@ export function UploadDialog({ file, onClose, done }: FileDialogProps) {
 }
 
 /** Photo (W8): replaces the initials everywhere. */
-export function PhotoDialog({ file, onClose, done }: FileDialogProps) {
+export function PhotoDialog({ file, onClose, done, own = false }: FileDialogProps & { own?: boolean }) {
   const [chosen, setChosen] = React.useState<File | null>(null);
   const action = useFileAction((m) => done(m ?? 'Photo saved.'));
   const problem = fileProblem(chosen, 'image/jpeg,image/png');
@@ -83,7 +83,7 @@ export function PhotoDialog({ file, onClose, done }: FileDialogProps) {
     <KitDialog
       open
       onOpenChange={(o) => !o && onClose()}
-      title={`${firstName(file.name)}'s photo`}
+      title={own ? 'Your photo' : `${firstName(file.name)}'s photo`}
       description="It replaces the initials everywhere."
       width={500}
       busy={action.busy}

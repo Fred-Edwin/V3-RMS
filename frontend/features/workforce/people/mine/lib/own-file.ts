@@ -16,7 +16,7 @@ export interface StillToFinish {
   action: string;
 }
 
-const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Your photo and personal details' };
+const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Your photo' };
 const PART_FOR: Record<OwnForm, 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS'> = { emergency: 'EMERGENCY_CONTACT', numbers: 'NSSF_SHA', photo: 'PHOTO_AND_DETAILS' };
 const KIND_FOR: Record<string, OwnForm> = { EMERGENCY_CONTACT: 'emergency', NSSF_SHA: 'numbers', PHOTO_AND_DETAILS: 'photo' };
 
@@ -30,6 +30,8 @@ export function stillToFinish(file: EmployeeFile, dayWords: (date: string) => st
     const part = file.completeness?.parts.find((p) => p.part === PART_FOR[key]);
     const open = part ? part.applicable && !part.done : asked.has(key);
     if (!open && !asked.has(key)) return [];
+    // Both numbers are already on the file (the IDs card shows them): there is nothing left to ask for (finding 66).
+    if (key === 'numbers' && file.sensitive.nssfNumber && file.sensitive.shaNumber) return [];
     const when = asked.get(key);
     return [{ key, title: TITLES[key], detail: when ? `HR asked for this on ${dayWords(when)}` : null, action: 'Add' }];
   });
@@ -47,7 +49,7 @@ export function validateEmergency(f: EmergencyForm): Partial<Record<keyof Emerge
   const errors: Partial<Record<keyof EmergencyForm, string>> = {};
   if (f.name.trim().length < 2) errors.name = 'Enter their name.';
   if (f.relation === '') errors.relation = 'Choose how they are related to you.';
-  if (f.phone.replace(/\D/g, '').length < 9) errors.phone = 'Enter their phone number.';
+  if (f.phone.replace(/\D/g, '').length < 9) errors.phone = 'Enter a phone number such as 0712 345 678.';
   return errors;
 }
 

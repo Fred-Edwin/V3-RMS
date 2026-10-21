@@ -60,6 +60,14 @@ export const hireRepository = {
   findActiveEmployee: (companyId: string, id: string) =>
     prisma.employee.findFirst({ where: { id, companyId, status: { not: 'EXITED' } }, select: { id: true, siteId: true } }),
 
+  /** The person a hire reports to when nobody is named: the site's own manager (finding 12). Null when there is none. */
+  findSiteManager: (companyId: string, siteId: string) =>
+    prisma.employee.findFirst({
+      where: { companyId, siteId, status: { not: 'EXITED' }, user: { role: { in: ['MANAGER', 'STORE_MANAGER'] }, isActive: true } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+
   /** Employee numbers are one series per company: lock the company, take the highest "W-####", add one. */
   async nextEmployeeNumber(tx: Prisma.TransactionClient, companyId: string): Promise<string> {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))::text`;

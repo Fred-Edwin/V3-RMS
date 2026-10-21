@@ -31,7 +31,7 @@ export function EmergencyDialog({ onClose, done }: OwnDialogProps) {
       open
       onOpenChange={(o) => !o && onClose()}
       title="Emergency contact"
-      description="Only HR and your Branch Manager can see it, and only if they need it."
+      description="Only HR and your manager can see it, and only if they need it."
       width={440}
       busy={action.busy}
       footer={
