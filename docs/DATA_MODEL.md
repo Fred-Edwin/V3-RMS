@@ -377,6 +377,7 @@ model User {
   phone          String?
   passwordHash   String    @map("password_hash")
   fcmToken       String?   @map("fcm_token")          -- Firebase Cloud Messaging token for push notifications
+  temporaryPasswordExpiresAt DateTime? @map("temporary_password_expires_at") -- last moment an unused temporary password works (7 days from login creation); sign-in refuses after it with TEMPORARY_PASSWORD_EXPIRED; cleared at first sign-in or any password change
   role           UserRole
   isActive       Boolean   @default(true) @map("is_active")
   isTestUser     Boolean   @default(false) @map("is_test_user")  -- excluded from reports

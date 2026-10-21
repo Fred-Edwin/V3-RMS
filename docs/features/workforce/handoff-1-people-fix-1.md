@@ -1,27 +1,22 @@
-# Handoff: People final pass, fix batch 1 (Part 1 done, Part 2 to do)
+# Handoff: People final pass, fix batch 1 (Part 1 and Part 2 done)
 
-**(a) Where.** Worktree `lane-2`, branch `fix/workforce-1-people-batch-1` (from `origin/feat/workforce-stack-complete`), last commit: see `git log -1`. Front end port 3102, API 4102, `http://lane2.localhost:3102`, database `wendo_rms_lane2`. Nothing is pushed.
+**(a) Where.** Worktree `lane-2`, branch `fix/workforce-1-people-batch-1` (merged with `origin/feat/workforce-stack-complete`), last commit: see `git log -1`. Ports 3102 / 4102, database `wendo_rms_lane2`. Nothing is pushed. Servers and the lane 2 Redis container are stopped.
 
-**(b) Built (commits, in order).** Group 1 back end (formats, payout set, PIN on pay change, Store Manager reach); Group 2 back end (server password, sign-in address); front end for both; Store Manager Organisation row (57); Group 3 (photo message, busy retry, quiet 4xx, Approve message); Group 4 (Incomplete files / Blocks payroll, overdue probation, 24-hour hire correction, copy, name link, bank list, My file copy). Per-row detail: `docs/features/workforce/checklist-1-people-fix-1.md`.
+**(b) Built.** Every row of `checklist-1-people-fix-1.md` is built. Part 2 added: 7-day expiry of an unused temporary password (migration `20261021120000_user_temporary_password_expiry`), the widened 260-word Swahili list (`sign-in/swahili-words.ts`), backfill of "Reports to" (`src/scripts/backfill-reports-to.ts`), Activity tab outcome and "by", recorded contract in Documents, O6b "people without a login" and its list in Assign head, My file form for National ID and bank, "Ask HR to change this", copy pass, bank list in the file's bank dialog, "Pay in the October run", the "trying again" note, shared in-flight reads (row 28), one top bar on Workforce Home for a head.
 
-**(c) Not done (see the checklist for the full list).**
-- [ ] 28 production-build check of repeated calls and the double `people.pay_opened`
-- [ ] 60 one top bar on Home for a department head (needs the browser)
-- [ ] 58 Store Manager copy; 24 Activity outcome and "by whom"; 25 the remaining labels; 40 file badge
-- [ ] 15 / Q2 My file form for National ID, bank and account number (API is ready)
-- [ ] 48 / Q5 front-end "Ask HR to change this" line after 24 hours
-- [ ] 43 7-day expiry of an unused temporary password (column and sign-in check)
-- [ ] 20 list of people without a login; 19 contract listed in Documents; 29 bank list in the file's bank dialog
-- [ ] 46 on-screen "trying again" note; 54 "Pay in the October run"; 12 backfill for existing rows
+**(c) Not done or not seen.**
+- [ ] Rows 4, 37 (signing PIN): HR and Director have no PIN in the lane, so not walked.
+- [ ] Rows 5, 16, 17, 54, 46: no data or no way to provoke it in the lane; unit-tested only.
+- [ ] Row 50: Chrome prints its own 404 line; the page cannot suppress it.
+- [ ] Documents tab, bank dialog, Move dialog and Login dialog were not opened in the browser (copy checked by tests).
+- [ ] The Director's Overview and the department head's My file were looked at only briefly; no screenshot was read for the Director's file.
 
-**(d) Part 2 commands.** In `backend/`: `pnpm build`, `pnpm test` (re-run only the known failing DB-flow files at the end), `pnpm check:imports` (not worse), ESLint on changed files. In `frontend/`: `pnpm exec tsc --noEmit`, `pnpm exec vitest run`, `pnpm build`, ESLint on changed files. Then a real-browser walk of only what changed, as HR, Director, Branch Manager, Accountant, Store Manager, a department head and staff at 390 px (one screenshot per changed screen; audit entries have no password, PIN or amount; console clean; attendance switch off). Note anything awkward for the People demo video.
+**(d) Gates run.** Backend `pnpm build`, `pnpm test` (7 known DB-flow files fail as on the base; people-flow and org-heads-flow fail only when run in parallel and pass alone), `check:imports` 50 warnings 0 errors, ESLint on changed files. Front end `tsc`, `vitest` (1,611 passed), `pnpm build`, ESLint (one old `<img>` warning in `who-step.tsx`).
 
-**(e) Read first.** `checklist-1-people-fix-1.md`; `final-pass/1-people-decisions.md` (Answers section); `backend/src/modules/workforce/people/sign-in/`; `people/pay/pay-service.ts`; `frontend/lib/apiClient.ts`.
+**(e) Read first.** `checklist-1-people-fix-1.md`; `final-pass/1-people-decisions.md`; `backend/src/modules/workforce/people/sign-in/`; `frontend/lib/apiClient.ts`.
 
-**(f) Gotchas.** Fresh servers before the walk. The People DB flow test mocks the signing PIN (`vi.mock` of `signer-pin`); the PIN check itself has its own tests. Real PIN needed in the browser: set one for HR and the Director first. The photo needs a real storage key in `backend/.env` to succeed. `STORE_MANAGER` reach is by login role, not department name.
+**(f) Gotchas.** The lane's Redis container `wendo-lane-2-redis` must be started (`docker start wendo-lane-2-redis`) before the API is healthy. The window cannot be resized; use device emulation for 390 px. The attendance switch is on for the test branch "ZZ Pay2" (changed 20 Oct, not by this session); the Nyeri sites have no switch row.
 
-**(g) Rule slips.** One no-op heredoc/python call in Bash (changed nothing). Marked tasks 1 and 2 "completed" before the checklist showed partial rows.
+**(g) Rule slips.** Three empty no-op Bash calls (a `sed` on /dev/null, an empty python heredoc, an empty `cat >>` heredoc); one migration file written with `printf` instead of the Write tool; one commit that carried a type error (fixed in the next commit); screenshots first saved in a mistyped scratchpad path (moved on).
 
-**(h) Departures from the brief.** The owner removed the 150-call cap mid-session. Q5 differs from the recommendation (owner chose the 24-hour correction). Cash is allowed for casual staff only; monthly staff get Bank or M-Pesa. NSSF and SHA formats are lenient (five to fifteen letters or digits, at least five digits) because the real formats are unknown. The 250-word list is a first draft for a Swahili speaker to review.
-
-**Deleted:** the browser password generator (`_shared/lib/temporary-password.ts`), the three-suggestion email hook (`_shared/hooks/use-email-suggestions.ts`) and its helper and test (`_shared/lib/sign-in-email.ts`, `.test.ts`). **Kept:** nothing else was removed; the legacy `createStaff` path and the old `Email` field on the hire state are still used.
+**(h) Departures.** Cash only for casuals (monthly: Bank or M-Pesa). NSSF and SHA formats lenient. The word list is a draft for a Swahili speaker. The workforce public door is unchanged: the backfill script imports its function by path. The lane database was backfilled (9 rows) and Kelvin Kings's National ID was set during the walk.
