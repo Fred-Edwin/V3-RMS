@@ -36,9 +36,11 @@ export interface HomeStackProps {
   can: (capability: WorkforceCapability) => boolean;
   /** Shown above the cards on the desktop page: the greeting and the sentence under it. */
   heading?: React.ReactNode;
+  /** No page padding: the stack sits inside a page that already has it (the role Home's action cards). */
+  flush?: boolean;
 }
 
-export function HomeStack({ cards, surface, can, heading }: HomeStackProps) {
+export function HomeStack({ cards, surface, can, heading, flush }: HomeStackProps) {
   const visible = React.useMemo(() => visibleCards(cards, surface, can), [cards, surface, can]);
   const [states, setStates] = React.useState<Record<string, CardDataState<unknown>>>({});
   const report = React.useCallback((id: string, next: CardDataState<unknown>) => {
@@ -51,13 +53,13 @@ export function HomeStack({ cards, surface, can, heading }: HomeStackProps) {
       {visible.map((card) => (
         <CardProbe key={card.id} card={card} report={report} />
       ))}
-      <HomeLayout arranged={arranged} surface={surface} heading={heading} />
+      <HomeLayout arranged={arranged} surface={surface} heading={heading} flush={flush} />
     </>
   );
 }
 
 /** The page from an arrangement. No hooks of its own beyond the kit's; the gallery draws it from fixtures. */
-export function HomeLayout({ arranged, surface, heading }: { arranged: ArrangedHome; surface: HomeSurface; heading?: React.ReactNode }) {
+export function HomeLayout({ arranged, surface, heading, flush = false }: { arranged: ArrangedHome; surface: HomeSurface; heading?: React.ReactNode; flush?: boolean }) {
   const body =
     arranged.page === 'loading' ? (
       <ListSkeleton rows={4} columns={[120, 'fill', 80]} label="Loading Home" />
@@ -75,7 +77,7 @@ export function HomeLayout({ arranged, surface, heading }: { arranged: ArrangedH
     );
 
   return (
-    <div className={cn('flex flex-col', surface === 'phone' ? 'gap-4 px-4 pb-6 pt-4' : 'gap-6 px-8 py-7')}>
+    <div className={cn('flex flex-col', surface === 'phone' ? 'gap-4' : 'gap-6', !flush && (surface === 'phone' ? 'px-4 pb-6 pt-4' : 'px-8 py-7'))}>
       {heading}
       {body}
     </div>

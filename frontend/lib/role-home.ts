@@ -1,20 +1,21 @@
 import type { AppRole } from '@/types/auth';
 
+/** The Home every human role lands on after sign-in (Workforce final pass, batch 2A). The two kitchen display screens keep their own. */
+const HOME = '/app/workforce';
+
 export const roleHome: Record<AppRole, string> = {
-  WAITER: '/app/dashboard',
-  CHEF: '/app/dashboard',
-  BARISTA: '/app/dashboard',
+  WAITER: HOME,
+  CHEF: HOME,
+  BARISTA: HOME,
   KITCHEN_DISPLAY: '/app/kitchen',
   BARISTA_DISPLAY: '/app/barista',
-  MANAGER: '/app/manage/dashboard',
-  DIRECTOR: '/app/director',
-  ACCOUNTANT: '/app/accountant',
-  SYSTEM_ADMIN: '/app/admin',
-  HR_MANAGER: '/app/hr',
-  STEWARD: '/app/dashboard',
-  HOUSEKEEPING: '/app/dashboard',
-  // Dashboards aren't in scope yet, so each role lands on the screen of its daily job:
-  // the Store Manager on the requisition queue, the Store Attendant on To pack.
-  STORE_MANAGER: '/app/inventory/requisitions',
-  STORE_ATTENDANT: '/app/inventory/dispatch',
+  MANAGER: HOME,
+  DIRECTOR: HOME,
+  ACCOUNTANT: HOME,
+  SYSTEM_ADMIN: HOME,
+  HR_MANAGER: HOME,
+  STEWARD: HOME,
+  HOUSEKEEPING: HOME,
+  STORE_MANAGER: HOME,
+  STORE_ATTENDANT: HOME,
 };

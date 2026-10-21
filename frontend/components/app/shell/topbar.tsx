@@ -34,11 +34,13 @@ export interface TopbarProps {
   searchRef?: React.Ref<HTMLInputElement>;
   /** Screens whose design has no search in the bar (Restock levels). */
   hideSearch?: boolean;
+  /** Replaces the search box: the shell's Search (Ctrl K) trigger. */
+  searchSlot?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function Topbar({ breadcrumb, searchProps, searchRef, hideSearch = false, actions, className }: TopbarProps) {
+export function Topbar({ breadcrumb, searchProps, searchRef, hideSearch = false, searchSlot, actions, className }: TopbarProps) {
   return (
     <header
       className={cn(
@@ -63,11 +65,15 @@ export function Topbar({ breadcrumb, searchProps, searchRef, hideSearch = false,
         ) : (
           <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{breadcrumb.section}</span>
         )}
-        <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
-        <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">{breadcrumb.screen}</span>
+        {breadcrumb.screen ? (
+          <>
+            <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
+            <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">{breadcrumb.screen}</span>
+          </>
+        ) : null}
       </div>
 
-      {hideSearch ? null : (
+      {searchSlot ? <div className="ml-wds-4">{searchSlot}</div> : hideSearch ? null : (
         <SearchInput
           ref={searchRef}
           {...searchProps}

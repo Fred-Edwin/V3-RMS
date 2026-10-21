@@ -1,5 +1,5 @@
-import { WorkforceHome } from '@/features/workforce/home';
+import { RoleHomeScreen } from '@/features/workforce/home';
 
 export default function WorkforceHomePage() {
-  return <WorkforceHome />;
+  return <RoleHomeScreen />;
 }

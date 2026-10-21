@@ -2,6 +2,7 @@
  * Workforce Home: the public API. The route shell imports `WorkforceHome` and the nav drawer provider; a slice that adds a card imports
  * `defineHomeCard` and the block components it needs. Nothing deeper is imported from outside this folder. See README.md.
  */
+export { NeedsYouPageScreen, RoleHomeScreen, breadcrumbFor } from './role-home';
 export { WorkforceHome } from './components/home-screen';
 export { TodayScreen } from './components/today-screen';
 export { WorkforceNavDrawerProvider, useWorkforceNavDrawer } from '../_shared';

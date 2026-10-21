@@ -105,7 +105,10 @@ export function middleware(request: NextRequest): NextResponse {
     }
 
     if (!isAllowedPath(pathname, role, decodeIsDepartmentHead(token))) {
-      return NextResponse.redirect(new URL(roleHome[role], request.url));
+      // Not a silent bounce to Home: the one refusal screen says the page is not for this role, and who it is for.
+      const refusal = new URL('/app/not-available', request.url);
+      refusal.searchParams.set('from', pathname);
+      return NextResponse.redirect(refusal);
     }
   }
 

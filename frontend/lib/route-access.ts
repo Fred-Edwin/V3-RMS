@@ -10,6 +10,11 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
     return true;
   }
 
+  // The one refusal screen: where the middleware sends a person who may not open a page. Everyone may open it.
+  if (pathname === '/app/not-available') {
+    return true;
+  }
+
   // Department-head shift scheduler — gated on the marker, not a role. A head
   // keeps their base role, so their other nav is governed by the rules below.
   if (pathname.startsWith('/app/department')) {
@@ -225,6 +230,16 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
   // The Audit log and its Signed documents tab (Segment 6b): the five desktop roles and the System Admin. What each may read, per category
   // and per document type, is the API's decision (a reader with nothing to read gets a 404 there).
   if (under('/app/workforce/audit-log')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+  }
+
+  // Notifications (Home's bell and "See all notifications"): every person reads their own; the API shows only theirs.
+  if (under('/app/workforce/notifications')) {
+    return true;
+  }
+
+  // Needs you, "See all": the people who hold the capability (the five desktop roles, and the System Admin for security alerts).
+  if (under('/app/workforce/needs-you')) {
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 

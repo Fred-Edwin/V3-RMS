@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { ROLE_GRANTS, type Capability } from '../_shared/workforce-access';
+import { ROLE_GRANTS, scopeOf, workforceCan, type AccessSubject, type Capability } from '../_shared/workforce-access';
+import { homeAudienceOf } from './home-audience';
 
 /**
  * "Not available for your role" (Paper 10.1, 10.2). The one refusal screen says who the page is for, and that line comes from the
@@ -42,6 +43,10 @@ export interface PageFor {
   forWords: string | null;
   roles: string[];
   reference: string;
+  /** A page this person may use instead, with the sentence that says so (Paper 10.1: "Open My team"). null when there is none. */
+  instead: { line: string; label: string; href: string } | null;
+  /** What "Go to ..." says for this person's Home: "Overview" for the desktop roles and heads' department, "Home" for the rest. */
+  homeLabel: 'Overview' | 'Home';
 }
 
 /** A short code the person can read out ("WF-R7K2"): nothing is stored under it; it only lets a support call find the same moment. */
@@ -55,12 +60,22 @@ export function referenceFor(path: string, userId: string, now: Date): string {
 
 const join = (words: string[]): string => (words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 
-export function pageFor(path: string, userId: string, now: Date = new Date()): PageFor {
+/** The page a person may use instead of the one they were refused, from what the access table gives them. */
+function insteadOf(path: string, subject: AccessSubject): PageFor['instead'] {
+  if (path.startsWith('/app/workforce/payroll') && workforceCan(subject, 'me.payslip')) return { line: 'Your own pay is under My payslips.', label: 'My payslips', href: '/app/workforce/my-payslips' };
+  if (path.startsWith('/app/workforce/employees') && scopeOf(subject, 'employee.read_basic') === 'dept') return { line: 'You can see your own department under My team.', label: 'My team', href: '/app/workforce/my-team' };
+  return null;
+}
+
+export function pageFor(path: string, subject: AccessSubject, now: Date = new Date()): PageFor {
   const hit = PAGE_CAPABILITIES.find((p) => path === p.prefix || path.startsWith(`${p.prefix}/`) || (p.prefix.endsWith('-') && path.startsWith(p.prefix)));
-  const reference = referenceFor(path, userId, now);
-  if (!hit) return { page: 'This page', forWords: null, roles: [], reference };
+  const reference = referenceFor(path, subject.id, now);
+  const audience = homeAudienceOf(subject);
+  const homeLabel = audience === 'STAFF' || audience === 'SYSTEM_ADMIN' ? 'Home' : 'Overview';
+  const instead = insteadOf(path, subject);
+  if (!hit) return { page: 'This page', forWords: null, roles: [], reference, instead, homeLabel };
   // `me.file` is every person's own page: say so instead of listing roles.
-  if (hit.capabilities.includes('me.file')) return { page: hit.label, forWords: 'the person it belongs to', roles: [], reference };
+  if (hit.capabilities.includes('me.file')) return { page: hit.label, forWords: 'the person it belongs to', roles: [], reference, instead, homeLabel };
   const roles = ORDER.filter((role) => hit.capabilities.some((c) => ROLE_GRANTS[role]?.[c] !== undefined));
-  return { page: hit.label, forWords: roles.length ? join(roles.map((r) => ROLE_WORDS[r] ?? r)) : null, roles: [...roles], reference };
+  return { page: hit.label, forWords: roles.length ? join(roles.map((r) => ROLE_WORDS[r] ?? r)) : null, roles: [...roles], reference, instead, homeLabel };
 }
