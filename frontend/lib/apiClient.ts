@@ -1,3 +1,4 @@
+import { busyEnded, busyStarted } from './busy-signal';
 import { deviceHeader } from './device-id';
 import { env } from './env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
@@ -34,9 +35,16 @@ const request = async <T>(
   let response = await send();
   // "The system is busy, trying again" (finding 46): a read that hits the rate limit waits and retries on its own, up to three times.
   // Writes are never retried, so nothing is done twice.
-  for (let attempt = 1; method === 'GET' && response.status === 429 && attempt <= BUSY_RETRIES; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, BUSY_WAIT_MS * attempt));
-    response = await send();
+  if (method === 'GET' && response.status === 429) {
+    busyStarted();
+    try {
+      for (let attempt = 1; response.status === 429 && attempt <= BUSY_RETRIES; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, BUSY_WAIT_MS * attempt));
+        response = await send();
+      }
+    } finally {
+      busyEnded();
+    }
   }
 
   const payload = (await response.json()) as ApiResponseEnvelope<T>;
