@@ -4,13 +4,13 @@ Part 1 sets `Built`; part 2 sets `Verified` after the browser walk and the gates
 
 | # | Screen | Built | Verified | Note |
 |---|---|---|---|---|
-| 1 | Needs-you card, Branch Manager Home | yes | no | `home/cards/needs-you-cards.tsx`, `needs-you/` |
-| 2 | Needs-you card, HR, Accountant and Director Homes | yes | no | Director also gets Overdue with Send a reminder |
-| 3 | Menu badges and nav-table changes | yes | no | three rows removed, `wf-security` and `wf-requests-hr` added, tests updated |
-| 4 | Inbox Notifications tab | yes | no | `notifications/`, one change in `InboxShell.tsx` |
-| 5 | "Is this your phone?" prompt | yes | no | `SecurityGate` in `app/app/layout.tsx` |
-| 6 | My phones and remove a phone | yes | no | `/app/workforce/my-phones` |
-| 7 | "This wasn't me" and the password reset | yes | no | `/app/workforce/wasnt-me`; asks the current password once (decision 16) |
-| 8 | System Admin Security alerts (view, clear with a note, Start alerts) | yes | no | `/app/workforce/security`; designed from the kit (decisions 18, 19) |
-| 9 | Shared message cards and States-kit copy | yes | no | `messages.ts`, `message-cards.tsx`, `states-copy.ts`; not yet used by a screen |
-| 10 | Services, hooks and tests | yes | no | unit and static-markup tests for each new part; sub-module READMEs and the docs pass are part 2 |
+| 1 | Needs-you card, Branch Manager Home | yes | yes | `home/cards/needs-you-cards.tsx`, `needs-you/`. Walked 21 Oct: desktop and phone, badge equals card, row opens Requests |
+| 2 | Needs-you card, HR, Accountant and Director Homes | yes | yes | Director gets Overdue with Send a reminder (walked, audit and notification written). Accountant walked (empty state). HR and System Admin walked; HR with rows not walked (nothing waits on HR in the lane) |
+| 3 | Menu badges and nav-table changes | yes | yes | three rows removed, `wf-security` and `wf-requests-hr` added, tests pass; safety proof with the switch off done |
+| 4 | Inbox Notifications tab | yes | yes | `notifications/`, one change in `InboxShell.tsx`; Mark all read clears the shell badge |
+| 5 | "Is this your phone?" prompt | yes | yes | `SecurityGate`; walked for five roles; found and fixed faults 1 and 3 (decisions 23, 25) |
+| 6 | My phones and remove a phone | yes | yes | `/app/workforce/my-phones`; the removed phone is refused by the server; audit entry written |
+| 7 | "This wasn't me" and the password reset | yes | yes | `/app/workforce/wasnt-me`; fault 2 fixed (decision 24); audit entries and the System Admin's alert confirmed |
+| 8 | System Admin Security alerts (view, clear with a note, Start alerts) | yes | yes | `/app/workforce/security`; fixes 26 and 27; audit entries confirmed |
+| 9 | Shared message cards and States-kit copy | yes | yes | tests only: no screen uses the cards yet (later slices do); the empty and error copy was seen on the Home and Security alerts |
+| 10 | Services, hooks and tests | yes | yes | `tsc` 0, lint 0 errors, 155 test files and 1454 tests pass, `check:imports` exit 0 (99 warnings, 0 errors), `pnpm build` exit 0; READMEs written |

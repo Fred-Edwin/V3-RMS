@@ -1,6 +1,6 @@
 # Workforce 6a (Shared parts, front end A): decisions
 
-Branch `feat/workforce-6a-shared-frontend`, 20 Oct 2026. Front end only. Each row: the question, what was chosen, why, and what changing it takes. Part 1 wrote rows 1 to 22; part 2 adds anything the browser walk finds.
+Branch `feat/workforce-6a-shared-frontend`, 20 Oct 2026. Front end only. Each row: the question, what was chosen, why, and what changing it takes. Part 1 wrote rows 1 to 22; part 2 (the browser walk, 21 Oct 2026) added rows 23 to 29 and the parity table.
 
 | # | Question | Choice | Why | What changing it takes |
 |---|---|---|---|---|
@@ -26,7 +26,30 @@ Branch `feat/workforce-6a-shared-frontend`, 20 Oct 2026. Front end only. Each ro
 | 20 | `PIN_SLOWED` words | Added next to `PIN_LOCKED` in the Rules and Payroll refusal tables (the back end no longer sends `PIN_LOCKED`) | SD16: a pause, never a lock | Delete the `PIN_LOCKED` lines when convenient |
 | 21 | The message table | `_shared/lib/messages.ts` (`messageFor`, `lineForError`, `failureKind`) and `_shared/components/message-cards.tsx` (three cards). The test checks every code is still declared by the back end. No screen is rewired to use them in this session | Spec M1, M2; later slices call them | n/a |
 | 22 | States-kit rows | Changed only the rows M3 lists; added My payslips, Security alerts and Phones. Signed documents and Activity on my record arrive with B | M3 | `states-copy.ts` and its test |
+| 23 | First sighting of a phone returned 500 (found in the walk, 21 Oct) | Back end: the insert is `ON CONFLICT DO NOTHING` (`createMany` with `skipDuplicates`). A unique-key error inside a transaction aborts it in Postgres, so the follow-up read failed. Test: two simultaneous first calls make one phone | A first sign-in never showed the question and nobody saw why | `devices-repository.ts`, `security-db.test.ts` |
+| 24 | The reset after "This wasn't me" was refused (found in the walk) | Back end gate: a person who must reset may use the reset paths from a removed phone (the press removes this phone too); after the reset the phone is asked again | Otherwise nobody could ever choose the new password | `reset-gate.ts` and its test |
+| 25 | The gate looped on `PHONE_REMOVED` (found in the walk: 300+ calls) | Front end: on that code go straight to the phone check (the state route refuses a removed phone too); only one check runs at a time | A refused call raised the event again without end, and the question never showed | `use-security-gate.ts`. No hook-test library exists here, so it was proved live (one `state` call, the question shows) |
+| 26 | The System Admin's Home showed two error cards (found in the walk) | The numbers strip, Today board and team card leave themselves out for a login with no branch (`organizationId` null); the Home is the Needs-you card only, as the spec says | The board needs a branch (`SITE_REQUIRED`) | `home/cards/attendance-data.ts` |
+| 27 | The alert list printed `HR_MANAGER` | Back end words the role (`roleLabel`) in the alert rows | The screens print the role as given | `alerts-service.ts` |
+| 28 | Security alerts to a role without the capability answer 403, not 404 | Left as the back end built it; the middleware sends those roles away before the page opens, so no one sees a 403 | The spec's 404 rule is written for Needs you; changing it is a back-end contract change | `security-routes.ts` |
+| 29 | "Is this your phone?" shows a few seconds after the app on a slow load | Left: the app is shown while the check runs so nobody is locked out by a slow network (decision 14) | | `security-gate.tsx` |
+
+## Parity (one line per screen, walked in Chrome on 21 Oct 2026, not compared to Paper frame by frame: the owner reviews most screens by eye and asked for Paper only where a value is in doubt)
+| Screen | Walked as | Result |
+|---|---|---|
+| Needs-you card, desktop | Branch Manager (2 rows, badge 2), System Admin (1 row) | Matches the spec: columns, Since colours (8 days red, yesterday amber), footer, row opens Requests |
+| Needs-you card, phone 390 | Branch Manager | Cards with 44 px Open, no horizontal scroll (checked by measuring, the phone screenshot would not render) |
+| Overdue + reminder drawer | Director | Opens from the keyboard, focus inside, Escape returns focus to the row, one reminder per day, audit entry and notification written |
+| Menu badges | Branch Manager | Timesheets 2 equals the card; no Waiting or Overdue rows; System Admin has Security alerts with 1 |
+| Inbox Notifications tab | Director | Lists, Mark all read clears the shell badge |
+| Is this your phone? | System Admin, Branch Manager, Director, HR, Accountant | Shows for every login on a new browser; Enter on the first button confirms; audit entries written |
+| My phones, remove | HR | Two phones, dialog, Escape closes, removal signs the other phone out (`PHONE_REMOVED`), audit entry |
+| This wasn't me and the reset | HR (throwaway) | Works after fixes 24 and 25; audit: wasnt_me, password_reset, phone_first_seen, phone_confirmed; alert for the System Admin |
+| Security alerts | System Admin | List, panel, clear with a note (button off until written), Start alerts (callout goes), audit entries |
+| System Admin Home | System Admin | Needs-you only after fix 26 |
+| Safety, switch off | Branch Manager | No Needs-you card and no new menu rows with the attendance switch off |
 
 ## Departures from the spec
 - Rows 17 and 19 (panel buttons and facts card), row 18 (filters), row 6 (drawer width).
 - Row 16 adds a field Paper does not draw.
+- Row 28 (403 on Security alerts).
