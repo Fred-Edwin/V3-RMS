@@ -8,12 +8,13 @@ import { EmptyState, ErrorBlock, KeyValueRows, ListSkeleton, Panel, PersonAvatar
 import { PeopleFrame } from '../../_shared/components/people-frame';
 import { useEmployeeFile } from '../../_shared/hooks/use-people-data';
 import { formatDayMonth } from '../../_shared/lib/people-dates';
-import { PhotoDialog } from '../../file/components/dialogs/upload-dialogs';
-import { SensitivePanel } from '../../file/components/sensitive/sensitive-panel';
 import { firstName } from '../../file/lib/file-model';
 import { jobRows } from '../../file/lib/file-rows';
 import { finishProgress, stillToFinish, type OwnDialog, type OwnForm } from '../lib/own-file';
-import { EmergencyDialog, IdBankDialog, NumbersDialog } from './own-dialogs';
+import { EmergencyDialog } from './own-dialogs';
+import { OwnIdsCard } from './own-ids-card';
+import { OwnNumbersDialog } from './own-numbers-dialog';
+import { PhotoPages } from './photo-pages';
 
 /**
  * My file (Paper `SJY-0` steps 2 and 3, `12UL-0`): a dark header with how far you are, "Still to finish" with an Add button for each
@@ -60,22 +61,13 @@ export function MyFileScreen() {
           <Panel title="Your job" padded={false}>
             <KeyValueRows rows={jobRows(data)} aria-label="Your job" topRule={false} className="[&>div]:px-[18px]" />
           </Panel>
-          <SensitivePanel file={data} own />
-          {data.sensitive.nssfNumber || data.sensitive.shaNumber ? (
-            <Button type="button" variant="flat" className="self-start" onClick={() => setForm('numbers')}>
-              Check or correct my NSSF and SHA numbers
-            </Button>
-          ) : null}
-          <Button type="button" variant="flat" className="self-start" onClick={() => setForm('idbank')}>
-            Add or correct my ID and bank details
-          </Button>
-          <Button type="button" variant="flat" className="self-start" onClick={() => setForm('photo')}>
+          <OwnIdsCard file={data} onEdit={() => setForm('numbers')} />
+          <Button type="button" variant="flat" className="min-h-11 self-start" onClick={() => setForm('photo')}>
             {data.photoUrl ? 'Change my photo' : 'Add a photo'}
           </Button>
           {form === 'emergency' ? <EmergencyDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'numbers' ? <NumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'idbank' ? <IdBankDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'photo' ? <PhotoDialog own file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'numbers' ? <OwnNumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'photo' ? <PhotoPages name={data.name} onClose={() => setForm(null)} done={done} /> : null}
         </div>
       )}
     </PeopleFrame>
@@ -102,12 +94,13 @@ function Finish({ file, open }: { file: NonNullable<ReturnType<typeof useEmploye
     <Panel title="Still to finish" padded={false}>
       <ul className="m-0 flex list-none flex-col p-0">
         {rows.map((r) => (
-          <li key={r.key} className="flex items-center justify-between gap-3 border-t border-wds-border px-[18px] py-3 first:border-t-0">
-            <span className="flex min-w-0 flex-col">
+          <li key={r.key} className="flex min-h-14 items-center gap-3 border-t border-wds-border px-[18px] py-2 first:border-t-0">
+            <span aria-hidden className="h-5 w-5 shrink-0 rounded-full border border-wds-border-strong" />
+            <span className="flex min-w-0 flex-1 flex-col">
               <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{r.title}</span>
               {r.detail ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.detail}</span> : null}
             </span>
-            <button type="button" aria-label={`${r.action} ${r.title}`} onClick={() => open(r.key)} className="border-0 bg-transparent p-0 font-wds-sans text-[14px] leading-[18px] text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
+            <button type="button" aria-label={`${r.action} ${r.title}`} onClick={() => open(r.key)} className="flex min-h-11 min-w-11 items-center justify-center border-0 bg-transparent px-1 font-wds-sans text-[14px] leading-[18px] text-[#A8680A] underline underline-offset-2 outline-none focus-visible:shadow-wds-ring">
               {r.action}
             </button>
           </li>

@@ -90,7 +90,7 @@ export function DocumentsTab({ file, reloadKey }: { file: EmployeeFile; reloadKe
       <div className="grid grid-cols-2 gap-5 max-lg:grid-cols-1">
         <section className="flex flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 px-4 py-3.5">
           <h3 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">WHY EVERY OPENING IS LOGGED</h3>
-          <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">IDs and contracts are personal. Opening one writes your name and the time to the audit log, and the person can see who looked at their file on their phone.</p>
+          <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">IDs and contracts are personal. Opening one writes your name and the time to the audit log.</p>
         </section>
         <section className="flex flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 px-4 py-3.5">
           <h3 className="m-0 font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">HOW A CONTRACT IS RECORDED</h3>

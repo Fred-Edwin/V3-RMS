@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EmployeeFile, FilePart } from '../../_shared/types/people-types';
-import { finishProgress, idBankEmpty, numbersEmpty, stillToFinish, toEmergencyBody, toIdBankBody, toNumbersBody, validateEmergency, validateIdBank } from './own-file';
+import { finishProgress, stillToFinish, toEmergencyBody, validateEmergency } from './own-file';
 
 const parts = (open: FilePart[]) => (['EMERGENCY_CONTACT', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'PAY'] as FilePart[]).map((part) => ({ part, applicable: true, done: !open.includes(part) }));
 const file = (open: FilePart[], nextSteps: EmployeeFile['nextSteps'] = []): EmployeeFile =>
@@ -26,29 +26,10 @@ describe('what is still to finish', () => {
   });
 });
 
-describe('the small forms', () => {
-  it('an emergency contact needs a name, a relation and a phone', () => {
+describe('the emergency contact form', () => {
+  it('needs a name, a relation and a phone', () => {
     expect(Object.keys(validateEmergency({ name: '', relation: '', phone: '' }))).toEqual(['name', 'relation', 'phone']);
     expect(validateEmergency({ name: 'Grace Chebet', relation: 'Parent', phone: '0722 000 111' })).toEqual({});
     expect(toEmergencyBody({ name: ' Grace Chebet ', relation: 'Parent', phone: '0722 000 111' })).toEqual({ emergencyName: 'Grace Chebet', emergencyRelation: 'Parent', emergencyPhone: '0722 000 111' });
-  });
-  it('sends only the numbers that were typed', () => {
-    expect(toNumbersBody({ nssf: '2018 4471 09', sha: '' })).toEqual({ nssfNumber: '2018 4471 09' });
-    expect(numbersEmpty({ nssf: '', sha: ' ' })).toBe(true);
-  });
-});
-
-describe('my ID and bank details (finding 15)', () => {
-  it('checks the ID and the account, and wants the bank with an account', () => {
-    expect(validateIdBank({ nationalId: '12ab', bank: '', accountNumber: '' }).nationalId).toBeDefined();
-    expect(validateIdBank({ nationalId: '28817703', bank: '', accountNumber: '' })).toEqual({});
-    expect(validateIdBank({ nationalId: '', bank: '', accountNumber: '0123456789' }).bank).toBeDefined();
-    expect(validateIdBank({ nationalId: '', bank: 'Equity Bank', accountNumber: '' }).accountNumber).toBeDefined();
-    expect(validateIdBank({ nationalId: '', bank: 'Equity Bank', accountNumber: '0123456789' })).toEqual({});
-  });
-  it('sends only what was entered, so an empty box never clears the file', () => {
-    expect(toIdBankBody({ nationalId: ' 28817703 ', bank: '', accountNumber: '' })).toEqual({ nationalId: '28817703' });
-    expect(toIdBankBody({ nationalId: '', bank: 'KCB Bank', accountNumber: '123456' })).toEqual({ bankName: 'KCB Bank', accountNumber: '123456' });
-    expect(idBankEmpty({ nationalId: '', bank: '', accountNumber: ' ' })).toBe(true);
   });
 });

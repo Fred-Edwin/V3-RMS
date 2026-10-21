@@ -11,14 +11,14 @@ import { sensitiveRows } from '../../lib/sensitive-fields';
 
 /**
  * IDs and bank on the Job and pay tab: masked ("•••• 5678"), with a "Show" button that asks the server, which writes the opening to
- * the audit log. The clear value stays for 30 seconds, or until "Hide". A person's own file arrives in clear and has no button.
+ * the audit log. The clear value stays for 30 seconds, or until "Hide". A person's own file is `mine/components/own-ids-card.tsx`.
  */
-export function SensitivePanel({ file, own = false, onEdit }: { file: EmployeeFile; own?: boolean; onEdit?: () => void }) {
+export function SensitivePanel({ file, onEdit }: { file: EmployeeFile; onEdit?: () => void }) {
   const reveal = useReveal(file.id);
   const rows = sensitiveRows(file);
   if (rows.length === 0) return null;
   // "Edit" (amber, underlined) when the viewer may change anything on the card; otherwise the grey tag in the same place.
-  const aside = onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelCaption>{own ? 'ONLY YOU AND HR' : 'EVERY OPENING IS LOGGED'}</PanelCaption>;
+  const aside = onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelCaption>EVERY OPENING IS LOGGED</PanelCaption>;
   return (
     <TitledPanel title="IDs and bank" aside={aside}>
       <dl className="m-0 flex flex-col">
@@ -31,7 +31,7 @@ export function SensitivePanel({ file, own = false, onEdit }: { file: EmployeeFi
                 <span className={cn('font-wds-mono text-[13px] leading-4', r.masked ? 'text-wds-text-ink' : 'font-wds-sans text-wds-text-secondary')} aria-live="polite">
                   {clear ? (reveal.shown[r.key] ?? 'Not on file') : (r.masked ?? 'Not on file')}
                 </span>
-                {r.canReveal && !own ? (
+                {r.canReveal ? (
                   <button
                     type="button"
                     disabled={reveal.busy === r.key}
