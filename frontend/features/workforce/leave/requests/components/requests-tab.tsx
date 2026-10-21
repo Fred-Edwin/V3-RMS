@@ -75,6 +75,7 @@ export function RequestsTab({ site, siteLabel }: { site: string | undefined; sit
       {
         id: 'person',
         header: 'PERSON',
+        className: 'max-w-0', // the name and role truncate instead of pushing DATES and ROTA out of the 448 px list
         cell: (r, { term }) => (
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink"><HighlightMatch text={r.person.name} term={term} /></span>
@@ -82,7 +83,7 @@ export function RequestsTab({ site, siteLabel }: { site: string | undefined; sit
           </span>
         ),
       },
-      { id: 'dates', header: 'DATES', width: '118px', cell: (r) => <span className="font-wds-mono text-[13px] leading-4 text-wds-text-ink">{`${rangeShort(r.application.start, r.application.end)} · ${r.application.days} d`}</span> },
+      { id: 'dates', header: 'DATES', width: '180px', cell: (r) => <span className="whitespace-nowrap font-wds-mono text-[12px] leading-4 text-wds-text-ink">{`${rangeShort(r.application.start, r.application.end)} · ${r.application.days} d`}</span> },
       { id: 'rota', header: 'ROTA', width: '104px', cell: (r) => { const w = rotaWord(r); return <StatusText tone={w.tone === 'muted' ? 'muted' : w.tone}>{w.text}</StatusText>; } },
     ],
     [siteLabel]
