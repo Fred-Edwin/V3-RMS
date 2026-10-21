@@ -577,7 +577,7 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
     HR_MANAGER: { WORKFORCE: ['Home', 'Today board', 'Schedule', 'Requests'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'Activity on my record', 'My notices'] },
     // "Casual pay" (Segment 3) is where a Branch Manager, Store Manager or the Director decides a casual pay sheet; Paper reaches it from the Home "Needs you" card (Segment 6).
     MANAGER: { WORKFORCE: ['Home', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'Activity on my record', 'My notices'] },
-    STORE_MANAGER: { WORKFORCE: ['Home', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'Activity on my record', 'My notices'] },
+    STORE_MANAGER: { WORKFORCE: ['Home', 'Schedule', 'Timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'Activity on my record', 'My notices'] },
     ACCOUNTANT: { WORKFORCE: ['Home', 'Employees'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My time', 'My leave', 'My payslips', 'Activity on my record', 'Conduct'] },
     DIRECTOR: { WORKFORCE: ['Home', 'Today board', 'Schedule', 'Head office timesheets', 'Requests', 'Casual pay'], PEOPLE: ['Employees', 'Organisation', 'Leave', 'Conduct'], PAY: ['Payroll', 'Payslips'], SETTINGS: ['Rules', 'Audit log'], ME: ['My leave', 'My payslips', 'Activity on my record', 'My notices'] },
   };
@@ -614,7 +614,8 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       expect(on[0]?.items.map((i) => i.label)).toEqual(role === 'ACCOUNTANT' ? ['Home', 'Employees'] : hasBoardRow ? ['Home', 'Today board', 'Schedule', ...timesheetRow, 'Requests', ...casualRow] : ['Home', 'Schedule', ...timesheetRow, 'Requests', ...casualRow]);
       // Workforce, People (not the Accountant's), Settings (Rules, built in segment 1B) and Me (My payslips, Segment 3).
       expect(groups.filter((g) => g.key.startsWith('wf-'))).toHaveLength(role === 'ACCOUNTANT' ? 3 : 4);
-      const hasOrganisation = role === 'HR_MANAGER' || role === 'MANAGER' || role === 'DIRECTOR';
+      // The access table gives these roles org.read (finding 57); the Accountant has none.
+      const hasOrganisation = role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
       // Conduct (Segment 5) is built but waits for the new clock like the rest: off, it is not there; on, it sits after the People pages that exist.
       if (role !== 'ACCOUNTANT') {
         expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation'] : ['Employees']);
