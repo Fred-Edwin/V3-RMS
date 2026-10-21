@@ -618,7 +618,7 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
       // Conduct (Segment 5) is built but waits for the new clock like the rest: off, it is not there; on, it sits after the People pages that exist.
       if (role !== 'ACCOUNTANT') {
         expect(groups.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation'] : ['Employees']);
-        expect(on.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation', 'Conduct'] : ['Employees', 'Conduct']);
+        expect(on.find((g) => g.key === 'wf-people')?.items.map((i) => i.label)).toEqual(hasOrganisation ? ['Employees', 'Organisation', 'Leave', 'Conduct'] : ['Employees', 'Leave', 'Conduct']);
       }
       if (hasOrganisation) expect(item(groups, 'wf-organisation')?.href).toBe('/app/workforce/organisation');
       else expect(item(groups, 'wf-organisation')).toBeUndefined();
@@ -709,10 +709,10 @@ describe('the Workforce menu (Chapter 1 frame, Paper step 01)', () => {
 
   it('hides a row by the flag alone: removing notBuilt is all a slice has to do', () => {
     const only = (rows: readonly NavRow[]) => keys(navFor(ctxFor('HR_MANAGER', { can: EVERYTHING }), rows)).filter((k) => k.startsWith('wf-'));
-    // Leave is the example: its page is not built yet (Conduct, built in Segment 5, no longer carries the flag; it waits for the new clock instead).
-    const built = NAV_ROWS.map((r) => (r.key === 'wf-leave' ? { ...r, notBuilt: undefined } : r));
+    // The Audit log is the example: its page is not built yet (Leave and Conduct, built in Segments 4 and 5, no longer carry the flag; they wait for the new clock instead).
+    const built = NAV_ROWS.map((r) => (r.key === 'wf-audit-log' ? { ...r, notBuilt: undefined } : r));
     expect(only(NAV_ROWS)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-rules', 'wf-my-payslips']);
-    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-leave', 'wf-rules', 'wf-my-payslips']);
+    expect(only(built)).toEqual(['wf-home', 'wf-employees', 'wf-organisation', 'wf-rules', 'wf-audit-log', 'wf-my-payslips']);
   });
 
   it('carries each Needs you number on the link that opens that decision, and never the same number twice for one role', () => {
