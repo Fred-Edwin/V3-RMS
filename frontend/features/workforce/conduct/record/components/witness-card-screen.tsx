@@ -14,6 +14,12 @@ import { shortDay } from '../../_shared/lib/conduct-dates';
 import { NOT_SIGNED_WORDS } from '../../_shared/lib/conduct-words';
 import { conductReads, conductWrites } from '../../_shared/services/conduct-services';
 
+/** "a Waiter", "an Accountant"; "HR" stands alone ("HR told you…"). */
+const withArticle = (role: string, capital = false): string => {
+  const text = role === 'HR' ? role : `${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}`;
+  return capital ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+};
+
 /**
  * Confirm what you saw (spec S11, "witness confirm card"; not drawn in Paper, built in the Sign screen's style). The witness sees one fact:
  * a manager's role, the person's role, what happened and the date. Never the reason, the facts or the letter. Confirming needs the witness's
@@ -52,7 +58,7 @@ export function WitnessCardScreen({ id }: { id: string }) {
       {data && !settled ? (
         <div className="flex flex-col gap-4">
           <p className="m-0 font-wds-sans text-[14px] leading-5 text-wds-text-ink">
-            A {data.issuerRole} told you that a {data.personRole} {NOT_SIGNED_WORDS[data.reason]} on {shortDay(data.date)}. Confirm only if this is true.
+            {withArticle(data.issuerRole, true)} told you that {withArticle(data.personRole)} {NOT_SIGNED_WORDS[data.reason]} on {shortDay(data.date)}. Confirm only if this is true.
           </p>
           {pinStatus.hasPin === false ? (
             <div className="flex flex-col gap-3">
@@ -62,7 +68,7 @@ export function WitnessCardScreen({ id }: { id: string }) {
           ) : (
             <div className="flex flex-col gap-1.5">
               <span className="font-wds-sans text-[12px] font-semibold leading-4 text-wds-text-ink">Your code</span>
-              <PinField value={pin} onChange={setPin} label="Your code" invalid={act.problem?.kind === 'wrong'} disabled={act.busy || pinStatus.loading} />
+              <PinField value={pin} onChange={(v) => { setPin(v); if (act.problem?.kind === 'wrong') act.clear(); }} label="Your code" invalid={act.problem?.kind === 'wrong'} disabled={act.busy || pinStatus.loading} />
               <p role="alert" className="m-0 min-h-4 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{act.problem ? act.problem.message : ''}</p>
               {act.wait > 0 ? <p aria-live="polite" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-warning-fg">Wait {act.wait} seconds, then try again.</p> : null}
             </div>

@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
  */
 export function StatColumns({ columns }: { columns: ReadonlyArray<{ key: string; label: string; value: number }> }) {
   return (
-    <dl aria-label="Your notices at a glance" className="m-0 mt-3 flex flex-wrap gap-x-6 gap-y-3 border-t border-[color-mix(in_oklab,var(--wds-sidebar-top)_70%,var(--wds-caramel-600))] pt-3">
+    <dl aria-label="Your notices at a glance" className="m-0 mt-3 flex flex-wrap gap-x-0 gap-y-3 border-t border-[color-mix(in_oklab,var(--wds-sidebar-top)_70%,var(--wds-caramel-600))] pt-3">
       {columns.map((column, index) => (
         <div key={column.key} className="flex w-[110px] min-w-[84px] flex-col gap-0.5">
           <dt className="font-wds-mono text-[10px] leading-3 tracking-[0.08em] text-wds-sidebar-fg-item">{column.label}</dt>

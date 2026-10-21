@@ -93,7 +93,7 @@ export function SignScreen({ id }: { id: string }) {
             <span id="sign-code-label" className="font-wds-sans text-[12px] font-semibold leading-4 text-wds-text-ink">
               Your code
             </span>
-            <PinField value={pin} onChange={setPin} label="Your code" invalid={act.problem?.kind === 'wrong'} disabled={act.busy || pinStatus.loading} autoFocus />
+            <PinField value={pin} onChange={(v) => { setPin(v); if (act.problem?.kind === 'wrong') act.clear(); }} label="Your code" invalid={act.problem?.kind === 'wrong'} disabled={act.busy || pinStatus.loading} autoFocus />
             <p role="alert" aria-live="assertive" className="m-0 min-h-4 font-wds-sans text-[12px] leading-4 text-wds-error-fg">
               {act.problem && act.problem.kind !== 'slowed' ? act.problem.message : ''}
             </p>

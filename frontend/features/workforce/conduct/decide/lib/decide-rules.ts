@@ -37,7 +37,7 @@ const lower = (text: string): string => text.charAt(0).toLowerCase() + text.slic
 
 /** The three rows under the options, from the server's preview (the dialog never works out dates itself). */
 export function previewRows(detail: DeskDetail, preview: DecisionPreview): KeyValueRow[] {
-  const taken = preview.daysTaken === null ? '' : ` · ${plural(preview.daysTaken, 'day')} to decide`;
+  const taken = preview.daysTaken === null ? '' : preview.daysTaken === 0 ? ' · decided the same day' : ` · ${plural(preview.daysTaken, 'day')} to decide`;
   const record =
     preview.outcome === 'KEEP'
       ? `Kept${taken}`

@@ -65,15 +65,16 @@ export function DeskTable({
       {
         id: 'person',
         header: 'PERSON',
+        className: 'max-w-0', // lets the name truncate so the narrow list column never scrolls sideways
         cell: (row, { term }) => (
           <AvatarCell name={row.personName} sub={`${row.jobLabel} · ${row.aboutLabel.toLowerCase()}${row.issuedAtSite ? ` · issued at ${row.issuedAtSite}` : ''}`}>
             <HighlightMatch text={row.personName} term={term} />
           </AvatarCell>
         ),
       },
-      { id: 'level', header: 'LEVEL', width: '150px', cell: (row) => <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">{row.levelLabel}</span> },
-      { id: 'issued', header: 'ISSUED', width: '72px', cell: (row) => <NumberCell className="text-left">{dayMonth(row.issuedAt)}</NumberCell> },
-      { id: 'status', header: 'STATUS', width: '130px', cell: (row) => <StatusText tone={deskTone(row.status)}>{row.statusWord}</StatusText> },
+      { id: 'level', header: 'LEVEL', width: '136px', cell: (row) => <span className="whitespace-nowrap font-wds-sans text-[13px] leading-4 text-wds-text-ink">{row.levelLabel}</span> },
+      { id: 'issued', header: 'ISSUED', width: '64px', cell: (row) => <NumberCell className="whitespace-nowrap text-left">{dayMonth(row.issuedAt)}</NumberCell> },
+      { id: 'status', header: 'STATUS', width: '92px', cell: (row) => <StatusText tone={deskTone(row.status)}>{row.statusWord}</StatusText> },
     ],
     []
   );

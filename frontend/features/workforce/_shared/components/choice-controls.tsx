@@ -182,6 +182,7 @@ export function RadioCards({
   columns = 1,
   disabled = false,
   name,
+  look = 'radio',
 }: {
   legend: string;
   legendStyle?: LegendStyle;
@@ -192,9 +193,12 @@ export function RadioCards({
   columns?: 1 | 2 | 3;
   disabled?: boolean;
   name?: string;
+  /** `ink` (Paper 1H7K-0, the decide dialog): no circle; the chosen card fills with ink and white text. */
+  look?: 'radio' | 'ink';
 }) {
   const autoName = React.useId();
   const groupName = name ?? autoName;
+  const ink = look === 'ink';
   return (
     <fieldset disabled={disabled} className="m-0 min-w-0 border-0 p-0">
       <ChipLegend style={legendStyle}>{legend}</ChipLegend>
@@ -209,8 +213,11 @@ export function RadioCards({
                 MOTION,
                 'has-[:focus-visible]:shadow-wds-ring',
                 (disabled || o.disabled) && 'pointer-events-none opacity-60',
+                ink && 'px-3.5 py-3',
                 chosen
-                  ? 'border-wds-primary bg-[color-mix(in_oklab,var(--wds-caramel-100)_55%,white)]'
+                  ? ink
+                    ? 'border-wds-text-ink bg-wds-text-ink'
+                    : 'border-wds-primary bg-[color-mix(in_oklab,var(--wds-caramel-100)_55%,white)]'
                   : cn('border-wds-border-strong', onHover('bg-wds-neutral-50'))
               )}
             >
@@ -223,13 +230,15 @@ export function RadioCards({
                 onChange={() => onChange(o.value)}
                 className="absolute inset-0 m-0 cursor-pointer opacity-0 focus-visible:outline-none"
               />
-              <span
-                aria-hidden
-                className={cn('h-4 w-4 shrink-0 rounded-full bg-wds-surface', MOTION, chosen ? 'border-[5px] border-wds-primary' : 'border border-wds-text-faint')}
-              />
+              {ink ? null : (
+                <span
+                  aria-hidden
+                  className={cn('h-4 w-4 shrink-0 rounded-full bg-wds-surface', MOTION, chosen ? 'border-[5px] border-wds-primary' : 'border border-wds-text-faint')}
+                />
+              )}
               <span className="flex min-w-0 flex-col">
-                <span className={cn('font-wds-sans text-[13px] leading-4 text-wds-text-ink', chosen && 'font-medium')}>{o.title}</span>
-                {o.description ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{o.description}</span> : null}
+                <span className={cn('font-wds-sans text-[13px] leading-4 text-wds-text-ink', chosen && 'font-medium', ink && chosen && 'text-white')}>{o.title}</span>
+                {o.description ? <span className={cn('font-wds-sans text-[12px] leading-4 text-wds-text-secondary', ink && chosen && 'text-white/80')}>{o.description}</span> : null}
               </span>
             </label>
           );

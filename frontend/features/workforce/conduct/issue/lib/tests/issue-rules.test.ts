@@ -75,6 +75,12 @@ describe('words', () => {
     expect(smallPrint(person, 'WRITTEN_WARNING', draft)).toBe('Mark is told on the phone and asked to sign, with 7 days to appeal. HR is told. Recorded in the audit log with your name and the time.');
     expect(smallPrint(person, 'VERBAL_NOTE', draft)).toContain('Mark is told on the phone.');
   });
+  it('does not say a person with no login is told on the phone', () => {
+    const noLogin = { ...draft, hasLogin: false };
+    expect(smallPrint(person, 'WRITTEN_WARNING', noLogin)).toContain('You give the printed letter by hand and record that it was given.');
+    expect(smallPrint(person, 'WRITTEN_WARNING', noLogin)).not.toContain('told on the phone and asked');
+    expect(smallPrint({ ...person, hasLogin: false }, 'VERBAL_NOTE', null)).toContain('has no login, so is not told on the phone');
+  });
   it('shows the picker note by what is on file', () => {
     expect(noticeNote(person)).toEqual({ text: 'No notices on file', tone: 'muted' });
     expect(noticeNote({ ...person, activeNotices: [{ level: 'WRITTEN_WARNING', validUntil: '2027-01-01' }] })).toEqual({ text: '1 active', tone: 'warning' });

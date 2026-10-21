@@ -73,13 +73,13 @@ export function DecideDialog({ detail, mode, onClose, onDone }: { detail: DeskDe
         <p role="alert" className="m-0 font-wds-sans text-[14px] leading-5 text-wds-text-ink">{settled}</p>
       ) : (
         <>
-          <RadioCards legend="Outcome" options={options} value={outcome} onChange={(v) => setOutcome(v as DecisionOutcome)} disabled={act.busy} />
+          <RadioCards look="ink" legend="Outcome" options={options} value={outcome} onChange={(v) => setOutcome(v as DecisionOutcome)} disabled={act.busy} />
           <FormField label="Why? (the staff member will see this)" hint="required" helper={`At least 10 characters. ${decisionReasonLength(reason)} of ${DECISION_REASON_MAX}`}>
             {(ids) => <Textarea id={ids.id} aria-describedby={ids.describedBy} rows={3} maxLength={DECISION_REASON_MAX} value={reason} disabled={act.busy} onChange={(e) => setReason(e.target.value)} className={`${FIELD_CLASS} h-auto min-h-[84px] py-2.5 leading-5`} />}
           </FormField>
           {outcome && preview.data ? <KeyValueRows rows={previewRows(detail, preview.data)} aria-label="What this does" /> : null}
           {outcome && preview.status === 'error' && !preview.data ? <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">The preview did not load. You can still decide.</p> : null}
-          <SigningPin active label="Your PIN, to sign this decision" value={pin} onChange={setPin} invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={act.problem?.kind === 'wrong' ? 'That PIN is not right.' : code === 'ALREADY_DECIDED' ? null : (act.problem?.message ?? null)} onStatus={setHasPin} />
+          <SigningPin active label="Your PIN, to sign this decision" value={pin} onChange={(v) => { setPin(v); if (act.problem?.kind === 'wrong') act.clear(); }} invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={act.problem?.kind === 'wrong' ? 'That PIN is not right.' : code === 'ALREADY_DECIDED' ? null : (act.problem?.message ?? null)} onStatus={setHasPin} />
           <p className="m-0 font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">{decidePrint(mode)}</p>
           <p id="decide-block" aria-live="polite" className="m-0 min-h-4 pb-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{act.busy ? '' : (block ?? '')}</p>
         </>

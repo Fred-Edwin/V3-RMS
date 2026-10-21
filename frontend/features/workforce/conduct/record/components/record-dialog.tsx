@@ -71,7 +71,7 @@ export function RecordDialog({ detail, onClose, onDone }: { detail: DeskDetail; 
         <WitnessPicker noticeId={detail.id} value={witnessId} onChange={setWitnessId} disabled={act.busy} />
       </div>
       <KeyValueRows rows={keyRows(detail)} aria-label="What this does" />
-      <SigningPin active label="Your PIN, to sign this record" value={pin} onChange={setPin} invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={act.problem?.kind === 'wrong' ? 'That PIN is not right.' : (act.problem?.message ?? null)} onStatus={setHasPin} />
+      <SigningPin active label="Your PIN, to sign this record" value={pin} onChange={(v) => { setPin(v); if (act.problem?.kind === 'wrong') act.clear(); }} invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={act.problem?.kind === 'wrong' ? 'That PIN is not right.' : (act.problem?.message ?? null)} onStatus={setHasPin} />
       <p className="m-0 font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">{recordPrint(detail)}</p>
       <p id="record-block" aria-live="polite" className="m-0 min-h-4 pb-1 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
         {act.busy ? '' : (block ?? '')}

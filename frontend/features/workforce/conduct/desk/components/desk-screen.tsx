@@ -25,7 +25,7 @@ function titleFor(siteName: string | null, picked: string | undefined, sites: { 
 /**
  * Conduct for managers, HR and the Director (spec S8 and S12; Paper 1GB0-0, 1GYE-0): the title, four numbers, the table beside the chosen
  * notice. The chosen notice is in the address (`?id=`) so a link, a reload and the Inbox row all land on it. "Issue a warning" is the one
- * brown button and appears only for whoever may issue. Below 1100 px the panel goes under the list.
+ * brown button and appears only for whoever may issue. Below 1280 px (the sidebar leaves 864 px of page at 1100, too little for a readable panel beside a 500 px list) the panel goes under the list.
  */
 export function DeskScreen() {
   const router = useRouter();
@@ -89,8 +89,8 @@ export function DeskScreen() {
           </p>
         ) : null}
         {list ? <WorkforceKpiStrip aria-label="Conduct numbers" cells={kpiCells(list.counts, list.nextEnding, showAppeals)} /> : null}
-        <div className="flex min-w-0 flex-col gap-5 min-[1100px]:flex-row min-[1100px]:items-start">
-          <div className="min-w-0 min-[1100px]:w-[500px] min-[1100px]:shrink-0">
+        <div className="flex min-w-0 flex-col gap-5 min-[1280px]:flex-row min-[1280px]:items-start">
+          <div className="min-w-0 min-[1280px]:w-[500px] min-[1280px]:shrink-0">
             <DeskTable selectedId={selectedId} onSelect={select} filters={filters} counts={list?.counts ?? null} onLoaded={onLoaded} refreshToken={reloadToken} />
             <LegendLine />
           </div>

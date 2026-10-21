@@ -38,6 +38,9 @@ describe('previewRows', () => {
       { label: 'WRN-0007', value: 'Marked as replaced, kept on the file' },
     ]);
   });
+  it('says a same-day decision was decided the same day, not "0 days to decide"', () => {
+    expect(previewRows(detail, { ...base, daysTaken: 0 })[0]?.value).toBe('Written warning to verbal note · decided the same day');
+  });
   it('says a withdrawn notice does not count', () => {
     const rows = previewRows(detail, { ...base, outcome: 'WITHDRAW', to: null, endsOn: null, oldNotice: 'WITHDRAWN' });
     expect(rows[1]).toMatchObject({ value: 'Does not count' });

@@ -123,7 +123,7 @@ export function IssuePanel({ open, onClose, onDone, presetPerson }: { open: bool
             </div>
           ) : null}
 
-          <SigningPin active={open} value={pin} onChange={setPin} label="Your PIN, to sign the notice" invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={problem} onStatus={setHasPin} />
+          <SigningPin active={open} value={pin} onChange={(v) => { setPin(v); if (act.problem?.kind === 'wrong') act.clear(); }} label="Your PIN, to sign the notice" invalid={act.problem?.kind === 'wrong'} disabled={act.busy} error={problem} onStatus={setHasPin} />
           <p className="m-0 font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">{smallPrint(person, level, draftData)}</p>
 
           <div className="flex flex-col gap-2">

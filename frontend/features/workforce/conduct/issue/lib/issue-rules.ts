@@ -61,6 +61,12 @@ export function submitBlock(i: SubmitInputs): string | null {
 /** The small print under the PIN. Roles, not names: names appear on the signed record only. */
 export function smallPrint(person: IssuePerson | null, level: ConductLevel, draft: Draft | null): string {
   const who = person ? firstName(person.name) : 'The person';
+  const hasLogin = draft ? draft.hasLogin : (person?.hasLogin ?? true);
+  if (!hasLogin) {
+    return level === 'VERBAL_NOTE'
+      ? `${who} has no login, so is not told on the phone. HR is told. Recorded in the audit log with your name and the time.`
+      : `${who} has no login, so is not told on the phone. You give the printed letter by hand and record that it was given. HR is told. Recorded in the audit log with your name and the time.`;
+  }
   if (level === 'VERBAL_NOTE') return `${who} is told on the phone. HR is told. Recorded in the audit log with your name and the time.`;
   const days = draft?.appealDays ?? 7;
   return `${who} is told on the phone and asked to sign, with ${days} days to appeal. HR is told. Recorded in the audit log with your name and the time.`;
