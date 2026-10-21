@@ -63,20 +63,20 @@ export const JOB_PANEL = (first: string, department: string | null, head: string
   `Casual. Choosing it skips the login step and puts ${first} in the department's casual pool.`,
 ];
 
-export const JOB_PANEL_NOTE = 'A Branch Manager can fill this step for their own site. Pay, statutory and bank stay with HR.';
+export const JOB_PANEL_NOTE = 'The site manager can fill this step for their own site. Pay, statutory and bank stay with HR.';
 export const NOT_HR_NOTE = 'Pay, statutory and bank details stay with HR. HR is told this file needs finishing.';
 
 export const PAY_PANEL = {
   heading: (first: string) => `${first}'s hourly equivalent`,
   lateness: 'Lateness and overtime use this. The working is shown on every payslip.',
   rules: 'The overtime multiplier and the legal limits on deductions are rules set by the Director and confirmed by the Accountant. They are not typed here.',
-  hidden: 'Branch Managers and heads never see this step. A head sees only their own pay, on their own payslip.',
+  hidden: 'Site managers and heads never see this step. A head sees only their own pay, on their own payslip.',
   latenessDefault: 'Company default · set by the Director in Rules',
 } as const;
 
 export const CASUAL_PANEL = (first: string, head: string | null, manager: string): string[] => [
   `1 · ${cap(first)} turns up. ${head ?? 'The department head'} ticks them in and adjusts their arrival and leave times on a phone.`,
-  `2 · ${manager}, the Branch Manager, approves the day.`,
+  `2 · ${manager} approves the day.`,
   `3 · A daily pay voucher is printed. ${cap(first)} signs it, and the person paying signs with their PIN.`,
   '4 · Lateness reduces that day\'s payout, and is shown on the voucher.',
 ];

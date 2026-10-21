@@ -127,14 +127,14 @@ export function HireScreen() {
         rows={steps.map((key, i) => ({
           key,
           label: STEP_LABELS[key],
-          value: i === 0 ? 'In progress' : key === 'job' ? 'Next · HR or Branch Manager' : key === 'pay' ? 'HR only' : key === 'statutory' ? `HR, then ${first}` : 'HR',
+          value: i === 0 ? 'In progress' : key === 'job' ? 'Next · HR or the site manager' : key === 'pay' ? 'HR only' : key === 'statutory' ? `HR, then ${first}` : 'HR',
           tone: i === 0 ? ('progress' as const) : ('default' as const),
         }))}
       />
     ) : step === 'job' ? (
       <JobPanel first={first} department={departmentName} head={head} canSetPay={canSetPay} />
     ) : step === 'pay' && casual ? (
-      <CasualPanel first={first} head={head} manager="The Branch Manager" />
+      <CasualPanel first={first} head={head} manager="The site manager" />
     ) : step === 'pay' ? (
       <PayPanel first={first} hourly={hourly} working={hourlyWorking(casual, state.amount, state.weekHours, state.dayHours)} />
     ) : step === 'statutory' ? (
