@@ -32,7 +32,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | 6 | Payslips and casual pay | Phone payslips, P9, daily casual pay and sheets | What payroll publishes to staff |
 | 7 | Leave | The whole flow, **plus leave days into timesheets and payroll** (unbuilt item 1; sections 3 and 5 are re-checked) | Needs people, the rota and Rules |
 | 8 | Conduct | Notices, signing, appeals | Needs people, timesheets and Rules |
-| 9 | Shared parts | Needs you, phones and security, Audit log, Signed documents, the QR page | Cuts across everything above |
+| 9 | Shared parts | Needs you, phones and security, Audit log, Signed documents, the QR page, **and Act as another user** (designed in People round 2, frames 6.x and 12.2 to 12.6; moved here by the owner 21 Oct) | Cuts across everything above |
 | 10 | Whole feature | Role Homes and menus together, the tidy-up, ship preparation, end-to-end demo | Last |
 
 ## Lane map (owner preference, 21 Oct 2026: use lanes 1 to 4)
@@ -49,7 +49,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | answered 21 Oct in `final-pass/1-people-decisions.md` | **Batch 1 built, gates pass, merged into the stack (21 Oct; owner's walk pending)**; **Access change built and merged (153527c5)**; **Batch 2A shell (lane 2) and 2B People screens (lane 4): briefs written, not started**; Act-as: later; **design pass round 1 drawn and owner-approved 21 Oct (lane 3, Paper page "Workforce · Final pass designs", notes in `final-pass/design-notes-1-round-1.md`, branch `design/workforce-1-people-round-1`)**; **design round 2 drawn and owner-approved 21 Oct (all six groups, frames 7.x to 12.x, notes in `final-pass/design-notes-1-round-2.md`)**; then Access change, Batch 2, Act-as | not started |
+| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | answered 21 Oct in `final-pass/1-people-decisions.md` | **Batch 1 built, gates pass, merged into the stack (21 Oct; owner's walk pending)**; **Access change built and merged (153527c5)**; **Batch 2A shell (lane 2) and 2B People screens (lane 4): briefs written, not started**; Act-as moved to section 9 (owner, 21 Oct); **People closes with a live end-to-end browser walk, driven by an agent while the owner watches, then the demo video (owner, 21 Oct)**; **design pass round 1 drawn and owner-approved 21 Oct (lane 3, Paper page "Workforce · Final pass designs", notes in `final-pass/design-notes-1-round-1.md`, branch `design/workforce-1-people-round-1`)**; **design round 2 drawn and owner-approved 21 Oct (all six groups, frames 7.x to 12.x, notes in `final-pass/design-notes-1-round-2.md`)**; then Access change, Batch 2, Act-as | not started |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
