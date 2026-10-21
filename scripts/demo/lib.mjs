@@ -20,12 +20,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** A visible pointer: video capture does not draw the real cursor. */
 const POINTER = `(() => {
   if (window.__demoPointer) return;
+  // A standard arrow (dark fill, white outline, soft shadow) whose tip sits exactly on the point, plus a cobalt ring that expands on each click.
   const dot = document.createElement('div');
-  dot.style.cssText = 'position:fixed;z-index:2147483647;width:22px;height:22px;margin:-4px 0 0 -4px;border-radius:50%;background:rgba(105,60,27,.35);border:2px solid #693C1B;pointer-events:none;transition:transform .12s;left:0;top:0';
-  const attach = () => document.documentElement.appendChild(dot);
+  dot.style.cssText = 'position:fixed;z-index:2147483647;width:24px;height:30px;pointer-events:none;left:-100px;top:-100px;transform-origin:2px 2px;transition:transform .1s;filter:drop-shadow(0 1px 2px rgba(14,15,18,.35))';
+  dot.innerHTML = '<svg width="24" height="30" viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg"><path d="M2 2 L2 23.5 L7.6 18.4 L11.4 27 L15.2 25.3 L11.5 16.9 L19 16.6 Z" fill="#0E0F12" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const ring = document.createElement('div');
+  ring.style.cssText = 'position:fixed;z-index:2147483646;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #3B5BFF;pointer-events:none;opacity:0;left:-100px;top:-100px';
+  const attach = () => { document.documentElement.appendChild(ring); document.documentElement.appendChild(dot); };
   document.documentElement ? attach() : addEventListener('DOMContentLoaded', attach);
   addEventListener('mousemove', (e) => { dot.style.left = e.clientX + 'px'; dot.style.top = e.clientY + 'px'; }, true);
-  addEventListener('mousedown', () => { dot.style.transform = 'scale(.7)'; }, true);
+  addEventListener('mousedown', (e) => {
+    dot.style.transform = 'scale(.88)';
+    ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
+    ring.animate([{ transform: 'scale(.6)', opacity: .9 }, { transform: 'scale(3.2)', opacity: 0 }], { duration: 550, easing: 'ease-out' });
+  }, true);
   addEventListener('mouseup', () => { dot.style.transform = 'scale(1)'; }, true);
   window.__demoPointer = true;
 })();`;
