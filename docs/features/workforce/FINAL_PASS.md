@@ -47,7 +47,7 @@ The coverage list is not a separate step: the orchestrator builds it from the sp
 | # | Review | Decisions | Fix | Demo |
 |---|---|---|---|---|
 | 0 | Demo lane set-up: not started | | | |
-| 1 People | written; live walkthrough of all 8 roles done (21 Oct); 77 findings; waiting for the owner's decisions | | | |
+| 1 People | done: live walk of all 8 roles (21 Oct), 78 findings | pre-filled in `final-pass/1-people-decisions.md`; owner to answer 5 questions and override | Batch 1 (lane 2, brief written); design pass round 1 (lane 3, brief written); then Access change, Batch 2, Act-as | not started |
 | 2 Schedule | not started | | | |
 | 3 Timesheets | not started | | | |
 | 4 Rules | not started | | | |
