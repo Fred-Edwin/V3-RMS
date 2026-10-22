@@ -10,14 +10,16 @@ The **Notifications tab** in the Inbox (`app/app/inbox/components/InboxShell.tsx
 
 **Batch 2A (22 Oct 2026):** Home's "Latest" list and the bell's unread count (top bar, phone band; "99+" above 99) read this feature: the list comes with `GET /workforce/home` (`latest`) and the count from the unread store below. "Mark all read" on Home calls the same endpoint as the tab. Home keeps no copy of the rows.
 
+**The bell (22 Oct 2026, Paper 13.1 and 13.2):** on a desktop the bell opens a **right-hand drawer** (`NotificationsDrawer`, mounted once in `app/app/workforce/layout.tsx`, opened through `useOpenNotifications`); on a phone the bell goes to a **full page** (`NotificationsScreen`, `/app/workforce/notifications`). Both draw the same `notification-list`: a search box, area chips with their counts, rows grouped by day, a "You are all caught up" state, Escape and the Close button. Opening a row marks it read and closes the drawer. Not walked: page 2, rows per page, and focus returning to the bell.
+
 ## Public API (`index.ts`)
-`NotificationsTab`, `useWorkforceUnread`, `useWorkforceUnreadCount`, `WorkforceNotification`.
+`NotificationsTab`, `NotificationsScreen`, `NotificationsDrawer`, `useOpenNotifications`, `useWorkforceUnread`, `useWorkforceUnreadCount`, `useUnreadStore`, `notificationWrites`, `safeHref`, `whenWords`, `WorkforceNotification`.
 
 ## Endpoints
-`GET /workforce/notifications?unread=&page=`, `GET /workforce/notifications/unread-count`, `POST /workforce/notifications/read { ids }`, `POST /workforce/notifications/read-all`. Own notifications only.
+`GET /workforce/notifications?unread=&area=&q=&page=&pageSize=` (answers `items`, `total`, `all`, `areas[]`, `unread`; see `docs/API_CONTRACT.md` section 47), `GET /workforce/notifications/unread-count`, `POST /workforce/notifications/read { ids }`, `POST /workforce/notifications/read-all`. Own notifications only.
 
 ## States
 Loading, "No notifications" empty state, error with Try again, no signal.
 
 ## Tests
-`lib/notification-words.test.ts`.
+`lib/notification-words.test.ts`; back end `notifications` tests for `area`, `q`, `all` and `areas`.

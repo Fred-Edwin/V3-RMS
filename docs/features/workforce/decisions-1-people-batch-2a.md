@@ -35,6 +35,16 @@ Where the build departs from the brief, the notes or a Paper frame, or fills a g
 | D25 | The "Ctrl K" hint stays in the phone drawer's Search box. | Paper may draw it there; flagged for the owner, not changed. |
 | D26 | The Director's payslip-openings digest component is kept but nothing draws it. | Removing the card on Home orphaned it; the Audit log redo decides its place. |
 
+## Added at the end of part 2 (22 Oct 2026)
+| # | Decision | Why |
+|---|---|---|
+| D27 | Notifications are a right-hand drawer on desktop and a full page on phones; both draw one list with search, area chips and day groups. `GET /workforce/notifications` takes `area` and `q` and returns `all` and `areas[]`. | Owner request; Paper 13.1 and 13.2. |
+| D28 | The connector line in an open feature breaks at each caption: every link draws its own segment, down through the gap to the next link, and the last link of a section stops at its node. | Owner request; the Paper sidebar frames already draw it so (no redraw needed). |
+| D29 | "My account" is a group after the features holding every personal link the person has (My file, My leave, My payslips, Activity on my record, My notices, Profile, and My time, My rota, My requests where they apply). Profile also stays under the name with Sign out. Not drawn when Profile is the only personal link (System Admin). Drawn first in Paper as frame 2.8. | Owner request; "Me" was ruled out as a name. Links are not duplicated for the rest: only Profile is repeated, as asked. |
+| D30 | "My account" is closed until opened or until a personal page is the current page. | Same as every other group: only the feature you are in is open. |
+| D31 | The password "Show" word became an eye button (crossed out while shown), with `aria-label` "Show password" / "Hide password" and `aria-pressed`. Paper's frames show only the plain eye; the crossed state is built in the same style and reported. | Owner request; undrawn states are built in the same style (standing rule). |
+| D32 | Pre-existing, not changed: the drawer and the desktop sidebar both render the menu, so list ids like `menu-feature-account` appear twice in the page. | Seen while testing in the browser; the phone drawer and sidebar are never visible together, and nothing links to those ids. |
+
 ## Slips (part 2)
 - One `printf` in Bash to add a blank line to `docs/API_CONTRACT.md` (a Bash write; the section itself was added with Edit).
 - Edited `signin-shell.tsx` while a sign-in was in progress in the browser, which reset the page's state; redid the walk cleanly.
