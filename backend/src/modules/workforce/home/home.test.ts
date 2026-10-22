@@ -111,6 +111,12 @@ describe('Needs you grouping and order', () => {
     expect(summariseForHome(marked, now, 2).summary).toHaveLength(2);
   });
 
+  it('gives an Overdue row of mixed kinds a neutral button that opens the overdue list', () => {
+    const marked = orderForHome([row('l1', 'leave', '2026-10-10T08:00:00Z'), row('pc1', 'pay-change', '2026-10-11T08:00:00Z')], now);
+    const first = summariseForHome(marked, now, 5).summary[0];
+    expect(first).toMatchObject({ kindLabel: 'Overdue · 2', action: 'See overdue', opens: '/app/workforce/needs-you?group=overdue' });
+  });
+
   it('counts per group in first-seen order', () => {
     const counts = groupCounts([row('a', 'leave', 'x'), row('b', 'pay-change', 'x'), row('c', 'leave', 'x')]);
     expect(counts.map((g) => [g.key, g.count])).toEqual([['leave', 2], ['pay-changes', 1]]);

@@ -129,14 +129,16 @@ export function summariseForHome(rows: readonly MarkedRow[], now: Date, limit: n
     const spec = SUMMARY[key === OVERDUE_KEY ? kindGroup.key : key] ?? (SUMMARY['other'] as (typeof SUMMARY)[string]);
     const one = b.rows.length === 1;
     const sameTarget = b.rows.every((r) => r.opens.split('?')[0] === first.opens.split('?')[0]);
+    // The Overdue row borrows its button from the first item; with several kinds in it that word would be wrong for the rest.
+    const mixedKinds = key === OVERDUE_KEY && b.rows.some((r) => groupOf(r.kind).key !== kindGroup.key);
     return {
       key,
       kindLabel: `${b.label} · ${b.rows.length}`,
       count: b.rows.length,
       title: one ? first.text : key === OVERDUE_KEY ? `${b.rows.length} requests are overdue` : spec.many(b.rows.length),
       line: one ? (first.siteName ?? `Waiting ${daysOld(first.since, now)} days`) : `The oldest is ${daysOld(oldest.since, now)} days old.`,
-      action: spec.action,
-      opens: one || sameTarget ? first.opens : `/app/workforce/needs-you?group=${key}`,
+      action: mixedKinds ? 'See overdue' : spec.action,
+      opens: one || (sameTarget && !mixedKinds) ? first.opens : `/app/workforce/needs-you?group=${key}`,
       since: oldest.since,
       overdue: key === OVERDUE_KEY,
     };
