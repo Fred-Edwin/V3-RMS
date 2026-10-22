@@ -63,6 +63,23 @@ describe.skipIf(!enabled)('workforce notifications in the database', () => {
     expect(await inbox.markAllRead(mine)).toMatchObject({ marked: 1, unread: 0 });
   });
 
+  it('filters by area and by words, and counts every area before any filter', async () => {
+    const { repo, inbox, renderNotification } = await load();
+    const user = newUser();
+    const other = newUser();
+    await repo.store(user, 'payroll.published', renderNotification('payroll.published', { month: '2026-09' }), 'a1', false);
+    await repo.store(user, 'payroll.published', renderNotification('payroll.published', { month: '2026-10' }), 'a2', false);
+    await repo.store(user, 'payslip.opened_by_staff', renderNotification('payslip.opened_by_staff', { openerRole: 'HR_MANAGER', count: 3 }), 'a3', false);
+    await repo.store(other, 'payroll.published', renderNotification('payroll.published', { month: '2026-09' }), 'a4', false);
+    const base = { unread: false, page: 1, pageSize: 25 };
+    const pay = await inbox.list(user, { ...base, area: 'PAY' });
+    expect(pay.total).toBe(2);
+    expect(pay.all).toBe(3);
+    expect(pay.areas).toEqual([{ area: 'PAY', count: 2 }, { area: 'DOCUMENTS', count: 1 }]);
+    expect((await inbox.list(user, { ...base, q: 'OPENED' })).total).toBe(1);
+    expect((await inbox.list(user, { ...base, area: 'DOCUMENTS', q: 'payroll' })).total).toBe(0);
+  });
+
   it('pages newest first', async () => {
     const { repo, inbox, renderNotification } = await load();
     const user = newUser();

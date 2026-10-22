@@ -104,7 +104,7 @@ export async function homeView(subject: AccessSubject, now: Date = new Date()): 
   const [facts, needsYou, latest] = await Promise.all([
     collectFacts(subject, audience, now),
     needsYouOf(subject, now),
-    notificationRepository.list(subject.id, false, 1, 5),
+    notificationRepository.list(subject.id, { unreadOnly: false }, 1, 5),
   ]);
   return {
     audience,

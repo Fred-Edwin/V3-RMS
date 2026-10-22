@@ -3,6 +3,12 @@ import { prisma } from '../../../config/database';
 import { authRepository } from '../../../repositories/auth-repository';
 import type { NotificationArea, NotificationTone, RenderedNotification } from './notification-types';
 
+export interface NotificationFilter {
+  unreadOnly: boolean;
+  area?: NotificationArea;
+  q?: string;
+}
+
 export interface StoreResult {
   id: string;
   created: boolean;
@@ -41,13 +47,24 @@ export const notificationRepository = {
     }
   },
 
-  async list(userId: string, unreadOnly: boolean, page: number, pageSize: number) {
-    const where = { userId, ...(unreadOnly ? { readAt: null } : {}) };
+  async list(userId: string, filter: NotificationFilter, page: number, pageSize: number) {
+    const where: Prisma.WorkforceNotificationWhereInput = {
+      userId,
+      ...(filter.unreadOnly ? { readAt: null } : {}),
+      ...(filter.area ? { area: filter.area } : {}),
+      ...(filter.q ? { OR: [{ title: { contains: filter.q, mode: 'insensitive' } }, { body: { contains: filter.q, mode: 'insensitive' } }] } : {}),
+    };
     const [rows, total] = await Promise.all([
       prisma.workforceNotification.findMany({ where, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize }),
       prisma.workforceNotification.count({ where }),
     ]);
     return { items: rows.map(asRow), total };
+  },
+
+  /** How many rows the person has in each area, ignoring every filter: the numbers on the chips. */
+  async areaCounts(userId: string): Promise<Array<{ area: NotificationArea; count: number }>> {
+    const groups = await prisma.workforceNotification.groupBy({ by: ['area'], where: { userId }, _count: { _all: true } });
+    return groups.map((g) => ({ area: g.area as NotificationArea, count: g._count._all })).sort((a, b) => b.count - a.count || a.area.localeCompare(b.area));
   },
 
   unreadCount: (userId: string): Promise<number> => prisma.workforceNotification.count({ where: { userId, readAt: null } }),
