@@ -43,7 +43,7 @@ async function upload<T>(path: string, file: File, fields: Record<string, string
     body: form,
   });
   const payload = (await response.json()) as ApiResponseEnvelope<T>;
-  if (!response.ok) throw new ApiError(payload.error?.message ?? 'Upload failed', response.status, payload.error?.code ?? 'UNKNOWN_ERROR', payload.error?.details);
+  if (!response.ok) throw new ApiError(payload.error?.message ?? 'Upload failed', response.status, payload.error?.code ?? 'UNKNOWN_ERROR', payload.error?.details, payload.error?.reference);
   return payload.data as T;
 }
 

@@ -2,38 +2,67 @@
 
 import * as React from 'react';
 
-import { Button } from '@/components/ui2/button';
-
-import { PersonAvatar } from '../../../_shared';
-import { fileProblem } from '../../file/lib/upload-rules';
-import { useFileAction } from '../../file/hooks/use-file-action';
+import { initialsOf } from '../../../_shared/lib/avatar';
 import { peopleWrites } from '../../_shared/services/people-writes';
-import { MAX_ZOOM, OUTPUT_PIXELS, clampDrag, cropSquare, scaleFor, type PhotoSize } from '../lib/photo-crop';
+import { useFileAction } from '../../file/hooks/use-file-action';
+import { OUTPUT_PIXELS, clampDrag, cropSquare, type PhotoSize } from '../lib/photo-crop';
+import { OwnInfoNote } from './own-contact-card';
+import { OwnButton, OwnPage, OwnTextButton } from './own-page';
+import { CIRCLE, PhotoStage } from './photo-stage';
 
 const ACCEPT = 'image/jpeg,image/png';
-const CIRCLE = 260;
+/** The largest photo the person may pick from the gallery (frame 8.4). It is cropped to a small square before it is sent. */
+const MAX_PICK_MB = 5;
 
 type Page = 'choose' | 'adjust' | 'failed';
+interface Picked {
+  url: string;
+  size: PhotoSize;
+  file: File;
+}
+
+const GRADIENT = 'linear-gradient(145deg, #E9CFAE 0%, #C99A68 100%)';
+const CARD = 'flex items-center gap-4 border border-wds-border bg-white p-[18px] shadow-[0_10px_24px_-18px_#1715122E]';
+
+/** The 68 px avatar of frames 8.4 and 8.6: the chosen photo if there is one, otherwise initials, ringed in amber. */
+function RingAvatar({ name, url, plus = false }: { name: string; url?: string; plus?: boolean }) {
+  return (
+    <span className="relative h-[68px] w-[68px] shrink-0">
+      <span className="flex h-[68px] w-[68px] items-center justify-center overflow-hidden rounded-full font-wds-sans text-[22px] font-medium leading-7 text-[#4E2C14] shadow-[0_0_0_2px_#FFFFFF,0_0_0_3px_#B5823E]" style={{ backgroundImage: GRADIENT }}>
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a local preview of a file the person just chose
+          <img src={url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span aria-hidden>{initialsOf(name)}</span>
+        )}
+      </span>
+      {plus ? (
+        <span aria-hidden className="absolute -bottom-0.5 -right-0.5 flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-white bg-wds-primary font-wds-sans text-[13px] leading-4 text-wds-canvas">
+          +
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
- * The photo as three full pages (frames 8.4 to 8.6), not a sheet: choose from the gallery (no camera), adjust (circle crop and
- * zoom), and "could not save" with the server's reference. Saving sends the cropped square, so what the person sees is what is kept.
+ * The photo as three full pages (frames 8.4 to 8.6), not a sheet: choose from the gallery (no camera), adjust (circle crop and zoom),
+ * and "Photo not saved" with what happened. Saving sends the cropped square, so what the person sees is what is kept.
  */
 export function PhotoPages({ name, onClose, done }: { name: string; onClose: () => void; done: (message: string) => void }) {
   const [page, setPage] = React.useState<Page>('choose');
-  const [source, setSource] = React.useState<{ url: string; size: PhotoSize; file: File } | null>(null);
+  const [source, setSource] = React.useState<Picked | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [drag, setDrag] = React.useState({ x: 0, y: 0 });
   const action = useFileAction((m) => done(m ?? 'Photo saved.'));
-  const pointer = React.useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null);
 
   React.useEffect(() => () => { if (source) URL.revokeObjectURL(source.url); }, [source]);
 
   const choose = (file: File | undefined): void => {
     if (!file) return;
-    const bad = fileProblem(file, ACCEPT);
-    if (bad) return setProblem(bad);
+    if (!ACCEPT.split(',').includes(file.type)) return setProblem('Choose a JPG or PNG photo.');
+    if (file.size > MAX_PICK_MB * 1_000_000) return setProblem(`That photo is over ${MAX_PICK_MB} MB. Choose a smaller one.`);
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -70,91 +99,76 @@ export function PhotoPages({ name, onClose, done }: { name: string; onClose: () 
     if (!ok) setPage('failed');
   };
 
-  const scale = source ? scaleFor(source.size, CIRCLE, zoom) : 1;
-  const at = source ? clampDrag(source.size, CIRCLE, zoom, drag) : drag;
+  const gallery = (
+    <label className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-[2px] bg-wds-primary font-wds-sans text-[15px] font-medium leading-[18px] text-white focus-within:shadow-wds-ring">
+      <svg aria-hidden width="18" height="18" viewBox="0 0 18 18" className="shrink-0">
+        <rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="#FFFFFF" strokeWidth="1.5" />
+        <circle cx="6.5" cy="7.5" r="1.3" fill="#FFFFFF" />
+        <path d="M3 13l4-3.5 3 2.5 2-1.5 3 2.5" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+      Choose from your gallery
+      <input type="file" accept={ACCEPT} className="sr-only" onChange={(e) => choose(e.target.files?.[0])} />
+    </label>
+  );
+
+  if (page === 'adjust' && source) {
+    return (
+      <OwnPage kicker="ADD YOUR PHOTO" title="Adjust your photo" subtitle="Drag to move it. Use the slider to zoom. The circle is what your team sees." onBack={() => setPage('choose')} backLabel="Back to choosing a photo">
+        <PhotoStage source={source} zoom={zoom} drag={drag} onDrag={setDrag} onZoom={(z) => { setZoom(z); setDrag(clampDrag(source.size, CIRCLE, z, drag)); }} />
+        <OwnButton disabled={action.busy} onClick={() => void save()}>{action.busy ? 'Saving…' : 'Use this photo'}</OwnButton>
+        <OwnTextButton disabled={action.busy} onClick={() => setPage('choose')}>Choose another</OwnTextButton>
+      </OwnPage>
+    );
+  }
+  if (page === 'failed') {
+    return (
+      <OwnPage kicker="ADD YOUR PHOTO" title="Photo not saved" subtitle="Nothing was changed on your file." onBack={onClose} backLabel="Close">
+        <div className={CARD}>
+          <RingAvatar name={name} url={source?.url} />
+          <div className="flex flex-col gap-[3px]">
+            <span className="font-wds-sans text-[15px] font-semibold leading-[18px] text-wds-text-ink">The photo you chose</span>
+            <span className="font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">From your gallery{source ? ` · ${(source.file.size / 1_000_000).toFixed(1)} MB` : ''}</span>
+          </div>
+        </div>
+        <div role="alert" className="flex items-start gap-3 border border-l-[3px] border-[#E3B8AE] border-l-[#A8321C] bg-[#FBEDEA] px-4 py-3.5">
+          <span aria-hidden className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[#A8321C] font-wds-sans text-[12px] font-semibold leading-[14px] text-white">!</span>
+          <div className="flex min-w-0 flex-col gap-1 text-[#7A2210]">
+            <span className="font-wds-sans text-[14px] font-semibold leading-[18px]">We could not save your photo</span>
+            <span className="font-wds-sans text-[13px] leading-[18px]">
+              {action.reference ? (
+                <>
+                  Try again, or tell HR <span className="font-wds-mono">{action.reference}</span>.
+                </>
+              ) : (
+                'Try again, or tell HR.'
+              )}
+            </span>
+          </div>
+        </div>
+        <OwnButton onClick={() => { action.clearError(); setPage('adjust'); }}>Try again</OwnButton>
+        <div className="flex h-12 items-center justify-center gap-6">
+          <OwnTextButton className="h-auto" onClick={() => { action.clearError(); setPage('choose'); }}>Choose another photo</OwnTextButton>
+          <OwnTextButton className="h-auto" onClick={onClose}>Cancel</OwnTextButton>
+        </div>
+      </OwnPage>
+    );
+  }
   return (
-    <div role="dialog" aria-modal="true" aria-label="Your photo" className="fixed inset-0 z-50 flex flex-col bg-wds-canvas">
-      <header className="flex h-14 shrink-0 items-center gap-3 bg-wds-sidebar-mid px-2 text-wds-primary-fg">
-        <button type="button" onClick={page === 'adjust' ? () => setPage('choose') : onClose} aria-label={page === 'adjust' ? 'Back to choosing a photo' : 'Close'} className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-[20px] text-inherit outline-none focus-visible:shadow-wds-ring">
-          ←
-        </button>
-        <h1 className="m-0 font-wds-sans text-[16px] font-semibold leading-5">{page === 'adjust' ? 'Adjust your photo' : page === 'failed' ? 'Could not save' : 'Your photo'}</h1>
-      </header>
-      <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col items-center gap-6 overflow-y-auto px-4 py-8">
-        {page === 'choose' ? (
-          <>
-            <PersonAvatar name={name} size="lg" />
-            <p className="m-0 text-center font-wds-sans text-[15px] leading-5 text-wds-text-ink">Choose a photo of your face from your gallery. It replaces your initials everywhere.</p>
-            <label className="flex min-h-11 w-full cursor-pointer items-center justify-center bg-wds-primary px-4 font-wds-sans text-[15px] font-medium text-wds-primary-fg focus-within:shadow-wds-ring">
-              Choose from gallery
-              <input type="file" accept={ACCEPT} className="sr-only" onChange={(e) => choose(e.target.files?.[0])} />
-            </label>
-            <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">JPG or PNG, up to 10 MB.</p>
-            {problem ? <p role="alert" className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">{problem}</p> : null}
-          </>
-        ) : null}
-        {page === 'adjust' && source ? (
-          <>
-            <div
-              role="img"
-              aria-label="Your photo in a circle. Drag to move it."
-              className="relative shrink-0 touch-none overflow-hidden rounded-full border border-wds-border bg-wds-neutral-100"
-              style={{ width: CIRCLE, height: CIRCLE }}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId);
-                pointer.current = { x: e.clientX, y: e.clientY, from: at };
-              }}
-              onPointerMove={(e) => {
-                const p = pointer.current;
-                if (p) setDrag(clampDrag(source.size, CIRCLE, zoom, { x: p.from.x + e.clientX - p.x, y: p.from.y + e.clientY - p.y }));
-              }}
-              onPointerUp={() => {
-                pointer.current = null;
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of a file the person just chose */}
-              <img
-                src={source.url}
-                alt=""
-                draggable={false}
-                className="pointer-events-none absolute max-w-none select-none"
-                style={{ width: source.size.width * scale, height: source.size.height * scale, left: CIRCLE / 2 - (source.size.width * scale) / 2 + at.x, top: CIRCLE / 2 - (source.size.height * scale) / 2 + at.y }}
-              />
-            </div>
-            <label className="flex w-full items-center gap-3 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">
-              Zoom
-              <input
-                type="range"
-                min={1}
-                max={MAX_ZOOM}
-                step={0.01}
-                value={zoom}
-                aria-label="Zoom"
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  setZoom(next);
-                  setDrag(clampDrag(source.size, CIRCLE, next, at));
-                }}
-                className="h-11 min-w-0 flex-1"
-              />
-            </label>
-            <div className="flex w-full flex-col gap-3">
-              <Button type="button" className="min-h-11 w-full" disabled={action.busy} onClick={() => void save()}>{action.busy ? 'Saving…' : 'Save photo'}</Button>
-              <Button type="button" variant="flat" className="min-h-11 w-full" disabled={action.busy} onClick={() => setPage('choose')}>Choose another</Button>
-            </div>
-          </>
-        ) : null}
-        {page === 'failed' ? (
-          <>
-            <p role="alert" className="m-0 text-center font-wds-sans text-[16px] font-semibold leading-6 text-wds-text-ink">Your photo was not saved.</p>
-            <p className="m-0 text-center font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{action.error ?? 'Nothing was changed. Try again, or tell your manager.'}</p>
-            <div className="flex w-full flex-col gap-3">
-              <Button type="button" className="min-h-11 w-full" onClick={() => { action.clearError(); setPage('adjust'); }}>Try again</Button>
-              <Button type="button" variant="flat" className="min-h-11 w-full" onClick={onClose}>Close</Button>
-            </div>
-          </>
-        ) : null}
+    <OwnPage kicker="MY FILE" title="Add your photo" subtitle="Your team sees it on the rota and your shift card. You can change it any time." onBack={onClose} backLabel="Close">
+      <div className={CARD}>
+        <RingAvatar name={name} plus />
+        <div className="flex flex-col gap-[3px]">
+          <span className="font-wds-sans text-[15px] font-semibold leading-[18px] text-wds-text-ink">Pick a photo of your face</span>
+          <span className="font-wds-sans text-[12px] leading-[17px] text-wds-text-secondary">A clear photo, with your face in the middle.</span>
+        </div>
       </div>
-    </div>
+      {gallery}
+      <OwnInfoNote>
+        <span>The photo must already be in your phone&apos;s gallery. JPG or PNG, up to {MAX_PICK_MB} MB.</span>
+        <span>Only you in the photo, so your team can recognise you.</span>
+      </OwnInfoNote>
+      {problem ? <p role="alert" className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-error-fg">{problem}</p> : null}
+      <OwnTextButton onClick={onClose}>Cancel</OwnTextButton>
+    </OwnPage>
   );
 }

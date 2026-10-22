@@ -2,7 +2,8 @@
  * The maths of the photo page (frame 8.5): a circle of `circle` pixels on screen, the photo behind it, a zoom from 1 to `MAX_ZOOM`
  * and a drag. At zoom 1 the photo just covers the circle. The circle can never show empty space, so the drag is clamped.
  */
-export const MAX_ZOOM = 3;
+/** Frame 8.5 puts 1.4× at 40% of the slider, so the range is 1 to 2. */
+export const MAX_ZOOM = 2;
 export const OUTPUT_PIXELS = 512;
 
 export interface PhotoSize {

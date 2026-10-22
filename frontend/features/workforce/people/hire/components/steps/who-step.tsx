@@ -88,7 +88,7 @@ export function WhoStep({
       </HireField>
       <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
         <HireField label="Phone" error={errors.phone}>
-          {(ids) => <HireInput ids={ids} mono type="tel" value={state.phone} onChange={(e) => set({ phone: e.target.value })} />}
+          {(ids) => <NumberField ids={ids} code decimal={false} maxLength={12} value={state.phone} onChange={(v) => set({ phone: v })} />}
         </HireField>
         <HireField label="National ID number" error={errors.nationalId}>
           {(ids) => <NumberField ids={ids} code decimal={false} maxLength={20} value={state.nationalId} onChange={(v) => set({ nationalId: v })} />}

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 
-import { formatApiErrorMessage } from '@/types/api';
+import { ApiError, formatApiErrorMessage } from '@/types/api';
 
 /**
  * Runs one write from a Workforce screen: busy while it goes, the server's own words if it is refused, and a "what happened" line when it
@@ -12,6 +12,8 @@ import { formatApiErrorMessage } from '@/types/api';
 export interface FileAction {
   busy: boolean;
   error: string | null;
+  /** On a fault of ours (5xx): the "WF-XXXX" code support finds in the log. Null otherwise. */
+  reference: string | null;
   clearError: () => void;
   /** Runs `write`; true when it worked. `done` is the line to show afterwards. */
   run: (write: () => Promise<unknown>, done?: string) => Promise<boolean>;
@@ -20,17 +22,23 @@ export interface FileAction {
 export function useAction(onDone: (message: string | null) => void): FileAction {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const clearError = useCallback(() => setError(null), []);
+  const [reference, setReference] = useState<string | null>(null);
+  const clearError = useCallback(() => {
+    setError(null);
+    setReference(null);
+  }, []);
   const run = useCallback(
     async (write: () => Promise<unknown>, done?: string): Promise<boolean> => {
       setBusy(true);
       setError(null);
+      setReference(null);
       try {
         await write();
         onDone(done ?? null);
         return true;
       } catch (err) {
         setError(formatApiErrorMessage(err, 'That did not go through. Nothing was changed.'));
+        setReference(err instanceof ApiError ? (err.reference ?? null) : null);
         return false;
       } finally {
         setBusy(false);
@@ -38,5 +46,5 @@ export function useAction(onDone: (message: string | null) => void): FileAction 
     },
     [onDone]
   );
-  return { busy, error, clearError, run };
+  return { busy, error, reference, clearError, run };
 }

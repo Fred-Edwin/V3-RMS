@@ -7,7 +7,7 @@ import { peopleWrites } from '../../../_shared/services/people-writes';
 import type { UpdateEmployeeBody } from '../../../_shared/types/people-requests';
 import { useFileAction } from '../../hooks/use-file-action';
 import { firstName } from '../../lib/file-model';
-import { DialogError, DialogText, FooterNote } from './dialog-fields';
+import { DialogDigits, DialogError, DialogText, FooterNote } from './dialog-fields';
 import type { FileDialogProps } from './file-dialogs';
 
 interface DetailsForm {
@@ -54,11 +54,11 @@ export function DetailsDialog({ file, onClose, done }: FileDialogProps) {
       }
     >
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-        <DialogText label="Phone" type="tel" value={form.personalPhone} onChange={(v) => set({ personalPhone: v })} helper={file.personalPhone ? `On file: ${file.personalPhone}` : undefined} />
+        <DialogDigits label="Phone" value={form.personalPhone} onChange={(v) => set({ personalPhone: v })} helper={file.personalPhone ? `On file: ${file.personalPhone}` : undefined} />
         <DialogText label="Personal email" type="email" value={form.personalEmail} onChange={(v) => set({ personalEmail: v })} hint="optional" />
         <DialogText label="Emergency contact" value={form.emergencyName} onChange={(v) => set({ emergencyName: v })} />
         <DialogText label="Relation" value={form.emergencyRelation} onChange={(v) => set({ emergencyRelation: v })} hint="optional" />
-        <DialogText label="Emergency phone" type="tel" value={form.emergencyPhone} onChange={(v) => set({ emergencyPhone: v })} />
+        <DialogDigits label="Emergency phone" value={form.emergencyPhone} onChange={(v) => set({ emergencyPhone: v })} />
       </div>
       <DialogError message={action.error} />
     </KitDialog>

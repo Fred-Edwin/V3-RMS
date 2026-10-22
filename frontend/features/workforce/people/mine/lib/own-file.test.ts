@@ -6,20 +6,22 @@ import { finishProgress, stillToFinish, toEmergencyBody, validateEmergency } fro
 const parts = (open: FilePart[]) => (['EMERGENCY_CONTACT', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'PAY'] as FilePart[]).map((part) => ({ part, applicable: true, done: !open.includes(part) }));
 const file = (open: FilePart[], nextSteps: EmployeeFile['nextSteps'] = []): EmployeeFile =>
   ({ completeness: { ringPercent: 50, checklistPercent: 50, parts: parts(open), checklist: [] }, nextSteps, sensitive: {} }) as unknown as EmployeeFile;
-const words = (d: string): string => `on ${d}`;
 
 describe('what is still to finish', () => {
   it('lists the three things the person can add, only the open ones', () => {
-    expect(stillToFinish(file(['NSSF_SHA']), words).map((r) => r.key)).toEqual(['numbers']);
-    expect(stillToFinish(file([]), words)).toEqual([]);
+    expect(stillToFinish(file(['NSSF_SHA'])).map((r) => r.key)).toEqual(['numbers']);
+    expect(stillToFinish(file([]))).toEqual([]);
   });
   it('does not ask for numbers that are already on the file (finding 66)', () => {
     const done = { ...file(['NSSF_SHA']), sensitive: { nssfNumber: '900037', shaNumber: '5000091' } } as unknown as EmployeeFile;
-    expect(stillToFinish(done, words)).toEqual([]);
+    expect(stillToFinish(done)).toEqual([]);
   });
-  it('says when HR asked', () => {
-    const rows = stillToFinish(file(['EMERGENCY_CONTACT'], [{ code: 'FILE_REQUEST', dueOn: null, fileRequestId: 'r', fileRequestKind: 'EMERGENCY_CONTACT', fileRequestAskedOn: '2026-10-02' }]), words);
-    expect(rows[0]).toMatchObject({ key: 'emergency', detail: 'HR asked for this on on 2026-10-02' });
+  it('says why in the words of frame 8.1', () => {
+    const rows = stillToFinish(file(['EMERGENCY_CONTACT', 'PHOTO_AND_DETAILS']));
+    expect(rows.map((r) => [r.title, r.detail])).toEqual([
+      ['Emergency contact', 'HR asked for it. Takes 1 minute.'],
+      ['Photo', 'Your team sees it on the rota.'],
+    ]);
   });
   it('counts progress over the three', () => {
     expect(finishProgress(file(['NSSF_SHA']))).toEqual({ done: 2, total: 3 });

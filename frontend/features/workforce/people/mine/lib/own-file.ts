@@ -7,22 +7,24 @@ import type { EmployeeFile } from '../../_shared/types/people-types';
  */
 export type OwnForm = 'emergency' | 'numbers' | 'photo';
 /** The forms the screen can open: the three HR can ask for, and Edit on the IDs and bank card (`numbers`). */
-export type OwnDialog = OwnForm;
+export type OwnDialog = OwnForm | 'contact';
 
 export interface StillToFinish {
   key: OwnForm;
   title: string;
-  /** The grey line, "HR asked for this on 2 Oct" when HR asked. */
-  detail: string | null;
+  /** The grey line under the title. */
+  detail: string;
   /** The word on the button. */
   action: string;
 }
 
-const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Your photo' };
+const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Photo' };
+/** The grey line under each title (frame 8.1). */
+const DETAILS: Record<OwnForm, string> = { emergency: 'HR asked for it. Takes 1 minute.', numbers: 'HR asked for them. Takes 1 minute.', photo: 'Your team sees it on the rota.' };
 const PART_FOR: Record<OwnForm, 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS'> = { emergency: 'EMERGENCY_CONTACT', numbers: 'NSSF_SHA', photo: 'PHOTO_AND_DETAILS' };
 const KIND_FOR: Record<string, OwnForm> = { EMERGENCY_CONTACT: 'emergency', NSSF_SHA: 'numbers', PHOTO_AND_DETAILS: 'photo' };
 
-export function stillToFinish(file: EmployeeFile, dayWords: (date: string) => string): StillToFinish[] {
+export function stillToFinish(file: EmployeeFile): StillToFinish[] {
   const asked = new Map<OwnForm, string>();
   for (const s of file.nextSteps) {
     const form = s.fileRequestKind ? KIND_FOR[s.fileRequestKind] : undefined;
@@ -34,8 +36,7 @@ export function stillToFinish(file: EmployeeFile, dayWords: (date: string) => st
     if (!open && !asked.has(key)) return [];
     // Both numbers are already on the file (the IDs card shows them): there is nothing left to ask for (finding 66).
     if (key === 'numbers' && file.sensitive.nssfNumber && file.sensitive.shaNumber) return [];
-    const when = asked.get(key);
-    return [{ key, title: TITLES[key], detail: when ? `HR asked for this on ${dayWords(when)}` : null, action: 'Add' }];
+    return [{ key, title: TITLES[key], detail: DETAILS[key], action: 'Add' }];
   });
 }
 
