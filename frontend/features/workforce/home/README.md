@@ -1,5 +1,7 @@
 # Workforce Home (the frame)
 
+> **Batch 2A (22 Oct 2026): the page is now Role Home** (`role-home/`: greeting, five number cards, "Needs you" table, "Latest" list, the paged "See all" at `/app/workforce/needs-you`). It replaces the desktop cards and the old `WorkforceHome` screen below, which are **deleted** (HR numbers, Needs you, Overdue, attention, people by branch, branch numbers, today board card, pay run numbers, headcount, payslip opens, coming up; `home-screen.tsx`, the waiting-for-you column, fixtures and the `/dev/workforce-home` gallery). Kept: the card registry and the four phone action cards (clock, job cards slot, team today, this week), and `TodayScreen`. Sections below that describe the deleted pieces are history until part 2 rewrites this file.
+
 Chapter 1 of the approved Paper designs ("Role homes and navigation"): the Workforce menu, the Home pages for the five desktop roles, the phone Home for staff and for a department head, and the **card registry** every later slice plugs into. Front end only. The back end is untouched.
 
 **Status:** built on branch `feat/workforce-frame` (17 Oct 2026), awaiting the owner's review. Nothing pushed. The real page at `/app/workforce` shows the greeting and then an empty state, because no slice feeds a card yet. Every block is shown with Paper's examples at **`/dev/workforce-home`** (404 in production). What is left to wire is the ledger: [`docs/features/workforce/chapter-1-ledger.md`](../../../../docs/features/workforce/chapter-1-ledger.md).

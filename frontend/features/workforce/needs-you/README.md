@@ -1,5 +1,7 @@
 # Workforce · Needs you
 
+> **Batch 2A (22 Oct 2026):** the Needs you card, the Overdue card, the table and the phone cards in this folder are **deleted**. The Home table and the paged "See all" list now live in `features/workforce/home/role-home/` (back end `GET /workforce/needs-you/page`). What stays here: the menu badge counts (`useNeedsYouMenuCounts`, now carrying which badges hold overdue items) and the words. Text below that describes the cards is history until part 2 rewrites this file.
+
 Status: built and walked in a real browser (21 Oct 2026, branch `feat/workforce-6a-shared-frontend`, not pushed). Spec: `docs/features/workforce/specs/6b-needs-you-and-messages-spec.md`. Back end: `backend/src/modules/workforce/needs-you/`. Decisions: `docs/features/workforce/decisions-6a-frontend.md`.
 
 ## What it is

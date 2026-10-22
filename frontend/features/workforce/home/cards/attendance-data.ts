@@ -1,15 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { useAuthStore } from '@/store/authStore';
 
-import type { WorkforceKpiCell } from '../../_shared';
-import { kpiCells, useBoard, useMyDay, withWorked, type Board } from '../../attendance';
+import { useBoard, useMyDay, withWorked, type Board } from '../../attendance';
 import { hmWords, useMyTime } from '../../timesheets';
 import type { CardDataState } from '../lib/card-registry';
-import type { KpiData } from './hr-cards';
 import { noSource } from './no-source';
 import type { ClockSlot, TeamSlot, WeekCardData } from './phone-cards-defs';
 import { useThisWeekCard } from './rota-data';
@@ -69,31 +66,3 @@ export function useTeamCardData(): CardDataState<TeamSlot> {
     return { status: 'ready', data: { live: { board, reload } } };
   }, [board, reload, failed, loading, noSite]);
 }
-
-/** The branch strip: on shift, late, not in, on leave. */
-export function useBranchKpis(): CardDataState<KpiData> {
-  const router = useRouter();
-  const { board, reload, failed, loading, noSite } = useHomeBoard();
-  return useMemo((): CardDataState<KpiData> => {
-    if (noSite) return OFF();
-    if (failed) return { status: 'error', retry: reload };
-    if (loading || !board) return { status: 'loading' };
-    if (!board.enabled) return OFF();
-    const go = (): void => router.push('/app/workforce/today');
-    const cells: WorkforceKpiCell[] = kpiCells(board, { late: go, notIn: go });
-    return { status: 'ready', data: { cells } };
-  }, [board, reload, failed, loading, noSite, router]);
-}
-
-/** The board itself on the Branch Manager's Home. */
-export function useBoardCardData(): CardDataState<{ live: { board: Board; reload: () => void } }> {
-  const { board, reload, failed, loading, noSite } = useHomeBoard();
-  return useMemo((): CardDataState<{ live: { board: Board; reload: () => void } }> => {
-    if (noSite) return OFF();
-    if (failed) return { status: 'error', retry: reload };
-    if (loading || !board) return { status: 'loading' };
-    if (!board.enabled) return OFF();
-    return { status: 'ready', data: { live: { board, reload } } };
-  }, [board, reload, failed, loading, noSite]);
-}
-
