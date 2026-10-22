@@ -3,7 +3,10 @@
 import * as React from 'react';
 
 import { DataTable, type TableColumn, type TableCopy } from '@/components/ui2/data-table/data-table';
+import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
 import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/cn';
 
 import { PageHeader, PersonAvatar, PersonLabelLine, StatusTag } from '../../../_shared';
 import { PeopleFrame } from '../../_shared/components/people-frame';
@@ -60,13 +63,34 @@ const COLUMNS: TableColumn<TeamMember>[] = [
   { id: 'shift', header: 'SHIFT', width: '200px', cell: (m) => <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-ink">{shiftCell(m)}</span> },
 ];
 
+/** A phone row (frame 9.2): the person at the left, today's status at the right, the shift under it. */
+function TeamCard({ member, term }: { member: TeamMember; term: string }) {
+  const s = statusCell(member);
+  return (
+    <div className="flex items-center gap-3 border-b border-wds-neutral-100 px-4 py-3">
+      <PersonAvatar name={member.name} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 truncate font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink"><HighlightMatch text={member.name} term={term} /></p>
+        {member.position ? <p className="m-0 truncate font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{member.position}</p> : null}
+      </div>
+      <div className="shrink-0 text-right">
+        <p className={cn('m-0 font-wds-sans text-[13px] leading-[18px]', s.tone === 'success' ? 'text-wds-success-fg' : 'text-wds-text-secondary')}>{s.label}</p>
+        <p className="m-0 font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{shiftCell(member)}</p>
+      </div>
+    </div>
+  );
+}
+
 export function TeamScreen() {
+  const phone = useMediaQuery('(max-width: 767px)');
   return (
     <PeopleFrame breadcrumb={{ root: 'Department', section: 'People', screen: 'My team' }} phoneTitle="My team" label="My team">
       <div className="flex w-full flex-col gap-5 px-wds-8 py-7 max-md:px-4">
-        <PageHeader title="My team" subtitle="The people you lead, and where they are today." />
+        <PageHeader title="My team" subtitle="Names, positions and today's status. Pay and IDs are not shown." />
         <DataTable<TeamMember>
           label="My team"
+          layout={phone.matches ? 'cards' : 'table'}
+          renderCard={(m, { term }) => <TeamCard member={m} term={term} />}
           columns={COLUMNS}
           getRowId={(m) => m.id}
           filters={FILTERS}
