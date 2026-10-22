@@ -104,15 +104,21 @@ export function ShellSearch({ links, canSeePeople, variant = 'light', className 
         aria-label="Search"
         aria-keyshortcuts="Control+K"
         className={cn(
-          'flex h-8 max-w-full items-center justify-between border px-3 text-left outline-none transition-colors focus-visible:shadow-wds-ring',
+          'flex h-8 max-w-full items-center gap-2 border text-left outline-none transition-colors focus-visible:shadow-wds-ring',
           variant === 'sidebar'
-            ? 'w-full border-[#4A3A2C] bg-transparent text-wds-sidebar-fg-muted hover:bg-wds-sidebar-active-bg'
-            : 'w-[380px] border-wds-border-strong bg-wds-surface text-wds-text-secondary hover:bg-wds-neutral-50',
+            ? 'w-full rounded-[2px] border-[#4A3A2E] bg-[#1E1005] px-2.5 text-[#8A7F76] hover:bg-wds-sidebar-active-bg'
+            : 'w-[380px] justify-between border-wds-border-strong bg-wds-surface px-3 text-wds-text-secondary hover:bg-wds-neutral-50',
           className
         )}
       >
-        <span className="truncate font-wds-sans text-[13px] leading-4">{variant === 'sidebar' ? 'Search' : 'Find a person, a request or a page'}</span>
-        <kbd className={cn('ml-3 shrink-0 border px-1.5 font-wds-mono text-[10px] leading-4', variant === 'sidebar' ? 'border-[#4A3A2C] text-wds-sidebar-fg-muted' : 'border-wds-border bg-wds-neutral-50 text-wds-text-secondary')}>Ctrl K</kbd>
+        {variant === 'sidebar' ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden className="shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-4-4" />
+          </svg>
+        ) : null}
+        <span className={cn('truncate font-wds-sans leading-4', variant === 'sidebar' ? 'grow text-xs' : 'text-[13px]')}>{variant === 'sidebar' ? 'Search' : 'Find a person, a request or a page'}</span>
+        <kbd className={cn('ml-3 shrink-0 border px-1.5 font-wds-mono text-[10px] leading-4', variant === 'sidebar' ? 'border-[#4A3A2E] text-[#8A7F76]' : 'border-wds-border bg-wds-neutral-50 text-wds-text-secondary')}>Ctrl K</kbd>
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="top" className="inset-x-auto left-1/2 top-16 w-[560px] max-w-[94vw] -translate-x-1/2 border border-wds-border bg-wds-surface p-0 [&>button]:hidden">

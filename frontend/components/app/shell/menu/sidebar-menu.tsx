@@ -71,7 +71,7 @@ function SubRow({ sub, active, onNavigate }: { sub: MenuSub; active: boolean; on
 }
 
 function Caption({ text }: { text: string }) {
-  return <div className="relative pb-1 pl-[10px] pt-3 font-wds-mono text-[10px] leading-3 tracking-[0.08em] text-wds-sidebar-fg-muted">{text.toUpperCase()}</div>;
+  return <div className="relative mt-1.5 flex h-6 items-center px-2.5 font-wds-mono text-[10px] font-semibold leading-3 tracking-[0.06em] text-wds-sidebar-fg-muted">{text.toUpperCase()}</div>;
 }
 
 function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate }: { item: MenuItem; open: boolean; activeKey: string; activeSubKey?: string; onToggle: () => void; onNavigate?: () => void }) {
@@ -90,9 +90,9 @@ function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate 
           <Chevron open={open} />
         </span>
       </button>
-      <div id={listId} hidden={!open} className="relative pb-1">
+      <div id={listId} hidden={!open} className="relative flex flex-col gap-0.5 pt-0.5">
         {/* The rail: one line down the lane the ticks and nodes sit on. */}
-        <span aria-hidden className="absolute bottom-3 left-[23.5px] top-0 w-px bg-[#B5823EB3]" />
+        <span aria-hidden className="absolute bottom-[15px] left-[23.5px] top-0 w-px bg-[#B5823EB3]" />
         {subs.map((sub, i) => (
           <React.Fragment key={sub.key}>
             {sub.section && sub.section !== subs[i - 1]?.section ? <Caption text={sub.section} /> : null}
@@ -134,11 +134,11 @@ export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'C
         <span className="ml-auto font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">{orgLabel}</span>
       </div>
 
-      <div className="px-wds-2.5 pt-3">
+      <div className="px-wds-2.5 pb-2 pt-3">
         <ShellSearch links={links} canSeePeople={canSeePeople} variant="sidebar" />
       </div>
 
-      <div className="flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-wds-2.5 pb-wds-3.5 pt-3 [scrollbar-color:#4A3A2C_transparent] [scrollbar-width:thin]">
+      <div className="flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-wds-2.5 pb-wds-3.5 [scrollbar-color:#4A3A2C_transparent] [scrollbar-width:thin]">
         {menu.top.map((item) => (
           <TopRow key={item.key} item={item} active={item.key === activeKey} onNavigate={onNavigate} />
         ))}

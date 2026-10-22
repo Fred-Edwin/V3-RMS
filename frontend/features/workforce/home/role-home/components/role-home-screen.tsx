@@ -100,9 +100,9 @@ export function RoleHomeScreen() {
         hideSearch
         actions={
           <>
-            <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} />
+            <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} className="size-8" />
             {canAdd ? (
-              <Link href="/app/workforce/employees/new" className={cn('inline-flex h-9 items-center bg-wds-primary px-4 font-wds-sans text-[13px] font-medium text-wds-primary-fg hover:bg-wds-primary-hover', MOTION, FOCUS_RING)}>
+              <Link href="/app/workforce/employees/new" className={cn('inline-flex h-8 items-center bg-wds-primary px-3.5 font-wds-sans text-[13px] font-medium text-wds-primary-fg hover:bg-wds-primary-hover', MOTION, FOCUS_RING)}>
                 Add employee
               </Link>
             ) : null}
@@ -124,11 +124,11 @@ export function RoleHomeScreen() {
         <MobileTopbar title="Home" orgLabel={orgLabelOf(user?.organizationName)} initials={initialsOf(name)} onMenuClick={openMenu} className="lg:hidden" />
       )}
       <main aria-label="Workforce Home" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
-        <div className={cn('flex flex-col', phone ? 'gap-5 px-4 pb-6 pt-4' : 'gap-6 px-8 py-7')}>
+        <div className={cn('flex flex-col', phone ? 'gap-5 px-4 pb-6 pt-4' : 'gap-6 px-8 pb-10 pt-8')}>
           {phone ? null : (
             <div className="flex flex-col gap-1.5">
-              <h1 className="m-0 font-wds-sans text-[28px] font-semibold leading-9 tracking-[-0.02em] text-wds-text-ink">{greeting}</h1>
-              <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{greetingLine(date, headline)}</p>
+              <h1 className="m-0 font-wds-sans text-[26px] font-semibold leading-8 tracking-[-0.02em] text-wds-text-ink">{greeting}</h1>
+              <p className="m-0 font-wds-sans text-[14px] leading-5 text-wds-neutral-700">{greetingLine(date, headline)}</p>
             </div>
           )}
           {body}

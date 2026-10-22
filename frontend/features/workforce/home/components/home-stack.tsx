@@ -60,6 +60,8 @@ export function HomeStack({ cards, surface, can, heading, flush }: HomeStackProp
 
 /** The page from an arrangement. No hooks of its own beyond the kit's; the gallery draws it from fixtures. */
 export function HomeLayout({ arranged, surface, heading, flush = false }: { arranged: ArrangedHome; surface: HomeSurface; heading?: React.ReactNode; flush?: boolean }) {
+  // Inside the role Home (flush) the page has its own loading and empty states: an empty or loading stack draws nothing.
+  if (flush && (arranged.page === 'loading' || arranged.page === 'empty')) return null;
   const body =
     arranged.page === 'loading' ? (
       <ListSkeleton rows={4} columns={[120, 'fill', 80]} label="Loading Home" />

@@ -23,7 +23,7 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: 
   return (
     <section aria-label="Latest" className="flex min-w-0 flex-col">
       <div className="flex items-baseline pb-2.5">
-        <h2 className="m-0 font-wds-sans text-[18px] font-semibold leading-6 text-wds-text-ink">Latest</h2>
+        <h2 className="m-0 font-wds-sans text-base font-semibold leading-[22px] text-wds-text-ink">Latest</h2>
         <button type="button" disabled={!anyUnread || busy} onClick={onMarkAllRead} className={cn('ml-auto font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg disabled:opacity-50', MOTION, FOCUS_RING, onHover('underline'))}>
           Mark all read
         </button>
@@ -33,18 +33,18 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: 
           const href = safeHref(n.href);
           const body = (
             <>
-              <span aria-hidden className={cn('mt-[5px] size-2 shrink-0 rounded-full border', n.read ? 'border-wds-neutral-400 bg-transparent' : 'border-wds-neutral-800 bg-wds-neutral-800')} />
-              <span className="flex min-w-0 grow flex-col">
-                <span className={cn('font-wds-sans text-[14px] leading-5 text-wds-text-ink', !n.read && 'font-medium')}>{n.title}</span>
-                <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{n.body}</span>
+              <span aria-hidden className={cn('mt-[5px] size-2 shrink-0 rounded-full border', n.read ? 'border-wds-border-strong bg-transparent' : 'border-wds-espresso-700 bg-wds-espresso-700')} />
+              <span className="flex min-w-0 grow flex-col gap-0.5">
+                <span className={cn('font-wds-sans text-[13px] leading-[18px]', n.read ? 'text-wds-neutral-700' : 'font-medium text-wds-text-ink')}>{n.title}</span>
+                <span className="font-wds-sans text-xs leading-4 text-wds-text-secondary">{n.body}</span>
               </span>
-              <span className="shrink-0 font-wds-mono text-[11px] leading-4 text-wds-text-secondary">{latestWhen(n.createdAt, now)}</span>
+              <span className="mt-[3px] shrink-0 font-wds-mono text-[11px] leading-[14px] text-wds-neutral-500">{latestWhen(n.createdAt, now)}</span>
               {n.read ? null : <span className="sr-only">Unread</span>}
             </>
           );
           const row = 'flex w-full items-start gap-2.5 px-1 py-3 text-left';
           return (
-            <li key={n.id} className="border-b border-wds-neutral-100">
+            <li key={n.id} className="border-b border-wds-border">
               {href ? (
                 <Link href={href} className={cn(row, MOTION, FOCUS_RING, onHover('bg-wds-neutral-50'))}>
                   {body}
@@ -56,7 +56,7 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: 
           );
         })}
       </ul>
-      <Link href={NOTIFICATIONS_HREF} className={cn('mt-3 self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', MOTION, FOCUS_RING, onHover('underline'))}>
+      <Link href={NOTIFICATIONS_HREF} className={cn('mt-2.5 self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', MOTION, FOCUS_RING, onHover('underline'))}>
         See all notifications
       </Link>
     </section>

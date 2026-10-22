@@ -11,7 +11,7 @@ import type { HomeKpi } from '../types/role-home-types';
  * ink when nothing is asked of the person, amber when something needs acting on, red-brown for a real problem (the server sets `tone`).
  * A card with a link is a link. Five across on a desktop; two across on a phone, with an odd last card spanning both.
  */
-const TOP: Record<HomeKpi['tone'], string> = { normal: 'border-t-wds-neutral-800', attention: 'border-t-wds-warning-fg', problem: 'border-t-wds-error-fg' };
+const TOP: Record<HomeKpi['tone'], string> = { normal: 'border-t-wds-espresso-700', attention: 'border-t-wds-warning-fg', problem: 'border-t-wds-error-fg' };
 const NUMBER: Record<HomeKpi['tone'], string> = { normal: 'text-wds-text-ink', attention: 'text-wds-warning-fg', problem: 'text-wds-error-fg' };
 const DETAIL: Record<HomeKpi['tone'], string> = { normal: 'text-wds-text-secondary', attention: 'text-wds-text-secondary', problem: 'text-wds-error-fg' };
 
@@ -39,7 +39,7 @@ export function HomeKpiCards({ kpis, phone = false, className }: { kpis: readonl
   return (
     <section
       aria-label="The numbers"
-      className={cn('grid border border-t-0 border-wds-border bg-wds-gradient-surface-raise', phone ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 xl:grid-cols-5', className)}
+      className={cn('grid border border-wds-border bg-wds-surface', phone ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 xl:grid-cols-5', className)}
     >
       {kpis.map((kpi, i) => (
         <Cell

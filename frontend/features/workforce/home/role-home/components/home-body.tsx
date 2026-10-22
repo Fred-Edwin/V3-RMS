@@ -30,7 +30,7 @@ export function HomeBody({ view, phone, actions, refreshError, onRetry, onMarkAl
   const needs = view.needsYou;
   const latest = phone ? view.latest.slice(0, 3) : view.latest;
   return (
-    <div className={cn('flex flex-col', phone ? 'gap-5' : 'gap-7', refreshError && 'opacity-70')}>
+    <div className={cn('flex flex-col', phone ? 'gap-5' : 'gap-6', refreshError && 'opacity-70')}>
       {refreshError ? <HomeError error={refreshError} onRetry={onRetry} className="border-t-0 pt-0" /> : null}
       <HomeKpiCards kpis={view.kpis} phone={phone} />
       {actions}
