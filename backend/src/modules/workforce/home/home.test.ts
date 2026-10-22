@@ -51,6 +51,13 @@ describe('the five numbers', () => {
     expect(card).toMatchObject({ value: '4', detail: '1 overdue, 3 in 30 days', tone: 'problem' });
   });
 
+  it('says "department" for one and "departments" for more in the No head card', () => {
+    const detailFor = (n: number): string | undefined => kpisFor('HR', { ...emptyFacts(), departmentsWithoutHead: n }).find((c) => c.key === 'no-head')?.detail;
+    expect(detailFor(1)).toBe('department without a head');
+    expect(detailFor(3)).toBe('departments without a head');
+    expect(detailFor(0)).toBe('every department has one');
+  });
+
   it('shows Password resets, never "Locked out", on the System Admin Home', () => {
     const labels = kpisFor('SYSTEM_ADMIN', emptyFacts()).map((c) => c.label.toLowerCase());
     expect(labels).toContain('password resets');

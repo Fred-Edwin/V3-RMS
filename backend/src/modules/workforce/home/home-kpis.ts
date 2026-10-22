@@ -40,7 +40,7 @@ const blocks = (f: HomeFacts): HomeKpi =>
   });
 
 const noHead = (f: HomeFacts): HomeKpi =>
-  card('no-head', 'No head', f.departmentsWithoutHead, f.departmentsWithoutHead === 0 ? 'every department has one' : 'departments without a head', {
+  card('no-head', 'No head', f.departmentsWithoutHead, f.departmentsWithoutHead === 0 ? 'every department has one' : f.departmentsWithoutHead === 1 ? 'department without a head' : 'departments without a head', {
     tone: attention(f.departmentsWithoutHead),
     href: '/app/workforce/organisation',
   });
