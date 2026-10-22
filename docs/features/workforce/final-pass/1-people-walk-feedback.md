@@ -31,4 +31,11 @@ Working file. Delete it when Workforce ships. Written during the live walk (22 O
 | W18 | Accountant | Employees, Blocks payroll | Two Branch Managers appear only because of "Job details missing". |
 | W19 | Accountant | Menu | Only Overview, Employees, Payroll and Rules (Payslips is marked "not built"). The blocked-page screen collapses the Workforce menu group. |
 | W20 | Accountant | My file | Not walked (expected the same narrow screen as rows 1 and 3). |
+| W21 | Branch Manager (Nyeri Town) | General | The owner had no corrections for the Branch Manager. Worked: own site only (26 people), pay columns never shown, IDs/bank/pay locked on Dorcas's file, hire has 2 steps, probation report dialog, blocked Payroll page with "Open My payslips". |
+| W22 | Branch Manager | Dorcas Naliaka (hired today) | No sign on the front of the file of the 24-hour correction; the Job tab has an Edit link but no text says it lasts 24 hours or that after it "Ask HR to change this" shows. |
+| W23 | Branch Manager | Home and Organisation | Home says "No head 1"; Organisation says "Without a head 0" (Housekeeping has an acting head only). |
+| W24 | Branch Manager | Employees | Own row says "Job details missing" and "No head yet". |
+| W25 | Branch Manager | Probation report dialog | Says "Only HR and your Branch Manager can read this" although the writer is the Branch Manager. |
+| W26 | Branch Manager | Menu and Home | No "Today board" in the menu although Home has "Your team today" with an Open button. |
+| W27 | Branch Manager | Not walked | Grace Wanjiku's file (Dorcas's checked instead), own My file, sending a hire. |
 | W15 | Director | Blocked page | I could not find a page the Director is blocked from, so the "Not available" screen was not shown for this role. |
