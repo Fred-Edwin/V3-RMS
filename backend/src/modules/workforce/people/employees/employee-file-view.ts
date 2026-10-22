@@ -173,6 +173,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
   const rule = await getEffectiveRuleGroup(row.siteId, today, 'PROBATION');
   const authorIds = [...row.probationNotes.map((n) => n.authorId), ...(spell?.endedById ? [spell.endedById] : [])];
   const names = new Map((await employeesRepository.findUserNames([...new Set(authorIds)])).map((u) => [u.id, u.name]));
+  const authorPositions = new Map((await employeesRepository.findBriefsByUserIds([...new Set(authorIds)])).flatMap((b) => (b.userId ? [[b.userId, b.position?.name ?? null] as const] : [])));
 
   const probationEndsOn = dateOrNull(row.probationEndsOn);
   const startDate = fromDateColumn(row.startDate);
@@ -189,6 +190,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
         confirmationWaitingForContract: row.probationDecidedOn !== null && row.probationConfirmedOn === null,
         notes: row.probationNotes.map((n) => ({
           authorName: names.get(n.authorId) ?? 'Unknown',
+          authorPosition: authorPositions.get(n.authorId) ?? null,
           authorKind: n.authorKind as 'HEAD' | 'BRANCH_MANAGER' | 'HR',
           verdict: n.verdict as ProbationVerdict,
           note: n.note,
@@ -271,6 +273,8 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
   const actions: EmployeeActions = {
     editJob: canEditBasics,
     changePay: inScope(subject, 'payprofile.write', target) && notExited,
+    editIds: inScope(subject, 'employee.write_sensitive', target) && notExited,
+    editBank: (inScope(subject, 'payprofile.write', target) || inScope(subject, 'payprofile.write_bank', target)) && notExited,
     transfer: lifecycle && notExited,
     sendToSite: lifecycle && notExited && row.payType === 'MONTHLY_SALARY',
     exit: lifecycle && notExited && status !== 'NOTICE',
@@ -297,7 +301,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     site: { id: row.site.id, name: row.site.name },
     department: row.department ? { id: row.department.id, name: row.department.name } : null,
     position: row.position ? { id: row.position.id, name: row.position.name } : null,
-    reportsTo: row.reportsTo ? { id: row.reportsTo.id, name: row.reportsTo.name, isHead: row.reportsTo.heads.length > 0 } : null,
+    reportsTo: row.reportsTo ? { id: row.reportsTo.id, name: row.reportsTo.name, isHead: row.reportsTo.heads.length > 0, positionName: row.reportsTo.position?.name ?? null, siteName: row.reportsTo.site.name } : null,
     startDate,
     hasLogin: row.userId !== null,
     loginRole: row.user?.role ?? null,

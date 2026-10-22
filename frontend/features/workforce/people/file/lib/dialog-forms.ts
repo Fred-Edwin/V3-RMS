@@ -37,11 +37,6 @@ export function toPayChangeBody(f: PayChangeForm): Omit<PayChangeBody, 'pin'> {
   return { amount: Number(f.amount).toFixed(2), effectiveFrom: f.startsOn, reason: f.reason as PayChangeReason, ...(f.note.trim() ? { note: f.note.trim() } : {}) };
 }
 
-/** The numbered "who decides" list (Paper `13F3-0`): the sender, the Director, the Accountant. */
-export function payChangeSteps(startsOn: string): string[] {
-  return ['You send it', 'The Director approves it. Until then the old amount applies.', startsOn ? `The Accountant sees the new amount in the ${monthName(startsOn)} pay run` : 'The Accountant sees the new amount in the pay run'];
-}
-
 /** The Director's answer (W11): a decline needs a reason. */
 export function validateDecision(decision: 'APPROVE' | 'DECLINE', note: string): string | null {
   return decision === 'DECLINE' && note.trim() === '' ? 'Say why it is declined.' : null;

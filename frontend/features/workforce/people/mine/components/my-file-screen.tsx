@@ -3,17 +3,21 @@
 import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-import { EmptyState, ErrorBlock, KeyValueRows, ListSkeleton, Panel, PersonAvatar } from '../../../_shared';
+import { EmptyState, ErrorBlock, ListSkeleton, PersonAvatar } from '../../../_shared';
 import { PeopleFrame } from '../../_shared/components/people-frame';
 import { useEmployeeFile } from '../../_shared/hooks/use-people-data';
-import { formatDayMonth } from '../../_shared/lib/people-dates';
-import { PhotoDialog } from '../../file/components/dialogs/upload-dialogs';
-import { SensitivePanel } from '../../file/components/sensitive/sensitive-panel';
 import { firstName } from '../../file/lib/file-model';
-import { jobRows } from '../../file/lib/file-rows';
-import { finishProgress, stillToFinish, type OwnDialog, type OwnForm } from '../lib/own-file';
-import { EmergencyDialog, IdBankDialog, NumbersDialog } from './own-dialogs';
+import { finishProgress, stillToFinish, type OwnDialog } from '../lib/own-file';
+import { OwnContactCard, OwnInfoNote, SavedBar } from './own-contact-card';
+import { OwnContactDialog } from './own-contact-dialog';
+import { FinishCard, JobCard } from './own-file-cards';
+import { EmergencyDialog } from './own-dialogs';
+import { OwnIdsCard } from './own-ids-card';
+import { OwnNumbersDialog } from './own-numbers-dialog';
+import { OwnNumbersPage } from './own-numbers-page';
+import { PhotoPages } from './photo-pages';
 
 /**
  * My file (Paper `SJY-0` steps 2 and 3, `12UL-0`): a dark header with how far you are, "Still to finish" with an Add button for each
@@ -22,22 +26,18 @@ import { EmergencyDialog, IdBankDialog, NumbersDialog } from './own-dialogs';
 export function MyFileScreen() {
   const file = useEmployeeFile('me');
   const [form, setForm] = React.useState<OwnDialog | null>(null);
-  const [notice, setNotice] = React.useState<string | null>(null);
-  const noticeRef = React.useRef<HTMLParagraphElement>(null);
-  // The row that opened a dialog may be gone once it is saved, so focus would fall to the page; put it on the confirmation.
-  React.useEffect(() => {
-    if (notice) noticeRef.current?.focus();
-  }, [notice]);
+  const [saved, setSaved] = React.useState(false);
+  // A phone gets full pages (frames 8.3 to 8.6); a desktop gets a dialog.
+  const desktop = useMediaQuery('(min-width: 1024px)');
   const data = file.data;
   const reload = file.reload;
-  const done = React.useCallback(
-    (message: string) => {
-      setForm(null);
-      setNotice(message);
-      reload();
-    },
-    [reload]
-  );
+  // Every save says the same thing, in the words of frame 8.2.
+  const done = React.useCallback(() => {
+    setForm(null);
+    setSaved(true);
+    reload();
+  }, [reload]);
+  const clearSaved = React.useCallback(() => setSaved(false), []);
 
   return (
     <PeopleFrame breadcrumb={{ section: 'Me', screen: 'My file' }} phoneTitle="My file" label="My file">
@@ -46,36 +46,28 @@ export function MyFileScreen() {
           {file.status === 'error' ? <ErrorBlock title="Your file did not load" line="Nothing was changed. Try again." onRetry={file.reload} /> : <ListSkeleton rows={4} columns={[100, 'fill']} label="Loading your file" />}
         </div>
       ) : (
-        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-4 pb-10 pt-6">
-          <header className="flex items-center gap-4 bg-wds-sidebar-mid px-5 py-5 text-wds-primary-fg">
+        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4 px-4 pb-8 pt-6">
+          <header className="flex items-center gap-[14px] bg-wds-sidebar-mid px-5 py-5 text-wds-primary-fg">
             <PersonAvatar name={data.name} size="lg" photoUrl={data.photoUrl} />
-            <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="m-0 font-wds-sans text-[22px] font-semibold leading-7 tracking-[-0.02em]">{data.name}</h1>
-              <p className="m-0 font-wds-sans text-[13px] leading-[18px] opacity-80">{[data.position?.name, data.organization.name].filter(Boolean).join(' · ')}</p>
+            <div className="flex min-w-0 flex-col gap-[3px]">
+              <h1 className="m-0 font-wds-sans text-[22px] font-semibold leading-[26px] tracking-[-0.02em]">{data.name}</h1>
+              <p className="m-0 font-wds-sans text-[13px] leading-4 opacity-80">{[data.position?.name, data.organization.name].filter(Boolean).join(' · ')}</p>
               <Progress file={data} />
             </div>
           </header>
-          {notice ? <p ref={noticeRef} tabIndex={-1} role="status" className="m-0 border border-wds-success-border bg-wds-success-bg px-4 py-2.5 font-wds-sans text-[14px] text-wds-success-fg outline-none">{notice}</p> : null}
-          <Finish file={data} open={setForm} />
-          <Panel title="Your job" padded={false}>
-            <KeyValueRows rows={jobRows(data)} aria-label="Your job" topRule={false} className="[&>div]:px-[18px]" />
-          </Panel>
-          <SensitivePanel file={data} own />
-          {data.sensitive.nssfNumber || data.sensitive.shaNumber ? (
-            <Button type="button" variant="flat" className="self-start" onClick={() => setForm('numbers')}>
-              Check or correct my NSSF and SHA numbers
-            </Button>
-          ) : null}
-          <Button type="button" variant="flat" className="self-start" onClick={() => setForm('idbank')}>
-            Add or correct my ID and bank details
-          </Button>
-          <Button type="button" variant="flat" className="self-start" onClick={() => setForm('photo')}>
+          {stillToFinish(data).length === 0 ? <EmptyState kind="nothingYet" title={`Your file is complete, ${firstName(data.name)}`} line="Nothing is waiting on you." /> : <FinishCard file={data} open={setForm} />}
+          <JobCard file={data} />
+          <OwnIdsCard file={data} onEdit={() => setForm('numbers')} />
+          <OwnInfoNote>Only you and HR see these. Payroll uses them as soon as you save.</OwnInfoNote>
+          <OwnContactCard file={data} onEdit={() => setForm('contact')} />
+          <Button type="button" variant="flat" className="min-h-11 self-start" onClick={() => setForm('photo')}>
             {data.photoUrl ? 'Change my photo' : 'Add a photo'}
           </Button>
           {form === 'emergency' ? <EmergencyDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'numbers' ? <NumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'idbank' ? <IdBankDialog onClose={() => setForm(null)} done={done} /> : null}
-          {form === 'photo' ? <PhotoDialog own file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {form === 'contact' ? <OwnContactDialog file={data} onClose={() => setForm(null)} done={done} /> : null}
+          {saved ? <SavedBar message="Saved. Your file is updated." onGone={clearSaved} /> : null}
+          {form === 'numbers' ? (desktop.matches ? <OwnNumbersDialog file={data} onClose={() => setForm(null)} done={done} /> : <OwnNumbersPage file={data} onClose={() => setForm(null)} done={done} />) : null}
+          {form === 'photo' ? <PhotoPages name={data.name} onClose={() => setForm(null)} done={done} /> : null}
         </div>
       )}
     </PeopleFrame>
@@ -87,32 +79,10 @@ function Progress({ file }: { file: NonNullable<ReturnType<typeof useEmployeeFil
   if (total === 0) return null;
   return (
     <div className="flex items-center gap-2.5">
-      <div role="progressbar" aria-label="File finished" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1 w-40 bg-wds-neutral-800">
-        <div className="h-full bg-wds-caramel-300" style={{ width: `${(done / total) * 100}%` }} />
+      <div role="progressbar" aria-label="File finished" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-[5px] w-40 bg-wds-neutral-800">
+        <div className="h-full bg-[#D9A65E]" style={{ width: `${(done / total) * 100}%` }} />
       </div>
-      <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] opacity-80">{done} OF {total}</span>
+      <span className="font-wds-mono text-[11px] leading-[14px] opacity-80">{done} OF {total}</span>
     </div>
-  );
-}
-
-function Finish({ file, open }: { file: NonNullable<ReturnType<typeof useEmployeeFile>['data']>; open: (f: OwnForm) => void }) {
-  const rows = stillToFinish(file, formatDayMonth);
-  if (rows.length === 0) return <EmptyState kind="nothingYet" title={`Your file is complete, ${firstName(file.name)}`} line="Nothing is waiting on you." />;
-  return (
-    <Panel title="Still to finish" padded={false}>
-      <ul className="m-0 flex list-none flex-col p-0">
-        {rows.map((r) => (
-          <li key={r.key} className="flex items-center justify-between gap-3 border-t border-wds-border px-[18px] py-3 first:border-t-0">
-            <span className="flex min-w-0 flex-col">
-              <span className="font-wds-sans text-[15px] leading-5 text-wds-text-ink">{r.title}</span>
-              {r.detail ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.detail}</span> : null}
-            </span>
-            <button type="button" aria-label={`${r.action} ${r.title}`} onClick={() => open(r.key)} className="border-0 bg-transparent p-0 font-wds-sans text-[14px] leading-[18px] text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring">
-              {r.action}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Panel>
   );
 }

@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { EmployeeActions, EmployeeFile, FilePart } from '../../../_shared/types/people-types';
 import { finishTarget, hasFinishStep, headerLine, headerTags, nextStepRows, pageActions, probationCard, ringChips, ringSummary, tabsFor, withWendo } from '../file-model';
 
-const NO: EmployeeActions = { editJob: false, changePay: false, transfer: false, sendToSite: false, exit: false, undoExit: false, rehire: false, decideProbation: false, writeNote: false, createContract: false, uploadDocument: false, remind: false, createLogin: false };
-const HR: EmployeeActions = { ...NO, editJob: true, changePay: true, transfer: true, sendToSite: true, exit: true, decideProbation: true, createContract: true, uploadDocument: true, remind: true };
+const NO: EmployeeActions = { editJob: false, changePay: false, editIds: false, editBank: false, transfer: false, sendToSite: false, exit: false, undoExit: false, rehire: false, decideProbation: false, writeNote: false, createContract: false, uploadDocument: false, remind: false, createLogin: false };
+const HR: EmployeeActions = { ...NO, editJob: true, changePay: true, editIds: true, editBank: true, transfer: true, sendToSite: true, exit: true, decideProbation: true, createContract: true, uploadDocument: true, remind: true };
 
 const ALL_PARTS: FilePart[] = ['IDENTITY', 'JOB', 'PAY', 'BANK', 'LOGIN', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'EMERGENCY_CONTACT', 'CONTRACT'];
 const parts = (done: Partial<Record<FilePart, boolean>>) => ALL_PARTS.map((part) => ({ part, applicable: true, done: done[part] ?? true }));
@@ -40,9 +40,9 @@ describe('undo while on notice', () => {
 });
 
 describe('tabs follow what is locked', () => {
-  it('gives HR the seven tabs and a Branch Manager five', () => {
+  it('gives HR the seven tabs and a Branch Manager six, with "Job" instead of "Job and pay" (frame 12.1)', () => {
     expect(tabsFor(joy()).map((t) => t.label)).toEqual(['Overview', 'Job and pay', 'Time', 'Leave', 'Documents', 'Conduct', 'Activity']);
-    expect(tabsFor(joy({ locked: ['pay', 'bank', 'ids', 'documents'] })).map((t) => t.label)).toEqual(['Overview', 'Time', 'Leave', 'Conduct', 'Activity']);
+    expect(tabsFor(joy({ locked: ['pay', 'bank', 'ids', 'documents'] })).map((t) => t.label)).toEqual(['Overview', 'Job', 'Time', 'Leave', 'Conduct', 'Activity']);
   });
   it('marks the tabs of later slices as waiting', () => {
     expect(tabsFor(joy()).filter((t) => t.disabled).map((t) => t.value)).toEqual(['time', 'leave', 'conduct']);
@@ -116,8 +116,8 @@ describe('next steps and buttons come from the actions the server allows', () =>
 
 describe('Finish the file', () => {
   it('opens the dialog for the first gap', () => {
-    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ BANK: false, CONTRACT: false }) } }))).toBe('bank');
-    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } }), true)).toBe('details');
+    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ BANK: false, CONTRACT: false }) } }))).toBe('ids-bank');
+    expect(finishTarget(joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } }), true)).toBe('ids-bank');
   });
   it('does not offer ID or statutory details to someone who may not write them', () => {
     const idGap = joy({ completeness: { ringPercent: 0, checklistPercent: 0, checklist: [], parts: parts({ IDENTITY: false }) } });

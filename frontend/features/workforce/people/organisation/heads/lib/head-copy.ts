@@ -11,11 +11,14 @@ const monthYear = (date: string): string => `${MONTHS[Number(date.slice(5, 7)) -
 
 export type HeadMode = 'REPLACE' | 'ACTING';
 
-export function candidateChoices(candidates: readonly HeadCandidate[]): PersonChoice[] {
+export function candidateChoices(candidates: readonly HeadCandidate[], siteName: string | null = null): PersonChoice[] {
   return candidates.map((c) => ({
     value: c.employeeId,
     name: c.name,
     line: `${c.positionName ?? 'No position'} · since ${monthYear(c.startDate)} · has a login`,
+    // The shared person label draws "position · site" under the name (frame 7.5).
+    position: c.positionName ?? 'No position',
+    site: siteName,
     marker: c.recommended ? 'Recommended' : undefined,
   }));
 }

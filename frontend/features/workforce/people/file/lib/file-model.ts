@@ -1,6 +1,7 @@
 import type { StatusTagTone } from '../../../_shared';
 import { daysBetween, formatDayMonth, formatWeekdayDayMonth, nairobiDay } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, FilePart, FileRequestKind } from '../../_shared/types/people-types';
+import { VERDICT_LABELS } from './probation-report';
 
 /**
  * What the employee file shows, worked out from the file the API sent. Pure: components draw these, and every button comes from
@@ -19,7 +20,8 @@ export interface FileTab {
 /** Tabs by what the viewer may see: Job and pay needs pay, Documents needs documents (a Branch Manager has neither). */
 export function tabsFor(file: Pick<EmployeeFile, 'locked'>, show: { conduct?: boolean } = {}): FileTab[] {
   const tabs: FileTab[] = [{ value: 'overview', label: 'Overview' }];
-  if (!file.locked.includes('pay')) tabs.push({ value: 'job-pay', label: 'Job and pay' });
+  // A viewer who may not see pay still gets the Job tab (frame 12.1): the job, and two locked cards that say who handles the rest.
+  tabs.push({ value: 'job-pay', label: file.locked.includes('pay') ? 'Job' : 'Job and pay' });
   tabs.push({ value: 'time', label: 'Time', disabled: true }, { value: 'leave', label: 'Leave', disabled: true });
   if (!file.locked.includes('documents')) tabs.push({ value: 'documents', label: 'Documents' });
   // Conduct (Segment 5): offered only to a reader with `discipline.read` (hidden by omission otherwise). Left out of `show`, it keeps its old "waits" look.
@@ -123,7 +125,7 @@ export function probationCard(file: EmployeeFile): ProbationCard | null {
     daysLeft: p.daysLeft,
     startedOn: file.startDate,
     endsOn: p.endsOn,
-    report: headNote ? `Report from ${firstName(headNote.authorName)}: ${headNote.verdict === 'GOOD' ? 'good' : 'concerns'}` : 'No report from the head yet',
+    report: headNote ? `Report from ${firstName(headNote.authorName)}: ${VERDICT_LABELS[headNote.verdict].toLowerCase()}` : 'No report from the head yet',
     // An ended probation with no decision reads as overdue, not calm (finding 5).
     decideBy: p.endsOn < nairobiDay() ? `Ended ${daysBetween(p.endsOn, nairobiDay())} ${daysBetween(p.endsOn, nairobiDay()) === 1 ? 'day' : 'days'} ago, decision overdue` : `Decide by ${formatDayMonth(p.endsOn)}`,
     waitingForContract: p.confirmationWaitingForContract,
@@ -138,7 +140,7 @@ export function withWendo(startDate: string, today: string): { value: string; de
 }
 
 export type FileDialogKey =
-  | 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'bank' | 'ask' | 'photo'
+  | 'edit-job' | 'change-pay' | 'move' | 'loan' | 'probation' | 'note' | 'contract' | 'upload' | 'rehire' | 'login' | 'details' | 'ids-bank' | 'ask' | 'photo'
   | 'undo-exit' | 'verify' | 'pay-decision';
 
 /** What a file request asked for, in the words of the checklist ("Emergency contact, asked of Joy on 2 Oct"). */
@@ -176,10 +178,10 @@ export function nextStepRows(file: EmployeeFile): NextStepRow[] {
 export function finishTarget(file: EmployeeFile, canWriteSensitive = false): FileDialogKey | null {
   const open = (part: FilePart): boolean => file.completeness?.parts.some((p) => p.part === part && p.applicable && !p.done) ?? false;
   // ID and statutory numbers are HR's (`employee.write_sensitive`); the emergency contact is a basic field a manager may also edit.
-  if ((open('IDENTITY') || open('NSSF_SHA')) && canWriteSensitive) return 'details';
+  if ((open('IDENTITY') || open('NSSF_SHA')) && canWriteSensitive) return 'ids-bank';
   if (open('EMERGENCY_CONTACT') && (canWriteSensitive || file.actions.editJob)) return 'details';
   if (open('PAY') && file.actions.changePay) return 'change-pay';
-  if (open('BANK') && file.actions.changePay) return 'bank';
+  if (open('BANK') && file.actions.editBank) return 'ids-bank';
   if (open('LOGIN') && file.actions.createLogin) return 'login';
   if (open('PHOTO_AND_DETAILS') && file.actions.remind) return 'ask';
   if (open('CONTRACT') && file.actions.createContract) return 'contract';

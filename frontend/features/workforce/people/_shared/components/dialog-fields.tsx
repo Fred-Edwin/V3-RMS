@@ -15,6 +15,8 @@ import { Callout, FIELD_CLASS, FormField } from '../../../_shared';
 export interface Choice {
   value: string;
   label: string;
+  /** A richer row (the person label); `label` is still what the search matches. */
+  render?: (context: { query: string; inField: boolean }) => React.ReactNode;
 }
 
 export function DialogPicker({
@@ -23,6 +25,7 @@ export function DialogPicker({
   onChange,
   options,
   placeholder = 'Choose',
+  tall = false,
   hint,
   helper,
   error,
@@ -32,6 +35,7 @@ export function DialogPicker({
   label: string;
   value: string;
   onChange: (value: string) => void;
+  tall?: boolean;
   options: readonly Choice[];
   placeholder?: string;
   hint?: 'optional' | 'required';
@@ -43,7 +47,7 @@ export function DialogPicker({
   return (
     <FormField label={label} hint={hint} helper={helper} error={error} className={className}>
       {({ id }) => (
-        <Picker id={id} aria-label={label} value={value} onValueChange={onChange} options={options} placeholder={placeholder} disabled={disabled} chips={false} className={cn(FIELD_CLASS, 'text-left')} />
+        <Picker id={id} aria-label={label} value={value} onValueChange={onChange} options={options} placeholder={placeholder} disabled={disabled} chips={false} className={cn(FIELD_CLASS, 'text-left', tall && 'h-11 text-[15px]')} />
       )}
     </FormField>
   );
@@ -101,12 +105,63 @@ export function DialogNumber({
   );
 }
 
+/**
+ * A number that is only digits and is not an amount: a National ID, an account number, a phone number (rule 7b.4). A finger opens the
+ * in-app pad and never the phone keyboard; a mouse types as before. Zeros are kept ("0712…"). Mixed letters and digits (KRA PIN, SHA)
+ * stay `DialogText`, because the pad has no letters.
+ */
+export function DialogDigits({
+  label,
+  value,
+  onChange,
+  maxLength = 12,
+  tall = false,
+  hint,
+  helper,
+  error,
+  autoFocus,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxLength?: number;
+  /** The 44 px field of the phone pages (frame 8.3); a dialog's is 36 px. */
+  tall?: boolean;
+  hint?: 'optional' | 'required';
+  helper?: string;
+  error?: string;
+  autoFocus?: boolean;
+  className?: string;
+}) {
+  return (
+    <FormField label={label} hint={hint} helper={helper} error={error} className={className}>
+      {({ id, describedBy, invalid }) => (
+        <PadNumberInput
+          label={label}
+          id={id}
+          value={value}
+          onChange={onChange}
+          decimal={false}
+          keepZeros
+          maxLength={maxLength}
+          autoFocus={autoFocus}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          className={cn(FIELD_CLASS, 'font-wds-mono text-[13px]', tall && 'h-11 text-[15px]')}
+        />
+      )}
+    </FormField>
+  );
+}
+
 export function DialogText({
   label,
   value,
   onChange,
   type = 'text',
   mono = false,
+  tall = false,
   hint,
   helper,
   error,
@@ -118,6 +173,7 @@ export function DialogText({
   onChange: (value: string) => void;
   type?: 'text' | 'email' | 'tel';
   mono?: boolean;
+  tall?: boolean;
   hint?: 'optional' | 'required';
   helper?: string;
   error?: string;
@@ -137,7 +193,7 @@ export function DialogText({
           aria-describedby={describedBy}
           aria-invalid={invalid || undefined}
           onChange={(e) => onChange(e.target.value)}
-          className={cn(FIELD_CLASS, mono && 'font-wds-mono text-[13px]')}
+          className={cn(FIELD_CLASS, mono && 'font-wds-mono text-[13px]', tall && 'h-11 text-[15px]')}
         />
       )}
     </FormField>

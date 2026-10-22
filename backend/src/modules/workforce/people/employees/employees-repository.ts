@@ -68,7 +68,7 @@ const FILE_INCLUDE = (today: Date) =>
     site: { select: { id: true, name: true, companyId: true, type: true } },
     department: { select: { id: true, name: true, key: true, siteId: true } },
     position: { select: { id: true, name: true, defaultTracksTime: true } },
-    reportsTo: { select: { id: true, name: true, heads: { where: activeHeadWhere(today), select: { id: true } } } },
+    reportsTo: { select: { id: true, name: true, position: { select: { name: true } }, site: { select: { name: true } }, heads: { where: activeHeadWhere(today), select: { id: true } } } },
     user: { select: { id: true, role: true, isActive: true, email: true } },
     payProfile: true,
     contracts: { orderBy: { startsOn: 'desc' as const }, include: { contractType: { select: { name: true } } } },
@@ -173,6 +173,10 @@ export const employeesRepository = {
 
   findUserNames: (ids: readonly string[]) =>
     prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true, role: true } }),
+
+  /** Position and site of people who have a file, by their login (for "Asked by Mercy Achieng, HR Manager, Head Office"). */
+  findBriefsByUserIds: (ids: readonly string[]) =>
+    prisma.employee.findMany({ where: { userId: { in: [...ids] } }, select: { userId: true, position: { select: { name: true } }, site: { select: { name: true } } } }),
 
   /** Who made the latest entry of one kind about a person, for the Activity tab ("confirmed by Mercy Achieng"). */
   async lastActorOf(companyId: string, employeeId: string, actions: readonly string[]): Promise<{ action: string; actorName: string; after: unknown } | null> {

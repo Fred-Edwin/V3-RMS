@@ -24,28 +24,9 @@ export const PAY_REASON_LABELS: Record<PayChangeReason, string> = {
   CORRECTION: 'Correction',
   OTHER: 'Other',
 };
-const LOGIN_ROLE_LABELS: Record<string, string> = {
-  WAITER: 'Waiter', CHEF: 'Chef', BARISTA: 'Barista', STEWARD: 'Steward', HOUSEKEEPING: 'Housekeeping', STORE_ATTENDANT: 'Store attendant',
-  MANAGER: 'Branch Manager', STORE_MANAGER: 'Store Manager', ACCOUNTANT: 'Accountant', HR_MANAGER: 'HR Manager', DIRECTOR: 'Director',
-};
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export const LOCKED_NOTE = 'Locked for your role';
-
-/** The "Job" panel on Job and pay, and the short list on an onboarding file. */
-export function jobRows(file: EmployeeFile): KeyValueRow[] {
-  const onProbation = file.probation && !file.probation.confirmedOn && file.status !== 'ONBOARDING';
-  const employment = file.employment === 'CASUAL' ? 'Casual, daily' : onProbation ? 'Monthly, on probation' : 'Monthly';
-  return [
-    { label: 'Position', value: file.position?.name ?? 'Not set' },
-    { label: 'Department', value: file.department ? `${file.department.name} · ${file.organization.name}` : file.organization.name },
-    { label: 'Reports to', value: file.reportsTo ? `${file.reportsTo.name}${file.reportsTo.isHead ? ' (head)' : ''}` : 'No head yet', tone: file.reportsTo ? 'default' : 'muted' },
-    { label: 'Employment', value: employment },
-    { label: 'Started', value: formatDayMonthYear(file.startDate), mono: true },
-    { label: 'Clocks in and out', value: file.tracksTime ? (file.tracksTimeFromPosition ? 'Yes, from the position' : 'Yes, set on this file') : 'No' },
-    { label: 'Login role', value: file.hasLogin ? (LOGIN_ROLE_LABELS[file.loginRole ?? ''] ?? file.loginRole ?? 'Has a login') : 'No login', tone: file.hasLogin ? 'default' : 'muted' },
-  ];
-}
 
 /** "Job and leave" beside the onboarding checklist (Paper `SBM-0`). */
 export function jobLeaveRows(file: EmployeeFile): KeyValueRow[] {

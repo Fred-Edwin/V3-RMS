@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, KitDialog } from '../../../../_shared';
+import { Callout, DialogButton, KitDialog, PersonLabel } from '../../../../_shared';
 import { useLookups } from '../../../_shared/hooks/use-people-data';
 import { peopleWrites } from '../../../_shared/services/people-writes';
 import { useReportsTo } from '../../../hire/hooks/use-reports-to';
@@ -26,7 +26,16 @@ export function EditJobDialog({ file, onClose, done }: FileDialogProps) {
   const positions = (lookups.data?.positions ?? [])
     .filter((p) => p.isActive && (p.departmentIds.length === 0 || (deptId !== undefined && p.departmentIds.includes(deptId))))
     .map((p) => ({ value: p.id, label: p.name }));
-  const heads = [{ value: NOBODY, label: 'Nobody' }, ...reports.options.filter((o) => o.id !== file.id).map((o) => ({ value: o.id, label: o.isHead ? `${o.name} (head)` : o.name }))];
+  const heads = [
+    ...reports.options
+      .filter((o) => o.id !== file.id)
+      .map((o) => ({
+        value: o.id,
+        label: [o.name, o.positionName, o.siteName].filter(Boolean).join(' '),
+        render: ({ query }: { query: string }) => <PersonLabel name={o.name} position={o.isHead ? `${o.positionName ?? 'Head'} · head` : o.positionName} site={o.siteName} query={query} />,
+      })),
+    { value: NOBODY, label: 'Nobody' },
+  ];
   const changed = positionId !== (file.position?.id ?? '') || reportsToId !== (file.reportsTo?.id ?? NOBODY);
 
   const save = (): void => {

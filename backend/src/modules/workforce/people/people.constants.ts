@@ -14,7 +14,8 @@ export type PayChangeReason = (typeof PAY_CHANGE_REASONS)[number];
 export const FILE_REQUEST_KINDS = ['EMERGENCY_CONTACT', 'NSSF_SHA', 'PHOTO_AND_DETAILS', 'ID_NUMBER', 'BANK_DETAILS'] as const;
 export type FileRequestKind = (typeof FILE_REQUEST_KINDS)[number];
 
-export const PROBATION_VERDICTS = ['GOOD', 'CONCERNS'] as const;
+/** The head's report is Good, Needs work or Not good (frame 9.1). CONCERNS is the older wording, kept so notes already written still read. */
+export const PROBATION_VERDICTS = ['GOOD', 'NEEDS_WORK', 'NOT_GOOD', 'CONCERNS'] as const;
 export type ProbationVerdict = (typeof PROBATION_VERDICTS)[number];
 
 /** Login roles a hire may give. The privileged roles are created in Access and then adopted into a file. */

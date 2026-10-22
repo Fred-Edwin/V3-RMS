@@ -3,11 +3,10 @@
 import * as React from 'react';
 
 import { DataTable, type TableColumn, type TableCopy } from '@/components/ui2/data-table/data-table';
-import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
 import type { TableQuery } from '@/components/ui2/data-table/table-query';
 import type { TableFilter } from '@/components/ui2/data-table/table-toolbar';
 
-import { AvatarCell, StatusTag } from '../../../_shared';
+import { PersonAvatar, PersonLabelLine, StatusTag } from '../../../_shared';
 import { peopleReads } from '../../_shared/services/people-reads';
 import type { EmployeeListQuery, EmployeeListRow, Lookups } from '../../_shared/types/people-types';
 import { employmentLine, fileCellOf, siteDepartmentLine } from '../lib/employee-row-copy';
@@ -93,12 +92,14 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
         header: 'EMPLOYEE',
         width: '280px',
         cell: (row, { term }) => (
-          <AvatarCell name={row.name} sub={row.positionName ?? undefined} photoUrl={row.photoUrl}>
-            {/* A real link: open in a new tab, and a screen reader hears who it opens (finding 27). The row click still works. */}
-            <a href={`/app/workforce/employees/${row.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open ${row.name}'s file`} className="text-inherit no-underline outline-none hover:underline focus-visible:shadow-wds-ring">
-              <HighlightMatch text={row.name} term={term} />
+          <div className="flex min-w-0 items-center gap-3">
+            <PersonAvatar name={row.name} size="sm" photoUrl={row.photoUrl} />
+            {/* A real link: open in a new tab, and a screen reader hears who it opens (finding 27). The row click still works.
+                The one-line person label (frame 7.5): the site is in the next column, so this cell is "Name · position". */}
+            <a href={`/app/workforce/employees/${row.id}`} onClick={(e) => e.stopPropagation()} aria-label={`Open ${row.name}'s file`} className="min-w-0 text-inherit no-underline outline-none hover:underline focus-visible:shadow-wds-ring">
+              <PersonLabelLine name={row.name} position={row.positionName} query={term} />
             </a>
-          </AvatarCell>
+          </div>
         ),
       },
       { id: 'site', header: 'SITE · DEPARTMENT', width: '220px', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{siteDepartmentLine(row)}</span> },

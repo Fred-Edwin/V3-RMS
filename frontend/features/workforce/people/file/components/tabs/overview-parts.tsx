@@ -19,9 +19,9 @@ export function FileRingCard({ file, open }: { file: EmployeeFile; open: OpenDia
   const fix = (part: string): FileDialogKey | null =>
     part === 'CONTRACT' && file.actions.createContract ? 'contract'
     : part === 'EMERGENCY_CONTACT' ? (file.actions.remind ? 'ask' : null)
-    : part === 'BANK' && file.actions.changePay ? 'bank'
+    : part === 'BANK' && file.actions.editBank ? 'ids-bank'
     : part === 'PAY' && file.actions.changePay ? 'change-pay'
-    : part === 'IDENTITY' && canWriteSensitive ? 'details'
+    : part === 'IDENTITY' && canWriteSensitive ? 'ids-bank'
     : null;
   return (
     <section aria-label="Completeness of the file" className="flex gap-[22px] border border-wds-border bg-wds-surface px-5 py-[18px] max-sm:flex-col">

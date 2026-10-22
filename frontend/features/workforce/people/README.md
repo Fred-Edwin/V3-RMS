@@ -88,6 +88,19 @@ Found and fixed: picker had no arrow keys and lost focus on close; draft autosav
 4. Employment type is not editable by PATCH (shown read-only).
 5. Fixed here (`fix(workforce-people):`): a file-request next step now carries what was asked and when (`fileRequestKind`, `fileRequestAskedOn`).
 
+## People batch 2B (22 Oct 2026, final pass)
+
+Built to Paper frames 7.1 to 7.5, 8.1 to 8.6, 9.1 to 9.5 and 12.1, then walked in a browser as HR, Director, Accountant, Branch Manager, a head and staff.
+
+- **Edit convention:** amber underlined `PanelLink` where the role may change a card, a pale grey pill tag (`PanelReadOnlyTag`, 12 px words) where it may only read. Cards use one shell (`titled-panel.tsx`: 52 px header, 20 px sides) and one row grid (`tabs/job-card-rows.tsx`: 150 px label column, values left, 48 px rows, 56 px with a second line). The Job card has six rows (`lib/job-card-rows.ts`).
+- **Dialogs:** Edit IDs and bank (`ids-bank-dialog.tsx`; the Accountant's is bank only), Edit pay, the Director's review (Now, New, Difference tiles).
+- **Person label:** `PersonLabel` and `PersonLabelLine` in the kit, used in Assign head, Reports to (hire form and Edit job) and the employee list; `Choice.render` lets a dialog picker draw it.
+- **My file** (`mine/`): dark identity card (kept by owner instruction, 22 Oct 2026, although frame 8.1 draws plain canvas), Still to finish with Paper's grey lines, Your job (four rows), IDs and bank (last four, one Show, Edit), the blue note, Your contact, and a dark "Saved" bar. On a phone the numbers form (`own-numbers-page.tsx`) and the photo (`photo-pages.tsx`, `photo-stage.tsx`) are full pages in `own-page.tsx`; a desktop gets dialogs.
+- **Head:** the report is a full page on a phone and a dialog on a desktop (`probation-report-screen.tsx`); My team is a list on a phone and a table on a desktop (`team/`). Routes: `/app/workforce/probation/[id]/report` and `/app/workforce/team`.
+- **Phone inputs:** digits-only numbers (National ID, account, phone) use the in-app pad (`DialogDigits`, `NumberField`); KRA PIN, NSSF, SHA and HELB keep the phone keyboard because they can hold letters.
+- **Shared files touched:** `components/app/shell/nav-table.ts` (two prefixes in `SELF_FRAMED_PREFIXES`), `lib/route-access.ts` (one block), `components/ui2/picker.tsx` (`render`), the kit `_shared/index.ts`, `person-radio-list.tsx` and `hooks/use-action.ts` (`reference`), `workforce-access.ts` and its matrix test.
+- **Not built:** the "Deductions and rules" card of frame 7.1; the stacked Pay layout of 7.1 (the build keeps Job and IDs on the left, Pay on the right, as 12.1 draws it).
+
 ## Size checks (17 Oct 2026)
 
 Largest files: `_shared/types/people-types.ts` 253 (types), `file/lib/file-model.ts` 224, `dialogs/dialog-fields.tsx` 201. No file over 350. Busiest folders: `file/components/dialogs/` 12, `file/lib/` 10, `file/components/tabs/` 10. None over 12.

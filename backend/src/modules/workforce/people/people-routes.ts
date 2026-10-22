@@ -4,6 +4,7 @@ import { authenticate } from '../../../middleware/authenticate';
 import { requireCapability } from '../_shared/workforce-access';
 import { employeesController as c } from './employees-controller';
 import { attachWorkforceSubject } from './people-subject';
+import { teamController } from './team/team-controller';
 
 /**
  * Every /workforce/people route: authenticate, then attachWorkforceSubject (head rows and "clocks in"), then the
@@ -37,6 +38,7 @@ router.get(`${P}/summary`, ...base, requireCapability('employee.read_basic'), c.
 router.get(`${P}/lookups`, ...base, requireCapability('employee.read_basic', 'org.read'), c.lookups); // R3
 router.get(`${P}/duplicate-check`, ...base, requireCapability('employee.write_basic'), c.duplicateCheck); // R4
 router.get(`${P}/unlinked-accounts`, ...base, requireCapability('employee.lifecycle'), c.unlinkedAccounts); // R5
+router.get(`${P}/team`, ...base, requireCapability('today.read'), teamController.list); // My team (read only)
 router.get(`${P}/me`, ...base, requireCapability('me.file'), c.mine); // R6
 router.get(`${P}/pay-changes`, ...base, requireCapability('payprofile.approve', 'payprofile.write'), c.payChanges); // R11
 router.get(`${P}/drafts`, ...base, requireCapability('employee.write_basic'), c.listDrafts); // W1
@@ -55,7 +57,7 @@ router.get(`${P}/:id/documents`, ...base, requireCapability('employee.read_sensi
 router.get(`${P}/:id/documents/:docId`, ...base, requireCapability('employee.read_sensitive', 'me.file'), c.openDocument); // R10
 router.patch(`${P}/:id`, ...base, requireCapability('employee.write_basic', 'employee.write_sensitive'), c.update); // W6
 router.post(`${P}/:id/photo`, ...base, requireCapability('employee.write_basic', 'me.file'), imageUpload.single('file'), c.photo); // W8
-router.put(`${P}/:id/pay-profile`, ...base, requireCapability('payprofile.write'), c.updatePayProfile); // W9
+router.put(`${P}/:id/pay-profile`, ...base, requireCapability('payprofile.write', 'payprofile.write_bank'), c.updatePayProfile); // W9
 router.post(`${P}/:id/pay-changes`, ...base, requireCapability('payprofile.write'), c.requestPayChange); // W10
 router.post(`${P}/:id/contract`, ...base, requireCapability('employee.write_sensitive'), c.createContract); // W12
 router.post(`${P}/:id/probation-decision`, ...base, requireCapability('employee.lifecycle'), c.decideProbation); // W13

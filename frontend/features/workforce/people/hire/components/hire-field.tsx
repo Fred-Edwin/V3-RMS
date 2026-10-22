@@ -124,6 +124,8 @@ export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  /** Draws the row as the person label (frame 7.5); `label` stays what the search matches. */
+  render?: (context: { query: string; inField: boolean }) => React.ReactNode;
 }
 
 /** The app's picker, drawn as the hire form's field. Few choices show as chips; more open a list (with a search box past six). */

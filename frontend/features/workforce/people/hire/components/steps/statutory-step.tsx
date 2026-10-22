@@ -54,7 +54,7 @@ export function StatutoryStep({ state, errors, set }: StepProps) {
         </div>
       ) : null}
       {state.payoutMethod === 'MPESA' ? (
-        <HireField label="M-Pesa phone" error={errors.mpesaPhone}>{(ids) => <HireInput ids={ids} mono type="tel" value={state.mpesaPhone} onChange={(e) => set({ mpesaPhone: e.target.value })} />}</HireField>
+        <HireField label="M-Pesa phone" error={errors.mpesaPhone}>{(ids) => <NumberField ids={ids} code decimal={false} maxLength={12} value={state.mpesaPhone} onChange={(v) => set({ mpesaPhone: v })} />}</HireField>
       ) : null}
     </>
   );

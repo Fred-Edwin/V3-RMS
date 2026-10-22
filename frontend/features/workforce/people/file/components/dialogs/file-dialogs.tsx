@@ -12,10 +12,11 @@ import { LoginDialog } from './login-dialog';
 import { LoanDialog } from './move/loan-dialog';
 import { RehireDialog, UndoExitDialog } from './move/exit-dialogs';
 import { MoveDialog } from './move-dialog';
-import { BankDialog } from './pay/bank-dialog';
+import { IdsBankDialog } from './ids-bank-dialog';
 import { ChangePayDialog } from './pay/change-pay-dialog';
 import { PayDecisionDialog } from './pay/pay-decision-dialog';
-import { NoteDialog, ProbationDialog } from './probation-dialog';
+import { ProbationDialog } from './probation-dialog';
+import { ProbationReportDialog } from './report-dialog';
 import { PhotoDialog, UploadDialog } from './upload-dialogs';
 
 /**
@@ -42,7 +43,7 @@ const DIALOGS: Record<FileDialogKey, React.ComponentType<FileDialogProps>> = {
   move: MoveDialog,
   loan: LoanDialog,
   probation: ProbationDialog,
-  note: NoteDialog,
+  note: ProbationReportDialog,
   contract: ContractDialog,
   upload: UploadDialog,
   photo: PhotoDialog,
@@ -50,7 +51,7 @@ const DIALOGS: Record<FileDialogKey, React.ComponentType<FileDialogProps>> = {
   'undo-exit': UndoExitDialog,
   login: LoginDialog,
   details: DetailsDialog,
-  bank: BankDialog,
+  'ids-bank': IdsBankDialog,
   ask: AskDialog,
   verify: VerifyDialog,
 };

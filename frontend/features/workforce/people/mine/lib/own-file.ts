@@ -2,27 +2,29 @@ import type { PatchMeBody } from '../../_shared/types/people-requests';
 import type { EmployeeFile } from '../../_shared/types/people-types';
 
 /**
- * The person's own file (Paper `SJY-0` steps 2 and 3, `12UL-0`): what is still to finish, in the person's words, and the bodies the
- * small forms send. Pure and tested. Nothing here names a role: it works from the file the API sent for `me`.
+ * The person's own file (frames 8.1 to 8.6): what is still to finish, in the person's words, and the body the emergency form sends.
+ * Pure and tested. Nothing here names a role: it works from the file the API sent for `me`. The numbers form is `own-numbers.ts`.
  */
 export type OwnForm = 'emergency' | 'numbers' | 'photo';
-/** The forms the screen can open: the three HR can ask for, and the ID and bank form the person opens themselves (finding 15). */
-export type OwnDialog = OwnForm | 'idbank';
+/** The forms the screen can open: the three HR can ask for, and Edit on the IDs and bank card (`numbers`). */
+export type OwnDialog = OwnForm | 'contact';
 
 export interface StillToFinish {
   key: OwnForm;
   title: string;
-  /** The grey line, "HR asked for this on 2 Oct" when HR asked. */
-  detail: string | null;
+  /** The grey line under the title. */
+  detail: string;
   /** The word on the button. */
   action: string;
 }
 
-const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Your photo' };
+const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Photo' };
+/** The grey line under each title (frame 8.1). */
+const DETAILS: Record<OwnForm, string> = { emergency: 'HR asked for it. Takes 1 minute.', numbers: 'HR asked for them. Takes 1 minute.', photo: 'Your team sees it on the rota.' };
 const PART_FOR: Record<OwnForm, 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS'> = { emergency: 'EMERGENCY_CONTACT', numbers: 'NSSF_SHA', photo: 'PHOTO_AND_DETAILS' };
 const KIND_FOR: Record<string, OwnForm> = { EMERGENCY_CONTACT: 'emergency', NSSF_SHA: 'numbers', PHOTO_AND_DETAILS: 'photo' };
 
-export function stillToFinish(file: EmployeeFile, dayWords: (date: string) => string): StillToFinish[] {
+export function stillToFinish(file: EmployeeFile): StillToFinish[] {
   const asked = new Map<OwnForm, string>();
   for (const s of file.nextSteps) {
     const form = s.fileRequestKind ? KIND_FOR[s.fileRequestKind] : undefined;
@@ -34,8 +36,7 @@ export function stillToFinish(file: EmployeeFile, dayWords: (date: string) => st
     if (!open && !asked.has(key)) return [];
     // Both numbers are already on the file (the IDs card shows them): there is nothing left to ask for (finding 66).
     if (key === 'numbers' && file.sensitive.nssfNumber && file.sensitive.shaNumber) return [];
-    const when = asked.get(key);
-    return [{ key, title: TITLES[key], detail: when ? `HR asked for this on ${dayWords(when)}` : null, action: 'Add' }];
+    return [{ key, title: TITLES[key], detail: DETAILS[key], action: 'Add' }];
   });
 }
 
@@ -56,45 +57,6 @@ export function validateEmergency(f: EmergencyForm): Partial<Record<keyof Emerge
 }
 
 export const toEmergencyBody = (f: EmergencyForm): PatchMeBody => ({ emergencyName: f.name.trim(), emergencyRelation: f.relation, emergencyPhone: f.phone.trim() });
-
-export interface NumbersForm {
-  nssf: string;
-  sha: string;
-}
-
-/** Only a number that was typed is sent: "Not sure? Skip, and HR will help". At least one is needed to save. */
-export function toNumbersBody(f: NumbersForm): PatchMeBody {
-  return { ...(f.nssf.trim() ? { nssfNumber: f.nssf.trim() } : {}), ...(f.sha.trim() ? { shaNumber: f.sha.trim() } : {}) };
-}
-export const numbersEmpty = (f: NumbersForm): boolean => Object.keys(toNumbersBody(f)).length === 0;
-
-export interface IdBankForm {
-  nationalId: string;
-  bank: string;
-  accountNumber: string;
-}
-
-/** A Kenyan National ID is seven or eight digits (nine for some older cards); an account number is five to twenty digits. */
-export function validateIdBank(f: IdBankForm): Partial<Record<keyof IdBankForm, string>> {
-  const errors: Partial<Record<keyof IdBankForm, string>> = {};
-  const id = f.nationalId.trim();
-  const account = f.accountNumber.trim();
-  if (id !== '' && !/^\d{7,9}$/.test(id)) errors.nationalId = 'A National ID has 7 to 9 digits.';
-  if (account !== '' && !/^\d{5,20}$/.test(account)) errors.accountNumber = 'An account number has 5 to 20 digits.';
-  if (account !== '' && f.bank === '') errors.bank = 'Choose the bank for this account.';
-  if (f.bank !== '' && account === '') errors.accountNumber = 'Enter the account number.';
-  return errors;
-}
-
-/** Only what was typed or chosen is sent, so an empty box never clears something already on file. */
-export function toIdBankBody(f: IdBankForm): PatchMeBody {
-  return {
-    ...(f.nationalId.trim() ? { nationalId: f.nationalId.trim() } : {}),
-    ...(f.bank ? { bankName: f.bank.trim() } : {}),
-    ...(f.accountNumber.trim() ? { accountNumber: f.accountNumber.trim() } : {}),
-  };
-}
-export const idBankEmpty = (f: IdBankForm): boolean => Object.keys(toIdBankBody(f)).length === 0;
 
 /** "Day 80 of 90": how far through the finishing list the person is, for the bar in the header. */
 export function finishProgress(file: EmployeeFile): { done: number; total: number } {

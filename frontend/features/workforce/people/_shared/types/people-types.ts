@@ -23,7 +23,8 @@ export type ExitReason = (typeof EXIT_REASONS)[number];
 export const PAY_CHANGE_REASONS = ['HIRING', 'PROBATION_CONFIRMED', 'PROMOTION', 'ANNUAL_REVIEW', 'CORRECTION', 'OTHER'] as const;
 export type PayChangeReason = (typeof PAY_CHANGE_REASONS)[number];
 export type FileRequestKind = 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS' | 'ID_NUMBER' | 'BANK_DETAILS';
-export type ProbationVerdict = 'GOOD' | 'CONCERNS';
+/** The head's report is Good, Needs work or Not good; CONCERNS is the older wording on notes already written. */
+export type ProbationVerdict = 'GOOD' | 'NEEDS_WORK' | 'NOT_GOOD' | 'CONCERNS';
 export type PayoutMethod = 'BANK' | 'MPESA' | 'CASH';
 export type HireLoginRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'STEWARD' | 'HOUSEKEEPING' | 'STORE_ATTENDANT';
 
@@ -67,6 +68,7 @@ export interface PeopleSummary {
 
 export interface ProbationNoteView {
   authorName: string;
+  authorPosition: string | null;
   authorKind: 'HEAD' | 'BRANCH_MANAGER' | 'HR';
   verdict: ProbationVerdict;
   note: string | null;
@@ -116,6 +118,10 @@ export interface NextStep {
 export interface EmployeeActions {
   editJob: boolean;
   changePay: boolean;
+  /** The IDs card's Edit (HR and above). */
+  editIds: boolean;
+  /** The bank and account (HR and above, and the Accountant). */
+  editBank: boolean;
   transfer: boolean;
   sendToSite: boolean;
   exit: boolean;
@@ -149,7 +155,7 @@ export interface EmployeeFile {
   organization: { id: string; name: string };
   department: { id: string; name: string } | null;
   position: { id: string; name: string } | null;
-  reportsTo: { id: string; name: string; isHead: boolean } | null;
+  reportsTo: { id: string; name: string; isHead: boolean; positionName: string | null; organizationName: string } | null;
   startDate: DateString;
   hasLogin: boolean;
   loginRole: string | null;
@@ -181,6 +187,9 @@ export interface PayChangeRow {
   reason: PayChangeReason;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
   requestedByName: string | null;
+  /** The asker's position and site when they have a file (the Director's review shows them). */
+  requestedByPosition: string | null;
+  requestedBySite: string | null;
   requestedOn: DateString;
   decidedByName: string | null;
   decidedOn: DateString | null;

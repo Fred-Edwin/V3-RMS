@@ -53,6 +53,7 @@ export const CAPABILITIES = [
   'probation.note', // a note on someone's probation (slice 1 amendment)
   'payprofile.read', // other people's pay profiles
   'payprofile.write',
+  'payprofile.write_bank', // the bank and account only (the Accountant's Edit)
   'payprofile.approve', // approve or decline a pay change (slice 1 amendment)
   'org.read',
   'org.write', // departments and positions
@@ -224,6 +225,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'employee.read_basic': 'all',
     'employee.read_sensitive': 'all',
     'payprofile.read': 'all',
+    'payprofile.write_bank': 'all',
     'rules.read': 'all',
     'rules.edit.statutory': 'all',
     'rules.edit.holiday_pay': 'all',
@@ -269,6 +271,7 @@ export const ROLE_GRANTS: Partial<Record<UserRole, Grants>> = {
     'probation.note': 'all',
     'payprofile.read': 'all',
     'payprofile.write': 'all',
+    'payprofile.write_bank': 'all',
     'org.read': 'all',
     'org.write': 'all',
     'org.write_heads': 'all',
