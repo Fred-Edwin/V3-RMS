@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { usePinPad } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import { pinProblem } from '../lib/signin-rules';
 import { Heading, NoticeBar, PersonStrip, PrimaryButton, SigninCard, StepMarker } from './signin-parts';
@@ -18,6 +19,8 @@ function Boxes({ label, value, onChange, disabled, invalid, boxRef, autoFocus }:
   const inner = useRef<HTMLInputElement>(null);
   const ref = boxRef ?? inner;
   const [focused, setFocused] = useState(false);
+  // On a finger inside the app shell the box opens the in-app number pad; the sign-in page has no pad host, so it stays an ordinary input.
+  const pad = usePinPad({ value, onChange, label });
   return (
     <div className="flex flex-col gap-2.5">
       <label className={cn('text-[13px] font-medium leading-4', disabled ? 'text-wds-neutral-500' : 'text-wds-text-ink')} htmlFor={`pin-${label}`}>
@@ -26,12 +29,18 @@ function Boxes({ label, value, onChange, disabled, invalid, boxRef, autoFocus }:
       <div className="relative flex gap-2.5 sm:gap-3" onClick={() => ref.current?.focus()}>
         <input
           id={`pin-${label}`}
-          ref={ref}
+          ref={(node) => {
+            (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
+            pad.ref.current = node;
+          }}
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, LENGTH))}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            pad.inputProps.onFocus();
+          }}
           onBlur={() => setFocused(false)}
-          inputMode="numeric"
+          inputMode={pad.inputProps.inputMode}
           autoComplete="off"
           maxLength={LENGTH}
           disabled={disabled}
