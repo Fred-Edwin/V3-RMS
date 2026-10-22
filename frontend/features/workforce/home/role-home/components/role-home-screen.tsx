@@ -10,18 +10,17 @@ import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
 import { FOCUS_RING, MOTION, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../../_shared';
-import { ShiftPill } from '../../../attendance';
 import { notificationWrites, useUnreadStore } from '../../../notifications';
 import { registerHomeCards } from '../../cards';
 import { getHomeCards } from '../../lib/card-registry';
 import { greetingFor, homeDate } from '../../lib/greeting';
 import { HomeStack } from '../../components/home-stack';
-import { PhoneHomeBar } from '../../components/phone-home-bar';
 import { useIsPhone } from '../hooks/use-is-phone';
 import { useRoleHome } from '../hooks/use-role-home';
 import { greetingLine, needsYouHeadline } from '../lib/role-home-words';
 import type { HomeAudience } from '../types/role-home-types';
 import { HomeBody } from './home-body';
+import { HomePhoneBar } from './home-phone-bar';
 import { HomeBusy, HomeError, HomeLoading, isBusy, useBusyRetry } from './home-states';
 
 export const NOTIFICATIONS_HREF = '/app/workforce/notifications';
@@ -121,26 +120,24 @@ export function RoleHomeScreen() {
         className="hidden lg:flex"
       />
       {phone ? (
-        <PhoneHomeBar
-          kicker={`WENDO RMS · ${orgLabelOf(user?.organizationName)}`}
+        <HomePhoneBar
+          title={view?.audience === 'HEAD' ? 'Overview' : 'Home'}
+          kicker={view?.audience === 'HEAD' && user?.departmentTag ? `DEPARTMENT · ${user.departmentTag.toUpperCase()}` : orgLabelOf(user?.organizationName)}
+          unread={unread}
+          bellHref={NOTIFICATIONS_HREF}
           onMenu={openMenu}
-          shiftPill={permissions.can('time.own') ? <ShiftPill /> : undefined}
-          primaryAction={<TopbarBell href={NOTIFICATIONS_HREF} unread={unread} className="size-11 border-0 bg-transparent text-wds-sidebar-fg-item hover:bg-transparent" />}
-          name={name}
-          greeting={greeting}
-          subtitle={greetingLine(date, headline) + (view?.needsYou ? '' : ` ${orgName}`).trimEnd()}
         />
       ) : (
         <MobileTopbar title="Home" orgLabel={orgLabelOf(user?.organizationName)} initials={initialsOf(name)} onMenuClick={openMenu} className="lg:hidden" />
       )}
       <main aria-label="Workforce Home" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
-        <div className={cn('flex flex-col', phone ? 'gap-5 px-4 pb-6 pt-4' : 'gap-6 px-8 pb-10 pt-8')}>
-          {phone ? null : (
-            <div className="flex flex-col gap-1.5">
-              <h1 className="m-0 font-wds-sans text-[26px] font-semibold leading-8 tracking-[-0.02em] text-wds-text-ink">{greeting}</h1>
-              <p className="m-0 font-wds-sans text-[14px] leading-5 text-wds-neutral-700">{greetingLine(date, headline)}</p>
-            </div>
-          )}
+        <div className={cn('flex flex-col', phone ? 'gap-5 px-4 pb-8 pt-5' : 'gap-6 px-8 pb-10 pt-8')}>
+          <div className={cn('flex flex-col', phone ? 'gap-1' : 'gap-1.5')}>
+            <h1 className={cn('m-0 font-wds-sans font-semibold tracking-[-0.02em] text-wds-text-ink', phone ? 'text-[22px] leading-7' : 'text-[26px] leading-8')}>{greeting}</h1>
+            <p className={cn('m-0 font-wds-sans text-wds-neutral-700', phone ? 'text-[13px] leading-[19px]' : 'text-[14px] leading-5')}>
+              {greetingLine(date, headline) + (phone && !view?.needsYou ? ` ${orgName}` : '')}
+            </p>
+          </div>
           {body}
         </div>
       </main>

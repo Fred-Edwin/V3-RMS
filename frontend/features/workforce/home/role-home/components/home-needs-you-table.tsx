@@ -42,15 +42,17 @@ function DesktopRow({ row, now }: { row: HomeSummaryRow; now: Date }) {
 
 function PhoneCard({ row, now }: { row: HomeSummaryRow; now: Date }) {
   return (
-    <li className={cn('flex flex-col gap-2 border border-wds-border border-l-[3px] bg-wds-surface px-3.5 py-3', row.overdue ? 'border-l-wds-error-fg' : 'border-l-wds-warning-fg')}>
-      <span className={cn('flex items-center gap-2 font-wds-mono text-[10px] leading-3 tracking-[0.06em]', row.overdue ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>
-        <Dot overdue={row.overdue} />
-        {row.kindLabel.toUpperCase()}
-        <span className="ml-auto">{sinceWords(row.since, now)}</span>
+    <li className="flex flex-col gap-1.5 border border-wds-border bg-wds-surface px-3.5 py-3">
+      <span className="flex items-center justify-between">
+        <span className={cn('flex items-center gap-2 font-wds-sans text-xs leading-4', row.overdue ? 'font-medium text-wds-error-fg' : 'text-wds-text-ink')}>
+          <Dot overdue={row.overdue} />
+          {row.kindLabel}
+        </span>
+        <span className={cn('font-wds-mono text-[11px] leading-[14px]', row.overdue ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{sinceWords(row.since, now)}</span>
       </span>
-      <span className="font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{row.title}</span>
-      <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{row.line}</span>
-      <Link href={safeOpens(row.opens)} className={cn(ACTION, 'h-11 w-full justify-center text-[14px]')}>
+      <span className="font-wds-sans text-sm font-medium leading-[19px] text-wds-text-ink">{row.title}</span>
+      <span className="font-wds-sans text-xs leading-[17px] text-wds-text-secondary">{row.line}</span>
+      <Link href={safeOpens(row.opens)} className={cn(ACTION, 'mt-1 h-11 w-full justify-center text-sm font-medium leading-[18px]')}>
         {row.action}
       </Link>
     </li>
@@ -73,13 +75,13 @@ export function HomeNeedsYouTable({ needs, phone = false }: { needs: HomeNeedsYo
 
   return (
     <section aria-label="Needs you" className="flex min-w-0 flex-col">
-      <div className="flex items-baseline gap-2 pb-2.5">
+      <div className={cn('flex items-baseline gap-2', phone ? 'pb-2' : 'pb-2.5')}>
         <h2 className="m-0 font-wds-sans text-base font-semibold leading-[22px] text-wds-text-ink">Needs you</h2>
         <span className="font-wds-sans text-xs leading-4 text-wds-text-secondary">{needsYouSubtitle(needs.total, needs.kinds)}</span>
-        <span className="ml-auto flex">{seeAll}</span>
+        <span className={cn('ml-auto flex', phone && 'h-11 items-center')}>{seeAll}</span>
       </div>
       {phone ? (
-        <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+        <ul className="m-0 flex list-none flex-col gap-2 border-t border-t-wds-neutral-800 p-0 pt-2">
           {needs.rows.map((row) => (
             <PhoneCard key={row.key} row={row} now={now} />
           ))}
@@ -101,7 +103,12 @@ export function HomeNeedsYouTable({ needs, phone = false }: { needs: HomeNeedsYo
           </tbody>
         </table>
       )}
-      {top ? (
+      {phone && needs.total > needs.rows.length ? (
+        <Link href={NEEDS_YOU_PAGE_HREF} className={cn('mt-2 flex h-11 items-center justify-center text-center font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', MOTION, FOCUS_RING, onHover('underline'))}>
+          {`Showing ${needs.rows.length} of ${needs.total}. See all ${needs.total}`}
+        </Link>
+      ) : null}
+      {!phone && top ? (
         <div className="flex h-10 items-center justify-between px-3">
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{top}</span>
           {seeAll}

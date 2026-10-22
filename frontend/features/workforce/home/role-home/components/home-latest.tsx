@@ -17,14 +17,14 @@ export const NOTIFICATIONS_HREF = '/app/workforce/notifications';
  * on the right is the clock today, YEST, then the date. "Mark all read" and "See all notifications" sit above and below. The bell in
  * the top bar keeps its own unread count. Rows with a safe link open it; the rest are plain text.
  */
-export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: readonly HomeLatest[]; onMarkAllRead: () => void; busy?: boolean }) {
+export function HomeLatestList({ items, onMarkAllRead, busy = false, phone = false }: { items: readonly HomeLatest[]; onMarkAllRead: () => void; busy?: boolean; phone?: boolean }) {
   const now = useNow();
   const anyUnread = items.some((n) => !n.read);
   return (
     <section aria-label="Latest" className="flex min-w-0 flex-col">
-      <div className="flex items-baseline pb-2.5">
+      <div className={cn('flex items-baseline', phone ? 'pb-2' : 'pb-2.5')}>
         <h2 className="m-0 font-wds-sans text-base font-semibold leading-[22px] text-wds-text-ink">Latest</h2>
-        <button type="button" disabled={!anyUnread || busy} onClick={onMarkAllRead} className={cn('ml-auto font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg disabled:opacity-50', MOTION, FOCUS_RING, onHover('underline'))}>
+        <button type="button" disabled={!anyUnread || busy} onClick={onMarkAllRead} className={cn('ml-auto font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg disabled:opacity-50', phone && 'h-11', MOTION, FOCUS_RING, onHover('underline'))}>
           Mark all read
         </button>
       </div>
@@ -42,7 +42,7 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: 
               {n.read ? null : <span className="sr-only">Unread</span>}
             </>
           );
-          const row = 'flex w-full items-start gap-2.5 px-1 py-3 text-left';
+          const row = cn('flex w-full items-start gap-2.5 py-3 text-left', phone ? 'px-0' : 'px-1');
           return (
             <li key={n.id} className="border-b border-wds-border">
               {href ? (
@@ -56,7 +56,7 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false }: { items: 
           );
         })}
       </ul>
-      <Link href={NOTIFICATIONS_HREF} className={cn('mt-2.5 self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', MOTION, FOCUS_RING, onHover('underline'))}>
+      <Link href={NOTIFICATIONS_HREF} className={cn('self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', phone ? 'flex h-11 items-center' : 'mt-2.5', MOTION, FOCUS_RING, onHover('underline'))}>
         See all notifications
       </Link>
     </section>

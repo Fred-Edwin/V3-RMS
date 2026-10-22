@@ -34,13 +34,13 @@ export function HomeBody({ view, phone, actions, refreshError, onRetry, onMarkAl
       {refreshError ? <HomeError error={refreshError} onRetry={onRetry} className="border-t-0 pt-0" /> : null}
       <HomeKpiCards kpis={view.kpis} phone={phone} />
       {actions}
-      <div className={cn('flex gap-8', phone ? 'flex-col' : 'flex-col xl:flex-row xl:items-start')}>
+      <div className={cn('flex', phone ? 'flex-col gap-5' : 'flex-col gap-8 xl:flex-row xl:items-start')}>
         {needs ? (
           <div className="min-w-0 grow basis-0">{needs.total > 0 ? <HomeNeedsYouTable needs={needs} phone={phone} /> : <HomeNothingWaiting />}</div>
         ) : null}
         {latest.length > 0 ? (
           <div className={cn('shrink-0', !phone && 'xl:w-[340px]', !needs && !phone && 'xl:grow')}>
-            <HomeLatestList items={latest} onMarkAllRead={onMarkAllRead} busy={markingRead} />
+            <HomeLatestList items={latest} onMarkAllRead={onMarkAllRead} busy={markingRead} phone={phone} />
           </div>
         ) : null}
       </div>
