@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui2/dropdown-menu';
+import { ACCOUNT_KEY, accountGroupOf, underNameOf } from './account-group';
 import { ShellSearch } from '../search/shell-search';
 import { flatLinks } from '../search/search-logic';
 import { AMBER, MARK_NUMBER, RED_BROWN, markOf, markSpoken, markText, sumMark, type Mark } from './attention';
@@ -13,9 +14,9 @@ import type { MenuItem, MenuNavModel, MenuSub, MenuUser } from './menu-types';
 
 /**
  * The sidebar of Paper 2.1 to 2.7: the logo, Search (Ctrl K), Home, then one row per feature. Only the feature you are in is open; it
- * opens with its links, split by small captions (Staff, Time, Pay, Setup), along a curved connector rail. A closed feature shows one dot
- * and the total of its links; an open one shows the numbers on the links, never on the parent (Paper 7.6). Your name at the bottom opens
- * the personal items (My file, My payslips, ...) and Sign out.
+ * opens with its links, split by small captions (Staff, Time, Pay, Setup), each caption starting its own short connector line. A closed feature shows one dot
+ * and the total of its links; an open one shows the numbers on the links, never on the parent (Paper 7.6). The personal links (My file,
+ * My payslips, ...) are the last group, "My account" (Paper 2.8). Your name at the bottom opens Profile and Sign out.
  */
 
 /** The dot and the small number. Decorative text is hidden from a screen reader, which hears "3 waiting" once. */
@@ -51,8 +52,11 @@ function TopRow({ item, active, onNavigate }: { item: MenuItem; active: boolean;
   );
 }
 
-/** One link of an open feature, on the rail: a 24 px lane, a short tick, and a square node (filled when active). */
-function SubRow({ sub, active, onNavigate }: { sub: MenuSub; active: boolean; onNavigate?: () => void }) {
+/**
+ * One link of an open feature, on its section's rail: a 24 px lane, a short tick, and a square node (filled when active). The line runs
+ * down through the 2 px gap to the next link and stops at the node of the last link of a section, so every caption starts a new line.
+ */
+function SubRow({ sub, active, last, onNavigate }: { sub: MenuSub; active: boolean; last: boolean; onNavigate?: () => void }) {
   const mark = markOf(sub.count, sub.urgent);
   return (
     <Link
@@ -61,6 +65,7 @@ function SubRow({ sub, active, onNavigate }: { sub: MenuSub; active: boolean; on
       onClick={onNavigate}
       className={cn('relative flex h-8 items-center rounded-[2px] pl-[34px] pr-2 outline-none transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring', active && 'bg-[#D9A65E17]')}
     >
+      <span aria-hidden className={cn('absolute left-[23.5px] top-0 w-px bg-[#B5823EB3]', last ? 'h-[17px]' : 'h-[34px]')} />
       <span aria-hidden className="absolute left-[24px] top-1/2 h-px w-[8px] -translate-y-1/2 bg-[#B5823E80]" />
       <span aria-hidden className={cn('absolute left-[21.5px] top-1/2 size-[4px] -translate-y-1/2 border', active ? 'border-[#D9A65E] bg-[#D9A65E]' : 'border-[#B5823E] bg-[#2C1707]')} />
       {active ? <span aria-hidden className="absolute -left-2.5 top-0 h-8 w-0.5 bg-wds-sidebar-marker" /> : null}
@@ -91,12 +96,10 @@ function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate 
         </span>
       </button>
       <div id={listId} hidden={!open} className={cn('relative flex-col gap-0.5 pt-0.5', open ? 'flex' : 'hidden')}>
-        {/* The rail: one line down the lane the ticks and nodes sit on. */}
-        <span aria-hidden className="absolute bottom-[15px] left-[23.5px] top-0 w-px bg-[#B5823EB3]" />
         {subs.map((sub, i) => (
           <React.Fragment key={sub.key}>
             {sub.section && sub.section !== subs[i - 1]?.section ? <Caption text={sub.section} /> : null}
-            <SubRow sub={sub} active={here && sub.key === activeSubKey} onNavigate={onNavigate} />
+            <SubRow sub={sub} active={here && sub.key === activeSubKey} last={subs[i + 1]?.section !== sub.section || !subs[i + 1]} onNavigate={onNavigate} />
           </React.Fragment>
         ))}
       </div>
@@ -116,7 +119,13 @@ export interface SidebarMenuProps {
   className?: string;
 }
 
-export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'COMPANY', logoSrc, onNavigate, onSignOut, className }: SidebarMenuProps) {
+export function SidebarMenu({ menu, activeKey: pageKey, activeSubKey: pageSubKey, user, orgLabel = 'COMPANY', logoSrc, onNavigate, onSignOut, className }: SidebarMenuProps) {
+  const accountGroup = React.useMemo(() => accountGroupOf(menu.account), [menu.account]);
+  // A personal page lights its link inside the group.
+  const inAccount = accountGroup !== null && menu.account.some((a) => a.key === pageKey);
+  const activeKey = inAccount ? ACCOUNT_KEY : pageKey;
+  const activeSubKey = inAccount ? pageKey : pageSubKey;
+  const features = accountGroup ? [...menu.features, accountGroup] : menu.features;
   // Only the feature you are in is open; you can open another with its chevron, and moving into one opens it again.
   const [opened, setOpened] = React.useState<Record<string, boolean>>({});
   React.useEffect(() => {
@@ -125,6 +134,8 @@ export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'C
   const isOpen = (key: string): boolean => opened[key] ?? key === activeKey;
   const links = React.useMemo(() => flatLinks([...menu.top.map((i) => ({ key: i.key, label: '', items: [i] })), ...menu.features.map((f) => ({ key: f.key, label: f.label, items: [f] })), { key: 'account', label: 'Account', items: menu.account }]), [menu]);
   const canSeePeople = links.some((l) => l.href === '/app/workforce/employees');
+  // Under the name: Profile (and Sign out). The rest of the personal links are in the My account group.
+  const underName = underNameOf(menu.account, accountGroup !== null);
 
   return (
     <nav aria-label="Main" className={cn('flex h-full w-[236px] shrink-0 flex-col bg-wds-gradient-sidebar font-wds-sans text-wds-caption', className)}>
@@ -142,7 +153,7 @@ export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'C
         {menu.top.map((item) => (
           <TopRow key={item.key} item={item} active={item.key === activeKey} onNavigate={onNavigate} />
         ))}
-        {menu.features.map((item) => (
+        {features.map((item) => (
           <FeatureRow
             key={item.key}
             item={item}
@@ -172,7 +183,7 @@ export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'C
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-[220px]">
-            {menu.account.map((item) => (
+            {underName.map((item) => (
               <DropdownMenuItem key={item.key} asChild>
                 <Link href={item.href} onClick={onNavigate}>
                   {item.label}
@@ -181,7 +192,7 @@ export function SidebarMenu({ menu, activeKey, activeSubKey, user, orgLabel = 'C
             ))}
             {onSignOut ? (
               <>
-                {menu.account.length > 0 ? <DropdownMenuSeparator /> : null}
+                {underName.length > 0 ? <DropdownMenuSeparator /> : null}
                 <DropdownMenuItem onSelect={onSignOut}>Sign out</DropdownMenuItem>
               </>
             ) : null}
