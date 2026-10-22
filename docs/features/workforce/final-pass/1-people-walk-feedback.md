@@ -38,4 +38,10 @@ Working file. Delete it when Workforce ships. Written during the live walk (22 O
 | W25 | Branch Manager | Probation report dialog | Says "Only HR and your Branch Manager can read this" although the writer is the Branch Manager. |
 | W26 | Branch Manager | Menu and Home | No "Today board" in the menu although Home has "Your team today" with an Open button. |
 | W27 | Branch Manager | Not walked | Grace Wanjiku's file (Dorcas's checked instead), own My file, sending a hire. |
+| W28 | Store Manager | General | The owner had no corrections for the Store Manager. Worked: Central Store only, pay and IDs locked, 2-step hire with the site fixed, Organisation for the hub reads "No heads here / The unit manager", blocked Payroll page. |
+| W29 | Store Manager | Home and Organisation | Home says "No head 2 departments without a head" (amber); Organisation says "Without a head 0, no heads here". |
+| W30 | Store Manager | Home | "Nothing needs you" but a "Build shifts" button, and Leave waiting and Timesheets waiting cards, although the menu has no Leave, Timesheets or Shifts. |
+| W31 | Store Manager | Employees and Organisation | Employees shows 3 of the 6 Central Store people (Head Office staff hidden); Organisation says 6 people and 3 in each department. |
+| W32 | Store Manager | Hassan Abdi's file | The Overview left side is empty (half-empty page). |
+| W33 | Store Manager | Not walked | Own My file, sending a hire, the Job tab edit. |
 | W15 | Director | Blocked page | I could not find a page the Director is blocked from, so the "Not available" screen was not shown for this role. |
