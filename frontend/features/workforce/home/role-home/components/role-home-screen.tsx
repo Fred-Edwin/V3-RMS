@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
+import { PhoneSectionBar } from '@/components/app/shell/phone-section-bar';
 import { Topbar } from '@/components/app/shell/topbar';
 import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
@@ -20,7 +21,6 @@ import { useRoleHome } from '../hooks/use-role-home';
 import { greetingLine, needsYouHeadline } from '../lib/role-home-words';
 import type { HomeAudience } from '../types/role-home-types';
 import { HomeBody } from './home-body';
-import { HomePhoneBar } from './home-phone-bar';
 import { HomeBusy, HomeError, HomeLoading, isBusy, useBusyRetry } from './home-states';
 
 export const NOTIFICATIONS_HREF = '/app/workforce/notifications';
@@ -120,7 +120,7 @@ export function RoleHomeScreen() {
         className="hidden lg:flex"
       />
       {phone ? (
-        <HomePhoneBar
+        <PhoneSectionBar
           title={view?.audience === 'HEAD' ? 'Overview' : 'Home'}
           kicker={view?.audience === 'HEAD' && user?.departmentTag ? `DEPARTMENT · ${user.departmentTag.toUpperCase()}` : orgLabelOf(user?.organizationName)}
           unread={unread}

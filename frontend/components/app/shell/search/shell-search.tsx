@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
-import { peopleReads } from '@/features/workforce/people';
 import { highlight, personLine, searchLinks, type SearchLink } from './search-logic';
 
 /**
@@ -58,7 +57,9 @@ export function ShellSearch({ links, canSeePeople, variant = 'light', className 
       return;
     }
     let cancelled = false;
-    peopleReads.list({ q, page: 1, perPage: 5 }).then(
+    // Loaded when a search is typed, not at start-up: the People barrel pulls in the whole hire flow, and importing it here made a cycle
+    // with the Workforce kit (the kit's FIELD_CLASS was read before it existed).
+    import('@/features/workforce/people').then(({ peopleReads }) => peopleReads.list({ q, page: 1, perPage: 5 })).then(
       (page) => {
         if (!cancelled) setPeople(page.rows.map((r) => ({ key: `p:${r.id}`, label: personLine(r), hint: 'Person', href: `/app/workforce/employees/${r.id}`, kind: 'person' as const })));
       },

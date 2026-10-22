@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
+import { PhoneSectionBar } from '@/components/app/shell/phone-section-bar';
 import { Topbar } from '@/components/app/shell/topbar';
 import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
@@ -48,7 +49,8 @@ export function RefusalScreen() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar breadcrumb={{ section: 'Workforce', screen: page }} hideSearch actions={<TopbarBell href="/app/workforce/notifications" unread={unread} />} className="hidden lg:flex" />
-      <MobileTopbar title={page} orgLabel="WORKFORCE" initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="lg:hidden" />
+      <PhoneSectionBar title={page} kicker="WORKFORCE" unread={unread} bellHref="/app/workforce/notifications" onMenu={openMenu} className="md:hidden" />
+      <MobileTopbar title={page} orgLabel="WORKFORCE" initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="hidden md:flex lg:hidden" />
       <main aria-label="Not available" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
         <div className="flex max-w-[600px] flex-col gap-4 px-4 py-8 md:px-8 md:py-12">
           <hr className="m-0 w-full border-0 border-t border-t-wds-neutral-800" />
