@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { AlertCircle, Check, Clock, Info } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
@@ -27,8 +27,9 @@ export function StepMarker({ current, skip }: { current: SigninStep; skip?: read
         const state = i < at ? 'done' : i === at ? 'current' : 'todo';
         const skipped = skip?.includes(step.id) === true;
         return (
-          <li key={step.id} className={cn('flex items-center gap-[14px]', i > 0 && 'flex-1')} aria-current={state === 'current' ? 'step' : undefined}>
-            {i > 0 ? <span className="h-px flex-1 bg-wds-border-strong" aria-hidden /> : null}
+          <Fragment key={step.id}>
+            {i > 0 ? <li role="presentation" className="h-px flex-1 bg-wds-border-strong" aria-hidden /> : null}
+          <li className="flex items-center" aria-current={state === 'current' ? 'step' : undefined}>
             <span className={cn('flex items-center gap-2 text-[13px] leading-4', state === 'current' ? 'font-semibold text-wds-text-ink' : state === 'done' ? 'text-wds-text-secondary' : 'text-wds-neutral-500', skipped && 'line-through')}>
               {state === 'done' ? (
                 <span className="flex size-[18px] items-center justify-center rounded-full bg-wds-success-fg text-white sm:size-5">
@@ -44,17 +45,18 @@ export function StepMarker({ current, skip }: { current: SigninStep; skip?: read
               <span className="whitespace-nowrap">{step.label}</span>
             </span>
           </li>
+          </Fragment>
         );
       })}
     </ol>
   );
 }
 
-/** The caramel rule above a heading and the heading itself, with a line under it. */
-export function Heading({ title, lead }: { title: string; lead?: string }): JSX.Element {
+/** The caramel rule above a heading and the heading itself, with a line under it. Paper's device step draws no rule. */
+export function Heading({ title, lead, rule = true }: { title: string; lead?: string; rule?: boolean }): JSX.Element {
   return (
     <div className="flex flex-col gap-3">
-      <span className="h-0.5 w-8 bg-wds-caramel-500" aria-hidden />
+      {rule ? <span className="h-0.5 w-8 bg-wds-caramel-500" aria-hidden /> : null}
       <h1 className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.025em] text-wds-text-ink sm:text-[34px] sm:leading-[38px]">{title}</h1>
       {lead ? <p className="text-[15px] leading-[22px] text-wds-neutral-700">{lead}</p> : null}
     </div>
@@ -110,7 +112,7 @@ export function PrimaryButton({ children, hint, disabled, busy, type = 'button',
       className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[2px] bg-[linear-gradient(180deg,#8B5A32_0%,#693C1B_100%)] text-[15px] font-medium leading-[18px] text-wds-canvas shadow-[inset_0_1px_0_#FFFFFF14] transition-[transform,opacity] duration-150 ease-out hover:opacity-95 focus-visible:outline-none focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-wds-neutral-100 disabled:bg-none disabled:text-wds-neutral-500 disabled:shadow-none"
     >
       {busy ? 'One moment…' : children}
-      {hint && !busy && !disabled ? <kbd className="hidden border border-white/30 px-1.5 font-wds-mono text-[11px] leading-4 text-[#EEDDCC] sm:inline">{hint}</kbd> : null}
+      {hint && !busy && !disabled ? <kbd className="hidden border border-white/30 px-1.5 font-wds-mono text-[11px] font-normal leading-4 text-[#EEDDCC] sm:inline">{hint}</kbd> : null}
     </button>
   );
 }

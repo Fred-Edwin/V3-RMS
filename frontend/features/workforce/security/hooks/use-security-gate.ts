@@ -8,17 +8,16 @@ import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 
 import { phoneWrites, sessionReads } from '../services/security-services';
-import type { Phone, PhoneAnswer } from '../types/security-types';
 
 /**
  * What stands between a signed-in person and the app (6a S2, S3, decisions-6a-backend 4 and 9):
  *   - `reset`: "This wasn't me" was pressed, so a new password comes first;
- *   - `phone`: this phone has not been confirmed, so "Is this your phone?" comes first;
+ *   - `phone`: the server does not know this device, so the person is signed out and sent to sign in, where the device step asks;
  *   - `clear`: nothing to ask.
  * The checks run once per load. A failed check (no signal) lets the person through: the server still refuses what it must, and nobody is
  * ever locked out here. A token that the server ended (`SESSION_ENDED`) signs the person out and sends them to sign in again.
  */
-export type GateState = { step: 'checking' } | { step: 'clear' } | { step: 'reset' } | { step: 'phone'; phone: Phone };
+export type GateState = { step: 'checking' } | { step: 'clear' } | { step: 'reset' } | { step: 'phone' };
 
 export function useSecurityGate(enabled: boolean) {
   const router = useRouter();
@@ -45,14 +44,23 @@ export function useSecurityGate(enabled: boolean) {
       }
       try {
         const seen = await phoneWrites.seen();
-        setState({ userId: id, gate: seen.phoneQuestion ? { step: 'phone', phone: seen.phone } : { step: 'clear' } });
+        if (seen.phoneQuestion) {
+          // The server does not know this device: sign in again, where the device step asks. No screen of the app shows meanwhile.
+          setState({ userId: id, gate: { step: 'phone' } });
+          void authService.logout().catch(() => undefined).finally(() => {
+            useAuthStore.getState().clearAuth();
+            router.replace('/login?reason=phone');
+          });
+        } else {
+          setState({ userId: id, gate: { step: 'clear' } });
+        }
       } catch {
         setState({ userId: id, gate: { step: 'clear' } });
       }
     } finally {
       running.current = false;
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (enabled && userId) void check(userId);
@@ -77,14 +85,6 @@ export function useSecurityGate(enabled: boolean) {
     return () => window.removeEventListener(SESSION_GATE_EVENT, onGate);
   }, [enabled, userId, check, router]);
 
-  const answer = useCallback(
-    async (choice: PhoneAnswer): Promise<void> => {
-      await phoneWrites.answer(choice);
-      if (userId) setState({ userId, gate: { step: 'clear' } });
-    },
-    [userId]
-  );
-
   const gate: GateState = enabled && state !== null && state.userId === userId ? state.gate : { step: enabled ? 'checking' : 'clear' };
-  return { gate, answer };
+  return { gate };
 }

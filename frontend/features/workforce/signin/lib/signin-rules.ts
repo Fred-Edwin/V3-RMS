@@ -35,6 +35,9 @@ export const pausedMessage = (seconds: number): string => (seconds > 0 ? `Too ma
 /** The sign-in page was opened because the server ended the session (never for being away: nobody is signed out for that). */
 export const ENDED_NOTICE: SigninNotice = { kind: 'ended', message: 'You were signed out. Sign in to carry on.' };
 
+/** The server no longer knows this device (it was removed from My phones): the person signs in again and confirms it on the device step. */
+export const PHONE_REMOVED_NOTICE: SigninNotice = { kind: 'ended', message: 'This device was removed from your list. Sign in again to confirm it.' };
+
 /** A PIN may not be 1234 or one digit four times. Returns the reason, or null when it is fine. */
 export function pinProblem(pin: string): string | null {
   if (!/^\d{4}$/.test(pin)) return 'Use four digits.';
@@ -55,9 +58,6 @@ export function deviceLabel(userAgent: string): { label: string; kind: DeviceKin
   const system = /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : null;
   return { label: system ? `${browser} on ${system}` : browser, kind: 'computer' };
 }
-
-/** Where this browser remembers that a person trusted it. Per person, so a shared computer asks each one. */
-export const trustKey = (userId: string): string => `wendo.trusted-device.${userId}`;
 
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

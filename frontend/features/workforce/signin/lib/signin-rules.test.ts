@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from '@/types/api';
-import { deviceLabel, initialsOf, noticeFor, pausedMessage, pinProblem, trustKey } from './signin-rules';
+import { deviceLabel, initialsOf, noticeFor, pausedMessage, pinProblem } from './signin-rules';
 
 describe('noticeFor', () => {
   it('says offline before anything else', () => {
@@ -60,8 +60,7 @@ describe('deviceLabel', () => {
 });
 
 describe('small helpers', () => {
-  it('keys trust by person and takes initials from first and last name', () => {
-    expect(trustKey('u1')).toBe('wendo.trusted-device.u1');
+  it('takes initials from first and last name', () => {
     expect(initialsOf('Mercy Wanjiru Achieng')).toBe('MA');
     expect(initialsOf('Fred')).toBe('F');
   });

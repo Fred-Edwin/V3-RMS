@@ -9,7 +9,8 @@ import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { AuthUser } from '@/types/auth';
-import { ENDED_NOTICE, noticeFor, trustKey, type SigninNotice } from '../lib/signin-rules';
+import { ENDED_NOTICE, PHONE_REMOVED_NOTICE, noticeFor, type SigninNotice } from '../lib/signin-rules';
+import { deviceApi, type DeviceAnswer, type DeviceSeen } from '../services/device-api';
 import { DeviceStep } from './device-step';
 import { PasswordStep } from './password-step';
 import { PinStep } from './pin-step';
@@ -25,27 +26,14 @@ interface Pending {
   accessToken: string;
   user: AuthUser;
   needsPin: boolean;
+  /** The server's answer for this device when it is new to the person; null when nothing is to be asked. */
+  device: DeviceSeen | null;
 }
 
 /** Only a path inside the app is followed after sign-in. */
 const safeNext = (next: string | null): string | null => (next && next.startsWith('/') && !next.startsWith('//') ? next : null);
 
 const DISPLAY_ROLES: ReadonlyArray<AuthUser['role']> = ['KITCHEN_DISPLAY', 'BARISTA_DISPLAY'];
-
-const readTrusted = (userId: string): boolean => {
-  try {
-    return window.localStorage.getItem(trustKey(userId)) === '1';
-  } catch {
-    return false;
-  }
-};
-const writeTrusted = (userId: string): void => {
-  try {
-    window.localStorage.setItem(trustKey(userId), '1');
-  } catch {
-    // Private window: the device is simply asked again next time.
-  }
-};
 
 export function SigninScreen(): JSX.Element {
   const router = useRouter();
@@ -57,6 +45,7 @@ export function SigninScreen(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   const [nextPath, setNextPath] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +54,7 @@ export function SigninScreen(): JSX.Element {
     setNextPath(safeNext(params.get('next')));
     // The session gate sends a person here when the server ended their sign-in (never for being away: nobody is signed out for that).
     if (params.get('reason') === 'ended') setNotice(ENDED_NOTICE);
+    if (params.get('reason') === 'phone') setNotice(PHONE_REMOVED_NOTICE);
     const on = (): void => {
       setOnline(true);
       setNotice((n) => (n?.kind === 'offline' ? null : n));
@@ -92,8 +82,7 @@ export function SigninScreen(): JSX.Element {
   /** After the password: which of the two later steps this person still has. */
   const proceed = useCallback(
     (done: Pending): void => {
-      const skipDevice = DISPLAY_ROLES.includes(done.user.role) || readTrusted(done.user.id);
-      if (!skipDevice) setPhase({ name: 'device' });
+      if (done.device !== null) setPhase({ name: 'device' });
       else if (done.needsPin) setPhase({ name: 'pin' });
       else finish(done);
     },
@@ -106,11 +95,14 @@ export function SigninScreen(): JSX.Element {
     try {
       const response = await authService.login({ email, password });
       let needsPin = false;
+      let device: DeviceSeen | null = null;
       if (!DISPLAY_ROLES.includes(response.user.role)) {
-        // A failure to ask is not a reason to stop a person signing in: the PIN can be set later, from Profile.
+        // A failure to ask is not a reason to stop a person signing in: the PIN can be set later, from Profile, and the server still
+        // refuses what it must when it does not know this device.
         needsPin = await authService.getPinStatus(response.accessToken).then((s) => !s.hasPin, () => false);
+        device = await deviceApi.seen(response.accessToken).then((s) => (s.phoneQuestion ? s : null), () => null);
       }
-      const done: Pending = { accessToken: response.accessToken, user: response.user, needsPin };
+      const done: Pending = { accessToken: response.accessToken, user: response.user, needsPin, device };
       setPending(done);
       proceed(done);
     } catch (error: unknown) {
@@ -126,14 +118,25 @@ export function SigninScreen(): JSX.Element {
     void authService.logout().catch(() => undefined);
     setPending(null);
     setPinError(null);
+    setDeviceError(null);
     setNotice(null);
     setPhase({ name: 'password' });
   };
 
-  const afterDevice = (): void => {
+  /** Trust this device (REMEMBER) or use it just once (ONCE): the server's two answers. A failed answer keeps the step and says so. */
+  const answerDevice = async (answer: DeviceAnswer): Promise<void> => {
     if (!pending) return;
-    if (pending.needsPin) setPhase({ name: 'pin' });
-    else finish(pending);
+    setBusy(true);
+    setDeviceError(null);
+    try {
+      await deviceApi.answer(answer, pending.accessToken);
+      if (pending.needsPin) setPhase({ name: 'pin' });
+      else finish(pending);
+    } catch {
+      setDeviceError('We could not save that. Check your signal and try again. Nothing was locked.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const savePin = async (pin: string): Promise<void> => {
@@ -160,12 +163,11 @@ export function SigninScreen(): JSX.Element {
         <DeviceStep
           name={who.name}
           line={who.line}
-          place={pending.user.organizationName ?? 'Company'}
-          onTrust={() => {
-            writeTrusted(pending.user.id);
-            afterDevice();
-          }}
-          onOnce={afterDevice}
+          place={pending.device?.phone.placeLabel ?? null}
+          busy={busy}
+          error={deviceError}
+          onTrust={() => void answerDevice('REMEMBER')}
+          onOnce={() => void answerDevice('ONCE')}
           onNotYou={notYou}
         />
       ) : (

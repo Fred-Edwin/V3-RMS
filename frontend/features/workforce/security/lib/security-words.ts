@@ -34,11 +34,7 @@ export function phoneMeta(phone: Phone, now: Date): string {
 }
 
 export const PHONE_COPY = {
-  questionTitle: 'Is this your phone?',
-  questionLine: 'This is the first time you have signed in on this phone.',
   yes: 'Yes, this is my phone',
-  once: 'Use it just once',
-  onceNote: '"Use it just once" signs out when you close the app, and this phone is not remembered. Every other phone you already use is told about this sign-in.',
   listLine: 'Phones that have signed in as you. A payslip opened on a phone you have not confirmed raises an alert.',
   empty: 'No other phones. This is the only phone that has signed in.',
   offline: 'No signal. Your phones need a connection.',

@@ -2,7 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import { deviceId } from '@/lib/device-id';
 import { useAuthStore } from '@/store/authStore';
 
-import type { AlertCounts, AlertList, AlertQuery, AlertRow, Phone, PhoneAnswer, PhoneList, PhoneSeen } from '../types/security-types';
+import type { AlertCounts, AlertList, AlertQuery, AlertRow, Phone, PhoneList, PhoneSeen } from '../types/security-types';
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
 const BASE = '/workforce/security';
@@ -17,7 +17,6 @@ export const phoneReads = {
 export const phoneWrites = {
   /** Called once after sign-in: records this phone and says whether to ask "Is this your phone?". */
   seen: (): Promise<PhoneSeen> => apiClient.post(`${BASE}/phones/me/current/seen`, { deviceId: deviceId() }, token()),
-  answer: (answer: PhoneAnswer): Promise<Phone> => apiClient.post(`${BASE}/phones/me/current/answer`, { deviceId: deviceId(), answer, idempotencyKey: newKey() }, token()),
   confirm: (id: string): Promise<Phone> => apiClient.post(`${BASE}/phones/me/${id}/confirm`, {}, token()),
   remove: (id: string): Promise<{ removed: true }> => apiClient.post(`${BASE}/phones/me/${id}/remove`, {}, token()),
 };
