@@ -75,7 +75,7 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
     noHead(f),
   ],
   HEAD: (f) => [
-    card('team', 'People in my department', f.active, 'on the team today', { href: '/app/workforce/my-team' }),
+    card('team', 'My team', f.active, 'people in my department', { href: '/app/workforce/my-team' }),
     card('on-leave', 'On leave today', f.onLeaveToday, 'in my department'),
     card('probation', 'In probation', f.inProbation, plural(f.probationDueSoon + f.probationOverdue, 'report due', 'reports due'), { tone: f.probationOverdue > 0 ? 'problem' : 'normal' }),
     card('joined', 'Joined this month', f.joinedThisMonth, 'new on the team'),
