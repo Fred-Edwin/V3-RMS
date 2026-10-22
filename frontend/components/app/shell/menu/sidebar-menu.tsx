@@ -71,7 +71,7 @@ function SubRow({ sub, active, onNavigate }: { sub: MenuSub; active: boolean; on
 }
 
 function Caption({ text }: { text: string }) {
-  return <div className="relative mt-1.5 flex h-6 items-center px-2.5 font-wds-mono text-[10px] font-semibold leading-3 tracking-[0.06em] text-wds-sidebar-fg-muted">{text.toUpperCase()}</div>;
+  return <div className="relative mt-1.5 flex h-6 items-center pl-[34px] pr-2.5 font-wds-mono text-[10px] font-semibold leading-3 tracking-[0.06em] text-wds-sidebar-fg-muted">{text.toUpperCase()}</div>;
 }
 
 function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate }: { item: MenuItem; open: boolean; activeKey: string; activeSubKey?: string; onToggle: () => void; onNavigate?: () => void }) {
