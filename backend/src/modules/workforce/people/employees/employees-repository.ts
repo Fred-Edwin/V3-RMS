@@ -68,7 +68,7 @@ const FILE_INCLUDE = (today: Date) =>
     site: { select: { id: true, name: true, companyId: true, type: true } },
     department: { select: { id: true, name: true, key: true, siteId: true } },
     position: { select: { id: true, name: true, defaultTracksTime: true } },
-    reportsTo: { select: { id: true, name: true, heads: { where: activeHeadWhere(today), select: { id: true } } } },
+    reportsTo: { select: { id: true, name: true, position: { select: { name: true } }, site: { select: { name: true } }, heads: { where: activeHeadWhere(today), select: { id: true } } } },
     user: { select: { id: true, role: true, isActive: true, email: true } },
     payProfile: true,
     contracts: { orderBy: { startsOn: 'desc' as const }, include: { contractType: { select: { name: true } } } },

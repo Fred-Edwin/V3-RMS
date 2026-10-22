@@ -155,7 +155,7 @@ export interface EmployeeFile {
   organization: { id: string; name: string };
   department: { id: string; name: string } | null;
   position: { id: string; name: string } | null;
-  reportsTo: { id: string; name: string; isHead: boolean } | null;
+  reportsTo: { id: string; name: string; isHead: boolean; positionName: string | null; organizationName: string } | null;
   startDate: DateString;
   hasLogin: boolean;
   loginRole: string | null;

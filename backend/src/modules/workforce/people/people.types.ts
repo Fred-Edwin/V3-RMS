@@ -140,7 +140,7 @@ export interface EmployeeFileView {
   site: { id: string; name: string };
   department: { id: string; name: string } | null;
   position: { id: string; name: string } | null;
-  reportsTo: { id: string; name: string; isHead: boolean } | null;
+  reportsTo: { id: string; name: string; isHead: boolean; positionName: string | null; siteName: string } | null;
   startDate: DateString;
   hasLogin: boolean;
   loginRole: string | null;

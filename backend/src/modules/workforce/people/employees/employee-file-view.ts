@@ -301,7 +301,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     site: { id: row.site.id, name: row.site.name },
     department: row.department ? { id: row.department.id, name: row.department.name } : null,
     position: row.position ? { id: row.position.id, name: row.position.name } : null,
-    reportsTo: row.reportsTo ? { id: row.reportsTo.id, name: row.reportsTo.name, isHead: row.reportsTo.heads.length > 0 } : null,
+    reportsTo: row.reportsTo ? { id: row.reportsTo.id, name: row.reportsTo.name, isHead: row.reportsTo.heads.length > 0, positionName: row.reportsTo.position?.name ?? null, siteName: row.reportsTo.site.name } : null,
     startDate,
     hasLogin: row.userId !== null,
     loginRole: row.user?.role ?? null,
