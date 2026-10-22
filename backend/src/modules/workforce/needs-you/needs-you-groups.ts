@@ -73,10 +73,20 @@ export const OVERDUE_KEY = 'overdue';
 /** The button on a row of the See all list. */
 export const actionOf = (kind: string): string => (SUMMARY[groupOf(kind).key] ?? (SUMMARY['other'] as (typeof SUMMARY)[string])).action;
 
+/** How a role reads in "Waiting for ...": HR, never "hr manager". */
+const WAITING_ON: Record<string, string> = {
+  HR_MANAGER: 'HR',
+  DIRECTOR: 'the Director',
+  ACCOUNTANT: 'the Accountant',
+  MANAGER: 'the Branch Manager',
+  STORE_MANAGER: 'the Store Manager',
+  SYSTEM_ADMIN: 'the System Admin',
+};
+
 /** The grey second line of a row: who it waits on, and for how long. The server's `text` is the first line. */
 export function lineOf(row: Pick<NeedsYouRow, 'since' | 'waitingOnRole'>, now: Date): string {
   const days = Math.max(0, Math.floor((now.getTime() - new Date(row.since).getTime()) / DAY_MS));
-  const who = row.waitingOnRole.toLowerCase().split('_').join(' ');
+  const who = WAITING_ON[row.waitingOnRole] ?? row.waitingOnRole.toLowerCase().split('_').join(' ');
   return `Waiting for ${who}${days > 0 ? `, ${days} ${days === 1 ? 'day' : 'days'}` : ', since today'}.`;
 }
 
