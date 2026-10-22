@@ -83,7 +83,13 @@ export function RoleHomeScreen() {
   const greeting = greetingFor(now, name);
   const date = homeDate(now);
   const crumb = breadcrumbFor(view?.audience ?? 'STAFF');
-  const canAdd = permissions.can('employee.write_basic') && view?.audience === 'HR';
+  // The one button at the right of the top bar (Paper 1.1, 1.3): HR adds an employee, the Accountant opens payroll.
+  const topAction =
+    view?.audience === 'HR' && permissions.can('employee.write_basic')
+      ? { href: '/app/workforce/employees/new', label: 'Add employee' }
+      : view?.audience === 'ACCOUNTANT'
+        ? { href: '/app/workforce/payroll', label: 'Open payroll' }
+        : null;
 
   const body = !view
     ? home.status === 'error'
@@ -101,9 +107,9 @@ export function RoleHomeScreen() {
         actions={
           <>
             <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} className="size-8" />
-            {canAdd ? (
-              <Link href="/app/workforce/employees/new" className={cn('inline-flex h-8 items-center bg-wds-primary px-3.5 font-wds-sans text-[13px] font-medium text-wds-primary-fg hover:bg-wds-primary-hover', MOTION, FOCUS_RING)}>
-                Add employee
+            {topAction ? (
+              <Link href={topAction.href} className={cn('inline-flex h-8 items-center bg-wds-primary px-3.5 font-wds-sans text-[13px] font-medium text-wds-primary-fg hover:bg-wds-primary-hover', MOTION, FOCUS_RING)}>
+                {topAction.label}
               </Link>
             ) : null}
           </>
