@@ -85,11 +85,15 @@ export function RoleHomeScreen() {
   const crumb = breadcrumbFor(view?.audience ?? 'STAFF');
   // The one button at the right of the top bar (Paper 1.1, 1.3): HR adds an employee, the Accountant opens payroll.
   const topAction =
-    view?.audience === 'HR' && permissions.can('employee.write_basic')
+    (view?.audience === 'HR' || view?.audience === 'DIRECTOR') && permissions.can('employee.write_basic')
       ? { href: '/app/workforce/employees/new', label: 'Add employee' }
       : view?.audience === 'ACCOUNTANT'
         ? { href: '/app/workforce/payroll', label: 'Open payroll' }
-        : null;
+        : view?.audience === 'BRANCH_MANAGER' || view?.audience === 'STORE_MANAGER'
+          ? { href: '/app/workforce/schedule/rota', label: 'Build shifts' }
+          : view?.audience === 'SYSTEM_ADMIN'
+            ? { href: '/app/admin', label: 'Add account' }
+            : null;
 
   const body = !view
     ? home.status === 'error'

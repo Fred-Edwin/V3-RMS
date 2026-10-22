@@ -144,7 +144,7 @@ export function PrimaryButton({ children, hint, disabled, busy, type = 'button',
       type={type}
       onClick={onClick}
       disabled={disabled || busy}
-      className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[2px] bg-[linear-gradient(180deg,#8B5A32_0%,#693C1B_100%)] text-base font-medium leading-5 text-wds-canvas shadow-[inset_0_1px_0_#FFFFFF14] transition-[transform,opacity] duration-150 ease-out hover:opacity-95 focus-visible:outline-none focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-wds-neutral-100 disabled:bg-none disabled:text-wds-neutral-500 disabled:shadow-none lg:h-12 lg:text-[15px] lg:leading-[18px]"
+      className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[2px] bg-[linear-gradient(180deg,#8B5A32_0%,#693C1B_100%)] text-base font-medium leading-5 text-wds-canvas shadow-[inset_0_1px_0_#FFFFFF14] transition-[transform,opacity] duration-150 ease-out hover:opacity-95 focus-visible:outline-none focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-wds-border disabled:bg-none disabled:text-[#A8A39B] disabled:shadow-none lg:h-12 lg:text-[15px] lg:leading-[18px]"
     >
       {busy ? 'One moment…' : children}
       {hint && !busy && !disabled ? <kbd className="hidden border border-white/30 px-1.5 font-wds-mono text-[11px] font-normal leading-4 text-[#EEDDCC] lg:inline">{hint}</kbd> : null}

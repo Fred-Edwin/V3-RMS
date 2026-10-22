@@ -52,11 +52,11 @@ function Boxes({ label, value, onChange, disabled, invalid, boxRef, autoFocus, p
   // On a finger inside the app shell the box opens the in-app number pad; the sign-in page has no pad host, so it stays an ordinary input.
   const pad = usePinPad({ value, onChange, label });
   return (
-    <div className={cn('flex-col gap-2.5', className)}>
+    <div className={cn('flex-col gap-2 lg:gap-2', className)}>
       <label className={cn('hidden text-[13px] font-medium leading-4 lg:block', disabled ? 'text-wds-neutral-500' : 'text-wds-text-ink')} htmlFor={`pin-${label}`}>
         {label}
       </label>
-      <div className="relative flex gap-2.5 lg:gap-3" onClick={() => ref.current?.focus()}>
+      <div className="relative flex gap-2.5" onClick={() => ref.current?.focus()}>
         <input
           id={`pin-${label}`}
           ref={(node) => {
@@ -87,11 +87,11 @@ function Boxes({ label, value, onChange, disabled, invalid, boxRef, autoFocus, p
               aria-hidden
               className={cn(
                 'flex h-[60px] w-16 items-center justify-center border bg-wds-surface lg:h-16',
-                disabled && 'bg-wds-neutral-50',
-                invalid ? 'border-wds-error-fg' : current ? 'border-2 border-wds-espresso-700 lg:border-[1.5px]' : 'border-wds-border-strong',
+                disabled && 'border-wds-border bg-wds-neutral-50',
+                invalid ? 'border-wds-error-fg' : current ? 'border-2 border-wds-espresso-700' : !disabled && 'border-wds-border-strong',
               )}
             >
-              {i < value.length ? <span className="size-3 rounded-full bg-wds-text-ink lg:size-2.5" /> : current ? <span className="h-6 w-0.5 animate-pulse bg-wds-espresso-700 motion-reduce:animate-none lg:h-8 lg:w-px lg:bg-wds-text-ink" /> : null}
+              {i < value.length ? <span className="size-3 rounded-full bg-wds-text-ink" /> : current ? <span className="h-6 w-0.5 animate-pulse bg-wds-espresso-700 motion-reduce:animate-none" /> : null}
             </span>
           );
         })}
@@ -147,7 +147,7 @@ export function PinStep({ name, line, busy, error, onSave, onNotYou }: PinStepPr
         <>
           <StepMarker current="pin" />
           <Heading tight title="Set your PIN" lead={lead} />
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <Boxes
               label="Choose a PIN"
               value={pin}

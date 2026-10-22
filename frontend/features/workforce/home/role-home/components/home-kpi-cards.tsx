@@ -39,7 +39,8 @@ export function HomeKpiCards({ kpis, phone = false, className }: { kpis: readonl
   return (
     <section
       aria-label="The numbers"
-      className={cn('grid border border-wds-border bg-wds-surface', phone ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 xl:grid-cols-5', className)}
+      className={cn('grid border border-wds-border bg-wds-surface', phone ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 xl:[grid-template-columns:repeat(var(--cards),minmax(0,1fr))]', className)}
+      style={{ ['--cards' as string]: Math.min(kpis.length, 5) }}
     >
       {kpis.map((kpi, i) => (
         <Cell
