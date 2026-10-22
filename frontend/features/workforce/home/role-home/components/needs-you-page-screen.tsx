@@ -19,42 +19,46 @@ import { needsYouPageLine, safeOpens, sinceWords } from '../lib/role-home-words'
 import type { NeedsYouPage } from '../types/role-home-types';
 import { HomeError, HomeLoading, HomeNothingWaiting } from './home-states';
 
-const SELECT = cn('h-8 border border-wds-border-strong bg-wds-surface px-2.5 font-wds-sans text-[13px] text-wds-text-ink', MOTION, FOCUS_RING);
-const ACTION = cn('inline-flex items-center border border-wds-border-strong bg-wds-surface px-3.5 py-1.5 font-wds-sans text-[13px] leading-4 text-wds-text-ink', MOTION, FOCUS_RING, onHover('bg-wds-neutral-50'));
+// The Kind and Site lists are one bordered box each with the label inside (Paper 1.12); the picker's own border is dropped.
+const SELECT = cn('h-[30px] border-0 bg-transparent pl-0 pr-3 font-wds-sans text-[13px] text-wds-text-ink', MOTION, FOCUS_RING);
+const FILTER_BOX = 'flex h-8 items-center gap-1.5 border border-wds-border-strong bg-wds-surface pl-3 font-wds-sans text-[13px] leading-4 text-wds-text-secondary';
+const ACTION = cn('inline-flex h-7 items-center border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px] leading-4 text-wds-text-ink', MOTION, FOCUS_RING, onHover('bg-wds-neutral-50'));
 
 function Rows({ page }: { page: NeedsYouPage }) {
   const now = useNow();
   return (
-    <table className="w-full border-collapse border-t border-t-wds-neutral-800 text-left">
+    <table className="w-full table-fixed border-collapse border-t border-t-wds-neutral-800 text-left">
       <thead>
-        <tr className="border-b border-wds-neutral-100 font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">
-          <th scope="col" className="px-3 py-2 font-normal">KIND</th>
-          <th scope="col" className="px-2 py-2 font-normal">REQUEST</th>
-          <th scope="col" className="px-2 py-2 font-normal">SITE</th>
-          <th scope="col" className="px-2 py-2 font-normal">WHERE YOU DECIDE</th>
-          <th scope="col" className="px-3 py-2 text-right font-normal">SINCE</th>
+        <tr className="h-8 border-b border-wds-neutral-100 font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">
+          <th scope="col" className="w-[162px] py-0 pl-3 font-normal">KIND</th>
+          <th scope="col" className="py-0 font-normal">REQUEST</th>
+          <th scope="col" className="w-[150px] py-0 font-normal">SITE</th>
+          <th scope="col" className="w-[150px] py-0 font-normal">WHERE YOU DECIDE</th>
+          <th scope="col" className="w-[92px] py-0 pr-3 text-right font-normal">SINCE</th>
         </tr>
       </thead>
       <tbody>
         {page.rows.map((r) => (
-          <tr key={r.id} className="border-b border-wds-neutral-100">
-            <td className="w-[150px] px-3 py-3 align-top">
-              <span className={cn('flex items-center gap-2 pt-0.5 font-wds-sans text-[13px] leading-4', r.overdue ? 'text-wds-error-fg' : 'text-wds-text-ink')}>
+          <tr key={r.id} className="h-[52px] border-b border-wds-neutral-100">
+            <td className="py-1.5 pl-3 align-middle">
+              <span className={cn('flex items-center gap-2 font-wds-sans text-[13px] leading-4', r.overdue ? 'font-medium text-wds-error-fg' : 'text-wds-text-ink')}>
                 <span aria-hidden className={cn('size-2 shrink-0 rounded-full', r.overdue ? 'bg-wds-error-fg' : 'bg-wds-warning-fg')} />
                 {r.overdue ? 'Overdue' : r.kindLabel}
               </span>
             </td>
-            <td className="px-2 py-3 align-top">
-              <span className="block font-wds-sans text-[15px] font-medium leading-5 text-wds-text-ink">{r.text}</span>
-              <span className="block font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{r.line}</span>
+            <td className="py-1.5 align-middle">
+              <div className="flex flex-col gap-0.5">
+                <span className="block font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{r.text}</span>
+                <span className="block font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{r.line}</span>
+              </div>
             </td>
-            <td className="w-[170px] px-2 py-3 align-top font-wds-sans text-[13px] leading-5 text-wds-text-ink">{r.siteName ?? ''}</td>
-            <td className="w-[170px] px-2 py-3 align-top">
+            <td className="py-1.5 align-middle font-wds-sans text-[13px] leading-4 text-wds-text-ink">{r.siteName ?? ''}</td>
+            <td className="py-1.5 align-middle">
               <Link href={safeOpens(r.opens)} className={ACTION}>
                 {r.action}
               </Link>
             </td>
-            <td className={cn('w-[90px] px-3 py-3 text-right align-top font-wds-mono text-[11px] leading-4', r.overdue ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{sinceWords(r.since, now)}</td>
+            <td className={cn('py-1.5 pr-3 text-right align-middle font-wds-mono text-[11px] leading-[14px]', r.overdue ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{sinceWords(r.since, now)}</td>
           </tr>
         ))}
       </tbody>
@@ -86,10 +90,10 @@ export function NeedsYouPageScreen() {
       />
       <MobileTopbar title="Needs you" orgLabel={(user?.organizationName ?? 'COMPANY').toUpperCase()} initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="lg:hidden" />
       <main aria-label="Needs you" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
-        <div className="flex flex-col gap-5 px-4 py-6 md:px-8 md:py-7">
+        <div className="flex flex-col gap-4 px-4 pb-10 pt-6 md:px-8 md:pt-8">
           <div className="flex flex-col gap-1.5">
-            <h1 className="m-0 font-wds-sans text-[28px] font-semibold leading-9 tracking-[-0.02em] text-wds-text-ink">Needs you</h1>
-            {page ? <p className="m-0 font-wds-sans text-[14px] leading-[18px] text-wds-text-secondary">{needsYouPageLine(page.all, kinds)}</p> : null}
+            <h1 className="m-0 font-wds-sans text-[26px] font-semibold leading-8 tracking-[-0.02em] text-wds-text-ink">Needs you</h1>
+            {page ? <p className="m-0 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{needsYouPageLine(page.all, kinds)}</p> : null}
           </div>
 
           {remote.status === 'error' && !page ? (
@@ -121,7 +125,7 @@ export function NeedsYouPageScreen() {
                   />
                 ))}
                 <span className="ml-auto flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 font-wds-sans text-[13px] text-wds-text-secondary">
+                  <span className={FILTER_BOX}>
                     Kind
                     <Picker
                       value={filters.group}
@@ -132,7 +136,7 @@ export function NeedsYouPageScreen() {
                       className={SELECT}
                     />
                   </span>
-                  <span className="flex items-center gap-1.5 font-wds-sans text-[13px] text-wds-text-secondary">
+                  <span className={FILTER_BOX}>
                     Site
                     <Picker
                       value={filters.siteId}
@@ -159,6 +163,7 @@ export function NeedsYouPageScreen() {
                     total={page.total}
                     onPageChange={(p) => change({ page: p })}
                     onPerPageChange={(n) => change({ pageSize: n, page: 1 })}
+                    variant="paper"
                     className="px-3"
                   />
                 </div>
