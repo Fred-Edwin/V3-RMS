@@ -22,7 +22,18 @@ export interface PasswordStepProps {
   onRetryOffline: () => void;
 }
 
-const FIELD = 'h-[52px] rounded-[2px] border bg-wds-surface px-3.5 text-[15px] font-normal text-wds-text-ink focus-visible:outline-none focus-visible:shadow-wds-ring lg:h-12 lg:text-sm';
+/** The eye of Paper 3.1 and 4.5. It is crossed out while the password is showing (the button then hides it). */
+function EyeIcon({ off }: { off: boolean }): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
+  );
+}
+
+const FIELD ='h-[52px] rounded-[2px] border bg-wds-surface px-3.5 text-[15px] font-normal text-wds-text-ink focus-visible:outline-none focus-visible:shadow-wds-ring lg:h-12 lg:text-sm';
 
 export function PasswordStep({ notice, busy, online, wrongCount, onSubmit, onRetryOffline }: PasswordStepProps): JSX.Element {
   const [email, setEmail] = useState('');
@@ -90,10 +101,16 @@ export function PasswordStep({ notice, busy, online, wrongCount, onSubmit, onRet
                   autoComplete="current-password"
                   aria-invalid={wrong || undefined}
                   disabled={busy}
-                  className={cn(FIELD, 'w-full pr-16', wrong ? 'border-[1.5px] border-wds-error-fg' : 'border-wds-border-strong focus-visible:border-wds-espresso-700')}
+                  className={cn(FIELD, 'w-full pr-12', wrong ? 'border-[1.5px] border-wds-error-fg' : 'border-wds-border-strong focus-visible:border-wds-espresso-700')}
                 />
-                <button type="button" onClick={() => setShow((v) => !v)} aria-pressed={show} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-[#8A5A16] hover:underline focus-visible:outline-none focus-visible:shadow-wds-ring lg:text-[13px]">
-                  {show ? 'Hide' : 'Show'}
+                <button
+                  type="button"
+                  onClick={() => setShow((v) => !v)}
+                  aria-pressed={show}
+                  aria-label={show ? 'Hide password' : 'Show password'}
+                  className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-[2px] text-[#8A5A16] hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:shadow-wds-ring"
+                >
+                  <EyeIcon off={show} />
                 </button>
               </span>
             </label>
