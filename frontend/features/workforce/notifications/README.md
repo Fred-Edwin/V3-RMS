@@ -8,6 +8,8 @@ The **Notifications tab** in the Inbox (`app/app/inbox/components/InboxShell.tsx
 - A list with an unread dot, the kind, the time, the text and an **Open** link where there is a page to go to; **Mark all read**; numbered pager with rows per page.
 - The unread number comes from `GET /workforce/notifications/unread-count` into a small store, so the shell badge and the tab agree. It refreshes on the socket nudge, on tab focus and every 60 s while visible.
 
+**Batch 2A (22 Oct 2026):** Home's "Latest" list and the bell's unread count (top bar, phone band; "99+" above 99) read this feature: the list comes with `GET /workforce/home` (`latest`) and the count from the unread store below. "Mark all read" on Home calls the same endpoint as the tab. Home keeps no copy of the rows.
+
 ## Public API (`index.ts`)
 `NotificationsTab`, `useWorkforceUnread`, `useWorkforceUnreadCount`, `WorkforceNotification`.
 

@@ -39,5 +39,5 @@ Response types use the **wire names** for a branch (`organization`, `organizatio
 - `frontend/components/app/shell/nav-table.ts`: flag `oldOnlyWhenSwitchOff` on `hr-leave`, `hr-leave-calendar`, `accountant-leave`, `staff-leave`; rows `wf-leave`, `wf-my-leave`, `wf-staff-my-leave` lose `notBuilt`, gain `needsAttendance`; Store Attendant added to `wf-staff-my-leave`. `nav-table.test.ts` follows.
 - `frontend/lib/route-access.ts`: `/app/workforce/my-leave` and `/app/workforce/leave` gates.
 - `frontend/features/workforce/_shared`: `CircleStepper` (new), chip tone `asked`, capability `leave.balance_adjust`; `lib/notification-copy.ts` six Leave rows; `lib/wire-names.test.ts` one Leave check.
-- `frontend/features/workforce/home/cards/leave-data.ts`: Coming up merges `GET /away`.
+- (History: `home/cards/leave-data.ts` was deleted in batch 2A, 22 Oct 2026, with the Coming up card.) `frontend/features/workforce/home/cards/leave-data.ts`: Coming up merges `GET /away`.
 - Back end (own commit, with a test): `GET /workforce/leave/balances/:employeeId` also returns `adjustable`.

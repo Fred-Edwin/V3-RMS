@@ -6,7 +6,7 @@ The sign-in screens, built to the approved Paper frames 3.1, 3.2 and 4.1 to 4.5 
 Password ("Welcome back") → This device ("Confirm this device", once per person per browser) → Set your PIN (only a person with no PIN yet) → the person's Home. The session is set only at the end. "Not you? Sign out" returns to the password step.
 
 ## Status
-Built (batch 2A part 1). Not yet seen in a browser: part 2 compares every state at 1440 and 390 with Paper.
+Built and walked in a real browser (22 Oct 2026): Welcome back, the device step and Set your PIN at 1440, the device step and Welcome back at 390, the wrong-password bar, the pause countdown, the refused PINs (1111) and a saved PIN, each beside its Paper frame. The device step "remembers this browser only" (decision D9); the first proof point reads "Every branch in one place" (D10).
 
 ## Rules that are decisions
 - **Nobody is locked out.** After the 5th wrong password in 15 minutes the server answers `429 LOGIN_SLOWED` with `details.waitSeconds` (2, 4, 8, 16, then 30). The screen shows the seconds and counts down. The pause is `backend/src/modules/workforce/_shared/pin/pin-pause.ts`, shared with the PIN checks; the tries are recorded under purpose `PASSWORD`.

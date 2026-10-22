@@ -32,7 +32,7 @@ Buttons come from the month's server `capabilities` and `useWorkforcePermissions
 Each is small and on separate lines:
 
 - `frontend/features/workforce/_shared/lib/capabilities.ts`: the five `payrun.*` entries became ten `payroll.*`.
-- `frontend/features/workforce/home/cards/payrun-cards.tsx`, `hr-cards.tsx`, `home/gallery/home-gallery.tsx`: `payrun.approve` to `payroll.approve`; `payrun.reopen` to `payroll.approve_site_late`.
+- (History: these files were deleted in batch 2A, 22 Oct 2026) `frontend/features/workforce/home/cards/payrun-cards.tsx`, `hr-cards.tsx`, `home/gallery/home-gallery.tsx`: `payrun.approve` to `payroll.approve`; `payrun.reopen` to `payroll.approve_site_late`.
 - `frontend/components/app/shell/nav-table.ts`: the `wf-pay-runs` row is now "Payroll" at `/app/workforce/payroll` (HR, Accountant, Director, System Admin); new `NavRule.needsPayroll`, `NavContext.payrollOn`, one visibility clause. `nav-table.test.ts`: three words "Pay runs" to "Payroll" and a role by switch matrix.
 - `frontend/components/app/shell/use-shell-nav.ts`: the import, the `usePayrollOn` call, the context field, the memo dependency.
 - `frontend/lib/route-access.ts`: one `under('/app/workforce/payroll')` block.
