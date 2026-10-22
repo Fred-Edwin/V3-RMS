@@ -160,6 +160,15 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 - **Pay start: accepted.** Pay does not count before the start day (`payAmountOn` returns nothing earlier). The front end should label a not-yet-started amount "starts <date>" so the profile is not misleading.
 - **Pay 403 versus 404: accepted as built.** Out-of-scope reads answer `404` so a record's existence is not revealed; a role with no pay capability at all answers `403`.
 
+### People batch 2B (22 Oct 2026, final pass)
+
+- **New capability `payprofile.write_bank`** (Accountant, HR, Director, System Admin) in `_shared/workforce-access.ts`: the Accountant's Edit on IDs and bank is bank and account only; `pay-service.updateProfile` refuses overtime and hours for a holder of it alone.
+- **My file saves at once.** `employees-service.patchMe` no longer clears HR's check (`statutoryVerifiedAt`) and no longer refuses a number HR has checked. HR's own edit (`update`) still clears it. A bank or account change (a first entry counts) tells the Accountant through `pay.bank_changed`, whose text carries no number.
+- **My team:** `GET /workforce/people/team` in `team/` (capability `today.read`, the rota's scope; status from today's rota shift). Name, position, department, status, shift. No pay, no IDs.
+- **Probation report:** verdicts `GOOD`, `NEEDS_WORK`, `NOT_GOOD` (`CONCERNS` stays readable); a head writes for their own department's people only.
+- **File view:** `reportsTo` carries `positionName` and `siteName` (the wire says `organizationName`); `PayChangeRow` carries `requestedByPosition` and `requestedBySite`.
+- Not changed: `DATA_MODEL.md` (no schema change). The `people/` folder was not split in this batch (27 files).
+
 ### Slice 0 changes made here (also logged in `slice-0-contract.md` §12)
 
 `Employee` gains `companyId` (numbers unique per company); `PayProfile.amount` optional plus standard hours; `PayoutMethod` gains `CASH`; `Position` gains `loginRole`, `casualsAllowed` and `DepartmentPosition`; `DepartmentHead` gains `isActing`, `endedById`, `endReason`; `Contract` gains `createdById` and a `ContractType` link; new tables `PayChange`, `EmploymentSpell`, `EmployeeMove`, `FileRequest`, `EmployeeDraft`, `ProbationNote`; `Employee` gains probation and statutory fields; `HrDocument.employeeId`.
