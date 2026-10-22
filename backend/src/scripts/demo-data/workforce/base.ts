@@ -88,7 +88,7 @@ export async function seedBase(): Promise<World> {
 
 /** A self-contained initials avatar (an inline SVG): the demo has no real photos and loads nothing from outside. */
 const TINTS = ['#9FB4FF', '#C7D2FE', '#A7C7E7', '#B8C0CC', '#C3B8E8', '#9CC5C0'];
-const avatar = (name: string, n: number): string => {
+export const avatar = (name: string, n: number): string => {
   const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="${TINTS[n % TINTS.length]}"/><text x="48" y="58" font-family="Arial" font-size="34" font-weight="600" text-anchor="middle" fill="#1B2140">${initials}</text></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;

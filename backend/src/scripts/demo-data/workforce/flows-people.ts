@@ -2,8 +2,9 @@
 import { prisma } from '../../../config/database';
 import { call, key, login, must, PIN, type Body } from './api';
 import { out, type World } from './base';
+import { runMorePeople } from './flows-people-more';
 
-const TODAY = '2026-10-21';
+const TODAY = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10); // today in Nairobi
 const inDays = (n: number): string => new Date(Date.parse(`${TODAY}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const employee = (world: World, local: string): string => {
   const id = world.employeeIds.get(local);
@@ -64,4 +65,5 @@ export async function runPeopleFlows(world: World): Promise<void> {
   await casual(world);
   const docs = await call('hr', 'GET', '/workforce/documents');
   out(`ok  documents: ${docs.status === 200 ? 'the register answers' : `register ${docs.status}`}`);
+  await runMorePeople(world);
 }

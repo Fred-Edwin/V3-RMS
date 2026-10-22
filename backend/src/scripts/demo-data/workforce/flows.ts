@@ -5,7 +5,7 @@ import { call, key, login, must, PIN, type Body } from './api';
 import { out, type World } from './base';
 import { runPeopleFlows } from './flows-people';
 
-const TODAY = '2026-10-21';
+const TODAY = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10); // today in Nairobi: the app refuses rules that start in the past
 const STATUTORY = {
   tables: [
     { code: 'NSSF', name: 'Alpha', bands: [{ fromAmount: '0', toAmount: null, ratePercent: '6', flatAmount: null }], note: null, kind: 'RATE', base: 'GROSS', reducesTaxable: true, isIncomeTax: false, employerRatePercent: '6', reliefMonthly: null, floorAmount: null, ceilingAmount: null },
