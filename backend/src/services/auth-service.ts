@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { authRepository } from '../repositories/auth-repository';
 import { comparePassword, hashPassword, hashPin } from '../utils/password';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
-import { UnauthorizedError, ValidationError } from '../utils/errors';
+import { AppError, UnauthorizedError, ValidationError } from '../utils/errors';
+import { attemptWithPause } from '../modules/workforce/_shared/pin/pin-door';
 import { env } from '../config/env';
 
 interface LoginInput {
@@ -50,8 +51,13 @@ export const authService = {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const isValidPassword = await comparePassword(password, user.passwordHash);
-    if (!isValidPassword) {
+    // Nobody is ever locked out for wrong passwords (owner, 21 Oct 2026): after the 5th wrong try inside 15 minutes the answer waits
+    // 2, 4, 8, 16, then 30 seconds. The same pause schedule and try store as the PIN checks (`workforce_pin_tries`, purpose PASSWORD).
+    const attempt = await attemptWithPause(user.id, 'PASSWORD', () => comparePassword(password, user.passwordHash));
+    if (attempt.kind === 'SLOW') {
+      throw new AppError(429, 'LOGIN_SLOWED', `Too many tries. Wait ${attempt.wait} seconds, then try again.`, { waitSeconds: attempt.wait });
+    }
+    if (attempt.kind === 'WRONG') {
       throw new UnauthorizedError('Invalid credentials');
     }
 

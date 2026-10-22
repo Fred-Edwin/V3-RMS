@@ -1,7 +1,7 @@
 import { WINDOW_MS, shouldAlert, waitRemaining } from './pin-pause';
 
 /** What a check is for. A new purpose (`CONDUCT_SIGN`) is a new string; the schedule and the store are shared. */
-export type PinPurpose = 'SIGNER' | 'CONDUCT_SIGN';
+export type PinPurpose = 'SIGNER' | 'CONDUCT_SIGN' | 'PASSWORD';
 
 export type PinAttempt = { kind: 'SLOW'; wait: number } | { kind: 'RIGHT' } | { kind: 'WRONG'; count: number; alert: boolean };
 

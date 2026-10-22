@@ -133,6 +133,8 @@ describe('the public door (contract 7.2)', () => {
       'registerPinTries', 'attemptWithPause',
       'workforceSecurityRouter', 'workforceSessionGate', 'registerSecurity', 'wasntMe', 'claimAlertWindow', 'insertAlertForEntry', 'tellAdminsOfAlert',
       'workforceNeedsYouRouter', 'registerNeedsYou', 'registerNeedsYouSource',
+      // Homes (final pass 1, batch 2A): the five numbers per role, and who a page is for
+      'workforceHomeRouter', 'workforcePageForRouter',
       // conduct (segment 5)
       'workforceConductRouter', 'registerConduct', 'sweepConduct', 'registerConductDocuments', 'isSiteOnNewConduct', 'refuseLegacyConductWhenSwitched',
       // shared parts (segment 6b): audit read, documents door, verify

@@ -4,6 +4,7 @@ import { authRepository } from '../repositories/auth-repository';
 import { UnauthorizedError, ValidationError } from '../utils/errors';
 import { comparePassword } from '../utils/password';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import { resetPinTries } from '../modules/workforce/_shared/pin/pin-door';
 import { authService } from './auth-service';
 
 vi.mock('../repositories/auth-repository', () => ({
@@ -78,6 +79,64 @@ describe('authService.login temporary password expiry', () => {
     vi.mocked(authRepository.findUserByEmail).mockResolvedValue(loginUser(null));
     await authService.login({ email: 'new.hire@wendo.co.ke', password: 'x' });
     expect(authRepository.setTemporaryPasswordExpiry).not.toHaveBeenCalled();
+  });
+});
+
+describe('authService.login wrong-password pause (nobody is locked out)', () => {
+  const account = {
+    id: 'user-pause',
+    name: 'Pause Test',
+    email: 'pause@wendo.co.ke',
+    role: 'WAITER' as const,
+    siteId: 'org-1',
+    departmentTag: null,
+    isDepartmentHead: false,
+    isActive: true,
+    passwordHash: 'hash',
+    pinHash: null,
+    temporaryPasswordExpiresAt: null,
+    site: { name: 'Wendo Nyeri' },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetPinTries();
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue(account);
+    vi.mocked(signAccessToken).mockReturnValue('access');
+    vi.mocked(signRefreshToken).mockReturnValue('refresh');
+    vi.mocked(authRepository.saveRefreshToken).mockResolvedValue({} as never);
+  });
+
+  it('answers the first four wrong passwords as plain invalid credentials, with no wait', async () => {
+    vi.mocked(comparePassword).mockResolvedValue(false);
+    for (let i = 0; i < 4; i += 1) {
+      await expect(authService.login({ email: account.email, password: 'wrong' })).rejects.toMatchObject({ statusCode: 401, code: 'AUTHENTICATION_ERROR' });
+    }
+  });
+
+  it('pauses the answer after the fifth wrong try: 429 LOGIN_SLOWED with the seconds to wait, without checking the password', async () => {
+    vi.mocked(comparePassword).mockResolvedValue(false);
+    for (let i = 0; i < 5; i += 1) await expect(authService.login({ email: account.email, password: 'wrong' })).rejects.toBeInstanceOf(UnauthorizedError);
+    vi.mocked(comparePassword).mockClear();
+    // Even the right password waits out the pause: a guesser cannot test it.
+    vi.mocked(comparePassword).mockResolvedValue(true);
+    await expect(authService.login({ email: account.email, password: 'right' })).rejects.toMatchObject({ statusCode: 429, code: 'LOGIN_SLOWED', details: { waitSeconds: 2 } });
+    expect(comparePassword).not.toHaveBeenCalled();
+    expect(authRepository.saveRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('never locks the account: once the wait is over the right password signs in', async () => {
+    vi.mocked(comparePassword).mockResolvedValue(true);
+    const result = await authService.login({ email: account.email, password: 'right' });
+    expect(result.accessToken).toBe('access');
+  });
+
+  it('keeps one person’s pause away from another person', async () => {
+    vi.mocked(comparePassword).mockResolvedValue(false);
+    for (let i = 0; i < 5; i += 1) await expect(authService.login({ email: account.email, password: 'wrong' })).rejects.toBeInstanceOf(UnauthorizedError);
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue({ ...account, id: 'user-other', email: 'other@wendo.co.ke' });
+    vi.mocked(comparePassword).mockResolvedValue(true);
+    await expect(authService.login({ email: 'other@wendo.co.ke', password: 'right' })).resolves.toMatchObject({ accessToken: 'access' });
   });
 });
 

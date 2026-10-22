@@ -1,4 +1,4 @@
-import { prisma } from '../../../../config/database';
+import { payChangeReads } from './pay-change-repository';
 import { scopeOf, type AccessSubject } from '../../_shared/workforce-access';
 import type { NeedsYouRow, NeedsYouSource } from '../needs-you-types';
 
@@ -11,12 +11,7 @@ export const payChangeSource: NeedsYouSource = {
   kinds: ['pay-change'],
   async list(subject: AccessSubject, ctx): Promise<NeedsYouRow[]> {
     if (scopeOf(subject, 'payprofile.approve') === null) return [];
-    const pending = await prisma.payChange.findMany({
-      where: { status: 'PENDING', employee: { companyId: ctx.companyId } },
-      select: { id: true, employeeId: true, effectiveFrom: true, requestedAt: true, employee: { select: { name: true, siteId: true, site: { select: { name: true } }, user: { select: { id: true } } } } },
-      orderBy: { requestedAt: 'asc' },
-      take: 200,
-    });
+    const pending = await payChangeReads.pending(ctx.companyId);
     return pending.map((p) => ({
       id: `pay-change:${p.id}`,
       kind: 'pay-change',
