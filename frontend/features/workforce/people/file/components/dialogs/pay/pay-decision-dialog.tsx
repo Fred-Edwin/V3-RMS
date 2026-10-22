@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { DialogButton, KeyValueRows, KitDialog, PIN_LENGTH, PersonLabel, PinField } from '../../../../../_shared';
+import { Callout, DialogButton, KeyValueRows, KitDialog, PIN_LENGTH, PersonLabel, PinField } from '../../../../../_shared';
 import { formatDayMonthYear, formatKes, nairobiDay } from '../../../../_shared/lib/people-dates';
 import { peopleReads } from '../../../../_shared/services/people-reads';
 import { peopleWrites } from '../../../../_shared/services/people-writes';
@@ -58,12 +58,17 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
   const unit = pay?.payType === 'DAILY_RATE' ? 'day' : 'month';
   const difference = change ? payDifference(pay?.amount ?? null, change.amount) : null;
   const overlap = change && pay ? overlappingChange(pay.history, change.effectiveFrom, change.id) : null;
-  const askedBy = change ? [change.requestedByName ?? 'HR', change.requestedByPosition, change.requestedBySite].filter(Boolean).join(', ') : '';
+  const askedBy = change ? [change.requestedByName ?? 'HR', change.requestedByPosition, change.requestedBySite].filter(Boolean).join(' · ') : '';
+  const cells = [
+    { kicker: 'NOW', value: pay?.amount ? formatKes(pay.amount) : pay ? 'Not set yet' : '…', note: null },
+    { kicker: 'NEW', value: change ? formatKes(change.amount) : '…', note: change ? `a ${unit}` : null },
+    ...(difference ? [{ kicker: 'DIFFERENCE', value: difference.amount, note: difference.percent }] : []),
+  ];
   return (
     <KitDialog
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Pay change to review"
+      title="Review pay change"
       description="Approving applies it on its start day. Until then the old amount applies."
       busy={action.busy}
       footer={
@@ -82,24 +87,32 @@ export function PayDecisionDialog({ file, requestId, onClose, done }: Pick<FileD
     >
       <PersonLabel name={file.name} position={person?.position} site={person?.site} photoUrl={person?.photoUrl} />
       {change ? (
-        <KeyValueRows
-          aria-label="The change"
-          rows={[
-            { label: 'Now', value: pay?.amount ? `${formatKes(pay.amount)} a ${unit}` : pay ? 'Not set yet' : '…', mono: true },
-            { label: 'New', value: `${formatKes(change.amount)} a ${unit}`, mono: true },
-            ...(difference ? [{ label: 'Difference', value: `${difference.amount} · ${difference.percent}`, mono: true }] : []),
-            { label: 'Starts on', value: formatDayMonthYear(change.effectiveFrom), mono: true },
-            { label: 'Asked by', value: `${askedBy} · ${askedAgo(change.requestedOn, today)}` },
-            { label: 'Reason', value: PAY_REASON_LABELS[change.reason] },
-          ]}
-        />
+        <>
+          <div role="group" aria-label="The change" className="grid border border-wds-border" style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
+            {cells.map((c) => (
+              <div key={c.kicker} className="flex flex-col gap-1 border-l border-wds-border px-3.5 py-3 first:border-l-0">
+                <span className="font-wds-mono text-[10px] leading-3 tracking-[0.08em] text-wds-text-secondary">{c.kicker}</span>
+                <span className="font-wds-sans text-[18px] font-medium leading-6 text-wds-text-ink">{c.value}</span>
+                {c.note ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{c.note}</span> : null}
+              </div>
+            ))}
+          </div>
+          <KeyValueRows
+            aria-label="Start, sender and reason"
+            rows={[
+              { label: 'Starts on', value: formatDayMonthYear(change.effectiveFrom), mono: true },
+              { label: 'Asked by', value: `${askedBy}, ${askedAgo(change.requestedOn, today)}` },
+              { label: 'Reason', value: PAY_REASON_LABELS[change.reason] },
+            ]}
+          />
+        </>
       ) : (
         <p role="status" className="m-0 font-wds-sans text-[13px] text-wds-text-secondary">Loading the change…</p>
       )}
       {overlap ? (
-        <p role="status" className="m-0 border border-wds-warning-fg px-3 py-2 font-wds-sans text-[13px] leading-[18px] text-wds-warning-fg">
-          Another change is already {overlap.status === 'PENDING' ? 'waiting' : 'approved'}: {formatKes(overlap.amount)} from {formatDayMonthYear(overlap.effectiveFrom)}. If both go ahead, the later start day wins.
-        </p>
+        <Callout tone="error" size="sm" role="status" title={`Another change is already ${overlap.status === 'PENDING' ? 'waiting' : 'approved'}`}>
+          {formatKes(overlap.amount)} from {formatDayMonthYear(overlap.effectiveFrom)}. If both go ahead, the later start day wins.
+        </Callout>
       ) : null}
       {decline ? <DialogTextArea label="If you decline, say why" hint="required" value={note} onChange={setNote} rows={2} error={shown ? (validateDecision('DECLINE', note) ?? undefined) : undefined} /> : null}
       <div className="flex flex-col gap-1.5">

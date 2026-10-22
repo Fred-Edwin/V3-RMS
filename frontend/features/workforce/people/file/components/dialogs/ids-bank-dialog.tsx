@@ -2,14 +2,14 @@
 
 import * as React from 'react';
 
-import { DialogButton, KitDialog } from '../../../../_shared';
+import { Callout, DialogButton, KitDialog } from '../../../../_shared';
 import { KENYAN_BANKS, OTHER_BANK, isListedBank } from '../../../_shared/lib/kenyan-banks';
 import { onFileEnding } from '../../../_shared/lib/statutory-formats';
 import { peopleWrites } from '../../../_shared/services/people-writes';
 import { useFileAction } from '../../hooks/use-file-action';
 import { firstName } from '../../lib/file-model';
 import { EMPTY_IDS_BANK, bankBody, bankIsChanging, idsBankErrors, idsBody, nothingTyped, type IdsBankForm } from '../../lib/ids-bank-form';
-import { DialogError, DialogPicker, DialogText, DialogTextArea, FooterNote } from './dialog-fields';
+import { DialogDigits, DialogError, DialogPicker, DialogText, DialogTextArea, FooterNote } from './dialog-fields';
 import type { FileDialogProps } from './file-dialogs';
 
 /**
@@ -46,7 +46,7 @@ export function IdsBankDialog({ file, onClose, done }: FileDialogProps) {
       open
       onOpenChange={(o) => !o && onClose()}
       title={showIds ? 'Edit IDs and bank' : 'Edit bank'}
-      description={`${file.name}. Leave a box empty to keep what is on file.`}
+      description={[file.name, file.position?.name, file.organization.name].filter(Boolean).join(' · ')}
       busy={action.busy}
       footer={
         <>
@@ -58,7 +58,7 @@ export function IdsBankDialog({ file, onClose, done }: FileDialogProps) {
     >
       {showIds ? (
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <DialogText label="National ID" mono value={form.nationalId} onChange={(v) => set({ nationalId: v })} helper={onFileEnding(file.sensitive['nationalId']) ?? undefined} autoFocus />
+          <DialogDigits label="National ID" maxLength={20} value={form.nationalId} onChange={(v) => set({ nationalId: v })} helper={onFileEnding(file.sensitive['nationalId']) ?? undefined} autoFocus />
           <DialogText label="KRA PIN" mono value={form.kraPin} onChange={(v) => set({ kraPin: v })} helper={onFileEnding(file.sensitive['kraPin']) ?? undefined} error={shown ? errors.kraPin : undefined} />
           <DialogText label="NSSF number" mono value={form.nssfNumber} onChange={(v) => set({ nssfNumber: v })} helper={onFileEnding(file.sensitive['nssfNumber']) ?? undefined} error={shown ? errors.nssfNumber : undefined} />
           <DialogText label="SHA number" mono value={form.shaNumber} onChange={(v) => set({ shaNumber: v })} helper={onFileEnding(file.sensitive['shaNumber']) ?? undefined} error={shown ? errors.shaNumber : undefined} />
@@ -78,13 +78,13 @@ export function IdsBankDialog({ file, onClose, done }: FileDialogProps) {
             }}
           />
           {otherBank ? <DialogText label="Name of the bank" value={form.bankName} onChange={(v) => set({ bankName: v })} /> : null}
-          <DialogText label="Account number" mono value={form.accountNumber} onChange={(v) => set({ accountNumber: v })} helper={onFileEnding(file.sensitive['accountNumber']) ?? undefined} />
+          <DialogDigits label="Account number" maxLength={20} value={form.accountNumber} onChange={(v) => set({ accountNumber: v })} helper={onFileEnding(file.sensitive['accountNumber']) ?? undefined} />
         </div>
       ) : null}
       {changing ? (
         <>
           <DialogTextArea label="Reason for change" hint="required" value={form.reason} onChange={(v) => set({ reason: v })} rows={2} error={shown ? errors.reason : undefined} />
-          <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">The Accountant will be told. The change is saved in the audit log.</p>
+          <Callout tone="warning" size="sm">The Accountant will be told. The change is saved in the audit log.</Callout>
         </>
       ) : null}
       <DialogError message={action.error} />

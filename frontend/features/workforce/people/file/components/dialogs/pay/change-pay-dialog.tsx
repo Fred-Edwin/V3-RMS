@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { DialogButton, KitDialog, PIN_LENGTH, PinField, SingleDateField } from '../../../../../_shared';
+import { Callout, DialogButton, KitDialog, PIN_LENGTH, PinField, SingleDateField } from '../../../../../_shared';
 import { useLookups } from '../../../../_shared/hooks/use-people-data';
 import { formatDayMonthYear, formatKes, nairobiDay } from '../../../../_shared/lib/people-dates';
 import { peopleReads } from '../../../../_shared/services/people-reads';
@@ -63,7 +63,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
       open
       onOpenChange={(o) => !o && onClose()}
       title="Edit pay"
-      description={file.name}
+      description={[file.name, file.position?.name, file.organization.name].filter(Boolean).join(' · ')}
       busy={action.busy}
       footer={
         <>
@@ -86,7 +86,7 @@ export function ChangePayDialog({ file, onClose, done }: FileDialogProps) {
           Another change is already {overlap.status === 'PENDING' ? 'waiting' : 'approved'}: {formatKes(overlap.amount)} from {formatDayMonthYear(overlap.effectiveFrom)}. If it goes ahead, it replaces this one on that day. Pick a later day, or ask the Director to decline the other first.
         </p>
       ) : null}
-      <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Pay is never edited in place. This goes to the Director, and the new amount starts on the date above once approved.</p>
+      <Callout tone="warning" size="sm">Pay is never edited in place. This goes to the Director, and the new amount starts on the date above once approved.</Callout>
       <div className="flex flex-col gap-1.5">
         <span className="font-wds-sans text-[13px] leading-4 text-wds-text-ink">Your PIN</span>
         <PinField value={pin} onChange={setPin} label="Your signing PIN" invalid={shown && pin.length !== PIN_LENGTH} disabled={action.busy} />
