@@ -756,7 +756,7 @@ export interface ActiveNav {
 const under = (pathname: string, prefix: string): boolean => pathname === prefix || pathname.startsWith(`${prefix}/`);
 
 /** Paths whose pages always draw their own top bar, even when no row matches them (screens reached from a row, phone-first task routes). */
-const SELF_FRAMED_PREFIXES: readonly string[] = ['/app/inventory', '/app/branch', '/app/workforce/my-file', '/app/workforce/attendance'];
+const SELF_FRAMED_PREFIXES: readonly string[] = ['/app/inventory', '/app/branch', '/app/workforce/my-file', '/app/workforce/attendance', '/app/workforce/team', '/app/workforce/probation'];
 
 /** Which row (and sub-link) the current path lights: the longest matching prefix wins, so `/app/director/analytics` beats `/app/director`. */
 export function activeFor(groups: readonly NavGroup[], pathname: string): ActiveNav {
