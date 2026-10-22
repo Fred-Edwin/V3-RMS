@@ -26,4 +26,9 @@ Working file. Delete it when Workforce ships. Written during the live walk (22 O
 | W12 | Director | Needs you | Probation and "no head" rows say "Waiting for HR" but the Director has the same Decide and Assign head buttons. |
 | W13 | Director | Pay review | Worked: Victor Mutua KES 44,000 to 48,000 approved with the PIN, Grace Wanjiku KES 29,000 declined with a reason (the reason is required). Both are correct in the database. |
 | W14 | Director | `/app/workforce/my-team` | Plain black "404 This page could not be found" screen, not the app's look (the menu marks My team "not built"). |
+| W16 | Accountant | Home, notices | The owner had no corrections for the Accountant. "Bank details changed" shows in Latest but only says "A person's bank details were changed" (no name). |
+| W17 | Accountant | Home card "Pay changes this month 3" | Links to `employees?filter=pay_change`; the list ignores it and shows all 50 people (there is no such chip). The HR and Director Home cards use the same link. |
+| W18 | Accountant | Employees, Blocks payroll | Two Branch Managers appear only because of "Job details missing". |
+| W19 | Accountant | Menu | Only Overview, Employees, Payroll and Rules (Payslips is marked "not built"). The blocked-page screen collapses the Workforce menu group. |
+| W20 | Accountant | My file | Not walked (expected the same narrow screen as rows 1 and 3). |
 | W15 | Director | Blocked page | I could not find a page the Director is blocked from, so the "Not available" screen was not shown for this role. |
