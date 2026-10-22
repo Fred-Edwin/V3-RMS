@@ -65,4 +65,5 @@ export function initialsOf(name: string): string {
 }
 
 export const WHATSAPP_URL = 'https://wa.me/254113176613';
+export const PHONE_SUPPORT_LINE = 'Need help? +254 113 176 613 · 6 a.m. to 10 p.m.';
 export const SUPPORT_LINE = 'Need help? Call or WhatsApp Fred on +254 113 176 613 · Every day, 6 a.m. to 10 p.m.';

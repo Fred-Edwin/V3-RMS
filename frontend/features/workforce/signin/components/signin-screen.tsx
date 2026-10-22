@@ -156,7 +156,7 @@ export function SigninScreen(): JSX.Element {
   const who = pending ? { name: pending.user.name, line: `${roleLabel(pending.user.role)} · ${pending.user.organizationName ?? 'Company'}` } : null;
 
   return (
-    <SigninShell compactHero={phase.name === 'pin'}>
+    <SigninShell hero={phase.name === 'pin' ? 'pin' : phase.name === 'device' ? 'device' : 'welcome'}>
       {phase.name === 'password' || !pending || !who ? (
         <PasswordStep notice={notice} busy={busy} online={online} wrongCount={wrongCount} onSubmit={(e, p) => void submit(e, p)} onRetryOffline={() => setOnline(navigator.onLine)} />
       ) : phase.name === 'device' ? (

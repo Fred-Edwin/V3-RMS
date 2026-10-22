@@ -9,13 +9,16 @@ import { SUPPORT_LINE, WHATSAPP_URL } from '../lib/signin-rules';
  * grain), a centred hero on top on a phone, the white column with the card, and the support strip at the bottom.
  */
 
-const PANEL_BACKGROUND =
-  'radial-gradient(ellipse 110% 70% at 100% 100% in oklab, #82281E80 0%, #82281E00 68%), linear-gradient(in oklab 160deg, #8A5224 0%, #77461F 14%, #5F3519 30%, #472312 48%, #2F160D 66%, #200E0A 84%, #170807 100%)';
+const STOPS = '#8A5224 0%, #77461F 14%, #5F3519 30%, #472312 48%, #2F160D 66%, #200E0A 84%, #170807 100%';
+/** The desktop panel: straight down, with a red-brown glow in the bottom right corner. */
+const PANEL_BACKGROUND = `radial-gradient(ellipse 110% 70% at 100% 100% in oklab, #82281E80 0%, #82281E00 68%), linear-gradient(in oklab 180deg, ${STOPS})`;
+const PHONE_BACKGROUND = `linear-gradient(in oklab 160deg, ${STOPS})`;
+const PHONE_WELCOME_BACKGROUND = 'linear-gradient(in oklab 165deg, #6B3C1B 0%, #4A2812 38%, #2A1608 72%, #1A0D04 100%)';
 
-/** The grain: fractal noise at 35%, blended over the gradient. Decorative. */
-function Grain(): JSX.Element {
+/** The grain: fractal noise (35%, 22% on the phone Welcome back), blended over the gradient. Decorative. */
+function Grain({ opacity = 0.35 }: { opacity?: number }): JSX.Element {
   return (
-    <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.35] mix-blend-overlay" xmlns="http://www.w3.org/2000/svg">
+    <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full mix-blend-overlay" style={{ opacity }} xmlns="http://www.w3.org/2000/svg">
       <filter id="signin-grain" x="0" y="0" width="100%" height="100%">
         <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
         <feColorMatrix type="saturate" values="0" />
@@ -26,14 +29,28 @@ function Grain(): JSX.Element {
 }
 
 function Badge({ size }: { size: number }): JSX.Element {
-  return <Image src="/images/wendo-logo.jpg" alt="" width={size} height={size} priority className="rounded-full border-[1.5px] border-[#D9A65EB3] bg-[#4E2C14] object-cover" />;
+  return <Image src="/images/wendo-logo.jpg" alt="" width={size} height={size} priority className="relative shrink-0 rounded-full border-[1.5px] border-[#D9A65EB3] bg-[#4E2C14] object-cover" />;
 }
 
-function Name({ className }: { className: string }): JSX.Element {
+/**
+ * The name lockup and, under it, what the system is (Paper: sign-in frames, "Platform line"). On the panel a 32 x 2 caramel rule and an
+ * 11 px label; on the phone hero the label alone at 10 px. Geist Mono, uppercase, 0.16em, the panel's muted cream.
+ */
+function Name({ className, where }: { className: string; where: 'panel' | 'hero' }): JSX.Element {
   return (
-    <div className="flex flex-col items-center font-wds-sans tracking-[-0.03em]">
-      <span className={`font-semibold text-[#F7EFE4] ${className}`}>Wendo Coffee</span>
-      <span className={`font-light text-[#E3B877] ${className}`}>Bistro</span>
+    <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center font-wds-sans tracking-[-0.03em]">
+        <span className={`font-semibold text-[#F7EFE4] ${className}`}>Wendo Coffee</span>
+        <span className={`font-light text-[#E3B877] ${className}`}>Bistro</span>
+      </div>
+      {where === 'panel' ? (
+        <div className="flex flex-col items-center gap-2.5 pt-3.5">
+          <span className="h-0.5 w-8 bg-[#D9A65E]" aria-hidden />
+          <span className="whitespace-pre font-wds-mono text-[11px] font-normal uppercase leading-[14px] tracking-[0.16em] text-[#CDBFAE]">Management platform</span>
+        </div>
+      ) : (
+        <span className="whitespace-pre pt-2 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.16em] text-[#CDBFAE]">Management platform</span>
+      )}
     </div>
   );
 }
@@ -54,7 +71,7 @@ function BrandPanel(): JSX.Element {
       <Grain />
       <div className="relative flex flex-col items-center gap-[18px] pt-6">
         <Badge size={112} />
-        <Name className="text-[40px] leading-[44px]" />
+        <Name className="text-[40px] leading-[44px]" where="panel" />
       </div>
       <div className="relative flex flex-col gap-7">
         <h2 className="max-w-[340px] font-wds-sans text-[34px] font-semibold leading-[40px] tracking-[-0.03em] text-[#F7EFE4]">Run every branch from one place.</h2>
@@ -81,27 +98,39 @@ function BrandPanel(): JSX.Element {
   );
 }
 
-/** On a phone the panel becomes a hero: the badge and the name, same gradient and grain. */
-function PhoneHero({ compact }: { compact: boolean }): JSX.Element {
+export type SigninHero = 'welcome' | 'device' | 'pin';
+
+/**
+ * On a phone the panel becomes a hero: the badge and the name, the grain and a gradient. Paper draws it three sizes: 300 px on Welcome
+ * back (its own 165 degree gradient, lighter grain), 240 px on the device step and 200 px on Set your PIN.
+ */
+const HERO: Record<SigninHero, { box: string; badge: number; name: string; background: string; grain: number }> = {
+  welcome: { box: 'h-[300px] gap-[18px] pt-5', badge: 88, name: 'text-[34px] leading-[38px]', background: PHONE_WELCOME_BACKGROUND, grain: 0.22 },
+  device: { box: 'h-[240px] gap-4 pt-3', badge: 72, name: 'text-[28px] leading-8', background: PHONE_BACKGROUND, grain: 0.35 },
+  pin: { box: 'h-[200px] gap-3 pt-2', badge: 64, name: 'text-[26px] leading-[30px]', background: PHONE_BACKGROUND, grain: 0.35 },
+};
+
+function PhoneHero({ hero }: { hero: SigninHero }): JSX.Element {
+  const h = HERO[hero];
   return (
-    <header className={`relative flex flex-col items-center justify-center gap-3 overflow-hidden lg:hidden ${compact ? 'h-[200px]' : 'h-[260px]'}`} style={{ backgroundImage: PANEL_BACKGROUND }}>
-      <Grain />
-      <div className="relative flex flex-col items-center gap-3">
-        <Badge size={compact ? 64 : 80} />
-        <Name className={compact ? 'text-[26px] leading-[28px]' : 'text-[30px] leading-[34px]'} />
+    <header className={`relative flex flex-col items-center justify-center overflow-hidden px-6 lg:hidden ${h.box}`} style={{ backgroundImage: h.background }}>
+      <Grain opacity={h.grain} />
+      <Badge size={h.badge} />
+      <div className="relative">
+        <Name className={h.name} where="hero" />
       </div>
     </header>
   );
 }
 
-export function SigninShell({ children, compactHero = false }: { children: ReactNode; compactHero?: boolean }): JSX.Element {
+export function SigninShell({ children, hero = 'welcome' }: { children: ReactNode; hero?: SigninHero }): JSX.Element {
   return (
     <main className="flex min-h-screen flex-col bg-wds-canvas font-wds-sans text-wds-text lg:flex-row">
       <BrandPanel />
-      <PhoneHero compact={compactHero} />
+      <PhoneHero hero={hero} />
       <div className="flex min-w-0 flex-1 flex-col lg:border-l lg:border-[#D9A65E8C]">
-        <div className="flex flex-1 items-start justify-center px-5 py-8 lg:items-center lg:px-0 lg:py-10">{children}</div>
-        <footer className="flex shrink-0 items-center border-t border-wds-border px-5 py-4 text-[13px] leading-[18px] text-wds-neutral-700 lg:h-16 lg:px-10 lg:py-0">
+        <div className={`flex flex-1 flex-col px-6 lg:items-center lg:justify-center lg:px-0 lg:py-10 ${hero === 'pin' ? 'pb-3.5 pt-[22px]' : 'pb-5 pt-7'}`}>{children}</div>
+        <footer className="hidden shrink-0 items-center border-t border-wds-border px-5 py-4 text-[13px] leading-[18px] text-wds-neutral-700 lg:flex lg:h-16 lg:px-10 lg:py-0">
           <a href={WHATSAPP_URL} className="hover:underline" target="_blank" rel="noreferrer">
             {SUPPORT_LINE}
           </a>

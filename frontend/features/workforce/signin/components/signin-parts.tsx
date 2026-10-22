@@ -1,10 +1,14 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, type FormEvent, type ReactNode } from 'react';
 import { AlertCircle, Check, Clock, Info } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { initialsOf, type SigninNotice } from '../lib/signin-rules';
 
-/** The small pieces every sign-in card shares: the card, the three-step marker, the coloured message bar and the person strip. */
+/**
+ * The small pieces every sign-in screen shares: the card, the three-step marker, the coloured message bar and the person strip.
+ * Paper draws two layouts and they differ on purpose: from 1024 px up a white card on the right of the brand panel; below that no card at
+ * all, the content sits on the page with the heading and fields at the top and the actions pinned to the bottom (390 px frames).
+ */
 
 export type SigninStep = 'password' | 'device' | 'pin';
 const STEPS: ReadonlyArray<{ id: SigninStep; label: string }> = [
@@ -13,8 +17,36 @@ const STEPS: ReadonlyArray<{ id: SigninStep; label: string }> = [
   { id: 'pin', label: 'PIN' },
 ];
 
-export function SigninCard({ children }: { children: ReactNode }): JSX.Element {
-  return <section className="flex w-full max-w-[480px] flex-col gap-6 rounded-[4px] border border-wds-border bg-wds-surface p-6 shadow-[0_8px_24px_-6px_#17151214] sm:p-10">{children}</section>;
+interface CardProps {
+  /** Heading, message bar and fields. */
+  top: ReactNode;
+  /** The actions: the button, the "once" link, the person strip, the phone support lines. Pinned to the bottom on a phone. */
+  bottom?: ReactNode;
+  /** Sits between the two groups (the phone number pad); draws nothing on a computer when the part hides itself. */
+  middle?: ReactNode;
+  /** The phone's Set your PIN frame spaces its top group 18 px apart, the others 24. */
+  snug?: boolean;
+  /** Render the card as the sign-in form. */
+  onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+}
+
+export function SigninCard({ top, middle, bottom, snug = false, onSubmit }: CardProps): JSX.Element {
+  const className =
+    'mx-auto flex w-full max-w-[480px] flex-1 flex-col justify-between gap-6 lg:mx-0 lg:flex-none lg:justify-start lg:rounded-[4px] lg:border lg:border-wds-border lg:bg-wds-surface lg:p-10 lg:shadow-[0_8px_24px_-6px_#17151214]';
+  const body = (
+    <>
+      <div className={cn('flex flex-col lg:gap-6', snug ? 'gap-[18px]' : 'gap-6')}>{top}</div>
+      {middle}
+      {bottom ? <div className="flex flex-col gap-[18px] lg:gap-6">{bottom}</div> : null}
+    </>
+  );
+  return onSubmit ? (
+    <form className={className} onSubmit={onSubmit} noValidate>
+      {body}
+    </form>
+  ) : (
+    <section className={className}>{body}</section>
+  );
 }
 
 /** Password, This device, PIN: done steps carry a tick, the current one a filled ring, the rest an empty one. Icons 20 px (18 on a phone). */
@@ -22,29 +54,29 @@ export function StepMarker({ current, skip }: { current: SigninStep; skip?: read
   const order = STEPS.map((s) => s.id);
   const at = order.indexOf(current);
   return (
-    <ol className="flex items-center gap-[14px]" aria-label="Sign-in steps">
+    <ol className="flex items-center gap-3 lg:gap-[14px]" aria-label="Sign-in steps">
       {STEPS.map((step, i) => {
         const state = i < at ? 'done' : i === at ? 'current' : 'todo';
         const skipped = skip?.includes(step.id) === true;
         return (
           <Fragment key={step.id}>
             {i > 0 ? <li role="presentation" className="h-px flex-1 bg-wds-border-strong" aria-hidden /> : null}
-          <li className="flex items-center" aria-current={state === 'current' ? 'step' : undefined}>
-            <span className={cn('flex items-center gap-2 text-[13px] leading-4', state === 'current' ? 'font-semibold text-wds-text-ink' : state === 'done' ? 'text-wds-text-secondary' : 'text-wds-neutral-500', skipped && 'line-through')}>
-              {state === 'done' ? (
-                <span className="flex size-[18px] items-center justify-center rounded-full bg-wds-success-fg text-white sm:size-5">
-                  <Check size={12} strokeWidth={2.5} aria-hidden />
-                </span>
-              ) : state === 'current' ? (
-                <span className="flex size-[18px] items-center justify-center rounded-full bg-wds-espresso-700 sm:size-5" aria-hidden>
-                  <span className="size-[7px] rounded-full bg-wds-canvas" />
-                </span>
-              ) : (
-                <span className="size-[18px] rounded-full border-[1.5px] border-wds-border-strong sm:size-5" aria-hidden />
-              )}
-              <span className="whitespace-nowrap">{step.label}</span>
-            </span>
-          </li>
+            <li className="flex items-center" aria-current={state === 'current' ? 'step' : undefined}>
+              <span className={cn('flex items-center gap-[7px] text-[13px] leading-4 lg:gap-2', state === 'current' ? 'font-semibold text-wds-text-ink' : state === 'done' ? 'text-wds-text-secondary' : 'text-wds-neutral-500', skipped && 'line-through')}>
+                {state === 'done' ? (
+                  <span className="flex size-[18px] items-center justify-center rounded-full bg-wds-success-fg text-white lg:size-5">
+                    <Check size={12} strokeWidth={2.5} aria-hidden />
+                  </span>
+                ) : state === 'current' ? (
+                  <span className="flex size-[18px] items-center justify-center rounded-full bg-wds-espresso-700 lg:size-5" aria-hidden>
+                    <span className="size-1.5 rounded-full bg-wds-canvas lg:size-[7px]" />
+                  </span>
+                ) : (
+                  <span className="size-[18px] rounded-full border-[1.5px] border-wds-border-strong lg:size-5" aria-hidden />
+                )}
+                <span className="whitespace-nowrap">{step.label}</span>
+              </span>
+            </li>
           </Fragment>
         );
       })}
@@ -52,12 +84,15 @@ export function StepMarker({ current, skip }: { current: SigninStep; skip?: read
   );
 }
 
-/** The caramel rule above a heading and the heading itself, with a line under it. Paper's device step draws no rule. */
-export function Heading({ title, lead, rule = true }: { title: string; lead?: string; rule?: boolean }): JSX.Element {
+/**
+ * The heading and the line under it. The caramel rule above it is drawn on a computer only, and not on the device step (Paper 3.2 draws
+ * none there); the phone frames draw no rule at all.
+ */
+export function Heading({ title, lead, rule = true, tight = false }: { title: string; lead?: string; rule?: boolean; tight?: boolean }): JSX.Element {
   return (
-    <div className="flex flex-col gap-3">
-      {rule ? <span className="h-0.5 w-8 bg-wds-caramel-500" aria-hidden /> : null}
-      <h1 className="font-wds-sans text-[28px] font-semibold leading-[34px] tracking-[-0.025em] text-wds-text-ink sm:text-[34px] sm:leading-[38px]">{title}</h1>
+    <div className={cn('flex flex-col lg:gap-3', tight ? 'gap-1.5' : 'gap-2')}>
+      {rule ? <span className="hidden h-0.5 w-8 bg-wds-caramel-500 lg:block" aria-hidden /> : null}
+      <h1 className="font-wds-sans text-[30px] font-semibold leading-[34px] tracking-[-0.025em] text-wds-text-ink lg:text-[34px] lg:leading-[38px]">{title}</h1>
       {lead ? <p className="text-[15px] leading-[22px] text-wds-neutral-700">{lead}</p> : null}
     </div>
   );
@@ -82,12 +117,12 @@ export function NoticeBar({ kind, children }: { kind: SigninNotice['kind']; chil
   );
 }
 
-/** Who is signing in, with "Not you? Sign out" (device and PIN steps). */
-export function PersonStrip({ name, line, onNotYou }: { name: string; line: string; onNotYou: () => void }): JSX.Element {
+/** Who is signing in, with "Not you? Sign out" (device and PIN steps). The phone frames draw no initials box. */
+export function PersonStrip({ name, line, onNotYou, snug = false }: { name: string; line: string; onNotYou: () => void; snug?: boolean }): JSX.Element {
   return (
-    <div className="flex items-center justify-between border-t border-wds-border pt-5">
+    <div className={cn('flex items-center justify-between border-t border-wds-border lg:pt-5', snug ? 'pt-3' : 'pt-3.5')}>
       <div className="flex items-center gap-2.5">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-[2px] bg-wds-neutral-100 font-wds-mono text-[10px] text-wds-neutral-700" aria-hidden>
+        <span className="hidden size-7 shrink-0 items-center justify-center rounded-[2px] bg-wds-neutral-100 font-wds-mono text-[10px] text-wds-neutral-700 lg:flex" aria-hidden>
           {initialsOf(name)}
         </span>
         <div className="flex min-w-0 flex-col">
@@ -102,17 +137,17 @@ export function PersonStrip({ name, line, onNotYou }: { name: string; line: stri
   );
 }
 
-/** The espresso button of the sign-in cards: 48 high, a sheen, an optional key hint (Enter). */
+/** The espresso button of the sign-in screens: 48 high on a computer (52 on a phone), a sheen, an optional key hint (Enter) on a computer. */
 export function PrimaryButton({ children, hint, disabled, busy, type = 'button', onClick }: { children: ReactNode; hint?: string; disabled?: boolean; busy?: boolean; type?: 'button' | 'submit'; onClick?: () => void }): JSX.Element {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled || busy}
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[2px] bg-[linear-gradient(180deg,#8B5A32_0%,#693C1B_100%)] text-[15px] font-medium leading-[18px] text-wds-canvas shadow-[inset_0_1px_0_#FFFFFF14] transition-[transform,opacity] duration-150 ease-out hover:opacity-95 focus-visible:outline-none focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-wds-neutral-100 disabled:bg-none disabled:text-wds-neutral-500 disabled:shadow-none"
+      className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[2px] bg-[linear-gradient(180deg,#8B5A32_0%,#693C1B_100%)] text-base font-medium leading-5 text-wds-canvas shadow-[inset_0_1px_0_#FFFFFF14] transition-[transform,opacity] duration-150 ease-out hover:opacity-95 focus-visible:outline-none focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-wds-neutral-100 disabled:bg-none disabled:text-wds-neutral-500 disabled:shadow-none lg:h-12 lg:text-[15px] lg:leading-[18px]"
     >
       {busy ? 'One moment…' : children}
-      {hint && !busy && !disabled ? <kbd className="hidden border border-white/30 px-1.5 font-wds-mono text-[11px] font-normal leading-4 text-[#EEDDCC] sm:inline">{hint}</kbd> : null}
+      {hint && !busy && !disabled ? <kbd className="hidden border border-white/30 px-1.5 font-wds-mono text-[11px] font-normal leading-4 text-[#EEDDCC] lg:inline">{hint}</kbd> : null}
     </button>
   );
 }
