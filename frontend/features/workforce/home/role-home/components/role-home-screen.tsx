@@ -11,7 +11,7 @@ import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
 import { FOCUS_RING, MOTION, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../../_shared';
-import { notificationWrites, useUnreadStore } from '../../../notifications';
+import { notificationWrites, useOpenNotifications, useUnreadStore } from '../../../notifications';
 import { registerHomeCards } from '../../cards';
 import { getHomeCards } from '../../lib/card-registry';
 import { greetingFor, homeDate } from '../../lib/greeting';
@@ -48,6 +48,7 @@ export function RoleHomeScreen() {
   const phone = useIsPhone();
   const home = useRoleHome();
   const unread = useUnreadStore((s) => s.unread);
+  const openNotifications = useOpenNotifications();
   const setUnread = useUnreadStore((s) => s.setUnread);
   const [marking, setMarking] = React.useState(false);
   const now = new Date();
@@ -109,7 +110,7 @@ export function RoleHomeScreen() {
         hideSearch
         actions={
           <>
-            <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} className="size-8" />
+            <TopbarBell href={NOTIFICATIONS_HREF} unread={unread} onClick={openNotifications} className="size-8" />
             {topAction ? (
               <Link href={topAction.href} className={cn('inline-flex h-8 items-center bg-wds-primary px-3.5 font-wds-sans text-[13px] font-medium text-wds-primary-fg hover:bg-wds-primary-hover', MOTION, FOCUS_RING)}>
                 {topAction.label}

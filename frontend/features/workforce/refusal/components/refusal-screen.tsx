@@ -12,7 +12,7 @@ import { TopbarBell } from '@/components/app/shell/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
 import { FOCUS_RING, MOTION, PRESSED, initialsOf, useWorkforceNavDrawer } from '../../_shared';
-import { useUnreadStore } from '../../notifications';
+import { useOpenNotifications, useUnreadStore } from '../../notifications';
 import { usePageFor } from '../hooks/use-page-for';
 import { REFUSAL_TITLE, pageNameFromPath, refusalBody, refusalCaption, refusalFooter, safeFrom } from '../lib/refusal-words';
 
@@ -39,6 +39,7 @@ export function RefusalScreen() {
   const from = safeFrom(params.get('from'));
   const user = useAuthStore((s) => s.user);
   const unread = useUnreadStore((s) => s.unread);
+  const openNotifications = useOpenNotifications();
   const { open: openMenu } = useWorkforceNavDrawer();
   const info = usePageFor(from);
   const data = info.data;
@@ -47,7 +48,7 @@ export function RefusalScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <Topbar breadcrumb={{ section: 'Workforce', screen: page }} hideSearch actions={<TopbarBell href="/app/workforce/notifications" unread={unread} />} className="hidden lg:flex" />
+      <Topbar breadcrumb={{ section: 'Workforce', screen: page }} hideSearch actions={<TopbarBell href="/app/workforce/notifications" unread={unread} onClick={openNotifications} />} className="hidden lg:flex" />
       <PhoneSectionBar title={page} kicker="WORKFORCE" unread={unread} bellHref="/app/workforce/notifications" onMenu={openMenu} className="md:hidden" />
       <MobileTopbar title={page} orgLabel="WORKFORCE" initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="hidden md:flex lg:hidden" />
       <main aria-label="Not available" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">

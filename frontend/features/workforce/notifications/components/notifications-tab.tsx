@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 
 import { EmptyState, ErrorBlock, FOCUS_RING, InboxRow, ListSkeleton, MOTION, onHover, useNow } from '../../_shared';
-import { useNotificationPage } from '../hooks/use-notification-page';
+import { plainQuery, useNotificationPage } from '../hooks/use-notification-page';
 import { areaKind, safeHref, whenExact, whenWords } from '../lib/notification-words';
 
 /**
@@ -20,7 +20,7 @@ export function NotificationsTab() {
   const now = useNow();
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(25);
-  const list = useNotificationPage(page, pageSize);
+  const list = useNotificationPage(plainQuery(page, pageSize));
   const items = list.data?.items ?? [];
   const hasUnread = items.some((n) => !n.read);
 

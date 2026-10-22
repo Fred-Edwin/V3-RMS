@@ -2,28 +2,29 @@
 
 import * as React from 'react';
 
-import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
+import { PhoneSectionBar } from '@/components/app/shell/phone-section-bar';
 import { Topbar } from '@/components/app/shell/topbar';
-import { useAuthStore } from '@/store/authStore';
 
-import { initialsOf, useWorkforceNavDrawer } from '../../_shared';
-import { NotificationsTab } from './notifications-tab';
+import { useWorkforceNavDrawer } from '../../_shared';
+import { unreadLine } from '../lib/notification-words';
+import { useUnreadStore } from '../store/unread-store';
+import { NotificationList } from './notification-list';
 
 /**
- * Notifications, `/app/workforce/notifications`: where Home's bell and "See all notifications" go. The person's own Workforce
- * notifications, newest first, paged (the Inbox tab's list, on its own page: there is no Inbox in Workforce).
+ * Notifications as a page, `/app/workforce/notifications` (Paper 13.2): what the bell and "See all notifications" open on a phone. On a
+ * desktop screen they open the drawer instead, so this page is reached there only by a typed link or a push, and it shows the same list
+ * in the shell's usual frame. There is no Inbox in Workforce.
  */
 export function NotificationsScreen() {
-  const user = useAuthStore((s) => s.user);
+  const unread = useUnreadStore((s) => s.unread);
   const { open: openMenu } = useWorkforceNavDrawer();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar breadcrumb={{ root: 'Workforce', section: 'Overview', sectionHref: '/app/workforce', screen: 'Notifications' }} hideSearch className="hidden lg:flex" />
-      <MobileTopbar title="Notifications" orgLabel={(user?.organizationName ?? 'COMPANY').toUpperCase()} initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="lg:hidden" />
-      <main aria-label="Notifications" className="min-h-0 flex-1 overflow-y-auto bg-wds-canvas">
-        <div className="mx-auto flex max-w-[860px] flex-col gap-3 px-4 py-6 md:px-8 md:py-7">
-          <h1 className="m-0 font-wds-sans text-[28px] font-semibold leading-9 tracking-[-0.02em] text-wds-text-ink">Notifications</h1>
-          <NotificationsTab />
+      <PhoneSectionBar title="Notifications" kicker={unreadLine(unread).toUpperCase()} unread={unread} bellHref="/app/workforce/notifications" hideBell onMenu={openMenu} className="lg:hidden" />
+      <main aria-label="Notifications" className="flex min-h-0 flex-1 flex-col bg-wds-canvas">
+        <div className="mx-auto flex min-h-0 w-full max-w-[560px] flex-1 flex-col lg:border-x lg:border-wds-border lg:bg-wds-surface">
+          <NotificationList variant="page" />
         </div>
       </main>
     </div>

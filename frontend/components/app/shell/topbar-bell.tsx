@@ -7,11 +7,12 @@ import { cn } from '@/lib/cn';
  * The bell in the top bar (Paper 1.1): an outlined bell, and a small brown box with the unread number at its corner ("99+" over 99).
  * Nothing unread draws no box. It is a link to the person's notifications, so it works with the keyboard and a screen reader says how many.
  */
-export function TopbarBell({ href, unread, className }: { href: string; unread: number; className?: string }) {
+export function TopbarBell({ href, unread, onClick, className }: { href: string; unread: number; /** Lets a desktop screen open a drawer instead of following the link. */ onClick?: React.MouseEventHandler<HTMLAnchorElement>; className?: string }) {
   const text = unread > 99 ? '99+' : String(unread);
   return (
     <Link
       href={href}
+      onClick={onClick}
       aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
       className={cn('relative flex size-9 items-center justify-center border border-wds-border-strong bg-wds-surface text-wds-text-ink outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring', className)}
     >

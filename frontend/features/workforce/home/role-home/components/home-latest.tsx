@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 
 import { FOCUS_RING, MOTION, onHover, useNow } from '../../../_shared';
-import { safeHref } from '../../../notifications';
+import { safeHref, useOpenNotifications } from '../../../notifications';
 import { latestWhen } from '../lib/role-home-words';
 import type { HomeLatest } from '../types/role-home-types';
 
@@ -19,6 +19,7 @@ export const NOTIFICATIONS_HREF = '/app/workforce/notifications';
  */
 export function HomeLatestList({ items, onMarkAllRead, busy = false, phone = false }: { items: readonly HomeLatest[]; onMarkAllRead: () => void; busy?: boolean; phone?: boolean }) {
   const now = useNow();
+  const openNotifications = useOpenNotifications();
   const anyUnread = items.some((n) => !n.read);
   return (
     <section aria-label="Latest" className="flex min-w-0 flex-col">
@@ -56,7 +57,7 @@ export function HomeLatestList({ items, onMarkAllRead, busy = false, phone = fal
           );
         })}
       </ul>
-      <Link href={NOTIFICATIONS_HREF} className={cn('self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', phone ? 'flex h-11 items-center' : 'mt-2.5', MOTION, FOCUS_RING, onHover('underline'))}>
+      <Link href={NOTIFICATIONS_HREF} onClick={openNotifications} className={cn('self-start font-wds-sans text-[13px] font-medium leading-4 text-wds-warning-fg', phone ? 'flex h-11 items-center' : 'mt-2.5', MOTION, FOCUS_RING, onHover('underline'))}>
         See all notifications
       </Link>
     </section>

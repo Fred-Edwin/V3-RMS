@@ -13,7 +13,7 @@ import { SearchInput } from '@/components/ui2/search-input';
 import { useAuthStore } from '@/store/authStore';
 
 import { EmptyState, FOCUS_RING, FilterChip, MOTION, initialsOf, onHover, useNow, useWorkforceNavDrawer } from '../../../_shared';
-import { useUnreadStore } from '../../../notifications';
+import { useOpenNotifications, useUnreadStore } from '../../../notifications';
 import { useNeedsYouPage } from '../hooks/use-needs-you-page';
 import { needsYouPageLine, safeOpens, sinceWords } from '../lib/role-home-words';
 import type { NeedsYouPage } from '../types/role-home-types';
@@ -75,6 +75,7 @@ export function NeedsYouPageScreen() {
   const user = useAuthStore((s) => s.user);
   const { open: openMenu } = useWorkforceNavDrawer();
   const unread = useUnreadStore((s) => s.unread);
+  const openNotifications = useOpenNotifications();
   const { filters, change, remote } = useNeedsYouPage();
   const page = remote.data;
   const kinds = page ? page.groups.filter((g) => g.key !== 'overdue').length : 0;
@@ -85,7 +86,7 @@ export function NeedsYouPageScreen() {
       <Topbar
         breadcrumb={{ root: 'Workforce', section: 'Overview', sectionHref: '/app/workforce', screen: 'Needs you' }}
         hideSearch
-        actions={<TopbarBell href="/app/workforce/notifications" unread={unread} />}
+        actions={<TopbarBell href="/app/workforce/notifications" unread={unread} onClick={openNotifications} />}
         className="hidden lg:flex"
       />
       <MobileTopbar title="Needs you" orgLabel={(user?.organizationName ?? 'COMPANY').toUpperCase()} initials={initialsOf(user?.name ?? '')} onMenuClick={openMenu} className="lg:hidden" />

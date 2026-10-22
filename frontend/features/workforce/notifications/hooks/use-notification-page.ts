@@ -5,38 +5,45 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toRemoteError, useWorkforceNudge, type RemoteError } from '../../_shared';
 import { notificationReads, notificationWrites } from '../services/notification-services';
 import { useUnreadStore } from '../store/unread-store';
-import type { NotificationPage } from '../types/notification-types';
+import type { NotificationPage, NotificationQuery } from '../types/notification-types';
+
+/** The old Inbox tab asks only for a page; the drawer and the phone page add filters. */
+export const plainQuery = (page: number, pageSize: number): NotificationQuery => ({ page, pageSize, unreadOnly: false, area: null, q: '' });
 
 /**
- * One page of the person's Notifications, newest first. It reads again on the nudge, when the tab returns and every minute. Marking
- * a row read changes it on screen at once and tells the server; the shared unread number comes back from the server's answer.
- * A failed refresh keeps the last page (greyed by the caller) and reports the error.
+ * One page of the person's Notifications, newest first, under the given filters. It reads again on the nudge, when the tab returns and
+ * every minute. Marking a row read changes it on screen at once and tells the server; the shared unread number comes back from the
+ * server's answer. A failed refresh keeps the last page (greyed by the caller) and reports the error.
  */
-export function useNotificationPage(page: number, pageSize: number) {
+export function useNotificationPage(query: NotificationQuery, enabled = true) {
   const setUnread = useUnreadStore((s) => s.setUnread);
   const [answer, setAnswer] = useState<{ key: string; data: NotificationPage | null; error: RemoteError | null } | null>(null);
-  const key = `${page}:${pageSize}`;
+  const { page, pageSize, unreadOnly, area, q } = query;
+  const key = `${page}:${pageSize}:${unreadOnly}:${area ?? ''}:${q}`;
 
   const load = useCallback((): void => {
-    notificationReads.list(page, pageSize, false).then(
+    notificationReads.list({ page, pageSize, unreadOnly, area, q }).then(
       (data) => {
         setAnswer({ key, data, error: null });
         setUnread(data.unread);
       },
       (err: unknown) => setAnswer((prev) => ({ key, data: prev?.key === key ? prev.data : null, error: toRemoteError(err) }))
     );
-  }, [page, pageSize, key, setUnread]);
+  }, [page, pageSize, unreadOnly, area, q, key, setUnread]);
 
   useEffect(() => {
-    load();
-  }, [load]);
-  useWorkforceNudge(['workforce:notifications'], load);
+    if (enabled) load();
+  }, [enabled, load]);
+  useWorkforceNudge(['workforce:notifications'], () => {
+    if (enabled) load();
+  });
 
   const markRead = useCallback(
     async (ids: readonly string[]): Promise<void> => {
       setAnswer((prev) => (prev?.data ? { ...prev, data: { ...prev.data, items: prev.data.items.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)) } } : prev));
       try {
         setUnread((await notificationWrites.read(ids)).unread);
+        load();
       } catch {
         load();
       }
@@ -48,6 +55,7 @@ export function useNotificationPage(page: number, pageSize: number) {
     setAnswer((prev) => (prev?.data ? { ...prev, data: { ...prev.data, items: prev.data.items.map((n) => ({ ...n, read: true })) } } : prev));
     try {
       setUnread((await notificationWrites.readAll()).unread);
+      load();
     } catch {
       load();
     }

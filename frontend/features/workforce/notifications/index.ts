@@ -4,6 +4,8 @@
  */
 export { NotificationsTab } from './components/notifications-tab';
 export { NotificationsScreen } from './components/notifications-screen';
+export { NotificationsDrawer } from './components/notifications-drawer';
+export { useOpenNotifications } from './hooks/use-open-notifications';
 export { useWorkforceUnread, useWorkforceUnreadCount } from './hooks/use-workforce-unread';
 export { notificationWrites } from './services/notification-services'; // Home's "Mark all read"
 export { useUnreadStore } from './store/unread-store';
