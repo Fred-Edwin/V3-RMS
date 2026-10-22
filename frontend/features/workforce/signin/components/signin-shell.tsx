@@ -39,9 +39,9 @@ function Badge({ size }: { size: number }): JSX.Element {
 function Name({ className, where }: { className: string; where: 'panel' | 'hero' }): JSX.Element {
   return (
     <div className="flex flex-col items-center">
-      <div className="flex flex-col items-center font-wds-sans tracking-[-0.03em]">
-        <span className={`font-semibold text-[#F7EFE4] ${className}`}>Wendo Coffee</span>
-        <span className={`font-light text-[#E3B877] ${className}`}>Bistro</span>
+      <div className="flex flex-col items-center font-wds-sans">
+        <span className={`font-semibold tracking-[-0.03em] text-[#F7EFE4] ${className}`}>Wendo Coffee</span>
+        <span className={`font-light tracking-[-0.03em] text-[#E3B877] ${className}`}>Bistro</span>
       </div>
       {where === 'panel' ? (
         <div className="flex flex-col items-center gap-2.5 pt-3.5">
