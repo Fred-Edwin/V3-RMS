@@ -7,7 +7,7 @@ import type { NavContext, NavGroup, NavLink, NavLinkSub, NavRow } from './types'
 /**
  * The menu as Paper 2.1 to 2.7 draws it: three levels. At the top, Home. Then one row per feature (Workforce, Inventory, Operations,
  * Company; a floor person's own work row and a head's Department), each opening with its links, split by small captions. Personal items
- * (My file, My payslips, Profile, ...) are not in the sidebar: they open from the name at the bottom (`account`).
+ * (My file, My payslips, Profile, ...) are the `account` list: the sidebar draws them as the last group, "My account" (`menu/account-group.ts`).
  *
  * It is built from the same table as everything else: Workforce and Department are rows of their own (`rows-workforce.ts`); the older
  * groups are placed under Inventory, Operations, Company or the person's work row by `GROUP_PLACE` below, their group name becoming
