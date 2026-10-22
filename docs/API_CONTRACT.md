@@ -169,6 +169,7 @@ Authenticates a user and returns tokens.
 **Notes:**
 - Refresh token is set as an HTTP-only cookie: `refreshToken`
 - Rate limited: 10 requests per minute per IP
+- **Nobody is locked out for wrong passwords (22 Oct 2026).** After the 5th wrong try inside 15 minutes the answer waits. A try while the pause runs, even with the right password, gets `429 LOGIN_SLOWED` with `error.details.waitSeconds` of 2, 4, 8, 16, then 30. Tries are stored in `workforce_pin_tries` under purpose `PASSWORD`, the same pause schedule as the PIN checks. The sign-in screen counts the seconds down.
 
 ---
 
@@ -5629,3 +5630,16 @@ Audit read, the documents door and index, and verify. No new capability: each ro
 **Wire names (found in the front end B walk, 21 Oct 2026):** answers say `organization`, never `site`. The audit list's `facets.organizations`, each audit row's `organizationId` and `organizationName`, and the documents list's `organizations` (the Site filter's options: every company site to a reader who reads some type across the company, an empty list to a one-site reader) and each document's `organizationName`. Query filters accept `siteId` or `organizationId`.
 
 The documents door (`registerDocument(tx, input)`, `withdrawDocument(tx, input)`) is called inside the issuer's own transaction; see `backend/src/modules/workforce/documents/README.md`. **Leave and Conduct are now indexed** (21 Oct 2026): `LVE-nnnn` at approve (voided on cancel) and `WRN-nnnn` once the receipt is final (version 2 per decision); no new route, and the QR is `/verify/lve/LVE-nnnn?h=` or `/verify/wrn/WRN-nnnn?h=` with a 10-character hash. The payroll-export QR hash changed to the shared payslip hash (decisions-6b-backend B14).
+
+## 47. Workforce — Homes, See all and the refusal line (final pass 1, batch 2A, BUILT 22 Oct 2026)
+
+All routes: `authenticate`, `attachWorkforceSubject`; success `{ success: true, data }`; the session gate of section 43 applies. Code: `backend/src/modules/workforce/home/` and `needs-you/`. Read by `frontend/features/workforce/home/role-home/`.
+
+| Endpoint | Capability | Notes |
+|---|---|---|
+| `GET /workforce/home` | signed in (what it holds comes from the access table) | `{ audience, kpis[], needsYou, latest[], unread }`. `audience` is `HR`, `DIRECTOR`, `ACCOUNTANT`, `BRANCH_MANAGER`, `STORE_MANAGER`, `HEAD`, `STAFF` or `SYSTEM_ADMIN`. `kpis` are 3 to 5 cards `{ key, label, value, detail, tone: normal\|attention\|problem, href }`; counts only, never a pay figure. `needsYou` is `null` for a person without `needs_you.read` (staff, heads, Store Attendant), else `{ total, overdue, kinds, rows[] }` with one row per kind, overdue first (`{ key, kindLabel, count, title, line, action, opens, since, overdue }`). A mixed Overdue row says `See overdue` and opens `/app/workforce/needs-you?group=overdue`. `latest` is the newest Inbox rows. |
+| `GET /workforce/needs-you/page?q&group&siteId&page&pageSize` | `needs_you.read` (404 without) | The See all list, one row per item, overdue first. `pageSize` is 10, 25, 50 or 100 (default 10); `group` is a key from `groups` or `overdue`. Returns `{ rows[], total, all, overdue, groups[], sites[], page, pageSize, partial }`; each row carries `kindLabel`, `line`, `action`, `opens`, `overdue`. The answer says `organizations` and `organizationId`/`organizationName` (wire names), never `site`; the query takes `siteId`. |
+| `GET /workforce/page-for?path=/app/...` | signed in | Who a page is for, from the access table, for the refusal screen: `{ page, forWords, roles[], reference, instead, homeLabel }`. `reference` is `WF-` and four characters, the same for the same person and page. `instead` is `null` or `{ line, label, href }`. `400` for a path outside `/app/`. |
+| `GET /workforce/needs-you/counts` | `needs_you.read` | Now also returns `overdue`, the same shape as `badges`, so the sidebar can mark the features that hold overdue items (red-brown mark). |
+| `POST /auth/login` | public | Adds `429 LOGIN_SLOWED` with `details.waitSeconds` (section Auth). |
+
