@@ -78,9 +78,12 @@ function subsOf(link: NavLink, caption: string): NavLinkSub[] {
 export function menuFor(ctx: NavContext, rows: readonly NavRow[] = NAV_ROWS): MenuModel {
   if (!ctx.role) return { top: [], features: [], account: [] };
   const groups = navFor(ctx, rows);
+  // The display screens have no sidebar and no Home: nothing to show.
+  if (groups.length === 0) return { top: [], features: [], account: [] };
   const buckets = new Map<FeatureKey, NavLinkSub[]>();
   const ready = new Map<FeatureKey, NavLink>();
   const account: NavLink[] = [];
+  const adminOnly = ctx.role === 'SYSTEM_ADMIN' && (!ctx.hubRole || ctx.hubRole === 'SYSTEM_ADMIN');
 
   const push = (feature: FeatureKey, subs: NavLinkSub[]): void => {
     buckets.set(feature, [...(buckets.get(feature) ?? []), ...subs]);
@@ -98,6 +101,9 @@ export function menuFor(ctx: NavContext, rows: readonly NavRow[] = NAV_ROWS): Me
       account.push(...group.items);
       continue;
     }
+    // The System Admin's menu is Home and Company only (Paper 2.x): it acts as a user instead of working in the features. A System Admin
+    // previewing another role's Central Store keeps that role's Inventory rows.
+    if (adminOnly && place.feature !== 'company') continue;
     for (const item of group.items) push(place.feature, subsOf(item, place.caption));
   }
 

@@ -64,7 +64,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'my-team', label: 'My team', newHref: '/app/workforce/my-team', roles: SHIFT_STAFF, notBuilt: true },
       { key: 'shifts', label: 'Shifts', newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, needsAttendance: true, match: ['/app/workforce/schedule'] },
       { key: 'today', label: 'Team today', newHref: '/app/workforce/today', roles: SHIFT_STAFF, needsAttendance: true },
-      { key: 'casuals', label: 'Casuals', newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, match: ['/app/workforce/casuals'] },
+      { key: 'casuals', label: 'Casual pay', newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, match: ['/app/workforce/casuals'] },
       { key: 'timesheets', label: 'Timesheets', newHref: '/app/workforce/timesheets', roles: SHIFT_STAFF, notBuilt: true },
     ],
   },
