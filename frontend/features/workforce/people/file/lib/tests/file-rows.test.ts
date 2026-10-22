@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EmployeeFile, PayChangeRow, PayView } from '../../../_shared/types/people-types';
-import { aboutRows, exitBanner, exitRows, jobLeaveRows, jobRows, payAmountLine, payHistoryLines, payRows } from '../file-rows';
+import { aboutRows, exitBanner, exitRows, jobLeaveRows, payAmountLine, payHistoryLines, payRows } from '../file-rows';
 
 const joy = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   ({
@@ -37,24 +37,6 @@ const pay = (over: Partial<PayView> = {}): PayView => ({
 });
 
 describe('job rows', () => {
-  it('reads as Paper does for a monthly person on probation', () => {
-    const rows = jobRows(joy());
-    expect(rows.map((r) => `${r.label}: ${r.value}`)).toEqual([
-      'Position: Barista',
-      'Department: Barista · Nyeri Town',
-      'Reports to: Victor Maina (head)',
-      'Employment: Monthly, on probation',
-      'Started: 14 Jul 2026',
-      'Clocks in and out: Yes, from the position',
-      'Login role: Barista',
-    ]);
-  });
-  it('says a casual has no login and a manually set clock rule', () => {
-    const rows = jobRows(joy({ employment: 'CASUAL', hasLogin: false, loginRole: null, tracksTimeFromPosition: false, probation: null }));
-    expect(rows.find((r) => r.label === 'Employment')?.value).toBe('Casual, daily');
-    expect(rows.find((r) => r.label === 'Login role')?.value).toBe('No login');
-    expect(rows.find((r) => r.label === 'Clocks in and out')?.value).toBe('Yes, set on this file');
-  });
   it('lists the onboarding key values with the probation day', () => {
     const rows = jobLeaveRows(joy({ status: 'ONBOARDING', probation: { ...joy().probation!, endsOn: '2027-01-05' } }));
     expect(rows.map((r) => r.label)).toEqual(['Position', 'Employment', 'Tracks time', 'Annual leave', 'Probation ends']);

@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 
-import { ErrorBlock, KeyValueRows, ListSkeleton, useWorkforcePermissions } from '../../../../_shared';
-import { PANEL_ROWS, PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/components/titled-panel';
+import { ErrorBlock, ListSkeleton, useWorkforcePermissions } from '../../../../_shared';
+import { PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/components/titled-panel';
 import { useEmployeePay } from '../../../_shared/hooks/use-people-data';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { jobRows } from '../../lib/file-rows';
+import { jobCardRows } from '../../lib/job-card-rows';
 import { SensitivePanel } from '../sensitive/sensitive-panel';
-import { IDS_BANK_RESTRICTED, PAY_RESTRICTED, RestrictedCard } from './restricted-card';
+import { IDS_BANK_RESTRICTED, IDS_BANK_TAG, PAY_RESTRICTED, PAY_TAG, RestrictedCard } from './restricted-card';
+import { JobCardRows } from './job-card-rows';
 import { PayHistory, PayPanel, PendingPayChange } from './pay-panels';
 import type { OpenDialog } from './overview-parts';
 
@@ -33,21 +34,18 @@ export function JobPayTab({ file, today, open, reloadKey }: { file: EmployeeFile
 
   const canDecide = permissions.can('payprofile.approve');
   return (
-    <div className="grid grid-cols-[minmax(0,480px)_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1">
+    <div className="grid grid-cols-2 items-start gap-5 max-lg:grid-cols-1">
       <div className="flex flex-col gap-5">
-        <TitledPanel title="Job" aside={file.actions.editJob ? <PanelLink onClick={() => open('edit-job')}>Edit</PanelLink> : <PanelReadOnlyTag>EDITED BY HR</PanelReadOnlyTag>}>
-          <KeyValueRows rows={jobRows(file)} aria-label="Job" topRule={false} className={PANEL_ROWS} />
-          {!file.actions.editJob && file.status !== 'EXITED' ? (
-            <p className="m-0 border-t border-wds-border px-[18px] py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Ask HR to change this.</p>
-          ) : null}
+        <TitledPanel title="Job" aside={file.actions.editJob ? <PanelLink onClick={() => open('edit-job')}>Edit</PanelLink> : <PanelReadOnlyTag>Edited by HR</PanelReadOnlyTag>}>
+          <JobCardRows rows={jobCardRows(file)} />
         </TitledPanel>
         <SensitivePanel file={file} onEdit={file.actions.editIds || file.actions.editBank ? () => open('ids-bank') : undefined} />
       </div>
       <div className="flex flex-col gap-4">
         {payLocked ? (
           <>
-            <RestrictedCard title="IDs and bank" line={IDS_BANK_RESTRICTED} />
-            <RestrictedCard title="Pay" line={PAY_RESTRICTED} />
+            <RestrictedCard title="IDs and bank" tag={IDS_BANK_TAG} line={IDS_BANK_RESTRICTED} />
+            <RestrictedCard title="Pay" tag={PAY_TAG} line={PAY_RESTRICTED} />
           </>
         ) : pay.status === 'error' && !pay.data ? (
           <ErrorBlock title="The pay did not load" line="Nothing was changed. Try again." onRetry={pay.reload} />

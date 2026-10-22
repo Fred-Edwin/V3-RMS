@@ -3,17 +3,19 @@ import * as React from 'react';
 import { Button } from '@/components/ui2/button';
 import { cn } from '@/lib/cn';
 
-import { KeyValueRows, VALUE_TONE_CLASS } from '../../../../_shared';
-import { PANEL_ROWS, PanelCaption, PanelLink, TitledPanel } from '../../../_shared/components/titled-panel';
+import { VALUE_TONE_CLASS } from '../../../../_shared';
+import { PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/components/titled-panel';
 import { formatDayMonthYear, formatKes } from '../../../_shared/lib/people-dates';
 import type { EmployeeFile, PayChangeRow, PayView } from '../../../_shared/types/people-types';
 import { payHistoryLines, payRows } from '../../lib/file-rows';
+import { fromKeyValueRows } from '../../lib/job-card-rows';
+import { JobCardRows } from './job-card-rows';
 
 /** "Pay · HR AND ACCOUNTANT ONLY": the amount (with "starts <date>" before its day), overtime, lateness. */
 export function PayPanel({ pay, file, today, onEdit }: { pay: PayView; file: EmployeeFile; today: string; onEdit?: () => void }) {
   return (
-    <TitledPanel title="Pay" aside={onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelCaption>HR AND ACCOUNTANT ONLY</PanelCaption>}>
-      <KeyValueRows rows={payRows(pay, file.contractStatus, today)} aria-label="Pay" topRule={false} className={PANEL_ROWS} />
+    <TitledPanel title="Pay" aside={onEdit ? <PanelLink onClick={onEdit}>Edit</PanelLink> : <PanelReadOnlyTag>HR and Accountant only</PanelReadOnlyTag>}>
+      <JobCardRows rows={fromKeyValueRows(payRows(pay, file.contractStatus, today))} />
     </TitledPanel>
   );
 }
@@ -41,7 +43,7 @@ export function PendingPayChange({ change, canDecide, onDecide }: { change: PayC
 export function PayHistory({ history }: { history: PayChangeRow[] }) {
   const lines = payHistoryLines(history);
   return (
-    <TitledPanel title="Pay history" aside={<PanelCaption>NOTHING IS OVERWRITTEN</PanelCaption>}>
+    <TitledPanel title="Pay history" aside={<PanelReadOnlyTag>Nothing is overwritten</PanelReadOnlyTag>}>
       <table className="w-full border-collapse text-left">
         <thead>
           <tr>
