@@ -90,7 +90,7 @@ function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate 
           <Chevron open={open} />
         </span>
       </button>
-      <div id={listId} hidden={!open} className="relative flex flex-col gap-0.5 pt-0.5">
+      <div id={listId} hidden={!open} className={cn('relative flex-col gap-0.5 pt-0.5', open ? 'flex' : 'hidden')}>
         {/* The rail: one line down the lane the ticks and nodes sit on. */}
         <span aria-hidden className="absolute bottom-[15px] left-[23.5px] top-0 w-px bg-[#B5823EB3]" />
         {subs.map((sub, i) => (
