@@ -28,3 +28,36 @@ zsh: never `grep --include=*.ts`. Edit/Write tools only. Pronouns: no he/she/his
 
 ## (g) Slips (part 1)
 See "Slips" in `decisions-1-people-batch-2a.md`.
+
+---
+
+# Part 2 progress (22 Oct 2026): what is done, what is left
+
+Part 2 is mostly done. Read `checklist-1-people-batch-2a.md` (Verified column), `decisions-1-people-batch-2a.md` (D22 to D26 and the part 2 slips) and `git log 84089fe8..HEAD` (22 commits, all committed, tree clean, nothing pushed).
+
+## Done and committed
+- **Gates:** front-end `tsc`, `pnpm lint`, `pnpm build` (exit 0, token check ok), `check:imports` (0 errors; 123 warnings, the new one is the Workforce layout importing the notifications feature), `pnpm test` (all pass; last full run 1642, then 1391 in the touched folders). Back end `tsc` clean. **Full back-end suite on the lane DB: 8 files failed, 359 passed**; the failing files are the known DB-flow set: attendance-flow, payroll-flow, payroll-part2, payslips-flow, timesheets-flow, versions-flow, org-heads-flow, conduct-flow (conduct passes when run alone). `versions-flow`, `org-heads-flow` and `pay-access` fail the same way on the base commit. **Still to do: re-run those 8 files one at a time at the very end and report which still fail.** `register-needs-you.test.ts` passes (its earlier timeout was load).
+- **Browser walk (real browser, beside Paper):** sign-in Welcome back, device step and Set your PIN (1440), device step and Welcome back (390), refused PIN and a saved PIN; Homes for HR (1440, 390), Branch Manager (1440, 390), Director, Accountant, Store Manager, System Admin (1440), head (1440, 390), staff (1440, 390); menu and phone drawer; Search; refusal screen (390); See all (1440).
+- **Fixes made on the way (all committed):** sidebar captions cut by the connector line; See all page to Paper 1.12; sign-in name letter-spacing; "1 departments"; "My team" card label; mixed Overdue row says "See overdue".
+- **Docs done:** API_CONTRACT (new section 47 and the login 429 note), module READMEs (home, needs-you, notifications, refusal, sign-in, plus stale mentions in payroll, audit digest, leave), `docs/PROJECT_STATUS.md` row, Workforce README row, checklist Verified column, decisions D22 to D26.
+- **New in this session at the owner's request:** Notifications as a **right-hand drawer on desktop** and a **full page on phones** (Paper 13.1 and 13.2, approved; commits `9b25e340` back end, `f82c9171` front end). Back end: `GET /workforce/notifications` now takes `area` and `q` and returns `all` and `areas[]`. Front end: `features/workforce/notifications/components/` (`notification-list`, `notification-rows`, `notifications-drawer`, `notifications-screen`), `useOpenNotifications`, the drawer mounted in `app/app/workforce/layout.tsx`. Walked at 1440 and 390 (filters, search, clear, open a row marks it read and closes the drawer, Escape, the caught-up state).
+
+## Left to do (owner's list, in this order; Paper first, then build, then a screenshot beside Paper)
+1. **Sidebar sections.** The connector line must break at each sub-heading (Staff, Time, Pay, Setup): each sub-heading starts its own short line with only its own links; features stay separate blocks. The owner's production screenshot of "Manage" with its links is the model. Redraw the sidebar frames in Paper (2.1 to 2.7, 7.6 attention states; the file has old garbled embedded sidebars, do not bulk-redraw them, copy the master) then change `components/app/shell/menu/sidebar-menu.tsx` (rail is one absolutely placed span in `FeatureRow`; captions are in `Caption`).
+2. **A group for the personal links, named "My account"** (owner agreed to avoid the word "Me"; confirm the name if in doubt). Links: My file, My leave, My payslips, Activity on my record, My notices, Profile. Today they appear only in the menu under the name (`menu.ts` `account` rows). Show them in the sidebar as one group so they can be found; Profile and Sign out stay under the name; as a feature is refactored its personal link moves under that feature. Update `nav/` rows, `nav-menu.test.ts` and `nav-naming.test.ts`, and the Paper menu frames.
+3. **Password eye icon** instead of the "Show" word on the sign-in password fields (desktop and phone): redraw the Welcome back frames (`3GTA-0`, `3GY5-0`) first, then `features/workforce/signin/components/password-step.tsx` (and check any other password field uses the same convention). Needs a label for screen readers (`aria-label` "Show password" or "Hide password"), `aria-pressed`, keyboard.
+4. **Wrap-up:** re-run the 8 known failing back-end files one at a time and report; update the checklist (new rows for the notifications drawer and phone page, the sidebar sections, the account group, the eye icon: set Verified honestly), `decisions-1-people-batch-2a.md` (new decisions and slips), the notifications README and `docs/API_CONTRACT.md` section 47 (the new `area`, `q`, `all`, `areas` on `GET /workforce/notifications`), and the PROJECT_STATUS row; commit per group; then the final message the brief describes.
+
+## State of the lane (22 Oct 2026, evening)
+- Worktree `/home/fred/Projects/V3-RMS-lanes/lane-2`, branch `feat/workforce-1-people-batch-2a`, clean, nothing pushed.
+- Servers may be down: start the API with `pnpm dev` in `backend/` (port 4102; it is `tsx watch`, restart it by pid after back-end changes, and never `pkill -f` with a pattern that appears in your own command line) and the front end with `pnpm exec next dev -p 3102` in `frontend/` (stop it before `pnpm build`, they share `.next`). Confirm `GET /api/v1/workforce/home` answers 401 not 404.
+- The lane Redis container must be running: `docker start wendo-lane-2-redis` (port 6402). If it is down the API log fills with ECONNREFUSED and tests time out.
+- Lane DB `wendo_rms_lane2` changes made on purpose: `pin.test.attendant@wendo.test` had its PIN cleared and now has a PIN set (48274827); a few notifications were marked read for `kitchen.head.town@wendo.test`. Logins use `password123`.
+- Browser: chrome-devtools MCP; a scripted sign-in works by setting the two inputs with the native value setter and clicking Sign in; sign out by `POST http://lane2.localhost:4102/api/v1/auth/logout` from the page, then open `/login`. The browser may have restarted: call `list_pages` for the page id.
+- Paper: file `01M3TP8J54R83RHC9FJ7RAHGKG`, page id `p-R-0`. New frames: `3LYH-0` (13.1 drawer) and `3ML4-0` (13.2 phone). Tool notes: `rename_nodes` takes `updates`, `update_styles` takes `updates`, `write_html` needs `mode: "insert-children"`; do not call `get_basic_info`; call `finish_working_on_nodes` when done with a frame.
+
+## Known gaps to report (not bugs to chase)
+Staff Home shows three numbers (D6); the Director's payslip-openings digest component is kept but nothing draws it (D26); the "Ctrl K" hint shows in the phone drawer's Search box (D25, owner may want it removed); offline and "signed out" sign-in states are covered by tests only; the notifications drawer was not walked for page 2, rows per page, or focus returning to the bell.
+
+## Slips (part 2)
+One `printf` in Bash to add a blank line to API_CONTRACT (Bash write); one code edit made while a sign-in was in progress in the browser (state reset; redone). See `decisions-1-people-batch-2a.md`.
