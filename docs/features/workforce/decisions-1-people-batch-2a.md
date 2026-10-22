@@ -26,6 +26,19 @@ Where the build departs from the brief, the notes or a Paper frame, or fills a g
 | D20 | The old `nav-table.test.ts` (808 lines) is replaced by six files under 350 lines (`nav-gate`, `nav-central-store`, `nav-branch`, `nav-shell-bar`, `nav-menu`, `nav-naming`) plus `nav-test-helpers.ts`. | The brief's size rule. |
 | D21 | Legacy `/app/dashboard` and `/app/hr/*` pages stay on disk and in the route gate; only their links are gone. | Another feature or a bookmark may still reach them. |
 
+## Added in part 2 (22 Oct 2026)
+| # | Decision | Why |
+|---|---|---|
+| D22 | A staff Home with no Needs you list shows the branch name after the date ("Thursday 22 October. Nyeri Town"); Paper's staff frame puts the site first and says "things are for you". | Staff have no Needs you list yet (D6), so the sentence Paper builds on it does not apply; left as built rather than invent wording. |
+| D23 | A mixed Overdue row (several kinds) says "See overdue" and opens the overdue list; one kind keeps its own button ("Assign heads"). | The row borrowed the first item's button, which was wrong for the rest. |
+| D24 | The head's team card reads "My team" with "people in my department". | Paper's label; the old wording said "on the team today" for a number that is not today's. |
+| D25 | The "Ctrl K" hint stays in the phone drawer's Search box. | Paper may draw it there; flagged for the owner, not changed. |
+| D26 | The Director's payslip-openings digest component is kept but nothing draws it. | Removing the card on Home orphaned it; the Audit log redo decides its place. |
+
+## Slips (part 2)
+- One `printf` in Bash to add a blank line to `docs/API_CONTRACT.md` (a Bash write; the section itself was added with Edit).
+- Edited `signin-shell.tsx` while a sign-in was in progress in the browser, which reset the page's state; redid the walk cleanly.
+
 ## Slips (part 1)
 - One pointless `python3 -c print` in Bash early on (no edit made).
 - One broad Paper `find_nodes` text search ("*wrong*", 162 hits) after the handoff said to avoid them.
