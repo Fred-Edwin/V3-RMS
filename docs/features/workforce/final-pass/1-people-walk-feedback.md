@@ -51,4 +51,10 @@ Working file. Delete it when Workforce ships. Written during the live walk (22 O
 | W37 | Department head | Menu | Two groups: "Kitchen 6 waiting" (not opened) and "Department". The Department group shows Overview, Shifts, Team today, Casual pay on Home but only Overview and Casual pay on the My team page; no "My team" link. |
 | W38 | Department head | Home | "Kitchen team today 0/0 people" while My team shows 7 people, none on shift; three identical "A new person joined your department" notices with no names. |
 | W39 | Department head | Not walked | The "Kitchen" menu group, own My file, Shifts, Team today. |
+| W40 | Staff member (Grace Wanjiku, phone) | General | The owner had no corrections for the department head beyond row 4, and none for the staff member. Worked on a phone (390 px, phone emulation): sign-in, first-time Set your PIN, Home, menu drawer, My file, Emergency contact form, blocked Employees screen. |
+| W41 | Staff member | Sign-in on a phone | "This is your first sign-in on this computer" and "Chrome on Linux" (no phone wording). The Set your PIN screen differs between phone (keypad, one row at a time) and desktop (both rows). |
+| W42 | Staff member | Bottom bar and drawer | My file and My payslips show New order, Orders, Inbox, Menu tabs; Home shows none. The menu drawer shows a "Ctrl K" keyboard hint. |
+| W43 | Staff member | Home | "Leave days left" shows a dash (no balance); the notice "HR asks for a detail" opens `/my-time`, not My file. |
+| W44 | Staff member | My file | Shows the initials circle and "Photo, Add" although the seed hire gave a photo (may be seed data, not the product). |
+| W45 | Staff member | Not walked | Hidden-amounts payslip (Grace has none; use Susan Wafula), My leave, My notices, Profile. The plain page resize jumped back to desktop and could not go narrower than 500 px, so phone emulation was used. |
 | W15 | Director | Blocked page | I could not find a page the Director is blocked from, so the "Not available" screen was not shown for this role. |
