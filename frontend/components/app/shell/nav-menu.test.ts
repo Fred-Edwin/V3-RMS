@@ -138,7 +138,7 @@ describe('the menu: Home on top, feature rows below, personal items under the na
     const users = subs.find((s) => s.label === 'Users')?.href;
     const branches = subs.find((s) => s.label === 'Branches')?.href;
     expect(users && branches && users !== branches).toBe(true);
-    for (const role of ['HR_MANAGER', 'DIRECTOR', 'WAITER', 'STORE_ATTENDANT'] as const) expect(account(role)).toContain('Profile');
+    for (const role of ['HR_MANAGER', 'DIRECTOR', 'WAITER', 'STORE_ATTENDANT'] as const) expect(account(role)).not.toContain('Profile'); // Profile is gone (design round 3): its job is the Sign-in and alerts card on My file
   });
 
   it('gives the Branch Manager and the Store Manager the Today board link once the clock is on', () => {
