@@ -41,6 +41,8 @@ export interface EmployeeListRow {
   /** Only parts the viewer may see: a Branch Manager never sees bank or pay gaps. */
   gaps: FilePart[];
   reportsToName: string | null;
+  /** Runs a place (Branch Manager and the like): nobody to report to, so the list does not say "No head yet". */
+  reportsToNobody: boolean;
   isHead: boolean;
 }
 

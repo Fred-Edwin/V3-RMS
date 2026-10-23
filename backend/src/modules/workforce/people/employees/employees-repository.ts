@@ -60,6 +60,7 @@ const LIST_SELECT = (today: Date) =>
     department: { select: { name: true } },
     position: { select: { name: true } },
     reportsTo: { select: { name: true } },
+    user: { select: { role: true } },
     payProfile: { select: { amount: true, payoutMethod: true, bankName: true, accountNumber: true, mpesaPhone: true } },
     heads: { where: activeHeadWhere(today), select: { id: true } },
   }) satisfies Prisma.EmployeeSelect;

@@ -28,7 +28,7 @@ export function summaryOf(dept: DepartmentRecord, people: number, rows: readonly
     people,
     head: head ? headViewOf(head) : null,
     actingHead: acting ? headViewOf(acting) : null,
-    // A department is covered by a head or an acting head; heads exist only at branches.
-    hasGap: !dept.site.isHub && dept.status === 'ACTIVE' && !head && !acting,
+    // "No head", the same rule as Home (attention-repository): a branch department with people, covered by neither a head nor an acting head.
+    hasGap: !dept.site.isHub && dept.status === 'ACTIVE' && people > 0 && !head && !acting,
   };
 }

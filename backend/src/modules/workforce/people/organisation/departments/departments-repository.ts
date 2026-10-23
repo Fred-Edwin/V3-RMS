@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma, UserRole } from '@prisma/client';
 import { prisma } from '../../../../../config/database';
 import type { Db } from '../../employees/employees-repository';
 
@@ -20,6 +20,9 @@ const DEPARTMENT_SELECT = {
 export type DepartmentRecord = Prisma.DepartmentGetPayload<{ select: typeof DEPARTMENT_SELECT }>;
 
 const NOT_EXITED: Prisma.EmployeeWhereInput = { status: { not: 'EXITED' } };
+
+/** People the viewer may not see are not counted or listed (the same rule the Employees list applies: a Store Manager does not see Head Office staff). */
+const VISIBLE = (hidden: readonly UserRole[] | undefined): Prisma.EmployeeWhereInput => (hidden && hidden.length > 0 ? { OR: [{ userId: null }, { user: { role: { notIn: [...hidden] } } }] } : {});
 
 export const departmentsRepository = {
   sitesOfCompany: (companyId: string, onlySiteId: string | null) =>
@@ -46,29 +49,29 @@ export const departmentsRepository = {
   findDepartment: (companyId: string, id: string, db: Db = prisma): Promise<DepartmentRecord | null> =>
     db.department.findFirst({ where: { id, site: { companyId } }, select: DEPARTMENT_SELECT }),
 
-  peopleCounts: async (companyId: string, departmentIds: readonly string[]): Promise<Map<string, number>> => {
-    const rows = await prisma.employee.groupBy({ by: ['departmentId'], where: { companyId, departmentId: { in: [...departmentIds] }, ...NOT_EXITED }, _count: { _all: true } });
+  peopleCounts: async (companyId: string, departmentIds: readonly string[], hidden?: readonly UserRole[]): Promise<Map<string, number>> => {
+    const rows = await prisma.employee.groupBy({ by: ['departmentId'], where: { companyId, departmentId: { in: [...departmentIds] }, ...NOT_EXITED, ...VISIBLE(hidden) }, _count: { _all: true } });
     return new Map(rows.flatMap((row) => (row.departmentId ? [[row.departmentId, row._count._all] as const] : [])));
   },
 
-  peopleCount: (companyId: string, departmentId: string, db: Db = prisma) => db.employee.count({ where: { companyId, departmentId, ...NOT_EXITED } }),
+  peopleCount: (companyId: string, departmentId: string, db: Db = prisma, hidden?: readonly UserRole[]) => db.employee.count({ where: { companyId, departmentId, ...NOT_EXITED, ...VISIBLE(hidden) } }),
 
   /** Monthly staff of a department, a page at a time. */
-  peoplePage: (companyId: string, departmentId: string, skip: number, take: number) =>
+  peoplePage: (companyId: string, departmentId: string, skip: number, take: number, hidden?: readonly UserRole[]) =>
     Promise.all([
       prisma.employee.findMany({
-        where: { companyId, departmentId, ...NOT_EXITED, payType: 'MONTHLY_SALARY' },
+        where: { companyId, departmentId, ...NOT_EXITED, ...VISIBLE(hidden), payType: 'MONTHLY_SALARY' },
         select: { id: true, userId: true, name: true, status: true, payType: true, position: { select: { name: true } } },
         orderBy: { name: 'asc' },
         skip,
         take,
       }),
-      prisma.employee.count({ where: { companyId, departmentId, ...NOT_EXITED, payType: 'MONTHLY_SALARY' } }),
+      prisma.employee.count({ where: { companyId, departmentId, ...NOT_EXITED, ...VISIBLE(hidden), payType: 'MONTHLY_SALARY' } }),
     ]),
 
-  casualPool: (companyId: string, departmentId: string, withRate: boolean) =>
+  casualPool: (companyId: string, departmentId: string, withRate: boolean, hidden?: readonly UserRole[]) =>
     prisma.employee.findMany({
-      where: { companyId, departmentId, ...NOT_EXITED, payType: 'DAILY_RATE' },
+      where: { companyId, departmentId, ...NOT_EXITED, ...VISIBLE(hidden), payType: 'DAILY_RATE' },
       select: {
         id: true,
         userId: true,

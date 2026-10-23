@@ -17,7 +17,7 @@ export async function attentionRows(subject: AccessSubject, ctx: NeedsYouContext
   // The System Admin has no People screens (the pages answer "Not available"), so these rows would lead nowhere. Same test as the admin's Home.
   if (workforceCan(subject, 'security.alerts.read') && !workforceCan(subject, 'me.file')) return [];
   const endsBy = toDateColumn(addDays(nairobiToday(ctx.now), PROBATION_WARNING_DAYS));
-  const [onboarding, probation, headless] = await Promise.all([attentionReads.onboarding(ctx.companyId), attentionReads.probationEnding(ctx.companyId, endsBy), attentionReads.departmentsWithoutHead(ctx.companyId)]);
+  const [onboarding, probation, headless] = await Promise.all([attentionReads.onboarding(ctx.companyId), attentionReads.probationEnding(ctx.companyId, endsBy), attentionReads.departmentsWithoutHead(ctx.companyId, toDateColumn(nairobiToday(ctx.now)))]);
   const row = (id: string, kind: string, text: string, opens: string, since: Date, siteId: string, siteName: string): NeedsYouRow => ({ id, kind, text, opens, badge: null, since: since.toISOString(), siteId, siteName, waitingOnRole: 'HR_MANAGER', personUserId: null, canRemind: false });
   return [
     ...onboarding.map((e) => row(`attention-hiring:${e.id}`, 'attention-hiring', `Finish hiring ${e.name}`, `/app/workforce/employees/${e.id}`, e.createdAt, e.siteId, e.site.name)),

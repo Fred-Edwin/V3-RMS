@@ -53,8 +53,8 @@ export async function collectFacts(subject: AccessSubject, audience: HomeAudienc
   if (audience === 'HR' || audience === 'DIRECTOR' || audience === 'ACCOUNTANT') {
     run(employeesService.summary(subject, undefined).then((s) => void (facts.blocksPayroll = s.blocksPayroll)));
   }
-  if (['HR', 'DIRECTOR', 'BRANCH_MANAGER', 'STORE_MANAGER'].includes(audience)) {
-    run(homeRepository.departmentsWithoutHead(ctx.companyId, unitSite).then((n) => void (facts.departmentsWithoutHead = n)));
+  if (['HR', 'DIRECTOR', 'BRANCH_MANAGER'].includes(audience)) {
+    run(homeRepository.departmentsWithoutHead(ctx.companyId, unitSite, todayCol).then((n) => void (facts.departmentsWithoutHead = n)));
   }
   if (audience === 'HR' || audience === 'DIRECTOR') run(homeRepository.payChangesWaiting(ctx.companyId).then((n) => void (facts.payChangesWaiting = n)));
   if (audience === 'ACCOUNTANT') {

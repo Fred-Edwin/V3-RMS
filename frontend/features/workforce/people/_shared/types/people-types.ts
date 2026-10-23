@@ -51,6 +51,7 @@ export interface EmployeeListRow {
   probationEndsOn: DateString | null;
   gaps: FilePart[];
   reportsToName: string | null;
+  reportsToNobody: boolean;
   isHead: boolean;
 }
 

@@ -63,8 +63,8 @@ export const homeRepository = {
   },
 
   /** Departments with people and no head, the same list Needs your attention uses, narrowed to one site when the viewer has only one. */
-  async departmentsWithoutHead(companyId: string, siteId: string | null): Promise<number> {
-    const list = await attentionReads.departmentsWithoutHead(companyId);
+  async departmentsWithoutHead(companyId: string, siteId: string | null, today: Date): Promise<number> {
+    const list = await attentionReads.departmentsWithoutHead(companyId, today);
     return siteId ? list.filter((d) => d.siteId === siteId).length : list.length;
   },
 

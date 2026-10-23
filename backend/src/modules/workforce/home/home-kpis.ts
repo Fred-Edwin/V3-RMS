@@ -75,7 +75,7 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
     onLeave(f, 'at the Central Store'),
     card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { tone: attention(f.leaveWaiting), href: '/app/workforce/leave' }),
     card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { tone: attention(f.timesheetsWaiting), href: '/app/workforce/timesheets' }),
-    noHead(f),
+    // No "No head" card: the Central Store has no department heads (the unit manager leads it), as Organisation says.
   ],
   HEAD: (f) => [
     card('team', 'My team', f.active, 'people in my department', { href: TEAM_HREF }),

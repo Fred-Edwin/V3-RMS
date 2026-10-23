@@ -117,7 +117,7 @@ export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: Emplo
           return <StatusTag tone={file.tone}>{file.label}</StatusTag>;
         },
       },
-      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? 'No head yet'}</span> },
+      { id: 'reports', header: 'REPORTS TO', cell: (row) => <span className="font-wds-sans text-[14px] leading-[18px] text-wds-text-ink">{row.reportsToName ?? (row.reportsToNobody ? '–' : 'No head yet')}</span> },
     ],
     []
   );
