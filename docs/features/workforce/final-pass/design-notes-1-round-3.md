@@ -1,6 +1,6 @@
 # Workforce final pass, section 1: design notes, round 3 (the desktop "My ..." screens)
 
-Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass designs", frames 13.3 to 13.13 (13.1 and 13.2 are the notifications frames). 1440 wide, Geist and Geist Mono only, fictional names (Mercy Achieng, HR Manager, is the viewer). Status 23 Oct 2026: all three groups reviewed and approved by the owner. The frames sit in three group frames ("Round 3 · Group 1, 2, 3") on the page.
+Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass designs", frames 13.3 to 13.14 (13.1 and 13.2 are the notifications frames). 1440 wide, Geist and Geist Mono only, fictional names (Mercy Achieng, HR Manager, is the viewer). Status 23 Oct 2026: all three groups reviewed and approved by the owner. The frames sit in three group frames ("Round 3 · Group 1, 2, 3") on the page.
 
 ## Group 1: My file (frames 13.3 to 13.7)
 - 13.3: the phone content on a wide page. Identity header (avatar 72, name 26, "position · site", progress "2 OF 4" at the right). Two columns of 560 px, gap 20. Left: Still to finish, Your job, Sign-in and alerts. Right: IDs and bank (last four digits, Show, Edit, blue note), Your contact (Edit).
@@ -31,7 +31,19 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 - Dialogs close on Cancel or Esc; the drawer on the X or Esc.
 - Clone glitches in Paper, not design: sidebar logo image, count alignment in 13.13 A, "Published" tag in 13.10's background.
 
+## Phone (frame 13.14)
+- My file, Sign-in and alerts card at 390: same rows, label above value, 44 px touch targets, full-width outlined "Sign out everywhere", "Off on this phone".
+- One payslip has no new phone frame: the approved phone page (Payroll chapter, step 31) stays a full page. The drawer is desktop only.
+
+## Notes instead of new designs (owner, 23 Oct)
+- Older chapters (Audit and security step 03, frame 12.6, any sidebar still showing Profile or My phones) are not redrawn. They are superseded: the build follows this file where they disagree.
+- A change to the account name goes through HR and is not drawn. The name is part of the HR record; the person asks HR.
+- "Sign out everywhere" asks the person to confirm, then signs out every device. The wording of that confirmation is left to the build, in the states kit style.
+
+## Build follow-ups (for the build sessions, not done here)
+- Remove the `my-phones` and `profile` routes and their nav rows; the phone-confirmation record stays in the back end.
+- Add the Sign-in and alerts card and the "Sign out everywhere" action to My file.
+- Build one payslip as a right drawer on desktop; keep the full page on phones.
+
 ## Left out
-- Phone versions of the new My file card and the drawer; older chapters (Audit and security step 03, frame 12.6) still show My phones and must be redrawn or ignored.
 - Empty and error states beyond the states kit; Director-only variants.
-- Build follow-ups: remove `my-phones` and `profile` routes and nav rows, add the card and "Sign out everywhere" action, the drawer for one payslip.
