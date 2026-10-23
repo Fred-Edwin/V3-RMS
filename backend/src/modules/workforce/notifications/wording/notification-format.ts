@@ -11,11 +11,12 @@ export function monthName(key: string | null): string {
   return match && month ? `${month} ${match[1]}` : (key ?? 'the month');
 }
 
-/** '2026-10-26' becomes 'Mon 26 Oct'. */
-export function dayLabel(date: string | null): string {
+/** '2026-10-26' becomes 'Mon 26 Oct'; a date in another year than this one (Nairobi) carries it: 'Wed 17 Dec 2025'. The one date format of the notices and Needs you. */
+export function dayLabel(date: string | null, now: Date = new Date()): string {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return date ?? 'that day';
   const month = MONTHS[Number(date.slice(5, 7)) - 1];
-  return `${DAYS[isoWeekday(parseNairobiDate(date)) - 1]} ${Number(date.slice(8, 10))} ${month?.slice(0, 3) ?? ''}`.trim();
+  const year = date.slice(0, 4) === nairobiDateOf(now).slice(0, 4) ? '' : ` ${date.slice(0, 4)}`;
+  return `${DAYS[isoWeekday(parseNairobiDate(date)) - 1]} ${Number(date.slice(8, 10))} ${month?.slice(0, 3) ?? ''}${year}`.trim();
 }
 
 /** 'Today 14:05' for an ISO instant in Nairobi time; the clock alone when it is not today. */

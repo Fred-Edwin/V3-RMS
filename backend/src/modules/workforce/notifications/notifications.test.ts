@@ -10,6 +10,7 @@ vi.mock('../../../sockets/socket', () => ({ getSocketServer: vi.fn(() => { throw
 
 import { createNotifier, type NotifierDeps } from './notification-service';
 import { renderNotification, knownKinds, isKnownKind } from './wording/notification-wording';
+import { dayLabel } from './wording/notification-format';
 import { inQuietHours, nextQuietHoursEnd, isHeldInQuietHours } from './quiet-hours';
 
 const FIGURE = /(\d[\d,.]*\s*(kes|ksh|shillings?))|((kes|ksh)\.?\s*\d)/i;
@@ -83,6 +84,12 @@ describe('wording', () => {
     expect(renderNotification('file_request.asked', {}).href).toBe('/app/workforce/my-file');
     expect(renderNotification('probation.extended', { months: 1 }).href).toBe('/app/workforce/my-file');
     expect(renderNotification('pay.bank_changed', {}).body).toContain('A person');
+  });
+
+  it('shows the year only when the date is not this year, in one format', () => {
+    const now = new Date('2026-10-22T09:00:00Z');
+    expect(dayLabel('2026-11-01', now)).toBe('Sun 1 Nov');
+    expect(dayLabel('2025-12-17', now)).toBe('Wed 17 Dec 2025');
   });
 
   it('a leave or time request waiting is a Needs you row, so it does not push', () => {

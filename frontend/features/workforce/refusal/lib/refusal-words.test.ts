@@ -7,6 +7,7 @@ describe('the refusal screen words', () => {
     expect(refusalCaption('Payroll')).toBe('PAYROLL · NOT AVAILABLE');
     expect(refusalFooter('WF-R7K2')).toBe('Wrong page? Ask your manager or HR (reference WF-R7K2). Nothing was changed.');
     expect(refusalFooter(null)).toBe('Wrong page? Ask your manager or HR. Nothing was changed.');
+    expect(refusalFooter(null, 'HR_MANAGER')).toBe('Wrong page? Ask the System Admin. Nothing was changed.');
   });
 
   it('says who the page is for and where to go instead, from the server', () => {

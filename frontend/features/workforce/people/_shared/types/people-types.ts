@@ -164,6 +164,8 @@ export interface EmployeeFile {
   hasLogin: boolean;
   loginRole: string | null;
   isHead: boolean;
+  /** The end (an ISO instant) of the hiring manager's 24-hour correction window on this file; null when it is not running for the viewer. */
+  correctUntil: string | null;
   personalPhone: string | null;
   personalEmail: string | null;
   emergencyContact: { name: string; relation: string | null; phone: string } | null;

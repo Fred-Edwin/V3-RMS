@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { ChangeDialog, KitDialog, DialogButton, SingleDateField } from '../../../../../_shared';
-import { addDays, nairobiDay } from '../../../../_shared/lib/people-dates';
+import { addDays, formatWeekdayDayMonth, nairobiDay } from '../../../../_shared/lib/people-dates';
 import { peopleWrites } from '../../../../_shared/services/people-writes';
 import { useFileAction } from '../../../hooks/use-file-action';
 import { firstName } from '../../../lib/file-model';
@@ -20,9 +20,14 @@ export function UndoExitDialog({ file, onClose, done }: FileDialogProps) {
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Undo ${first}'s exit?`}
-      description="This is only possible inside the undo window."
+      description={file.exit ? `You can undo this until ${formatWeekdayDayMonth(file.exit.undoUntil)}. After that, rehire instead.` : 'This is only possible inside the undo window.'}
       summaryCaption="WHAT CHANGES"
-      summaryLines={[`${first}'s login works again.`, 'Their place in the department and rota is restored, exactly as before.', 'The undo is written to the audit log with your name.']}
+      summaryLines={[
+        // A person with no login has nothing to switch back on.
+        ...(file.hasLogin ? [`${first}'s login works again.`] : []),
+        'Their place in the department and rota is restored, exactly as before.',
+        'The undo is written to the audit log with your name.',
+      ]}
       confirmLabel="Undo exit"
       busy={action.busy}
       onConfirm={() => void action.run(() => peopleWrites.undoExit(file.id), `Exit undone. ${first} is back.`)}

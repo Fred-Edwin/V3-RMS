@@ -10,7 +10,7 @@ import {
   type AccessTarget,
 } from '../../_shared/workforce-access';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
-import { assertCanEditBasics, targetOf } from '../people-access';
+import { assertCanEditBasics, correctionEndsAt, targetOf } from '../people-access';
 import { type ActorCtx } from '../people-context';
 import {
   checklistPercent,
@@ -314,6 +314,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     hasLogin: row.userId !== null,
     loginRole: row.user?.role ?? null,
     isHead: row.heads.length > 0,
+    correctUntil: correctionEndsAt(subject, row),
     personalPhone: row.personalPhone,
     personalEmail: row.personalEmail,
     emergencyContact: row.emergencyName && row.emergencyPhone ? { name: row.emergencyName, relation: row.emergencyRelation, phone: row.emergencyPhone } : null,

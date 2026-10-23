@@ -2,7 +2,8 @@ import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
 
-import { KeyValueRows, Panel, WorkforceKpiStrip, type WorkforceKpiCell } from '../../../../_shared';
+import { Callout, KeyValueRows, Panel, WorkforceKpiStrip, type WorkforceKpiCell } from '../../../../_shared';
+import { correctionNote } from '../../lib/correction-note';
 import { PANEL_ROWS } from '../../../_shared/components/titled-panel';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { formatDayMonth } from '../../../_shared/lib/people-dates';
@@ -24,8 +25,12 @@ export function BranchOverview({ file, open }: { file: EmployeeFile; open: OpenD
   const first = firstName(file.name);
   const card = probationCard(file);
   const todo = file.actions.writeNote && card;
+  const correction = correctionNote(file.correctUntil);
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] items-start gap-6 max-lg:grid-cols-1">
+    <div className="flex flex-col gap-4">
+      {correction ? <Callout tone="neutral">{correction}</Callout> : null}
+      {/* With nothing to do, About takes the whole width instead of leaving the left half empty. */}
+      <div className={todo ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] items-start gap-6 max-lg:grid-cols-1' : 'grid grid-cols-1 items-start gap-6'}>
       {todo ? (
         <Panel title="For you to do" caption="1 OPEN" padded={false}>
           <div className="flex items-center justify-between gap-3 border-t border-wds-border px-4 py-3">
@@ -41,13 +46,12 @@ export function BranchOverview({ file, open }: { file: EmployeeFile; open: OpenD
             </Button>
           </div>
         </Panel>
-      ) : (
-        <span aria-hidden className="max-lg:hidden" />
-      )}
+      ) : null}
       <Panel title={`About ${first}`} padded={false}>
         <KeyValueRows rows={aboutRows(file)} aria-label={`About ${first}`} topRule={false} className={PANEL_ROWS} />
         <p className="m-0 border-t border-wds-border px-4 py-3 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{ABOUT_NOTE}</p>
       </Panel>
+      </div>
     </div>
   );
 }

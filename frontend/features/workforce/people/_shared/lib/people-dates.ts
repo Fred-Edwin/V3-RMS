@@ -44,6 +44,13 @@ export function formatDayMonthYear(date: string): string {
   return p ? `${p.day} ${MONTHS[p.month - 1] ?? ''} ${p.year}` : date;
 }
 
+/** "14 Oct" in the current Nairobi year, "14 Oct 2025" in any other: the year is shown whenever the date is not this year. */
+export function formatDayMonthSmart(date: string, now: Date = new Date()): string {
+  const p = partsOf(date);
+  if (!p) return date;
+  return p.year === Number(nairobiDay(now).slice(0, 4)) ? formatDayMonth(date) : formatDayMonthYear(date);
+}
+
 /** Whole days from `from` to `to` (negative when `to` is earlier). Calendar days, so a clock change never moves it. */
 export function daysBetween(from: string, to: string): number {
   const a = partsOf(from);

@@ -1,5 +1,5 @@
 import type { LifeEvent } from '../../../_shared';
-import { formatDayMonth, formatDayMonthYear, nairobiDay } from '../../_shared/lib/people-dates';
+import { formatDayMonth, formatDayMonthSmart, formatDayMonthYear, nairobiDay } from '../../_shared/lib/people-dates';
 import type { EmployeeFile, ExitReason, TimelineEvent } from '../../_shared/types/people-types';
 
 /**
@@ -83,8 +83,8 @@ export function activityRows(file: EmployeeFile): ActivityRow[] {
 export function lifeEvents(file: EmployeeFile, limit = 4): LifeEvent[] {
   const past: LifeEvent[] = [...file.timeline]
     .sort((a, b) => a.on.localeCompare(b.on))
-    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, date: formatDayMonth(e.on).toUpperCase(), text: eventText(e, file), state: 'done' as const }));
+    .map((e, i) => ({ key: `${e.kind}-${e.on}-${i}`, date: formatDayMonthSmart(e.on).toUpperCase(), text: eventText(e, file), state: 'done' as const }));
   const open = file.probation && !file.probation.confirmedOn && file.status !== 'EXITED';
-  const future: LifeEvent[] = open && file.probation ? [{ key: 'probation-decision', date: formatDayMonth(file.probation.endsOn).toUpperCase(), text: 'Probation decision', state: 'future' }] : [];
+  const future: LifeEvent[] = open && file.probation ? [{ key: 'probation-decision', date: formatDayMonthSmart(file.probation.endsOn).toUpperCase(), text: 'Probation decision', state: 'future' }] : [];
   return [...past.slice(-(limit - future.length)), ...future];
 }

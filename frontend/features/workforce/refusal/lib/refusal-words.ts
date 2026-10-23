@@ -15,7 +15,11 @@ export function refusalBody(info: Pick<PageFor, 'page' | 'forWords' | 'instead'>
 }
 
 /** "Wrong page? Ask your manager or HR (reference WF-R7K2). Nothing was changed." The reference is the server's; none is shown without one. */
-export const refusalFooter = (reference: string | null): string => `Wrong page? Ask your manager or HR${reference ? ` (reference ${reference})` : ''}. Nothing was changed.`;
+export const refusalFooter = (reference: string | null, role: string | null = null): string => {
+  // HR is not told to ask HR; the System Admin sets who may open what.
+  const whoToAsk = role === 'HR_MANAGER' ? 'the System Admin' : role === 'SYSTEM_ADMIN' ? 'the Director' : 'your manager or HR';
+  return `Wrong page? Ask ${whoToAsk}${reference ? ` (reference ${reference})` : ''}. Nothing was changed.`;
+};
 
 /** The blocked path the middleware passes in `from`: only a path inside the app is believed. */
 export function safeFrom(raw: string | null): string | null {

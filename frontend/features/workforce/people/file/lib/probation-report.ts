@@ -22,6 +22,13 @@ export interface HeadReportBlock {
 
 const newest = (notes: readonly ProbationNoteView[]): ProbationNoteView | undefined => [...notes].sort((a, b) => b.createdOn.localeCompare(a.createdOn))[0];
 
+/** Who can read a report, said for whoever is writing it: a head's goes to HR and the head's manager, a manager's to HR and the Director. */
+export function reportReaders(role: string | null): string {
+  if (role === 'MANAGER' || role === 'STORE_MANAGER') return 'Only HR and the Director can read this.';
+  if (role === 'HR_MANAGER') return 'Only HR and the managers of this site can read this.';
+  return 'Only HR and your Branch Manager can read this.';
+}
+
 /** The latest report from the head, as HR's Decide dialog shows it; null when the head has not written one ("No report yet"). */
 export function headReportBlock(file: Pick<EmployeeFile, 'probation'>): HeadReportBlock | null {
   const note = newest((file.probation?.notes ?? []).filter((n) => n.authorKind === 'HEAD'));

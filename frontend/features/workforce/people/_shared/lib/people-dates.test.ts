@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, daysBetween, formatDayMonth, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth, nairobiDay } from './people-dates';
+import { addDays, daysBetween, formatDayMonth, formatDayMonthSmart, formatDayMonthYear, formatFullDate, formatKes, formatWeekdayDayMonth, nairobiDay } from './people-dates';
 
 describe('People date words', () => {
   it('writes the day and month as Paper does', () => {
@@ -8,6 +8,10 @@ describe('People date words', () => {
     expect(formatWeekdayDayMonth('2026-10-05')).toBe('Mon 5 Oct');
     expect(formatFullDate('2026-10-05')).toBe('Mon 5 Oct 2026');
     expect(formatDayMonthYear('2026-07-14')).toBe('14 Jul 2026');
+    // The year shows whenever a date is not in the current year.
+    const now = new Date('2026-10-22T09:00:00Z');
+    expect(formatDayMonthSmart('2026-07-14', now)).toBe('14 Jul');
+    expect(formatDayMonthSmart('2025-12-17', now)).toBe('17 Dec 2025');
   });
   it('gives the text back when it is not a date', () => {
     expect(formatDayMonth('soon')).toBe('soon');

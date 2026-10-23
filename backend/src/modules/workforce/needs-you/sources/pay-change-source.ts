@@ -1,3 +1,4 @@
+import { dayLabel } from '../../notifications';
 import { payChangeReads } from './pay-change-repository';
 import { scopeOf, type AccessSubject } from '../../_shared/workforce-access';
 import type { NeedsYouRow, NeedsYouSource } from '../needs-you-types';
@@ -15,7 +16,7 @@ export const payChangeSource: NeedsYouSource = {
     return pending.map((p) => ({
       id: `pay-change:${p.id}`,
       kind: 'pay-change',
-      text: `${p.employee.name} · new pay from ${p.effectiveFrom.toISOString().slice(0, 10)}`,
+      text: `${p.employee.name} · new pay from ${dayLabel(p.effectiveFrom.toISOString().slice(0, 10))}`,
       opens: `/app/workforce/employees/${p.employeeId}`,
       badge: null,
       since: p.requestedAt.toISOString(),

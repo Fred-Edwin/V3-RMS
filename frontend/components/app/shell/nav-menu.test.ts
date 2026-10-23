@@ -141,6 +141,13 @@ describe('the menu: Home on top, feature rows below, personal items under the na
     for (const role of ['HR_MANAGER', 'DIRECTOR', 'WAITER', 'STORE_ATTENDANT'] as const) expect(account(role)).toContain('Profile');
   });
 
+  it('gives the Branch Manager and the Store Manager the Today board link once the clock is on', () => {
+    for (const role of ['MANAGER', 'STORE_MANAGER'] as const) {
+      expect(shape(role)['Workforce']?.['Time']).toContain('Today board');
+      expect(shape(role, { can: EVERYTHING })['Workforce']?.['Time'] ?? []).not.toContain('Today board');
+    }
+  });
+
   it('lights Overview on /app/workforce and gives the page one top bar', () => {
     const groups = menuGroups(menuFor(ctxFor('HR_MANAGER', ON)));
     expect(activeFor(groups, '/app/workforce')).toMatchObject({ activeKey: 'feature-workforce', activeSubKey: 'overview', framed: true });

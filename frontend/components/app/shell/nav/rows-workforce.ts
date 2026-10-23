@@ -38,7 +38,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'conduct', label: 'Conduct', section: 'Staff', newHref: '/app/workforce/conduct', roles: WF_PEOPLE, badge: 'workforce-conduct', needsAttendance: true, match: ['/app/workforce/conduct'] },
       // Time
       { key: 'shifts', label: 'Shifts', section: 'Time', newHref: '/app/workforce/schedule/rota', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true, match: ['/app/workforce/schedule'] },
-      { key: 'today', label: 'Today board', section: 'Time', newHref: '/app/workforce/today', roles: [WF_HR, DIRECTOR], needsAttendance: true },
+      { key: 'today', label: 'Today board', section: 'Time', newHref: '/app/workforce/today', roles: [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR], needsAttendance: true },
       { key: 'timesheets', label: 'Timesheets', section: 'Time', newHref: '/app/workforce/timesheets', roles: [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets', '/app/workforce/requests'] },
       { key: 'leave', label: 'Leave', section: 'Time', newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', needsAttendance: true, match: ['/app/workforce/leave'] },
       { key: 'casual-pay', label: 'Casual pay', section: 'Time', newHref: '/app/workforce/casuals/approve', roles: [MANAGER, STORE_MANAGER, DIRECTOR], match: ['/app/workforce/casuals'] },

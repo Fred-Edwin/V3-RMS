@@ -138,20 +138,34 @@ export function useHireWizard({ lookups, canSetPay, today, resumeDraftId }: Hire
 
   /** Validates this step; on success returns true and the caller moves on. */
   const check = useCallback(
-    (key: HireStepKey): boolean => {
+    (key: HireStepKey, dup: DuplicateCheck | null = duplicate): boolean => {
       const found = validateStep(key, { ...state, loginEmail: loginEmailDefault(state) }, lookups);
-      if (key === 'who' && duplicate?.nationalId) found.nationalId = 'This ID number is already on file.';
-      if (key === 'who' && duplicate?.phone && !state.confirmDuplicatePhone) found.phone = 'Confirm this is a different person, or change the number.';
-      if (key === 'who' && duplicate?.email) found.email = 'Someone with this email address already has a login.';
+      if (key === 'who' && dup?.nationalId) found.nationalId = 'This ID number is already on file.';
+      if (key === 'who' && dup?.phone && !state.confirmDuplicatePhone) found.phone = 'Confirm this is a different person, or change the number.';
+      if (key === 'who' && dup?.email) found.email = 'Someone with this email address already has a login.';
       setErrors(found);
       return !hasErrors(found);
     },
     [state, lookups, duplicate]
   );
 
+  // On "Continue" the answer is asked again for what is typed now, so a number just changed is judged at once (not by the answer for the old one).
   const next = useCallback(() => {
-    if (check(step)) goTo(stepIndex + 1);
-  }, [check, step, goTo, stepIndex]);
+    if (step !== 'who') {
+      if (check(step)) goTo(stepIndex + 1);
+      return;
+    }
+    const nationalId = state.nationalId.trim();
+    const phone = state.phone.trim();
+    const email = state.email.trim();
+    void peopleReads
+      .duplicateCheck({ nationalId: nationalId.length >= 5 ? nationalId : undefined, phone: phone.length >= 7 ? phone : undefined, email: email.includes('@') ? email : undefined })
+      .catch(() => duplicate)
+      .then((fresh) => {
+        setDuplicate(fresh);
+        if (check(step, fresh)) goTo(stepIndex + 1);
+      });
+  }, [check, step, goTo, stepIndex, state.nationalId, state.phone, state.email, duplicate]);
   const back = useCallback(() => goTo(stepIndex - 1), [goTo, stepIndex]);
 
   /** Hires. The first step that does not pass is shown instead of sending. */
