@@ -19,7 +19,6 @@ router.get(`${P}/entries/:id`, ...signedIn, c.detail);
 router.get(`${P}/facets`, ...signedIn, c.facets);
 router.get(`${P}/actors`, ...signedIn, c.actors);
 router.get(`${P}/export`, ...signedIn, c.export);
-router.get(`${P}/viewers`, ...signedIn, c.viewers);
 router.post(`${P}/chain/check`, ...signedIn, requireCapability('audit.verify_chain'), c.chain);
 
 router.get(`${P}/me`, ...mine, c.mine);

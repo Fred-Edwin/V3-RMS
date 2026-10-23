@@ -14,6 +14,7 @@ const complete: FileFacts = {
   hasPhone: true,
   hasPosition: true,
   hasDepartment: true,
+  departmentOptional: false,
   payAmountSet: true,
   payoutComplete: true,
   hasLogin: true,
@@ -31,6 +32,11 @@ describe('file completeness', () => {
     expect(ringPercent(states)).toBe(100);
     expect(checklistPercent(checklistRows(states))).toBe(100);
     expect(gapsOf(states, [])).toEqual([]);
+  });
+
+  it('a person who runs a place (Branch Manager) is not "Job details missing" for lacking a department, but a floor person is', () => {
+    expect(gapsOf(fileParts({ ...complete, hasDepartment: false, departmentOptional: true }), [])).toEqual([]);
+    expect(gapsOf(fileParts({ ...complete, hasDepartment: false, departmentOptional: false }), [])).toContain('JOB');
   });
 
   it('a casual is not asked for bank, login, NSSF, photo or contract', () => {

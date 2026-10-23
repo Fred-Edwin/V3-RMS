@@ -106,6 +106,12 @@ export interface HomeSummaryRow {
 
 const daysOld = (iso: string, now: Date): number => Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS));
 
+/** "since today", "1 day", "3 days"; with `oldest`, "is 3 days old." / "came in today.". Never "0 days". */
+export function ageWords(days: number, oldest = false): string {
+  if (oldest) return days === 0 ? 'came in today.' : `is ${days} ${days === 1 ? 'day' : 'days'} old.`;
+  return days === 0 ? 'since today' : `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
 /**
  * The rows of Home's Needs you table (Paper 1.1): one row per kind, with a count, and every overdue item together in a first
  * "Overdue" row. Several items become one sentence ("2 pay changes waiting for the Director") and "The oldest is 2 days old.";
@@ -136,7 +142,7 @@ export function summariseForHome(rows: readonly MarkedRow[], now: Date, limit: n
       kindLabel: `${b.label} · ${b.rows.length}`,
       count: b.rows.length,
       title: one ? first.text : key === OVERDUE_KEY ? `${b.rows.length} requests are overdue` : spec.many(b.rows.length),
-      line: one ? (first.siteName ?? `Waiting ${daysOld(first.since, now)} days`) : `The oldest is ${daysOld(oldest.since, now)} days old.`,
+      line: one ? (first.siteName ?? `Waiting ${ageWords(daysOld(first.since, now))}`) : `The oldest ${ageWords(daysOld(oldest.since, now), true)}`,
       action: mixedKinds ? 'See overdue' : spec.action,
       opens: one || (sameTarget && !mixedKinds) ? first.opens : `/app/workforce/needs-you?group=${key}`,
       since: oldest.since,
@@ -144,7 +150,8 @@ export function summariseForHome(rows: readonly MarkedRow[], now: Date, limit: n
     };
   });
   // Overdue first (it is built first, because `rows` start with the overdue ones), then the groups in the order their oldest item waits.
-  return { summary: summary.slice(0, limit), kinds: summary.length };
+  // A "kind" is one group of work (leave, pay changes, ...). The Overdue row is a view across kinds, not a kind of its own, so the See all page agrees.
+  return { summary: summary.slice(0, limit), kinds: new Set(rows.map((r) => groupOf(r.kind).key)).size };
 }
 
 export interface GroupCount extends KindGroup {

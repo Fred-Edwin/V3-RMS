@@ -10,8 +10,18 @@ describe('who a page is for (the refusal screen)', () => {
   it('names the roles whose row holds the capability, in a fixed order, from the access table', () => {
     const payroll = pageFor('/app/workforce/payroll', who('CHEF'), NOW);
     expect(payroll.page).toBe('Payroll');
-    expect(payroll.roles).toEqual(['HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN']);
-    expect(payroll.forWords).toBe('HR, the Director, the Accountant and the System Admin');
+    expect(payroll.roles).toEqual(['HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT']);
+    expect(payroll.forWords).toBe('HR, the Director and the Accountant');
+  });
+
+  it('never lists the System Admin on a People or Pay page, but does on the pages the admin has', () => {
+    expect(pageFor('/app/workforce/employees', who('CHEF'), NOW).roles).not.toContain('SYSTEM_ADMIN');
+    expect(pageFor('/app/workforce/rules', who('CHEF'), NOW).roles).toContain('SYSTEM_ADMIN');
+  });
+
+  it('points a department head who is refused Employees at My team, the page that exists', () => {
+    const head = who('CHEF', { isDepartmentHead: true, headOfDepartmentIds: ['d1'] });
+    expect(pageFor('/app/workforce/employees', head, NOW).instead?.href).toBe('/app/workforce/team');
   });
 
   it('says a Branch Manager page is for the managers who run a place', () => {

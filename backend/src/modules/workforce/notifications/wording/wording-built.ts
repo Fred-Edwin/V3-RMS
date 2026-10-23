@@ -3,6 +3,9 @@ import type { NotifyData, RenderedNotification } from '../notification-types';
 
 export type Wording = (data: NotifyData) => RenderedNotification;
 
+/** The person a notice is about: the name the caller put in the data, else "A person" (older notices carry none). */
+const who = (d: NotifyData): string => text(d, 'name', 'A person');
+
 const row = (tone: RenderedNotification['tone'], area: RenderedNotification['area'], href: string | null, title: string, body: string, push = true): RenderedNotification => ({
   tone,
   area,
@@ -51,19 +54,21 @@ export const BUILT_WORDING: Record<string, Wording> = {
   'payroll.payslip_published': (d) => row('done', 'PAY', '/app/workforce/my-payslips', 'Your payslip is ready', `Your ${monthName(text(d, 'month', ''))} payslip is ready. You need your own code to open it.`),
   'payroll.published': (d) => row('done', 'PAY', '/app/workforce/payroll', 'Payroll published', `The ${monthName(text(d, 'month', ''))} payroll was published.`),
   'payroll.month_paid': (d) => row('done', 'PAY', '/app/workforce/payroll', 'Payroll paid', `The ${monthName(text(d, 'month', ''))} payroll was marked as paid.`),
-  'p9.no_kra_pin': () => row('needsLook', 'PEOPLE', '/app/workforce/employees', 'A tax number is missing', 'A person has no KRA number on file, so a P9 cannot be built. Add it to the file.', false),
-  'employee.hired': () => row('information', 'PEOPLE', '/app/workforce/employees', 'A new person joined your department', 'A new person was added to your department.'),
-  'employee.transferred': () => row('information', 'PEOPLE', '/app/workforce/employees', 'A transfer was applied', 'A person moved between sites.'),
-  'employee.transfer_scheduled': () => row('information', 'PEOPLE', '/app/workforce/employees', 'A transfer is scheduled', 'A transfer between sites was scheduled.'),
-  'employee.loaned': () => row('information', 'PEOPLE', '/app/workforce/employees', 'A person was loaned', 'A person was loaned to another site.'),
-  'employee.exit_recorded': () => row('information', 'PEOPLE', '/app/workforce/employees', 'An exit was recorded', 'A person\'s exit was recorded.'),
-  'employee.exit_undone': () => row('information', 'PEOPLE', '/app/workforce/employees', 'An exit was undone', 'A recorded exit was undone.'),
-  'probation.extended': (d) => row('changed', 'PEOPLE', '/app/workforce/my-time', 'Your probation was extended', `Your probation was extended by ${plural(num(d, 'months') ?? 1, 'month', 'months')}.`),
-  'file_request.asked': () => row('needsLook', 'PEOPLE', '/app/workforce/my-time', 'HR asks for a detail', 'HR asks you to add a detail to your file.'),
-  'file_request.reminded': () => row('needsLook', 'PEOPLE', '/app/workforce/my-time', 'A reminder from HR', 'HR reminds you to add a detail to your file.'),
-  'pay.bank_changed': () => row('information', 'PAY', '/app/workforce/employees', 'Bank details changed', 'A person\'s bank details were changed. The next bank file uses them.', false),
-  'pay.change_requested': () => row('needsLook', 'PAY', '/app/workforce/employees', 'A pay change waits', 'A pay change waits for your decision.'),
-  'pay.changed_by_director': () => row('information', 'PAY', '/app/workforce/employees', 'A pay change was made', 'The Director changed a person\'s pay. It applies on the date set.', false),
-  'pay.change_decided': (d) => row('changed', 'PAY', '/app/workforce/employees', 'A pay change was decided', `Your pay change request was ${text(d, 'decision', 'decided').toLowerCase()}.`),
+  'p9.no_kra_pin': (d) => row('needsLook', 'PEOPLE', '/app/workforce/employees', 'A tax number is missing', `${who(d)} has no KRA number on file, so a P9 cannot be built. Add it to the file.`, false),
+  // The department head gets this one, and a head opens My team, not Employees.
+  'employee.hired': (d) => row('information', 'PEOPLE', '/app/workforce/team', `${who(d)} joined your department`, `${who(d)} was added to your department.`),
+  'employee.transferred': (d) => row('information', 'PEOPLE', '/app/workforce/employees', `${who(d)} was transferred`, `${who(d)} moved between sites.`),
+  'employee.transfer_scheduled': (d) => row('information', 'PEOPLE', '/app/workforce/employees', `A transfer is scheduled for ${who(d)}`, `A transfer between sites was scheduled for ${who(d)}.`),
+  'employee.loaned': (d) => row('information', 'PEOPLE', '/app/workforce/employees', `${who(d)} was loaned`, `${who(d)} was loaned to another site.`),
+  'employee.exit_recorded': (d) => row('information', 'PEOPLE', '/app/workforce/employees', `${who(d)}'s exit was recorded`, `${who(d)}'s exit was recorded.`),
+  'employee.exit_undone': (d) => row('information', 'PEOPLE', '/app/workforce/employees', `${who(d)}'s exit was undone`, `${who(d)}'s recorded exit was undone.`),
+  'probation.extended': (d) => row('changed', 'PEOPLE', '/app/workforce/my-file', 'Your probation was extended', `Your probation was extended by ${plural(num(d, 'months') ?? 1, 'month', 'months')}.`),
+  'file_request.asked': () => row('needsLook', 'PEOPLE', '/app/workforce/my-file', 'HR asks for a detail', 'HR asks you to add a detail to your file.'),
+  'file_request.reminded': () => row('needsLook', 'PEOPLE', '/app/workforce/my-file', 'A reminder from HR', 'HR reminds you to add a detail to your file.'),
+  // No pay notice carries an amount: the person and the action only.
+  'pay.bank_changed': (d) => row('information', 'PAY', '/app/workforce/employees', `Bank details changed for ${who(d)}`, `${who(d)}'s bank details were changed. The next bank file uses them.`, false),
+  'pay.change_requested': (d) => row('needsLook', 'PAY', '/app/workforce/employees', `A pay change for ${who(d)} waits`, `A pay change for ${who(d)} waits for your decision.`),
+  'pay.changed_by_director': (d) => row('information', 'PAY', '/app/workforce/employees', `The Director changed ${who(d)}'s pay`, `The Director changed ${who(d)}'s pay. It applies on the date set.`, false),
+  'pay.change_decided': (d) => row('changed', 'PAY', '/app/workforce/employees', `The pay change for ${who(d)} was ${text(d, 'decision', 'decided').toLowerCase()}`, `Your pay change request for ${who(d)} was ${text(d, 'decision', 'decided').toLowerCase()}.`),
   'department.head_changed': () => row('changed', 'PEOPLE', '/app/workforce/organisation', 'A department head changed', 'The head of a department changed.'),
 };

@@ -38,6 +38,7 @@ export function RefusalScreen() {
   const params = useSearchParams();
   const from = safeFrom(params.get('from'));
   const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
   const unread = useUnreadStore((s) => s.unread);
   const openNotifications = useOpenNotifications();
   const { open: openMenu } = useWorkforceNavDrawer();
@@ -74,7 +75,7 @@ export function RefusalScreen() {
               </Link>
             )}
           </div>
-          <p className="m-0 pt-3 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{refusalFooter(data?.reference ?? null)}</p>
+          <p className="m-0 pt-3 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{refusalFooter(data?.reference ?? null, role)}</p>
           </div>
         </div>
       </main>

@@ -131,7 +131,7 @@ export const movesService = {
         ],
       }));
       const bosses = [...(await employeesRepository.siteManagerUserIds(emp.siteId)), ...(await employeesRepository.siteManagerUserIds(body.toSiteId))];
-      await told([...bosses, emp.userId], 'employee.transfer_scheduled', { employeeId: emp.id });
+      await told([...bosses, emp.userId], 'employee.transfer_scheduled', { employeeId: emp.id, name: emp.name });
     }
     return moveRowOf(created.id, emp.id, ctx.companyId);
   },
@@ -186,7 +186,7 @@ export const movesService = {
       };
     });
     const bosses = [...(await employeesRepository.siteManagerUserIds(emp.siteId)), ...(await employeesRepository.siteManagerUserIds(body.toSiteId))];
-    await told(bosses, 'employee.loaned', { employeeId: emp.id });
+    await told(bosses, 'employee.loaned', { employeeId: emp.id, name: emp.name });
     return moveRowOf(created.id, emp.id, ctx.companyId);
   },
 

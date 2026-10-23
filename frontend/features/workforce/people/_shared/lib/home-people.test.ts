@@ -5,7 +5,7 @@ import { attentionRows, comingUpRows, onboardingCount, peopleByBranch } from './
 
 const row = (over: Partial<EmployeeListRow>): EmployeeListRow => ({
   id: 'e', employeeNumber: 'W-1', name: 'Joy Chebet', photoUrl: null, positionName: 'Barista', organizationId: 's1', organizationName: 'Nyeri Town', departmentId: 'd', departmentName: 'Barista',
-  employment: 'MONTHLY', contractStatus: 'NONE', status: 'ACTIVE', probationEndsOn: null, gaps: [], reportsToName: null, isHead: false, ...over,
+  employment: 'MONTHLY', contractStatus: 'NONE', status: 'ACTIVE', probationEndsOn: null, gaps: [], reportsToName: null, reportsToNobody: false, isHead: false, ...over,
 });
 const today = '2026-10-05';
 

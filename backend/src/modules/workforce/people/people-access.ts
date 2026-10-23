@@ -66,5 +66,12 @@ export function assertCanEditBasics(
 
 /** The manager who made the hire may correct it for 24 hours (owner decision Q5, 21 Oct 2026); after that it goes through HR. */
 export const HIRE_CORRECTION_HOURS = 24;
+
+/** When this viewer's 24-hour correction window on a file ends (an ISO instant), or null when it is not running for them (HR, onboarding, not their hire, or over). */
+export function correctionEndsAt(subject: AccessSubject, row: { status: string; hiredById?: string | null; createdAt?: Date }, now: Date = new Date()): string | null {
+  if (scopeOf(subject, 'employee.write_basic') === 'all' || row.status === 'ONBOARDING' || row.status === 'EXITED') return null;
+  if (!madeThisHireRecently(subject, row, now) || !row.createdAt) return null;
+  return new Date(row.createdAt.getTime() + HIRE_CORRECTION_HOURS * 3_600_000).toISOString();
+}
 const madeThisHireRecently = (subject: AccessSubject, row: { hiredById?: string | null; createdAt?: Date }, now: Date): boolean =>
   !!row.hiredById && row.hiredById === subject.id && !!row.createdAt && now.getTime() - row.createdAt.getTime() < HIRE_CORRECTION_HOURS * 3_600_000;

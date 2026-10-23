@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Eye, EyeOff, KeyRound, Pencil, Plus, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
@@ -99,8 +100,20 @@ const statusPillClass = {
   inactive: 'border border-[#D4D4D8] bg-[#F4F4F5] text-[#71717A]',
 } as const;
 
+/** `?view=branches` or `?view=users` shows one section (the menu's two links); no view shows both. */
 export default function Page(): JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <AdminContent />
+    </Suspense>
+  );
+}
+
+function AdminContent(): JSX.Element {
   const router = useRouter();
+  const view = useSearchParams().get('view');
+  const showBranches = view !== 'users';
+  const showUsers = view !== 'branches';
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
   const hydrateSession = useAuthStore((state) => state.hydrateSession);
@@ -645,8 +658,9 @@ export default function Page(): JSX.Element {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className={showBranches && showUsers ? 'grid grid-cols-1 gap-6 xl:grid-cols-2' : 'grid grid-cols-1 gap-6'}>
           {/* Branches */}
+          {showBranches ? (
           <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-heading-md font-semibold text-stone-900">Branches</h2>
@@ -681,8 +695,10 @@ export default function Page(): JSX.Element {
               <Table<BranchRow> columns={branchColumns} data={branchRows} keyField="id" />
             )}
           </section>
+          ) : null}
 
           {/* Leadership Accounts */}
+          {showUsers ? (
           <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-heading-md font-semibold text-stone-900">Leadership Accounts</h2>
@@ -704,6 +720,7 @@ export default function Page(): JSX.Element {
               <Table<UserRow> columns={userColumns} data={userRows} keyField="id" />
             )}
           </section>
+          ) : null}
         </div>
       </PageLayout>
 

@@ -90,6 +90,8 @@ export function quickLinksFor(groups: readonly NavGroup[]): NavLink[] {
  */
 export function showsBottomBar(groups: readonly NavGroup[], pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+  // Workforce pages draw their own top bar and, like Workforce Home, no order tabs (My file and My payslips used to show them).
+  if (path === '/app/workforce' || path.startsWith('/app/workforce/')) return false;
   return groups.some((group) =>
     group.items.some((link) => (link.subItems ? link.subItems.some((sub) => sub.href === path) : link.href === path && !link.hideBar))
   );

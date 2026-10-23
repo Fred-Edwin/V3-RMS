@@ -1,3 +1,4 @@
+import type { UserRole } from '@prisma/client';
 import { NotFoundError } from '../../../../utils/errors';
 import { daysBetween, fromDateColumn, nairobiDateOf, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import {
@@ -9,7 +10,7 @@ import {
   type AccessTarget,
 } from '../../_shared/workforce-access';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
-import { assertCanEditBasics, targetOf } from '../people-access';
+import { assertCanEditBasics, correctionEndsAt, targetOf } from '../people-access';
 import { type ActorCtx } from '../people-context';
 import {
   checklistPercent,
@@ -45,6 +46,9 @@ import { employeesRepository, type FileRow, type ListRow } from './employees-rep
 export const dateOrNull = (value: Date | null): NairobiDate | null => (value ? fromDateColumn(value) : null);
 export const instantDate = (value: Date | null): NairobiDate | null => (value ? nairobiDateOf(value) : null);
 
+/** Logins that run a place or the company, not a department: their job is complete with a position alone (a Branch Manager is not "Job details missing"). */
+const PLACE_ROLES: readonly UserRole[] = ['MANAGER', 'STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN'];
+
 const factsOf = (source: {
   payType: string;
   nationalId: string | null;
@@ -53,6 +57,7 @@ const factsOf = (source: {
   positionId: string | null;
   departmentId: string | null;
   userId: string | null;
+  user?: { role: UserRole } | null;
   nssfNumber: string | null;
   shaNumber: string | null;
   photoUrl: string | null;
@@ -70,6 +75,7 @@ const factsOf = (source: {
     hasPhone: !!source.personalPhone,
     hasPosition: !!source.positionId,
     hasDepartment: !!source.departmentId,
+    departmentOptional: !!source.user && PLACE_ROLES.includes(source.user.role),
     payAmountSet: p?.amount !== null && p?.amount !== undefined,
     payoutComplete: payoutComplete === true,
     hasLogin: !!source.userId,
@@ -106,6 +112,8 @@ export function listRowOf(subject: AccessSubject, row: ListRow): { view: Employe
       probationEndsOn: dateOrNull(row.probationEndsOn),
       gaps,
       reportsToName: row.reportsTo?.name ?? null,
+      // A person who runs a place has no head to report to; the list says so instead of "No head yet".
+      reportsToNobody: row.user ? PLACE_ROLES.includes(row.user.role) : false,
       isHead: row.heads.length > 0,
     },
   };
@@ -306,6 +314,7 @@ export async function buildFileView(subject: AccessSubject, row: FileRow, today:
     hasLogin: row.userId !== null,
     loginRole: row.user?.role ?? null,
     isHead: row.heads.length > 0,
+    correctUntil: correctionEndsAt(subject, row),
     personalPhone: row.personalPhone,
     personalEmail: row.personalEmail,
     emergencyContact: row.emergencyName && row.emergencyPhone ? { name: row.emergencyName, relation: row.emergencyRelation, phone: row.emergencyPhone } : null,

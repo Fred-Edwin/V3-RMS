@@ -77,6 +77,8 @@ export function ServiceTeamCard({
         <TeamRing present={present} expected={expected} />
         <div className="flex flex-col gap-2">
           <AvatarStack names={[...people]} max={5} size="xs" />
+          {/* The ring counts people ON TODAY'S ROTA; with none rostered, say so (the whole team is under My team). */}
+          {expected === 0 ? <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Nobody is on today’s rota. Your whole team is under My team.</p> : null}
           <div className="flex gap-1.5">
             {lateCount > 0 ? <span className="border border-wds-warning-border bg-wds-warning-bg px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-warning-fg">{lateCount} late</span> : null}
             {notInCount > 0 ? <span className="border border-wds-error-border bg-wds-error-bg px-2 py-0.5 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{notInCount} not in</span> : null}

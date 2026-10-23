@@ -12,12 +12,14 @@ import { useAuthStore } from '@/store/authStore';
 
 import { FOCUS_RING, MOTION, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../../_shared';
 import { notificationWrites, useOpenNotifications, useUnreadStore } from '../../../notifications';
+import { useAttendanceOn } from '../../../attendance/shell';
 import { registerHomeCards } from '../../cards';
 import { getHomeCards } from '../../lib/card-registry';
 import { greetingFor, homeDate } from '../../lib/greeting';
 import { HomeStack } from '../../components/home-stack';
 import { useIsPhone } from '../hooks/use-is-phone';
 import { useRoleHome } from '../hooks/use-role-home';
+import { reachableKpis } from '../lib/role-home-reach';
 import { greetingLine, needsYouHeadline } from '../lib/role-home-words';
 import type { HomeAudience } from '../types/role-home-types';
 import { HomeBody } from './home-body';
@@ -56,6 +58,11 @@ export function RoleHomeScreen() {
   const orgName = user?.organizationName ?? 'Wendo RMS';
 
   const view = home.data;
+  // Cards that only count work in screens the menu hides (the clock is off) are left out.
+  const role = useAuthStore((s) => s.role);
+  const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
+  const attendanceOn = useAttendanceOn(role, isDepartmentHead);
+  const reachable = React.useMemo(() => (view ? { ...view, kpis: reachableKpis(view.kpis, attendanceOn) } : null), [view, attendanceOn]);
   React.useEffect(() => {
     if (view) setUnread(view.unread);
   }, [view, setUnread]);
@@ -89,19 +96,19 @@ export function RoleHomeScreen() {
       ? { href: '/app/workforce/employees/new', label: 'Add employee' }
       : view?.audience === 'ACCOUNTANT'
         ? { href: '/app/workforce/payroll', label: 'Open payroll' }
-        : view?.audience === 'BRANCH_MANAGER' || view?.audience === 'STORE_MANAGER'
+        : (view?.audience === 'BRANCH_MANAGER' || view?.audience === 'STORE_MANAGER') && attendanceOn
           ? { href: '/app/workforce/schedule/rota', label: 'Build shifts' }
           : view?.audience === 'SYSTEM_ADMIN'
             ? { href: '/app/admin', label: 'Add account' }
             : null;
 
-  const body = !view
-    ? home.status === 'error'
+  const body = !view || !reachable
+    ?home.status === 'error'
       ? busy && !gaveUp
         ? <HomeBusy />
         : <HomeError error={home.error} onRetry={home.reload} />
       : <HomeLoading phone={phone} />
-    : <HomeBody view={view} phone={phone} actions={actions} refreshError={home.status === 'error' ? home.error : null} onRetry={home.reload} onMarkAllRead={() => void markAllRead()} markingRead={marking} />;
+    : <HomeBody view={reachable} phone={phone} actions={actions} refreshError={home.status === 'error' ? home.error : null} onRetry={home.reload} onMarkAllRead={() => void markAllRead()} markingRead={marking} />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

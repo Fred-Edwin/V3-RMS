@@ -41,6 +41,8 @@ export interface EmployeeListRow {
   /** Only parts the viewer may see: a Branch Manager never sees bank or pay gaps. */
   gaps: FilePart[];
   reportsToName: string | null;
+  /** Runs a place (Branch Manager and the like): nobody to report to, so the list does not say "No head yet". */
+  reportsToNobody: boolean;
   isHead: boolean;
 }
 
@@ -55,6 +57,9 @@ export interface PeopleSummary {
   joinedThisMonth: number;
   stillInProbation: number;
   casualPool: number;
+  /** Pay changes waiting for a decision, and starting this month; null for a viewer who may not read pay. */
+  payChangesWaiting: number | null;
+  payChangesMonth: number | null;
 }
 
 export interface ProbationNoteView {
@@ -145,6 +150,8 @@ export interface EmployeeFileView {
   hasLogin: boolean;
   loginRole: string | null;
   isHead: boolean;
+  /** The end (an ISO instant) of the hiring manager's 24-hour correction window on this file; null when it is not running for the viewer. */
+  correctUntil: string | null;
   personalPhone: string | null;
   personalEmail: string | null;
   emergencyContact: { name: string; relation: string | null; phone: string } | null;

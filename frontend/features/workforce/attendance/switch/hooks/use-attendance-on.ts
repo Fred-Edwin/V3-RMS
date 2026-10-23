@@ -34,6 +34,30 @@ interface Cached {
 }
 let cached: Cached | null = null;
 
+/**
+ * The last answer is kept for the browser tab, so a full page load starts from it instead of "off" and the menu does not draw
+ * without Shifts and Team today for a moment (a head's Department group changed between pages).
+ */
+const STORE_KEY = 'wendo.attendance-on';
+function remembered(userId: string | null): Cached | null {
+  if (cached) return cached;
+  try {
+    const parsed: unknown = JSON.parse(window.sessionStorage.getItem(STORE_KEY) ?? 'null');
+    if (parsed && typeof parsed === 'object' && 'userId' in parsed && 'on' in parsed && (parsed as Cached).userId === userId && typeof (parsed as Cached).on === 'boolean') return { userId: (parsed as Cached).userId, on: (parsed as Cached).on, at: 0 };
+  } catch {
+    // No storage: start from "off", as before.
+  }
+  return null;
+}
+function remember(value: Cached): void {
+  cached = value;
+  try {
+    window.sessionStorage.setItem(STORE_KEY, JSON.stringify({ userId: value.userId, on: value.on }));
+  } catch {
+    // Private window: the answer just is not kept across a reload.
+  }
+}
+
 async function ask(kind: AttendanceAsk): Promise<boolean> {
   if (kind === 'own') return (await attendanceReads.me()).enabled;
   return (await attendanceReads.switches()).some((s) => s.enabled);
@@ -42,7 +66,13 @@ async function ask(kind: AttendanceAsk): Promise<boolean> {
 export function useAttendanceOn(role: string | null | undefined, isDepartmentHead: boolean): boolean {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const kind = attendanceAskOf(role, isDepartmentHead);
-  const [on, setOn] = useState<boolean>(cached && cached.userId === userId ? cached.on : false);
+  const [on, setOn] = useState<boolean>(false);
+
+  // After mount only (server and first client render agree): start from what this tab last knew.
+  useEffect(() => {
+    const known = remembered(userId);
+    if (known && known.userId === userId) setOn(known.on);
+  }, [userId]);
 
   useEffect(() => {
     if (kind === 'none' || !userId) {
@@ -57,7 +87,7 @@ export function useAttendanceOn(role: string | null | undefined, isDepartmentHea
       }
       ask(kind).then(
         (value) => {
-          cached = { userId, on: value, at: Date.now() };
+          remember({ userId, on: value, at: Date.now() });
           if (!cancelled) setOn(value);
         },
         () => {
@@ -82,4 +112,9 @@ export function useAttendanceOn(role: string | null | undefined, isDepartmentHea
 /** The switch screen calls this after a change so the menu does not wait for its two minutes. */
 export function forgetAttendanceOn(): void {
   cached = null;
+  try {
+    window.sessionStorage.removeItem(STORE_KEY);
+  } catch {
+    // Nothing kept, nothing to forget.
+  }
 }

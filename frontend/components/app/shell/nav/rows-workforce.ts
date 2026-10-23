@@ -38,7 +38,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
       { key: 'conduct', label: 'Conduct', section: 'Staff', newHref: '/app/workforce/conduct', roles: WF_PEOPLE, badge: 'workforce-conduct', needsAttendance: true, match: ['/app/workforce/conduct'] },
       // Time
       { key: 'shifts', label: 'Shifts', section: 'Time', newHref: '/app/workforce/schedule/rota', roles: [...WF_APPROVERS, DIRECTOR], needsAttendance: true, match: ['/app/workforce/schedule'] },
-      { key: 'today', label: 'Today board', section: 'Time', newHref: '/app/workforce/today', roles: [WF_HR, DIRECTOR], needsAttendance: true },
+      { key: 'today', label: 'Today board', section: 'Time', newHref: '/app/workforce/today', roles: [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR], needsAttendance: true },
       { key: 'timesheets', label: 'Timesheets', section: 'Time', newHref: '/app/workforce/timesheets', roles: [WF_HR, MANAGER, STORE_MANAGER, DIRECTOR], badge: 'workforce-timesheets', needsAttendance: true, match: ['/app/workforce/timesheets', '/app/workforce/requests'] },
       { key: 'leave', label: 'Leave', section: 'Time', newHref: '/app/workforce/leave', roles: WF_PEOPLE, badge: 'workforce-leave', needsAttendance: true, match: ['/app/workforce/leave'] },
       { key: 'casual-pay', label: 'Casual pay', section: 'Time', newHref: '/app/workforce/casuals/approve', roles: [MANAGER, STORE_MANAGER, DIRECTOR], match: ['/app/workforce/casuals'] },
@@ -50,8 +50,8 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     ],
   },
 
-  // The department head's own row (Paper 11.x): Overview, My team, Shifts, Timesheets. My team belongs to the People build (batch 2B) and a
-  // head's Timesheets is not in the route gate (spec D7), so both stay hidden until their pages and gates exist: drop `notBuilt` then.
+  // The department head's own row (Paper 11.x): Overview, My team, Shifts, Timesheets. A head's Timesheets is not in the route gate
+  // (spec D7), so it stays hidden until its page and gate exist: drop `notBuilt` then.
   {
     key: 'feature-department',
     label: 'Department',
@@ -61,7 +61,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     departmentHead: true,
     subItems: [
       { key: 'overview', label: 'Overview', newHref: '/app/workforce', roles: SHIFT_STAFF },
-      { key: 'my-team', label: 'My team', newHref: '/app/workforce/my-team', roles: SHIFT_STAFF, notBuilt: true },
+      { key: 'my-team', label: 'My team', newHref: '/app/workforce/team', roles: SHIFT_STAFF, match: ['/app/workforce/team', '/app/workforce/probation'] },
       { key: 'shifts', label: 'Shifts', newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, needsAttendance: true, match: ['/app/workforce/schedule'] },
       { key: 'today', label: 'Team today', newHref: '/app/workforce/today', roles: SHIFT_STAFF, needsAttendance: true },
       { key: 'casuals', label: 'Casual pay', newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, match: ['/app/workforce/casuals'] },
@@ -75,7 +75,6 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-audit-log', label: 'Audit log', group: 'feature:company', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: [...WF_DESKTOP, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/audit-log'] },
   { key: 'wf-attendance-switch', label: 'Attendance clock', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
   { key: 'wf-rules-admin', label: 'Rules', group: 'feature:company', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
-  { key: 'wf-payroll-admin', label: 'Payroll', group: 'feature:company', icon: ico.money, newHref: '/app/workforce/payroll', roles: [SYSTEM_ADMIN], badge: 'workforce-payroll', needsPayroll: true, match: ['/app/workforce/payroll'] },
 
   // ── Personal items: open from the name at the bottom of the menu (Paper 2.x), for every person with a file ──────────────────────
   { key: 'me-file', label: 'My file', group: 'account', icon: ico.me, newHref: '/app/workforce/my-file', roles: OWN_FILE_ROLES, match: ['/app/workforce/my-file'] },

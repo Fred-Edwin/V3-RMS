@@ -7,6 +7,7 @@ import { notificationRepository } from '../notifications/notification-repository
 import { employeesService } from '../people/employees/employees-service';
 import { readScopeOf } from '../people/people-access';
 import { resolveActor } from '../people/people-context';
+import { PAY_CHANGE_MONTH_DAYS } from '../people/people.constants';
 import { homeAudienceOf } from './home-audience';
 import { kpisFor } from './home-kpis';
 import { homeRepository } from './home-repository';
@@ -52,12 +53,12 @@ export async function collectFacts(subject: AccessSubject, audience: HomeAudienc
   if (audience === 'HR' || audience === 'DIRECTOR' || audience === 'ACCOUNTANT') {
     run(employeesService.summary(subject, undefined).then((s) => void (facts.blocksPayroll = s.blocksPayroll)));
   }
-  if (['HR', 'DIRECTOR', 'BRANCH_MANAGER', 'STORE_MANAGER'].includes(audience)) {
-    run(homeRepository.departmentsWithoutHead(ctx.companyId, unitSite).then((n) => void (facts.departmentsWithoutHead = n)));
+  if (['HR', 'DIRECTOR', 'BRANCH_MANAGER'].includes(audience)) {
+    run(homeRepository.departmentsWithoutHead(ctx.companyId, unitSite, todayCol).then((n) => void (facts.departmentsWithoutHead = n)));
   }
   if (audience === 'HR' || audience === 'DIRECTOR') run(homeRepository.payChangesWaiting(ctx.companyId).then((n) => void (facts.payChangesWaiting = n)));
   if (audience === 'ACCOUNTANT') {
-    const next = toDateColumn(addDays(monthStart.toISOString().slice(0, 10) as typeof today, 31));
+    const next = toDateColumn(addDays(monthStart.toISOString().slice(0, 10) as typeof today, PAY_CHANGE_MONTH_DAYS));
     run(homeRepository.payChangesStartingBetween(ctx.companyId, monthStart, next).then((n) => void (facts.payChangesThisMonth = n)));
     run(homeRepository.payrollState(ctx.companyId, monthKey(today)).then((s) => void (facts.payrollState = s ? (PAYROLL_WORDS[s] ?? s) : null)));
     run(homeRepository.peopleCounts(ctx.companyId, { kind: 'all' }, todayCol, monthStart, todayCol).then((c) => void (facts.onLeaveToday = c.onLeaveToday)));

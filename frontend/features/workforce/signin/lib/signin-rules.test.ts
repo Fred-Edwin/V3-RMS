@@ -50,6 +50,14 @@ describe('pinProblem', () => {
   });
 });
 
+describe('deviceLabel on a small touch screen', () => {
+  it('says phone for a desktop-looking browser on a small touch screen, and leaves a real computer alone', () => {
+    const desktop = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36';
+    expect(deviceLabel(desktop, true)).toEqual({ label: 'Chrome on a phone', kind: 'phone' });
+    expect(deviceLabel(desktop, false).kind).toBe('computer');
+  });
+});
+
 describe('deviceLabel', () => {
   it('names the browser and the system, or the phone', () => {
     expect(deviceLabel('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36')).toEqual({ label: 'Chrome on Linux', kind: 'computer' });

@@ -1,13 +1,9 @@
-import { NotFoundError } from '../../../utils/errors';
 import { runAudited } from '../_shared/audit/audit-writer';
-import { workforceCan, type AccessSubject } from '../_shared/workforce-access';
-import { resolveActor, type ActorCtx } from '../people/people-context';
+import type { ActorCtx } from '../people/people-context';
 import { auditReadRepository } from './audit-read-repository';
 
 /** One `audit.log_viewed` per reader per 10 minutes (SD9): a click on every page would flood the log. */
 export const LOG_VIEW_WINDOW_MS = 10 * 60 * 1000;
-const VIEWERS_SHOWN = 10;
-const VIEWERS_LOOKBACK_DAYS = 30;
 
 export type LogView = 'list' | 'detail' | 'facets' | 'actors';
 
@@ -25,20 +21,4 @@ export async function noteLogViewed(ctx: ActorCtx, view: LogView, now: Date = ne
         : [],
     };
   });
-}
-
-export interface Viewer {
-  userId: string;
-  name: string;
-  role: string;
-  lastAt: string;
-}
-
-/** "Who looked at this log" (A5): the Director only. Everyone else gets a 403 here and a 404 from the route. */
-export async function logViewers(subject: AccessSubject, now: Date = new Date()): Promise<Viewer[]> {
-  if (!workforceCan(subject, 'audit.read.log_access')) throw new NotFoundError('We could not find that page.', 'NOT_FOUND');
-  const ctx = await resolveActor(subject);
-  const since = new Date(now.getTime() - VIEWERS_LOOKBACK_DAYS * 86_400_000);
-  const rows = await auditReadRepository.viewers(ctx.companyId, subject.id, since, VIEWERS_SHOWN);
-  return rows.map((r) => ({ userId: r.actor_id, name: r.actor_name, role: r.actor_role, lastAt: r.last_at.toISOString() }));
 }

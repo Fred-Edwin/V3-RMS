@@ -10,6 +10,7 @@ vi.mock('../../../sockets/socket', () => ({ getSocketServer: vi.fn(() => { throw
 
 import { createNotifier, type NotifierDeps } from './notification-service';
 import { renderNotification, knownKinds, isKnownKind } from './wording/notification-wording';
+import { dayLabel } from './wording/notification-format';
 import { inQuietHours, nextQuietHoursEnd, isHeldInQuietHours } from './quiet-hours';
 
 const FIGURE = /(\d[\d,.]*\s*(kes|ksh|shillings?))|((kes|ksh)\.?\s*\d)/i;
@@ -70,6 +71,25 @@ describe('wording', () => {
   it('never shows a conduct reason or a code in the shared rows', () => {
     const r = renderNotification('payslip.on_unconfirmed_phone', { month: '2026-09', device: 'x', place: 'y', at: null, code: '1234', reason: 'late' });
     expect(`${r.title} ${r.body}`).not.toMatch(/1234|late/);
+  });
+
+  it('names the person and the action in a People or Pay notice, never an amount, and points a staff notice at My file', () => {
+    const d = { name: 'Grace Wanjiku', amount: 48000 };
+    for (const kind of ['pay.change_requested', 'pay.changed_by_director', 'pay.bank_changed', 'pay.change_decided', 'employee.exit_recorded', 'employee.hired']) {
+      const r = renderNotification(kind, d);
+      expect(`${r.title} ${r.body}`, kind).toContain('Grace Wanjiku');
+      expect(`${r.title} ${r.body}`, kind).not.toMatch(/48000|48,000/);
+    }
+    expect(renderNotification('employee.hired', d).href).toBe('/app/workforce/team');
+    expect(renderNotification('file_request.asked', {}).href).toBe('/app/workforce/my-file');
+    expect(renderNotification('probation.extended', { months: 1 }).href).toBe('/app/workforce/my-file');
+    expect(renderNotification('pay.bank_changed', {}).body).toContain('A person');
+  });
+
+  it('shows the year only when the date is not this year, in one format', () => {
+    const now = new Date('2026-10-22T09:00:00Z');
+    expect(dayLabel('2026-11-01', now)).toBe('Sun 1 Nov');
+    expect(dayLabel('2025-12-17', now)).toBe('Wed 17 Dec 2025');
   });
 
   it('a leave or time request waiting is a Needs you row, so it does not push', () => {

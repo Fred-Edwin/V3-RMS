@@ -35,6 +35,8 @@ const ROLE_WORDS: Record<string, string> = {
   ACCOUNTANT: 'the Accountant',
   SYSTEM_ADMIN: 'the System Admin',
 };
+/** The only pages the System Admin really has a screen for: the table grants the admin more, but People and Pay are blocked for the role. */
+const ADMIN_PAGES: readonly string[] = ['/app/workforce/rules', '/app/workforce/security', '/app/workforce/audit-log', '/app/workforce/attendance/switch'];
 const ORDER = ['HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN'] as const;
 
 export interface PageFor {
@@ -63,7 +65,7 @@ const join = (words: string[]): string => (words.length <= 1 ? (words[0] ?? '') 
 /** The page a person may use instead of the one they were refused, from what the access table gives them. */
 function insteadOf(path: string, subject: AccessSubject): PageFor['instead'] {
   if (path.startsWith('/app/workforce/payroll') && workforceCan(subject, 'me.payslip')) return { line: 'Your own pay is under My payslips.', label: 'My payslips', href: '/app/workforce/my-payslips' };
-  if (path.startsWith('/app/workforce/employees') && scopeOf(subject, 'employee.read_basic') === 'dept') return { line: 'You can see your own department under My team.', label: 'My team', href: '/app/workforce/my-team' };
+  if (path.startsWith('/app/workforce/employees') && scopeOf(subject, 'employee.read_basic') === 'dept') return { line: 'You can see your own department under My team.', label: 'My team', href: '/app/workforce/team' };
   return null;
 }
 
@@ -76,6 +78,6 @@ export function pageFor(path: string, subject: AccessSubject, now: Date = new Da
   if (!hit) return { page: 'This page', forWords: null, roles: [], reference, instead, homeLabel };
   // `me.file` is every person's own page: say so instead of listing roles.
   if (hit.capabilities.includes('me.file')) return { page: hit.label, forWords: 'the person it belongs to', roles: [], reference, instead, homeLabel };
-  const roles = ORDER.filter((role) => hit.capabilities.some((c) => ROLE_GRANTS[role]?.[c] !== undefined));
+  const roles = ORDER.filter((role) => (role !== 'SYSTEM_ADMIN' || ADMIN_PAGES.includes(hit.prefix)) && hit.capabilities.some((c) => ROLE_GRANTS[role]?.[c] !== undefined));
   return { page: hit.label, forWords: roles.length ? join(roles.map((r) => ROLE_WORDS[r] ?? r)) : null, roles: [...roles], reference, instead, homeLabel };
 }

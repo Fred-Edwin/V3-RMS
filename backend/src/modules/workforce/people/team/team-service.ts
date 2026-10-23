@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { nairobiToday } from '../../_shared/time/nairobi-time';
-import type { AccessSubject } from '../../_shared/workforce-access';
+import { workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { gridScope } from '../../rota/rota-scope';
 import type { Pagination } from '../people.types';
 import { teamRepository, type TeamPersonRow, type TeamShiftRow } from './team-repository';
@@ -17,6 +17,8 @@ export interface TeamMember {
   status: 'ON_SHIFT' | 'NOT_ON_SHIFT';
   /** "06:00 to 14:00", or null with no shift. */
   shift: string | null;
+  /** The viewer may write a probation report on this person (on probation, and the viewer holds `probation.note`). */
+  canReport: boolean;
 }
 
 export interface TeamPage {
@@ -25,7 +27,7 @@ export interface TeamPage {
   counts: { all: number; onShift: number; notOnShift: number };
 }
 
-export function teamMembers(people: readonly TeamPersonRow[], shifts: readonly TeamShiftRow[]): TeamMember[] {
+export function teamMembers(people: readonly TeamPersonRow[], shifts: readonly TeamShiftRow[], mayReport = false): TeamMember[] {
   const byPerson = new Map<string, TeamShiftRow[]>();
   for (const s of shifts) byPerson.set(s.employeeId, [...(byPerson.get(s.employeeId) ?? []), s]);
   return people.map((p) => {
@@ -37,6 +39,7 @@ export function teamMembers(people: readonly TeamPersonRow[], shifts: readonly T
       department: p.departmentName,
       status: own.length > 0 ? 'ON_SHIFT' : 'NOT_ON_SHIFT',
       shift: own.length > 0 ? own.map((s) => `${s.startTime} to ${s.endTime}`).join(', ') : null,
+      canReport: mayReport && p.onProbation,
     };
   });
 }
@@ -52,7 +55,7 @@ export const teamService = {
     const departmentIds = scope.kind === 'departments' ? scope.departmentIds : null;
     if (departmentIds !== null && departmentIds.length === 0) return { data: [], pagination: { total: 0, page: 1, perPage: query.perPage, totalPages: 1 }, counts: { all: 0, onShift: 0, notOnShift: 0 } };
     const people = await teamRepository.people(scope.siteId, today, departmentIds, query.q);
-    const members = teamMembers(people, await teamRepository.shiftsOn(scope.siteId, today, people.map((p) => p.id)));
+    const members = teamMembers(people, await teamRepository.shiftsOn(scope.siteId, today, people.map((p) => p.id)), workforceCan(subject, 'probation.note'));
     const counts = { all: members.length, onShift: members.filter((m) => m.status === 'ON_SHIFT').length, notOnShift: members.filter((m) => m.status === 'NOT_ON_SHIFT').length };
     const wanted = query.status === 'on_shift' ? 'ON_SHIFT' : query.status === 'not_on_shift' ? 'NOT_ON_SHIFT' : null;
     const rows = wanted ? members.filter((m) => m.status === wanted) : members;

@@ -122,14 +122,6 @@ export const auditReadRepository = {
     return rows.length > 0;
   },
 
-  /** The last readers of the log: each person once, newest first. */
-  viewers: async (companyId: string, exceptUserId: string, since: Date, take: number) =>
-    prisma.$queryRaw<{ actor_id: string; actor_name: string; actor_role: string; last_at: Date }[]>(
-      Prisma.sql`SELECT actor_id, max(actor_name) AS actor_name, max(actor_role) AS actor_role, max(occurred_at) AS last_at
-        FROM workforce_audit_entries WHERE company_id = ${companyId} AND action = 'audit.log_viewed' AND occurred_at >= ${since} AND actor_id IS NOT NULL AND actor_id <> ${exceptUserId}
-        GROUP BY actor_id ORDER BY max(occurred_at) DESC LIMIT ${take}`,
-    ),
-
   userNames: async (ids: readonly string[]): Promise<Map<string, string>> => {
     if (ids.length === 0) return new Map();
     const rows = await prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true } });

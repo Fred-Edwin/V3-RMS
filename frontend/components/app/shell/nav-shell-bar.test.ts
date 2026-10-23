@@ -123,6 +123,8 @@ describe('the phone bottom bar for floor staff (Paper "Floor staff bottom bar", 
     expect(showsBottomBar(groups, '/app/deliveries')).toBe(true);
     expect(showsBottomBar(groups, '/app/deliveries/history')).toBe(true);
     expect(showsBottomBar(groups, '/app/orders/new')).toBe(false);
+    // Workforce pages (Home, My file, My payslips) carry no order tabs.
+    for (const path of ['/app/workforce', '/app/workforce/my-file', '/app/workforce/my-payslips']) expect(showsBottomBar(groups, path)).toBe(false);
     expect(showsBottomBar(groups, '/app/deliveries/d1/count')).toBe(false);
     expect(showsBottomBar(groups, '/app/day/count')).toBe(false);
     // The Daily count home has its own sticky "Check the opening" button, so the bar steps aside there.

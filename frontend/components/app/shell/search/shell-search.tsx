@@ -119,7 +119,7 @@ export function ShellSearch({ links, canSeePeople, variant = 'light', className 
           </svg>
         ) : null}
         <span className={cn('truncate font-wds-sans leading-4', variant === 'sidebar' ? 'grow text-xs' : 'text-[13px]')}>{variant === 'sidebar' ? 'Search' : 'Find a person, a request or a page'}</span>
-        <kbd className={cn('ml-3 shrink-0 border px-1.5 font-wds-mono text-[10px] leading-4', variant === 'sidebar' ? 'border-[#4A3A2E] text-[#8A7F76]' : 'border-wds-border bg-wds-neutral-50 text-wds-text-secondary')}>Ctrl K</kbd>
+        <kbd className={cn('ml-3 shrink-0 border px-1.5 font-wds-mono text-[10px] leading-4 [@media(pointer:coarse)]:hidden', variant === 'sidebar' ? 'border-[#4A3A2E] text-[#8A7F76]' : 'border-wds-border bg-wds-neutral-50 text-wds-text-secondary')}>Ctrl K</kbd>
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="top" className="inset-x-auto left-1/2 top-16 w-[560px] max-w-[94vw] -translate-x-1/2 border border-wds-border bg-wds-surface p-0 [&>button]:hidden">

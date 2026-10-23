@@ -152,7 +152,7 @@ export async function applyTransfer(move: MoveWithEmployee, today: NairobiDate, 
     throw error;
   }
   const bosses = [...(await employeesRepository.siteManagerUserIds(move.fromSiteId)), ...(await employeesRepository.siteManagerUserIds(move.toSiteId))];
-  await told([...bosses, emp.userId], 'employee.transferred', { employeeId: emp.id });
+  await told([...bosses, emp.userId], 'employee.transferred', { employeeId: emp.id, name: emp.name });
   return true;
 }
 

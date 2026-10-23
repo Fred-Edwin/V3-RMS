@@ -6,7 +6,8 @@ import { ChoiceChips, DialogButton, KitDialog } from '../../../../_shared';
 import type { ProbationVerdict } from '../../../_shared/types/people-types';
 import { useProbationReport } from '../../hooks/use-probation-report';
 import { firstName } from '../../lib/file-model';
-import { REPORT_CHOICES, VERDICT_LABELS, reportNeedsWords } from '../../lib/probation-report';
+import { REPORT_CHOICES, VERDICT_LABELS, reportNeedsWords, reportReaders } from '../../lib/probation-report';
+import { useAuthStore } from '@/store/authStore';
 import { DialogError, DialogTextArea, FooterNote } from './dialog-fields';
 import type { FileDialogProps } from './file-dialogs';
 
@@ -16,13 +17,14 @@ import type { FileDialogProps } from './file-dialogs';
  */
 export function ProbationReportDialog({ file, onClose, done }: FileDialogProps) {
   const form = useProbationReport(file.id, done);
+  const role = useAuthStore((s) => s.role);
   const first = firstName(file.name);
   return (
     <KitDialog
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Report on ${file.name}`}
-      description={`Only HR and your Branch Manager can read this. ${first} does not see it.`}
+      description={`${reportReaders(role)} ${first} does not see it.`}
       busy={form.busy}
       footer={
         <>

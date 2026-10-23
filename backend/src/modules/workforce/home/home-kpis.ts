@@ -16,6 +16,9 @@ const card = (key: string, label: string, value: string | number, detail: string
   href: extra.href ?? null,
 });
 
+/** The head's own team page; the old `/my-team` address never existed. */
+export const TEAM_HREF = '/app/workforce/team';
+
 const attention = (n: number): 'attention' | 'normal' => (n > 0 ? 'attention' : 'normal');
 
 const people = (f: HomeFacts, where: string): HomeKpi =>
@@ -24,7 +27,7 @@ const people = (f: HomeFacts, where: string): HomeKpi =>
 const probation = (f: HomeFacts): HomeKpi =>
   card('probation', 'Probation due', f.probationDueSoon + f.probationOverdue, probationLine(f), {
     tone: f.probationOverdue > 0 ? 'problem' : 'normal',
-    href: '/app/workforce/employees?filter=probation',
+    href: '/app/workforce/employees?filter=on_probation',
   });
 
 /** "1 overdue, 2 in 30 days" / "3 in 30 days" / "nothing due". */
@@ -56,7 +59,7 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
   ACCOUNTANT: (f) => [
     blocks(f),
     card('pay-month', 'Payroll month', f.payrollState ?? 'Not started', 'where this month stands', { href: '/app/workforce/payroll' }),
-    card('pay-changes-month', 'Pay changes this month', f.payChangesThisMonth, 'starting on or after the 1st', { href: '/app/workforce/employees?filter=pay_change' }),
+    card('pay-changes-month', 'Pay changes this month', f.payChangesThisMonth, 'starting on or after the 1st', { href: '/app/workforce/employees?filter=pay_change_month' }),
     card('active', 'Active people', f.active, 'on the payroll', { href: '/app/workforce/employees' }),
     card('leave-today', 'On leave today', f.onLeaveToday, 'across the company', { href: '/app/workforce/leave' }),
   ],
@@ -72,12 +75,12 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
     onLeave(f, 'at the Central Store'),
     card('leave-waiting', 'Leave waiting', f.leaveWaiting, 'for you to decide', { tone: attention(f.leaveWaiting), href: '/app/workforce/leave' }),
     card('timesheets', 'Timesheets waiting', f.timesheetsWaiting, 'for you to approve', { tone: attention(f.timesheetsWaiting), href: '/app/workforce/timesheets' }),
-    noHead(f),
+    // No "No head" card: the Central Store has no department heads (the unit manager leads it), as Organisation says.
   ],
   HEAD: (f) => [
-    card('team', 'My team', f.active, 'people in my department', { href: '/app/workforce/my-team' }),
+    card('team', 'My team', f.active, 'people in my department', { href: TEAM_HREF }),
     card('on-leave', 'On leave today', f.onLeaveToday, 'in my department'),
-    card('probation', 'In probation', f.inProbation, plural(f.probationDueSoon + f.probationOverdue, 'report due', 'reports due'), { tone: f.probationOverdue > 0 ? 'problem' : 'normal' }),
+    card('probation', 'In probation', f.inProbation, plural(f.probationReportsDue, 'report due', 'reports due'), { tone: f.probationOverdue > 0 ? 'problem' : 'normal', href: TEAM_HREF }),
     card('joined', 'Joined this month', f.joinedThisMonth, 'new on the team'),
     card('unread', 'New notices', f.unreadNotifications, 'waiting for you'),
   ],

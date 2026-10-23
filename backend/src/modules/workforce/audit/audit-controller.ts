@@ -5,7 +5,6 @@ import { actorsQuery, answerBody, chainBody, exportQuery, idParam, listQuery, my
 import { checkChain } from './chain-service';
 import { prepareExport } from './export-service';
 import { entryDetail, findActors, listEntries, listFacets, readerOf } from './list-service';
-import { logViewers } from './log-views';
 import { answerEntry, myRecord, myRecordEntry } from './my-record/my-record-service';
 
 const labelsOf = (req: Request) => ({ deviceLabel: phoneLabelOf(req.header('user-agent')), placeLabel: placeLabelOf((name) => req.header(name)) });
@@ -15,7 +14,6 @@ export const auditController = {
   detail: async (req: Request, res: Response): Promise<void> => ok(res, await entryDetail(subjectOf(req), idParam.parse(req.params).id)),
   facets: async (req: Request, res: Response): Promise<void> => ok(res, await listFacets(await readerOf(subjectOf(req)))),
   actors: async (req: Request, res: Response): Promise<void> => ok(res, await findActors(subjectOf(req), actorsQuery.parse(req.query).q)),
-  viewers: async (req: Request, res: Response): Promise<void> => ok(res, await logViewers(subjectOf(req))),
   chain: async (req: Request, res: Response): Promise<void> => ok(res, await checkChain(subjectOf(req), chainBody.parse(req.body))),
 
   /** A4. The file is written in pieces; the audit entry is committed before the first byte (see prepareExport). */

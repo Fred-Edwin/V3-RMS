@@ -1,5 +1,6 @@
+import type { UserRole } from '@prisma/client';
 import { ForbiddenError } from '../../../../utils/errors';
-import { assertInScope, scopeOf, workforceCan, type AccessSubject, type Capability } from '../../_shared/workforce-access';
+import { ABOVE_STORE_MANAGER, assertInScope, scopeOf, workforceCan, type AccessSubject, type Capability } from '../../_shared/workforce-access';
 
 /**
  * The scope rules the Organisation services share, written once. Reads out of scope answer 404 (a department's
@@ -15,6 +16,9 @@ export function orgReadScope(subject: AccessSubject): OrgReadScope {
   if (scope === 'dept') return { kind: 'departments', siteId: subject.siteId, departmentIds: subject.headOfDepartmentIds ?? [] };
   throw new ForbiddenError('You do not have permission to perform this action');
 }
+
+/** Logins whose people this viewer does not see, so Organisation counts what Employees lists (a Store Manager does not see Head Office staff). */
+export const hiddenRolesOf = (subject: AccessSubject): readonly UserRole[] | undefined => (subject.role === 'STORE_MANAGER' ? ABOVE_STORE_MANAGER : undefined);
 
 export const assertCanReadDepartment = (subject: AccessSubject, department: { id: string; siteId: string }): void =>
   assertInScope(subject, 'org.read', { userId: null, siteId: department.siteId, departmentId: department.id }, 'not_found');

@@ -4,7 +4,7 @@ import { inScope, type AccessSubject } from '../../../_shared/workforce-access';
 import { resolveActor, todayOf } from '../../people-context';
 import { headsRepository } from '../heads/heads-repository';
 import type { CasualPoolPerson, DepartmentPerson, DepartmentView, OrgOverview, SiteBlock } from '../org.types';
-import { assertCanReadDepartment, orgReadScope } from '../org-scope';
+import { assertCanReadDepartment, hiddenRolesOf, orgReadScope } from '../org-scope';
 import { departmentsRepository, type DepartmentRecord } from './departments-repository';
 import { summaryOf } from './department-view';
 
@@ -18,7 +18,7 @@ export const departmentsReadService = {
     const sites = await departmentsRepository.sitesOfCompany(ctx.companyId, scope.kind === 'all' ? null : scope.siteId);
     const departments = await departmentsRepository.departmentsOfSites(ctx.companyId, sites.map((s) => s.id), includeRetired, scope.kind === 'departments' ? scope.departmentIds : null);
     const ids = departments.map((d) => d.id);
-    const [counts, headRows] = ids.length === 0 ? [new Map<string, number>(), []] : await Promise.all([departmentsRepository.peopleCounts(ctx.companyId, ids), headsRepository.activeRowsOfDepartments(ids, today)]);
+    const [counts, headRows] = ids.length === 0 ? [new Map<string, number>(), []] : await Promise.all([departmentsRepository.peopleCounts(ctx.companyId, ids, hiddenRolesOf(subject)), headsRepository.activeRowsOfDepartments(ids, today)]);
 
     const blocks: SiteBlock[] = sites
       .filter((site) => scope.kind !== 'departments' || departments.some((d) => d.siteId === site.id))
@@ -55,9 +55,9 @@ export async function buildDepartmentView(
   const seesRates = inScope(subject, 'payprofile.read', target);
   const [headRows, [people, total], pool, headCount] = await Promise.all([
     headsRepository.activeRowsOfDepartment(department.id, today),
-    departmentsRepository.peoplePage(companyId, department.id, (paging.page - 1) * paging.perPage, paging.perPage),
-    departmentsRepository.casualPool(companyId, department.id, seesRates),
-    departmentsRepository.peopleCount(companyId, department.id),
+    departmentsRepository.peoplePage(companyId, department.id, (paging.page - 1) * paging.perPage, paging.perPage, hiddenRolesOf(subject)),
+    departmentsRepository.casualPool(companyId, department.id, seesRates, hiddenRolesOf(subject)),
+    departmentsRepository.peopleCount(companyId, department.id, undefined, hiddenRolesOf(subject)),
   ]);
   const headEmployeeIds = new Set(headRows.map((row) => row.employeeId));
   const person = (e: { id: string; userId: string | null; name: string; status: DepartmentPerson['status']; payType: DepartmentPerson['payType']; position: { name: string } | null }): DepartmentPerson => ({

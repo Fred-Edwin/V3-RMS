@@ -198,7 +198,7 @@ export const hireService = {
       };
     });
 
-    await told(await employeesRepository.headUserIds(job.departmentId, toDateColumn(today)), 'employee.hired', { employeeId: employeeId });
+    await told(await employeesRepository.headUserIds(job.departmentId, toDateColumn(today)), 'employee.hired', { employeeId: employeeId, name: who.name });
 
     // 8. After commit: the login, as a second audited step. Failing here leaves the hire standing.
     let login: HireResult['login'] = { created: false };

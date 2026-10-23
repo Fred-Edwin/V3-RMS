@@ -10,6 +10,8 @@ export interface FileFacts {
   hasPhone: boolean;
   hasPosition: boolean;
   hasDepartment: boolean;
+  /** Runs a place, not a department (Branch Manager, Store Manager, Accountant, Director, HR, System Admin): no department is expected. */
+  departmentOptional: boolean;
   payAmountSet: boolean;
   payoutComplete: boolean; // BANK needs bank and account number; MPESA needs a phone; CASH is complete
   hasLogin: boolean;
@@ -29,7 +31,7 @@ export interface PartState {
 
 export const fileParts = (f: FileFacts): PartState[] => [
   { part: 'IDENTITY', applicable: true, done: f.hasNationalId && f.hasPhone },
-  { part: 'JOB', applicable: true, done: f.hasPosition && f.hasDepartment },
+  { part: 'JOB', applicable: true, done: f.hasPosition && (f.hasDepartment || f.departmentOptional) },
   { part: 'PAY', applicable: true, done: f.payAmountSet },
   { part: 'BANK', applicable: !f.casual, done: f.payoutComplete },
   { part: 'LOGIN', applicable: !f.casual, done: f.hasLogin },

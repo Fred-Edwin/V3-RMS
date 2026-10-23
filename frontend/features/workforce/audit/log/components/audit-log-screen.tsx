@@ -15,7 +15,6 @@ import type { AuditRow } from '../types/audit-log-types';
 import { AuditFilters } from './audit-filters';
 import { AuditTable } from './audit-table';
 import { EntryDrawer } from './entry-drawer';
-import { ViewersPanel } from './viewers-panel';
 
 /**
  * The company Audit log (6a A1): the one log for every area. Read only. The view (search, area, event, site, dates, flagged, sort, page,
@@ -95,10 +94,7 @@ export function AuditLogScreen({ tabs }: { tabs?: React.ReactNode }) {
         {exporter.message ? <Callout tone={exporter.message === AUDIT_COPY.exportFailed ? 'error' : 'neutral'} role={exporter.message === AUDIT_COPY.exportFailed ? 'alert' : 'status'}>{exporter.message}</Callout> : null}
         <AuditFilters query={q.query} facets={data?.facets ?? null} today={q.today} onChange={q.change} />
         {search ? <p role="status" className="m-0 font-wds-sans text-[13px] leading-4 text-wds-text-secondary">{search}</p> : null}
-        <div className="flex items-start gap-5 max-lg:flex-col">
-          <div className="min-w-0 flex-1">{body}</div>
-          {permissions.can('audit.read.log_access') ? <ViewersPanel /> : null}
-        </div>
+        <div className="min-w-0">{body}</div>
       </div>
       <EntryDrawer row={open} canCheck={permissions.can('audit.verify_chain')} onClose={() => setOpen(null)} />
     </WorkforceFrame>

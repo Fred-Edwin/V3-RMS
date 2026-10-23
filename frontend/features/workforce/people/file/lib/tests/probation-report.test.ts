@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { EmployeeFile, ProbationNoteView } from '../../../_shared/types/people-types';
-import { headReportBlock, reportNeedsWords } from '../probation-report';
+import { headReportBlock, reportNeedsWords, reportReaders } from '../probation-report';
+
+describe('who can read a probation report', () => {
+  it('is said for the writer: a head, a manager, HR', () => {
+    expect(reportReaders('CHEF')).toBe('Only HR and your Branch Manager can read this.');
+    expect(reportReaders('MANAGER')).toBe('Only HR and the Director can read this.');
+    expect(reportReaders('HR_MANAGER')).toBe('Only HR and the managers of this site can read this.');
+  });
+});
 
 const note = (over: Partial<ProbationNoteView>): ProbationNoteView => ({ authorName: 'Victor Maina', authorPosition: 'Head of Kitchen', authorKind: 'HEAD', verdict: 'GOOD', note: null, createdOn: '2026-10-19', ...over });
 const file = (notes: ProbationNoteView[]): Pick<EmployeeFile, 'probation'> => ({ probation: { notes } as unknown as EmployeeFile['probation'] });

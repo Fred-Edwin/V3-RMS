@@ -80,7 +80,7 @@ export const exitService = {
         ],
       };
     });
-    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'DIRECTOR'), 'employee.exit_recorded', { employeeId: emp.id });
+    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'DIRECTOR'), 'employee.exit_recorded', { employeeId: emp.id, name: emp.name });
     // A last day that has already passed closes the file at once; otherwise the daily scheduler does it after the day ends.
     if (lastDay < today) await finalizeExitFor(await lifecycleRepository.findEmployeeTop(ctx.companyId, emp.id), today, now, appDoer(ctx));
     return employeesService.getFile(subject, id);
@@ -166,7 +166,7 @@ export const exitService = {
       if (finalized && emp.userId && snapshot.loginDeactivated) await accountGateway.setActive(emp.userId, false);
       throw error;
     }
-    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'DIRECTOR'), 'employee.exit_undone', { employeeId: emp.id });
+    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'DIRECTOR'), 'employee.exit_undone', { employeeId: emp.id, name: emp.name });
     return { ...(await employeesService.getFile(subject, id)), notRestored: [...new Set(notRestored)] };
   },
 
