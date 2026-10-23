@@ -16,16 +16,18 @@ Lane 6 worktree, branch `demo/workforce-lane` (clean; leave `scripts/training/` 
 4. Use one browser window per scene as the recorder already does.
 
 ### Part B: the People scenes (happy path only, no PIN shown, no console error, fictional data)
-Write the scenes and the section file `scripts/demo/sections/people.json` (title card, scenes, end card) for a client who has not seen the product, about 3 to 4 minutes in total, one idea per scene, short captions:
-1. HR Home: the cards and "Needs you" (desktop).
-2. Employees: search, open a file, the Edit button on a card (desktop).
-3. Hire a person: the steps, the single sign-in address and temporary password (desktop).
-4. Change pay: HR sends it with a PIN, the Director reviews it (Now, New, Difference) and approves (two roles, desktop).
-5. Probation: a head writes the report on a phone, HR decides (phone, then desktop).
-6. Organisation: assign a head, the person label in the picker (desktop).
-7. My file on the phone: IDs and bank hidden, Show, edit a number (phone).
-8. A role that cannot open a page: the "Not available for your role" screen (desktop).
-Record each scene once to prove it works, assemble `people.json`, and check three frames by eye for readability and for anything private (real names, PINs, the owner's data). Re-run from a `--reset` and confirm the same scenes and data appear. Put the video in your scratchpad and name its full path.
+Write the scenes and the section file `scripts/demo/sections/people.json` (title card, scenes, end card) for a client who has not seen the product, **about 5 minutes in total**, short captions (owner-approved structure, 22 Oct 2026). **One running fictional person, Wanjiru, follows the story from hire to exit**; each chapter hands over to a different role. Add Wanjiru (and a fictional department head and Director where missing) to the seed so the whole story is repeatable from `--reset`. The chapters, in order:
+- **0. Start the day (30 s, desktop):** HR Manager signs in (the device step shown briefly), lands on Home: the cards and the "Needs you" list (an overdue probation, a pay change waiting, a department without a head).
+- **1. Hire a person (50 s, desktop):** HR hires Wanjiru through the steps (who, job, pay, bank), then the single sign-in address and the temporary password handed over. No real numbers: fake account number only.
+- **2. Her first day (40 s, phone):** Wanjiru signs in, sets her PIN (masked), opens My file, adds her emergency contact, and sees ID and bank hidden behind Show.
+- **3. Probation (40 s, phone then desktop):** the department head writes a report on a phone; HR opens the Decide dialog, sees the report, confirms Wanjiru.
+- **4. A raise (45 s, desktop, two roles):** HR sends a pay change with a PIN (masked); the Director sees Now, New and Difference and approves.
+- **5. Who leads each team (30 s, desktop):** Organisation: a department with no head, assign one from the picker that shows name, position and site.
+- **6. Each role sees its own world (30 s, desktop montage):** the Homes of the Director, Accountant and Branch Manager in quick succession, then one blocked page showing "Not available for your role".
+- **7. When someone leaves (30 s, desktop):** HR records an exit, shows the 7-day undo, and opens the certificate of service.
+- **End card (10 s):** "Next: Schedule and Time".
+Captions are short, one idea each; a caption in chapter 4 notes that approvals need a PIN. Use the running person's name consistently and leave out anything that fails or shows an error.
+Because the story spans roles and devices, write each chapter as one scene file that signs in as the roles it needs (the recorder signs in off camera each time) and records the whole chapter in one browser window. Record each scene once to prove it works, assemble `people.json`, and check three frames by eye for readability and for anything private (real names, PINs, the owner's data). Re-run from a `--reset` and confirm the same scenes and data appear. Put the video in your scratchpad and name its full path.
 
 ### Do not
 Record the final People video now: the fixes in Batch 3 and the desktop "My ..." screens are still being built, so screens will change. Leave the scenes ready so the final recording is one command. Do not change the product. Edit and Write tools only; a live task list; no subagents.
