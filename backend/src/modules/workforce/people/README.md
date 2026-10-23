@@ -169,6 +169,13 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 - **File view:** `reportsTo` carries `positionName` and `siteName` (the wire says `organizationName`); `PayChangeRow` carries `requestedByPosition` and `requestedBySite`.
 - Not changed: `DATA_MODEL.md` (no schema change). The `people/` folder was not split in this batch (27 files).
 
+### People batch 3 (23 Oct 2026, the live-walk fixes)
+
+- **One rule each.** `ACTIVE_STATUSES` (`people.constants.ts`: active, on leave, on notice, suspended) is "active" everywhere. "No head" is a branch department with people and no head or acting head today (an acting head counts as covered); Home, Organisation and Employees all read it. "Kinds" does not count the Overdue row.
+- **Employees list.** Filters `on_probation`, `pay_change`, `pay_change_month` (`employees-pay-filter.ts`; the pay ones need `payprofile.read`); summary gains `payChangesWaiting` and `payChangesMonth` (`null` without pay access); rows gain `reportsToNobody` (a Branch Manager is never "Job details missing").
+- **File view** gains `correctUntil` (the hiring manager's 24-hour correction window). **My team** rows gain `canReport`.
+- Not changed: `DATA_MODEL.md` (no schema change). The audit `GET viewers` route is removed.
+
 ### Slice 0 changes made here (also logged in `slice-0-contract.md` §12)
 
 `Employee` gains `companyId` (numbers unique per company); `PayProfile.amount` optional plus standard hours; `PayoutMethod` gains `CASH`; `Position` gains `loginRole`, `casualsAllowed` and `DepartmentPosition`; `DepartmentHead` gains `isActing`, `endedById`, `endReason`; `Contract` gains `createdById` and a `ContractType` link; new tables `PayChange`, `EmploymentSpell`, `EmployeeMove`, `FileRequest`, `EmployeeDraft`, `ProbationNote`; `Employee` gains probation and statutory fields; `HrDocument.employeeId`.

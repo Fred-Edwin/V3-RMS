@@ -18,8 +18,7 @@ export function isGroupOpen(key: string, hand: HandChoices, current: string): bo
 /** Arriving in a group clears an earlier hand-close of it: the group of the page is always open. */
 export function arriveIn(hand: HandChoices, key: string): HandChoices {
   if (hand[key] !== false) return hand;
-  const { [key]: _closed, ...rest } = hand;
-  return rest;
+  return Object.fromEntries(Object.entries(hand).filter(([k]) => k !== key));
 }
 
 function readHand(): HandChoices {

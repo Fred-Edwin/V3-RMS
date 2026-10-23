@@ -40,5 +40,8 @@ On a phone the same data draws the phone Home (Paper 1.9 to 1.11): the dark top 
 ## Deleted in batch 2A
 The old desktop cards (`hr-cards`, `branch-cards`, `payrun-cards`, `audit-cards`, `needs-you-cards`), their data hooks, `WorkforceHome`, the gallery and `/dev/workforce-home`. History is in `docs/features/workforce/handoff-1-people-batch-2a.md`.
 
+## People batch 3 (23 Oct 2026)
+Home leaves out cards the role cannot reach (Store Manager: no Leave or Timesheets while the clock is off, no "no head"; System Admin: no People housekeeping). "Pay changes this month" and the probation card link to real Employees filters (`pay_change_month`, `on_probation`). "HR asks for a detail" notices open My file. The count rules are the back end's (`ACTIVE_STATUSES`, one "no head" rule); see the People README.
+
 ## Tests
 `role-home/lib/role-home-words.test.ts`, `role-home/services/role-home-services.test.ts`, `lib/card-registry.test.ts`, `lib/greeting.test.ts`; back end `home.test.ts`, `home-db.test.ts`.
