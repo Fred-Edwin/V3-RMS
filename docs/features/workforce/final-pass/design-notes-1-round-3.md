@@ -32,7 +32,7 @@ Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass design
 - Clone glitches in Paper, not design: sidebar logo image, count alignment in 13.13 A, "Published" tag in 13.10's background.
 
 ## Phone (frame 13.14)
-- My file, Sign-in and alerts card at 390: same rows, label above value, 44 px touch targets, full-width outlined "Sign out everywhere", "Off on this phone".
+- My file, complete page at 390: identity header, Still to finish, Your job, IDs and bank (with the blue note), Your contact, then Sign-in and alerts. Same cards and copy as the desktop and as phone frames 8.1 and 8.2. In the new card the label sits above the value, touch targets are 44 px, "Sign out everywhere" is a full-width outlined button, and notifications read "Off on this phone".
 - One payslip has no new phone frame: the approved phone page (Payroll chapter, step 31) stays a full page. The drawer is desktop only.
 
 ## Notes instead of new designs (owner, 23 Oct)
