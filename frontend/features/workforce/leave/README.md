@@ -1,5 +1,7 @@
 # Workforce · Leave (segment 4, front end)
 
+**23 Oct 2026 (frame 13.8):** My leave on a desktop now reads "My account / My leave", drops the line about who approves, and filters by Year, Type and Status. "Search a request" is not built: the own-requests read has no search (back-end gap).
+
 Status: built and walked in a real browser (21 Oct 2026, phone 390 and desktop 1440, lane 1, Nyeri Town switched on for the walk and off again), awaiting the owner's review. Spec: `docs/features/workforce/specs/4-leave-spec.md` and `-screens.md`. Choices: `docs/features/workforce/decisions-4-leave-frontend.md`. API: `docs/API_CONTRACT.md` §45.
 
 | Folder | Holds | Routes |

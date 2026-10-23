@@ -41,7 +41,14 @@ export function NoticesDesktop({ selectedId = null }: { selectedId?: string | nu
   const shown = items.slice((page - 1) * perPage, page * perPage);
   const openId = items.some((i) => i.id === chosen) ? chosen : (items[0]?.id ?? null);
 
-  const cells: WorkforceKpiCell[] = (data?.columns ?? []).slice(0, 3).map((c) => ({ key: c.key, label: c.label, value: String(c.value), detail: DETAILS[c.key]?.(data as StaffList) }));
+  // Always the same three figures, in the order of frame 13.11 (the phone's band lets the server choose which three).
+  const cells: WorkforceKpiCell[] = data
+    ? [
+        { key: 'toSign', label: 'TO SIGN', value: String(data.counts.toSign), detail: DETAILS.toSign?.(data) },
+        { key: 'canAppeal', label: 'CAN APPEAL', value: String(data.counts.canAppeal), detail: DETAILS.canAppeal?.(data) },
+        { key: 'ended', label: 'ENDED', value: String(data.counts.ended), detail: DETAILS.ended?.(data) },
+      ]
+    : [];
   return (
     <WorkforceFrame breadcrumb={{ section: 'My account', screen: 'My notices' }} phoneTitle="My notices" label="My notices">
       <div className="mx-auto flex w-full max-w-[1140px] flex-col gap-5 px-6 py-7">

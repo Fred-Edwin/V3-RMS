@@ -4,9 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
 
-import { Button } from '@/components/ui2/button';
-
-import { Callout, CircleStepper, useRemote } from '../../../_shared';
+import { Callout, CircleStepper, DialogButton, useRemote } from '../../../_shared';
 import { LoadingBlock, ProblemBlock } from '../../_shared/components/problem-block';
 import { useLetterAction } from '../../_shared/hooks/use-letter-action';
 import { useOnline } from '../../_shared/hooks/use-online';
@@ -60,8 +58,8 @@ export function NoticePanel({ id }: { id: string }) {
       {letter.failed ? <p role="alert" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-error-fg">{letter.failed}</p> : null}
       {!online ? <p role="status" className="m-0 font-wds-sans text-[12px] leading-4 text-wds-warning-fg">No signal. Your notice needs a connection to open.</p> : null}
       <div className="flex flex-wrap items-center gap-2.5">
-        {primary === 'sign' ? <Button type="button" size="dialog" className="px-5" disabled={!online} onClick={() => router.push(signHref(detail.id))}>Sign that I received it</Button> : null}
-        {primary === 'download' ? <Button type="button" size="dialog" className="px-5" disabled={letter.busy} onClick={download}>{letter.busy ? 'Preparing your notice' : 'Download signed notice'}</Button> : null}
+        {primary === 'sign' ? <DialogButton kind="primary" size="lg" disabled={!online} onClick={() => router.push(signHref(detail.id))}>Sign that I received it</DialogButton> : null}
+        {primary === 'download' ? <DialogButton kind="primary" size="lg" disabled={letter.busy} onClick={download}>{letter.busy ? 'Preparing your notice' : 'Download signed notice'}</DialogButton> : null}
         {detail.actions.canAppeal ? (
           <button
             type="button"
