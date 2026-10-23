@@ -3,9 +3,7 @@
 import * as React from 'react';
 
 import { DataTable, type TableColumn, type TableCopy } from '@/components/ui2/data-table/data-table';
-import { useAuthStore } from '@/store/authStore';
-
-import { DialogButton, ListDetailLayout, PageHeader, StatusText, WorkforceFrame, WorkforceKpiStrip, nameAndRole, useRemote, type WorkforceKpiCell } from '../../../../_shared';
+import { DialogButton, ListDetailLayout, PageHeader, StatusText, WorkforceFrame, WorkforceKpiStrip, useRemote, type WorkforceKpiCell } from '../../../../_shared';
 import { useOnline } from '../../../_shared/hooks/use-online';
 import { statusLine, titleLine } from '../../../_shared/lib/leave-copy';
 import { daySmall, rangeShort } from '../../../_shared/lib/leave-dates';
@@ -25,11 +23,9 @@ const COPY: TableCopy = {
   errorDescription: LEAVE_LOAD_FAILED.line,
 };
 const STATUSES: Record<string, LeaveStatus[]> = { WAITING: ['WAITING'], APPROVED: ['APPROVED'], DECLINED: ['DECLINED'], CANCELLED: ['CANCELLED'] };
-const approverLine = (role: string | null): string => (role === 'MANAGER' || role === 'STORE_MANAGER' ? 'A manager’s own leave is approved by HR.' : 'Your leave is approved by the Director.');
 
 /** My leave on a desktop (spec Step 13): KPIs, the list with search-less filters (the server filters year, kind and status), the request in full beside it. */
 export function MyLeaveDesktop() {
-  const user = useAuthStore((s) => s.user);
   const online = useOnline();
   const thisYear = new Date().getFullYear();
   const overview = useRemote(() => leaveReads.overview(), 'desktop-overview');
@@ -62,24 +58,23 @@ export function MyLeaveDesktop() {
   );
   const filters = React.useMemo(
     () => [
-      { kind: 'chips' as const, key: 'status', options: [{ value: '', label: 'All' }, { value: 'WAITING', label: 'Waiting' }, { value: 'APPROVED', label: 'Approved' }, { value: 'DECLINED', label: 'Declined' }, { value: 'CANCELLED', label: 'Cancelled' }] },
       { kind: 'dropdown' as const, key: 'year', label: 'Year', options: [thisYear, thisYear - 1, thisYear - 2].map((y) => ({ value: String(y), label: String(y) })) },
       { kind: 'dropdown' as const, key: 'type', label: 'Type', options: (data?.cards ?? []).map((c) => ({ value: c.typeCode, label: c.label })) },
+      { kind: 'dropdown' as const, key: 'status', label: 'Status', options: [{ value: 'WAITING', label: 'Waiting' }, { value: 'APPROVED', label: 'Approved' }, { value: 'DECLINED', label: 'Declined' }, { value: 'CANCELLED', label: 'Cancelled' }] },
     ],
     [thisYear, data?.cards]
   );
 
-  const role = user?.role ?? null;
   return (
     <WorkforceFrame
-      breadcrumb={{ section: 'Workforce', screen: 'My leave' }}
+      breadcrumb={{ section: 'My account', screen: 'My leave' }}
       phoneTitle="My leave"
       label="My leave"
       className="px-4 py-6 lg:px-8 lg:py-7"
       actions={<DialogButton kind="primary" size="lg" disabled={!online || !data || data.casual || data.chips.length === 0} onClick={() => setAsking(true)}>Ask for leave</DialogButton>}
     >
       <div className="mx-auto flex w-full max-w-[1204px] flex-col gap-5">
-        <PageHeader size="lg" title="My leave" subtitle={`${user?.name ? `${nameAndRole(user.name, role)} · ` : ''}every request you have made, and what happened to each. ${approverLine(role)}`} />
+        <PageHeader size="lg" title="My leave" subtitle="Every request you have made, and what happened to each." />
         <WorkforceKpiStrip cells={cells} aria-label="My leave in numbers" />
         {data?.casual ? <p role="status" className="m-0 font-wds-sans text-[14px] leading-5 text-wds-text-secondary">{data.message}</p> : null}
         <ListDetailLayout

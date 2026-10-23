@@ -22,7 +22,7 @@ export function OwnNumbersDialog({ file, onClose, done }: { file: Pick<EmployeeF
       onOpenChange={(o) => !o && onClose()}
       title="Edit my IDs and bank"
       description="Only you and HR see these. Changes save at once."
-      width={440}
+      width={560}
       busy={n.busy}
       footer={
         <>
