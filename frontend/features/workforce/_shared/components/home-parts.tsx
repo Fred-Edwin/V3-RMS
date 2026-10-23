@@ -93,7 +93,10 @@ export function WorkforceDrawer({
   initials,
   children,
   closeLabel = 'Close',
+  width = 480,
 }: {
+  /** Width in px on a desktop (One payslip draws 560). */
+  width?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The person (or thing) the drawer is about. */
@@ -107,7 +110,7 @@ export function WorkforceDrawer({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent hideClose side="right" className="w-[480px] max-w-full overflow-y-auto" overlayClassName="bg-[color-mix(in_oklab,var(--wds-neutral-950)_45%,transparent)]">
+      <SheetContent hideClose side="right" className="max-w-full overflow-y-auto" style={{ width }} overlayClassName="bg-[color-mix(in_oklab,var(--wds-neutral-950)_45%,transparent)]">
         <div className="flex items-start justify-between border-b border-wds-border px-7 pb-[18px] pt-[22px]">
           <div className="flex items-center gap-3.5">
             {initials ? (
