@@ -53,7 +53,7 @@ describe('the navigation table never widens access', () => {
 
 describe('every desktop role keeps every link it still has a page for', () => {
   const had: Partial<Record<AppRole, string[]>> = {
-    SYSTEM_ADMIN: ['/app/admin', '/app/admin/menu', '/app/admin/house-accounts', '/app/admin/corporate-accounts', '/app/profile', '/app/inventory/catalog'],
+    SYSTEM_ADMIN: ['/app/admin?view=users', '/app/admin?view=branches', '/app/admin/menu', '/app/admin/house-accounts', '/app/admin/corporate-accounts', '/app/profile', '/app/inventory/catalog'],
     ACCOUNTANT: ['/app/accountant', '/app/accountant/reconciliation', '/app/other-income/history', '/app/accountant/credit', '/app/inbox', '/app/profile', '/app/inventory/catalog'],
     DIRECTOR: ['/app/director', '/app/director/analytics', '/app/inbox', '/app/director/other-income', '/app/director/incidents', '/app/admin/discounts', '/app/director/settings', '/app/hr/payroll', '/app/director/corporate-accounts', '/app/director/outstanding-balances', '/app/manage/my-tab', '/app/profile', '/app/inventory/catalog'],
     MANAGER: [

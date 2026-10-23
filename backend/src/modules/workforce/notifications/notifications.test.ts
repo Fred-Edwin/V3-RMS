@@ -72,6 +72,19 @@ describe('wording', () => {
     expect(`${r.title} ${r.body}`).not.toMatch(/1234|late/);
   });
 
+  it('names the person and the action in a People or Pay notice, never an amount, and points a staff notice at My file', () => {
+    const d = { name: 'Grace Wanjiku', amount: 48000 };
+    for (const kind of ['pay.change_requested', 'pay.changed_by_director', 'pay.bank_changed', 'pay.change_decided', 'employee.exit_recorded', 'employee.hired']) {
+      const r = renderNotification(kind, d);
+      expect(`${r.title} ${r.body}`, kind).toContain('Grace Wanjiku');
+      expect(`${r.title} ${r.body}`, kind).not.toMatch(/48000|48,000/);
+    }
+    expect(renderNotification('employee.hired', d).href).toBe('/app/workforce/team');
+    expect(renderNotification('file_request.asked', {}).href).toBe('/app/workforce/my-file');
+    expect(renderNotification('probation.extended', { months: 1 }).href).toBe('/app/workforce/my-file');
+    expect(renderNotification('pay.bank_changed', {}).body).toContain('A person');
+  });
+
   it('a leave or time request waiting is a Needs you row, so it does not push', () => {
     expect(renderNotification('time_request.created', { kind: 'CLOCK_OUT', date: '2026-10-19' }).push).toBe(false);
     expect(renderNotification('casual.sent', { date: '2026-10-19' }).push).toBe(false);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { teamMembers } from './team-service';
 
-const person = (id: string, name: string) => ({ id, name, positionName: 'Barista', departmentName: 'Barista' });
+const person = (id: string, name: string, onProbation = false) => ({ id, name, positionName: 'Barista', departmentName: 'Barista', onProbation });
 
 describe('My team rows', () => {
   it('marks a person with a shift today as on shift and shows the times', () => {
@@ -19,6 +19,12 @@ describe('My team rows', () => {
       { employeeId: 'c', startTime: '16:00', endTime: '20:00' },
     ]);
     expect(row?.shift).toBe('06:00 to 10:00, 16:00 to 20:00');
-    expect(Object.keys(row ?? {}).sort()).toEqual(['department', 'id', 'name', 'position', 'shift', 'status']);
+    expect(Object.keys(row ?? {}).sort()).toEqual(['canReport', 'department', 'id', 'name', 'position', 'shift', 'status']);
+  });
+
+  it('offers a probation report only for a person on probation and only to someone who may write one', () => {
+    const people = [person('d', 'Jackline', true), person('e', 'Naomi', false)];
+    expect(teamMembers(people, [], true).map((m) => m.canReport)).toEqual([true, false]);
+    expect(teamMembers(people, [], false).map((m) => m.canReport)).toEqual([false, false]);
   });
 });

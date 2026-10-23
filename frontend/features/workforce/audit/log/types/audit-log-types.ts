@@ -62,13 +62,6 @@ export interface ChainCheck {
   problem?: string;
 }
 
-export interface AuditViewer {
-  userId: string;
-  name: string;
-  role: string;
-  lastAt: string;
-}
-
 /** Everything the screen can ask the list for; the URL holds exactly these. */
 export interface AuditQuery {
   q: string;

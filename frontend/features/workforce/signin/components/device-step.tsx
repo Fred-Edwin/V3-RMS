@@ -35,7 +35,7 @@ export function DeviceStep({ name, line, place, busy, error, onTrust, onOnce, on
 
   // The browser's own words and clock are known only on the client.
   useEffect(() => {
-    setDevice(deviceLabel(navigator.userAgent));
+    setDevice(deviceLabel(navigator.userAgent, window.matchMedia('(max-width: 767px) and (pointer: coarse)').matches));
     setWhen(new Intl.DateTimeFormat('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Nairobi' }).format(new Date()));
   }, []);
 

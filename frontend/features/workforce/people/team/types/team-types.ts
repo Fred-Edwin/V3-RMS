@@ -9,6 +9,8 @@ export interface TeamMember {
   status: TeamStatus;
   /** "06:00 to 14:00", or null with no shift today. */
   shift: string | null;
+  /** The viewer may write a probation report on this person. */
+  canReport: boolean;
 }
 
 export interface TeamCounts {

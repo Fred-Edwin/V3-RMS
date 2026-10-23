@@ -59,6 +59,9 @@ export function employeeChipCounts(summary: PeopleSummary): Record<string, Recor
       blocks_payroll: summary.blocksPayroll,
       no_contract: summary.noContract,
       casual_pool: summary.casualPool,
+      on_probation: summary.stillInProbation,
+      ...(summary.payChangesWaiting !== null ? { pay_change: summary.payChangesWaiting } : {}),
+      ...(summary.payChangesMonth !== null ? { pay_change_month: summary.payChangesMonth } : {}),
       exited: summary.exited,
     },
   };

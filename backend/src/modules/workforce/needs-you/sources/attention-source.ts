@@ -1,5 +1,5 @@
 import { addDays, fromDateColumn, nairobiToday, toDateColumn } from '../../_shared/time/nairobi-time';
-import type { AccessSubject } from '../../_shared/workforce-access';
+import { workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { dayLabel } from '../../notifications';
 import { reachesCompany } from '../needs-you-scope';
 import type { NeedsYouContext, NeedsYouRow } from '../needs-you-types';
@@ -14,6 +14,8 @@ const PROBATION_WARNING_DAYS = 14;
  */
 export async function attentionRows(subject: AccessSubject, ctx: NeedsYouContext): Promise<NeedsYouRow[]> {
   if (!reachesCompany(subject, 'org.write_heads')) return [];
+  // The System Admin has no People screens (the pages answer "Not available"), so these rows would lead nowhere. Same test as the admin's Home.
+  if (workforceCan(subject, 'security.alerts.read') && !workforceCan(subject, 'me.file')) return [];
   const endsBy = toDateColumn(addDays(nairobiToday(ctx.now), PROBATION_WARNING_DAYS));
   const [onboarding, probation, headless] = await Promise.all([attentionReads.onboarding(ctx.companyId), attentionReads.probationEnding(ctx.companyId, endsBy), attentionReads.departmentsWithoutHead(ctx.companyId)]);
   const row = (id: string, kind: string, text: string, opens: string, since: Date, siteId: string, siteName: string): NeedsYouRow => ({ id, kind, text, opens, badge: null, since: since.toISOString(), siteId, siteName, waitingOnRole: 'HR_MANAGER', personUserId: null, canRemind: false });

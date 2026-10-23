@@ -55,6 +55,9 @@ export interface PeopleSummary {
   joinedThisMonth: number;
   stillInProbation: number;
   casualPool: number;
+  /** Pay changes waiting for a decision, and starting this month; null for a viewer who may not read pay. */
+  payChangesWaiting: number | null;
+  payChangesMonth: number | null;
 }
 
 export interface ProbationNoteView {

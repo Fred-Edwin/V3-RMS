@@ -51,6 +51,23 @@ describe('the five numbers', () => {
     expect(card).toMatchObject({ value: '4', detail: '1 overdue, 3 in 30 days', tone: 'problem' });
   });
 
+  it('links the cards to filters the Employees list really has, and the head’s cards to My team', () => {
+    const FILTERS = ['all', 'needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'pay_change', 'pay_change_month', 'exited'];
+    for (const audience of HOME_AUDIENCES) {
+      for (const card of kpisFor(audience, emptyFacts())) {
+        const filter = card.href?.split('filter=')[1];
+        if (filter) expect(FILTERS, `${audience} ${card.key}`).toContain(filter);
+        expect(card.href ?? '', `${audience} ${card.key}`).not.toContain('my-team');
+      }
+    }
+    expect(kpisFor('HEAD', emptyFacts()).find((c) => c.key === 'team')?.href).toBe('/app/workforce/team');
+  });
+
+  it('counts the head’s reports due from people still without a report, not from the end date', () => {
+    const card = kpisFor('HEAD', { ...emptyFacts(), inProbation: 2, probationReportsDue: 1 }).find((c) => c.key === 'probation');
+    expect(card).toMatchObject({ value: '2', detail: '1 report due' });
+  });
+
   it('says "department" for one and "departments" for more in the No head card', () => {
     const detailFor = (n: number): string | undefined => kpisFor('HR', { ...emptyFacts(), departmentsWithoutHead: n }).find((c) => c.key === 'no-head')?.detail;
     expect(detailFor(1)).toBe('department without a head');

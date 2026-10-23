@@ -25,6 +25,8 @@ export interface HomeFacts {
   probationDueSoon: number;
   /** Probation decisions already past their date and not yet taken. Always part of the number above's red state. */
   probationOverdue: number;
+  /** People on open probation who have no report from their head yet (the head's "reports due"). */
+  probationReportsDue: number;
   blocksPayroll: number;
   departmentsWithoutHead: number;
   payChangesWaiting: number;
@@ -52,6 +54,7 @@ export const emptyFacts = (): HomeFacts => ({
   inProbation: 0,
   probationDueSoon: 0,
   probationOverdue: 0,
+  probationReportsDue: 0,
   blocksPayroll: 0,
   departmentsWithoutHead: 0,
   payChangesWaiting: 0,

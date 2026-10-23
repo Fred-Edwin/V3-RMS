@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PeopleSummary } from '../../_shared/types/people-types';
 import { employeeChipCounts, employeesKpiCells, employeesSubtitle } from './summary-copy';
 
-const summary: PeopleSummary = { onFile: 89, active: 77, exited: 12, needsFinishing: 3, blocksPayroll: 2, noContract: 4, joinedThisMonth: 5, stillInProbation: 2, casualPool: 6 };
+const summary: PeopleSummary = { onFile: 89, active: 77, exited: 12, needsFinishing: 3, blocksPayroll: 2, noContract: 4, joinedThisMonth: 5, stillInProbation: 2, casualPool: 6, payChangesWaiting: 1, payChangesMonth: 3 };
 
 describe('Employees summary words', () => {
   it('writes the line under the title as Paper does', () => {
@@ -26,6 +26,11 @@ describe('Employees summary words', () => {
     expect(quiet.slice(1).every((c) => c.actionable === false)).toBe(true);
   });
   it('feeds the chips: All is everyone on file', () => {
-    expect(employeeChipCounts(summary).filter).toEqual({ '': 89, needs_finishing: 3, blocks_payroll: 2, no_contract: 4, casual_pool: 6, exited: 12 });
+    expect(employeeChipCounts(summary).filter).toEqual({ '': 89, needs_finishing: 3, blocks_payroll: 2, no_contract: 4, casual_pool: 6, on_probation: 2, pay_change: 1, pay_change_month: 3, exited: 12 });
+  });
+  it('leaves out the pay-change counts for someone who may not read pay', () => {
+    const counts = employeeChipCounts({ ...summary, payChangesWaiting: null, payChangesMonth: null }).filter ?? {};
+    expect(Object.keys(counts)).not.toContain('pay_change');
+    expect(Object.keys(counts)).not.toContain('pay_change_month');
   });
 });

@@ -4,7 +4,7 @@ import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 
-import type { AuditDetail, AuditPage, AuditQuery, AuditViewer, ChainCheck } from '../types/audit-log-types';
+import type { AuditDetail, AuditPage, AuditQuery, ChainCheck } from '../types/audit-log-types';
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
 const BASE = '/workforce/audit';
@@ -33,7 +33,6 @@ export const auditReads = {
     return apiClient.get(`${BASE}/entries?${p.toString()}`, token());
   },
   detail: (id: string): Promise<AuditDetail> => apiClient.get(`${BASE}/entries/${id}`, token()),
-  viewers: (): Promise<AuditViewer[]> => apiClient.get(`${BASE}/viewers`, token()),
   actors: (q: string): Promise<{ id: string; name: string; role: string }[]> => apiClient.get(`${BASE}/actors?q=${encodeURIComponent(q)}`, token()),
 };
 

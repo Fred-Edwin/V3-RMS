@@ -49,8 +49,13 @@ export function pinProblem(pin: string): string | null {
 export type DeviceKind = 'computer' | 'phone';
 
 /** "Chrome on Linux", "Safari on iPhone", "Android phone": the device as a person would say it. Never an id. */
-export function deviceLabel(userAgent: string): { label: string; kind: DeviceKind } {
+export function deviceLabel(userAgent: string, smallTouchScreen = false): { label: string; kind: DeviceKind } {
   const ua = userAgent;
+  // A phone that asks for the desktop site (or a browser in phone mode) still has a small touch screen: say "phone", not "computer".
+  if (smallTouchScreen && !/Android|iPhone|iPad|iPod/.test(ua)) {
+    const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'This browser';
+    return { label: `${browser} on a phone`, kind: 'phone' };
+  }
   if (/Android/i.test(ua) && /Mobile/i.test(ua)) return { label: 'Android phone', kind: 'phone' };
   if (/Android/i.test(ua)) return { label: 'Android tablet', kind: 'phone' };
   const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'This browser';

@@ -95,9 +95,9 @@ describe('the menu: Home on top, feature rows below, personal items under the na
   it('gives a department head a Department row after the work row, opening with Overview', () => {
     const waiter = shape('WAITER', { ...ON, isDepartmentHead: true });
     expect(Object.keys(waiter)).toEqual(['Service', 'Department']);
-    expect(waiter['Department']?.['']).toEqual(['Overview', 'Shifts', 'Team today', 'Casual pay']);
-    // A head without the new clock sees no Shifts or Team today.
-    expect(shape('WAITER', { can: EVERYTHING, isDepartmentHead: true })['Department']?.['']).toEqual(['Overview', 'Casual pay']);
+    expect(waiter['Department']?.['']).toEqual(['Overview', 'My team', 'Shifts', 'Team today', 'Casual pay']);
+    // A head without the new clock sees no Shifts or Team today; My team does not wait for the clock.
+    expect(shape('WAITER', { can: EVERYTHING, isDepartmentHead: true })['Department']?.['']).toEqual(['Overview', 'My team', 'Casual pay']);
     // A member who is not the head has no Department row.
     expect(names('WAITER', { ...ON, isDepartmentMember: true })).toEqual(['Service']);
   });
@@ -129,6 +129,16 @@ describe('the menu: Home on top, feature rows below, personal items under the na
         .filter((b): b is NonNullable<typeof b> => b !== undefined && b.startsWith('workforce-'));
       expect(new Set(seen).size, `${role} sees ${seen.join(', ')}`).toBe(seen.length);
     }
+  });
+
+  it('gives the System Admin no Payroll and two different links for Users and Branches, and puts Profile in My account for everyone', () => {
+    const company = menuFor(ctxFor('SYSTEM_ADMIN', ON)).features.find((f) => f.label === 'Company');
+    const subs = company?.subItems ?? [];
+    expect(subs.map((s) => s.label)).not.toContain('Payroll');
+    const users = subs.find((s) => s.label === 'Users')?.href;
+    const branches = subs.find((s) => s.label === 'Branches')?.href;
+    expect(users && branches && users !== branches).toBe(true);
+    for (const role of ['HR_MANAGER', 'DIRECTOR', 'WAITER', 'STORE_ATTENDANT'] as const) expect(account(role)).toContain('Profile');
   });
 
   it('lights Overview on /app/workforce and gives the page one top bar', () => {

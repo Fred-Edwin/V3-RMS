@@ -66,6 +66,10 @@ const requestOf = (r: { id: string; kind: string; askedAt: Date; remindedAt: Dat
 /** Reads and light edits of an employee file. Sensitive opens live in employee-sensitive-service.ts. */
 export const employeesService = {
   async list(subject: AccessSubject, query: ListQuery): Promise<ListResponse<EmployeeListRow>> {
+    // The pay-change lists show who has a pay change coming: pay people only (the Branch and Store Managers see no pay).
+    if ((query.filter === 'pay_change' || query.filter === 'pay_change_month') && !workforceCan(subject, 'payprofile.read')) {
+      throw new ForbiddenError('You do not have permission to perform this action');
+    }
     const ctx = await resolveActor(subject);
     const scope = readScopeOf(subject);
     const today = todayOf();
@@ -96,7 +100,8 @@ export const employeesService = {
     const counts = await employeesRepository.summary(ctx.companyId, scope, siteId, toDateColumn(today), toDateColumn(monthStart));
     const list = await employeesRepository.listAll({ companyId: ctx.companyId, scope, ...(siteId ? { siteId } : {}), filter: 'needs_finishing', today: toDateColumn(today) });
     const rows = list.map((row) => listRowOf(subject, row));
-    return { ...counts, needsFinishing: rows.filter((r) => needsFinishing(r.gaps)).length, blocksPayroll: rows.filter((r) => blocksPayroll(r.gaps)).length };
+    const mayReadPay = workforceCan(subject, 'payprofile.read');
+    return { ...counts, payChangesWaiting: mayReadPay ? counts.payChangesWaiting : null, payChangesMonth: mayReadPay ? counts.payChangesMonth : null, needsFinishing: rows.filter((r) => needsFinishing(r.gaps)).length, blocksPayroll: rows.filter((r) => blocksPayroll(r.gaps)).length };
   },
 
   async lookups(subject: AccessSubject): Promise<Lookups> {
@@ -315,7 +320,7 @@ export const employeesService = {
       };
     });
     // The Accountant is told that a bank or account changed; the notification never carries the number (wording-built).
-    if (bankChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: row.id });
+    if (bankChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: row.id, name: row.name });
     return employeesService.getMine(subject);
   },
 

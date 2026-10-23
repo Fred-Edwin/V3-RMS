@@ -50,8 +50,8 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     ],
   },
 
-  // The department head's own row (Paper 11.x): Overview, My team, Shifts, Timesheets. My team belongs to the People build (batch 2B) and a
-  // head's Timesheets is not in the route gate (spec D7), so both stay hidden until their pages and gates exist: drop `notBuilt` then.
+  // The department head's own row (Paper 11.x): Overview, My team, Shifts, Timesheets. A head's Timesheets is not in the route gate
+  // (spec D7), so it stays hidden until its page and gate exist: drop `notBuilt` then.
   {
     key: 'feature-department',
     label: 'Department',
@@ -61,7 +61,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
     departmentHead: true,
     subItems: [
       { key: 'overview', label: 'Overview', newHref: '/app/workforce', roles: SHIFT_STAFF },
-      { key: 'my-team', label: 'My team', newHref: '/app/workforce/my-team', roles: SHIFT_STAFF, notBuilt: true },
+      { key: 'my-team', label: 'My team', newHref: '/app/workforce/team', roles: SHIFT_STAFF, match: ['/app/workforce/team', '/app/workforce/probation'] },
       { key: 'shifts', label: 'Shifts', newHref: '/app/workforce/schedule/rota', roles: SHIFT_STAFF, needsAttendance: true, match: ['/app/workforce/schedule'] },
       { key: 'today', label: 'Team today', newHref: '/app/workforce/today', roles: SHIFT_STAFF, needsAttendance: true },
       { key: 'casuals', label: 'Casual pay', newHref: '/app/workforce/casuals', roles: SHIFT_STAFF, match: ['/app/workforce/casuals'] },
@@ -75,7 +75,6 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   { key: 'wf-audit-log', label: 'Audit log', group: 'feature:company', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: [...WF_DESKTOP, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/audit-log'] },
   { key: 'wf-attendance-switch', label: 'Attendance clock', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
   { key: 'wf-rules-admin', label: 'Rules', group: 'feature:company', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
-  { key: 'wf-payroll-admin', label: 'Payroll', group: 'feature:company', icon: ico.money, newHref: '/app/workforce/payroll', roles: [SYSTEM_ADMIN], badge: 'workforce-payroll', needsPayroll: true, match: ['/app/workforce/payroll'] },
 
   // ── Personal items: open from the name at the bottom of the menu (Paper 2.x), for every person with a file ──────────────────────
   { key: 'me-file', label: 'My file', group: 'account', icon: ico.me, newHref: '/app/workforce/my-file', roles: OWN_FILE_ROLES, match: ['/app/workforce/my-file'] },

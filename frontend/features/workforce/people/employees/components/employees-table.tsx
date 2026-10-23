@@ -28,9 +28,10 @@ const COPY: TableCopy = {
   permissionDescription: 'Your role does not open the employee list.',
 };
 
-const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'exited']);
+const FILTER_VALUES: ReadonlySet<string> = new Set(['needs_finishing', 'blocks_payroll', 'no_contract', 'casual_pool', 'on_probation', 'pay_change', 'pay_change_month', 'exited']);
 
-export function buildFilters(lookups: Lookups | null): TableFilter[] {
+/** The chips. The two pay-change chips are for people who may read pay (the summary then carries their counts). */
+export function buildFilters(lookups: Lookups | null, summary: PeopleSummary | null = null): TableFilter[] {
   const sites = lookups?.organizations ?? [];
   const departments = lookups?.departments.filter((d) => d.isActive) ?? [];
   const multiSite = sites.length > 1;
@@ -44,6 +45,9 @@ export function buildFilters(lookups: Lookups | null): TableFilter[] {
         { value: 'blocks_payroll', label: 'Blocks payroll' },
         { value: 'no_contract', label: 'No contract yet' },
         { value: 'casual_pool', label: 'Casuals' },
+        { value: 'on_probation', label: 'On probation' },
+        ...(summary?.payChangesWaiting != null ? [{ value: 'pay_change', label: 'Pay change waiting' }] : []),
+        ...(summary?.payChangesMonth != null ? [{ value: 'pay_change_month', label: 'Pay change this month' }] : []),
         { value: 'exited', label: 'Left' },
       ],
     },
@@ -82,7 +86,7 @@ export interface EmployeesTableProps {
 }
 
 export function EmployeesTable({ lookups, summary, refreshToken, onOpen }: EmployeesTableProps) {
-  const filters = React.useMemo(() => buildFilters(lookups), [lookups]);
+  const filters = React.useMemo(() => buildFilters(lookups, summary), [lookups, summary]);
   const counts = React.useMemo(() => (summary ? employeeChipCounts(summary) : undefined), [summary]);
 
   const columns = React.useMemo<TableColumn<EmployeeListRow>[]>(

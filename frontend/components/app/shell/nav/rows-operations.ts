@@ -100,8 +100,8 @@ export const OPERATIONS_ROWS: readonly NavRow[] = [
   { key: 'accountant-inbox', label: 'Inbox', group: 'acc-financials', icon: ico.inbox, oldHref: '/app/inbox', roles: [ACCOUNTANT], badge: 'inbox' },
 
   // ── System Admin: Home and Company only (Paper 2.x) ──
-  { key: 'admin-users', label: 'Users', group: 'adm-company', icon: ico.staff, oldHref: '/app/admin', roles: [SYSTEM_ADMIN], match: ['/app/admin'] },
-  { key: 'admin-branches', label: 'Branches', group: 'adm-company', icon: ico.settings, oldHref: '/app/admin', roles: [SYSTEM_ADMIN] },
+  { key: 'admin-users', label: 'Users', group: 'adm-company', icon: ico.staff, oldHref: '/app/admin?view=users', roles: [SYSTEM_ADMIN], match: ['/app/admin'] },
+  { key: 'admin-branches', label: 'Branches', group: 'adm-company', icon: ico.settings, oldHref: '/app/admin?view=branches', roles: [SYSTEM_ADMIN] },
   { key: 'admin-menu', label: 'Menu items', group: 'adm-company', icon: ico.menu, oldHref: '/app/admin/menu', roles: [SYSTEM_ADMIN] },
   { key: 'admin-house-accounts', label: 'House accounts', group: 'adm-company', icon: ico.credit, oldHref: '/app/admin/house-accounts', roles: [SYSTEM_ADMIN], flag: 'credit' },
   { key: 'admin-corporate', label: 'Corporate accounts', group: 'adm-company', icon: ico.departments, oldHref: '/app/admin/corporate-accounts', roles: [SYSTEM_ADMIN], flag: 'credit' },

@@ -17,9 +17,6 @@ export const AUDIT_COPY = {
   exportTooMany: 'Too many to export. Narrow the dates.',
   exportPreparing: 'Preparing your file…',
   exportFailed: 'Could not export. Try again.',
-  viewersTitle: 'WHO LOOKED AT THIS LOG',
-  viewersNone: 'Nobody else has opened the log.',
-  viewersNote: 'Payslip opens show who and when, never how much. The Director reads who opened whose payslip.',
   proofLine: 'Written with the change itself. Nobody can edit or delete it.',
   drawerMissing: 'We could not find that entry.',
 } as const;

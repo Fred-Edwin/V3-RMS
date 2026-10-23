@@ -6,6 +6,8 @@ export interface TeamPersonRow {
   name: string;
   positionName: string | null;
   departmentName: string | null;
+  /** On open probation (an end date, nothing decided yet): a report can be written. */
+  onProbation: boolean;
 }
 
 export interface TeamShiftRow {
@@ -26,11 +28,17 @@ export const teamRepository = {
         ...(departmentIds ? { departmentId: { in: [...departmentIds] } } : {}),
         ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { position: { name: { contains: q, mode: 'insensitive' } } }] } : {}),
       },
-      select: { id: true, name: true, position: { select: { name: true } }, department: { select: { name: true } } },
+      select: { id: true, name: true, probationEndsOn: true, probationConfirmedOn: true, probationDecidedOn: true, position: { select: { name: true } }, department: { select: { name: true } } },
       orderBy: { name: 'asc' },
       take: 500,
     });
-    return rows.map((r) => ({ id: r.id, name: r.name, positionName: r.position?.name ?? null, departmentName: r.department?.name ?? null }));
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      positionName: r.position?.name ?? null,
+      departmentName: r.department?.name ?? null,
+      onProbation: r.probationEndsOn !== null && r.probationConfirmedOn === null && r.probationDecidedOn === null,
+    }));
   },
 
   shiftsOn: async (siteId: string, date: NairobiDate, employeeIds: readonly string[]): Promise<TeamShiftRow[]> => {

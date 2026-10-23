@@ -58,7 +58,7 @@ async function cardFor(ctx: { companyId: string; auditActor: Parameters<typeof p
   const file = (row: { bytes: Uint8Array | Buffer; number: string; hash: string }): P9File => ({ bytes: Buffer.from(row.bytes), number: row.number, hash: row.hash, filename: `${row.number}.pdf` });
   if (existing) return file(existing);
   if (!employee.kraPin) {
-    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'HR_MANAGER'), 'p9.no_kra_pin', { employeeId: employee.id, year });
+    await told(await employeesRepository.userIdsByRole(ctx.companyId, 'HR_MANAGER'), 'p9.no_kra_pin', { employeeId: employee.id, name: employee.name, year });
     throw new ConflictError('The tax card cannot be made until a KRA PIN is on file. HR has been told.', 'P9_NO_KRA_PIN');
   }
   const records = (await recordsOf(ctx.companyId, employee.id)).filter((r) => r.monthKey.startsWith(`${year}-`));

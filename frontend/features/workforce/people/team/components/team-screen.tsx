@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 import { DataTable, type TableColumn, type TableCopy } from '@/components/ui2/data-table/data-table';
 import { HighlightMatch } from '@/components/ui2/data-table/highlight-match';
@@ -16,7 +17,8 @@ import type { TeamMember } from '../types/team-types';
 
 /**
  * My team (frames 9.2 and 9.5): who a head leads, read only. Name and position, today's status, today's shift; search, the three
- * chips, the numbered pager with rows per page. No pay, no ID number and no link to a file: a head reads this, they do not open it.
+ * chips, the numbered pager with rows per page. No pay, no ID number and no link to a file; the only way in is "Write report" on a
+ * person on probation, shown when the server says the viewer may (`canReport`).
  */
 const COPY: TableCopy = {
   emptyTitle: 'Nobody is on your team yet',
@@ -61,7 +63,19 @@ const COLUMNS: TableColumn<TeamMember>[] = [
     },
   },
   { id: 'shift', header: 'SHIFT', width: '200px', cell: (m) => <span className="font-wds-mono text-[13px] leading-[18px] text-wds-text-ink">{shiftCell(m)}</span> },
+  { id: 'report', header: '', width: '150px', cell: (m) => (m.canReport ? <ReportLink member={m} /> : null) },
 ];
+
+const REPORT_LINK = 'font-wds-sans text-[13px] font-medium leading-[18px] text-wds-caramel-700 underline underline-offset-2 outline-none focus-visible:shadow-wds-ring';
+
+/** The way into a person's probation report (the form itself is the probation report screen). */
+function ReportLink({ member }: { member: TeamMember }) {
+  return (
+    <Link href={`/app/workforce/probation/${member.id}/report`} className={REPORT_LINK} aria-label={`Write the probation report for ${member.name}`}>
+      Write report
+    </Link>
+  );
+}
 
 /** A phone row (frame 9.2): the person at the left, today's status at the right, the shift under it. */
 function TeamCard({ member, term }: { member: TeamMember; term: string }) {
@@ -76,6 +90,7 @@ function TeamCard({ member, term }: { member: TeamMember; term: string }) {
       <div className="shrink-0 text-right">
         <p className={cn('m-0 font-wds-sans text-[13px] leading-[18px]', s.tone === 'success' ? 'text-wds-success-fg' : 'text-wds-text-secondary')}>{s.label}</p>
         <p className="m-0 font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{shiftCell(member)}</p>
+        {member.canReport ? <ReportLink member={member} /> : null}
       </div>
     </div>
   );

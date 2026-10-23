@@ -1,5 +1,7 @@
 import type { HrDocumentType, Prisma, UserRole } from '@prisma/client';
 import { prisma } from '../../../../config/database';
+import { ACTIVE_STATUSES } from '../people.constants';
+import { payChangeWhere } from './employees-pay-filter';
 
 /**
  * All Prisma access for reading and lightly editing an employee file. Every query carries `companyId` (or, for the few
@@ -95,7 +97,7 @@ export interface ListQuery {
   scope: ScopeFilter;
   siteId?: string;
   departmentId?: string;
-  filter: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
+  filter: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'pay_change' | 'pay_change_month' | 'exited';
   q?: string;
   today: Date;
 }
@@ -125,6 +127,10 @@ const filterWhere = (query: ListQuery): Prisma.EmployeeWhereInput => {
       break;
     case 'on_probation':
       and.push({ status: { not: 'EXITED' }, probationEndsOn: { gte: query.today }, probationConfirmedOn: null });
+      break;
+    case 'pay_change':
+    case 'pay_change_month':
+      and.push({ status: { not: 'EXITED' } }, payChangeWhere(query.filter === 'pay_change' ? 'waiting' : 'month', query.today));
       break;
     case 'needs_finishing':
     case 'blocks_payroll':
@@ -222,16 +228,18 @@ export const employeesRepository = {
   async summary(companyId: string, scope: ScopeFilter, siteId: string | undefined, today: Date, monthStart: Date) {
     const base: Prisma.EmployeeWhereInput = { companyId, AND: [scopeWhere(scope), siteId ? { siteId } : {}] };
     const live: Prisma.EmployeeWhereInput = { AND: [base, { status: { not: 'EXITED' } }] };
-    const [onFile, active, exited, noContract, joinedThisMonth, stillInProbation, casualPool] = await Promise.all([
+    const [onFile, active, exited, noContract, joinedThisMonth, stillInProbation, casualPool, payChangesWaiting, payChangesMonth] = await Promise.all([
       prisma.employee.count({ where: base }),
-      prisma.employee.count({ where: { AND: [base, { status: 'ACTIVE' }] } }),
+      prisma.employee.count({ where: { AND: [base, { status: { in: [...ACTIVE_STATUSES] } }] } }),
       prisma.employee.count({ where: { AND: [base, { status: 'EXITED' }] } }),
       prisma.employee.count({ where: { AND: [live, { payType: 'MONTHLY_SALARY', contractStatus: { not: 'ACTIVE' } }] } }),
       prisma.employee.count({ where: { AND: [live, { startDate: { gte: monthStart } }] } }),
       prisma.employee.count({ where: { AND: [live, { probationEndsOn: { gte: today }, probationConfirmedOn: null }] } }),
       prisma.employee.count({ where: { AND: [live, { payType: 'DAILY_RATE' }] } }),
+      prisma.employee.count({ where: { AND: [live, payChangeWhere('waiting', today)] } }),
+      prisma.employee.count({ where: { AND: [live, payChangeWhere('month', today)] } }),
     ]);
-    return { onFile, active, exited, noContract, joinedThisMonth, stillInProbation, casualPool };
+    return { onFile, active, exited, noContract, joinedThisMonth, stillInProbation, casualPool, payChangesWaiting, payChangesMonth };
   },
 
   // ---- lookups ---------------------------------------------------------------------------

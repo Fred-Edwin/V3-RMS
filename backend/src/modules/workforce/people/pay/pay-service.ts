@@ -167,7 +167,7 @@ export const payService = {
         ],
       };
     });
-    if (bankChanged || methodChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: employee.id });
+    if (bankChanged || methodChanged) await told(await payRepository.accountantUserIds(ctx.companyId), 'pay.bank_changed', { employeeId: employee.id, name: employee.name });
     return payService.viewQuiet(subject, employee.id);
   },
 
@@ -262,9 +262,9 @@ export const payService = {
     });
     if (byDirector) {
       const hr = await employeesRepository.userIdsByRole(ctx.companyId, 'HR_MANAGER');
-      await told([...hr, ...(await payRepository.accountantUserIds(ctx.companyId))], 'pay.changed_by_director', { employeeId: employee.id }); // no amount
+      await told([...hr, ...(await payRepository.accountantUserIds(ctx.companyId))], 'pay.changed_by_director', { employeeId: employee.id, name: employee.name }); // no amount
     } else {
-      await told(await payRepository.directorUserIds(ctx.companyId), 'pay.change_requested', { employeeId: employee.id });
+      await told(await payRepository.directorUserIds(ctx.companyId), 'pay.change_requested', { employeeId: employee.id, name: employee.name });
     }
     return (await changeRows([created], employee.name))[0]!;
   },
@@ -319,7 +319,7 @@ export const payService = {
         ],
       };
     });
-    await told([found.requestedById], 'pay.change_decided', { employeeId: found.employeeId, decision: approve ? 'APPROVED' : 'DECLINED' });
+    await told([found.requestedById], 'pay.change_decided', { employeeId: found.employeeId, name: found.employee.name, decision: approve ? 'APPROVED' : 'DECLINED' });
     const fresh = await payRepository.findChange(ctx.companyId, changeId);
     return (await changeRows([fresh ?? found], found.employee.name))[0]!;
   },

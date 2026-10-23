@@ -5,7 +5,16 @@ export const EMPLOYEE_NUMBER_PREFIX = 'W-';
 export const EXIT_UNDO_DAYS = 7;
 export const DRAFT_KEEP_DAYS = 30;
 
-export const EXIT_REASONS = ['RESIGNED', 'END_OF_CONTRACT', 'DISMISSED', 'REDUNDANCY', 'RETIRED', 'OTHER'] as const;
+/**
+ * "Active" means one thing everywhere (Home, Employees, Organisation): the person works here now, whether at work, on leave, on notice or
+ * suspended. Someone still being hired (ONBOARDING) and someone who has left (EXITED) are not active.
+ */
+export const ACTIVE_STATUSES = ['ACTIVE', 'ON_LEAVE', 'NOTICE', 'SUSPENDED'] as const;
+
+/** A pay change counts as "this month" when it starts from the 1st up to this many days later (the Accountant's card and its list agree). */
+export const PAY_CHANGE_MONTH_DAYS = 31;
+
+export const EXIT_REASONS =['RESIGNED', 'END_OF_CONTRACT', 'DISMISSED', 'REDUNDANCY', 'RETIRED', 'OTHER'] as const;
 export type ExitReason = (typeof EXIT_REASONS)[number];
 
 export const PAY_CHANGE_REASONS = ['HIRING', 'PROBATION_CONFIRMED', 'PROMOTION', 'ANNUAL_REVIEW', 'CORRECTION', 'OTHER'] as const;

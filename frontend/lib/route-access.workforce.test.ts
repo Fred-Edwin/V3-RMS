@@ -15,9 +15,9 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     });
   }
 
-  it('opens the person’s own file for every role, and the employee file only for the desktop roles', () => {
+  it('opens the person’s own file for every role that has a file (not the System Admin), and the employee file only for the desktop roles', () => {
     for (const role of ALL) {
-      expect(isAllowedPath('/app/workforce/my-file', role, false), `${role} on my-file`).toBe(true);
+      expect(isAllowedPath('/app/workforce/my-file', role, false), `${role} on my-file`).toBe(role !== 'SYSTEM_ADMIN');
       expect(isAllowedPath('/app/workforce/employees/abc', role, false), `${role} on a file`).toBe(WORKFORCE_DESKTOP.includes(role));
     }
   });
@@ -32,7 +32,7 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
   });
 
   it('opens My team and the probation report to heads and the roles that see their people (batch 2B)', () => {
-    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'];
+    const OPENS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'];
     for (const path of ['/app/workforce/team', '/app/workforce/probation/abc/report']) {
       for (const role of ALL) expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(OPENS.includes(role));
       expect(isAllowedPath(path, 'CHEF', true), `a head on ${path}`).toBe(true);

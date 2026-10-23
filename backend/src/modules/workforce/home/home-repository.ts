@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
 import { attentionReads } from '../needs-you/sources/attention-repository';
 import type { ScopeFilter } from '../people/employees/employees-repository';
+import { ACTIVE_STATUSES } from '../people/people.constants';
 
 /** Counts for the Home numbers. Every query carries the company and the viewer's reach; nothing here decides who may ask. */
 
@@ -39,6 +40,7 @@ export interface PeopleCounts {
   inProbation: number;
   probationDueSoon: number;
   probationOverdue: number;
+  probationReportsDue: number;
   onLeaveToday: number;
 }
 
@@ -48,15 +50,16 @@ export const homeRepository = {
     const base: Prisma.EmployeeWhereInput = { companyId, AND: [scopeWhere(scope)] };
     const live: Prisma.EmployeeWhereInput = { AND: [base, { status: { not: 'EXITED' } }] };
     const open: Prisma.EmployeeWhereInput = { AND: [live, { probationConfirmedOn: null, probationDecidedOn: null, probationEndsOn: { not: null } }] };
-    const [active, joinedThisMonth, inProbation, probationDueSoon, probationOverdue, onLeaveToday] = await Promise.all([
-      prisma.employee.count({ where: { AND: [base, { status: { in: ['ACTIVE', 'ON_LEAVE', 'NOTICE', 'SUSPENDED'] } }] } }),
+    const [active, joinedThisMonth, inProbation, probationDueSoon, probationOverdue, probationReportsDue, onLeaveToday] = await Promise.all([
+      prisma.employee.count({ where: { AND: [base, { status: { in: [...ACTIVE_STATUSES] } }] } }),
       prisma.employee.count({ where: { AND: [live, { startDate: { gte: monthStart } }] } }),
       prisma.employee.count({ where: { AND: [live, { probationConfirmedOn: null, probationEndsOn: { gte: today } }] } }),
       prisma.employee.count({ where: { AND: [open, { probationEndsOn: { gte: today, lte: soon } }] } }),
       prisma.employee.count({ where: { AND: [open, { probationEndsOn: { lt: today } }] } }),
+      prisma.employee.count({ where: { AND: [open, { probationNotes: { none: { authorKind: 'HEAD' } } }] } }),
       prisma.leaveApplication.count({ where: { companyId, status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today }, ...leaveWhere } }),
     ]);
-    return { active, joinedThisMonth, inProbation, probationDueSoon, probationOverdue, onLeaveToday };
+    return { active, joinedThisMonth, inProbation, probationDueSoon, probationOverdue, probationReportsDue, onLeaveToday };
   },
 
   /** Departments with people and no head, the same list Needs your attention uses, narrowed to one site when the viewer has only one. */
@@ -66,11 +69,12 @@ export const homeRepository = {
   },
 
   async payChangesWaiting(companyId: string): Promise<number> {
-    return prisma.payChange.count({ where: { status: 'PENDING', employee: { companyId } } });
+    // The same people the Employees list shows under "Pay change" (anyone who has left is not counted there).
+    return prisma.payChange.count({ where: { status: 'PENDING', employee: { companyId, status: { not: 'EXITED' } } } });
   },
 
   async payChangesStartingBetween(companyId: string, from: Date, to: Date): Promise<number> {
-    return prisma.payChange.count({ where: { status: { in: ['PENDING', 'APPROVED'] }, effectiveFrom: { gte: from, lte: to }, employee: { companyId } } });
+    return prisma.payChange.count({ where: { status: { in: ['PENDING', 'APPROVED'] }, effectiveFrom: { gte: from, lte: to }, employee: { companyId, status: { not: 'EXITED' } } } });
   },
 
   async payrollState(companyId: string, monthKey: string): Promise<string | null> {

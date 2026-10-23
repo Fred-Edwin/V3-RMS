@@ -127,9 +127,10 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
 
   // Workforce (Chapter 1 frame): the Home of the five desktop roles that have a Workforce menu. Floor staff get a Home link when Attendance
   // (slice 3) gives them a clock card; a later slice widens this for My time, My leave and My payslips. Each slice's own routes narrow or widen it here.
-  // The person's own file (slice 1a): everyone with a login opens it, floor staff included. The API shows only their own record.
+  // The person's own file (slice 1a): everyone with a login and a file opens it, floor staff included. The API shows only their own
+  // record. The System Admin has no file (the account is not a person on the payroll), so the page answers "Not available".
   if (pathname === '/app/workforce/my-file' || pathname.startsWith('/app/workforce/my-file/')) {
-    return true;
+    return role !== 'SYSTEM_ADMIN';
   }
 
   // Organisation: the roles the access table gives `org.read` (HR, Branch Manager, Store Manager, Director). The table is the
@@ -146,7 +147,7 @@ export const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead:
 
   // People, batch 2B: a head's probation report and My team (read only). Heads, and the roles that already see their people.
   if (pathname === '/app/workforce/team' || pathname.startsWith('/app/workforce/team/') || pathname === '/app/workforce/probation' || pathname.startsWith('/app/workforce/probation/')) {
-    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
 
   // Attendance (slice 3). The Today board is for the roles that read it (and a department head, for their own people); the per-site

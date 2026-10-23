@@ -64,6 +64,9 @@ export interface PeopleSummary {
   joinedThisMonth: number;
   stillInProbation: number;
   casualPool: number;
+  /** Pay changes waiting, and starting this month; null when the viewer may not read pay. */
+  payChangesWaiting: number | null;
+  payChangesMonth: number | null;
 }
 
 export interface ProbationNoteView {
@@ -258,7 +261,7 @@ export interface Lookups {
 export interface EmployeeListQuery {
   siteId?: string;
   departmentId?: string;
-  filter?: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'exited';
+  filter?: 'all' | 'needs_finishing' | 'blocks_payroll' | 'no_contract' | 'casual_pool' | 'on_probation' | 'pay_change' | 'pay_change_month' | 'exited';
   q?: string;
   page?: number;
   perPage?: number;
