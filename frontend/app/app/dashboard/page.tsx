@@ -363,7 +363,7 @@ function DashboardPageBody(): JSX.Element {
             <p className="mt-1 text-body-md text-stone-500">Your live order dashboard</p>
           </div>
           <Link
-            href="/app/profile"
+            href="/app/workforce/my-file"
             aria-label="Open profile"
             className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
           >
@@ -469,7 +469,7 @@ function DashboardPageBody(): JSX.Element {
             <p className="mt-1 text-body-md text-stone-500">Your preparation queue snapshot</p>
           </div>
           <Link
-            href="/app/profile"
+            href="/app/workforce/my-file"
             aria-label="Open profile"
             className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
           >
@@ -533,7 +533,7 @@ function DashboardPageBody(): JSX.Element {
             <p className="mt-1 text-body-md text-stone-500">{roleLabel} · {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           <Link
-            href="/app/profile"
+            href="/app/workforce/my-file"
             aria-label="Open profile"
             className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
           >
@@ -594,11 +594,11 @@ function DashboardPageBody(): JSX.Element {
             <span className="text-[11px] text-stone-400">Messages &amp; announcements</span>
           </Link>
           <Link
-            href="/app/profile"
+            href="/app/workforce/my-file"
             className="flex flex-col gap-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:bg-stone-50 transition-colors"
           >
             <span className="text-[22px]">👤</span>
-            <span className="mt-1 text-[13px] font-semibold text-stone-800">My Profile</span>
+            <span className="mt-1 text-[13px] font-semibold text-stone-800">My file</span>
             <span className="text-[11px] text-stone-400">Account &amp; settings</span>
           </Link>
         </div>

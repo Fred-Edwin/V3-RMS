@@ -69,7 +69,7 @@ describe('row labels and links', () => {
     expect(safeHref(null)).toBeNull();
   });
 
-  it('sends Activity on my record to My phones until that screen exists', () => {
-    expect(safeHref('/app/workforce/my-record')).toBe('/app/workforce/my-phones');
+  it('leaves the Activity on my record link as it is', () => {
+    expect(safeHref('/app/workforce/my-record')).toBe('/app/workforce/my-record');
   });
 });

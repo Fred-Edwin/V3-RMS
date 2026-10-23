@@ -281,8 +281,8 @@ function ReversePaymentDrawer({ order, paymentId, open, onOpenChange }: { order:
         {needsOwnPin ? (
           <span className="font-wds-sans text-wds-caption text-wds-warning-fg">
             You haven’t set a PIN yet.{' '}
-            <Link href="/app/profile" className="font-medium underline underline-offset-2">
-              Set your signing PIN in Profile
+            <Link href="/app/inventory/settings" className="font-medium underline underline-offset-2">
+              Set your signing PIN in Inventory settings
             </Link>
             , then come back.
           </span>

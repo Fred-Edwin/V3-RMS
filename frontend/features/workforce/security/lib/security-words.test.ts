@@ -1,22 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AlertRow, Phone } from '../types/security-types';
-import { alertTitle, checkPasswords, clearedByLine, noteOk, phoneMeta, phoneRegionName, placeWords, PHONE_COPY, WASNT_ME_COPY, whenLabel } from './security-words';
+import type { AlertRow } from '../types/security-types';
+import { alertTitle, checkPasswords, clearedByLine, noteOk, placeWords, SIGN_OUT_EVERYWHERE_COPY, WASNT_ME_COPY, whenLabel } from './security-words';
 
 const NOW = new Date('2026-10-20T11:30:00Z'); // 14:30 in Nairobi
-
-const phone = (over: Partial<Phone> = {}): Phone => ({
-  id: 'p1',
-  label: 'Tecno, Android',
-  placeLabel: 'Nairobi',
-  firstSeenAt: '2026-10-20T11:03:00Z',
-  lastSeenAt: '2026-10-20T11:03:00Z',
-  confirmed: false,
-  confirmedMode: null,
-  isThisPhone: false,
-  notUsedFor12Months: false,
-  ...over,
-});
 
 const alert = (over: Partial<AlertRow>): AlertRow => ({
   id: 'a1',
@@ -41,19 +28,8 @@ describe('phone words', () => {
     expect(placeWords(null)).toBe('Place not known');
   });
 
-  it('writes the second line of a phone card', () => {
-    expect(phoneMeta(phone(), NOW)).toBe('Nairobi · first used today 14:03 · last seen today 14:03');
-    expect(phoneMeta(phone({ isThisPhone: true, firstSeenAt: '2026-07-14T08:00:00Z' }), NOW)).toBe('Nairobi · first used 14 Jul · last seen now');
-    expect(phoneMeta(phone({ notUsedFor12Months: true, firstSeenAt: '2025-01-02T08:00:00Z' }), NOW)).toContain('not used for 12 months');
-  });
-
-  it('names each card for a screen reader', () => {
-    expect(phoneRegionName(phone())).toBe('Tecno, Android, not confirmed');
-    expect(phoneRegionName(phone({ confirmed: true, isThisPhone: true }))).toBe('Tecno, Android, this phone, confirmed');
-  });
-
   it('never explains how phones are recognised', () => {
-    const everything = JSON.stringify([PHONE_COPY, WASNT_ME_COPY]).toLowerCase();
+    const everything = JSON.stringify([SIGN_OUT_EVERYWHERE_COPY, WASNT_ME_COPY]).toLowerCase();
     for (const word of ['device id', 'local storage', 'cookie', 'fingerprint', 'browser storage', 'hash']) expect(everything).not.toContain(word);
   });
 

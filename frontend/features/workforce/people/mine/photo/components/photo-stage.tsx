@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { MAX_ZOOM, clampDrag, scaleFor, type PhotoSize } from '../lib/photo-crop';
+import { MAX_ZOOM, clampDrag, scaleFor, type PhotoSize } from '../../lib/photo-crop';
 
 /** The circle the person crops to: 280 px, as in frame 8.5. Saving cuts exactly what this circle shows. */
 export const CIRCLE = 280;

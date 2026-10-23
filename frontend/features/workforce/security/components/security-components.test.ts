@@ -2,26 +2,12 @@ import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import type { AlertRow, Phone } from '../types/security-types';
+import type { AlertRow } from '../types/security-types';
 import { AlertPanel } from './alert-panel';
-import { PhoneCard } from './phone-card';
 
 const html = (el: Parameters<typeof renderToStaticMarkup>[0]): string => renderToStaticMarkup(el);
 const noop = (): void => undefined;
 const NOW = new Date('2026-10-20T11:30:00Z');
-
-const phone = (over: Partial<Phone> = {}): Phone => ({
-  id: 'p1',
-  label: 'Tecno, Android',
-  placeLabel: 'Nairobi',
-  firstSeenAt: '2026-10-20T11:03:00Z',
-  lastSeenAt: '2026-10-20T11:03:00Z',
-  confirmed: false,
-  confirmedMode: null,
-  isThisPhone: false,
-  notUsedFor12Months: false,
-  ...over,
-});
 
 const alert = (over: Partial<AlertRow> = {}): AlertRow => ({
   id: 'a1',
@@ -38,45 +24,6 @@ const alert = (over: Partial<AlertRow> = {}): AlertRow => ({
   clearedAt: null,
   clearNote: null,
   ...over,
-});
-
-const card = (p: Phone) => h(PhoneCard, { phone: p, now: NOW, busy: false, onConfirm: noop, onRemove: noop, onSignOut: noop });
-
-describe('a phone card', () => {
-  it('is a region named by the phone and whether it is confirmed, with a left bar in the matching colour', () => {
-    const out = html(card(phone()));
-    expect(out).toContain('aria-label="Tecno, Android, not confirmed"');
-    expect(out).toContain('bg-wds-caramel-500');
-    expect(html(card(phone({ confirmed: true })))).toContain('bg-wds-success-fg');
-  });
-
-  it('offers "Yes, this is my phone" and "Remove it" on a phone that is not confirmed, and only Remove on a confirmed one', () => {
-    const out = html(card(phone()));
-    expect(out).toContain('Yes, this is my phone');
-    expect(out).toContain('Remove it');
-    const confirmed = html(card(phone({ confirmed: true })));
-    expect(confirmed).not.toContain('Yes, this is my phone');
-    expect(confirmed).toContain('Remove it');
-  });
-
-  it('never offers to remove the phone in the person’s hand: it says Sign out instead', () => {
-    const out = html(card(phone({ isThisPhone: true, confirmed: true })));
-    expect(out).toContain('Sign out instead');
-    expect(out).not.toContain('Remove it');
-    expect(out).toContain('this phone');
-  });
-
-  it('gives every button a 44 px target, a keyboard ring and a pressed state', () => {
-    const out = html(card(phone()));
-    expect(out).toContain('min-h-[44px]');
-    expect(out).toContain('focus-visible:shadow-wds-ring');
-    expect(out).toContain('active:scale-[0.98]');
-  });
-
-  it('disables the buttons while a write is in flight', () => {
-    const out = html(h(PhoneCard, { phone: phone(), now: NOW, busy: true, onConfirm: noop, onRemove: noop, onSignOut: noop }));
-    expect(out.match(/disabled=""/g)?.length).toBe(2);
-  });
 });
 
 describe('the alert panel', () => {
