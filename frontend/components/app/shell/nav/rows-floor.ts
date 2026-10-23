@@ -49,5 +49,4 @@ export const DEPARTMENT_ROWS: readonly NavRow[] = [
   { key: 'member-waste', label: 'Waste', group: 'department', icon: ico.alert, newHref: '/app/waste', roles: SHIFT_STAFF, departmentMemberOnly: true },
 
   // ── Everyone: the personal Profile page (opens from the name) ──
-  { key: 'profile', label: 'Profile', group: 'account', icon: ico.profile, oldHref: '/app/profile', roles: ALL_HUMAN },
 ];
