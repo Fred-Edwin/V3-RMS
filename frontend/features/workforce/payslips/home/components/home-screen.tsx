@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 
 import { EmptyState, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, StatusTag, useRemote } from '../../../_shared';
@@ -15,6 +16,7 @@ import { PAYSLIP_COPY } from '../../_shared/lib/payslip-copy';
 import { bankLine, monthLong, money, rowLine } from '../../_shared/lib/pay-words';
 import { PAYSLIP_HISTORY, payslipHref } from '../../_shared/lib/routes';
 import { payslipReads } from '../../_shared/services/payslip-services';
+import { PayslipsDesktop } from '../../desktop/components/payslips-desktop';
 import { YearCard } from './year-card';
 
 /**
@@ -22,6 +24,12 @@ import { YearCard } from './year-card';
  * eye is one preference per device and person; no figure is in the page while hidden.
  */
 export function PayslipsHome() {
+  const { matches: desktop, hydrated } = useMediaQuery('(min-width: 1024px)');
+  if (!hydrated) return null;
+  return desktop ? <PayslipsDesktop /> : <PayslipsPhoneHome />;
+}
+
+function PayslipsPhoneHome() {
   const router = useRouter();
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const { shown, toggle } = useAmountsShown(userId);

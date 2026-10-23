@@ -1,5 +1,7 @@
 # Workforce · Conduct (front end)
 
+**My notices on a desktop (23 Oct 2026, frame 13.11):** from 1024 px `/app/conduct` and `/app/conduct/[id]` show `staff/components/notices-desktop.tsx` (To sign, Can appeal, Ended; the notices table; the chosen notice in `notice-panel.tsx`). Sign, appeal and the letter stay the phone pages. A phone keeps the card list and the notice page.
+
 The screens of warning notices: the staff list and one notice with its stepper, signing with your code, appealing, the manager's Conduct list with Issue a warning, recording that a notice was not signed with a witness, HR's appeal and decision, the notice document, and the Conduct tab of an employee file. Spec: `docs/features/workforce/specs/5-conduct-spec.md`. API: `docs/API_CONTRACT.md` §44. Choices and departures: `docs/features/workforce/decisions-5-conduct-frontend.md`. Checklist: `checklist-5-conduct-frontend.md`.
 
 **Status:** built and walked in a real browser on 21 Oct 2026 (fresh servers, real logins, one flow end to end with the audit entries read from the database); awaiting the owner's review. The letters are placeholder wording for the lawyer: this code shows what the server renders and never states the wording.

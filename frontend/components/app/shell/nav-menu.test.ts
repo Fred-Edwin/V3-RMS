@@ -45,7 +45,7 @@ describe('the menu: Home on top, feature rows below, personal items under the na
       Setup: ['Rules'],
     });
     expect(hr['Company']).toEqual({ '': ['Audit log'] });
-    expect(account('HR_MANAGER')).toEqual(['My file', 'My leave', 'My payslips', 'Activity on my record', 'My notices', 'Profile']);
+    expect(account('HR_MANAGER')).toEqual(['My file', 'My leave', 'My payslips', 'Activity on my record', 'My notices']);
   });
 
   it('gives the Director every feature row, in the order Workforce, Inventory, Operations, Company', () => {
@@ -71,7 +71,7 @@ describe('the menu: Home on top, feature rows below, personal items under the na
     expect(names('SYSTEM_ADMIN')).toEqual(['Company']);
     const company = shape('SYSTEM_ADMIN')['Company']?.[''] ?? [];
     expect(company).toEqual(expect.arrayContaining(['Security alerts', 'Audit log', 'Users', 'Branches', 'Menu items']));
-    expect(account('SYSTEM_ADMIN')).toEqual(['Profile']);
+    expect(account('SYSTEM_ADMIN')).toEqual([]);
   });
 
   it('lets a System Admin who previews a Central Store role keep that role’s Inventory rows', () => {
@@ -81,7 +81,7 @@ describe('the menu: Home on top, feature rows below, personal items under the na
 
   it('gives the Store Attendant Inventory and the personal items, with no Workforce row', () => {
     expect(names('STORE_ATTENDANT')).toEqual(['Inventory']);
-    expect(account('STORE_ATTENDANT')).toEqual(expect.arrayContaining(['My file', 'My time', 'My leave', 'My payslips', 'Profile']));
+    expect(account('STORE_ATTENDANT')).toEqual(expect.arrayContaining(['My file', 'My time', 'My leave', 'My payslips']));
   });
 
   it('names the floor person’s work row for the department', () => {
@@ -103,8 +103,8 @@ describe('the menu: Home on top, feature rows below, personal items under the na
   });
 
   it('keeps the old My shifts and My leave pages among the personal items only while the new clock is off', () => {
-    expect(account('WAITER', { can: EVERYTHING })).toEqual(['My file', 'My payslips', 'My shifts', 'My leave', 'Profile']);
-    expect(account('WAITER')).toEqual(['My file', 'My time', 'My rota', 'My requests', 'My leave', 'My payslips', 'Activity on my record', 'My notices', 'Profile']);
+    expect(account('WAITER', { can: EVERYTHING })).toEqual(['My file', 'My payslips', 'My shifts', 'My leave']);
+    expect(account('WAITER')).toEqual(['My file', 'My time', 'My rota', 'My requests', 'My leave', 'My payslips', 'Activity on my record', 'My notices']);
   });
 
   it('shows a closed feature row’s links by the flags: Payroll only once Payroll has a month, the clock rows only where the clock is on', () => {

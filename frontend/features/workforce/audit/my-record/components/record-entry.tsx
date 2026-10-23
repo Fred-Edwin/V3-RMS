@@ -2,35 +2,22 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, ErrorBlock, KeyValueRows, KitDialog, ListSkeleton, PhoneButton } from '../../../_shared';
-import { useAnswer, useRecordCard } from '../hooks/use-my-record';
+import { Callout, ErrorBlock, KeyValueRows, ListSkeleton, PhoneButton } from '../../../_shared';
+import { useEntryFlow } from '../hooks/use-entry-flow';
 import { RECORD_COPY } from '../lib/my-record-words';
 import type { RecordItem } from '../types/my-record-types';
+import { NotMeDialog } from './not-me-dialog';
 
 /**
- * One entry opened (Paper 14.2, right phone): the card's rows, and where it makes sense the two answers. "That was me" says thank you;
- * "This wasn't me" asks first (it signs out every phone), then hands over to the Security password page through `onSignedOut`. Opening an
- * entry marks nothing. An entry already answered shows what was said and no buttons.
+ * One entry opened on a phone (Paper 14.2, right phone): the card's rows, and where it makes sense the two answers. "That was me" says
+ * thank you; "This wasn't me" asks first (it signs out every phone), then hands over to the Security password page through `onSignedOut`.
+ * Opening an entry marks nothing. An entry already answered shows what was said and no buttons. A desktop uses `RecordDetail` instead.
  */
 export function RecordEntry({ item, onBack, onAnswered, onSignedOut }: { item: RecordItem; onBack: () => void; onAnswered: () => void; onSignedOut: () => void }) {
-  const card = useRecordCard(item.id);
-  const [confirming, setConfirming] = React.useState(false);
-  const [thanks, setThanks] = React.useState(false);
-  const answer = useAnswer(onAnswered);
+  const flow = useEntryFlow(item.id, onAnswered, onSignedOut);
+  const { card, answer, thanks } = flow;
   const backRef = React.useRef<HTMLButtonElement>(null);
   React.useEffect(() => backRef.current?.focus(), []);
-
-  const meDone = async (): Promise<void> => {
-    if (await answer.answer(item.id, 'ME')) {
-      setThanks(true);
-      card.reload();
-    }
-  };
-  const notMe = async (): Promise<void> => {
-    const result = await answer.answer(item.id, 'NOT_ME');
-    setConfirming(false);
-    if (result) onSignedOut();
-  };
 
   let body: React.ReactNode;
   if (card.status === 'loading') body = <ListSkeleton rows={3} columns={[80, 'fill']} label="Loading the entry" />;
@@ -51,8 +38,8 @@ export function RecordEntry({ item, onBack, onAnswered, onSignedOut }: { item: R
         {answer.error ? <Callout tone="error" role="alert">{answer.error}</Callout> : null}
         {c.needsAnswer && !thanks ? (
           <div className="flex flex-col gap-2.5">
-            <PhoneButton kind="primary" disabled={answer.busy} onClick={() => void meDone()}>{RECORD_COPY.meButton}</PhoneButton>
-            <PhoneButton kind="outlined" disabled={answer.busy} onClick={() => setConfirming(true)} className="!border-wds-error-fg !text-wds-error-fg">{RECORD_COPY.notMeButton}</PhoneButton>
+            <PhoneButton kind="primary" disabled={answer.busy} onClick={() => void flow.meDone()}>{RECORD_COPY.meButton}</PhoneButton>
+            <PhoneButton kind="outlined" disabled={answer.busy} onClick={() => flow.setConfirming(true)} className="!border-wds-error-fg !text-wds-error-fg">{RECORD_COPY.notMeButton}</PhoneButton>
           </div>
         ) : null}
         {c.needsAnswer && c.note ? <p className="m-0 font-wds-sans text-[12px] leading-[18px] text-wds-text-secondary">{c.note}</p> : null}
@@ -66,22 +53,7 @@ export function RecordEntry({ item, onBack, onAnswered, onSignedOut }: { item: R
         ‹ {item.title}
       </button>
       {body}
-      <KitDialog
-        open={confirming}
-        onOpenChange={(open) => !answer.busy && setConfirming(open)}
-        title={RECORD_COPY.confirmTitle}
-        description={RECORD_COPY.confirmLine}
-        busy={answer.busy}
-        width={440}
-        footer={
-          <>
-            <DialogButton kind="cancel" disabled={answer.busy} onClick={() => setConfirming(false)}>{RECORD_COPY.confirmNo}</DialogButton>
-            <DialogButton kind="danger" disabled={answer.busy} onClick={() => void notMe()}>{answer.busy ? 'Signing you out…' : RECORD_COPY.confirmYes}</DialogButton>
-          </>
-        }
-      >
-        <span className="sr-only">This signs you out of every phone and computer.</span>
-      </KitDialog>
+      <NotMeDialog open={flow.confirming} busy={answer.busy} onClose={() => flow.setConfirming(false)} onConfirm={() => void flow.notMe()} />
     </div>
   );
 }

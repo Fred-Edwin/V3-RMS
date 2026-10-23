@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { DateRangePicker } from '@/components/ui2/date-range-picker';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 
 import { EmptyState, ErrorBlock, FilterChip, ListSkeleton, PhoneScreen, useNow } from '../../../_shared';
@@ -13,6 +13,7 @@ import { nairobiDayOf } from '../../log/lib/audit-query';
 import { useMyRecord } from '../hooks/use-my-record';
 import { CHIPS, RECORD_COPY, entriesWord, showing } from '../lib/my-record-words';
 import type { RecordItem } from '../types/my-record-types';
+import { MyRecordDesktop } from './my-record-desktop';
 import { RecordEntry } from './record-entry';
 import { RecordList } from './record-list';
 
@@ -23,6 +24,7 @@ import { RecordList } from './record-list';
  */
 export function MyRecordScreen() {
   const now = useNow();
+  const desktop = useMediaQuery('(min-width: 1024px)').matches;
   const email = useAuthStore((s) => s.user?.email ?? '');
   const record = useMyRecord();
   const [open, setOpen] = React.useState<RecordItem | null>(null);
@@ -35,6 +37,7 @@ export function MyRecordScreen() {
 
   // "This wasn't me": the server already ended every session; this phone now needs a new password (the Security flow's own page).
   if (signedOut) return <ResetPasswordScreen email={email} needsCurrent onDone={() => window.location.assign('/app/workforce')} />;
+  if (desktop) return <MyRecordDesktop record={record} onSignedOut={() => setSignedOut(true)} />;
 
   let body: React.ReactNode;
   if (record.list.status === 'loading') body = <ListSkeleton rows={5} columns={['fill', 70]} label="Loading your record" />;
@@ -59,12 +62,6 @@ export function MyRecordScreen() {
     );
   }
 
-  const phones = (
-    <Link href="/app/workforce/my-phones" className="font-wds-mono text-[11px] leading-[14px] text-[#E9B872] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-wds-ring">
-      {RECORD_COPY.myPhones} →
-    </Link>
-  );
-
   return (
     <PhoneScreen
       screen={RECORD_COPY.screen}
@@ -72,8 +69,6 @@ export function MyRecordScreen() {
       back="/app/workforce"
       figure={data ? entriesWord(total) : '…'}
       subtitle={record.isMonth ? RECORD_COPY.subtitle : RECORD_COPY.subtitleRange}
-      trailing={phones}
-      desktopActions={phones}
       heading={undefined}
     >
       {open ? (

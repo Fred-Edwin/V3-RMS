@@ -1,5 +1,7 @@
 # Payslips · mine (the phone)
 
+**Desktop (23 Oct 2026, frames 13.9 and 13.10):** from 1024 px `/my-payslips`, `/history` and `/[id]` all show `desktop/components/payslips-desktop.tsx`: the latest payslip card, the year so far, All your payslips by year and the P9 card. One payslip opens in a 560 px right drawer (`payslip-drawer.tsx`, closes on the X or Esc; an `[id]` address opens it over the page). The phone pages below are unchanged; both share `detail/components/payslip-body.tsx`. Nothing is fetched until the drawer opens, because opening a payslip is audited.
+
 **Spec:** `docs/features/workforce/specs/3-payslips-spec.md`, Paper "Workforce · D. Pay" Chapter 12 steps 30 to 36. **Status:** built and walked in a browser at 390 and 320 wide, tablet 768 checked (20 Oct 2026), awaiting owner review. **API:** `docs/API_CONTRACT.md` §42. **Decisions:** `docs/features/workforce/decisions-3-payslips-frontend.md`.
 
 Routes (thin shells under `app/app/workforce/my-payslips/`): home, `history`, `[id]` (`?v=` for a version), `[id]/document`, `p9/[year]`. A section layout wraps all of them in `PayslipGate`.

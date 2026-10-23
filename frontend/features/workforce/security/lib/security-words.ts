@@ -1,4 +1,4 @@
-import type { AlertKind, AlertRow, Phone } from '../types/security-types';
+import type { AlertKind, AlertRow } from '../types/security-types';
 
 /**
  * Every word of the security screens that is not a kit part (6a S1 to S3). Pure and tested. The UI never explains how phones are recognised
@@ -21,36 +21,9 @@ export function whenLabel(iso: string, now: Date): string {
 }
 
 /** "14 Jul" for "first used". */
-export const shortDate = (iso: string): string => new Intl.DateTimeFormat('en-GB', { timeZone: NAIROBI, day: 'numeric', month: 'short' }).format(new Date(iso));
 
 /** "Nairobi" becomes "Nairobi (approximate)": a place comes from a coarse lookup, never an address. */
 export const placeWords = (place: string | null): string => (place ? `${place} (approximate)` : 'Place not known');
-
-/** The second line of a phone card: "Nyeri · first used 14 Jul · last seen now". */
-export function phoneMeta(phone: Phone, now: Date): string {
-  const used = dayKey(new Date(phone.firstSeenAt)) === dayKey(now) ? `first used today ${clock(phone.firstSeenAt)}` : `first used ${shortDate(phone.firstSeenAt)}`;
-  const seen = phone.isThisPhone ? 'last seen now' : phone.notUsedFor12Months ? 'not used for 12 months' : `last seen ${whenLabel(phone.lastSeenAt, now).toLowerCase()}`;
-  return [phone.placeLabel, used, seen].filter(Boolean).join(' · ');
-}
-
-export const PHONE_COPY = {
-  yes: 'Yes, this is my phone',
-  listLine: 'Phones that have signed in as you. A payslip opened on a phone you have not confirmed raises an alert.',
-  empty: 'No other phones. This is the only phone that has signed in.',
-  offline: 'No signal. Your phones need a connection.',
-  signOutInstead: 'Sign out instead',
-  keep: 'Keep it',
-  removeThis: 'Remove this phone',
-  removed: 'Removing a phone is written to Activity on my record.',
-  removeLine: 'It is signed out at once. The next time it is used, you are asked again whether it is yours.',
-  many: (n: number): string => `You have signed in on ${n} phones.`,
-  showing: (n: number): string => `Showing ${n} of ${n} ${n === 1 ? 'phone' : 'phones'}`,
-} as const;
-
-export const removeTitle = (phone: Pick<Phone, 'label'>): string => `Remove ${phone.label}?`;
-
-/** The spoken name of a phone card: "Tecno, Android, not confirmed". */
-export const phoneRegionName = (phone: Phone): string => `${phone.label}${phone.isThisPhone ? ', this phone' : ''}, ${phone.confirmed ? 'confirmed' : 'not confirmed'}`;
 
 // ── "This wasn't me" and the password reset (S3) ────────────────────────────────────────────────────────────────────────────────
 
@@ -70,6 +43,15 @@ export const WASNT_ME_COPY = {
   againLabel: 'Say it again',
   save: 'Save and sign in',
   wrongCurrent: 'That is not your current password.',
+} as const;
+
+/** The confirmation of "Sign out everywhere" on My file. */
+export const SIGN_OUT_EVERYWHERE_COPY = {
+  title: 'Sign out everywhere?',
+  intro: 'Use this if you lost a phone or someone else may have your password.',
+  steps: ['Every phone and computer signed in as you is signed out, including this one.', 'You choose a new password and a new code next time.', 'The System Admin is told straight away.'],
+  confirm: 'Sign out everywhere',
+  failed: 'We could not do that. Nothing was changed. Check your signal and try again.',
 } as const;
 
 export interface PasswordCheck {

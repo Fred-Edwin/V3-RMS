@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { TablePager } from '@/components/ui2/data-table/table-pager';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 
 import { EmptyState, PhoneScreen, STATES_COPY, useRemote } from '../../../_shared';
@@ -14,6 +15,7 @@ import { conductFiles, conductReads } from '../../_shared/services/conduct-servi
 import type { StaffItem, StaffList } from '../../_shared/types/conduct-types';
 import { LegacyRows } from '../../_shared/components/legacy-rows';
 import { NoticeCard } from './notice-card';
+import { NoticesDesktop } from './notices-desktop';
 import { StatColumns } from './stat-columns';
 
 const INTRO = 'Every notice you have been given, kept for good. Open one to read it, sign it, appeal it or download it.';
@@ -25,6 +27,13 @@ const MUTED: ReadonlySet<string> = new Set(['ENDED', 'REPLACED', 'WITHDRAWN']);
  * Old HR records sit below, read only, in their own muted section. The pager appears only past 25 rows (no "Show older").
  */
 export function StaffListScreen() {
+  const { matches: desktop, hydrated } = useMediaQuery('(min-width: 1024px)');
+  if (!hydrated) return null;
+  // A desktop has the list and the chosen notice side by side (frame 13.11).
+  return desktop ? <NoticesDesktop /> : <PhoneNotices />;
+}
+
+function PhoneNotices() {
   const name = useAuthStore((s) => s.user?.name ?? '');
   const online = useOnline();
   const list = useRemote<StaffList>(() => conductReads.mine(), 'conduct-mine');

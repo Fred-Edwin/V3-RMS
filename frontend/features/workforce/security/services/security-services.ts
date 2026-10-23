@@ -2,7 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import { deviceId } from '@/lib/device-id';
 import { useAuthStore } from '@/store/authStore';
 
-import type { AlertCounts, AlertList, AlertQuery, AlertRow, Phone, PhoneList, PhoneSeen } from '../types/security-types';
+import type { AlertCounts, AlertList, AlertQuery, AlertRow, Phone, PhoneSeen } from '../types/security-types';
 
 const token = (): string | undefined => useAuthStore.getState().accessToken ?? undefined;
 const BASE = '/workforce/security';
@@ -10,15 +10,10 @@ const BASE = '/workforce/security';
 /** A random key for one press, so a double tap is one answer. */
 export const newKey = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 
-export const phoneReads = {
-  list: (): Promise<PhoneList> => apiClient.get(`${BASE}/phones/me`, token()),
-};
-
 export const phoneWrites = {
   /** Called once after sign-in: records this phone and says whether to ask "Is this your phone?". */
   seen: (): Promise<PhoneSeen> => apiClient.post(`${BASE}/phones/me/current/seen`, { deviceId: deviceId() }, token()),
   confirm: (id: string): Promise<Phone> => apiClient.post(`${BASE}/phones/me/${id}/confirm`, {}, token()),
-  remove: (id: string): Promise<{ removed: true }> => apiClient.post(`${BASE}/phones/me/${id}/remove`, {}, token()),
 };
 
 export const alertReads = {

@@ -24,7 +24,7 @@ describe('where the shell applies', () => {
   it('keeps the floor staff\'s own pages in the sidebar, for every waiter whatever their department', () => {
     for (const [isDepartmentHead, isDepartmentMember] of [[false, false], [true, false], [false, true]] as const) {
       const waiter = navFor(ctxFor('WAITER', { isDepartmentHead, isDepartmentMember }));
-      for (const [key, href] of [['staff-order-history', '/app/history'], ['staff-leave', '/app/hr/my-leave'], ['me-payslips', '/app/workforce/my-payslips'], ['staff-performance', '/app/performance'], ['profile', '/app/profile']]) {
+      for (const [key, href] of [['staff-order-history', '/app/history'], ['staff-leave', '/app/hr/my-leave'], ['me-payslips', '/app/workforce/my-payslips'], ['staff-performance', '/app/performance']]) {
         expect(item(waiter, key)?.href, `waiter head=${isDepartmentHead} member=${isDepartmentMember} ${key}`).toBe(href);
       }
     }

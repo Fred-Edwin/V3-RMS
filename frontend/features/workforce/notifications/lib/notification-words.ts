@@ -69,14 +69,8 @@ export const unreadLine = (unread: number): string => (unread > 0 ? `${unread} u
 /** The mono label above the title: "PAY · PROBLEM". */
 export const areaKind = (row: Pick<WorkforceNotification, 'area' | 'tone'>): string => `${row.area} · ${NOTIFICATION_KIND_LABEL[row.tone].toUpperCase()}`;
 
-/**
- * Links the server writes for screens that arrive with Shared parts B (Activity on my record). Until then a person lands on My phones,
- * where "Yes, this is my phone" and "Remove it" live. Delete a line here when its screen exists.
- */
-const NOT_BUILT_YET: Readonly<Record<string, string>> = { '/app/workforce/my-record': '/app/workforce/my-phones' };
-
 /** A row's link must stay inside the app: anything else is dropped (a stored href is data, never trusted to leave the site). */
 export function safeHref(href: string | null): string | null {
   if (href === null || !/^\/app(\/|\?|$)/.test(href)) return null;
-  return NOT_BUILT_YET[href] ?? href;
+  return href;
 }

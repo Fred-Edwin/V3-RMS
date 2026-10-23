@@ -53,9 +53,9 @@ describe('the navigation table never widens access', () => {
 
 describe('every desktop role keeps every link it still has a page for', () => {
   const had: Partial<Record<AppRole, string[]>> = {
-    SYSTEM_ADMIN: ['/app/admin?view=users', '/app/admin?view=branches', '/app/admin/menu', '/app/admin/house-accounts', '/app/admin/corporate-accounts', '/app/profile', '/app/inventory/catalog'],
-    ACCOUNTANT: ['/app/accountant', '/app/accountant/reconciliation', '/app/other-income/history', '/app/accountant/credit', '/app/inbox', '/app/profile', '/app/inventory/catalog'],
-    DIRECTOR: ['/app/director', '/app/director/analytics', '/app/inbox', '/app/director/other-income', '/app/director/incidents', '/app/admin/discounts', '/app/director/settings', '/app/hr/payroll', '/app/director/corporate-accounts', '/app/director/outstanding-balances', '/app/manage/my-tab', '/app/profile', '/app/inventory/catalog'],
+    SYSTEM_ADMIN: ['/app/admin?view=users', '/app/admin?view=branches', '/app/admin/menu', '/app/admin/house-accounts', '/app/admin/corporate-accounts', '/app/inventory/catalog'],
+    ACCOUNTANT: ['/app/accountant', '/app/accountant/reconciliation', '/app/other-income/history', '/app/accountant/credit', '/app/inbox', '/app/inventory/catalog'],
+    DIRECTOR: ['/app/director', '/app/director/analytics', '/app/inbox', '/app/director/other-income', '/app/director/incidents', '/app/admin/discounts', '/app/director/settings', '/app/hr/payroll', '/app/director/corporate-accounts', '/app/director/outstanding-balances', '/app/manage/my-tab', '/app/inventory/catalog'],
     MANAGER: [
       '/app/manage/dashboard',
       '/app/orders',
@@ -73,10 +73,9 @@ describe('every desktop role keeps every link it still has a page for', () => {
       '/app/other-income/new',
       '/app/other-income/history',
       '/app/manage/incidents',
-      '/app/profile',
       '/app/inventory/catalog',
     ],
-    HR_MANAGER: ['/app/workforce', '/app/workforce/employees', '/app/workforce/organisation', '/app/workforce/rules', '/app/workforce/my-payslips', '/app/profile'],
+    HR_MANAGER: ['/app/workforce', '/app/workforce/employees', '/app/workforce/organisation', '/app/workforce/rules', '/app/workforce/my-payslips'],
     STORE_MANAGER: ['/app/inventory/receiving', '/app/inventory/purchasing', '/app/inventory/prep', '/app/inventory/requisitions', '/app/inventory/suppliers', '/app/inventory/catalog', '/app/inventory/audit-log', '/app/inventory/settings'],
   };
   for (const [role, expected] of Object.entries(had) as Array<[AppRole, string[]]>) {
@@ -107,10 +106,10 @@ describe('every desktop role keeps every link it still has a page for', () => {
     expect(groupKeys(navFor(ctxFor('DIRECTOR', { can: holds() })))).not.toContain('dir-branches');
   });
 
-  it('gives every desktop role the personal items under the name, ending with Profile', () => {
+  it('has no Profile link for any desktop role (My file holds the sign-in settings)', () => {
     for (const role of ['MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'HR_MANAGER'] as AppRole[]) {
       const account = menuFor(ctxFor(role)).account.map((a) => a.label);
-      expect(account.at(-1), role).toBe('Profile');
+      expect(account, role).not.toContain('Profile');
     }
   });
 });
@@ -179,7 +178,6 @@ describe('which row the current page lights', () => {
     expect(activeFor(storeManager, '/app/inventory/catalog').framed).toBe(true);
     // A screen reached from a row but without a row of its own, inside the self-framed areas.
     expect(activeFor(storeManager, '/app/inventory/restock-levels').framed).toBe(true);
-    expect(activeFor(director, '/app/profile').framed).toBe(false);
     // My file has no row but draws its own bar for every role, so a login without a Workforce menu is not given a second one.
     expect(activeFor([], '/app/workforce/my-file').framed).toBe(true);
   });

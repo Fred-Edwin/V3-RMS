@@ -64,7 +64,7 @@ export function WasntMeScreen({ entryId }: { entryId?: string }) {
         <PhoneButton kind="primary" disabled={busy} onClick={() => void press()} className="!bg-wds-error-fg">
           {busy ? 'Signing you out…' : WASNT_ME_COPY.yes}
         </PhoneButton>
-        <PhoneButton kind="outlined" disabled={busy} onClick={() => router.push('/app/workforce/my-phones')}>
+        <PhoneButton kind="outlined" disabled={busy} onClick={() => router.push('/app/workforce/my-record')}>
           {WASNT_ME_COPY.no}
         </PhoneButton>
       </section>

@@ -30,7 +30,14 @@ const LEAVE = {
 /** Saves a rule version as one person, and confirms it as another where the app asks for that. */
 async function setRule(who: string, group: string, values: object, effectiveFrom: string, reason: string, confirmScope?: { by: string; scope: string }): Promise<void> {
   // The app refuses a rule that starts in the past, so it is saved as of today and moved back here (lane database only).
-  const made = await must(`${group} rule`, who, 'POST', `/workforce/rules/${group}/versions`, { effectiveFrom: TODAY, values, reason, pin: PIN, idempotencyKey: key(group) });
+  let made: Awaited<ReturnType<typeof must>>;
+  try {
+    made = await must(`${group} rule`, who, 'POST', `/workforce/rules/${group}/versions`, { effectiveFrom: TODAY, values, reason, pin: PIN, idempotencyKey: key(group) });
+  } catch (err) {
+    // The rule already in force is the same as the demo's (the defaults moved): nothing to save, nothing to confirm.
+    if (err instanceof Error && err.message.includes('RULE_NO_CHANGE')) return out(`ok  rules: ${group} already as wanted`);
+    throw err;
+  }
   await prisma.ruleVersion.update({ where: { id: made['version']?.id }, data: { effectiveFrom: toDateColumn(effectiveFrom as NairobiDate) } });
   if (confirmScope) await must(`confirm ${group}`, confirmScope.by, 'POST', `/workforce/rules/versions/${made['version']?.id}/confirm`, { scope: confirmScope.scope, pin: PIN });
   out(`ok  rules: ${group} from ${effectiveFrom}`);

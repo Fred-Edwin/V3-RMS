@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import * as React from 'react';
 
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 
 import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, useRemote } from '../../../_shared';
@@ -13,6 +14,7 @@ import { useAmountsShown } from '../../_shared/lib/amount-pref';
 import { PAYSLIP_COPY } from '../../_shared/lib/payslip-copy';
 import { monthName } from '../../_shared/lib/pay-words';
 import { payslipReads } from '../../_shared/services/payslip-services';
+import { PayslipsDesktop } from '../../desktop/components/payslips-desktop';
 import { P9CardBlock } from './p9-card';
 
 /** Months shown before "Earlier in {year}" folds the rest (spec S4). */
@@ -20,6 +22,13 @@ const SHOWN_MONTHS = 7;
 
 /** History by year (spec S4): the year's payslips, "Earlier in {year}" expands in place, and the year's P9 card. */
 export function HistoryScreen() {
+  const { matches: desktop, hydrated } = useMediaQuery('(min-width: 1024px)');
+  if (!hydrated) return null;
+  // A desktop has the history in My payslips itself (frame 13.9).
+  return desktop ? <PayslipsDesktop /> : <PhoneHistory />;
+}
+
+function PhoneHistory() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const { shown, toggle } = useAmountsShown(userId);
   const [year, setYear] = React.useState<number | undefined>(undefined);

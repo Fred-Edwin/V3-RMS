@@ -6,14 +6,14 @@ Status: built and walked in a real browser (21 Oct 2026, branch `feat/workforce-
 | Screen | Where | Who |
 |---|---|---|
 | **Is this your phone?** (Yes, this is my phone / Use it just once; "once" counts for 12 hours) | `SecurityGate`, wraps the signed-in app in `app/app/layout.tsx` | every login except the two kitchen displays |
-| **My phones** (list, confirm, remove with a dialog, five-phone warning) | `/app/workforce/my-phones` | everyone with a login |
+| **Sign out everywhere** (confirmation dialog on My file, then the new-password page) | `SignOutEverywhereDialog`, opened from My file | everyone with a login |
 | **This wasn't me** and the new password | `/app/workforce/wasnt-me` | the person who opened the link; asks for the current password once if no sign-in is live |
 | **Security alerts** (Open / Cleared / All, Kind filter, panel, clear with a one-line note, Start alerts) | `/app/workforce/security` | System Admin only |
 
 The UI never explains how a phone is recognised. A wrong code pauses; nothing here ever locks a person out. If the phone check cannot run (no signal) the person goes through: the server still refuses what it must.
 
 ## Public API (`index.ts`)
-`SecurityGate`, `MyPhonesScreen`, `WasntMePage`, `AlertsScreen`.
+`SecurityGate`, `SignOutEverywhereDialog`, `WasntMePage`, `AlertsScreen`, `ResetPasswordScreen`. **My phones was removed on 23 Oct 2026** (no page lists a person's phones); the phone record and the "Is this your phone?" step stay. The list and remove endpoints below are no longer called by the front end.
 
 ## Endpoints
 `GET /workforce/security/phones/me`, `POST .../phones/me/current/seen`, `POST .../current/answer`, `POST .../phones/me/:id/confirm`, `POST .../phones/me/:id/remove`, `GET /workforce/security/state`, `POST .../wasnt-me`, `POST .../reset-password`, `GET .../alerts`, `GET .../alerts/counts`, `POST .../alerts/:id/clear`, `POST .../alerts/start`. Every Workforce call sends `x-device-id` (`lib/device-id.ts`, in `lib/apiClient.ts`).

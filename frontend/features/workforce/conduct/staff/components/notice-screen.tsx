@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
 
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+
 import { Callout, CircleStepper, PhoneButton, PhoneScreen, useRemote } from '../../../_shared';
 import { LoadingBlock, ProblemBlock } from '../../_shared/components/problem-block';
 import { useLetterAction } from '../../_shared/hooks/use-letter-action';
@@ -13,6 +15,7 @@ import { appealHref, deskNoticeHref, signHref, staffDocumentHref, staffNoticeHre
 import { conductFiles, conductReads } from '../../_shared/services/conduct-services';
 import type { StaffDetail } from '../../_shared/types/conduct-types';
 import { appealLine, decisionLine, fromLine, primaryAction, signStats, toCircleSteps } from '../lib/notice-view';
+import { NoticesDesktop } from './notices-desktop';
 
 const SMALL_PRINT =
   'Signing only shows you received the letter, not that you agree. You can appeal for {days} days from the day it was issued, signed or not. Talk to your manager first if you can; HR decides every appeal.';
@@ -37,6 +40,13 @@ function StatPair({ stats }: { stats: { label: string; value: string }[] }) {
  * A reader who is not the subject (a manager who followed an Inbox link) is sent to the desk view of the same notice.
  */
 export function NoticeScreen({ id }: { id: string }) {
+  const { matches: desktop, hydrated } = useMediaQuery('(min-width: 1024px)');
+  if (!hydrated) return null;
+  // On a desktop a notice is not a page: the list with this notice chosen is (frame 13.11).
+  return desktop ? <NoticesDesktop selectedId={id} /> : <PhoneNotice id={id} />;
+}
+
+function PhoneNotice({ id }: { id: string }) {
   const router = useRouter();
   const online = useOnline();
   const letter = useLetterAction();
