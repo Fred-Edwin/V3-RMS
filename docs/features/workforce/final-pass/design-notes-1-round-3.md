@@ -1,6 +1,6 @@
 # Workforce final pass, section 1: design notes, round 3 (the desktop "My ..." screens)
 
-Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass designs", frames 13.3 to 13.13 (13.1 and 13.2 are the notifications frames). 1440 wide, Geist and Geist Mono only, fictional names (Mercy Achieng, HR Manager, is the viewer). Status 23 Oct 2026: Group 1 approved; Group 2 approved with the changes below, redrawn; Group 3 drawn, waiting for the owner's look.
+Paper file "Wendo RMS · Approved designs", page "Workforce · Final pass designs", frames 13.3 to 13.13 (13.1 and 13.2 are the notifications frames). 1440 wide, Geist and Geist Mono only, fictional names (Mercy Achieng, HR Manager, is the viewer). Status 23 Oct 2026: all three groups reviewed and approved by the owner. The frames sit in three group frames ("Round 3 · Group 1, 2, 3") on the page.
 
 ## Group 1: My file (frames 13.3 to 13.7)
 - 13.3: the phone content on a wide page. Identity header (avatar 72, name 26, "position · site", progress "2 OF 4" at the right). Two columns of 560 px, gap 20. Left: Still to finish, Your job, Sign-in and alerts. Right: IDs and bank (last four digits, Show, Edit, blue note), Your contact (Edit).
