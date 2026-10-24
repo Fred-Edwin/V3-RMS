@@ -7,12 +7,12 @@ import { PEOPLE } from './roster';
 export const FIRST_DAY = '2026-08-01';
 export const LAST_DAY = '2026-10-20'; // "yesterday" in the demo: today is 21 October
 const pad = (n: number): string => String(n).padStart(2, '0');
-const weekday = (d: string): number => ((new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 = Monday
-const rnd = (seed: number): number => {
+export const weekday = (d: string): number => ((new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 = Monday
+export const rnd = (seed: number): number => {
   const x = Math.sin(seed * 9301 + 49297) * 233280;
   return x - Math.floor(x);
 };
-const clock = (m: number): string => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+export const clock = (m: number): string => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
 /** Extra minutes worked after the shift (overtime for a manager to decide), by "person:date". */
 const OVERTIME = new Map<string, number>([

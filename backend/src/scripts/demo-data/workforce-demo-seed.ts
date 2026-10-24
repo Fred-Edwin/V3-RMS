@@ -10,6 +10,7 @@ import { prisma } from '../../config/database';
 import { out, resetLane, seedBase, type World } from './workforce/base';
 import { seedHistory } from './workforce/history';
 import { runFlows } from './workforce/flows';
+import { seedSchedule } from './workforce/schedule';
 
 async function main(): Promise<void> {
   const flags = new Set(process.argv.slice(2));
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   const world: World = await seedBase();
   await seedHistory(world);
   await runFlows(world);
+  await seedSchedule(world);
   out('\nDone. Logins are in backend/src/scripts/demo-data/workforce/README.md');
 }
 
