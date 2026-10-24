@@ -21,14 +21,14 @@ export function MyRotaScreen() {
     body = (
       <ul aria-label="My shifts" className="m-0 flex list-none flex-col gap-2 p-0">
         {rotaLines(data, today).map((line) => (
-          <DayCard key={line.date} day={line.day} today={line.today} dayOff={line.dayOff} shift={line.shift} />
+          <DayCard key={line.date} day={line.day} today={line.today} dayOff={line.dayOff} dayOffLabel={line.notPlanned ? 'Not planned yet' : 'Day off'} shift={line.shift} />
         ))}
       </ul>
     );
   }
 
   return (
-    <PhoneScreen screen="My shifts" kicker="MY TIME · SHIFTS" title={data?.enabled ? rotaRange(data) : 'My shifts'} subtitle={data?.enabled ? rotaSummary(data) : undefined} back="/app/workforce/my-time">
+    <PhoneScreen screen="My shifts" kicker="MY TIME · SHIFTS" title={data?.enabled ? `My shifts · ${rotaRange(data)}` : 'My shifts'} subtitle={data?.enabled ? rotaSummary(data) : undefined} back="/app/workforce/my-time">
       {body}
     </PhoneScreen>
   );

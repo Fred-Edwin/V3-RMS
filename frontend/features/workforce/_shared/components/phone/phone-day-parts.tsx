@@ -81,7 +81,7 @@ export interface DayStripItem {
   day: string;
 }
 
-export function DayStrip({ days, value, onChange, label }: { days: readonly DayStripItem[]; value: string; onChange: (value: string) => void; label: string }) {
+export function DayStrip({ days, value, onChange, label, today }: { days: readonly DayStripItem[]; value: string; onChange: (value: string) => void; label: string; /** The `value` of today, marked with an amber bar under its number. */ today?: string }) {
   const refs = React.useRef(new Map<string, HTMLButtonElement>());
   const values = days.map((d) => d.value);
   return (
@@ -98,7 +98,7 @@ export function DayStrip({ days, value, onChange, label }: { days: readonly DayS
             type="button"
             role="radio"
             aria-checked={chosen}
-            aria-label={`${d.dow} ${d.day}`}
+            aria-label={`${d.dow} ${d.day}${d.value === today ? ', today' : ''}`}
             tabIndex={chosen ? 0 : -1}
             onClick={() => onChange(d.value)}
             onKeyDown={(e) => {
@@ -116,6 +116,7 @@ export function DayStrip({ days, value, onChange, label }: { days: readonly DayS
             <span aria-hidden className={cn('font-wds-sans text-[15px] leading-[18px]', chosen ? 'font-semibold text-wds-primary-fg' : 'text-wds-text-ink')}>
               {d.day}
             </span>
+            <span aria-hidden className={cn('h-0.5 w-4', d.value === today ? 'bg-wds-caramel-600' : 'bg-transparent')} />
           </button>
         );
       })}

@@ -199,8 +199,13 @@ export function useShellNav(): ShellNav {
   const active = React.useMemo(() => activeFor(menuGroups(menuModel), pathname), [menuModel, pathname]);
 
   const sidebarUser = React.useMemo(
-    (): MenuUser => ({ name: user?.name ?? roleLabel(role), role: roleLabel(role), initials: initialsOf(user?.name) }),
-    [user?.name, role]
+    // The footer reads like the person label: "Waiter · Nyeri Town", and a head "Barista · Head · Nyeri Town".
+    (): MenuUser => ({
+      name: user?.name ?? roleLabel(role),
+      role: [roleLabel(role), isDepartmentHead ? 'Head' : null, user?.organizationName ?? null].filter((part): part is string => !!part).join(' · '),
+      initials: initialsOf(user?.name),
+    }),
+    [user?.name, user?.organizationName, role, isDepartmentHead]
   );
 
   return { menu, active, user: sidebarUser, orgLabel: orgLabelFor(role, user?.organizationName), bar };

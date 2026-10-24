@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NairobiDate } from '../_shared/time/nairobi-time';
-import { isPastDay, needsReason, paidMinutes, requireReasonWhenNeeded, weekDaysOf, weekStartOf } from './rota-days';
+import { isPastDay, needsReason, paidMinutes, reasonOfChange, weekDaysOf, weekStartOf } from './rota-days';
 
 const d = (s: string): NairobiDate => s as NairobiDate;
 const today = d('2026-10-19'); // a Monday
@@ -17,11 +17,10 @@ describe('rota day rules', () => {
     expect(needsReason(d('2026-10-18'), today)).toBe(false);
   });
 
-  it('asks for a reason (409 REASON_REQUIRED) on those days and trims it', () => {
-    expect(() => requireReasonWhenNeeded([d('2026-10-20')], today, undefined)).toThrow(expect.objectContaining({ statusCode: 409, code: 'REASON_REQUIRED' }));
-    expect(() => requireReasonWhenNeeded([d('2026-10-20')], today, ' ab ')).toThrow(expect.objectContaining({ code: 'REASON_REQUIRED' }));
-    expect(requireReasonWhenNeeded([d('2026-10-20')], today, '  Cover a gap ')).toBe('Cover a gap');
-    expect(requireReasonWhenNeeded([d('2026-10-25')], today, undefined)).toBeNull();
+  it('the reason is optional on every day: trimmed when given, null when not', () => {
+    expect(reasonOfChange(undefined)).toBeNull();
+    expect(reasonOfChange('   ')).toBeNull();
+    expect(reasonOfChange('  Cover a gap ')).toBe('Cover a gap');
   });
 
   it('paid minutes are the window minus the unpaid break', () => {

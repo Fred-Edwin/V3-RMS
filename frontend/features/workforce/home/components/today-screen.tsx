@@ -3,10 +3,12 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { TopbarBell } from '@/components/app/shell/menu/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
 import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, useRemote, useWorkforcePermissions } from '../../_shared';
 import { attendanceReads, kpiCells, liveLine, useBoard } from '../../attendance';
+import { useOpenNotifications, useUnreadStore } from '../../notifications';
 import { addDays, nairobiToday } from '../../rota';
 import { LiveBoard } from './live-board';
 
@@ -27,6 +29,8 @@ export function TodayScreen() {
   });
   const [siteId, setSiteId] = React.useState<string | undefined>(undefined);
   const user = useAuthStore((s) => s.user);
+  const unread = useUnreadStore((s) => s.unread);
+  const openNotifications = useOpenNotifications();
   const wide = permissions.scopeOf('today.read') === 'all';
   const sites = useRemote(() => attendanceReads.switches(), 'today-sites', permissions.ready && wide);
   // A company-wide role with no branch of their own starts on the first branch that uses the new clock.
@@ -55,7 +59,7 @@ export function TodayScreen() {
   const teamName = board.data?.departments[0]?.name;
   const pageName = isHead ? 'Team today' : 'Today board';
   return (
-    <WorkforceFrame breadcrumb={{ section: isHead ? 'Department' : 'Workforce', screen: pageName }} phoneTitle={pageName} label={pageName} className="px-4 py-6 lg:px-8 lg:py-7">
+    <WorkforceFrame breadcrumb={{ section: isHead ? 'Department' : 'Workforce', screen: pageName }} phoneTitle={pageName} label={pageName} actions={<TopbarBell href="/app/workforce/notifications" unread={unread} onClick={openNotifications} />} className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
         <PageHeader
           title={isHead ? (teamName ? `${teamName} team today` : 'Team today') : `Today at ${siteName}`}

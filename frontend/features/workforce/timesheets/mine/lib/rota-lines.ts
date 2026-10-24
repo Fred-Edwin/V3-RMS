@@ -10,6 +10,8 @@ export interface RotaLine {
   day: string;
   today: boolean;
   dayOff: boolean;
+  /** A day with no shift that nobody has planned yet (after the last planned shift): it reads "Not planned yet", not "Day off". */
+  notPlanned: boolean;
   shift?: { tone: ShiftTone; label: string };
 }
 
@@ -17,6 +19,7 @@ const minutesOf = (hm: string): number => Number(hm.slice(0, 2)) * 60 + Number(h
 
 export function rotaLines(rota: MyRota, today: string): RotaLine[] {
   const lines: RotaLine[] = [];
+  const plannedThrough = rota.shifts.reduce((latest, s) => (s.date > latest ? s.date : latest), '');
   for (let date = rota.from; date <= rota.to && lines.length < 62; date = addDays(date, 1)) {
     const first = rota.shifts.find((s) => s.date === date);
     lines.push({
@@ -24,6 +27,7 @@ export function rotaLines(rota: MyRota, today: string): RotaLine[] {
       day: dayShort(date),
       today: date === today,
       dayOff: !first,
+      notPlanned: !first && date >= today && date > plannedThrough,
       shift: first ? { tone: toneOfColour(first.colour as Parameters<typeof toneOfColour>[0]), label: `${first.name} ${first.startTime} to ${first.endTime}` } : undefined,
     });
   }

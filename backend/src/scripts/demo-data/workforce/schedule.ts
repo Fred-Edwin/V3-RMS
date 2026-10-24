@@ -54,7 +54,7 @@ export async function seedSchedule(world: World): Promise<void> {
     const base = { companyId: world.companyId, siteId };
     const morning = await prisma.shiftTemplate.findFirstOrThrow({ where: { siteId, name: 'Morning' } });
     const afternoon = await prisma.shiftTemplate.findFirstOrThrow({ where: { siteId, name: 'Afternoon' } });
-    const midday = await prisma.shiftTemplate.create({ data: { ...base, name: 'Mid-day', letter: 'D', colour: 'GREEN', startTime: '10:00', endTime: '18:00', unpaidBreakMinutes: 30 } });
+    const midday = await prisma.shiftTemplate.create({ data: { ...base, name: 'Mid-day', letter: 'D', colour: 'AMBER', startTime: '10:00', endTime: '18:00', unpaidBreakMinutes: 30 } });
     const live = liveOn
       ? await prisma.shiftTemplate.create({ data: { ...base, name: 'Cover shift', letter: 'C', colour: 'GREY', startTime: clock(liveStart), endTime: clock(liveEnd), unpaidBreakMinutes: 0 } })
       : midday;

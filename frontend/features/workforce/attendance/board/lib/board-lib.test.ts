@@ -22,7 +22,7 @@ const shift = (over: Partial<BoardShift> = {}): BoardShift => ({
 });
 const person = (employeeId: string, name: string, dept: string, over: Partial<BoardShift> = {}): BoardPerson => {
   const s = shift({ entryId: `e-${employeeId}`, ...over });
-  return { employeeId, name, departmentId: dept === 'Service' ? 'd1' : 'd2', departmentName: dept, state: s.state, shifts: [s] };
+  return { employeeId, name, departmentId: dept === 'Service' ? 'd1' : 'd2', departmentName: dept, positionName: null, isHead: false, state: s.state, shifts: [s] };
 };
 const board: Board = {
   enabled: true,

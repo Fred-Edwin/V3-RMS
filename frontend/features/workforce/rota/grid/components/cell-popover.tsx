@@ -25,8 +25,11 @@ export function CellPopover({
   onPick,
   onClose,
   editShiftsHref,
+  onLeaveNote,
 }: {
   opener: HTMLElement;
+  /** Set when the person is on approved leave that day: said before any shift is chosen. */
+  onLeaveNote?: string;
   title: string;
   subtitle: string;
   options: readonly TemplateView[];
@@ -106,6 +109,11 @@ export function CellPopover({
           <span aria-hidden>×</span>
         </button>
       </div>
+      {onLeaveNote ? (
+        <p role="status" className="m-0 border-b border-wds-border bg-wds-neutral-50 px-3.5 py-2 font-wds-sans text-[12px] leading-4 text-wds-text-ink">
+          {onLeaveNote}
+        </p>
+      ) : null}
       <div role="listbox" aria-label="Shifts" className="flex flex-col gap-2 p-3">
         {options.map((t) => (
           <button

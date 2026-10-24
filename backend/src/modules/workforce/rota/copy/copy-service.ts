@@ -76,7 +76,7 @@ export const copyService = {
   async preview(subject: AccessSubject, body: CopyBody, now: Date = new Date()): Promise<CopyPreview> {
     const { plan, copiedFrom, weekStart, today } = await build(subject, body, now);
     const { changes, ...summary } = plan;
-    return { ...summary, weekStart, copiedFrom, reasonRequired: changes.some((c) => needsReason(c.date, today)) };
+    return { ...summary, weekStart, copiedFrom, reasonRequired: false };
   },
 
   /** Copies into empty cells of the target week; occupied cells and clashes are left alone. One audit entry. */

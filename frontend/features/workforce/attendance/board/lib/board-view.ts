@@ -4,6 +4,12 @@ import type { Board, BoardDepartment, BoardPerson, BoardShift } from '../../_sha
 
 /** Words and groups for the Today board, worked out from the server's board. Pure; the components only draw it. */
 
+/**
+ * The one meaning of "on shift" (My team, Team today, Home): clocked in now and not yet clocked out. A person with a shift today is
+ * "rostered"; one who is rostered and not in yet has "not started". The server uses the same words (`employeesOnShiftNow`).
+ */
+export const ON_SHIFT_STATES: readonly BoardPerson['state'][] = ['ON_SHIFT', 'LATE', 'ENDING', 'STAYED_ON'];
+
 const NEEDS_LOOK_FIRST: Record<string, number> = { NOT_IN: 0, MISSED: 1, AUTO_CLOSED: 2, LATE: 3 };
 
 /** The shift on a person that needs a look, if any (the one the server ranked most urgent). */

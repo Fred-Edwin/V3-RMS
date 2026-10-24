@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { ActionCards, Callout, DrawerSection, WorkforceDrawer, initialsOf, type ActionCardItem } from '../../../_shared';
+import { ActionCards, Callout, DrawerSection, WorkforceDrawer, initialsOf, positionWords, type ActionCardItem } from '../../../_shared';
 import { addDays, nairobiToday } from '../../../rota';
 import { hmOf, minutesBetween } from '../../_shared/lib/nairobi-clock';
 import type { Board, BoardPerson, BoardShift } from '../../_shared/types/attendance-types';
@@ -81,7 +81,7 @@ export function PersonDrawer({
   const minutesAgo = shift ? Math.max(0, minutesBetween(`${board.date}T${shift.startTime}:00+03:00`, Date.now())) : 0;
 
   return (
-    <WorkforceDrawer open onOpenChange={(o) => !o && onClose()} title={person.name} subtitle={person.departmentName ?? 'No department'} initials={initialsOf(person.name)}>
+    <WorkforceDrawer open onOpenChange={(o) => !o && onClose()} title={person.name} subtitle={positionWords(person.positionName, person.isHead) ?? person.departmentName ?? 'No department'} initials={initialsOf(person.name)}>
       <div className="flex flex-col gap-[18px] px-7 py-[22px]">
         <Callout tone={status.tone === 'neutral' ? 'neutral' : status.tone} title={status.title}>
           {status.body}

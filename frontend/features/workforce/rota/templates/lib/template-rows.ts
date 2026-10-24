@@ -6,7 +6,7 @@ import type { TemplateView } from '../../_shared/types/rota-types';
 /** What the Shift templates table shows for a search and a chip: pure, so the counts and the paging are tested. */
 
 const matches = (t: TemplateView, view: string | undefined): boolean => {
-  if (view === 'retired') return true;
+  if (view === 'retired') return !t.isActive;
   if (!t.isActive) return false;
   if (view === 'company') return t.organizationId === null;
   if (view === 'site') return t.organizationId !== null;
@@ -23,7 +23,7 @@ export function templateRows(all: readonly TemplateView[], query: TableQuery): {
   return { rows: found.slice(start, start + query.perPage), total: found.length };
 }
 
-/** The chip counts: All and Company-wide and "this site only" count active shifts; "Show retired" counts everything. */
+/** The chip counts: All and Company-wide and "this site only" count active shifts; "Show retired" counts the retired ones, the same number as the Retired box. */
 export function templateCounts(all: readonly TemplateView[]): Record<string, Record<string, number>> {
   const active = all.filter((t) => t.isActive);
   return {
@@ -31,7 +31,7 @@ export function templateCounts(all: readonly TemplateView[]): Record<string, Rec
       '': active.length,
       company: active.filter((t) => t.organizationId === null).length,
       site: active.filter((t) => t.organizationId !== null).length,
-      retired: all.length,
+      retired: all.length - active.length,
     },
   };
 }

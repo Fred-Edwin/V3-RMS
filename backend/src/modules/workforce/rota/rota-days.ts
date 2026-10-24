@@ -1,7 +1,7 @@
-import { ConflictError, ValidationError } from '../../../utils/errors';
+import { ValidationError } from '../../../utils/errors';
 import { minutesOfDay, addDays, eachDay, isoWeekday, type ClockTime, type NairobiDate } from '../_shared/time/nairobi-time';
 import { getEffectiveRuleGroup } from '../rules/rules-service';
-import { REASON_DAYS_AHEAD, REASON_MIN_LENGTH, REASON_MAX_LENGTH } from './rota.constants';
+import { REASON_DAYS_AHEAD, REASON_MAX_LENGTH } from './rota.constants';
 
 /** Past days are read-only: fixing the past happens in timesheets (Chapter 5). */
 export const isPastDay = (date: NairobiDate, today: NairobiDate): boolean => date < today;
@@ -28,13 +28,11 @@ export async function assertWeekStart(siteId: string, weekStart: NairobiDate): P
   }
 }
 
-/** The reason a change needs when it touches today or tomorrow: trimmed and checked, or a 409 asking for it. */
-export function requireReasonWhenNeeded(dates: readonly NairobiDate[], today: NairobiDate, reason: string | undefined): string | null {
-  const needed = dates.some((date) => needsReason(date, today));
+/**
+ * The reason that goes with a change, trimmed, or null when none was given. Owner decision (24 Oct 2026): a reason is optional on every
+ * shift change, today and tomorrow included (staff are told either way); only the leave override still requires one.
+ */
+export function reasonOfChange(reason: string | undefined): string | null {
   const text = reason?.trim() ?? '';
-  if (!needed) return text.length > 0 ? text.slice(0, REASON_MAX_LENGTH) : null;
-  if (text.length < REASON_MIN_LENGTH) {
-    throw new ConflictError('A change to a shift today or tomorrow needs a short reason', 'REASON_REQUIRED', { dates: dates.filter((d) => needsReason(d, today)) });
-  }
-  return text.slice(0, REASON_MAX_LENGTH);
+  return text.length > 0 ? text.slice(0, REASON_MAX_LENGTH) : null;
 }

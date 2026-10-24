@@ -29,7 +29,7 @@ export async function seedHistory(world: World): Promise<void> {
     const siteId = world.siteIds[key];
     const base = { companyId: world.companyId, siteId, unpaidBreakMinutes: 0 };
     const morning = await prisma.shiftTemplate.create({ data: { ...base, name: 'Morning', letter: 'M', colour: 'BLUE', startTime: '06:00', endTime: '14:00' } });
-    const afternoon = await prisma.shiftTemplate.create({ data: { ...base, name: 'Afternoon', letter: 'A', colour: 'AMBER', startTime: '14:00', endTime: '22:00' } });
+    const afternoon = await prisma.shiftTemplate.create({ data: { ...base, name: 'Afternoon', letter: 'A', colour: 'GREEN', startTime: '14:00', endTime: '22:00' } });
     templates.set(key, { morning: morning.id, afternoon: afternoon.id });
     await prisma.attendanceSiteSwitch.create({ data: { siteId, enabled: true, enabledAt: new Date(`${FIRST_DAY}T00:00:00Z`) } });
   }

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useWorkforcePermissions } from '../../_shared';
-import { ClockForDialog, lookItems, type Board, type BoardShift } from '../../attendance';
+import { ClockForDialog, ON_SHIFT_STATES, lookItems, type Board, type BoardShift } from '../../attendance';
 import { ServiceTeamCard, type TeamRow } from './phone-cards';
 
 /**
@@ -20,7 +20,7 @@ export function LiveTeamCard({ board, reload }: { board: Board; reload: () => vo
   const lateCount = board.tiles.late.count;
   const notInCount = board.tiles.notIn.count;
   const title = board.departments.length === 1 ? `${board.departments[0]?.name ?? ''} team today` : 'Your team today';
-  const inNow = board.people.filter((p) => ['ON_SHIFT', 'LATE', 'ENDING', 'STAYED_ON', 'FINISHED'].includes(p.state)).map((p) => p.name);
+  const inNow = board.people.filter((p) => ON_SHIFT_STATES.includes(p.state)).map((p) => p.name);
 
   const rows: TeamRow[] = lookItems(board)
     .filter((i) => i.kind === 'NOT_IN' || i.kind === 'LATE')

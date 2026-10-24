@@ -1,17 +1,16 @@
 'use client';
 
-import Link from 'next/link';
 import * as React from 'react';
 
 import { Picker } from '@/components/ui2/picker';
 import { cn } from '@/lib/cn';
 
-import { DayStrip, EmptyState, FOCUS_RING, MOTION, PickShiftButton, ShiftChip } from '../../../_shared';
+import { DayStrip, EmptyState, FOCUS_RING, MOTION, PickShiftButton, ShiftChip, positionWords } from '../../../_shared';
 import { PendingDialogs } from '../../dialogs/pending-dialogs';
 import { useRotaSelection } from '../../grid/hooks/use-rota-selection';
 import { dayOfMonth, longDay, weekdayName, weekPhoneRange } from '../../_shared/lib/rota-dates';
 import { NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
-import { cellNameOf, templateFits, toneOfColour } from '../../_shared/lib/shift-look';
+import { cellLabelOf, templateFits, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, listedDepartments, peopleIn } from '../../_shared/lib/week-view';
 import type { WeekView } from '../../_shared/types/rota-types';
 import { PhoneShiftSheet } from './phone-shift-sheet';
@@ -45,9 +44,6 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
   return (
     <div className="flex min-h-full flex-col bg-wds-surface">
       <header className="flex items-start gap-3 border-b border-wds-border px-4 py-3.5">
-        <Link href="/app/workforce" aria-label="Back to Home" className={cn('-ml-2 flex h-11 w-11 shrink-0 items-center justify-center text-[20px] text-wds-text-ink', FOCUS_RING)}>
-          <span aria-hidden>‹</span>
-        </Link>
         <div className="flex min-w-0 grow flex-col">
           <h1 className="m-0 font-wds-sans text-[18px] font-semibold leading-6 text-wds-text-ink">{departmentName === 'Everyone' ? 'Shifts' : `${departmentName} shifts`}</h1>
           <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
@@ -69,6 +65,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
       ) : null}
       <DayStrip
         label="Day of the week"
+        today={data.today}
         value={date}
         onChange={(v) => {
           setDate(v);
@@ -79,7 +76,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
       <div className="flex grow flex-col gap-2.5 bg-wds-canvas px-4 py-4">
         <div className="flex items-baseline justify-between">
           <h2 className="m-0 font-wds-sans text-[15px] font-semibold leading-[18px] text-wds-text-ink">{longDay(date)}</h2>
-          <span className={cn('font-wds-mono text-[12px] leading-4', thin ? 'text-wds-warning-fg' : 'text-wds-success-fg')}>{needs === null ? `Has ${working}` : `Needs ${needs} · has ${working}`}</span>
+          <span className={cn('font-wds-mono text-[12px] leading-4', thin ? 'text-wds-warning-fg' : 'text-wds-success-fg')}>{needs === null ? `Has ${working}` : `Needs ${needs} · Has ${working}`}</span>
         </div>
         {people.length === 0 ? <EmptyState kind="nothingYet" title={NO_ONE_ON_ROTA.title} line={NO_ONE_ON_ROTA.body} /> : null}
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
@@ -87,7 +84,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
             const shifts = p.cells[date] ?? [];
             const first = shifts[0] ? templates.get(shifts[0].templateId) : undefined;
             const open = canWrite ? () => setChosenId(p.employeeId === chosenId ? null : p.employeeId) : undefined;
-            const role = data.departments.find((d) => d.id === p.departmentId)?.headName === p.name ? 'Head' : (p.positionName ?? '');
+            const role = positionWords(p.positionName, data.departments.find((d) => d.id === p.departmentId)?.headName === p.name) ?? '';
             return (
               <li key={p.employeeId} className={cn('flex min-h-[60px] items-center justify-between gap-3 border bg-wds-surface px-3.5 py-2.5', p.employeeId === chosenId ? 'border-wds-primary shadow-[0_0_0_3px_color-mix(in_oklab,var(--wds-primary)_12%,transparent)]' : 'border-wds-border')}>
                 <span className="flex min-w-0 flex-col">
@@ -95,7 +92,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
                   <span className="truncate font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{role}</span>
                 </span>
                 {first ? (
-                  <ShiftChip tone={toneOfColour(first.colour)} label={cellNameOf(first)} onSelect={open} ariaLabel={`${p.name}, ${first.name} ${first.startTime} to ${first.endTime}. Change shift`} />
+                  <ShiftChip tone={toneOfColour(first.colour)} label={cellLabelOf(first)} title={first.name} onSelect={open} ariaLabel={`${p.name}, ${first.name} ${first.startTime} to ${first.endTime}. Change shift`} />
                 ) : p.leaveDates.includes(date) ? (
                   <ShiftChip tone="leave" label="Leave" onSelect={open} ariaLabel={`${p.name}, on leave. Pick a shift`} />
                 ) : canWrite ? (

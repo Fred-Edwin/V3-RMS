@@ -83,11 +83,13 @@ export function weekNumbers(week: WeekView, departmentId: string): WeekNumbers {
   const people = peopleIn(week, departmentId);
   const warnings = warningsIn(week, departmentId);
   const shifts = people.reduce((sum, p) => sum + Object.values(p.cells).reduce((n, day) => n + day.length, 0), 0);
+  // A week nobody has started is "Not started", not a pile of thin days.
+  const started = shifts > 0;
   return {
     shifts,
     people: people.filter((p) => Object.keys(p.cells).length > 0).length,
-    needsLook: warnings.length,
-    lookPhrase: warnings.length === 0 ? 'nothing to check' : warningPhrase(warnings),
+    needsLook: started ? warnings.length : 0,
+    lookPhrase: !started ? 'Not started' : warnings.length === 0 ? 'nothing to check' : warningPhrase(warnings),
     plannedMinutes: people.reduce((sum, p) => sum + p.plannedMinutes, 0),
     onLeave: people.filter((p) => p.leaveDates.some((d) => week.days.some((day) => day.date === d))).length,
   };

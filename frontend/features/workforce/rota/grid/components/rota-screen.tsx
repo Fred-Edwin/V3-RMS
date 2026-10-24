@@ -27,12 +27,11 @@ import { WarningsList } from './warnings-list';
 
 const TEMPLATES_HREF = '/app/workforce/schedule/templates';
 
-/** The shifts used by the people in view, one per colour, for the legend over the grid. */
+/** The branch's shifts, one per colour, for the legend over the grid: every active shift, whether or not it is used yet this week. */
 function legendOf(week: WeekView, people: ReturnType<typeof peopleIn>) {
-  const used = new Set(people.flatMap((p) => Object.values(p.cells).flatMap((day) => day.map((s) => s.templateId))));
   const seen = new Set<string>();
   const items = week.templates
-    .filter((t) => used.has(t.id))
+    .filter((t) => t.isActive)
     .flatMap((t) => {
       const tone = toneOfColour(t.colour);
       if (seen.has(tone)) return [];
@@ -70,7 +69,9 @@ export function RotaScreen() {
   if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 
   const people = peopleIn(data, departmentId);
-  const warnings = warningsIn(data, departmentId);
+  // Nobody has a shift yet: the thin-cover warnings would only say "every day is thin", so the week reads "Not started" instead.
+  const started = people.some((p) => Object.keys(p.cells).length > 0);
+  const warnings = started ? warningsIn(data, departmentId) : [];
   const departmentName = departmentId === ALL_DEPARTMENTS ? 'All departments' : (data.departments.find((d) => d.id === departmentId)?.name ?? '');
   const printHref = `/app/workforce/schedule/rota/print?week=${s.weekStart}${s.siteId ? `&site=${s.siteId}` : ''}${departmentId !== ALL_DEPARTMENTS ? `&dept=${departmentId}` : ''}`;
 

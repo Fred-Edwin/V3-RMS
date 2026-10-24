@@ -29,7 +29,8 @@ export const departmentsRepository = {
     prisma.site.findMany({
       where: { companyId, isActive: true, ...(onlySiteId ? { id: onlySiteId } : {}) },
       select: { id: true, name: true, type: true, isHub: true },
-      orderBy: [{ isHub: 'asc' }, { name: 'asc' }],
+      // Paper's order: the branches in the order they were opened (Nyeri Town first), the Central Store last.
+      orderBy: [{ isHub: 'asc' }, { createdAt: 'asc' }, { name: 'asc' }],
     }),
 
   findSite: (companyId: string, id: string, db: Db = prisma) => db.site.findFirst({ where: { id, companyId, isActive: true }, select: { id: true, name: true, type: true, isHub: true } }),

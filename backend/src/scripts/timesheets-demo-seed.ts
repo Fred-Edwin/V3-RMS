@@ -71,7 +71,7 @@ async function up(): Promise<void> {
 
   await prisma.user.create({ data: { name: 'Faith Njeri', email: BM_EMAIL, passwordHash: await hashPassword('password123'), pinHash: await hashPin('4321'), role: 'MANAGER', siteId: townId } });
   const morning = await prisma.shiftTemplate.create({ data: { companyId, siteId: townId, name: 'Demo Morning', colour: 'BLUE', startTime: '06:00', endTime: '14:00', unpaidBreakMinutes: 0 } });
-  const afternoon = await prisma.shiftTemplate.create({ data: { companyId, siteId: townId, name: 'Demo Afternoon', colour: 'AMBER', startTime: '14:00', endTime: '22:00', unpaidBreakMinutes: 0 } });
+  const afternoon = await prisma.shiftTemplate.create({ data: { companyId, siteId: townId, name: 'Demo Afternoon', colour: 'GREEN', startTime: '14:00', endTime: '22:00', unpaidBreakMinutes: 0 } });
 
   // The few days the manager has to deal with (person index, date, what happened).
   const overtime = new Map<string, number>([['11:2026-09-12', 40], ['16:2026-09-18', 55], ['19:2026-09-25', 70], ['3:2026-09-26', 35], ['14:2026-10-12', 45]]);

@@ -56,6 +56,8 @@ export interface PersonRow {
   siteId: string;
   departmentId: string | null;
   departmentName: string | null;
+  /** The position's name ("Barista"), for the person label. */
+  positionName: string | null;
   tracksTime: boolean;
 }
 

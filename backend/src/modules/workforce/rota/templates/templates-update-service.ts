@@ -4,7 +4,7 @@ import { fromDateColumn, nairobiToday, toDateColumn } from '../../_shared/time/n
 import type { AccessSubject } from '../../_shared/workforce-access';
 import { resolveActor } from '../../people/people-context';
 import { changeBatcher } from '../changes/change-batcher';
-import { requireReasonWhenNeeded } from '../rota-days';
+import { reasonOfChange } from '../rota-days';
 import type { TemplateView } from '../rota.types';
 import { assertShiftWindow } from './template-rules';
 import { assertFreeNameAndLetter, checkDepartments, loadWritable, templateEntry, viewOf } from './templates-service';
@@ -42,7 +42,7 @@ export const templatesUpdateService = {
         await assertFreeNameAndLetter(tx, ctx, { siteId: template.siteId, name: next.name, letter: next.letter, exceptId: id });
       }
       const upcoming = timesChanged ? await templatesRepository.entriesFrom(tx, id, from) : [];
-      const reason = requireReasonWhenNeeded(upcoming.map((e) => fromDateColumn(e.date)), today, body.reason);
+      const reason = reasonOfChange(body.reason);
       let targetId = id;
       if (timesChanged && (await templatesRepository.hasEntriesBefore(tx, id, from))) {
         const successor = await templatesRepository.create(tx, { companyId: ctx.companyId, siteId: template.siteId, createdById: subject.id, ...next });

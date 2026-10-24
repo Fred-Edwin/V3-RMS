@@ -14,6 +14,7 @@ const PERSON_SELECT = {
   departmentId: true,
   tracksTime: true,
   department: { select: { name: true } },
+  position: { select: { name: true } },
 } satisfies Prisma.EmployeeSelect;
 
 const toPerson = (row: Prisma.EmployeeGetPayload<{ select: typeof PERSON_SELECT }>): PersonRow => ({
@@ -23,6 +24,7 @@ const toPerson = (row: Prisma.EmployeeGetPayload<{ select: typeof PERSON_SELECT 
   siteId: row.siteId,
   departmentId: row.departmentId,
   departmentName: row.department?.name ?? null,
+  positionName: row.position?.name ?? null,
   tracksTime: row.tracksTime,
 });
 

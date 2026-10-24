@@ -105,7 +105,7 @@ export async function approveLeave(subject: AccessSubject, id: string, body: App
 
   if (cleared.length > 0) noteLeaveCellsCleared({ siteId: app.siteId, employeeId: person.id, userId: person.userId, dates: cleared, changedById: subject.id });
   await tell([person.userId], 'leave.approved', { id: app.id });
-  await tell([head && head.employeeId !== person.id ? head.userId : null], 'leave.head_told', { id: app.id });
+  await tell([head && head.employeeId !== person.id ? head.userId : null], 'leave.head_told', { id: app.id, name: person.name });
   return done;
 }
 

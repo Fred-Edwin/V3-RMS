@@ -106,6 +106,12 @@ describe('My rota', () => {
     expect(lines[0]?.shift).toEqual({ tone: 'morning', label: 'Morning 06:00 to 14:00' });
   });
 
+  it('days after the last planned shift read "Not planned yet"; a gap between planned shifts is a day off', () => {
+    const longer = { ...rota, to: '2026-10-16' };
+    const lines = rotaLines(longer, '2026-10-12');
+    expect(lines.map((l) => [l.day, l.notPlanned])).toEqual([['Mon 12', false], ['Tue 13', false], ['Wed 14', false], ['Thu 15', true], ['Fri 16', true]]);
+  });
+
   it('adds up paid hours less the unpaid break', () => {
     expect(plannedMinutes(rota)).toBe(450 + 480);
     expect(rotaSummary(rota)).toBe('2 shifts · 15.5 h planned');

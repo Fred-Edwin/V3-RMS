@@ -17,6 +17,7 @@ import { mondayOf, nairobiToday, weekShortRange } from '../../_shared/lib/rota-d
 import { breakWords, hoursUnit, timeRangeMono, toneOfColour, usedByWords } from '../../_shared/lib/shift-look';
 import { rotaWrites } from '../../_shared/services/rota-services';
 import type { TemplateView } from '../../_shared/types/rota-types';
+import { firstSite, rememberSite, rememberedSite } from '../../_shared/lib/last-site';
 import { mayEdit, retiredWords, templateCounts, templateRows } from '../lib/template-rows';
 import { TemplateDialog } from './template-dialog';
 
@@ -39,9 +40,11 @@ export function TemplatesScreen() {
   const writesAllSites = perms.scopeOf('rota.template_write') === 'all';
   const readsAllSites = perms.scopeOf('rota.read') === 'all';
   const overview = useOrgOverview(false, perms.ready);
-  const sites = overview.data?.organizations ?? [];
+  // The Central Store has no shifts, so it is not offered; the screen opens on the branch looked at last, else the first branch.
+  const sites = (overview.data?.organizations ?? []).filter((s) => s.type === 'BRANCH');
   const [siteChoice, setSiteChoice] = React.useState<string | null>(null);
-  const siteId = readsAllSites ? (siteChoice ?? sites.find((s) => s.type === 'BRANCH')?.id ?? sites[0]?.id) : (user?.organizationId ?? undefined);
+  const [remembered] = React.useState(rememberedSite);
+  const siteId = readsAllSites ? (siteChoice ?? firstSite(sites, remembered)) : (user?.organizationId ?? undefined);
   const site = sites.find((s) => s.id === siteId);
   const siteName = site?.name ?? user?.organizationName ?? 'this site';
   const templates = useTemplates(readsAllSites ? siteId : undefined, THIS_WEEK, true, perms.ready && perms.can('rota.read') && (!readsAllSites || siteId !== undefined));
@@ -138,7 +141,7 @@ export function TemplatesScreen() {
       {readsAllSites ? (
         <div className="flex items-center gap-3">
           <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">SITE</span>
-          <Picker aria-label="Site" value={siteId ?? ''} onValueChange={setSiteChoice} chips={false} className="h-8 w-[200px]" options={sites.map((s) => ({ value: s.id, label: s.name }))} />
+          <Picker aria-label="Site" value={siteId ?? ''} onValueChange={(id) => { rememberSite(id); setSiteChoice(id); }} chips={false} className="h-8 w-[200px]" options={sites.map((s) => ({ value: s.id, label: s.name }))} />
         </div>
       ) : null}
       <WorkforceKpiStrip

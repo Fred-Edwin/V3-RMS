@@ -30,6 +30,10 @@ export interface BoardPerson {
   name: string;
   departmentId: string | null;
   departmentName: string | null;
+  /** The position's name, for the person label ("Barista · Head" for a head). */
+  positionName: string | null;
+  /** True for the head of the person's department. */
+  isHead: boolean;
   /** The state that matters most when a person has two shifts. */
   state: BoardState | 'NO_SHIFT';
   shifts: BoardShift[];
@@ -123,7 +127,8 @@ export function buildBoard(args: { siteId: string; date: NairobiDate; people: re
     .map(({ person, days }) => {
       const shifts = days.map(shiftOf);
       const state = shifts.length ? shifts.reduce((a, b) => (PRIORITY[a.state] <= PRIORITY[b.state] ? a : b)).state : 'NO_SHIFT';
-      return { employeeId: person.id, name: person.name, departmentId: person.departmentId, departmentName: person.departmentName, state, shifts } satisfies BoardPerson;
+      const isHead = departments.find((d) => d.id === person.departmentId)?.heads.some((h) => h.employee.name === person.name) ?? false;
+      return { employeeId: person.id, name: person.name, departmentId: person.departmentId, departmentName: person.departmentName, positionName: person.positionName, isHead, state, shifts } satisfies BoardPerson;
     })
     .sort((a, b) => PRIORITY[a.state] - PRIORITY[b.state] || a.name.localeCompare(b.name));
 

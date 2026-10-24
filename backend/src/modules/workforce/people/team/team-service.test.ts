@@ -9,6 +9,12 @@ describe('My team rows', () => {
     expect(rows[0]).toMatchObject({ status: 'ON_SHIFT', shift: '06:00 to 14:00' });
   });
 
+  it('on the new clock, "on shift" means clocked in now: a rostered person who has not started is not on shift, and still shows the times', () => {
+    const shifts = [{ employeeId: 'a', startTime: '14:00', endTime: '22:00' }, { employeeId: 'b', startTime: '06:00', endTime: '14:00' }];
+    const rows = teamMembers([person('a', 'Joy'), person('b', 'Peter')], shifts, false, new Set(['b']));
+    expect(rows.map((r) => [r.name, r.status, r.shift])).toEqual([['Joy', 'NOT_ON_SHIFT', '14:00 to 22:00'], ['Peter', 'ON_SHIFT', '06:00 to 14:00']]);
+  });
+
   it('marks a person with no shift as not on shift, with no shift text', () => {
     expect(teamMembers([person('b', 'Peter')], [])[0]).toMatchObject({ status: 'NOT_ON_SHIFT', shift: null });
   });

@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import * as React from 'react';
 
 import { ShellNavDrawer } from '@/components/app/shell/shell-nav-drawer';
@@ -13,6 +14,9 @@ const Context = React.createContext<{ open: () => void; close: () => void } | nu
 
 export function WorkforceNavDrawerProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  // The drawer also closes whenever the page changes, whichever row (or link inside a row) was chosen.
+  const pathname = usePathname();
+  React.useEffect(() => setIsOpen(false), [pathname]);
   const value = React.useMemo(() => ({ open: () => setIsOpen(true), close: () => setIsOpen(false) }), []);
   return (
     <Context.Provider value={value}>

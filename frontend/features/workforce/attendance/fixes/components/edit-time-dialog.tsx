@@ -118,8 +118,8 @@ export function EditTimeDialog({
               <span role="cell" className="flex grow basis-0 items-center justify-between gap-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                 {row.source}
                 <span className="flex gap-3">
-                  <button type="button" onClick={() => setChange({ action: 'EDIT', eventId: row.id, hm: row.recorded })} className="min-h-8 text-wds-primary hover:underline">Edit</button>
-                  <button type="button" onClick={() => setChange({ action: 'VOID', eventId: row.id })} className="min-h-8 text-wds-primary hover:underline">Remove</button>
+                  <button type="button" onClick={() => setChange({ action: 'EDIT', eventId: row.id, hm: row.recorded })} className="min-h-8 text-wds-warning-fg underline underline-offset-2">Edit</button>
+                  <button type="button" onClick={() => setChange({ action: 'VOID', eventId: row.id })} className="min-h-8 text-wds-warning-fg underline underline-offset-2">Remove</button>
                 </span>
               </span>
             </div>
@@ -153,7 +153,7 @@ export function EditTimeDialog({
       {previewError ? <Callout tone="error" size="sm">{previewError}</Callout> : null}
       <ReasonChips legend="Reason, required" legendStyle="sentence" options={[...FIX_REASONS]} value={reason} onChange={setReason} disabled={action.busy} />
       <Callout size="sm" bullet>
-        The old value stays visible in the history. {history.name.split(' ')[0]} is told. Any time past the shift end goes to overtime approval. After a pay period closes only HR can change this, with a reason.
+        The old value stays visible in the history. {history.name.split(' ')[0]} is told. After a pay period closes only HR can change this, with a reason.
       </Callout>
       {showHistory ? <HistoryList history={history} entryId={entryId} /> : null}
       {action.error ? <Callout tone="error" role="alert" size="sm">{action.error}</Callout> : null}
