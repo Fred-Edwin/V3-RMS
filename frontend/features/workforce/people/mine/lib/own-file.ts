@@ -20,7 +20,7 @@ export interface StillToFinish {
 
 const TITLES: Record<OwnForm, string> = { emergency: 'Emergency contact', numbers: 'NSSF and SHA numbers', photo: 'Photo' };
 /** The grey line under each title (frame 8.1). */
-const DETAILS: Record<OwnForm, string> = { emergency: 'HR asked for it. Takes 1 minute.', numbers: 'HR asked for them. Takes 1 minute.', photo: 'Your team sees it on the rota.' };
+const DETAILS: Record<OwnForm, string> = { emergency: 'HR asked for it. Takes 1 minute.', numbers: 'HR asked for them. Takes 1 minute.', photo: 'Your team sees it on Shifts.' };
 const PART_FOR: Record<OwnForm, 'EMERGENCY_CONTACT' | 'NSSF_SHA' | 'PHOTO_AND_DETAILS'> = { emergency: 'EMERGENCY_CONTACT', numbers: 'NSSF_SHA', photo: 'PHOTO_AND_DETAILS' };
 const KIND_FOR: Record<string, OwnForm> = { EMERGENCY_CONTACT: 'emergency', NSSF_SHA: 'numbers', PHOTO_AND_DETAILS: 'photo' };
 

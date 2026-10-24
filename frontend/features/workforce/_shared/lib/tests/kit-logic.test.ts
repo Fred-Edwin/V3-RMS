@@ -120,7 +120,7 @@ describe('undo window (30 seconds)', () => {
 // Paper, add it here AND to STATES_COPY; this list is what fails the build when a key goes missing.
 const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string]> = [
   ['waitingForYou', 'Needs you'],
-  ['rota', 'Rota'],
+  ['rota', 'Shifts'],
   ['todayBoard', 'Today board'],
   ['timesheets', 'Timesheets'],
   ['myTime', 'My time and My requests'],
@@ -167,7 +167,7 @@ describe('per-screen copy table (States kit)', () => {
   it('fills the term and range holes, and leaves a missing value visible', () => {
     expect(statesCopy('waitingForYou', 'nothingFound', { term: 'Overtime' })).toBe('No request matches "Overtime". Clear the filter.');
     expect(statesCopy('waitingForYou', 'nothingYet')).toBe('Nothing needs you. New requests show here, in the bell and as badges on the menu.');
-    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No rota for 19 to 25 Oct yet. Start from last week or from a template.');
+    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No shifts for 19 to 25 Oct yet. Pick a shift for a day, or use Start from last week.');
     expect(fillCopy('No shift matches "{term}".')).toBe('No shift matches "{term}".');
   });
   it('formats the support reference', () => {

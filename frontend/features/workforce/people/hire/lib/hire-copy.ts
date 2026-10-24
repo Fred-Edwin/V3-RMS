@@ -27,7 +27,7 @@ export function stepHeading(step: HireStepKey, first: string, casual: boolean): 
     case 'who':
       return { title: 'Who is joining?', lead: `The basics. ${cap(first)} can add a photo and more details on their first sign-in.` };
     case 'job':
-      return { title: `What will ${first} do?`, lead: `Where ${first} works and how they are employed. After this step they can be put on the rota.` };
+      return { title: `What will ${first} do?`, lead: `Where ${first} works and how they are employed. After this step they can be given shifts.` };
     case 'pay':
       return casual
         ? { title: `How is ${first} paid?`, lead: 'A casual is paid each day in cash from petty cash. There is no login, no bank and no statutory step.' }
@@ -56,8 +56,8 @@ export const photoNote = 'Optional now. It replaces the initials everywhere.';
 
 export const JOB_PANEL = (first: string, department: string | null, head: string | null): string[] => [
   department
-    ? `Department. ${cap(first)} joins the ${department} team.${head ? ` ${head}, its head, can build their rota and approve their overtime.` : ' Its head can build their rota and approve their overtime.'}`
-    : 'Department. Choose one and its head can build the rota and approve overtime.',
+    ? `Department. ${cap(first)} joins the ${department} team.${head ? ` ${head}, its head, can plan their shifts and approve their overtime.` : ' Its head can plan their shifts and approve their overtime.'}`
+    : 'Department. Choose one and its head can plan shifts and approve overtime.',
   `No contract yet. A nudge on the file, not a blocker. ${cap(first)} gets the default leave policy so they have balances from day one.`,
   'Tracks time. Defaults from the position. Managers and HR do not clock in.',
   `Casual. Choosing it skips the login step and puts ${first} in the department's casual pool.`,
@@ -100,7 +100,7 @@ export const LOGIN_PANEL = {
   lines: (first: string, head: string | null, department: string | null): string[] => [
     'The account is created, and they get a first-sign-in link',
     `${head ?? 'Their head'}${head ? ', their head,' : ''} is told ${first} has joined${department ? ` the ${department} team` : ''}`,
-    'They appear on the rota, ready to be scheduled',
+    'They appear on Shifts, ready to be scheduled',
     'The hire is written to the audit log with who did it',
   ],
   shownOnce: 'Shown once. They must change it, and set their PIN, the first time they sign in.',

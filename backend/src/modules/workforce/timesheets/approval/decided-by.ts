@@ -63,7 +63,7 @@ export function decidedText(lines: readonly DecidedLine[]): string {
   const words = lines.map((line): string => {
     switch (line.code) {
       case 'MATCHES_ROTA':
-        return 'Matches the rota, approved by the system';
+        return 'Matches the shift, approved by the system';
       case 'OVERTIME_APPROVED':
         return `Overtime approved by ${whoText(line.by)}`;
       case 'OVERTIME_PART':

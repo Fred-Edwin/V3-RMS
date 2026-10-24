@@ -32,7 +32,7 @@ export function ClosedShiftFlow({ employeeId, date, entryId, onClose, onDone }: 
   return day.data.entries.some((e) => e.entryId === entryId) ? (
     <ClosedShiftDialog history={day.data} entryId={entryId} onClose={onClose} onDone={onDone} />
   ) : (
-    <KitDialog open onOpenChange={(o) => !o && onClose()} title="This shift is no longer on the rota" footer={<DialogButton kind="cancel" size="lg" onClick={onClose}>Close</DialogButton>}>
+    <KitDialog open onOpenChange={(o) => !o && onClose()} title="This shift is no longer planned" footer={<DialogButton kind="cancel" size="lg" onClick={onClose}>Close</DialogButton>}>
       <Callout tone="warning" size="sm">The shift was removed after it was closed, so there is nothing to put right here. Use Edit time on that day instead.</Callout>
     </KitDialog>
   );

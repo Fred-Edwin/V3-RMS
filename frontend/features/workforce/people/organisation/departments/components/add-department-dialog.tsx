@@ -49,7 +49,7 @@ export function AddDepartmentDialog({
     void action.run(async () => {
       const dept = await orgWrites.createDepartment(toCreateBody(name, siteId, positionIds));
       created.current = dept.id;
-    }, `${name.trim()} is added${siteName ? ` at ${siteName}` : ''}. It is on the rota, the Today board and the Organisation page now.`);
+    }, `${name.trim()} is added${siteName ? ` at ${siteName}` : ''}. It is on Shifts, the Today board and the Organisation page now.`);
   };
 
   return (
@@ -57,7 +57,7 @@ export function AddDepartmentDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title="Add a department"
-      description="It appears at once on the rota, the Today board and the head's phone."
+      description="It appears at once on Shifts, the Today board and the head's phone."
       busy={action.busy}
       footer={
         <>

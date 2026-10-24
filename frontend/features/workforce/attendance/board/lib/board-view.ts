@@ -105,18 +105,22 @@ export function departmentRows(board: Board): DepartmentRowItem[] {
   });
 }
 
-/** The four numbers under the greeting. "On leave" waits for the Leave slice, so it shows a dash and says so. */
-export function kpiCells(board: Board, go?: { late: () => void; notIn: () => void }): WorkforceKpiCell[] {
+/**
+ * The numbers under the greeting. "On leave" shows only when the server has the figure. `past` is a day that has ended: the labels lose
+ * "now" and "today", and nothing says "expected by 00:00".
+ */
+export function kpiCells(board: Board, go?: { late: () => void; notIn: () => void }, past = false): WorkforceKpiCell[] {
   const { onShift, late, notIn, onLeave } = board.tiles;
   const firstStart = board.people.flatMap((p) => p.shifts).filter((s) => s.state === 'NOT_IN' || s.state === 'MISSED').map((s) => s.startTime).sort()[0];
-  return [
-    { key: 'on-shift', label: 'ON SHIFT NOW', value: `${onShift.count} of ${onShift.expected}`, detail: board.asOf ? `expected by ${board.asOf}` : 'expected so far' },
-    { key: 'late', label: 'LATE TODAY', value: String(late.count), detail: late.count > 0 ? `${late.minutesPastGrace} min past grace in all` : 'nobody late', actionable: late.count > 0 && !!go, onSelect: late.count > 0 ? go?.late : undefined },
-    { key: 'not-in', label: 'NOT IN YET', value: String(notIn.count), detail: notIn.count > 0 ? `due ${firstStart ?? 'earlier'}, no clock-in` : 'everyone due is in', actionable: notIn.count > 0 && !!go, onSelect: notIn.count > 0 ? go?.notIn : undefined },
-    onLeave.available
-      ? { key: 'leave', label: 'ON LEAVE TODAY', value: String(onLeave.count), detail: 'approved' }
-      : { key: 'leave', label: 'ON LEAVE TODAY', value: '—', detail: 'arrives with Leave' },
+  const cells: WorkforceKpiCell[] = [
+    past
+      ? { key: 'on-shift', label: 'WORKED A SHIFT', value: `${onShift.count} of ${onShift.expected}`, detail: 'people who had a shift' }
+      : { key: 'on-shift', label: 'ON SHIFT NOW', value: `${onShift.count} of ${onShift.expected}`, detail: board.asOf ? `expected by ${board.asOf}` : 'expected so far' },
+    { key: 'late', label: past ? 'LATE' : 'LATE TODAY', value: String(late.count), detail: late.count > 0 ? `${late.minutesPastGrace} min past grace in all` : 'nobody late', actionable: late.count > 0 && !!go, onSelect: late.count > 0 ? go?.late : undefined },
+    { key: 'not-in', label: past ? 'NEVER CLOCKED IN' : 'NOT IN YET', value: String(notIn.count), detail: notIn.count > 0 ? `due ${firstStart ?? 'earlier'}, no clock-in` : 'everyone due was in', actionable: notIn.count > 0 && !!go, onSelect: notIn.count > 0 ? go?.notIn : undefined },
   ];
+  if (onLeave.available) cells.push({ key: 'leave', label: past ? 'ON LEAVE' : 'ON LEAVE TODAY', value: String(onLeave.count), detail: 'approved' });
+  return cells;
 }
 
 /** "Morning shift started 06:00." for the line under the page title. */

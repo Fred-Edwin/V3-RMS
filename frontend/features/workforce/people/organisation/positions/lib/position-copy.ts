@@ -86,6 +86,6 @@ export function impactHeadline(name: string, stops: boolean): string {
 
 export function impactWhatChanges(stops: boolean): string {
   return stops
-    ? 'From tomorrow they have no clock card, lateness or overtime, and they leave the rota. Their pay becomes a fixed monthly amount. Past timesheets stay as they are.'
-    : 'From tomorrow they have a clock card and appear on the rota, and lateness and overtime count. Past timesheets stay as they are.';
+    ? 'From tomorrow they have no clock card, lateness or overtime, and they leave Shifts. Their pay becomes a fixed monthly amount. Past timesheets stay as they are.'
+    : 'From tomorrow they have a clock card and appear on Shifts, and lateness and overtime count. Past timesheets stay as they are.';
 }

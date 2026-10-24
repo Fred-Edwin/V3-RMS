@@ -61,7 +61,7 @@ export function CopyWeekDialog({
       title="Start from last week?"
       description={
         data
-          ? `Copies the rota for ${weekShortRange(data.copiedFrom)} into ${weekShortRange(data.weekStart)}, ${departmentName ? `for ${departmentName}` : 'for every department'}. You can change anything afterwards.`
+          ? `This copies the shifts of the week of ${weekShortRange(data.copiedFrom)} into the week of ${weekShortRange(data.weekStart)}, ${departmentName ? `for ${departmentName}` : 'for every department'}. Nothing is overwritten, and you can change anything afterwards.`
           : 'Checking what last week would copy.'
       }
       footer={
@@ -84,7 +84,7 @@ export function CopyWeekDialog({
             cells={[
               { label: 'Shifts copied', value: data.shiftsCopied },
               { label: 'People', value: data.people },
-              { label: 'Left out, need you', value: data.clashes.length, tone: data.clashes.length > 0 ? 'warning' : 'default' },
+              { label: 'Left out, you decide', value: data.clashes.length, tone: data.clashes.length > 0 ? 'warning' : 'default' },
             ]}
           />
           {data.clashes.length > 0 ? (
@@ -111,6 +111,7 @@ export function CopyWeekDialog({
           ) : null}
           <Callout tone="neutral" bullet size="sm">
             {COPY_NOTE}
+            {' "Left out" shifts would clash with leave, a move to another site, or a person who has left. Set those by hand.'}
             {data.kept > 0 ? ` ${data.kept} ${data.kept === 1 ? 'day already has' : 'days already have'} a shift and ${data.kept === 1 ? 'is' : 'are'} kept as it is.` : ''}
           </Callout>
         </>

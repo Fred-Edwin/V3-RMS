@@ -20,7 +20,7 @@ describe('what is still to finish', () => {
     const rows = stillToFinish(file(['EMERGENCY_CONTACT', 'PHOTO_AND_DETAILS']));
     expect(rows.map((r) => [r.title, r.detail])).toEqual([
       ['Emergency contact', 'HR asked for it. Takes 1 minute.'],
-      ['Photo', 'Your team sees it on the rota.'],
+      ['Photo', 'Your team sees it on Shifts.'],
     ]);
   });
   it('counts progress over the three', () => {

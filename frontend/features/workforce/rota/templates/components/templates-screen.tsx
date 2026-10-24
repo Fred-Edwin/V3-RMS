@@ -22,7 +22,7 @@ import { TemplateDialog } from './template-dialog';
 
 const COPY: TableCopy = {
   emptyTitle: 'No shifts yet',
-  emptyDescription: 'Add the first shift and it appears in every rota cell.',
+  emptyDescription: 'Add the first shift and it appears in every Shifts cell.',
   filteredEmptyTitle: 'No shift matches',
   filteredEmptyDescription: 'Try a different name, or clear the filters.',
   errorTitle: 'The shifts did not load',
@@ -131,7 +131,7 @@ export function TemplatesScreen() {
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
         title="Shift templates"
-        subtitle="The shifts you can put on a rota. Break and paid hours live here, so every rota and payslip counts them the same way."
+        subtitle="The shifts you can put on the grid. Break and paid hours live here, so every week and payslip counts them the same way."
         // The desktop top bar carries this button from 1024 px; below that the page does.
         actions={canWrite ? <DialogButton kind="primary" size="lg" className="lg:hidden" onClick={() => setEditing('new')}>Add shift</DialogButton> : undefined}
       />
@@ -145,8 +145,8 @@ export function TemplatesScreen() {
         aria-label="Shifts at a glance"
         cells={[
           { key: 'use', label: 'IN USE', value: String(active.length), detail: `${companyWide} company-wide, ${active.length - companyWide} for ${siteName}` },
-          { key: 'week', label: "SHIFTS ON THIS WEEK'S ROTA", value: String(data.reduce((n, t) => n + t.thisWeek, 0)), detail: `${siteName}, ${weekShortRange(THIS_WEEK)}` },
-          { key: 'retired', label: 'RETIRED', value: String(data.length - active.length), detail: 'kept so old rotas still read correctly' },
+          { key: 'week', label: "SHIFTS PLANNED THIS WEEK", value: String(data.reduce((n, t) => n + t.thisWeek, 0)), detail: `${siteName}, ${weekShortRange(THIS_WEEK)}` },
+          { key: 'retired', label: 'RETIRED', value: String(data.length - active.length), detail: 'kept so past weeks still read correctly' },
         ]}
       />
       {notice ? (

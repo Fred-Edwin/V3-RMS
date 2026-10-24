@@ -108,7 +108,7 @@ export function ShiftLegend({ items, className }: { items: ReadonlyArray<{ tone:
 export function ShiftSwatchPicker({
   value,
   onChange,
-  label = 'Colour on the rota',
+  label = 'Colour on the grid',
   names,
   disabled = false,
 }: {

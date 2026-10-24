@@ -22,8 +22,8 @@ export function RetireDepartmentDialog({ id, name, restore, onClose, done }: { i
       summaryCaption="WHAT HAPPENS"
       summaryLines={
         restore
-          ? [`${name} appears again on the rota, the Today board and the hiring form.`, 'It has no head until you name one. This is written to the audit log.']
-          : [`${name} disappears from the hiring form, the rota and the Today board.`, 'Its history and the audit log stay, and you can bring it back from the retired list.', 'This is written to the audit log with your name and the time.']
+          ? [`${name} appears again on Shifts, the Today board and the hiring form.`, 'It has no head until you name one. This is written to the audit log.']
+          : [`${name} disappears from the hiring form, Shifts and the Today board.`, 'Its history and the audit log stay, and you can bring it back from the retired list.', 'This is written to the audit log with your name and the time.']
       }
       confirmLabel={restore ? 'Bring it back' : 'Retire department'}
       destructive={!restore}

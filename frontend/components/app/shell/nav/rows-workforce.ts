@@ -73,13 +73,13 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // legacy admin and analytics rows by `menu.ts`.
   { key: 'wf-security', label: 'Security alerts', group: 'feature:company', icon: ico.shield, newHref: '/app/workforce/security', roles: [SYSTEM_ADMIN], badge: 'workforce-security', match: ['/app/workforce/security'] },
   { key: 'wf-audit-log', label: 'Audit log', group: 'feature:company', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: [...WF_DESKTOP, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/audit-log'] },
-  { key: 'wf-attendance-switch', label: 'Attendance clock', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
+  { key: 'wf-attendance-switch', label: 'Attendance switch', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
   { key: 'wf-rules-admin', label: 'Rules', group: 'feature:company', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
 
   // ── Personal items: open from the name at the bottom of the menu (Paper 2.x), for every person with a file ──────────────────────
   { key: 'me-file', label: 'My file', group: 'account', icon: ico.me, newHref: '/app/workforce/my-file', roles: OWN_FILE_ROLES, match: ['/app/workforce/my-file'] },
   { key: 'me-time', label: 'My time', group: 'account', icon: ico.myTime, newHref: '/app/workforce/my-time', roles: [...SHIFT_STAFF, STORE_ATTENDANT, ACCOUNTANT], needsAttendance: true, match: ['/app/workforce/my-time'] },
-  { key: 'me-rota', label: 'My rota', group: 'account', icon: ico.shifts, newHref: '/app/workforce/my-time/rota', roles: [...SHIFT_STAFF, STORE_ATTENDANT, ACCOUNTANT], needsAttendance: true },
+  { key: 'me-rota', label: 'My shifts', group: 'account', icon: ico.shifts, newHref: '/app/workforce/my-time/rota', roles: [...SHIFT_STAFF, STORE_ATTENDANT, ACCOUNTANT], needsAttendance: true },
   { key: 'me-requests', label: 'My requests', group: 'account', icon: ico.waiting, newHref: '/app/workforce/my-time/requests', roles: [...SHIFT_STAFF, STORE_ATTENDANT, ACCOUNTANT], needsAttendance: true },
   { key: 'me-leave', label: 'My leave', group: 'account', icon: ico.leave, newHref: '/app/workforce/my-leave', roles: OWN_FILE_ROLES, needsAttendance: true, match: ['/app/workforce/my-leave'] },
   { key: 'me-payslips', label: 'My payslips', group: 'account', icon: ico.payslips, newHref: '/app/workforce/my-payslips', roles: OWN_FILE_ROLES, match: ['/app/workforce/my-payslips'] },

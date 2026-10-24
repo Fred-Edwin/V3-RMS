@@ -24,11 +24,11 @@ export const WEEK_ROWS: readonly RuleRowDef[] = [
     id: 'weekStartsOn',
     title: 'The week starts on',
     thing: 'the first day of the week',
-    help: 'Rota weeks, timesheet weeks and overtime weeks all begin on this day',
+    help: 'Shift weeks, timesheet weeks and overtime weeks all begin on this day',
     value: (p) => ({ text: dayOf(p.values) }),
     Editor: choiceEditor({
       title: 'Change the first day of the week',
-      helper: 'The new week start applies from the first week that begins on or after the day you choose. Published rotas and approved months do not change. Weekly overtime caps count from the new first day.',
+      helper: 'The new week start applies from the first week that begins on or after the day you choose. Planned shifts and approved months do not change. Weekly overtime caps count from the new first day.',
       legend: 'The week starts on',
       columns: 3,
       options: WEEKDAY_NAMES.map((name, i) => ({ value: String(i + 1), title: name })),
@@ -37,7 +37,7 @@ export const WEEK_ROWS: readonly RuleRowDef[] = [
       weekStartName: (value) => weekdayName(Number(value)),
     }),
   },
-  { id: 'unpaidBreak', title: 'Unpaid break', thing: 'the unpaid break', help: 'Each shift template has its own, so rota and payslip agree', value: () => ({ text: 'per shift template', muted: true }) },
+  { id: 'unpaidBreak', title: 'Unpaid break', thing: 'the unpaid break', help: 'Each shift template has its own, so shifts and payslip agree', value: () => ({ text: 'per shift template', muted: true }) },
 ];
 
 const NAMES = rowNames(WEEK_ROWS);

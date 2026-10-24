@@ -74,7 +74,7 @@ export function LeaveTab(props: TabProps) {
         <Callout tone="neutral" variant="bar" kicker="WHO DECIDES">The Branch Manager. A manager’s own leave goes to HR.</Callout>
         <Callout tone="neutral" variant="bar" kicker="NOT ANSWERED">After 3 days it goes to HR, so it is never stuck.</Callout>
         <Callout tone="warning" variant="bar" kicker="BELOW MINIMUM COVER">Warns the approver and the person asking. It never blocks.</Callout>
-        <Callout tone="neutral" variant="bar" kicker="WHEN APPROVED">The rota shows leave and the balance drops by itself.</Callout>
+        <Callout tone="neutral" variant="bar" kicker="WHEN APPROVED">Shifts shows leave and the balance drops by itself.</Callout>
       </div>
       {editing ? <LeaveTypeEditor page={page} type={editing === 'new' ? null : editing} onSaved={onSaved} onStale={onStale} onClose={() => setEditing(null)} /> : null}
     </div>

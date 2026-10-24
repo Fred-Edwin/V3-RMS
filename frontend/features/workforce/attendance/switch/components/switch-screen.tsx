@@ -34,9 +34,9 @@ export function SwitchScreen() {
   };
 
   return (
-    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Attendance clock' }} phoneTitle="Attendance clock" label="Attendance clock by branch" className="px-4 py-6 lg:px-8 lg:py-7">
+    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Attendance switch' }} phoneTitle="Attendance switch" label="Attendance switch by branch" className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5">
-        <PageHeader title="Attendance clock" subtitle={SWITCH_COPY.subtitle} />
+        <PageHeader title="Attendance switch" subtitle={SWITCH_COPY.subtitle} />
         {message ? (
           <Callout tone="success" role="status" size="sm">
             {message}

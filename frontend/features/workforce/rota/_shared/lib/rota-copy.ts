@@ -1,7 +1,7 @@
 import type { SaveStatus } from '../hooks/use-rota-editor';
 
 /**
- * The words of the Rota screens. Copy says "they" or the first name, never a guessed pronoun. Nothing here mentions publishing: edits
+ * The words of the Shifts screens. Copy says "they" or the first name, never a guessed pronoun. Nothing here mentions publishing: edits
  * save at once and staff are told a few minutes after the last change.
  */
 
@@ -34,12 +34,12 @@ export function statusLine(status: SaveStatus, now: number): { text: string; ton
 
 export const GRID_NOTE = "Past days are read-only: fix those in Timesheets. Pick a department on the left to see its week.";
 export const GRID_NOTE_SITES = "Past days are read-only: fix those in Timesheets. Pick a site on the left, then filter by department.";
-export const GRID_NOTE_READ_ONLY = 'You can read this rota but not change it.';
+export const GRID_NOTE_READ_ONLY = 'You can read these shifts but not change them.';
 export const LEFT_NOTE = 'Changes save as you go and staff are told. Warnings never block.';
-export const LEFT_NOTE_SITES = 'HR builds any site. Each Branch Manager still sees only their own rota.';
+export const LEFT_NOTE_SITES = 'HR builds any site. Each Branch Manager still sees only their own shifts.';
 
-export const NO_ONE_ON_ROTA = { title: 'No one is on this rota yet', body: 'People who clock in appear here once they are hired into a department.' };
-export const NO_ACCESS = { title: "You can't open the rota", body: 'Ask HR if you need to plan or read a team’s week.' };
+export const NO_ONE_ON_ROTA = { title: 'No one has shifts here yet', body: 'People who clock in appear here once they are hired into a department.' };
+export const NO_ACCESS = { title: "You can't open Shifts", body: 'Ask HR if you need to plan or read a team’s week.' };
 
 export const COPY_NOTE = 'Clashes are shown, never copied. Staff are told about their new shifts a few minutes after you finish.';
 export const COPY_REASON_NOTE = 'Some of these days are today or tomorrow, so the copy needs a reason.';

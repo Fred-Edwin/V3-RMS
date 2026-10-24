@@ -49,7 +49,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
           <span aria-hidden>‹</span>
         </Link>
         <div className="flex min-w-0 grow flex-col">
-          <h1 className="m-0 font-wds-sans text-[18px] font-semibold leading-6 text-wds-text-ink">{departmentName === 'Everyone' ? 'Rota' : `${departmentName} rota`}</h1>
+          <h1 className="m-0 font-wds-sans text-[18px] font-semibold leading-6 text-wds-text-ink">{departmentName === 'Everyone' ? 'Shifts' : `${departmentName} shifts`}</h1>
           <p className="m-0 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
             {weekPhoneRange(data.weekStart)} · {people.length} {people.length === 1 ? 'person' : 'people'}
           </p>
@@ -114,7 +114,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
         ) : null}
       </div>
       <p className="m-0 border-t border-wds-border bg-wds-surface px-4 py-3.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-        {data.can.write ? 'Saves as you go. People are told when their shift changes. Nothing waits for approval.' : 'You can read this rota but not change it.'}
+        {data.can.write ? 'Saves as you go. People are told when their shift changes. Nothing waits for approval.' : 'You can read these shifts but not change them.'}
       </p>
       <PendingDialogs week={data} pending={s.editor.pending} answer={s.editor.answer} cancel={s.editor.cancel} />
     </div>

@@ -44,17 +44,21 @@ export function TodayScreen() {
     <EmptyState kind="nothingYet" title="This branch still uses the old clock" line="The Today board appears here once the Director switches the new clock on for this branch." />
   ) : board.data ? (
     <>
-      <WorkforceKpiStrip aria-label="The branch on this day" cells={kpiCells(board.data)} />
+      <WorkforceKpiStrip aria-label="The branch on this day" cells={kpiCells(board.data, undefined, date < today)} />
       <LiveBoard board={board.data} reload={board.reload} everyone initialReview={review && reviewEmployee ? { employeeId: reviewEmployee, entryId: review, date: params.get('date') ?? date } : undefined} />
     </>
   ) : null;
 
   const siteName = sites.data?.find((s) => s.organizationId === chosen)?.organizationName ?? user?.organizationName ?? 'the branch';
+  // A department head sees their own team: the page is "Barista team today", under Department, not the branch's Today board.
+  const isHead = permissions.scopeOf('today.read') === 'dept';
+  const teamName = board.data?.departments[0]?.name;
+  const pageName = isHead ? 'Team today' : 'Today board';
   return (
-    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Today board' }} phoneTitle="Today board" label="Today board" className="px-4 py-6 lg:px-8 lg:py-7">
+    <WorkforceFrame breadcrumb={{ section: isHead ? 'Department' : 'Workforce', screen: pageName }} phoneTitle={pageName} label={pageName} className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
         <PageHeader
-          title={`Today at ${siteName}`}
+          title={isHead ? (teamName ? `${teamName} team today` : 'Team today') : `Today at ${siteName}`}
           subtitle={board.data?.enabled ? liveLine(board.data, date === today) : undefined}
           actions={<PeriodStepper label={longDay(date)} previousLabel="Previous day" nextLabel="Next day" onPrevious={() => setDate(addDays(date, -1))} onNext={() => setDate(addDays(date, 1))} nextDisabled={date >= today} />}
         />

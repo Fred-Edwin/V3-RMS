@@ -18,7 +18,7 @@ export function approveRows(detail: ApplicationDetail, rota: RotaPanel | null): 
   const tail = a.unpaidTailDays;
   const team = rota ? teamLine(rota.days) : null;
   const rows: KeyValueRow[] = [
-    { label: 'Rota', value: `${rangeShort(a.start, a.end)} ${a.days === 1 ? 'becomes' : 'become'} Leave` },
+    { label: 'Shifts', value: `${rangeShort(a.start, a.end)} ${a.days === 1 ? 'becomes' : 'become'} Leave` },
   ];
   if (rota && rota.balanceBefore !== null) rows.push({ label: `${a.typeLabel.replace(/ leave$/i, '')} balance`, from: `${rota.balanceBefore} days`, value: `${rota.balanceAfter ?? '–'} days`, mono: true });
   rows.push({ label: 'Pay', value: !a.paid ? 'Not paid for those days' : tail > 0 ? `${a.days - tail} ${a.typeLabel.toLowerCase().replace(/ leave$/, '')} days at normal pay, ${tail} unpaid ${tail === 1 ? 'day' : 'days'} not paid` : 'Normal pay for those days' });

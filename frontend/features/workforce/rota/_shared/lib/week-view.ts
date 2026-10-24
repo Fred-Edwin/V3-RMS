@@ -102,12 +102,15 @@ export interface FooterRow {
 export function footerRow(week: WeekView, departmentId: string, warnings: readonly RotaWarning[]): FooterRow {
   const all = departmentId === ALL_DEPARTMENTS;
   const needs = all ? null : (week.days.map((d) => d.byDepartment[departmentId]?.needs ?? null).find((n) => n !== null) ?? null);
-  const thin = new Set(warnings.filter((w) => w.code === 'THIN_COVERAGE' && w.date).map((w) => w.date));
+  const thin = new Map<string, RotaWarning[]>();
+  for (const w of warnings) if (w.code === 'THIN_COVERAGE' && w.date) thin.set(w.date, [...(thin.get(w.date) ?? []), w]);
   return {
     label: needs === null ? 'ON' : `ON, NEEDS ${needs}`,
     cells: week.days.map((d) => {
       const n = all ? d.people : (d.byDepartment[departmentId]?.people ?? 0);
-      if (thin.has(d.date)) return { text: `${n} thin`, tone: 'warning' as const };
+      const thinHere = thin.get(d.date);
+      // "thin" counts only the department that is thin: on the all-departments view that is the sum of what each thin department has.
+      if (thinHere) return { text: `${all ? thinHere.reduce((sum, w) => sum + Number(w.detail.has ?? 0), 0) : n} thin`, tone: 'warning' as const };
       return { text: String(n), tone: n === 0 ? ('faint' as const) : ('default' as const) };
     }),
   };

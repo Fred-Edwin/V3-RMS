@@ -25,7 +25,7 @@ export function UndoExitDialog({ file, onClose, done }: FileDialogProps) {
       summaryLines={[
         // A person with no login has nothing to switch back on.
         ...(file.hasLogin ? [`${first}'s login works again.`] : []),
-        'Their place in the department and rota is restored, exactly as before.',
+        'Their place in the department and shifts are restored, exactly as before.',
         'The undo is written to the audit log with your name.',
       ]}
       confirmLabel="Undo exit"

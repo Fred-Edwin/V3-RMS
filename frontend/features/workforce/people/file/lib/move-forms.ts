@@ -81,7 +81,7 @@ export function exitLines(lastDay: string, undoDays: number, preview: MovePrevie
   const day = lastDay ? longDate(lastDay) : 'the last day';
   return [
     ...(preview?.impacts.map(impactText) ?? []),
-    `Their login stops at midnight on ${day}. They leave the rota, and their shifts after that day are cleared.`,
+    `Their login stops at midnight on ${day}. They leave Shifts, and their shifts after that day are cleared.`,
     'The file stays, marked Exited, with all history. Nothing is deleted.',
     `Mistakes can be undone for ${undoDays} days. After that, use Rehire.`,
   ];
@@ -115,7 +115,7 @@ export function loanLines(f: LoanForm, siteName: string, homeName: string, first
       ? `It runs until you bring ${first} back from their file.`
       : `It ends by itself after ${formatWeekdayDayMonth(f.mode === 'today' ? today : f.until || today)} and ${first} goes back to ${homeName}. No approval is needed.`;
   return [
-    `${first} can clock in at ${siteName || 'that site'} from now, on that site's rota or as an extra.`,
+    `${first} can clock in at ${siteName || 'that site'} from now, on that site's shifts or as an extra.`,
     `The Branch Manager there sees ${first} on their Today board. Pay, leave and approvals stay with ${first}'s own head.`,
     ends,
   ];

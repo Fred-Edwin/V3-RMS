@@ -53,7 +53,7 @@ export async function applyCellChanges(subject: AccessSubject, request: ApplyReq
     if (!person) throw new NotFoundError('Person not found');
     if (person.siteId !== siteId) throw new NotFoundError('Person not found');
     assertCanWriteFor(subject, person);
-    if (!person.tracksTime) throw new ValidationError(`${person.name} does not clock in, so has no rota`, 'EMPLOYEE_NOT_ON_ROTA');
+    if (!person.tracksTime) throw new ValidationError(`${person.name} does not clock in, so has no shifts`, 'EMPLOYEE_NOT_ON_ROTA');
   }
 
   const templateIds = [...new Set(request.changes.flatMap((c) => c.templateIds))];

@@ -15,7 +15,7 @@ type TabKey = 'requests' | 'calendar' | 'balances';
 const TABS = [{ value: 'requests', label: 'Requests' }, { value: 'calendar', label: 'Calendar' }, { value: 'balances', label: 'Balances' }];
 
 const SUBLINE: Record<TabKey, (date: string) => string> = {
-  requests: (date) => `${date} · approved leave blocks the rota by itself`,
+  requests: (date) => `${date} · approved leave blocks the shifts by itself`,
   calendar: () => 'Three weeks at a glance · a request still waiting is dashed until it is decided',
   balances: () => 'Every calendar day of leave counts · the leave year is the calendar year',
 };

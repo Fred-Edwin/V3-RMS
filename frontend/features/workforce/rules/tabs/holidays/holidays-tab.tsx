@@ -135,7 +135,7 @@ export function HolidaysTab(props: TabProps) {
       right={
         <>
           <SideLabel>HOW A HOLIDAY WORKS</SideLabel>
-          <Callout tone="neutral" variant="bar" title="Wendo does not close, so nothing changes on the rota">
+          <Callout tone="neutral" variant="bar" title="Wendo does not close, so nothing changes on Shifts">
             Shifts are planned as on any day. Only the hours worked on a public holiday are paid at the rate in this table, and payroll shows it as its own line on the payslip.
           </Callout>
           <Callout tone="neutral" variant="dashed" title="Leave never counts a holiday twice">

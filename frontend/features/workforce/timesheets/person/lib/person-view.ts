@@ -6,7 +6,7 @@ export type NeedAction = 'overtime' | 'fix' | 'request' | 'day';
 
 const SHORT_RESULT: Record<DayResultKey, string> = {
   REST: 'Rest day',
-  ON_ROTA: 'On the rota',
+  ON_ROTA: 'On a shift',
   LATE: 'Late, recorded',
   LEFT_EARLY: 'Left early',
   OVERTIME_TO_DECIDE: 'Overtime to decide',

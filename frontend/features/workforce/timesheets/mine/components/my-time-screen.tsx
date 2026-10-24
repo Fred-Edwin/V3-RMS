@@ -68,7 +68,7 @@ export function MyTimeScreen() {
             {data.openRequests > 0 ? `My requests · ${data.openRequests} waiting` : 'My requests'}
           </PhoneButton>
           <PhoneButton kind="outlined" size="sm" onClick={() => router.push('/app/workforce/my-time/rota')}>
-            My rota
+            My shifts
           </PhoneButton>
         </div>
       </>

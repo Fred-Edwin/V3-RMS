@@ -41,7 +41,7 @@ export const BUILT_WORDING: Record<string, Wording> = {
   'time_request.escalated': (d) => row('needsLook', 'TIME', '/app/workforce/requests', 'A request moved up', `A ${text(d, 'kind', 'time').replace(/_/g, ' ').toLowerCase()} request moved to HR. No answer in 3 days.`),
   'rota.shifts_changed': (d) => {
     const days = num(d, 'days') ?? 1;
-    return row('changed', 'TIME', '/app/workforce/my-time/rota', 'Your rota changed', `${plural(days, 'day', 'days')} changed, ${dayLabel(text(d, 'firstDate', ''))}${days > 1 ? ` to ${dayLabel(text(d, 'lastDate', ''))}` : ''}. Open your rota to see it.`);
+    return row('changed', 'TIME', '/app/workforce/my-time/rota', 'Your shifts changed',`${plural(days, 'day', 'days')} changed, ${dayLabel(text(d, 'firstDate', ''))}${days > 1 ? ` to ${dayLabel(text(d, 'lastDate', ''))}` : ''}. Open your shifts to see them.`);
   },
   'payroll.ready_to_approve': (d) => row('needsLook', 'PAY', '/app/workforce/payroll', `${monthName(text(d, 'month', ''))} payroll is ready`, `The ${monthName(text(d, 'month', ''))} payroll is ready for your approval.`, false),
   'payroll.sent_back': (d) => row('changed', 'PAY', '/app/workforce/payroll', 'Payroll sent back', `The ${monthName(text(d, 'month', ''))} payroll was sent back. Open it to see why.`),

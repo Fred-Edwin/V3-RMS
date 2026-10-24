@@ -20,7 +20,7 @@ export function RotaStrip({ rota, personId }: { rota: RotaPanel; personId: strin
   const label = `The ${rota.department ?? 'team'} on those days`;
   return (
     <section aria-label={label} className="flex flex-col gap-2.5">
-      <h3 className="m-0 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.08em] text-wds-text-secondary">{`${label} · ${planned ? 'rota planned' : 'usual shifts, rota not planned yet'}`}</h3>
+      <h3 className="m-0 font-wds-mono text-[10px] font-normal uppercase leading-3 tracking-[0.08em] text-wds-text-secondary">{`${label} · ${planned ? 'shifts planned' : 'usual shifts, not planned yet'}`}</h3>
       {rota.days.length === 0 ? <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">No days to show.</p> : (
         <ShiftGrid
           label={`${label}, ${dayLong(rota.days[0]?.date ?? '')} onward`}

@@ -35,7 +35,7 @@ export function previewLines(preview: HeadPreview, previousApprover: string | nu
     lines.push(`Overtime, leave and Reports for ${dept} go to ${who} instead of ${from}.`);
   }
   for (const line of preview.impacts) lines.push(impactText(line));
-  lines.push(`${who}'s phone gains Team today, Rota and Casuals. Their own job and pay do not change, and they see their own pay only.`);
+  lines.push(`${who}'s phone gains Team today, Shifts and Casuals. Their own job and pay do not change, and they see their own pay only.`);
   const ended = preview.endsHeadRoleOf.map((e) => e.name);
   if (ended.length > 0) lines.push(`${ended.join(' and ')} stops being ${preview.endsHeadRoleOf.some((e) => e.isActing) ? 'acting head' : 'head'} of ${dept}.`);
   const told = preview.notified.map((n) => n.name);

@@ -24,7 +24,7 @@ export const weekStartOf = (date: NairobiDate, weekStartsOn: number): NairobiDat
 export async function assertWeekStart(siteId: string, weekStart: NairobiDate): Promise<void> {
   const rule = await getEffectiveRuleGroup(siteId, weekStart, 'WEEK_AND_BREAKS');
   if (isoWeekday(weekStart) !== rule.values.weekStartsOn) {
-    throw new ValidationError('A rota week starts on the day set in Rules, Week and breaks', 'WEEK_START_INVALID');
+    throw new ValidationError('A week of shifts starts on the day set in Rules, Week and breaks', 'WEEK_START_INVALID');
   }
 }
 

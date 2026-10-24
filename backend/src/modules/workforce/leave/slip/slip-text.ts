@@ -35,7 +35,7 @@ export function slipLines(s: SlipSnapshot): SlipLines {
   const split = s.unpaidTailDays > 0 ? ` This is ${plural(onBalance, `${s.type.label.split(' ')[0]?.toLowerCase()} day`, `${s.type.label.split(' ')[0]?.toLowerCase()} days`)} and ${plural(s.unpaidTailDays, 'unpaid day', 'unpaid days')}.` : '';
   const balance = s.balanceBefore !== null && s.balanceAfter !== null ? `Your ${lower} balance was ${plural(s.balanceBefore, 'day', 'days')} and is now ${plural(s.balanceAfter, 'day', 'days')}.` : '';
   const pay = s.unpaidTailDays > 0 || !s.type.paid ? 'These days are not paid.' : 'Leave days are paid at your normal pay.';
-  const head = s.head ? `Your department head, ${s.head.name}, ${s.head.roleLabel}, has been told, and your rota will show leave on those days.` : 'Your department head has been told, and your rota will show leave on those days.';
+  const head = s.head ? `Your department head, ${s.head.name}, ${s.head.roleLabel}, has been told, and your shifts will show leave on those days.` : 'Your department head has been told, and your shifts will show leave on those days.';
   const note = s.sickNoteNeeded ? ' A sick note is needed.' : '';
   const p2 = [balance, pay, head].filter(Boolean).join(' ') + split + note;
   const approverWord = s.approver.role === 'HR_MANAGER' ? 'HR' : s.approver.roleLabel;

@@ -104,7 +104,7 @@ describe('the menu: Home on top, feature rows below, personal items under the na
 
   it('keeps the old My shifts and My leave pages among the personal items only while the new clock is off', () => {
     expect(account('WAITER', { can: EVERYTHING })).toEqual(['My file', 'My payslips', 'My shifts', 'My leave']);
-    expect(account('WAITER')).toEqual(['My file', 'My time', 'My rota', 'My requests', 'My leave', 'My payslips', 'Activity on my record', 'My notices']);
+    expect(account('WAITER')).toEqual(['My file', 'My time', 'My shifts', 'My requests', 'My leave', 'My payslips', 'Activity on my record', 'My notices']);
   });
 
   it('shows a closed feature row’s links by the flags: Payroll only once Payroll has a month, the clock rows only where the clock is on', () => {

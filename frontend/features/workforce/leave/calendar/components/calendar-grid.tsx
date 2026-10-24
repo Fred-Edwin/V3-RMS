@@ -41,7 +41,7 @@ export function CalendarGrid({ view, departmentLabel, today }: { view: CalendarV
               const last = w[6];
               return (
                 <th key={i} scope="colgroup" colSpan={7} className={cn('border-l border-wds-border pl-2 text-left font-normal uppercase', MONO)}>
-                  {first && last ? `${rangeShort(first.date, last.date)}${view.coverRows.length > 0 ? ` · ${planned ? 'rota planned' : 'not planned yet'}` : ''}` : ''}
+                  {first && last ? `${rangeShort(first.date, last.date)}${view.coverRows.length > 0 ? ` · ${planned ? 'shifts planned' : 'not planned yet'}` : ''}` : ''}
                 </th>
               );
             })}
@@ -93,7 +93,7 @@ export function CalendarGrid({ view, departmentLabel, today }: { view: CalendarV
         {view.coverRows.length > 0 ? (
           <tfoot>
             <tr className="h-9 bg-wds-neutral-50">
-              <th scope="row" className={cn('sticky left-0 z-10 bg-wds-neutral-50 pl-3 text-left font-normal', MONO)}>{`ON ROTA · NEEDS ${minimum ?? '–'}`}</th>
+              <th scope="row" className={cn('sticky left-0 z-10 bg-wds-neutral-50 pl-3 text-left font-normal', MONO)}>{`ON SHIFT · NEEDS ${minimum ?? '–'}`}</th>
               {heads.map((h) => {
                 const c = cover.get(h.date);
                 const tight = Boolean(c && c.planned && c.minimum !== null && c.working < c.minimum);

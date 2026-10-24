@@ -18,7 +18,7 @@ export function stripCells(view: MonthView, estimate: StoredEstimate | null): Wo
   if (view.state === 'OPEN') {
     return [
       stage,
-      { key: 'expected', label: 'EXPECTED GROSS (KES)', value: estimate ? kes(estimate.expectedGross) : '—', detail: 'for the whole month, from the rota' },
+      { key: 'expected', label: 'EXPECTED GROSS (KES)', value: estimate ? kes(estimate.expectedGross) : '—', detail: 'for the whole month, from the shifts' },
       { key: 'earned', label: 'EARNED SO FAR (KES)', value: estimate ? kes(estimate.earnedSoFar) : '—', detail: estimate ? `not paid yet, ${percent(estimate.earnedSoFar, estimate.expectedGross)}% of expected` : 'not worked out yet' },
       { key: 'against', label: 'AGAINST LAST MONTH', value: estimate?.vsLastMonth ? signed(estimate.vsLastMonth.amount) : '—', detail: estimate?.vsLastMonth ? `${estimate.vsLastMonth.percent}% on last month's gross` : 'no earlier month yet' },
     ];

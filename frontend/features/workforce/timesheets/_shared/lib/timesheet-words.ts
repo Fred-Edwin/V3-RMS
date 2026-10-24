@@ -72,7 +72,7 @@ export const REASON_WORDS: Record<DayReason, string> = {
   AUTO_CLOSED: 'Closed by the phone',
   OPEN_SHIFT: 'Shift still open',
   PHONE_CLOCK: 'The phone clock was wrong',
-  UNSCHEDULED: 'Worked off the rota',
+  UNSCHEDULED: 'Worked without a shift',
   OVERTIME: 'Overtime',
   CHANGED_AFTER_APPROVAL: 'Changed after you approved it',
 };
@@ -86,7 +86,7 @@ export const REQUEST_KIND_WORDS: Record<RequestKind, string> = {
   CLOCK_TIME_WRONG: 'A clock time is wrong',
   WORKED_NOT_RECORDED: 'I worked but it is not recorded',
   CLOCKED_OUT_BY_MISTAKE: 'I clocked out by mistake',
-  ROTA_WRONG: 'My rota is wrong',
+  ROTA_WRONG: 'My shifts are wrong',
   OVERTIME_MISSING: 'Overtime I worked is missing',
   PAY_OTHER: 'Something else about my pay',
 };
@@ -102,7 +102,7 @@ export function requestTitle(kind: RequestKind, requested: Record<string, unknow
     case 'WORKED_NOT_RECORDED':
       return `Worked, not recorded, ${day}`;
     case 'ROTA_WRONG':
-      return `Rota, ${day}`;
+      return `Shifts, ${day}`;
     case 'OVERTIME_MISSING':
       return `Overtime, ${day}`;
     default:

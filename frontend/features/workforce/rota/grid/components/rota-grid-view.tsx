@@ -171,7 +171,7 @@ export function RotaGridView({
 
   return (
     <div onPointerDown={startDrag} onPointerOver={overCell} onKeyDown={onKeyDown} className="select-none">
-      <ShiftGrid label={`${title} rota, ${weekLabel(week.weekStart)}`} days={week.days.map((d) => columnHead(d.date))} rows={rows} footer={footer} className="max-w-full" />
+      <ShiftGrid label={`${title} shifts,${weekLabel(week.weekStart)}`} days={week.days.map((d) => columnHead(d.date))} rows={rows} footer={footer} className="max-w-full" />
       {opened ? (
         <CellPopover
           opener={opened.opener}

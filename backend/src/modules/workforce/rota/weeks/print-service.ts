@@ -27,13 +27,13 @@ export interface PrintedRota {
     id: string | null;
     name: string;
     headName: string | null;
-    people: { name: string; positionName: string | null; plannedMinutes: number; days: Record<string, PrintCell[]> }[];
+    people: { name: string; positionName: string | null; plannedMinutes: number; days: Record<string, PrintCell[]>; leaveDates: NairobiDate[] }[];
     perDay: Record<string, number>;
   }[];
 }
 
 /**
- * The printed rota's data (Chapter 5, step 10): a landscape grid coloured by shift, grouped by department. It is the same
+ * The printed shifts' data (Chapter 5, step 10): a landscape grid coloured by shift, grouped by department. It is the same
  * grid the screen reads, without cost: a printed page is passed around, so it never carries pay.
  */
 export const printService = {
@@ -61,6 +61,7 @@ export const printService = {
               name: p.name,
               positionName: p.positionName,
               plannedMinutes: p.plannedMinutes,
+              leaveDates: p.leaveDates,
               days: Object.fromEntries(
                 Object.entries(p.cells).map(([date, shifts]) => [
                   date,

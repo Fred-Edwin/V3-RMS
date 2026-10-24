@@ -56,7 +56,7 @@ async function build(subject: AccessSubject, body: CopyBody, now: Date): Promise
     clashOf: (employeeId, date, templateId) => {
       const person = byId.get(employeeId);
       const job = employmentOf.get(employeeId);
-      if (!person || !job || !person.tracksTime || job.status === 'EXITED') return { kind: 'NOT_EMPLOYED', detail: 'No longer on the rota' };
+      if (!person || !job || !person.tracksTime || job.status === 'EXITED') return { kind: 'NOT_EMPLOYED', detail: 'No longer has shifts' };
       if (fromDateColumn(job.startDate) > date || (job.exitedOn && fromDateColumn(job.exitedOn) < date)) return { kind: 'NOT_EMPLOYED', detail: 'Not employed that day' };
       if (leave.get(employeeId)?.has(date)) return { kind: 'ON_LEAVE', detail: 'On approved leave' };
       const loan = loans.find((l) => l.employeeId === employeeId && fromDateColumn(l.startsOn) <= date && (!l.endsOn || fromDateColumn(l.endsOn) >= date));

@@ -54,20 +54,20 @@ export function RotaScreen() {
   const canWrite = data?.can.write ?? false;
 
   const frame = (body: React.ReactNode, actions?: React.ReactNode) => (
-    <WorkforceFrame breadcrumb={{ section: 'Schedule', screen: 'Rota' }} phoneTitle="Rota" label="Rota" actions={actions}>
+    <WorkforceFrame breadcrumb={{ section: 'Schedule', screen: 'Shifts' }} phoneTitle="Shifts" label="Shifts" actions={actions}>
       {body}
     </WorkforceFrame>
   );
 
-  if (!s.perms.ready && !s.perms.failed) return frame(<ListSkeleton rows={6} label="Loading the rota" className="m-8" />);
+  if (!s.perms.ready && !s.perms.failed) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
   if (s.perms.failed || !s.canRead) return frame(<EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" />);
   if (week.status === 'error' && !data) {
     const refused = week.error.status === 403 || week.error.status === 404;
     return frame(
-      refused ? <EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" /> : <ErrorBlock title="Could not load the rota" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />
+      refused ? <EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" /> : <ErrorBlock title="Could not load the shifts" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />
     );
   }
-  if (!data) return frame(<ListSkeleton rows={6} label="Loading the rota" className="m-8" />);
+  if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 
   const people = peopleIn(data, departmentId);
   const warnings = warningsIn(data, departmentId);
@@ -86,7 +86,7 @@ export function RotaScreen() {
   return frame(
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
-        title={`Rota · ${s.siteName || 'Site'}`}
+        title={`Shifts · ${s.siteName || 'Site'}`}
         subtitle={
           <PeriodStepper label={weekLabel(data.weekStart)} previousLabel="Previous week" nextLabel="Next week" onPrevious={() => s.stepWeek(-1)} onNext={() => s.stepWeek(1)} previousDisabled={s.previousDisabled} nextDisabled={s.nextDisabled} />
         }

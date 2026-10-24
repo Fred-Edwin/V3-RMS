@@ -91,7 +91,7 @@ export function exitBanner(file: EmployeeFile, today: string): ExitBanner | null
   return {
     title: exit.canUndo ? `${first} left on ${formatWeekdayDayMonth(exit.lastDay)}. You can still undo this until ${until}.` : `${first} left on ${formatWeekdayDayMonth(exit.lastDay)}. The undo window has closed.`,
     line: exit.canUndo
-      ? `Undoing restores their login, their rota shifts and their place in the department, exactly as before. After ${after} the same file is reopened with Rehire instead.`
+      ? `Undoing restores their login, their shifts and their place in the department, exactly as before. After ${after} the same file is reopened with Rehire instead.`
       : 'The same file is reopened with Rehire. Their old pay, leave and history stay.',
     daysLeft,
     canUndo: exit.canUndo,
