@@ -232,7 +232,7 @@ From role 5, Director (owner agreed with findings E1 to E4, 24 Oct 2026):
 | W58 | **Route the "closed by the system" item to the owner of the shift** (the Branch Manager, then the Director), not only the Director; retired anyway by D19 once the new shift-end flow exists | E2 | S | no |
 | W59 | **Rule for builders:** when an access decision changes, update the front-end route gate and the menu table in the same change; list every page that names roles in its "Not available" text and check them (the text is built from the access table) | E1 | S | no |
 
-From role 6, System Admin (awaiting the owner's confirmation):
+From role 6, System Admin (owner agreed with findings F1 to F5, 24 Oct 2026; the choice in W60 is still open):
 
 | # | Correction | From | Size | Needs a Paper design? |
 |---|---|---|---|---|

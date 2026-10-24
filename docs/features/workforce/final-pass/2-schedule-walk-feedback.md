@@ -20,6 +20,8 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 
 | 10 | Director | All findings E1 to E4 | "I agree with your observations. Let's proceed." | Folded into the change log section J (W57 to W59). | Agreed |
 
+| 11 | System Admin | All findings F1 to F5 | "I agree with your observations. Let's proceed." | Folded into the change log section J (W60 to W62). The owner did not choose between the options in W60; it stays a decision for the Decide step. | Agreed (W60 open) |
+
 ## Part 2: what the agent saw and the owner did not mention
 
 ### Role 1: Branch Manager, Nyeri Town (Faith Wambui)
