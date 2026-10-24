@@ -108,6 +108,8 @@ Roles: **BM** Branch Manager (Nyeri Town), **Head** department head, **Staff** s
 
 These six go to the Decide step as one design group ("Staff and head Home, clock card, This week, Start from last week"). Rows 5 and 12 above (phone standard, Time tab) fold into F2 to F4. Nothing was drawn or changed in this session.
 
+**The shift-end redesign** (automatic clock-out, hand-over, pre-approved overtime, unaccounted orders) is written up in `2-schedule-change-log.md`, which is the hand-off file for the orchestrator.
+
 ## E. Where predicted problems are most likely (to watch first)
 1. The word **Rota** still on screens (row 1).
 2. The **Time tab** still greyed or empty (row 12).
