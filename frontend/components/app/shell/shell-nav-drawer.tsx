@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import { performLogout } from '@/lib/logout';
 import { SidebarMenu } from './menu/sidebar-menu';
-import { useShellNav } from './use-shell-nav';
+import { useShellNav } from './menu/use-shell-nav';
 
 const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
 

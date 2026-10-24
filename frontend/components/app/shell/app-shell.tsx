@@ -6,13 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { NumberPadHost } from '@/components/ui2/number-pad';
 import { cn } from '@/lib/cn';
 import { performLogout } from '@/lib/logout';
-import { BottomBar } from './bottom-bar';
-import { BusyNotice } from './busy-notice';
+import { BottomBar } from './phone/bottom-bar';
+import { BusyNotice } from './feedback/busy-notice';
 import { MobileTopbar } from './mobile-topbar';
 import { ShellNavDrawer } from './shell-nav-drawer';
 import { SidebarMenu } from './menu/sidebar-menu';
 import { Topbar } from './topbar';
-import { useShellNav } from './use-shell-nav';
+import { useShellNav } from './menu/use-shell-nav';
 
 const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
 

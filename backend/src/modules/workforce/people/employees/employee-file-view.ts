@@ -22,9 +22,9 @@ import {
   ringPercent,
   type FileFacts,
   type FilePart,
-} from '../people-completeness';
+} from '../rules/people-completeness';
 import { canUndoExit, undoUntil } from '../people-dates';
-import { presentField } from '../people-masking';
+import { presentField } from '../rules/people-masking';
 import { REVEALABLE_FIELDS, type ExitReason, type FileRequestKind, type ProbationVerdict } from '../people.constants';
 import type {
   ContractStatusCode,

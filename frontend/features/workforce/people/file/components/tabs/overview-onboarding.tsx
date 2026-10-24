@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { CompletenessRing, KeyValueRows } from '../../../../_shared';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { jobLeaveRows } from '../../lib/file-rows';
-import { onboardingRows, onboardingSentence } from '../../lib/onboarding-rows';
+import { onboardingRows, onboardingSentence } from '../../lib/tab-rows/onboarding-rows';
 import type { OpenDialog } from './overview-parts';
 
 /** A person who has not started or is still being set up (Paper `SBM-0`): the checklist with the ring, and "Job and leave" beside it. */

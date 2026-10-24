@@ -5,7 +5,7 @@ import * as React from 'react';
 import { DialogButton, KitDialog } from '../../../../_shared';
 import { peopleWrites } from '../../../_shared/services/people-writes';
 import { useFileAction } from '../../hooks/use-file-action';
-import { DOCUMENT_TYPE_LABELS } from '../../lib/documents-rows';
+import { DOCUMENT_TYPE_LABELS } from '../../lib/tab-rows/documents-rows';
 import { firstName } from '../../lib/file-model';
 import { MAX_UPLOAD_MB, fileProblem } from '../../lib/upload-rules';
 import { DialogError, DialogPicker, FooterNote } from './dialog-fields';

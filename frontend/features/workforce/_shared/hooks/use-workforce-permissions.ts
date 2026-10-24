@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 
-import type { WorkforceCapability, WorkforcePermissionsPayload, WorkforceScope } from '../lib/capabilities';
+import type { WorkforceCapability, WorkforcePermissionsPayload, WorkforceScope } from '../lib/data/capabilities';
 
 /**
  * What the signed-in person may do in Workforce, from the server's access table (`GET /workforce/permissions/me`). The front end

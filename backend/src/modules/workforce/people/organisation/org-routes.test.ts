@@ -25,7 +25,7 @@ vi.mock('./departments/departments-service', () => ({ departmentsService: { crea
 vi.mock('./heads/heads-service', () => ({ headsService: { candidates: answer, withoutLogin: answer, preview: answer, assign: answer, end: answer } }));
 vi.mock('./positions/positions-service', () => ({ positionsService: { list: answer, get: answer, create: answer, impact: answer, update: answer, retire: answer, restore: answer } }));
 
-import router from '../org-routes';
+import router from '../wiring/org-routes';
 
 const app = express().use(express.json()).use(router);
 app.use((err: { statusCode?: number; name?: string }, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,5 +1,5 @@
 import { dateOf, hmOf } from '../../../attendance';
-import { formatDuration, formatHoursMinutes } from '../../../_shared/lib/time';
+import { formatDuration, formatHoursMinutes } from '../../../_shared/lib/data/time';
 import type { DayReason, Period, RequestKind, RequestState } from '../types/timesheet-types';
 
 /** The words every Timesheets screen uses. Pure; all dates are Nairobi days, never the browser's zone. */

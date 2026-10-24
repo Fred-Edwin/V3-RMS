@@ -4,22 +4,21 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError
 import { logger } from '../../../../utils/logger';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { JsonValue } from '../../_shared/audit/audit.types';
-import { nairobiDateOf, parseNairobiDate, toDateColumn } from '../../_shared/time/nairobi-time';
-import { inScope, scopeOf, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
-import { getEffectiveRuleGroup } from '../../rules/rules-service';
-import { assertCanEditBasics, mayHireInto, readScopeOf, targetOf } from '../people-access';
+import { parseNairobiDate, toDateColumn } from '../../_shared/time/nairobi-time';
+import { inScope, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
+import { assertCanEditBasics, readScopeOf, targetOf } from '../people-access';
 import { resolveActor, told, todayOf } from '../people-context';
-import { maskTail } from '../people-masking';
+import { maskTail } from '../rules/people-masking';
 import { payRepository } from '../pay/pay-repository';
-import { EXIT_REASONS, EXIT_UNDO_DAYS, HIRE_LOGIN_ROLES, PAY_CHANGE_REASONS, PROBATION_VERDICTS, type FileRequestKind } from '../people.constants';
-import type { EmployeeFileView, EmployeeListRow, FileRequestRow, ListResponse, Lookups, Pagination, PeopleSummary, UnlinkedAccount } from '../people.types';
+import type { FileRequestKind } from '../people.constants';
+import type { EmployeeFileView, EmployeeListRow, ListResponse } from '../people.types';
 import type { ListQuerySchema } from '../people-validators';
-import { blocksPayroll, buildFileView, instantDate, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
+import { blocksPayroll, buildFileView, listRowOf, loadReadableRow, needsFinishing } from './employee-file-view';
+import { employeeLookupsService, pagination } from './employee-lookups-service';
+import { employeeRequestsService } from './employee-requests-service';
 import { employeesRepository } from './employees-repository';
 
 export type ListQuery = z.infer<typeof ListQuerySchema>;
-
-const pagination = (total: number, page: number, perPage: number): Pagination => ({ total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) });
 
 const SELF_KINDS: Record<string, FileRequestKind> = {
   emergencyName: 'EMERGENCY_CONTACT',
@@ -55,16 +54,12 @@ const toDbFields = (input: EditInput): Record<string, unknown> => {
 
 const touchesStatutory = (fields: readonly string[]): boolean => fields.some((k) => (STATUTORY_FIELDS as readonly string[]).includes(k));
 
-const requestOf = (r: { id: string; kind: string; askedAt: Date; remindedAt: Date | null; resolvedAt: Date | null }): FileRequestRow => ({
-  id: r.id,
-  kind: r.kind as FileRequestKind,
-  askedOn: nairobiDateOf(r.askedAt),
-  remindedOn: instantDate(r.remindedAt),
-  resolvedOn: instantDate(r.resolvedAt),
-});
-
-/** Reads and light edits of an employee file. Sensitive opens live in employee-sensitive-service.ts. */
+/** Reads and light edits of an employee file. Sensitive opens live in employee-sensitive-service.ts; the lists' counts and pick-lists
+ *  in employee-lookups-service.ts; file requests and the statutory check in employee-requests-service.ts. */
 export const employeesService = {
+  ...employeeLookupsService,
+  ...employeeRequestsService,
+
   async list(subject: AccessSubject, query: ListQuery): Promise<ListResponse<EmployeeListRow>> {
     // The pay-change lists show who has a pay change coming: pay people only (the Branch and Store Managers see no pay).
     if ((query.filter === 'pay_change' || query.filter === 'pay_change_month') && !workforceCan(subject, 'payprofile.read')) {
@@ -90,77 +85,6 @@ export const employeesService = {
     }
     const { rows, total } = await employeesRepository.list(base, query.page, query.perPage);
     return { success: true, data: rows.map((row) => listRowOf(subject, row).view), pagination: pagination(total, query.page, query.perPage) };
-  },
-
-  async summary(subject: AccessSubject, siteId: string | undefined): Promise<PeopleSummary> {
-    const ctx = await resolveActor(subject);
-    const scope = readScopeOf(subject);
-    const today = todayOf();
-    const monthStart = parseNairobiDate(`${today.slice(0, 7)}-01`);
-    const counts = await employeesRepository.summary(ctx.companyId, scope, siteId, toDateColumn(today), toDateColumn(monthStart));
-    const list = await employeesRepository.listAll({ companyId: ctx.companyId, scope, ...(siteId ? { siteId } : {}), filter: 'needs_finishing', today: toDateColumn(today) });
-    const rows = list.map((row) => listRowOf(subject, row));
-    const mayReadPay = workforceCan(subject, 'payprofile.read');
-    return { ...counts, payChangesWaiting: mayReadPay ? counts.payChangesWaiting : null, payChangesMonth: mayReadPay ? counts.payChangesMonth : null, needsFinishing: rows.filter((r) => needsFinishing(r.gaps)).length, blocksPayroll: rows.filter((r) => blocksPayroll(r.gaps)).length };
-  },
-
-  async lookups(subject: AccessSubject): Promise<Lookups> {
-    if (!workforceCan(subject, 'employee.read_basic') && !workforceCan(subject, 'org.read')) throw new ForbiddenError('You do not have permission to perform this action');
-    const ctx = await resolveActor(subject);
-    const scope = scopeOf(subject, 'employee.read_basic') ?? scopeOf(subject, 'org.read');
-    const sites = (await employeesRepository.sitesOfCompany(ctx.companyId)).filter((s) => scope === 'all' || s.id === subject.siteId);
-    const [departments, positions, contractTypes] = await Promise.all([
-      employeesRepository.departmentsOfCompany(ctx.companyId, sites.map((s) => s.id)),
-      employeesRepository.positionsOfCompany(ctx.companyId),
-      employeesRepository.contractTypesOfCompany(ctx.companyId),
-    ]);
-    // Offer only what this role may create (finding 56): positions it may hire into, and departments that still offer one.
-    const hirable = positions.filter((p) => mayHireInto(subject, p));
-    const offeredDepartmentIds = new Set(hirable.flatMap((p) => p.departments.map((d) => d.departmentId)));
-    const shownDepartments = subject.role === 'STORE_MANAGER' ? departments.filter((d) => offeredDepartmentIds.has(d.id)) : departments;
-    const ruleSite = sites[0]?.id ?? subject.siteId;
-    const rule = ruleSite ? (await getEffectiveRuleGroup(ruleSite, todayOf(), 'PROBATION')).values : { defaultMonths: 0, maxExtensions: 0, maxExtensionMonths: 0 };
-    return {
-      sites: sites.map((s) => ({ id: s.id, name: s.name, type: s.type, isHub: s.isHub })),
-      departments: shownDepartments.map((d) => ({ id: d.id, siteId: d.siteId, name: d.name, inventoryTag: d.key, isActive: d.status === 'ACTIVE' })),
-      positions: hirable.map((p) => ({
-        id: p.id,
-        name: p.name,
-        defaultTracksTime: p.defaultTracksTime,
-        loginRole: p.loginRole,
-        casualsAllowed: p.casualsAllowed,
-        departmentIds: p.departments.map((d) => d.departmentId),
-        isActive: p.isActive,
-      })),
-      assignableLoginRoles: workforceCan(subject, 'employee.lifecycle') ? [...HIRE_LOGIN_ROLES] : [],
-      exitReasons: [...EXIT_REASONS],
-      payChangeReasons: [...PAY_CHANGE_REASONS],
-      probationVerdicts: [...PROBATION_VERDICTS],
-      contractTypes,
-      probationRule: { defaultMonths: rule.defaultMonths, maxExtensions: rule.maxExtensions, maxExtensionMonths: rule.maxExtensionMonths },
-      exitUndoDays: EXIT_UNDO_DAYS,
-    };
-  },
-
-  /** Booleans only, never a name (R4). */
-  async duplicateCheck(subject: AccessSubject, input: { nationalId?: string; phone?: string; email?: string }) {
-    const ctx = await resolveActor(subject);
-    const [nationalId, phone, email] = await Promise.all([
-      input.nationalId ? employeesRepository.nationalIdTaken(ctx.companyId, input.nationalId) : false,
-      input.phone ? employeesRepository.phoneTaken(ctx.companyId, input.phone) : false,
-      input.email ? employeesRepository.emailTaken(input.email) : false,
-    ]);
-    return { nationalId, phone, email };
-  },
-
-  async unlinkedAccounts(subject: AccessSubject, page: number, perPage: number): Promise<ListResponse<UnlinkedAccount>> {
-    const ctx = await resolveActor(subject);
-    const { rows, total } = await employeesRepository.unlinkedAccounts(ctx.companyId, page, perPage);
-    return {
-      success: true,
-      data: rows.map((u) => ({ userId: u.id, name: u.name, email: u.email, role: u.role, siteName: u.site?.name ?? null, createdOn: nairobiDateOf(u.createdAt) })),
-      pagination: pagination(total, page, perPage),
-    };
   },
 
   async getMine(subject: AccessSubject): Promise<EmployeeFileView> {
@@ -362,54 +286,5 @@ export const employeesService = {
       };
     });
     return { photoUrl };
-  },
-
-  // ---- file requests (W25) --------------------------------------------------------------------------------------
-  async askForDetail(subject: AccessSubject, id: string, kind: FileRequestKind): Promise<FileRequestRow> {
-    const ctx = await resolveActor(subject);
-    const row = await loadReadableRow(ctx, id, todayOf());
-    if (!inScope(subject, 'employee.write_basic', targetOf(row))) throw new ForbiddenError('You do not have permission to perform this action');
-    if (row.userId === null) throw new ConflictError('This person has no login to ask', 'NO_LOGIN');
-    const created = await employeesRepository.createFileRequest({ employeeId: row.id, kind, askedById: subject.id });
-    await told([row.userId], 'file_request.asked', { kind });
-    return requestOf(created);
-  },
-
-  async remind(subject: AccessSubject, id: string, requestId: string): Promise<FileRequestRow> {
-    const ctx = await resolveActor(subject);
-    const row = await loadReadableRow(ctx, id, todayOf());
-    if (!inScope(subject, 'employee.write_basic', targetOf(row))) throw new ForbiddenError('You do not have permission to perform this action');
-    const request = await employeesRepository.findFileRequest(row.id, requestId);
-    if (!request || request.resolvedAt) throw new NotFoundError('Request not found');
-    const updated = await employeesRepository.remindFileRequest(request.id, new Date());
-    await told([row.userId], 'file_request.reminded', { kind: updated.kind });
-    return requestOf(updated);
-  },
-
-  // ---- verify statutory (W26) -----------------------------------------------------------------------------------
-  async verifyStatutory(subject: AccessSubject, id: string): Promise<EmployeeFileView> {
-    const ctx = await resolveActor(subject);
-    const row = await loadReadableRow(ctx, id, todayOf());
-    if (!inScope(subject, 'employee.write_sensitive', targetOf(row))) throw new ForbiddenError('You do not have permission to perform this action');
-    if (!row.nssfNumber || !row.shaNumber) throw new ConflictError('NSSF and SHA numbers are not both on file', 'STATUTORY_INCOMPLETE');
-    await runAudited(async (tx) => {
-      await employeesRepository.updateEmployee(tx, row.id, ctx.companyId, { statutoryVerifiedAt: new Date(), statutoryVerifiedById: subject.id });
-      return {
-        result: null,
-        entries: [
-          {
-            companyId: ctx.companyId,
-            siteId: row.siteId,
-            actor: ctx.auditActor,
-            action: 'people.statutory_verified',
-            category: 'PEOPLE' as const,
-            subjectType: 'Employee',
-            subjectId: row.id,
-            subjectUserId: row.userId,
-          },
-        ],
-      };
-    });
-    return employeesService.getFile(subject, id);
   },
 };

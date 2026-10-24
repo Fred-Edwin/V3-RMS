@@ -5,9 +5,9 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
-import { PhoneSectionBar } from '@/components/app/shell/phone-section-bar';
+import { PhoneSectionBar } from '@/components/app/shell/phone/phone-section-bar';
 import { Topbar } from '@/components/app/shell/topbar';
-import { TopbarBell } from '@/components/app/shell/topbar-bell';
+import { TopbarBell } from '@/components/app/shell/menu/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
 import { FOCUS_RING, MOTION, initialsOf, useWorkforceNavDrawer, useWorkforcePermissions } from '../../../_shared';

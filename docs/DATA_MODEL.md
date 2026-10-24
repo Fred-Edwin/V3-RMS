@@ -3135,6 +3135,8 @@ Enums: `RuleGroup`, `AuditCategory`, `AuditChannel`. Triggers and partial indexe
 
 ## 9. Workforce People (slice 1a, migration `20261017111315_workforce_people`)
 
+*Checked at the People close-out, 24 Oct 2026: no schema change since the batches that followed (2B, 3, 4 and the close-out changed no table, column or migration); the numbering of §8 to §14 and §4.85 to §4.91 is unchanged.*
+
 Thirteen tables and seven enums, in `backend/prisma/schema/workforce/people.prisma`. Dates are `@db.Date` holding the Nairobi calendar day; money is `Decimal(12,2)`; the place column is `organization_id`. Every query is scoped by `company_id` (directly or through the employee). Nothing about a person is ever deleted; a `User` with an `Employee` cannot be deleted (restrict). Detail: `backend/src/modules/workforce/people/README.md`.
 
 | Table | Purpose | Notes |

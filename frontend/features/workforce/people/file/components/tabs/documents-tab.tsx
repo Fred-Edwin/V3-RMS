@@ -10,7 +10,7 @@ import { Callout, EmptyState, ErrorBlock, ListSkeleton, StatusTag } from '../../
 import { useEmployeeDocuments } from '../../../_shared/hooks/use-people-data';
 import { peopleReads } from '../../../_shared/services/people-reads';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { documentLines } from '../../lib/documents-rows';
+import { documentLines } from '../../lib/tab-rows/documents-rows';
 
 /**
  * Documents (Paper `YW5-0`): the missing contract, the details asked of the person, then each file. Opening a file asks the server for

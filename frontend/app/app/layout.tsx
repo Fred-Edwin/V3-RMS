@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app/shell/app-shell';
 import { FLOOR_ROLES, isBareRoute, usesAppShell } from '@/components/app/shell/nav-table';
 import { usePermissions } from '@/features/inventory';
 import { SecurityGate } from '@/features/workforce/security';
-import { PourReveal } from '@/components/app/shell/pour-reveal';
+import { PourReveal } from '@/components/app/shell/feedback/pour-reveal';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
 import { useCommsSocket } from '@/hooks/useCommsSocket';

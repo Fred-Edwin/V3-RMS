@@ -8,7 +8,7 @@ import { PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/compo
 import { formatDayMonthYear, formatKes } from '../../../_shared/lib/people-dates';
 import type { EmployeeFile, PayChangeRow, PayView } from '../../../_shared/types/people-types';
 import { payHistoryLines, payRows } from '../../lib/file-rows';
-import { fromKeyValueRows } from '../../lib/job-card-rows';
+import { fromKeyValueRows } from '../../lib/tab-rows/job-card-rows';
 import { JobCardRows } from './job-card-rows';
 
 /** "Pay · HR AND ACCOUNTANT ONLY": the amount (with "starts <date>" before its day), overtime, lateness. */

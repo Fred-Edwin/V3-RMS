@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '../../../../../utils/errors';
 import { parseNairobiDate, toDateColumn, type NairobiDate } from '../../../_shared/time/nairobi-time';
 import type { AccessSubject } from '../../../_shared/workforce-access';
-import { claimsFromHeadRows, type HeadRow } from '../../head-claims';
+import { claimsFromHeadRows, type HeadRow } from '../../rules/head-claims';
 import type { ActorCtx } from '../../people-context';
 import { actingEndsOn } from '../../people-dates';
 import { departmentsRepository, type DepartmentRecord } from '../departments/departments-repository';

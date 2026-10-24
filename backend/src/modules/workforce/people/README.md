@@ -102,11 +102,16 @@ Out of scope reads (O1, O2, O11) answer `404`; a role with no organisation capab
 
 ```
 people/
-  people-*.ts, people.*.ts      shared: constants, types, validators, dates, completeness, masking, access helpers,
-                                context (actor, today, "told"), subject, hooks, account gateway, door, routes, controller
-  employees/                    repository, service (reads, edits), file-view builder, sensitive opens (reveal, documents)
+  people-*.ts, people.*.ts      shared (11 files with this README): constants, types, validators, dates, access helpers,
+                                context (actor, today, "told"), subject, hooks, account gateway, door
+  wiring/                       the routers (people-routes, org-routes), the controller, register-people (start-up)
+  rules/                        head claims, completeness, masking, statutory formats, the tracks-time resolver (+ two tests)
+  tests/                        the cross-cutting tests: group 1 rules, hire correction, dates, validators, the database flow
+  employees/                    repository (+ queries: shapes and where-builders), service (reads, edits), lookups service
+                                (counts, pick-lists), requests service (file requests, statutory check), file-view builder,
+                                sensitive opens (reveal, documents)
   hire/                         hire service and repository, drafts
-  pay/                          pay service and repository, pay maths (cents, no floats)
+  pay/                          pay service and repository, pay-change rows (names, positions), pay maths (cents, no floats)
   lifecycle/                    probation + contract, moves (transfer, loan), exit (exit, undo, rehire), engine, sweeps
   scheduler/                    the daily tasks and their repository
   organisation/                 slice 1b: org-controller, org-scope (access checks), org-validators, org.types
@@ -114,8 +119,9 @@ people/
     heads/                      repository, plan + eligibility rules, assign/end service, head-sync (the claims),
                                 head-undo, reconcile-head-claims (scheduler task)
     positions/                  repository and service (O10 to O15)
-  org-routes.ts                 the Organisation router (mounted since 1a)
 ```
+
+The Organisation router is `wiring/org-routes.ts` (mounted since 1a).
 
 **Files of 1a touched by 1b (all small):** `people-account-gateway.ts` (`setHeadClaims` implemented), `lifecycle/lifecycle-engine.ts`, `lifecycle/exit-service.ts` and `lifecycle/lifecycle-repository.ts` (head ending, claims and events moved to `organisation/heads`; the old `activeHeadRows`, `endHeads`, `restoreHead`, `departmentHasHead` and `headEndDate` are gone), `scheduler/people-scheduler.ts` (sixth task), `org-routes.ts`, `people-flow-db.test.ts` (six scheduler tasks), `workforce-layering.test.ts`, `_shared/audit/audit-actions.ts`, `workforce/index.ts` (a comment), `routes/index.ts` (a comment).
 
@@ -138,7 +144,7 @@ Migration `20261017111315_workforce_people` creates the tables and backfills one
 
 ## Tests
 
-Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators, pay maths, the access matrix. Integration: `people-flow-db.test.ts` runs 13 flows against the lane database (only when `DATABASE_URL` names a `_lane` database) and removes the rows it makes; the audit entries stay (append-only).
+Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators, pay maths, the access matrix. Integration: `tests/people-flow-db.test.ts` runs its flows against the lane database (only when `DATABASE_URL` names a `_lane` database) and removes the rows it makes; the audit entries stay (append-only). How to prepare a clean lane database and run the whole suite: [`docs/features/workforce/TESTING.md`](../../../../../docs/features/workforce/TESTING.md). `workforce/size-guard.test.ts` fails when a source file passes 350 lines or a folder passes 12 files.
 
 ## Decisions (every departure from the reference contract)
 
@@ -167,7 +173,7 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 - **My team:** `GET /workforce/people/team` in `team/` (capability `today.read`, the rota's scope; status from today's rota shift). Name, position, department, status, shift. No pay, no IDs.
 - **Probation report:** verdicts `GOOD`, `NEEDS_WORK`, `NOT_GOOD` (`CONCERNS` stays readable); a head writes for their own department's people only.
 - **File view:** `reportsTo` carries `positionName` and `siteName` (the wire says `organizationName`); `PayChangeRow` carries `requestedByPosition` and `requestedBySite`.
-- Not changed: `DATA_MODEL.md` (no schema change). The `people/` folder was not split in this batch (27 files).
+- Not changed: `DATA_MODEL.md` (no schema change). The `people/` folder was not split in this batch (27 files; grouped in the close-out below).
 
 ### People batch 3 (23 Oct 2026, the live-walk fixes)
 
@@ -175,6 +181,12 @@ Unit: dates (also in `test:workforce-tz`), completeness, head claims, validators
 - **Employees list.** Filters `on_probation`, `pay_change`, `pay_change_month` (`employees-pay-filter.ts`; the pay ones need `payprofile.read`); summary gains `payChangesWaiting` and `payChangesMonth` (`null` without pay access); rows gain `reportsToNobody` (a Branch Manager is never "Job details missing").
 - **File view** gains `correctUntil` (the hiring manager's 24-hour correction window). **My team** rows gain `canReport`.
 - Not changed: `DATA_MODEL.md` (no schema change). The audit `GET viewers` route is removed.
+
+### People close-out (24 Oct 2026, final pass section 1; structure only, no behaviour change)
+
+- **Split to 350 lines or less:** `employees-service.ts` (415 to 290; the counts, pick-lists and checks went to `employees/employee-lookups-service.ts`, the file requests and the statutory check to `employees/employee-requests-service.ts`, both merged back into `employeesService`), `employees-repository.ts` (372 to 233; shapes, selects and where-builders in `employees/employees-queries.ts`, types re-exported), `pay/pay-service.ts` (358 to 306; the pay-change rows in `pay/pay-change-rows.ts`, one builder for both lists), `_shared/workforce-access.ts` (461 to 170; names in `_shared/access/workforce-capabilities.ts`, who holds what in `_shared/access/workforce-grants.ts`, both re-exported from `workforce-access.ts` so the 224 importers did not change).
+- **`people/` grouped from 27 files to 11** (`wiring/`, `rules/`, `tests/`). Router and controller paths changed; `workforce/index.ts` follows.
+- Decision log for People: `docs/features/workforce/final-pass/1-people-closed.md`.
 
 ### Slice 0 changes made here (also logged in `slice-0-contract.md` §12)
 

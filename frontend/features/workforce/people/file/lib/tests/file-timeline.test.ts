@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EmployeeFile, TimelineEvent } from '../../../_shared/types/people-types';
-import { activityRows, eventText, lifeEvents } from '../file-timeline';
+import { activityRows, eventText, lifeEvents } from '../tab-rows/file-timeline';
 
 const file = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   ({ status: 'ACTIVE', position: { id: 'p', name: 'Barista' }, probation: { endsOn: '2026-10-14', confirmedOn: null }, timeline: [], ...over }) as unknown as EmployeeFile;

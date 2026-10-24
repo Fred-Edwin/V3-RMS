@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Callout, EmptyState, StatusTag } from '../../../../_shared';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { activityRows } from '../../lib/file-timeline';
+import { activityRows } from '../../lib/tab-rows/file-timeline';
 
 /**
  * Activity (Paper `Z7M-0`). The API has no audit read by person yet, so this shows what the file itself knows (hires, pay changes,
