@@ -53,12 +53,12 @@ for (const root of CHECKED) {
 
 describe('workforce size guard (front end)', () => {
   it(`no source file is over ${MAX_LINES} lines except the allow-list`, () => {
-    const offenders = [...longFiles].filter(([file, lines]) => lines > (ALLOWED_LONG_FILES[file] ?? MAX_LINES));
+    const offenders = Array.from(longFiles).filter(([file, lines]) => lines > (ALLOWED_LONG_FILES[file] ?? MAX_LINES));
     expect(offenders, 'Split the file into files in the same folder, each at most 350 lines.').toEqual([]);
   });
 
   it(`no folder holds more than ${MAX_FILES} files except the allow-list`, () => {
-    const offenders = [...crowdedFolders].filter(([folder, count]) => count > (ALLOWED_CROWDED_FOLDERS[folder] ?? MAX_FILES));
+    const offenders = Array.from(crowdedFolders).filter(([folder, count]) => count > (ALLOWED_CROWDED_FOLDERS[folder] ?? MAX_FILES));
     expect(offenders, 'Group the files into sub-folders named for what they do.').toEqual([]);
   });
 
