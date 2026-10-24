@@ -16,7 +16,7 @@ const dayNo = (iso: string): number => Math.round(new Date(`${iso}T00:00:00Z`).g
 const at = (day: string, minutes: number): Date => instantAt(day as NairobiDate, parseClockTime(clock(minutes)));
 
 type Kind = 'morning' | 'afternoon' | 'midday' | 'live';
-interface Slot { i: number; email: string; site: 'TOWN' | 'HIGHWAY'; dept: string; day: string; kind: Kind; start: number; end: number }
+interface Slot { i: number; email: string; employeeId: string; site: 'TOWN' | 'HIGHWAY'; dept: string; day: string; kind: Kind; start: number; end: number }
 interface EventRow { employeeId: string; siteId: string; day: string; type: 'IN' | 'OUT' | 'AUTO_OUT'; source: 'PHONE' | 'SYSTEM'; minutes: number; reasonCode?: string }
 
 const TIMES: Record<Kind, [number, number]> = { morning: [360, 840], afternoon: [840, 1320], midday: [600, 1080], live: [0, 0] };
@@ -62,25 +62,36 @@ export async function seedSchedule(world: World): Promise<void> {
   }
 
   // The plan: every floor person, every day from the end of the history to the end of next week, in the same pattern as the history.
-  const staff = PEOPLE.filter((p) => p.dept && p.site !== 'HUB');
+  // The roster people first (same pattern as the history), then everyone else the people flow hired into a branch department.
+  const roster = PEOPLE.filter((p) => p.dept && p.site !== 'HUB');
+  const staff: { i: number; key: string; employeeId: string; site: 'TOWN' | 'HIGHWAY'; dept: string; start: string }[] = roster.map((p, i) => ({ i, key: p.email, employeeId: world.employeeIds.get(p.email)!, site: p.site as 'TOWN' | 'HIGHWAY', dept: p.dept!, start: p.start }));
+  const siteKeyOf = new Map<string, 'TOWN' | 'HIGHWAY'>([[world.siteIds.TOWN, 'TOWN'], [world.siteIds.HIGHWAY, 'HIGHWAY']]);
+  const hired = await prisma.employee.findMany({
+    where: { status: 'ACTIVE', tracksTime: true, siteId: { in: [...siteKeyOf.keys()] }, departmentId: { not: null }, id: { notIn: [...world.employeeIds.values()] } },
+    select: { id: true, siteId: true, startDate: true, department: { select: { key: true } } },
+    orderBy: { employeeNumber: 'asc' },
+  });
+  for (const e of hired) {
+    if (!e.department?.key || !e.startDate) continue;
+    staff.push({ i: staff.length, key: `hired-${e.id}`, employeeId: e.id, site: siteKeyOf.get(e.siteId)!, dept: e.department.key, start: e.startDate.toISOString().slice(0, 10) });
+  }
   const slots: Slot[] = [];
-  const forced = new Set([`victor.mutua:${leaveDays[1]}`]); // works the day Cynthia is away and Brian is off: Barista Town is one short that Wednesday
-  const off = new Set([`brian.kiprop:${leaveDays[1]}`]);
-  for (const [i, p] of staff.entries()) {
-    const rest = [(i % 7) + 1, ((i + 3) % 7) + 1];
+  // Barista Town is one short on the second leave day: Cynthia is away, only Victor (the head) works, everyone else is off.
+  const thinDay = (s: { key: string; site: string; dept: string }, day: string): boolean => s.site === 'TOWN' && s.dept === 'BARISTA' && day === leaveDays[1];
+  for (const p of staff) {
+    const rest = [(p.i % 7) + 1, ((p.i + 3) % 7) + 1];
     for (let day = firstGap; day <= lastPlanned; day = addDays(day, 1)) {
-      const tag = `${p.email}:${day}`;
-      if (day < p.start || off.has(tag) || (p.email === leaveEmail && leaveDays.includes(day))) continue;
-      if (rest.includes(weekday(day)) && !forced.has(tag)) continue;
-      const kind: Kind = p.dept === 'SERVICE' && weekday(day) >= 6 && i % 2 === 1 ? 'midday' : i % 2 === 0 ? 'morning' : 'afternoon';
-      slots.push({ i, email: p.email, site: p.site as 'TOWN' | 'HIGHWAY', dept: p.dept!, day, kind, start: TIMES[kind][0], end: TIMES[kind][1] });
+      if (day < p.start || (p.key === leaveEmail && leaveDays.includes(day))) continue;
+      if (thinDay(p, day) ? p.key !== 'victor.mutua' : rest.includes(weekday(day))) continue;
+      const kind: Kind = p.dept === 'SERVICE' && weekday(day) >= 6 && p.i % 2 === 1 ? 'midday' : p.i % 2 === 0 ? 'morning' : 'afternoon';
+      slots.push({ i: p.i, email: p.key, employeeId: p.employeeId, site: p.site, dept: p.dept, day, kind, start: TIMES[kind][0], end: TIMES[kind][1] });
     }
   }
   // Naomi (a waiter at Town) is on the Cover shift today: it ends soon after the seed, so the end-of-shift question is about to appear.
   const liveEmail = 'naomi.jepkorir';
   const liveIdx = slots.findIndex((s) => s.email === liveEmail && s.day === today);
   if (liveOn) {
-    const base = { i: staff.findIndex((p) => p.email === liveEmail), email: liveEmail, site: 'TOWN' as const, dept: 'SERVICE', day: today, kind: 'live' as const, start: liveStart, end: liveEnd };
+    const base = { i: staff.findIndex((p) => p.key === liveEmail), email: liveEmail, employeeId: world.employeeIds.get(liveEmail)!, site: 'TOWN' as const, dept: 'SERVICE', day: today, kind: 'live' as const, start: liveStart, end: liveEnd };
     if (liveIdx >= 0) slots[liveIdx] = base; else slots.push(base);
   }
 
@@ -96,7 +107,7 @@ export async function seedSchedule(world: World): Promise<void> {
       const on = { siteId, departmentId, weekStart: toDateColumn(monday) };
       weeks.set(wkKey, (await prisma.rotaWeek.findFirst({ where: on, select: { id: true } }) ?? await prisma.rotaWeek.create({ data: on, select: { id: true } })).id);
     }
-    rows.push({ weekId: weeks.get(wkKey)!, siteId, employeeId: world.employeeIds.get(s.email)!, date: toDateColumn(s.day as NairobiDate), templateId: templates.get(s.site)![s.kind] });
+    rows.push({ weekId: weeks.get(wkKey)!, siteId, employeeId: s.employeeId, date: toDateColumn(s.day as NairobiDate), templateId: templates.get(s.site)![s.kind] });
   }
   await prisma.rotaEntry.createMany({ data: rows, skipDuplicates: true });
   const saved = await prisma.rotaEntry.findMany({ where: { date: { gte: toDateColumn(firstGap as NairobiDate) } }, select: { id: true, employeeId: true, date: true } });
@@ -114,7 +125,7 @@ export async function seedSchedule(world: World): Promise<void> {
   const closedPhone = slots.find((s) => s.day === yesterday && s.site === 'TOWN' && s.kind === 'afternoon' && s.email !== liveEmail);
   const wrongOut = slots.find((s) => s.day === twoDaysAgo && s.site === 'TOWN' && s.kind === 'morning');
   for (const s of slots.filter((x) => x.day >= firstGap && x.day <= today)) {
-    const employeeId = world.employeeIds.get(s.email)!;
+    const employeeId = s.employeeId;
     const siteId = world.siteIds[s.site];
     const mk = (type: EventRow['type'], minutes: number, extra: Partial<EventRow> = {}): void => void events.push({ employeeId, siteId, day: s.day, type, source: 'PHONE', minutes, ...extra });
     const jitter = Math.floor(rnd(s.i * 131 + dayNo(s.day)) * 6) - 3;
