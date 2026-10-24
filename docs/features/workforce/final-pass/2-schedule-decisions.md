@@ -13,14 +13,17 @@ Schedule has grown from polish into three pieces of product work. We build them 
 
 Order: S1 and S2 start now in parallel with the first design group. S3 builds after each design group is approved. The Timesheets side of overtime evidence and late minutes is built in **section 3**, which then reads the same records.
 
+## Answers (owner, 24 Oct 2026)
+Q1, Q2, Q3 and Q5 are decided as shown below. Q4, Q6 and Q7 stand as recommended unless the owner says otherwise. The plan and the order of work are in `2-schedule-plan.md` (approved 24 Oct): verticals V0 to V5, each in one lane from design to front end; designs one at a time; every design agent starts by reading the approved designs.
+
 ## Questions for the owner (the only ones that need your thinking)
 | Q | Question | My recommendation |
 |---|---|---|
-| Q1 | **Scope of P3 (the fast planner).** Build everything proposed, or a first version? | **First version:** palette, row and column actions, saved week patterns (per branch) with a preview, apply to a week or a month, and ten-minute undo. **Later:** the month grid view and "fill the gaps". |
-| Q2 | **Scope of P1 (lateness actions).** | **Yes, built as proposed** (Excuse with a reason chip, Counts as default, Make up the time, the "3rd late in 30 days" button that starts a Conduct note by hand, Clock in for them). **Remove** "Mark absent today" and "Wait" (they have no back end). |
-| Q3 | **W11: linking orders, prep tickets and dispatches to a hand-over.** The shift-end flow must know what is still open for each job (unpaid tables, unfinished tickets, unpacked dispatches). Orders are live in production. | **Read only.** The flow reads open items from Orders, Prep and Dispatch and never changes them, so live service is not touched. Changing those features waits for the Digital Orders refactor. The value of an unpaid table is the order total in Orders (your Q6). |
+| Q1 | **Scope of P3 (the fast planner).** | **DECIDED by the owner, 24 Oct: build everything, leave no gaps** (palette, row and column actions, saved week patterns per branch with a preview, apply to a week or a month, ten-minute undo, the month grid view and "fill the gaps"). |
+| Q2 | **Scope of P1 (lateness actions).** | **DECIDED by the owner, 24 Oct: yes, as proposed, and "Mark absent today" and "Wait" are kept and built** (with a back end), in vertical V3. |
+| Q3 | **W11: what the shift-end flow reads.** | **DECIDED by the owner, 24 Oct: read from Orders only** (unpaid tables and the kitchen and bar tickets of orders). Inventory prep and store dispatches are not included for now, so the store attendant's flow has no open items yet. Read only: the flow never changes Orders, so live service is not touched. The value of an unpaid table is the order total in Orders. |
 | Q4 | **W60: what the System Admin does in Schedule.** | **Keep the menu and page gate as designed:** the admin acts as a user to plan or read shifts. The access table stays full as a safety net. |
-| Q5 | **W65: does the Accountant read timesheets from the menu?** | **Yes, decided in section 3** (a Time group with Timesheets and a site chooser). Not built here. |
+| Q5 | **W65: does the Accountant read timesheets from the menu?** | **DECIDED by the owner, 24 Oct: yes.** Built in section 3 (a Time group with Timesheets and a site chooser). Not built here. |
 | Q6 | **W36: may a head clock themselves in for someone else's convenience?** Heads clock others in (decided). | **No.** A head's own clock is their phone; a mistake is fixed through Fix time. |
 | Q7 | **W56: the Central Store in the branch chooser.** | **Hide it** wherever the site has no shifts (Shifts, Today board). |
 
@@ -48,14 +51,14 @@ S1 = quick fixes. S2 = back end. S3 = design then build. **3** = section 3. **9*
 | W48, W49, D21 | The purpose line on every page: the mechanism and copy file in S1, the rule in `UI_BUILD_RULES.md`; Schedule's lines written with the redesigned screens | Fix | S1 and S3 |
 | W56 | Hide the Central Store where there are no shifts | Fix (Q7) | S1 |
 | W10, W16, D7 to D16, D19 | The shift-end flow, overtime before the end, hand-over, "Needs an owner", "Unaccounted", notifications, access and audit; retire the "closed by the phone" notice | Fix | S2 |
-| W11 | Open items read from Orders, Prep and Dispatch | Fix, read only (Q3) | S2 |
+| W11 | Open items read from Orders only (unpaid tables, kitchen and bar tickets) | Fix, read only (Q3) | V4 |
 | P1 (back end) | Lateness decisions, make-up time, the carry-through to the month | Fix (Q2) | S2, then 3 |
 | P3 (back end) | Saved patterns, bulk apply with a preview, undo | Fix (Q1) | S2 |
 | W1, W2, W3, W4, W41, W45, W50 | Head, staff, HR, Director and System Admin Homes; compact clock card; "This week" | Fix | S3 |
 | W5, W6, W7, W8 | The shift-end phone flow; the head's approval and "Needs an owner" list; hand-over received; the lists for the Branch Manager, Director and Accountant | Fix | S3 |
 | W17, W26, W52, P1 (screens) | Lateness actions on the board and the timesheet; flag an early clock-out; one "late" number everywhere | Fix | S3, then 3 |
 | W18, P2 | Today and past columns on the Shifts grid | Fix | S3 |
-| W19, P3 (screens) | The fast planner screens | Fix (first version, Q1) | S3 |
+| W19, P3 (screens) | The fast planner screens, **everything** including the month grid and "fill the gaps" (Q1) | Fix | V2 |
 | W54 | The employee file's Time and Leave tabs show real data | Fix (Time now; Leave data with section 7) | S3 and 7 |
 | W9 | Overtime evidence on the timesheet | Fix | 3 |
 | W65 | The Accountant reads timesheets from the menu | Fix (Q5) | 3 |
@@ -64,7 +67,7 @@ S1 = quick fixes. S2 = back end. S3 = design then build. **3** = section 3. **9*
 | W55 | "Home" on top and "Workforce / Overview" both open the same page | Leave (approved design) | none |
 | W58 | Route the "closed by the system" item to the right owner | Retired by D19 | none |
 | W13 | Tests and docs for both modules | Fix | each delivery's close-out |
-| G2 | Remove "Mark absent today" and "Wait, they have told me" | Fix | S1 |
+| G2 / M9 | **Keep and build** "Mark absent today" (leave, sick, unpaid or no reason) and "Wait, they have told me" (owner, 24 Oct, reverses the removal idea) | Fix | V3 |
 | G1, G3 | One fix path for the three "wrong time" cases; one line per open item | Fix | S3 |
 | G4 | Remove the per-branch switch and the old-clock bridge once every branch is live | Later | after the rollout |
 

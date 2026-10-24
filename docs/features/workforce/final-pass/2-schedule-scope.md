@@ -82,7 +82,7 @@ Some items overlap (for example the Home redesign appears in three lists). The 6
 | Item | In plain words | Where |
 |---|---|---|
 | W10 | Back end: overtime requests, hand-over records, the clock-out at the scheduled end, the "Unaccounted" check, notifications, access and audit | S2 (back end) |
-| W11 | The flow **reads** open items from Orders, Prep and Dispatch; it never changes them (your Q3) | S2 |
+| W11 | The flow **reads** open items from **Orders only** (unpaid tables, kitchen and bar tickets); it never changes them (your Q3, decided) | V4 |
 | W16 | Retire the old "closed by the phone" notice and dialog | S2 |
 | W5 | The phone screens: the warning, Finish, Hand over, Ask for overtime, the result | Design, then build |
 | W6 | The head's approval screen and the "Needs an owner" list | Design, then build |
@@ -146,7 +146,7 @@ W13: the clean-database tests for every rule in the new flow, and the documents 
 | M6 | An empty week, a person on loan, "sent to another site" | Only a full week is drawn | Part of W28 |
 | M7 | Two shifts in one day | Paper draws it, the build left it out | Decision |
 | M8 | The Today board on a past day and on a phone | Not drawn | Design |
-| M9 | "Mark absent today" and "Wait" | Drawn but they do nothing | Remove (your Q2) |
+| M9 | "Mark absent today" and "Wait" | Drawn but nothing behind them | **Keep and build, with a back end** (your Q2, decided), in V3 |
 | M10 | A request for a clock-out mistake | The dialog exists; the request is section 3 | Section 3 |
 | M11 | Acting as another user over the clock | | Section 9 |
 | M12 | A person disputing a clock-in a manager made for them | | Section 3 |
@@ -170,7 +170,7 @@ W13: the clean-database tests for every rule in the new flow, and the documents 
 | # | Idea | My recommendation |
 |---|---|---|
 | G1 | One fix path for "closed by the phone", "clocked out by mistake" and a missed clock-in | Yes, in the design |
-| G2 | Remove "Mark absent today" and "Wait, they have told me" | Yes |
+| G2 | ~~Remove "Mark absent today" and "Wait, they have told me"~~ | **Dropped: both are kept and built (owner, 24 Oct)** |
 | G3 | One line per open item in the shift-end list | Yes |
 | G4 | Remove the per-branch switch and the old-clock bridge once every branch is live | Later, after the rollout |
 
@@ -184,4 +184,4 @@ W13: the clean-database tests for every rule in the new flow, and the documents 
 | **S3: the screens** | D screens, E, F, G, H, I (placement), M2, M3, M5, M8 | Lane 3 designs in three groups, then lanes 2 and 4 build | Yes |
 | **Section 3** | W9, W65, the timesheet side of lateness | Later | |
 
-**Cut options if time matters:** F's month view, H's Time tab content beyond lateness, and E's "make up the time" could each move to after the pilot. Say which you would cut.
+**Decided (owner, 24 Oct): nothing is cut and no gaps are left.** The planner is built in full, "Mark absent" and "Wait" are built, and open items are read from Orders only. The delivery plan is `2-schedule-plan.md` (verticals V0 to V5, each in one lane).
