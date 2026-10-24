@@ -6,7 +6,7 @@ import { ErrorBlock, ListSkeleton, useWorkforcePermissions } from '../../../../_
 import { PanelLink, PanelReadOnlyTag, TitledPanel } from '../../../_shared/components/titled-panel';
 import { useEmployeePay } from '../../../_shared/hooks/use-people-data';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { jobCardRows } from '../../lib/job-card-rows';
+import { jobCardRows } from '../../lib/tab-rows/job-card-rows';
 import { SensitivePanel } from '../sensitive/sensitive-panel';
 import { IDS_BANK_RESTRICTED, IDS_BANK_TAG, PAY_RESTRICTED, PAY_TAG, RestrictedCard } from './restricted-card';
 import { JobCardRows } from './job-card-rows';

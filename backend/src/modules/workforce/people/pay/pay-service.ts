@@ -2,17 +2,17 @@ import type { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../../../utils/errors';
 import { runAudited } from '../../_shared/audit/audit-writer';
 import type { AuditEntryInput } from '../../_shared/audit/audit.types';
-import { fromDateColumn, nairobiDateOf, parseNairobiDate, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
+import { fromDateColumn, parseNairobiDate, toDateColumn, type NairobiDate } from '../../_shared/time/nairobi-time';
 import { assertInScope, assertNotSelf, inScope, lockedGroupsFor, workforceCan, type AccessSubject } from '../../_shared/workforce-access';
 import { employeesRepository } from '../employees/employees-repository';
 import { targetOf } from '../people-access';
 import { verifySignerPin } from '../../_shared/pin/signer-pin';
 import { resolveActor, told, todayOf } from '../people-context';
-import { PAYOUT_CASH_REFUSAL, payoutAllowed } from '../statutory-formats';
-import { maskTail } from '../people-masking';
-import type { PayChangeReason } from '../people.constants';
+import { PAYOUT_CASH_REFUSAL, payoutAllowed } from '../rules/statutory-formats';
+import { maskTail } from '../rules/people-masking';
 import type { PayChangeRow, PayView } from '../people.types';
 import type { PayChangeDecisionSchema, PayChangeSchema, PayProfileSchema } from '../people-validators';
+import { changeRows, money } from './pay-change-rows';
 import { hourlyEquivalent } from './pay-math';
 import { payRepository } from './pay-repository';
 
@@ -21,38 +21,6 @@ export type PayChangeBody = z.infer<typeof PayChangeSchema>;
 export type PayDecisionBody = z.infer<typeof PayChangeDecisionSchema>;
 
 type EmployeeBrief = NonNullable<Awaited<ReturnType<typeof payRepository.findEmployee>>>;
-type ChangeRow = Awaited<ReturnType<typeof payRepository.historyOf>>[number];
-
-const money = (amount: { toFixed(places: number): string }): string => amount.toFixed(2);
-
-async function askerBriefs(userIds: readonly string[]): Promise<Map<string, { position: string | null; site: string | null }>> {
-  const rows = await employeesRepository.findBriefsByUserIds(userIds);
-  return new Map(rows.flatMap((r) => (r.userId ? [[r.userId, { position: r.position?.name ?? null, site: r.site.name }] as const] : [])));
-}
-
-async function changeRows(rows: readonly ChangeRow[], employeeName: string): Promise<PayChangeRow[]> {
-  const ids = [...new Set(rows.flatMap((r) => [r.requestedById, r.decidedById]).filter((id): id is string => !!id))];
-  const names = new Map((await employeesRepository.findUserNames(ids)).map((u) => [u.id, u.name]));
-  const briefs = await askerBriefs(ids);
-  return rows.map((r) => ({
-    id: r.id,
-    employeeId: r.employeeId,
-    employeeName,
-    amount: money(r.amount),
-    effectiveFrom: fromDateColumn(r.effectiveFrom),
-    startsInFuture: fromDateColumn(r.effectiveFrom) > todayOf(),
-    reason: r.reason as PayChangeReason,
-    status: r.status,
-    requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,
-    requestedByPosition: r.requestedById ? (briefs.get(r.requestedById)?.position ?? null) : null,
-    requestedBySite: r.requestedById ? (briefs.get(r.requestedById)?.site ?? null) : null,
-    requestedOn: nairobiDateOf(r.requestedAt),
-    decidedByName: r.decidedById ? (names.get(r.decidedById) ?? null) : null,
-    decidedOn: r.decidedAt ? nairobiDateOf(r.decidedAt) : null,
-    decisionNote: r.decisionNote,
-  }));
-}
-
 const loadScoped = async (subject: AccessSubject, companyId: string, id: string): Promise<EmployeeBrief> => {
   const employee = await payRepository.findEmployee(companyId, id);
   if (!employee) throw new NotFoundError('Employee not found');
@@ -327,27 +295,7 @@ export const payService = {
   // ---- R11 ---------------------------------------------------------------------------------------------------------
   async listChanges(subject: AccessSubject, status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED'): Promise<PayChangeRow[]> {
     const ctx = await resolveActor(subject);
-    const rows = await payRepository.listChanges(ctx.companyId, status);
-    const ids = [...new Set(rows.flatMap((r) => [r.requestedById, r.decidedById]).filter((id): id is string => !!id))];
-    const names = new Map((await employeesRepository.findUserNames(ids)).map((u) => [u.id, u.name]));
-    const briefs = await askerBriefs(ids);
-    return rows.map((r) => ({
-      id: r.id,
-      employeeId: r.employeeId,
-      employeeName: r.employee.name,
-      amount: money(r.amount),
-      effectiveFrom: fromDateColumn(r.effectiveFrom),
-      startsInFuture: fromDateColumn(r.effectiveFrom) > todayOf(),
-      reason: r.reason as PayChangeReason,
-      status: r.status,
-      requestedByName: r.requestedById ? (names.get(r.requestedById) ?? null) : null,
-      requestedByPosition: r.requestedById ? (briefs.get(r.requestedById)?.position ?? null) : null,
-      requestedBySite: r.requestedById ? (briefs.get(r.requestedById)?.site ?? null) : null,
-      requestedOn: nairobiDateOf(r.requestedAt),
-      decidedByName: r.decidedById ? (names.get(r.decidedById) ?? null) : null,
-      decidedOn: r.decidedAt ? nairobiDateOf(r.decidedAt) : null,
-      decisionNote: r.decisionNote,
-    }));
+    return changeRows(await payRepository.listChanges(ctx.companyId, status), (r) => r.employee.name);
   },
 
   /** The amount in force on a date, for payroll (exported through the door). Null when nothing was ever approved. */

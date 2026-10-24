@@ -5279,6 +5279,8 @@ Source of truth: `backend/src/modules/workforce/people/README.md`. Standard enve
 
 `GET /workforce/permissions/me` (§32.1) now also returns `headOfDepartmentIds` and the real `tracksTime`; `isDepartmentHead` is also true for a head by head rows.
 
+**People close-out (24 Oct 2026): no endpoint, field or error code changed** in §35. The router files moved (`people/wiring/people-routes.ts`, `people/wiring/org-routes.ts`) and the access table is split into `_shared/access/` (still imported as `workforce-access`). Front-end note: the Profile page and the My phones page are gone (My file holds the sign-in settings and the alerts card); the phone endpoints of §43 stay, now called from that card.
+
 ### 35.1 Reads (`/workforce/people...`)
 
 | # | Route | Capability | Notes |

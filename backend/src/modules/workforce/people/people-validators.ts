@@ -8,7 +8,7 @@ import {
   PROBATION_VERDICTS,
   REVEALABLE_FIELD_LIST,
 } from './people.constants';
-import { PAYOUT_CASH_REFUSAL, PAYOUT_METHODS, kraPinField, nssfField, payoutAllowed, shaField } from './statutory-formats';
+import { PAYOUT_CASH_REFUSAL, PAYOUT_METHODS, kraPinField, nssfField, payoutAllowed, shaField } from './rules/statutory-formats';
 
 const id = z.uuid();
 const nairobiDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');

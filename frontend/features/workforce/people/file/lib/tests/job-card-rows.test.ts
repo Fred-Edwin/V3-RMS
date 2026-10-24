@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { contractLine, jobCardRows, probationLine } from '../job-card-rows';
+import { contractLine, jobCardRows, probationLine } from '../tab-rows/job-card-rows';
 
 const file = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   ({

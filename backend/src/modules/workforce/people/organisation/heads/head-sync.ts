@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { WorkforceEvent } from '../../../_shared/events';
 import { addDays, fromDateColumn, toDateColumn, type NairobiDate } from '../../../_shared/time/nairobi-time';
-import { claimsFromHeadRows, isActiveOn, type HeadClaims, type HeadRow } from '../../head-claims';
+import { claimsFromHeadRows, isActiveOn, type HeadClaims, type HeadRow } from '../../rules/head-claims';
 import { accountGateway } from '../../people-account-gateway';
 import { headsRepository, type HeadRowRecord } from './heads-repository';
 

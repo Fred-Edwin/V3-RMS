@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { PhoneSectionBar } from '@/components/app/shell/phone-section-bar';
+import { PhoneSectionBar } from '@/components/app/shell/phone/phone-section-bar';
 import { Topbar } from '@/components/app/shell/topbar';
 
 import { useWorkforceNavDrawer } from '../../_shared';

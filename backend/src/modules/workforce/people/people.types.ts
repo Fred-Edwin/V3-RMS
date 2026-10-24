@@ -1,5 +1,5 @@
 import type { SensitiveGroup } from '../_shared/workforce-access';
-import type { ChecklistRow, FilePart } from './people-completeness';
+import type { ChecklistRow, FilePart } from './rules/people-completeness';
 import type { ImpactLine } from './people-hooks';
 import type { ExitReason, FileRequestKind, PayChangeReason, ProbationVerdict } from './people.constants';
 

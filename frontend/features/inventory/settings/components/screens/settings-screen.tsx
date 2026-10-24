@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { PermissionDeniedState } from '@/components/app/shell/shell-states';
-import { SigningPinCard } from '@/components/app/shell/signing-pin-card';
+import { SigningPinCard } from '@/components/app/shell/feedback/signing-pin-card';
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';

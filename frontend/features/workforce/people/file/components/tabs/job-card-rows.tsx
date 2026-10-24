@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import type { JobCardRow } from '../../lib/job-card-rows';
+import type { JobCardRow } from '../../lib/tab-rows/job-card-rows';
 
 /** The rows of the Job card (frames 7.1 and 12.1): a 150 px label column, values starting in one line, 48 px rows (56 with a second line). */
 export function JobCardRows({ rows }: { rows: readonly JobCardRow[] }) {

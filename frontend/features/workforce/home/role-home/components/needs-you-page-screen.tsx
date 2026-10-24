@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { MobileTopbar } from '@/components/app/shell/mobile-topbar';
 import { Topbar } from '@/components/app/shell/topbar';
-import { TopbarBell } from '@/components/app/shell/topbar-bell';
+import { TopbarBell } from '@/components/app/shell/menu/topbar-bell';
 import { TablePager } from '@/components/ui2/data-table/table-pager';
 import { Picker } from '@/components/ui2/picker';
 import { SearchInput } from '@/components/ui2/search-input';

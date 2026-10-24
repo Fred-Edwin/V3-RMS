@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
-import { documentLines } from '../documents-rows';
+import { documentLines } from '../tab-rows/documents-rows';
 
 const file = (over: Partial<EmployeeFile> = {}): EmployeeFile =>
   ({ name: 'Joy Chebet', employment: 'MONTHLY', status: 'ACTIVE', contractStatus: 'ACTIVE', probation: null, nextSteps: [], timeline: [], ...over }) as unknown as EmployeeFile;

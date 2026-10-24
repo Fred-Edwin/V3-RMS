@@ -6,41 +6,43 @@ See every piece in every state at **`/dev/workforce-kit`** (a dev page; every pa
 
 **Status:** two passes on branch `feat/workforce-ui-kit`, awaiting the owner's review. Pass 1 (owner-approved): behaviour rules, KPI strip, tags, chips, avatar, ring, timelines, layouts, dialogs, undo, date field, states, notifications. Pass 2 (this one): the gap audit, built so later sessions only compose. Nothing pushed. The back end is untouched.
 
+**Layout (People close-out, 24 Oct 2026; nothing but `index.ts` imports these paths).** `components/` is grouped by what the piece does: `fields/` (inputs and choices), `dialogs/` (the shell, `ChangeDialog`, the PIN dialog), `messages/` (states, callouts, inbox rows, the undo toast, the fault cards), `people/` (avatar, label, ring, tags, timelines, table cells), `layout/` (page and panel parts, KPI strip, filter bar, list and detail, wizard, frame, key-value rows, circle stepper), `phone/` (phone pieces, the day and week pieces, home parts, schedule parts), `documents/` (the printed document, the PDF viewer and its worker) and `tests/` (the kit's rendering tests). `lib/` is grouped as `style/` (hover, focus, colours, palettes), `copy/` (the wording tables and server messages), `data/` (time, reason, undo, roving, capabilities, person label) and `tests/`. `gallery/sections/` holds the gallery's sections. `workforce/size-guard.test.ts` (front end) fails when a file passes 350 lines or a folder passes 12 files.
+
 ## What each piece is for
 
 | Piece | File | Use it for |
 |---|---|---|
-| Behaviour rules | `lib/interaction.ts` | The shared hover (pointer devices only), focus ring, pressed, disabled and motion classes, plus the 30 s undo window and the 8 s "Still loading" wait. Every piece composes these. |
-| KPI strip | `components/kpi-strip.tsx` | The band of numbers at the top of Employees, HR Home, Branch Manager Home. Actionable cells (warning edge, number, arrow) are buttons. |
-| Status tags | `components/status-tag.tsx` | `StatusTag` (tone + words) and `WorkforceTag` (by key). Also checklist chips. |
-| Filter chip, filter bar | `components/filter-chip.tsx` | "Needs finishing 3" chips and the bar layout. Real tables feed it from `ui2/data-table`, which owns URL state. |
-| Avatar | `components/person-avatar.tsx` | `PersonAvatar`, `AvatarStack`, `PresenceDot`. Colour comes from the name. |
-| Completeness ring, probation bar | `components/completeness-ring.tsx` | The file-completeness ring and the probation bar. |
-| Timelines | `components/timeline.tsx` | `LifeTimeline` ("Life at Wendo") and `ComingUpTimeline`. |
-| List and detail | `components/list-detail-layout.tsx` | Two columns, caramel bar on the chosen row; one column on a phone. |
-| Wizard | `components/wizard-layout.tsx` | Top line with draft indicator, step rail, "The file so far" panel, footer. |
-| Reason chips | `components/reason-chips.tsx`, `lib/reason.ts` | A short list plus "Other". `legendStyle="sentence"` and `hint="required"` give the question form ("If you decline, say why"). |
-| Dialogs | `components/change-dialog.tsx` | `KitDialog` (shell; `plain` is the approval-dialog paint), `ChangeSummary`, `OldToNew`, `DialogButton` (`size="lg"` is 38 px), `ChangeDialog`, and **`WorkforcePinDialog`**: a summary list, one dots field, a caption, Cancel and the brown button. |
-| PIN field, code boxes | `components/pin-field.tsx` | **`PinField`**: one wide bordered field with a dot per digit, for a signed act (the last digit calls `onComplete`; Enter never does; the phone number pad is kept). **`CodeBoxes`**: four boxes with red borders on a wrong code, for the payslip code. |
-| Person radio list | `components/person-radio-list.tsx` | A short list of people to pick one from (avatar, name, grey line, "Recommended"), real radios. Added in slice 1b for "Assign a head". |
-| Key-value rows | `components/key-value-rows.tsx` | Label left, value right under an ink rule; mono values, tone, old to new. |
-| Undo toast | `components/undo-toast.tsx`, `lib/undo.ts` | The 30 second Undo after an answer. |
-| Single-day date field | `components/single-date-field.tsx` | A date field in a dialog (approved picker, single-day mode). |
-| States kit | `components/states.tsx`, `lib/states-copy.ts` | Loading, empty, error, offline, saved-on-phone; words by key per screen. |
-| Notifications | `components/inbox-row.tsx`, `lib/notification-copy.ts` | The five-part Inbox row (button **outlined by default**; `emphasis: 'primary'` only for one lone card) and the 40-row wording table. |
-| **Table look** | `ui2/table.tsx`, `ui2/data-table/data-table.tsx`, `components/table-cells.tsx` | The existing table with search, filters, numbered pager and URL state, drawn the Workforce way: `<DataTable tableLook="workforce" rowSize="compact?">` or `<Table look="workforce">`. Cells: `AvatarCell`, `NumberCell`, `StatusText`, `NeedsYouLine`. Selected row: `data-state="selected"`. Nothing changes for a table that does not ask. |
-| **Page parts** | `components/page-parts.tsx` | `PageHeader` (24 px title; `size="lg"` 28 px), `PeriodStepper`, `UnderlineTabs`, `SegmentedControl`. Tabs and segments move with the arrow keys (`lib/roving.ts`). |
-| **Callout** | `components/callout.tsx` | Notes, status cards and banners: tones neutral/info/success/warning/error; variants `tint`, `bar`, `dashed`; kicker, title, square bullet, action below or at the end. |
-| **Panels and rows** | `components/panel-parts.tsx` | `Panel`, `SettingRows`, `StatBoxes` (`figures`, `compact`, `times`, `compare`), `ChecklistRows`, `NoteRows`. |
-| **Choices** | `components/choice-controls.tsx` | `ChoiceChips`, `OptionList`, `RadioCards`, `ActionCards`, `RemovableChip`, `AddChip`, `ChipLegend`. The first three are real radios. |
-| **Forms** | `components/form-parts.tsx` | `FormField` (label, control, helper or error, wired with `aria-describedby`), `FIELD_CLASS`, `TimeField` (masks, fills the minutes, validates). |
-| **Time helpers** | `lib/time.ts` | `formatHms`, `formatMmSs`, `formatHoursMinutes` ("41 h 05"), `formatHoursMinutesUnit` ("8 h 02 m"), `formatDuration` ("1 h 30"), `maskClock`, `parseClock`, `minutesBetween`. Pure, tested. |
-| **Schedule** | `components/schedule-parts.tsx`, `lib/shift-palette.ts` | `ShiftChip`, `PickShiftButton`, `ShiftLegend`, `ShiftSwatchPicker`, `ShiftGrid` (presentational: no data, popover or publish), `TwoLineRow`. |
-| **Phone** | `components/phone-parts.tsx` | `PhoneDarkHeader`, `TimerChip`, `PhoneHero`, `PhoneButton`, `ClockCard`, `WeekBars`, `DayStrip`, `PhonePrompt`, `DayCard`, `TimeRow`. |
-| **Home rows and drawer** | `components/home-parts.tsx` | `AttentionRow`, `MiniBar`, `WorkforceDrawer` (on `ui2/sheet`), `DrawerSection`. |
-| **Printed document** | `components/workforce-document.tsx`, `lib/document-palette.ts` | `WorkforceDocument` (A4 794 × 1123 or landscape 1123 × 794: navy bar, header, body, signature "Signed with PIN", QR, footer), `DocHeading`, `DocParagraph`, `DocumentCanvas`. |
+| Behaviour rules | `lib/style/interaction.ts` | The shared hover (pointer devices only), focus ring, pressed, disabled and motion classes, plus the 30 s undo window and the 8 s "Still loading" wait. Every piece composes these. |
+| KPI strip | `components/layout/kpi-strip.tsx` | The band of numbers at the top of Employees, HR Home, Branch Manager Home. Actionable cells (warning edge, number, arrow) are buttons. |
+| Status tags | `components/people/status-tag.tsx` | `StatusTag` (tone + words) and `WorkforceTag` (by key). Also checklist chips. |
+| Filter chip, filter bar | `components/layout/filter-chip.tsx` | "Needs finishing 3" chips and the bar layout. Real tables feed it from `ui2/data-table`, which owns URL state. |
+| Avatar | `components/people/person-avatar.tsx` | `PersonAvatar`, `AvatarStack`, `PresenceDot`. Colour comes from the name. |
+| Completeness ring, probation bar | `components/people/completeness-ring.tsx` | The file-completeness ring and the probation bar. |
+| Timelines | `components/people/timeline.tsx` | `LifeTimeline` ("Life at Wendo") and `ComingUpTimeline`. |
+| List and detail | `components/layout/list-detail-layout.tsx` | Two columns, caramel bar on the chosen row; one column on a phone. |
+| Wizard | `components/layout/wizard-layout.tsx` | Top line with draft indicator, step rail, "The file so far" panel, footer. |
+| Reason chips | `components/fields/reason-chips.tsx`, `lib/data/reason.ts` | A short list plus "Other". `legendStyle="sentence"` and `hint="required"` give the question form ("If you decline, say why"). |
+| Dialogs | `components/dialogs/change-dialog.tsx` (the shell and its two buttons are in `components/dialogs/kit-dialog.tsx`) | `KitDialog` (shell; `plain` is the approval-dialog paint), `ChangeSummary`, `OldToNew`, `DialogButton` (`size="lg"` is 38 px), `ChangeDialog`, and **`WorkforcePinDialog`**: a summary list, one dots field, a caption, Cancel and the brown button. |
+| PIN field, code boxes | `components/fields/pin-field.tsx` | **`PinField`**: one wide bordered field with a dot per digit, for a signed act (the last digit calls `onComplete`; Enter never does; the phone number pad is kept). **`CodeBoxes`**: four boxes with red borders on a wrong code, for the payslip code. |
+| Person radio list | `components/fields/person-radio-list.tsx` | A short list of people to pick one from (avatar, name, grey line, "Recommended"), real radios. Added in slice 1b for "Assign a head". |
+| Key-value rows | `components/layout/key-value-rows.tsx` | Label left, value right under an ink rule; mono values, tone, old to new. |
+| Undo toast | `components/messages/undo-toast.tsx`, `lib/data/undo.ts` | The 30 second Undo after an answer. |
+| Single-day date field | `components/fields/single-date-field.tsx` | A date field in a dialog (approved picker, single-day mode). |
+| States kit | `components/messages/states.tsx`, `lib/copy/states-copy.ts` | Loading, empty, error, offline, saved-on-phone; words by key per screen. |
+| Notifications | `components/messages/inbox-row.tsx`, `lib/copy/notification-copy.ts` | The five-part Inbox row (button **outlined by default**; `emphasis: 'primary'` only for one lone card) and the 40-row wording table. |
+| **Table look** | `ui2/table.tsx`, `ui2/data-table/data-table.tsx`, `components/people/table-cells.tsx` | The existing table with search, filters, numbered pager and URL state, drawn the Workforce way: `<DataTable tableLook="workforce" rowSize="compact?">` or `<Table look="workforce">`. Cells: `AvatarCell`, `NumberCell`, `StatusText`, `NeedsYouLine`. Selected row: `data-state="selected"`. Nothing changes for a table that does not ask. |
+| **Page parts** | `components/layout/page-parts.tsx` | `PageHeader` (24 px title; `size="lg"` 28 px), `PeriodStepper`, `UnderlineTabs`, `SegmentedControl`. Tabs and segments move with the arrow keys (`lib/data/roving.ts`). |
+| **Callout** | `components/messages/callout.tsx` | Notes, status cards and banners: tones neutral/info/success/warning/error; variants `tint`, `bar`, `dashed`; kicker, title, square bullet, action below or at the end. |
+| **Panels and rows** | `components/layout/panel-parts.tsx` | `Panel`, `SettingRows`, `StatBoxes` (`figures`, `compact`, `times`, `compare`), `ChecklistRows`, `NoteRows`. |
+| **Choices** | `components/fields/choice-controls.tsx` | `ChoiceChips`, `OptionList`, `RadioCards`, `ActionCards`, `RemovableChip`, `AddChip`, `ChipLegend`. The first three are real radios. |
+| **Forms** | `components/fields/form-parts.tsx` | `FormField` (label, control, helper or error, wired with `aria-describedby`), `FIELD_CLASS`, `TimeField` (masks, fills the minutes, validates). |
+| **Time helpers** | `lib/data/time.ts` | `formatHms`, `formatMmSs`, `formatHoursMinutes` ("41 h 05"), `formatHoursMinutesUnit` ("8 h 02 m"), `formatDuration` ("1 h 30"), `maskClock`, `parseClock`, `minutesBetween`. Pure, tested. |
+| **Schedule** | `components/phone/schedule-parts.tsx`, `lib/style/shift-palette.ts` | `ShiftChip`, `PickShiftButton`, `ShiftLegend`, `ShiftSwatchPicker`, `ShiftGrid` (presentational: no data, popover or publish), `TwoLineRow`. |
+| **Phone** | `components/phone/phone-parts.tsx`, `components/phone/phone-day-parts.tsx` | `PhoneDarkHeader`, `TimerChip`, `PhoneHero`, `PhoneButton`, `ClockCard`, `WeekBars`, `DayStrip`, `PhonePrompt`, `DayCard`, `TimeRow`. |
+| **Home rows and drawer** | `components/phone/home-parts.tsx` | `AttentionRow`, `MiniBar`, `WorkforceDrawer` (on `ui2/sheet`), `DrawerSection`. |
+| **Printed document** | `components/documents/workforce-document.tsx`, `lib/style/document-palette.ts` | `WorkforceDocument` (A4 794 × 1123 or landscape 1123 × 794: navy bar, header, body, signature "Signed with PIN", QR, footer), `DocHeading`, `DocParagraph`, `DocumentCanvas`. |
 
-Added in slice 2 (Rota): **`WorkforceFrame`** (`components/workforce-frame.tsx`: the top bar, compact bar and canvas every Workforce screen sits in; People's `PeopleFrame` re-exports it), **`useRemote` and `useAction`** (`hooks/`, moved from People), `useWorkforcePermissions().scopeOf(capability)`, an empty-cell variant on `ShiftGrid` (a quiet button that opens a picker) with `data-row` / `data-day` on cells, `DocumentCanvas width`, and **`signatureName`**: a printed signature shows only the first and second name (brackets dropped), the full name stays in the line under it.
+Added in slice 2 (Rota): **`WorkforceFrame`** (`components/layout/workforce-frame.tsx`: the top bar, compact bar and canvas every Workforce screen sits in; People's `PeopleFrame` re-exports it), **`useRemote` and `useAction`** (`hooks/`, moved from People), `useWorkforcePermissions().scopeOf(capability)`, an empty-cell variant on `ShiftGrid` (a quiet button that opens a picker) with `data-row` / `data-day` on cells, `DocumentCanvas width`, and **`signatureName`**: a printed signature shows only the first and second name (brackets dropped), the full name stays in the line under it.
 
 Added in slice 4a (Timesheets): **`StatBoxes row`** keeps the before-and-after boxes side by side on a phone (default: they stack), **`TimeRow`**'s day column is 52 px and does not wrap (two-digit days), and the capability list has `timesheet.close` and `timesheet.export` (`timesheet.reopen` is gone, Segment 1A) plus `overtime.note`, `time_request.answer` and `manager_time.decide`. `WorkforceKpiStrip` cells take `tone: 'success'` for the green "done" cell (a month approved).
 
@@ -115,8 +117,8 @@ Values come from `get_jsx` / `get_computed_styles`; none was hard-coded in a pie
 | `#E0A020` amber stroke and probation fill | Completeness ring, probation bar | `caramel-500` (`#D9A65E`) |
 | `#B27A0A` amber number and bar | Ring percent, probation, Inbox amber bar, thin-day footer, late-row bars, "Also at Highway Sat" | `warning-fg` for text; `caramel-600` for bars and the flag border |
 | `#FBF1DE` / `#E9D3A8` mid-day amber tint | Mid-day shift chip and swatch, "EXTRA" cell | `warning-bg` / `warning-border` |
-| **Lavender `#F1ECF6` / `#D9CCE8` / `#5B3F7A`** | **Early bake shift (chip, swatch)** | **A mix of the info and error tokens (`color-mix`) in `lib/shift-palette.ts`. It reads greyish next to Leave. If the owner wants the true lavender, add one token trio and change that file only.** |
-| **Navy `#14284B`, rule `#D8DEE9`, ink `#111111`** | **Printed documents (top bar, headings, hairlines, body)** | **Kept as the document's own palette in `lib/document-palette.ts`, like the LPO print page (`#0B2A4A`, `#D5DCE4`). The design system has no navy token. The two documents use different navies.** |
+| **Lavender `#F1ECF6` / `#D9CCE8` / `#5B3F7A`** | **Early bake shift (chip, swatch)** | **A mix of the info and error tokens (`color-mix`) in `lib/style/shift-palette.ts`. It reads greyish next to Leave. If the owner wants the true lavender, add one token trio and change that file only.** |
+| **Navy `#14284B`, rule `#D8DEE9`, ink `#111111`** | **Printed documents (top bar, headings, hairlines, body)** | **Kept as the document's own palette in `lib/style/document-palette.ts`, like the LPO print page (`#0B2A4A`, `#D5DCE4`). The design system has no navy token. The two documents use different navies.** |
 | `#3A2A1A` / `#5A4630` grey timer chip, `#BFE3C4` chip dot, `#3F7A49` chip border | Phone timer chip | Mixes of `sidebar-top` with white; `success-border`; `success-border` |
 | `#B5A79A` mono label on the dark band | Phone header kicker | `sidebar-fg-item` (`#B5AEA5`) |
 | `#EBDFD2` progress track, tan avatar gradient | Clock card, hero | `espresso-200` mixed with white; `espresso-100` to a mix of `espresso-200` and `espresso-700` |
@@ -135,8 +137,8 @@ Values come from `get_jsx` / `get_computed_styles`; none was hard-coded in a pie
 
 Pass 1's seven questions are answered (tags kept, notification colours follow the Kind word, Inbox rows outlined, amber uses the nearest tokens, "Life at Wendo" becomes a vertical list on a phone, `/dev` guard added to every page, the last PIN digit signs and Enter never does). Pass 2's were settled by the owner on 17 Oct 2026 by accepting the kit's defaults:
 
-1. **Lavender.** No new token; Early bake keeps the derived mix in `lib/shift-palette.ts`. Revisit only if it is hard to tell from Leave in use.
-2. **Navy for documents.** Stays the printed page's own palette in `lib/document-palette.ts`.
+1. **Lavender.** No new token; Early bake keeps the derived mix in `lib/style/shift-palette.ts`. Revisit only if it is hard to tell from Leave in use.
+2. **Navy for documents.** Stays the printed page's own palette in `lib/style/document-palette.ts`.
 3. **Audit log header.** The Workforce look uses the Employees header (11 px, 0.06em) everywhere; the Audit log is not redrawn.
 4. **Landscape rota print.** 1123 × 794, as Paper draws it.
 5. **Page title size.** 24 px, with `size="lg"` for the 28 px Rules heading, as Paper draws it.

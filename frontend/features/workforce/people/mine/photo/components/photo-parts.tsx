@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { initialsOf } from '../../../../_shared/lib/avatar';
+import { initialsOf } from '../../../../_shared/lib/style/avatar';
 import type { PickedPhoto } from '../hooks/use-photo-flow';
 
 const GRADIENT = 'linear-gradient(145deg, #E9CFAE 0%, #C99A68 100%)';

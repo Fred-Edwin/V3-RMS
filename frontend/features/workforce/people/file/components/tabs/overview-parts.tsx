@@ -5,7 +5,7 @@ import { Button } from '@/components/ui2/button';
 import { CompletenessRing, LifeTimeline, Panel, ProbationBar, StatusTag, probationTextClass, useWorkforcePermissions } from '../../../../_shared';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
 import { formatDayMonth } from '../../../_shared/lib/people-dates';
-import { lifeEvents } from '../../lib/file-timeline';
+import { lifeEvents } from '../../lib/tab-rows/file-timeline';
 import { nextStepRows, probationCard, ringChips, ringSummary, type FileDialogKey } from '../../lib/file-model';
 
 /** The blocks the Overview variants share (Paper `Y8C-0`). Each takes the file and draws; `open` is how a button asks for a dialog. */

@@ -11,8 +11,8 @@ import type { NairobiDate } from './_shared/time/nairobi-time';
 // HTTP: the routers `routes/index.ts` mounts (the one shared touch-point). Amendment 1 in the contract's log.
 export { default as workforcePermissionsRouter } from './_shared/permissions-routes';
 export { default as workforceRulesRouter } from './rules/rules-routes';
-export { default as workforcePeopleRouter } from './people/people-routes';
-export { default as workforceOrgRouter } from './people/org-routes'; // Organisation: departments, heads, positions (slice 1b)
+export { default as workforcePeopleRouter } from './people/wiring/people-routes';
+export { default as workforceOrgRouter } from './people/wiring/org-routes'; // Organisation: departments, heads, positions (slice 1b)
 export { default as workforceRotaRouter } from './rota/rota-routes'; // Rota: shift templates, the week grid, edits (slice 2)
 export { carryOverLegacyRota } from './rota/legacy/legacy-carry-over'; // the repeatable legacy-to-rota copy (slice 2)
 export { default as workforceAttendanceRouter } from './attendance/attendance-routes'; // Attendance: clock, Today board, fixes, lateness, the switch (slice 3)
@@ -55,7 +55,7 @@ export { getOnShiftNow } from './attendance/board/on-shift-now';
 export type { OnShiftPerson } from './attendance/attendance.types';
 
 // People (slice 1)
-export { registerPeople } from './people/register-people';
+export { registerPeople } from './people/wiring/register-people';
 export { getEmployee, getActiveLoans, payAmountOn, type EmployeeSummary, type ActiveLoan } from './people/people-door';
 export { registerImpactProvider, type ImpactProvider, type ImpactQuery, type ImpactLine, type ImpactKind } from './people/people-hooks';
 export { runPeopleScheduler, PEOPLE_SCHEDULER_TASKS, type TaskReport, type PeopleTask } from './people/scheduler/people-scheduler';
