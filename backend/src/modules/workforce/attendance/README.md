@@ -30,6 +30,8 @@ Chapters 6 and 7: staff clock in and out on today's rota entry, undo within two 
 | F2 | `POST .../fixes/preview` | `time.fix` | Writes nothing. |
 | F3 | `POST .../fixes` | `time.fix` | `{ action: EDIT\|ADD\|VOID, employeeId, date, ..., reason }`. 409 `FIX_BREAKS_ORDER`, `EVENT_NOT_FOUND`, `PERIOD_CLOSED`; 400 `FIX_WRONG_DAY`, `FIX_IN_FUTURE`. |
 | L1 | `GET .../lateness?from&to&siteId&employeeId&includeOnTime` | `timesheet.read` | Up to 62 days. |
+| T1 | `GET .../time/month?employeeId&month&filter&page&pageSize` | `timesheet.read` | The Time tab (Schedule V1): a person's month, newest first, five summary figures, filter chips with counts, paging. A head has no `timesheet.read`, so no tab. |
+| T2 | `GET .../time/tiles?employeeId` | `timesheet.read` | Overview tiles: On time (30 days incl. today), Overtime (approved this month); Leave left is "Not set". |
 | S1 | `GET .../switch` | `today.read` | |
 | S2 | `PUT .../switch` | `attendance.switch` | `{ siteId, enabled }`. 409 `OPEN_LEGACY_CLOCK_IN`. |
 
@@ -45,6 +47,15 @@ Out-of-scope reads and writes on another branch answer 404; a head outside their
 | HR Manager | no | all | no | all (and closed periods) | all | no |
 | Director | no | all (read) | no | no | all | no |
 | System Admin | no | all | all | all | all | yes |
+
+## Schedule V1: the Time tab and the board's states (24 Oct 2026)
+
+Spec: `docs/features/workforce/final-pass/design-notes-2-v1.md`; API: `docs/API_CONTRACT.md` section 48.
+
+- **Time tab rules.** One load per read (shifts, clock events, rules per day, leave, overtime), never one read per day. A day is shown only when it proves something: a day with a clock-in, or, while the clock is on and from the day it was switched on (`attendance_site_switches.enabled_at`), a day off, leave, a rostered day ahead or an absence. Before the switch-on day, while the clock is off, for someone who does not clock, and outside the person's employment, only days with a clock-in appear (none for a person who does not clock). "Absent" is a rostered shift that is over with no clock-in and no approved leave.
+- **Late** is the lateness report's test (past the grace time) and its minutes are minutes past the grace time, in the rows, the summary and `last30` alike. **Overtime** is `overtime_items.authorised_minutes` for `AUTO_AUTHORISED`, `APPROVED` and `APPROVED_PART`, read straight from the items (not only from approved months).
+- **Board.** `readOnly`, `actions`, `clock`, `pastDay` and `fixedAfterTheDay` come from `board/board-mode.ts`. A past day is judged as it ended and has no `asOf`; `clock.whoCanSwitch` reads the access table. With the clock off the board answers without people but keeps On leave real.
+- Out of scope here: Unaccounted items and the lateness actions (V3, V4), leave balances (section 7).
 
 ## The switch and rollback
 
@@ -67,6 +78,7 @@ attendance/
   board/     board-view (pure), board-service, clock-for-service, on-shift-now, repositories, validators, controller
   fixes/     fixes-plan (pure), fixes-service, history-service, period-lock, fields, validators, controller
   lateness/  lateness-service, validators, controller, legacy-lateness-finding.test.ts
+  time-tab/  time-tab-view (pure), time-tab-service, time-tab-repository, validators, controller (Schedule V1)
   switch/    switch-service, switch-carry, switch-repository, legacy-clock-guard, controller
   legacy/    legacy-clock-repository
 ```
@@ -81,4 +93,4 @@ Reads the rota's entries and templates, the Rules store (`ATTENDANCE`, `LATENESS
 
 ## Tests
 
-Unit: day model, clock rules (offline, wrong phone clock, early leave, location), fix rules, board, auto-close, validators. Routes: 44 cases. Database: `attendance-flow-db.test.ts` (14 flows). Three-zone run: `pnpm test:workforce-tz`. The database flows run only when `DATABASE_URL` names a lane database; run them one file at a time (`vitest run --no-file-parallelism src/modules/workforce`), because the attendance flow adds legacy fixture rows that the rota flow's "legacy tables unchanged" check would otherwise see.
+Unit: day model, clock rules (offline, wrong phone clock, early leave, location), fix rules, board, auto-close, validators. Routes: 44 cases. Database: `attendance-flow-db.test.ts` (14 flows). Time tab and board states (Schedule V1): `time-tab/time-tab-view.test.ts` (pure), `time-tab-validators.test.ts`, `board/board-mode.test.ts`, route cases in `attendance-routes.test.ts`, and `time-tab/time-tab-flow-db.test.ts` (8 flows: month, filter and paging, read-only Accountant, scope, does-not-clock, clock-off, tiles, past-day and clock-off board). Three-zone run: `pnpm test:workforce-tz`. The database flows run only when `DATABASE_URL` names a lane database; run them one file at a time (`vitest run --no-file-parallelism src/modules/workforce`), because the attendance flow adds legacy fixture rows that the rota flow's "legacy tables unchanged" check would otherwise see.

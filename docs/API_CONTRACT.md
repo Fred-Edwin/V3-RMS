@@ -5374,7 +5374,7 @@ Base `/api/v1/workforce/attendance`. Every route: `authenticate`, `attachWorkfor
 | C3 | `POST /clock-out` | `time.own` | as C2 + `reasonCode?`, `reason?` (required before the scheduled end) | 201 / 200 `{ replayed, event, undoUntil, leftEarlyMinutes }` |
 | C4 | `POST /undo` | `time.own` | `{ clientEventId }` | `{ replayed, undid }` |
 | C5 | `POST /shift-end` | `time.own` | `{ rotaEntryId, answer: 'STAY_ON', reasonCode, estimateMinutes? }` | 201 / 200 |
-| B1 | `GET /board` | `today.read` | `siteId?`, `date?` | `BoardView` (tiles, departments, people, attention) |
+| B1 | `GET /board` | `today.read` | `siteId?`, `date?` | `BoardView` (tiles, departments, people, attention), plus from Schedule V1 `readOnly`, `actions`, `clock`, `pastDay`, `fixedAfterTheDay` (section 48) |
 | B2 | `POST /clock-for` | `today.act` | `{ employeeId, type: IN\|OUT, at, reason, rotaEntryId? }` | 201 |
 | F1 | `GET /day` | `timesheet.read` | `employeeId`, `date` | `DayHistory` (every event with its status) |
 | F2 | `POST /fixes/preview` | `time.fix` | as F3 | `{ before, after }` in minutes |
@@ -5648,4 +5648,28 @@ All routes: `authenticate`, `attachWorkforceSubject`; success `{ success: true, 
 | `GET /workforce/needs-you/counts` | `needs_you.read` | Now also returns `overdue`, the same shape as `badges`, so the sidebar can mark the features that hold overdue items (red-brown mark). |
 | `GET /workforce/notifications?unread&area&q&page&pageSize` | `notifications.own` | Own rows for the bell's drawer (desktop) and full page (phone). `unread` is `true` or `false` (default `false`); `area` is one of `PAY`, `TIME`, `LEAVE`, `PEOPLE`, `RULES`, `SECURITY`, `CONDUCT`, `DOCUMENTS`; `q` is up to 80 characters; `pageSize` is 10, 25, 50 or 100 (default 25). Returns `{ items[], total, all, areas[], unread, page, pageSize }`: `total` is the rows matching the filters, `all` is every row the person has, and `areas` is `[{ area, count }]` for the chips, ignoring every filter, largest first. Unknown query keys are refused (`400`). |
 | `POST /auth/login` | public | Adds `429 LOGIN_SLOWED` with `details.waitSeconds` (section Auth). |
+
+## 48. Workforce — Schedule V1: the Time tab and the board's states (BUILT 24 Oct 2026, back end only)
+
+Base `/api/v1/workforce/attendance`; same guards as section 37 (`authenticate`, `attachWorkforceSubject`, `requireCapability`, Zod on the query). Code: `backend/src/modules/workforce/attendance/time-tab/` and `board/`. Design: `docs/features/workforce/final-pass/design-notes-2-v1.md`. (Numbered 48 here; the orchestrator renumbers at the merge if another vertical took 48.)
+
+| # | Method and path | Capability | Query | Success |
+|---|---|---|---|---|
+| T1 | `GET /time/month` | `timesheet.read` (a department head has none: 403 at the route, so no Time tab) | `employeeId`, `month` (`2026-10`), `filter?` (`all`\|`late`\|`overtime`\|`absent`, default `all`), `page?` (1), `pageSize?` (10, 25 or 50; default 10) | `TimeMonth` |
+| T2 | `GET /time/tiles` | `timesheet.read` | `employeeId` | `TimeTiles` |
+
+Another branch, or a person outside the caller's scope, answers 404. Scope is the access table's: the Branch or Store Manager their own unit, HR, the Director, the Accountant and the System Admin all.
+
+**`TimeMonth`**: `{ employeeId, name, positionName, siteId, siteName, month, clocks, clockOn, emptyReason, canEditTime, summary, last30, counts, filter, page, pageSize, total, rows[] }`.
+- `clocks`: the file's "tracks time". `clockOn`: the branch clock. `emptyReason`: `DOES_NOT_CLOCK` (person is not on the clock), `CLOCK_OFF` (clock is off and there is no day to list), else `null`. These pick the two empty states of frame 1.4.
+- `canEditTime`: show "Edit time" (needs `time.fix` in scope and not the caller's own file). The Accountant gets `false`.
+- `summary`: `{ daysWorked, rosteredDays, workedMinutes, lateDays, lateMinutes, overtimeApprovedMinutes, absentDays }`. Late means clocked in past the grace time; `lateMinutes` is minutes past the grace time (the lateness report's own figure). Overtime is what a manager approved (`AUTO_AUTHORISED`, `APPROVED`, `APPROVED_PART`); declined counts nothing.
+- `last30`: `{ from, to, lateDays, lateMinutes }` for the 30 days up to and including today ("Late in the last 30 days: 3 days, 29 minutes. Includes today.").
+- `counts`: `{ all, late, overtime, absent }` for the chips, before the filter and the paging. `total` is the rows after the filter.
+- `rows[]`, newest first: `{ date, kind, shifts[{templateName,startTime,endTime}], clockedInAt, clockedOutAt, workedMinutes, late, minutesLate, minutesAfterGrace, overtimeApprovedMinutes, soFarMinutes, edited, autoClosed }`. `kind` is `WORKED`, `ON_SHIFT` (today's tinted row; `soFarMinutes` set, `clockedOutAt` null), `ABSENT`, `NOT_IN`, `UPCOMING`, `DAY_OFF`, `ON_LEAVE`. Use `minutesAfterGrace` for the "Late 12 min" tag so the row and the summary agree.
+- Left out on purpose: days before the person started or after they left; free future days; and, because a missing clock-in proves nothing there, rostered days before the clock was switched on and every day with no clock-in while the clock is off (no "Absent" is ever invented). A person who does not clock has no rows.
+
+**`TimeTiles`**: `{ employeeId, clocks, clockOn, onTime: { tracked, onTime, worked, from, to }, overtime: { tracked, month, approvedMinutes }, leaveLeft: { state: 'NOT_SET' } }`. "On time" is shifts clocked in within grace out of shifts worked in the 30 days up to and including today ("17/20 shifts, last 30 days"). `tracked: false` shows "Not tracked / Does not clock in".
+
+**B1 `GET /board` adds** (the existing fields are unchanged): `readOnly` (the date is before today), `actions: { clockFor, fixTime }` (`clockFor` is false on a past day and when the clock is off), `clock: { on, siteName, canSwitch, whoCanSwitch[] }`, `pastDay: { tag, line, tiles }` (null on a live day; the "Past day · read only" tag, the "This day is over…" line and the tile names WORKED, LATE, ABSENT, ON LEAVE) and `fixedAfterTheDay[{ employeeId, name, changes }]` (past day only: clock times a person changed after the day ended). On a past day `asOf` is `''` (no "expected by"). With the clock off, `enabled` is `false`, `clock.on` is `false`, `people` is empty, and the tiles On shift, Late and Not in are zero with nothing to chase; `tiles.onLeave` is real (`available: true`) on every board. `whoCanSwitch` is read from the access table (today: Director, System Admin).
 

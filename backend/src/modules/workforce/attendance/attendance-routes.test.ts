@@ -29,6 +29,7 @@ vi.mock('./board/clock-for-service', () => ({ clockForSomeone: answer }));
 vi.mock('./fixes/fixes-service', () => ({ applyFix: answer, previewFix: answer }));
 vi.mock('./fixes/history-service', () => ({ dayHistory: answer }));
 vi.mock('./lateness/lateness-service', () => ({ latenessReport: answer }));
+vi.mock('./time-tab/time-tab-service', () => ({ personMonth: answer, personTiles: answer }));
 vi.mock('./switch/switch-service', () => ({ getSwitch: answer, setSwitch: answer, listSwitches: answer }));
 
 import router from './attendance-routes';
@@ -59,6 +60,8 @@ const cases: Case[] = [
   { method: 'post', path: `${A}/fixes/preview`, body: fix, capability: 'time.fix', status: 200 },
   { method: 'post', path: `${A}/fixes`, body: fix, capability: 'time.fix', status: 201 },
   { method: 'get', path: `${A}/lateness?from=2026-10-01&to=2026-10-12`, capability: 'timesheet.read', status: 200 },
+  { method: 'get', path: `${A}/time/month?employeeId=${id}&month=2026-10`, capability: 'timesheet.read', status: 200 },
+  { method: 'get', path: `${A}/time/tiles?employeeId=${id}`, capability: 'timesheet.read', status: 200 },
   { method: 'get', path: `${A}/switch?siteId=${id}`, capability: 'today.read', status: 200 },
   { method: 'put', path: `${A}/switch`, body: { siteId: id, enabled: true }, capability: 'attendance.switch', status: 200 },
   { method: 'get', path: `${A}/switch/sites`, capability: 'today.read', status: 200 },
@@ -115,6 +118,18 @@ describe('Attendance routes', () => {
     expect((await request(app).post(`${A}/clock-for`).set('x-test-user', head).send({ employeeId: id, type: 'IN', at, reason: 'Phone battery died' })).status).toBe(201);
     expect((await request(app).post(`${A}/fixes`).set('x-test-user', head).send(fix)).status).toBe(403);
     expect((await request(app).put(`${A}/switch`).set('x-test-user', head).send({ siteId: id, enabled: true })).status).toBe(403);
+  });
+
+  it('the Time tab: a department head has none, the Accountant reads it, and bad queries never reach the service', async () => {
+    const month = `${A}/time/month?employeeId=${id}&month=2026-10`;
+    expect((await request(app).get(month).set('x-test-user', as('WAITER', { isDepartmentHead: true }))).status).toBe(403);
+    expect((await request(app).get(month).set('x-test-user', as('ACCOUNTANT'))).status).toBe(200);
+    answer.mockClear();
+    const hr = as('HR_MANAGER');
+    expect((await request(app).get(`${A}/time/month?employeeId=${id}&month=2026-13`).set('x-test-user', hr)).status).toBe(400);
+    expect((await request(app).get(`${A}/time/month?employeeId=${id}&month=2026-10&filter=bogus`).set('x-test-user', hr)).status).toBe(400);
+    expect((await request(app).get(`${A}/time/tiles`).set('x-test-user', hr)).status).toBe(400);
+    expect(answer).not.toHaveBeenCalled();
   });
 
   it('the Accountant reads time and lateness but cannot see the board or act on it; the Store Attendant clocks like staff', async () => {
