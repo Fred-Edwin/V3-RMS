@@ -81,6 +81,8 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 | C9 | A staff member with no shift today (Cynthia) | The Home has **no clock card and no message** (no "No shift today", no "Next shift Monday 06:00"); a refused clock cannot be seen from the phone because there is nothing to tap | New |
 | C10 | Sign-in, device step on a phone | Good: "first sign-in on this phone", "Chrome on a phone", short hero; the PIN step did not appear after "Trust this device" (same as A18) | Works well |
 
+**Not seen by me in role 3 (owner chose to skip the wait, 24 Oct):** the 10-minute heads-up, the shift-end question (Finish now, Stay on and its reasons, the list of open items), Clock out and the two-minute Undo, an offline tap. By the design (Paper Chapter 6 steps 1 to 6) and the front-end README these screens exist, but they are replaced by the new shift-end flow in the change log (section B), so they will be walked after the rebuild.
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.
