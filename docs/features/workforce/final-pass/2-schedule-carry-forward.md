@@ -99,7 +99,7 @@ Roles: **BM** Branch Manager (Nyeri Town), **Head** department head, **Staff** s
 
 | # | Owner said | My reading | Size | Needs a Paper design? |
 |---|---|---|---|---|
-| F1 | "The copy from last week needs to be improved." | The "Start from last week" dialog (Ch 5 step 3): its wording and what it shows need a better design. Not yet said what is wrong; ask during the watch. | S to M | yes |
+| F1 | "The copy from last week needs to be improved." | The "Start from last week" dialog (Ch 5 step 3): its wording and what it shows need a better design. Owner clarified: for a new user "Start from last week" does not make sense as worded; only the text needs to be clearer and more intuitive, a small change, not a redesign. | S | no (copy only; Paper frame 03 gets the new words) |
 | F2 | "Redesign the department head's homepage, containing many different elements and reflecting all aspects of their role." | A new head Home (desktop and phone) covering their own clock and week, their team today (who is in, late, not in), their team's shifts, probation reports, requests and notices, and requisitions. This replaces the round 1 frames 1.6 and 1.10 for heads. The exact list of elements is for the design step. | L | yes |
 | F3 | "Redesign the homepage for staff members who are not department heads." | A new staff Home (desktop and phone): clock, this week, notices, my file, my leave, my payslips. Replaces frames 1.7 and 1.11 for staff. | L | yes |
 | F4 | "The large clock where they clock in and out takes too much vertical space." | Shrink the Chapter 6 clock card (the big 00:12:00 timer and the progress bar) so the rest of Home is visible without scrolling. Applies to heads and staff. | M | yes |
