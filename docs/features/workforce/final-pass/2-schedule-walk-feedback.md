@@ -16,6 +16,8 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 | 7 | Staff and head screens (all) | Pages across the system | "We need to include some copy in these screens that informs the user of the purpose of the page or how they should use the page. Keep it simple, clear, and intuitive, and ensure it does not mess up the design. But this might span not only these screens but all across the system." | Some pages have a subtitle (Shifts types, My team), most do not. Proposal in the change log, section K (P4). | Proposal pending |
 | 8 | Staff member on a phone | All findings C1 to C10 | "I agree with the observations. Let's proceed." | Folded into the change log section J (W42 to W47). | Agreed |
 
+| 9 | HR | All findings D1 to D8 | "I agree with the observations. Next." | Folded into the change log section J (W50 to W56). | Agreed |
+
 ## Part 2: what the agent saw and the owner did not mention
 
 ### Role 1: Branch Manager, Nyeri Town (Faith Wambui)

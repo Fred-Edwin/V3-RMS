@@ -212,6 +212,20 @@ From role 3, staff member on a phone (owner agreed with all findings C1 to C10, 
 
 W20 (naming), W23 (person label) and W24 (Latest shows only what concerns the role) also cover the role 3 findings C4, C5 and the footer.
 
+From role 4, HR (owner agreed with findings D1 to D8, 24 Oct 2026):
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W50 | **HR, Director and System Admin Homes show attendance:** per branch late and not in today, thin days this week, items needing an owner and Unaccounted items (section C); today the Homes are all people numbers | D1 | M | yes (with the Home redesign) |
+| W51 | **Shifts for company-wide roles:** open on the first site in Paper's order (Town first) or an all-sites summary, remember the last site chosen; a person's label never cuts the name (cut the site first, then the position) | D3 | S | no |
+| W52 | **Lateness reads one way everywhere:** "Late in the last 30 days" includes today; HR and the Director see the late actions of P1 where their access allows (read for the Director) | D5, P1 | M | with P1 |
+| W53 | The "Not available" text for the attendance switch says **System Admin only**, and the page is titled "Attendance switch" (not "Attendance clock"); extends W40 and W47 | D6 | S | no |
+| W54 | **Employee file: the Time and Leave tabs become real** (a person's attendance: days, lateness, overtime, the unaccounted items; leave balance and requests) and the Overview tiles "On time", "Overtime", "Leave left" show real figures | D7, row 12 | L | yes (no frame draws the Time tab) |
+| W55 | The menu has a top "Home" and also "Workforce / Overview", both opening the same page: keep one | D2 | S | decision |
+| W56 | Today board's branch chooser lists **Central Store** as a "Branch": label it "Site", or leave the hub out where it has no shifts | D8 | S | decision |
+
+**Regression guard (role 4):** HR sees the cost estimate on Shifts and the print stays free of it; "Every site" for shift types; the branch chooser on the Today board; HR gets no "Clock in for"; the not-available screen.
+
 **Regression guard, keep as it works today (verified by the watch):** My shifts and My time on a phone (clear, with a TODAY marker); the phone sign-in device step; "This week" on a phone; Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
 
 ## H. Findings from the watch (merged into section J after each role)
