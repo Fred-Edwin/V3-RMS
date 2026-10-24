@@ -30,4 +30,4 @@ Bring up to date with the Edit tool only: each touched module README and sub-mod
 Edit and Write tools only; a live task list; no subagents; files at most 350 lines and folders at most 12 files for anything you add or touch; no he, she, her or his; role alone or name plus role, never a bare name. Leave the attendance switch off and servers stopped.
 
 ### Final message
-(1) decisions table, (2) 5-line recap, (3) per job: what changed, the test counts per area, **Deleted** and **Kept, because X still uses it**, what you saw in Job 3, rule slips, anything left and where it goes. Nothing "to do". **Do not draft the next session's prompt.** Stop for the owner.
+(1) decisions table, (2) 5-line recap, (3) per job: what changed, the test counts per area, **Deleted** and **Kept, because X still uses it**, rule slips, anything left and where it goes. Nothing "to do". **Do not draft the next session's prompt.** Stop for the owner.
