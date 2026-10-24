@@ -10,8 +10,7 @@ Written 24 Oct 2026 from the approved Paper frames, the module notes and a few c
 - **Department head** plans their own team's week on a phone (pick a day, a person, a shift). They see only their departments, and they cannot create shift types or fix time.
 - **Staff member** sees their own shifts and clocks in and out on a phone.
 - **HR** can build or edit any branch's shifts and any shift type, can fix time, including after a pay period has closed.
-- **Director** reads everything but changes no clock and no week; they can add company-wide shift types.
-- **System Admin** can edit shifts and fix time, and is the only role who turns the new clock on or off for a branch.
+- **Director and System Admin** have full access to Workforce since the access change of 21 Oct 2026: both can edit shifts, add company-wide shift types, clock someone in, fix time, and turn the new clock on or off for a branch (each cannot change their own time).
 - The Accountant and Store Attendant have no week to edit; they see only their own shifts.
 
 ## The normal week, step by step
@@ -35,12 +34,12 @@ Written 24 Oct 2026 from the approved Paper frames, the module notes and a few c
 - **Leaving early** asks for a reason (sent home, unwell, emergency, other).
 - **The shift-end prompt exists** so overtime is never an accident: when the shift ends the person must say Finish now or Stay on with a reason. If nobody answers for 15 minutes, the system closes the shift at the scheduled end and flags it for the manager. A clock-in left open past midnight is closed the same way. The prompt also lists what is still open in the person's job (open tables for a waiter, tickets for a barista or chef, dispatches for a store attendant) but never stops them finishing.
 - **No signal**: the tap is kept on the phone with its real time and sent when the signal returns. A phone whose own clock is wrong is flagged, and every counter runs on the server's time in Nairobi.
-- **Who may fix time**: Branch Manager and Store Manager (own branch), HR and System Admin (all). Always with a reason of at least three characters. Nobody can change their own time. A fix must not leave a clock-out without a clock-in.
+- **Who may fix time**: Branch Manager and Store Manager (own branch), HR, the Director and the System Admin (all). Always with a reason of at least three characters. Nobody can change their own time. A fix must not leave a clock-out without a clock-in.
 - **What is kept**: every clock event is append-only (the database refuses changes). A fix adds a correcting entry that points at the old one; the old value stays visible in the history, and the person is told what changed and by whom. The preview shows the day before and after, in minutes.
 - **Lateness** is computed in Nairobi time from the first clock-in of each shift, using the grace minutes in Rules. It is data only; no pay deduction exists yet.
 
 ## The switch and the old clock
-Each branch has a switch, **off by default**. While it is off the old clock is the only clock and nothing new shows. The System Admin turns it on per branch.
+Each branch has a switch, **off by default**. While it is off the old clock is the only clock and nothing new shows. The Director or the System Admin turns it on per branch (decision of 21 Oct 2026; earlier notes said System Admin only).
 - **On**: refused while anyone is still clocked in on the old clock. Otherwise today's finished old records are carried over, and the four old clock routes stop working for that branch (they answer "moved to new attendance").
 - **Off**: today's new clock events are written back as old records so the old clock keeps working, and anyone whose shift exists only in the new plan is listed.
 - Past days stay with whichever clock recorded them. In this lane's data the switch is on for the two demo branches.
