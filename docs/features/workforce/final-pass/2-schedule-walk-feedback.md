@@ -18,6 +18,8 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 
 | 9 | HR | All findings D1 to D8 | "I agree with the observations. Next." | Folded into the change log section J (W50 to W56). | Agreed |
 
+| 10 | Director | All findings E1 to E4 | "I agree with your observations. Let's proceed." | Folded into the change log section J (W57 to W59). | Agreed |
+
 ## Part 2: what the agent saw and the owner did not mention
 
 ### Role 1: Branch Manager, Nyeri Town (Faith Wambui)

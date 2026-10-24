@@ -224,7 +224,7 @@ From role 4, HR (owner agreed with findings D1 to D8, 24 Oct 2026):
 | W55 | The menu has a top "Home" and also "Workforce / Overview", both opening the same page: keep one | D2 | S | decision |
 | W56 | Today board's branch chooser lists **Central Store** as a "Branch": label it "Site", or leave the hub out where it has no shifts | D8 | S | decision |
 
-From role 5, Director (awaiting the owner's confirmation):
+From role 5, Director (owner agreed with findings E1 to E4, 24 Oct 2026):
 
 | # | Correction | From | Size | Needs a Paper design? |
 |---|---|---|---|---|
