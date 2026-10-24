@@ -5,7 +5,7 @@ import { resolveActor } from '../../people/people-context';
 import { cellsRepository } from '../cells/cells-repository';
 import { applyCellChanges, type ApplyResult } from '../cells/cells-apply';
 import type { CopyBody } from './copy-validators';
-import { assertWeekStart, needsReason } from '../rota-days';
+import { assertWeekStart } from '../rota-days';
 import { gridScope } from '../rota-scope';
 import { templateFits } from '../templates/template-rules';
 import { templatesRepository } from '../templates/templates-repository';
@@ -74,9 +74,9 @@ async function build(subject: AccessSubject, body: CopyBody, now: Date): Promise
 export const copyService = {
   /** W-copy preview: "116 shifts, 31 people, 2 left out"; writes nothing. */
   async preview(subject: AccessSubject, body: CopyBody, now: Date = new Date()): Promise<CopyPreview> {
-    const { plan, copiedFrom, weekStart, today } = await build(subject, body, now);
-    const { changes, ...summary } = plan;
-    return { ...summary, weekStart, copiedFrom, reasonRequired: false };
+    const { plan, copiedFrom, weekStart } = await build(subject, body, now);
+    // The copy never asks for a reason (owner, 24 Oct 2026: the reason is optional on every shift change); the field stays for old callers.
+    return { clashes: plan.clashes, kept: plan.kept, shiftsCopied: plan.shiftsCopied, people: plan.people, skippedPast: plan.skippedPast, weekStart, copiedFrom, reasonRequired: false };
   },
 
   /** Copies into empty cells of the target week; occupied cells and clashes are left alone. One audit entry. */
