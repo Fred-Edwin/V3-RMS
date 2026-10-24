@@ -117,6 +117,19 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 
 **Not covered for the Director:** Shift types (same page as HR, "Every site" available), the employee Time tab (same as HR), the Director's phone.
 
+### Role 6: System Admin (Alex Njoroge, desktop)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| F1 | Menu and Home | The menu holds only **Home** and **Company** (Security alerts, Audit log, **Attendance clock**, Rules, Users, Branches, Menu items); no Workforce rows. Home: security and account numbers, "Needs you" with a pay change and the closed-shift review (both asked of the admin although pay approval is not the admin's step) | New |
+| F2 | Attendance switch screen | Simple and clear: one row per site (Central Store "Old clock", Nyeri Highway and Nyeri Town "New clock, on since 2026-08-01"), one button each. Notes: the page is titled "**Attendance clock**" (it is the switch) under a "Workforce" breadcrumb though it sits under Company; dates show as 2026-08-01; **Central Store**, which has no shifts, is offered "Switch on"; one purpose line exists (a good model for D21) | Predicted gap M1 |
+| F3 | "Switch off" and "Switch on" dialogs | The best-worded dialogs in the walk: a clear question, four plain bullets (the old clock works again, today's times are copied, past days stay, it is audited), a red confirm button. Gaps: **no PIN** is asked for flipping a whole branch (other sensitive acts ask); the "on" text says "against the **rota**" and "a question at the end of the shift" (changes with the new shift-end flow); no mention of anyone currently clocked in on the new clock when switching off | New |
+| F4 | Shifts and Today board addresses | **Refused** ("Shifts is for HR, the Director, the Accountant, Branch Managers and Store Managers", "Today board is for HR, the Director, Branch Managers and Store Managers"). The back end gives the System Admin every Workforce capability (access change, 21 Oct), but the round 1 menu design says the admin has only Home and Company and "acts as a user instead". The page gate follows the menu design. A **conflict between two owner decisions of 21 Oct** to settle, not a plain fault | New |
+| F5 | Attendance switch, unplanned | I did not confirm any switch (it would change the clock for a branch); the "someone is clocked in on the old clock" refusal text was not seen, only its text in the Switch on dialog | Not seen by me |
+
+**Worked well:** the switch screen and both dialogs; the purpose line on the switch page; the security numbers on Home.
+**Not covered for the System Admin:** a real switch on or off; the refusal when someone is still clocked in on the old clock; Act as another user; the employee file (the admin has none).
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.

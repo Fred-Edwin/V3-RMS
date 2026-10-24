@@ -232,6 +232,14 @@ From role 5, Director (owner agreed with findings E1 to E4, 24 Oct 2026):
 | W58 | **Route the "closed by the system" item to the owner of the shift** (the Branch Manager, then the Director), not only the Director; retired anyway by D19 once the new shift-end flow exists | E2 | S | no |
 | W59 | **Rule for builders:** when an access decision changes, update the front-end route gate and the menu table in the same change; list every page that names roles in its "Not available" text and check them (the text is built from the access table) | E1 | S | no |
 
+From role 6, System Admin (awaiting the owner's confirmation):
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W60 | **Decide the System Admin's reach in Workforce.** The API gives full access (21 Oct), the round 1 menu says Home and Company only and "acts as a user", and the page gate refuses Shifts and the Today board. Options: (a) keep the gate and menu (admin acts as a user to plan or read), tighten the API to match; (b) open Shifts and the Today board to the admin and add menu rows. My suggestion: (a), because the admin is a technical role and the Act as feature exists | F4 | S to M | decision |
+| W61 | **Switch screen polish:** title and breadcrumb "Attendance switch" under Company; plain dates ("1 Aug 2026"); hide or explain Central Store (no shifts); ask the admin's PIN to switch a branch on or off; the dialog says "shifts" not "rota" and describes the new shift-end flow; say what happens to anyone clocked in when switching off | F2, F3 | S to M | no (words and a PIN step) |
+| W62 | The admin's Home "Needs you" lists pay and closed-shift items the admin cannot act on: show only what the role can decide | F1 | S | no |
+
 **Regression guard (role 4):** HR sees the cost estimate on Shifts and the print stays free of it; "Every site" for shift types; the branch chooser on the Today board; HR gets no "Clock in for"; the not-available screen.
 
 **Regression guard, keep as it works today (verified by the watch):** My shifts and My time on a phone (clear, with a TODAY marker); the phone sign-in device step; "This week" on a phone; Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
