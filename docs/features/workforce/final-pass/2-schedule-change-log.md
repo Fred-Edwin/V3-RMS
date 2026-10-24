@@ -112,6 +112,7 @@ Decisions (owner, in the Branch Manager part of the watch):
 | D17 | Cells on the Shifts grid show the **timings** (06–14), not the shift names. The name stays in the tooltip, the picker and the legend. Reverses the 18 Oct decision to show names | Agreed |
 | D18 | The **reason is optional** when editing a shift, including for today and tomorrow. The dialog stays as a light "who is told" confirmation, with Save always enabled. Reverses rota backend decision R3. The leave-override reason is a separate question (see Q8) | Agreed |
 | D20 | A **department head may clock someone in** for people in their own department (owner, 24 Oct). Supersedes the Paper note that only the Branch Manager does | Agreed |
+| D21 | **Every page carries a purpose line** (section K, P4): one plain sentence under the title, a "?" only on complex screens, dialogs start with what will happen, one copy file per feature with a test. It becomes a rule in `UI_BUILD_RULES.md` (W49) and is piloted on the Schedule screens (W48) | Agreed |
 | D19 | The "Closed by the phone at 22:00" notice and its dialog are **retired** once the new shift-end flow exists, because the system clocks people out at the scheduled end. What remains is the "Needs an owner" and "Unaccounted" lists (section C) and a small check for an approved overtime that ran past its approved end | Agreed in principle, to confirm |
 
 Proposals the owner asked for (not yet agreed):
@@ -155,7 +156,7 @@ P1, P2 and P3 stay proposals until the owner confirms them as a whole; the four 
 
 New work items: **W14** cells show timings (S); **W15** optional reason on shift edits, dialog change (S); **W16** retire the closed-by-phone notice and dialog with the shift-end work (part of W5, W6, W10); **W17** lateness actions, P1 (L, design needed); **W18** past and today styling, P2 (M, design needed); **W19** fast planner, P3 (L, design needed).
 
-## K. Proposal: a purpose line on every page (owner asked, 24 Oct 2026; not yet decided)
+## K. A purpose line on every page (owner asked and **agreed it as a rule, D21**, 24 Oct 2026)
 
 The owner wants each screen to tell the person, in plain words, what the page is for and how to use it, without crowding the design, and thinks this spans the whole system.
 
