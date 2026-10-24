@@ -154,6 +154,37 @@ P1, P2 and P3 stay proposals until the owner confirms them as a whole; the four 
 
 New work items: **W14** cells show timings (S); **W15** optional reason on shift edits, dialog change (S); **W16** retire the closed-by-phone notice and dialog with the shift-end work (part of W5, W6, W10); **W17** lateness actions, P1 (L, design needed); **W18** past and today styling, P2 (M, design needed); **W19** fast planner, P3 (L, design needed).
 
-## H. Findings from the watch (to be added after the watch)
+## J. Corrections confirmed by the owner from the watch (roles 1 and 2, 24 Oct 2026)
+
+The owner agreed with all agent findings below. The references A and B point to the numbered tables in `2-schedule-walk-feedback.md`, which hold the detail. More roles add rows after each "next".
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W20 | **Naming sweep:** "Rota" becomes "Shifts" on every screen, button, breadcrumb, print page and notice; menu "My rota" becomes "My shifts"; "Rota · Nyeri Town" becomes "Shifts · Nyeri Town"; heads see "Shifts" or their department's name | A1, B6, B9, B11 | M | no |
+| W21 | **"Start from last week" wording** for a new user (what "last week" means, "Left out, need you") | A2, owner D5 | S | no (copy) |
+| W22 | Remove **"Arrives with Leave"** (the drawer and the board tile) and the drawer heading "TODAY" on a past day | A3, A9 | S | maybe (what replaces the On leave cell) |
+| W23 | **Person label everywhere** (name, position, site; the head reads "Barista · Head", not "Barista") on Home cards, drawers, sign-in line | A4, B4, B7 | M | no |
+| W24 | **Home "Needs you" and Latest:** show only what concerns the role (no "Payroll paid" for a head), name the person ("Someone will be on leave" names them); the phone-closed item goes with D19 | A5, B5 | M | no |
+| W25 | **Dialog fixes:** Edit time lists clock-in before clock-out, Edit and Remove in the amber underlined style, no "overtime approval" sentence until the new flow exists; the closed-by-phone dialog goes with D19 | A6, A7 | S | no |
+| W26 | **Flag an early clock-out** on the Today board (for example "Left 2 h 40 min early, no reason") so it can get an action (ties to P1 and the leave reason chips) | A8 | M | yes, with P1 |
+| W27 | Past-day board wording ("expected by 00:00", "ON SHIFT NOW" on a day that ended) | A9 | S | no |
+| W28 | **Empty week state:** an unstarted week says "Not started", not "14 thin days"; the legend lists the branch's shifts | A10 | S | no |
+| W29 | Footer "thin" count only for the thin department; dates in words ("Wed 28 Oct") in warnings | A11 | S | no |
+| W30 | Shift colours match Paper (Afternoon green, Mid-day amber); today marker (part of P2) | A12 | S | no |
+| W31 | **Print:** leave days print "Leave", not "off"; "Print the rota" and "WEEKLY ROTA" become Shifts wording | A13 | S | no |
+| W32 | Cell picker tells the person is on leave before a shift is chosen | A14 | S | no |
+| W33 | "Show retired" count equals the Retired number | A15 | S | no |
+| W34 | The Today board top bar gets the bell, like Home | A16 | S | no |
+| W35 | Fix the duplicate React key in `sidebar-menu.tsx` (console error on every page) | A17 | S | no |
+| W36 | **Heads:** hide "Clock in for" on the Today board (Paper: "a head decides nothing, so only the Branch Manager clocks a person in"); confirm in Decide whether a head may clock in for their team once overtime hand-over exists | B8 | S | decision |
+| W37 | **Head pages:** Team today titled for the department ("Barista team today", breadcrumb "Department / Team today"); head's Shifts hides the one-row department list and "Start from last week" unless wanted | B8, B9 | S | no |
+| W38 | **One definition of "on shift"** on My team, Team today, Home and Organisation (rostered, clocked in, not started) | B10 | M | no |
+| W39 | **Phone Shifts view:** one back arrow, "Needs 2 · Has 4", today marked in the day strip, timings in cells | B11, D17 | S | no |
+| W40 | "Not available" text names the right roles per page (no Accountant on Shifts; heads for the grid) | B12 | S | no |
+| W41 | Head Home, staff Home, clock card and This week card redesign | B1 to B3, D1 to D4 | L | yes (W1 to W4) |
+
+**Regression guard, keep as it works today (verified by the watch):** Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
+
+## H. Findings from the watch (merged into section J after each role)
 
 Left empty on purpose. The watch writes into `2-schedule-walk-feedback.md`; the orchestrator merges both into the Decide step.

@@ -38,7 +38,9 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 | A17 | Console, every page | Error: two sidebar menu children share one key (`sidebar-menu.tsx`, FeatureRow, "history"); harmless today, a risk later | New |
 | A18 | Sign-in | On a new device the "Confirm this device" step is shown; after "Trust this device" the PIN step did not appear and the page went straight to the app | Observed |
 
-**Unexplained change in the lane data (24 Oct, 09:40 Nairobi):** the audit log holds `rota.cells_changed` by Faith Wambui: Ann Wangui, Saturday 24 Oct, from "Day off" to "Morning", reason "Cover for a gap". The agent did not choose a reason or press Save in any dialog, and cannot tell whether this came from a stray click of its own or from a click in the shared window. It was left as is (a further edit would add another audit row). It is the only unexpected write.
+**Owner's change in the lane data (24 Oct, 09:40 Nairobi):** the audit log holds `rota.cells_changed` by Faith Wambui: Ann Wangui, Saturday 24 Oct, from "Day off" to "Morning", reason "Cover for a gap". The owner confirmed this was their own edit during the browser walkthrough; it is not a fault. It was left as is.
+
+**Owner's confirmation (24 Oct 2026):** the owner agreed with every agent finding in role 1 (A1 to A18) and role 2 (B1 to B12) as things that need correcting. They are folded into `2-schedule-change-log.md`, section J.
 
 **Worked well, no change needed:** the Today board numbers and department rows; "Clock in for Victor" (first name, required reason, button muted until a reason is chosen, nothing saved on Cancel); Edit time preview and history; the leave warning; the reason dialog for a change to tomorrow ("Cynthia is told", "Keep editing" saves nothing); Start from last week preview with clashes (Susan Wafula on approved leave); the shift types table (search, chips, numbered pager, rows per page); no "he" or "she" seen.
 
