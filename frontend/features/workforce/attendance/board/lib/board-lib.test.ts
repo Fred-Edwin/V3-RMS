@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { instantAt } from '../../_shared/lib/nairobi-clock';
 import type { Board, BoardPerson, BoardShift } from '../../_shared/types/attendance-types';
 import { bodyOf, changeProblem, eventRows, inOutWords, workedChangeWords } from '../../fixes/lib/fix-model';
-import { chipItems, departmentRows, kpiCells, liveLine, lookItems } from './board-view';
+import { chipItems, clockOffCopy, departmentCountRows, departmentRows, exceptionRows, fixedWords, kpiCells, liveLine, lookItems, whoCanSwitchWords } from './board-view';
 
 const shift = (over: Partial<BoardShift> = {}): BoardShift => ({
   entryId: 'e1',
@@ -41,6 +41,23 @@ const board: Board = {
     person('p4', 'Kelvin Kings', 'Kitchen'),
   ],
   attention: [{ kind: 'AUTO_CLOSED', employeeId: 'p9', name: 'Cynthia Wairimu', entryId: 'e9', date: '2026-10-10', templateName: 'Afternoon', closedAt: instantAt('2026-10-10', '22:00') }],
+  readOnly: false,
+  actions: { clockFor: true, fixTime: true },
+  clock: { on: true, organizationName: 'Nyeri Town', canSwitch: false, whoCanSwitch: ['Director', 'System Admin'] },
+  pastDay: null,
+  fixedAfterTheDay: [],
+};
+const pastDay: Board['pastDay'] = { tag: 'Past day · read only', line: 'This day is over. You can read it, and fix a clock time with Edit time.', tiles: { onShift: 'WORKED', late: 'LATE', notIn: 'ABSENT', onLeave: 'ON LEAVE' } };
+const clockOff: Board = {
+  ...board,
+  enabled: false,
+  asOf: '',
+  tiles: { onShift: { count: 0, expected: 0 }, late: { count: 0, minutesPastGrace: 0 }, notIn: { count: 0 }, onLeave: { count: 1, available: true } },
+  departments: [],
+  people: [],
+  attention: [],
+  actions: { clockFor: false, fixTime: false },
+  clock: { on: false, organizationName: 'Nyeri Town', canSwitch: false, whoCanSwitch: ['Director', 'System Admin'] },
 };
 
 describe('the Today board words', () => {
@@ -70,18 +87,68 @@ describe('the Today board words', () => {
     expect(rows[1]?.note).toEqual({ text: 'No head assigned', tone: 'error' });
   });
 
-  it('the numbers: on leave shows only when the server has it, and the cells act only when asked to', () => {
+  it('the four numbers on a live day: named without "NOW", "TODAY" kept only on leave, and the cells act only when asked to', () => {
     const cells = kpiCells(board);
-    expect(cells.map((c) => c.value)).toEqual(['1 of 4', '1', '1']);
+    expect(cells.map((c) => c.label)).toEqual(['ON SHIFT', 'LATE', 'NOT IN', 'ON LEAVE TODAY']);
+    expect(cells.map((c) => c.value)).toEqual(['1 of 4', '1', '1', '—']);
+    expect(cells[0]?.detail).toBe('expected by 06:42');
+    expect(cells[1]?.detail).toBe('7 min past grace');
+    expect(cells[2]?.detail).toBe('due 06:00, no clock-in');
     expect(cells[1]).toMatchObject({ actionable: false });
     const go = { late: () => undefined, notIn: () => undefined };
     expect(kpiCells(board, go)[1]).toMatchObject({ actionable: true });
-    expect(cells.some((c) => /arrives with/i.test(c.detail ?? ''))).toBe(false);
   });
 
-  it('a day that has passed drops "now" and "today" from the labels', () => {
-    const labels = kpiCells(board, undefined, true).map((c) => c.label);
-    expect(labels.join(' ')).not.toMatch(/NOW|TODAY/);
+  it('never writes "arrives with Leave": leave is real, or a plain dash', () => {
+    const real = kpiCells({ ...board, tiles: { ...board.tiles, onLeave: { count: 1, available: true } } })[3];
+    expect(real).toMatchObject({ value: '1', detail: 'approved' });
+    expect(JSON.stringify(kpiCells(board))).not.toContain('arrives with');
+  });
+
+  it('with the clock off, three tiles read "Not tracked / clock is off" and On leave stays real', () => {
+    const cells = kpiCells(clockOff);
+    expect(cells.map((c) => `${c.label}|${c.value}|${c.detail}`)).toEqual(['ON SHIFT|Not tracked|clock is off', 'LATE|Not tracked|clock is off', 'NOT IN|Not tracked|clock is off', 'ON LEAVE TODAY|1|approved']);
+    expect(cells.slice(0, 3).every((c) => c.tone === 'muted' && !c.actionable)).toBe(true);
+  });
+
+  it('a past day names its tiles from the server and words late as the minutes of each person', () => {
+    const past: Board = { ...board, readOnly: true, asOf: '', pastDay, actions: { clockFor: false, fixTime: true }, tiles: { ...board.tiles, onShift: { count: 20, expected: 22 }, late: { count: 2, minutesPastGrace: 16 }, notIn: { count: 1 } } };
+    past.people = [...past.people, person('p5', 'Dan Kiprop', 'Service', { state: 'LATE', minutesLate: 14, minutesAfterGrace: 9, late: true })];
+    const cells = kpiCells(past);
+    expect(cells.map((c) => c.label)).toEqual(['WORKED', 'LATE', 'ABSENT', 'ON LEAVE']);
+    expect(cells[0]).toMatchObject({ value: '20 of 22', detail: 'rostered, clocked in' });
+    expect(cells[1]).toMatchObject({ value: '2', detail: '7 and 9 min past grace', tone: 'warning' });
+    expect(cells[2]).toMatchObject({ value: '1', detail: 'due 06:00, never clocked in', tone: 'error' });
+  });
+
+  it('the clock-off card tells whoever can switch to do it, and everyone else whom to ask', () => {
+    const asker = clockOffCopy(clockOff, 'Nyeri Town');
+    expect(asker).toMatchObject({ title: 'The clock is off at Nyeri Town', canSwitch: false });
+    expect(asker.todo).toBe('Ask the Director or the System Admin to switch the clock on for Nyeri Town. Shifts and leave work as normal in the meantime.');
+    const switcher = clockOffCopy({ ...clockOff, clock: { ...clockOff.clock, canSwitch: true } }, 'Nyeri Town');
+    expect(switcher).toMatchObject({ canSwitch: true, todo: "Switch the clock on for Nyeri Town. Today's times are copied over and the board fills at once." });
+  });
+
+  it('who can switch reads as a sentence, from the table the server sent', () => {
+    expect(whoCanSwitchWords(['Director'])).toBe('the Director');
+    expect(whoCanSwitchWords(['Director', 'System Admin'])).toBe('the Director or the System Admin');
+    expect(whoCanSwitchWords(['Director', 'HR Manager', 'System Admin'])).toBe('the Director, the HR Manager or the System Admin');
+  });
+
+  it('a past day lists absent first, then late, each with its own words and no live actions', () => {
+    const rows = exceptionRows({ ...board, people: [person('p2', 'Lucy Wambui', 'Service', { state: 'LATE', minutesLate: 22, minutesAfterGrace: 7, late: true, clockedInAt: instantAt('2026-10-12', '06:22') }), person('p1', 'Esther Mwende', 'Service', { state: 'NOT_IN', clockedInAt: null })] });
+    expect(rows.map((r) => `${r.name}|${r.tone}|${r.status}`)).toEqual(['Esther Mwende|error|Absent · due 06:00, never clocked in · Service', 'Lucy Wambui|warning|Late 22 min · clocked in 06:22 · Service']);
+  });
+
+  it('by department: in over expected, the head, and "absent" on a past day or "not in" on a live one', () => {
+    expect(departmentCountRows(board, 'absent')[0]).toEqual({ key: 'd1', name: 'Service', ratio: '2 / 3', problem: true, note: 'Head Nancy Wangari · 1 late, 1 absent' });
+    expect(departmentCountRows(board, 'not in')[0]?.note).toBe('Head Nancy Wangari · 1 late, 1 not in');
+    expect(departmentCountRows(board, 'not in')[1]).toMatchObject({ ratio: '1 / 1', problem: false, note: 'No head assigned · Complete' });
+  });
+
+  it('says how many clock times were changed after the day, as the server counts them', () => {
+    expect(fixedWords(1)).toBe('1 clock time was changed after the day ended.');
+    expect(fixedWords(2)).toBe('2 clock times were changed after the day ended.');
   });
 
   it('the line under the title says what started, or that the day has passed', () => {

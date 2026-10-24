@@ -76,7 +76,7 @@ Found and fixed: picker had no arrow keys and lost focus on close; draft autosav
 | "Undo exit" button on the Overview of someone on notice | After the 30-second toast the undo would otherwise be lost until the last day passes |
 | Loading, error, no-access and "not on your list" states | States kit |
 | Details, bank, verify, ask/remind, photo, rehire, undo-exit dialogs | Named in the brief; Paper draws a button but not the form |
-| Tabs Time, Leave, Conduct drawn disabled with a "comes with a later slice" line | Paper draws the tabs, the slices come later |
+| Tab Leave drawn disabled with a "comes with a later slice" line | Paper draws the tab, the slice comes later. **Time** is live (24 Oct 2026, Schedule V1): `attendance/time-tab/`, offered only with `timesheet.read`; the Overview shows its three tiles for the same viewers |
 | Empty pay history line | First-pay state |
 | My file as one page with dialogs, not a full phone screen per form | See decision 17 |
 

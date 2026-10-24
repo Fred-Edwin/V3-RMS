@@ -32,7 +32,8 @@ export function PageHeader({
   size = 'md',
   className,
 }: {
-  title: string;
+  /** Words; a node only where a tag sits beside the title (the Today board on a past day). */
+  title: React.ReactNode;
   /** The page's purpose line from `page-copy.ts`: one muted sentence under the title (what the page is for, then the first thing to do). */
   purpose?: string;
   subtitle?: React.ReactNode;

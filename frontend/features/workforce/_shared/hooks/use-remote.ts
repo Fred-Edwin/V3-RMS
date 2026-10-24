@@ -21,10 +21,12 @@ export interface RemoteError {
   /** The HTTP status when the server answered (403 and 404 read differently on screen); 0 when it never did. */
   status: number;
   code: string;
+  /** The server's reference for support ("WF-T4M7"), when it sent one. */
+  reference?: string;
 }
 
 export function toRemoteError(err: unknown): RemoteError {
-  if (err instanceof ApiError) return { message: err.message, status: err.statusCode, code: err.code };
+  if (err instanceof ApiError) return { message: err.message, status: err.statusCode, code: err.code, reference: err.reference };
   return { message: err instanceof Error ? err.message : 'Something went wrong', status: 0, code: 'NETWORK' };
 }
 

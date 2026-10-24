@@ -2,7 +2,9 @@ import * as React from 'react';
 
 import { Button } from '@/components/ui2/button';
 
-import { Callout, KeyValueRows, Panel, WorkforceKpiStrip, type WorkforceKpiCell } from '../../../../_shared';
+import { TimeTiles } from '@/features/workforce/attendance';
+
+import { Callout, KeyValueRows, Panel, WorkforceKpiStrip, useWorkforcePermissions, type WorkforceKpiCell } from '../../../../_shared';
 import { correctionNote } from '../../lib/correction-note';
 import { PANEL_ROWS } from '../../../_shared/components/titled-panel';
 import type { EmployeeFile } from '../../../_shared/types/people-types';
@@ -26,9 +28,11 @@ export function BranchOverview({ file, open }: { file: EmployeeFile; open: OpenD
   const card = probationCard(file);
   const todo = file.actions.writeNote && card;
   const correction = correctionNote(file.correctUntil);
+  const canReadTime = useWorkforcePermissions().can('timesheet.read');
   return (
     <div className="flex flex-col gap-4">
       {correction ? <Callout tone="neutral">{correction}</Callout> : null}
+      {canReadTime ? <TimeTiles employeeId={file.id} /> : null}
       {/* With nothing to do, About takes the whole width instead of leaving the left half empty. */}
       <div className={todo ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] items-start gap-6 max-lg:grid-cols-1' : 'grid grid-cols-1 items-start gap-6'}>
       {todo ? (

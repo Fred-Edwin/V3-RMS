@@ -8,6 +8,7 @@ import { clockController as clock } from './clock/clock-controller';
 import { fixesController as fixes } from './fixes/fixes-controller';
 import { latenessController as lateness } from './lateness/lateness-controller';
 import { switchController as site } from './switch/switch-controller';
+import { timeTabController as time } from './time-tab/time-tab-controller';
 
 /**
  * The Attendance endpoints (C1 to C5 for the phone, B1 B2 the Today board, F1 to F3 fixing time, L1 lateness, S1 S2 the
@@ -31,6 +32,9 @@ router.post(`${A}/fixes/preview`, ...base, requireCapability('time.fix'), fixes.
 router.post(`${A}/fixes`, ...base, requireCapability('time.fix'), fixes.apply); // F3
 
 router.get(`${A}/lateness`, ...base, requireCapability('timesheet.read', 'today.read'), lateness.report); // L1 (a head reads their department's)
+
+router.get(`${A}/time/month`, ...base, requireCapability('timesheet.read'), time.month); // T1 (the Time tab; a head has no timesheet.read, so no tab)
+router.get(`${A}/time/tiles`, ...base, requireCapability('timesheet.read'), time.tiles); // T2 (Overview tiles)
 
 router.get(`${A}/switch`, ...base, requireCapability('today.read'), site.get); // S1
 router.put(`${A}/switch`, ...base, requireCapability('attendance.switch'), site.set); // S2

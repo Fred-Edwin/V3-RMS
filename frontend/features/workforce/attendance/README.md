@@ -9,9 +9,10 @@ Chapter 6 "A day at work" (the staff phone) and Chapter 7 "Today board and fixin
 | Folder | What the person does there |
 |---|---|
 | `clock/` | The staff phone: the clock card, the two-minute Undo, the heads-up, leaving early, the shift-end prompt (finish, or stay on with a reason), no signal (taps kept on the phone), the phone-closed notice, the shift pill, hours worked in the week card |
-| `board/` | The Today board's numbers, department chips, "Needs a look", departments, a person's drawer, the board hook (asked every 30 s) |
+| `board/` | The Today board's numbers, department chips, "Needs a look", departments, a person's drawer, the board hook (asked every 30 s). Schedule V1 added the words for the clock-off, past-day and phone drawings (`lib/board-view.ts`: `kpiCells` in three modes, `clockOffCopy`, `exceptionRows`, `departmentCountRows`); the screens are in `home/components/` |
 | `fixes/` | Clock in for someone, Edit time (edit, add, remove, with the server's preview), the real finish of a phone-closed shift, a person's day and lateness reads |
 | `switch/` | The per-site switch screen and the "is the new clock on for me" hook the menu uses |
+| `time-tab/` | The Time tab on the employee file and the Overview tiles (Schedule V1, [README](time-tab/README.md)) |
 | `_shared/` | Types, one service function per endpoint, Nairobi time helpers |
 
 Public face: `index.ts` (screens, hooks, pure helpers) and `shell.ts` (the one hook the app shell reads, kept apart so the shell does not import the screens). The composed screens live in Home: `home/components/live-board.tsx` (the board with its dialogs), `today-screen.tsx` (`/app/workforce/today`), `live-team-card.tsx`; the card data hooks are `home/cards/attendance-data.ts`. Route shells: `app/app/workforce/today/page.tsx`, `app/app/workforce/attendance/switch/page.tsx`.
