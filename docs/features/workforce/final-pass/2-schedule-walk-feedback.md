@@ -22,6 +22,9 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 
 | 11 | System Admin | All findings F1 to F5 | "I agree with your observations. Let's proceed." | Folded into the change log section J (W60 to W62). The owner did not choose between the options in W60; it stays a decision for the Decide step. | Agreed (W60 open) |
 
+| 12 | Department head | All findings B1 to B12 | "I agree with your feedback and what you saw that we need to correct." Also: the Ann Wangui change was the owner's own. And: "I think the department head should also be able to clock someone in." | Folded into section J (W20 to W41). The head clock-in is decision D20 and changes W36. | Agreed |
+| 13 | Accountant (the refused role) | All findings G1 to G6 | "I agree with the observations. Proceed." | Folded into section J (W63 to W65). The owner did not answer the W65 question (Accountant reads timesheets from the menu?), so it stays a decision. | Agreed (W65 open) |
+
 ## Part 2: what the agent saw and the owner did not mention
 
 ### Role 1: Branch Manager, Nyeri Town (Faith Wambui)

@@ -240,7 +240,7 @@ From role 6, System Admin (owner agreed with findings F1 to F5, 24 Oct 2026; the
 | W61 | **Switch screen polish:** title and breadcrumb "Attendance switch" under Company; plain dates ("1 Aug 2026"); hide or explain Central Store (no shifts); ask the admin's PIN to switch a branch on or off; the dialog says "shifts" not "rota" and describes the new shift-end flow; say what happens to anyone clocked in when switching off | F2, F3 | S to M | no (words and a PIN step) |
 | W62 | The admin's Home "Needs you" lists pay and closed-shift items the admin cannot act on: show only what the role can decide | F1 | S | no |
 
-From role 7, the refused role, Accountant (awaiting the owner's confirmation):
+From role 7, the refused role, Accountant (owner agreed with findings G1 to G6, 24 Oct 2026; the question in W65 is still open):
 
 | # | Correction | From | Size | Needs a Paper design? |
 |---|---|---|---|---|
