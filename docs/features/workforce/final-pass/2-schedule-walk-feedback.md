@@ -66,6 +66,21 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 **Worked well:** the head sees only the Barista team on every page; no pay or IDs shown on My team; "Write report" in amber underline for the probation case; the phone day view's tap targets; the not-available screen.
 **Not covered for this role:** a saved shift change by a head; the clock itself (not tapped on purpose); My file, My time, My requests.
 
+### Role 3: Staff member on a phone, 390 px (Naomi Jepkorir, Waiter; Cynthia Muthoni for a day off)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| C1 | Staff Home, phone | The first screen is three number cards (Leave days left, Leave asked, New notices, about 380 px); the **clock card starts at the bottom edge** and is about 500 px tall (the shift line, a 100 px timer, a progress bar, a full-width button). A person who opens the phone to clock out has to scroll | Owner raised (D2, D3) |
+| C2 | Staff Home, "Leave days left" | Shows **a dash ("–")** for a person with an annual leave policy (also for Cynthia) | New |
+| C3 | Staff Home, "This week" card | Works well at 390: seven bars, today outlined, "27 h 59 m so far of 36 h 30 m planned" | Owner raised (D4), phone is acceptable |
+| C4 | Staff Home, Latest | "Payroll paid, The August 2026 payroll was marked as paid" shows to every staff member | Same as B5 |
+| C5 | Menu drawer | Wide rows and clear sections (good); rows **"My rota"**, "My time", "My requests"; the drawer **stays open** after a row is chosen and covers the page until closed; footer shows "Waiter" with no site | Partly (row 1) |
+| C6 | My rota (phone) | Clean: **TODAY** marker, shift name with timings, days off muted. Header reads "MY TIME · ROTA"; days after the last planned day (from Mon 2 Nov) show **"Day off"** though they are just unplanned | New |
+| C7 | My time (phone) | Clear: month total, weeks in groups, each day with in and out and hours, today's open shift shown as "06:02 → …". No fault found | Works well |
+| C8 | Blocked page (Today board) | Works. It lists "HR, the Director, Branch Managers and Store Managers" and leaves out department heads, who have "Team today" | Same as B12 |
+| C9 | A staff member with no shift today (Cynthia) | The Home has **no clock card and no message** (no "No shift today", no "Next shift Monday 06:00"); a refused clock cannot be seen from the phone because there is nothing to tap | New |
+| C10 | Sign-in, device step on a phone | Good: "first sign-in on this phone", "Chrome on a phone", short hero; the PIN step did not appear after "Trust this device" (same as A18) | Works well |
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.
