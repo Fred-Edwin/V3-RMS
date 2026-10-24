@@ -2,6 +2,8 @@
 
 Written 21 Oct 2026. All 17 designed chapters are built and merged on `feat/workforce-stack-complete`. This is the plan for the last stage before shipping: go through the **whole feature once, section by section, in the order the parts build on each other**, understand how each part works, find and fix what is wrong, and send the client a short demo video of each finished section. The ROADMAP lists what was built; this file is how it gets polished.
 
+> **From 24 Oct 2026 sections 2 to 10 follow the six-step flow in `final-pass/SECTION_FLOW.md` (orient, watch, decide, design, build, close-out and video).** The four-step loop below is how People ran at first; keep it for reference.
+
 ## The loop (every section runs the same four steps)
 | # | Step | Who | Output |
 |---|---|---|---|
