@@ -1,6 +1,6 @@
 'use client';
 
-import { DayCard, EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, useWorkforcePermissions } from '../../../_shared';
+import { DayCard, EmptyState, ErrorBlock, ListSkeleton, PhoneScreen, PurposeLine, purposeOf, useWorkforcePermissions } from '../../../_shared';
 import { nairobiToday } from '../../../rota';
 import { useMyRota } from '../../_shared/hooks/use-timesheet-data';
 import { rotaLines, rotaRange, rotaSummary } from '../lib/rota-lines';
@@ -31,6 +31,7 @@ export function MyRotaScreen() {
 
   return (
     <PhoneScreen screen="My shifts" kicker="MY TIME · SHIFTS" title={data?.enabled ? `My shifts · ${rotaRange(data)}` : 'My shifts'} subtitle={data?.enabled ? rotaSummary(data) : undefined} back="/app/workforce/my-time">
+      <PurposeLine>{purposeOf('/app/workforce/my-time/rota')}</PurposeLine>
       {body}
     </PhoneScreen>
   );

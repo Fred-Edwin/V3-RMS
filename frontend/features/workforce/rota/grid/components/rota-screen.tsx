@@ -7,7 +7,7 @@ import { Picker } from '@/components/ui2/picker';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/cn';
 
-import { DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, PeriodStepper, ShiftLegend, WorkforceFrame } from '../../../_shared';
+import { DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, PeriodStepper, ShiftLegend, WorkforceFrame, purposeOf } from '../../../_shared';
 import { RefusalScreen } from '../../../refusal';
 import { CopyDayDialog } from '../../dialogs/copy-day-dialog';
 import { CopyWeekDialog } from '../../dialogs/copy-week-dialog';
@@ -91,6 +91,7 @@ export function RotaScreen() {
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
         title={`Shifts · ${s.siteName || 'Site'}`}
+        purpose={purposeOf('/app/workforce/schedule/rota')}
         subtitle={
           <PeriodStepper label={weekLabel(data.weekStart)} previousLabel="Previous week" nextLabel="Next week" onPrevious={() => s.stepWeek(-1)} onNext={() => s.stepWeek(1)} previousDisabled={s.previousDisabled} nextDisabled={s.nextDisabled} />
         }

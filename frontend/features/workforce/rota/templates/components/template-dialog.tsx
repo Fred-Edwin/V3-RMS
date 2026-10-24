@@ -9,6 +9,7 @@ import {
   AddChip,
   Callout,
   ChoiceChips,
+  DIALOG_LEADS,
   DialogButton,
   EMPTY_REASON,
   FIELD_CLASS,
@@ -115,7 +116,7 @@ export function TemplateDialog({
       busy={busy}
       width={600}
       title={editing ? `Edit ${template.name}` : 'Add a shift'}
-      description="It appears in every Shifts cell for the departments you pick."
+      description={editing ? DIALOG_LEADS.templateEdit : DIALOG_LEADS.template}
       footer={
         <>
           <span className="mr-auto max-w-[260px] font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Changes apply to future shifts only. Past weeks stay as they were.</span>

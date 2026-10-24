@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { TopbarBell } from '@/components/app/shell/menu/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
-import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, useRemote, useWorkforcePermissions } from '../../_shared';
+import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, purposeOf, useRemote, useWorkforcePermissions } from '../../_shared';
 import { attendanceReads, kpiCells, liveLine, useBoard } from '../../attendance';
 import { useOpenNotifications, useUnreadStore } from '../../notifications';
 import { addDays, nairobiToday } from '../../rota';
@@ -63,6 +63,7 @@ export function TodayScreen() {
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
         <PageHeader
           title={isHead ? (teamName ? `${teamName} team today` : 'Team today') : `Today at ${siteName}`}
+          purpose={purposeOf('/app/workforce/today')}
           subtitle={board.data?.enabled ? liveLine(board.data, date === today) : undefined}
           actions={<PeriodStepper label={longDay(date)} previousLabel="Previous day" nextLabel="Next day" onPrevious={() => setDate(addDays(date, -1))} onNext={() => setDate(addDays(date, 1))} nextDisabled={date >= today} />}
         />

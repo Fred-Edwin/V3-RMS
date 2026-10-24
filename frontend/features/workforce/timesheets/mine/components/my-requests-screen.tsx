@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 
-import { Callout, EmptyState, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, useAction, useWorkforcePermissions } from '../../../_shared';
+import { Callout, EmptyState, ErrorBlock, ListSkeleton, PhoneButton, PhoneScreen, PurposeLine, purposeOf, useAction, useWorkforcePermissions } from '../../../_shared';
 import { useMyRequests } from '../../_shared/hooks/use-timesheet-data';
 import { timesheetWrites } from '../../_shared/services/timesheet-services';
 import { RequestCard } from './request-card';
@@ -46,6 +46,7 @@ export function MyRequestsScreen() {
 
   return (
     <PhoneScreen screen="My requests" kicker="MY REQUESTS" back="/app/workforce/my-time">
+      <PurposeLine>{purposeOf('/app/workforce/my-time/requests')}</PurposeLine>
       {body}
     </PhoneScreen>
   );

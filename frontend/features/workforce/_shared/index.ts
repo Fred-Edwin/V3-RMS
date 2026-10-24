@@ -9,6 +9,7 @@ export * from './lib/style/avatar';
 export * from './lib/data/reason';
 export * from './lib/data/undo';
 export * from './lib/copy/states-copy';
+export * from './lib/copy/page-copy';
 export * from './lib/copy/notification-copy';
 export * from './lib/data/time';
 export * from './lib/data/roving';

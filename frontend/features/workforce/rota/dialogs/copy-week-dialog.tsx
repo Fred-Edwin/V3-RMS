@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, EMPTY_REASON, ErrorBlock, KitDialog, ListSkeleton, ReasonChips, StatBoxes, reasonText, useRemote, type ReasonValue } from '../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EMPTY_REASON, ErrorBlock, KitDialog, ListSkeleton, ReasonChips, StatBoxes, reasonText, useRemote, type ReasonValue } from '../../_shared';
 import { COPY_NOTE, COPY_REASON_NOTE, NEAR_TERM_REASONS } from '../_shared/lib/rota-copy';
 import { reasonProblem } from '../_shared/lib/rota-edits';
 import { shortDay, weekShortRange } from '../_shared/lib/rota-dates';
@@ -61,7 +61,7 @@ export function CopyWeekDialog({
       title="Start from last week?"
       description={
         data
-          ? `This copies the shifts of the week of ${weekShortRange(data.copiedFrom)} into the week of ${weekShortRange(data.weekStart)}, ${departmentName ? `for ${departmentName}` : 'for every department'}. Nothing is overwritten, and you can change anything afterwards.`
+          ? DIALOG_LEADS.copyWeek(weekShortRange(data.copiedFrom), weekShortRange(data.weekStart), departmentName)
           : 'Checking what last week would copy.'
       }
       footer={

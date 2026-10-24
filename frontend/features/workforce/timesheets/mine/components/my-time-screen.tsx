@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Callout, EmptyState, ErrorBlock, ListSkeleton, PeriodStepper, PhoneButton, PhoneScreen, TimeRow, useWorkforcePermissions } from '../../../_shared';
+import { Callout, EmptyState, ErrorBlock, ListSkeleton, PeriodStepper, PhoneButton, PhoneScreen, PurposeLine, TimeRow, purposeOf, useWorkforcePermissions } from '../../../_shared';
 import { useMyTime } from '../../_shared/hooks/use-timesheet-data';
 import { hm, monthOf } from '../../_shared/lib/timesheet-words';
 import { heroLine, overtimeLine, weekGroups } from '../lib/my-view';
@@ -87,6 +87,7 @@ export function MyTimeScreen() {
       subtitle={heroReady ? heroLine(data, monthOf(period)) : undefined}
       back="/app/workforce"
     >
+      <PurposeLine>{purposeOf('/app/workforce/my-time')}</PurposeLine>
       {body}
     </PhoneScreen>
   );

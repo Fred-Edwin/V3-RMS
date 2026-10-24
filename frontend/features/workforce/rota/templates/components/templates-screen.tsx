@@ -11,7 +11,7 @@ import { formatApiErrorMessage } from '@/types/api';
 import { useAuthStore } from '@/store/authStore';
 
 import { useOrgOverview } from '../../../people';
-import { Callout, DialogButton, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, useWorkforcePermissions } from '../../../_shared';
+import { Callout, DialogButton, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, purposeOf, useWorkforcePermissions } from '../../../_shared';
 import { useTemplates } from '../../_shared/hooks/use-rota-data';
 import { mondayOf, nairobiToday, weekShortRange } from '../../_shared/lib/rota-dates';
 import { breakWords, hoursUnit, timeRangeMono, toneOfColour, usedByWords } from '../../_shared/lib/shift-look';
@@ -136,7 +136,8 @@ export function TemplatesScreen() {
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
         title="Shift templates"
-        subtitle="The shifts you can put on the grid. Break and paid hours live here, so every week and payslip counts them the same way."
+        purpose={purposeOf('/app/workforce/schedule/templates')}
+        subtitle="Break and paid hours live here, so every week and payslip counts them the same way."
         // The desktop top bar carries this button from 1024 px; below that the page does.
         actions={canWrite ? <DialogButton kind="primary" size="lg" className="lg:hidden" onClick={() => setEditing('new')}>Add shift</DialogButton> : undefined}
       />

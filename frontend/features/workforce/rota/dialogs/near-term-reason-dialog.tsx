@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, reasonText, type ReasonValue } from '../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, reasonText, type ReasonValue } from '../../_shared';
 import { NEAR_TERM_REASONS } from '../_shared/lib/rota-copy';
 import { peopleToldCount, reasonProblem, toldWords, type ChangeLine } from '../_shared/lib/rota-edits';
 
@@ -38,7 +38,7 @@ export function NearTermReasonDialog({
       busy={busy}
       width={620}
       title={`Change ${count} ${count === 1 ? 'shift' : 'shifts'} for the next two days?`}
-      description="Staff are about to work these shifts. Check who is told, add a reason if it helps, then save."
+      description={DIALOG_LEADS.nearTerm}
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onCancel} disabled={busy}>

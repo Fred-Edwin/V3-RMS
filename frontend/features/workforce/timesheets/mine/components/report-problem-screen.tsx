@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { Callout, ChoiceChips, EmptyState, FIELD_CLASS, FormField, OptionList, PhoneButton, PhoneScreen, StatBoxes, TimeField, useAction, useWorkforcePermissions } from '../../../_shared';
+import { Callout, ChoiceChips, EmptyState, FIELD_CLASS, FormField, OptionList, PhoneButton, PhoneScreen, PurposeLine, StatBoxes, TimeField, purposeOf, useAction, useWorkforcePermissions } from '../../../_shared';
 import { hmOf } from '../../../attendance';
 import { addDays, nairobiToday } from '../../../rota';
 import { useMyTime } from '../../_shared/hooks/use-timesheet-data';
@@ -57,6 +57,7 @@ export function ReportProblemScreen() {
   if (step === 'kind') {
     return (
       <PhoneScreen screen="Report a problem" kicker="REPORT A PROBLEM" heading="What went wrong?" back="/app/workforce/my-time">
+        <PurposeLine>{purposeOf('/app/workforce/my-time/report')}</PurposeLine>
         <OptionList legend="What went wrong?" tick options={KIND_OPTIONS} value={form.kind} onChange={(kind) => { set({ kind: kind as ReportForm['kind'] }); setStep('detail'); }} name="report-kind" />
         <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Pay questions about deductions go to HR. Everything else goes to your manager, who will answer.</p>
       </PhoneScreen>

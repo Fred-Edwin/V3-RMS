@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { DOC_COLOURS, DocumentCanvas, ErrorBlock, ListSkeleton, SHIFT_PAINT, WorkforceDocument, useWorkforcePermissions } from '../../../_shared';
+import { DOC_COLOURS, DocumentCanvas, ErrorBlock, ListSkeleton, PurposeLine, SHIFT_PAINT, WorkforceDocument, purposeOf, useWorkforcePermissions } from '../../../_shared';
 import { RefusalScreen } from '../../../refusal';
 import { usePrintedRota } from '../../_shared/hooks/use-rota-data';
 import { columnHead, printedDay, printedStamp, weekLongRange } from '../../_shared/lib/rota-dates';
@@ -84,6 +84,8 @@ export function PrintScreen({ weekStart, siteId, departmentId }: { weekStart: st
   if (!data) return <ListSkeleton rows={6} label="Preparing the shifts" className="m-8" />;
   const number = rotaNumber(data.weekStart);
   return (
+    <>
+    <PurposeLine className="px-8 pt-4 print:hidden">{purposeOf('/app/workforce/schedule/rota/print')}</PurposeLine>
     <DocumentCanvas onPrint={() => window.print()} printLabel="Print the shifts" width={1123}>
       <style>{PAGE_RULE}</style>
       <WorkforceDocument
@@ -112,5 +114,6 @@ export function PrintScreen({ weekStart, siteId, departmentId }: { weekStart: st
         </p>
       </WorkforceDocument>
     </DocumentCanvas>
+    </>
   );
 }

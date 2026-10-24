@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Picker } from '@/components/ui2/picker';
 import { cn } from '@/lib/cn';
 
-import { DayStrip, EmptyState, FOCUS_RING, MOTION, PickShiftButton, ShiftChip, positionWords } from '../../../_shared';
+import { DayStrip, EmptyState, FOCUS_RING, MOTION, PickShiftButton, PurposeLine, ShiftChip, positionWords, purposeOf } from '../../../_shared';
 import { PendingDialogs } from '../../dialogs/pending-dialogs';
 import { useRotaSelection } from '../../grid/hooks/use-rota-selection';
 import { dayOfMonth, longDay, weekdayName, weekPhoneRange } from '../../_shared/lib/rota-dates';
@@ -74,6 +74,7 @@ export function RotaPhone({ selection: s, data }: { selection: Selection; data: 
         days={data.days.map((d) => ({ value: d.date, dow: weekdayName(d.date).slice(0, 3).toUpperCase(), day: String(dayOfMonth(d.date)) }))}
       />
       <div className="flex grow flex-col gap-2.5 bg-wds-canvas px-4 py-4">
+        <PurposeLine>{purposeOf('/app/workforce/schedule/rota')}</PurposeLine>
         <div className="flex items-baseline justify-between">
           <h2 className="m-0 font-wds-sans text-[15px] font-semibold leading-[18px] text-wds-text-ink">{longDay(date)}</h2>
           <span className={cn('font-wds-mono text-[12px] leading-4', thin ? 'text-wds-warning-fg' : 'text-wds-success-fg')}>{needs === null ? `Has ${working}` : `Needs ${needs} · Has ${working}`}</span>

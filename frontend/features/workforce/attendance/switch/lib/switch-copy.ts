@@ -4,8 +4,6 @@ import type { SwitchView } from '../../_shared/types/attendance-types';
 
 export const SWITCH_COPY = {
   subtitle: 'The new clock runs on one branch at a time. A branch that is off keeps the old clock exactly as it is.',
-  onDescription: 'Staff at this branch will clock in on their phones, against their shifts.',
-  offDescription: 'Staff at this branch go back to the old clock.',
   refused: 'The switch was not changed',
   since: (site: SwitchView): string => (site.enabled && site.enabledAt ? `On since ${dayInWords(dateOf(site.enabledAt))}` : 'Using the old clock'),
   pinLabel: 'Your PIN, to switch',

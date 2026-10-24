@@ -176,7 +176,7 @@ describe('per-screen copy table (States kit)', () => {
   it('fills the term and range holes, and leaves a missing value visible', () => {
     expect(statesCopy('waitingForYou', 'nothingFound', { term: 'Overtime' })).toBe('No request matches "Overtime". Clear the filter.');
     expect(statesCopy('waitingForYou', 'nothingYet')).toBe('Nothing needs you. New requests show here, in the bell and as badges on the menu.');
-    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No shifts for 19 to 25 Oct yet. Pick a shift for a day, or use Start from last week.');
+    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No shifts for 19 to 25 Oct yet. Click a day to pick one, or use Start from last week.');
     expect(fillCopy('No shift matches "{term}".')).toBe('No shift matches "{term}".');
   });
   it('formats the support reference', () => {

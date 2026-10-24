@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { Callout, ChoiceChips, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
+import { Callout, ChoiceChips, DIALOG_LEADS, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
 import { longDayWords } from '../../_shared/lib/nairobi-clock';
 import { attendanceWrites } from '../../_shared/services/attendance-services';
 import type { DayHistory, FixView } from '../../_shared/types/attendance-types';
@@ -74,7 +74,7 @@ export function EditTimeDialog({
       busy={action.busy}
       width={640}
       title={`Edit time · ${history.name}`}
-      description={`${longDayWords(history.date)}${entry ? ` · ${entry.templateName} ${entry.startTime} to ${entry.endTime}` : ''}`}
+      description={`${DIALOG_LEADS.editTime(history.name.split(/\s+/)[0] ?? history.name)} ${longDayWords(history.date)}${entry ? ` · ${entry.templateName} ${entry.startTime} to ${entry.endTime}` : ''}`}
       footer={
         <>
           <button type="button" onClick={() => setShowHistory((s) => !s)} className="mr-auto font-wds-sans text-[13px] leading-4 text-wds-primary underline-offset-2 hover:underline">

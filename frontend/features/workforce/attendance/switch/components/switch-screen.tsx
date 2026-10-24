@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, StatusTag, WorkforceFrame, WorkforcePinDialog, useAction, useRemote } from '../../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, StatusTag, WorkforceFrame, WorkforcePinDialog, purposeOf, useAction, useRemote } from '../../../_shared';
 import { attendanceReads, attendanceWrites } from '../../_shared/services/attendance-services';
 import type { SwitchView } from '../../_shared/types/attendance-types';
 import { forgetAttendanceOn } from '../hooks/use-attendance-on';
@@ -36,7 +36,7 @@ export function SwitchScreen() {
   return (
     <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Attendance switch' }} phoneTitle="Attendance switch" label="Attendance switch by branch" className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5">
-        <PageHeader title="Attendance switch" subtitle={SWITCH_COPY.subtitle} />
+        <PageHeader title="Attendance switch" purpose={purposeOf('/app/workforce/attendance/switch')} subtitle={SWITCH_COPY.subtitle} />
         {message ? (
           <Callout tone="success" role="status" size="sm">
             {message}
@@ -68,7 +68,7 @@ export function SwitchScreen() {
           open
           onOpenChange={(o) => !o && !action.busy && setAsking(null)}
           title={asking.enabled ? `Switch the new clock off for ${asking.organizationName}?` : `Switch the new clock on for ${asking.organizationName}?`}
-          description={asking.enabled ? SWITCH_COPY.offDescription : SWITCH_COPY.onDescription}
+          description={asking.enabled ? DIALOG_LEADS.switchOff(asking.organizationName) : DIALOG_LEADS.switchOn(asking.organizationName)}
           summary={
             <ul className="m-0 flex list-none flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 p-3.5">
               {switchLines(asking).map((line) => (

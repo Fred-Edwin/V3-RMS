@@ -163,3 +163,19 @@ A new top-level source folder must be added in the same commit to every config t
 lists source folders: `tailwind.config.ts` `content`, `tsconfig.json` `include`,
 `.eslintrc`, and any script with a hardcoded directory list. Missing the Tailwind
 glob silently drops every class used only in that folder.
+
+## 9. Page copy: a purpose line on every page (owner decision, 24 Oct 2026)
+
+1. **Every page has one muted plain sentence under its title**: what the page is for, then the
+   first thing to do, **90 characters at most**. Example, Shifts: "Plan who works when. Click a day
+   to pick a shift; changes save as you go." Pass it to `PageHeader` as `purpose` (or draw a
+   `PurposeLine` on a screen with no header, such as a phone screen).
+2. **A dialog opens with what will happen** ("This copies the week of 26 Oct into 2 Nov. Nothing is
+   overwritten.") before it asks for anything. Empty and error states say the next step.
+3. **One copy file per feature, keyed by route** (Workforce: `features/workforce/_shared/lib/copy/page-copy.ts`).
+   A page or dialog never carries its own purpose sentence. A new page adds its route and its line
+   to that file in the same change.
+4. **A test fails the build** (`page-copy.test.ts`) on a page with no line, a line over 90 characters,
+   a banned word (the old name for Shifts, "slice", "arrives with", he, she, her, his), a dialog that
+   does not open with "This ...", or a page that is not drawn from the file.
+5. No "?" help dot until a screen is complex enough to need one and has been drawn with it.

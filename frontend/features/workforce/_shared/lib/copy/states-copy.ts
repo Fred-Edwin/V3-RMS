@@ -40,6 +40,8 @@ export interface ScreenStatesCopy {
   notApplicable?: boolean;
 }
 
+import { NEXT_STEP_LINES } from './page-copy';
+
 export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   waitingForYou: {
     screen: 'Needs you',
@@ -49,13 +51,13 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   },
   rota: {
     screen: 'Shifts',
-    nothingYet: 'No shifts for {range} yet. Pick a shift for a day, or use Start from last week.',
+    nothingYet: NEXT_STEP_LINES.noShiftsYet,
     nothingFound: 'No shift matches "{term}". Clear the filter.',
     error: 'We could not load the shifts. Nothing was changed.',
   },
   todayBoard: {
     screen: 'Today board',
-    nothingYet: 'Nobody has a shift today. Add one from Shifts.',
+    nothingYet: NEXT_STEP_LINES.noOneToday,
     nothingFound: 'Nobody late right now. Everyone on shift is in.',
     error: 'We could not refresh the board. The times shown may be old.',
   },
@@ -151,7 +153,7 @@ export function statesCopy(
 export const STATES_FIXED = {
   stillLoading: 'Still loading. Your work is safe.',
   couldNotLoad: 'We could not load this',
-  couldNotLoadLine: 'It is taking longer than it should. Nothing was changed. Try again, and quote the reference if it keeps happening.',
+  couldNotLoadLine: NEXT_STEP_LINES.couldNotLoad,
   tryAgain: 'Try again',
   referencePrefix: 'Reference',
   offlineStrip: 'No signal.',
