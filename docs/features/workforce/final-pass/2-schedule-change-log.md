@@ -111,6 +111,7 @@ Decisions (owner, in the Branch Manager part of the watch):
 |---|---|---|
 | D17 | Cells on the Shifts grid show the **timings** (06–14), not the shift names. The name stays in the tooltip, the picker and the legend. Reverses the 18 Oct decision to show names | Agreed |
 | D18 | The **reason is optional** when editing a shift, including for today and tomorrow. The dialog stays as a light "who is told" confirmation, with Save always enabled. Reverses rota backend decision R3. The leave-override reason is a separate question (see Q8) | Agreed |
+| D20 | A **department head may clock someone in** for people in their own department (owner, 24 Oct). Supersedes the Paper note that only the Branch Manager does | Agreed |
 | D19 | The "Closed by the phone at 22:00" notice and its dialog are **retired** once the new shift-end flow exists, because the system clocks people out at the scheduled end. What remains is the "Needs an owner" and "Unaccounted" lists (section C) and a small check for an approved overtime that ran past its approved end | Agreed in principle, to confirm |
 
 Proposals the owner asked for (not yet agreed):
@@ -176,7 +177,7 @@ The owner agreed with all agent findings below. The references A and B point to 
 | W33 | "Show retired" count equals the Retired number | A15 | S | no |
 | W34 | The Today board top bar gets the bell, like Home | A16 | S | no |
 | W35 | Fix the duplicate React key in `sidebar-menu.tsx` (console error on every page) | A17 | S | no |
-| W36 | **Heads:** hide "Clock in for" on the Today board (Paper: "a head decides nothing, so only the Branch Manager clocks a person in"); confirm in Decide whether a head may clock in for their team once overtime hand-over exists | B8 | S | decision |
+| W36 | **Heads may clock someone in** (owner decision D20, 24 Oct): the "Clock in for" button stays for a head, for people in their own department. Paper's note ("only the Branch Manager clocks a person in") is superseded; update that Paper note when the Home frames are redrawn. Open: whether a head may clock in for themselves (suggest no, the Branch Manager does that) | B8 | S | no (note only) |
 | W37 | **Head pages:** Team today titled for the department ("Barista team today", breadcrumb "Department / Team today"); head's Shifts hides the one-row department list and "Start from last week" unless wanted | B8, B9 | S | no |
 | W38 | **One definition of "on shift"** on My team, Team today, Home and Organisation (rostered, clocked in, not started) | B10 | M | no |
 | W39 | **Phone Shifts view:** one back arrow, "Needs 2 · Has 4", today marked in the day strip, timings in cells | B11, D17 | S | no |
