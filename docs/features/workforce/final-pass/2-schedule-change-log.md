@@ -224,6 +224,14 @@ From role 4, HR (owner agreed with findings D1 to D8, 24 Oct 2026):
 | W55 | The menu has a top "Home" and also "Workforce / Overview", both opening the same page: keep one | D2 | S | decision |
 | W56 | Today board's branch chooser lists **Central Store** as a "Branch": label it "Site", or leave the hub out where it has no shifts | D8 | S | decision |
 
+From role 5, Director (awaiting the owner's confirmation):
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W57 | **Fix the switch gate:** `frontend/lib/route-access.ts` (line 158) lets only the System Admin open `/app/workforce/attendance/switch`, while the access table gives the Director the switch too; allow both, add a Director row for the switch in the menu table, and a test that the route gate and the access table agree (`nav-table.test.ts` style) | E1 | S | no |
+| W58 | **Route the "closed by the system" item to the owner of the shift** (the Branch Manager, then the Director), not only the Director; retired anyway by D19 once the new shift-end flow exists | E2 | S | no |
+| W59 | **Rule for builders:** when an access decision changes, update the front-end route gate and the menu table in the same change; list every page that names roles in its "Not available" text and check them (the text is built from the access table) | E1 | S | no |
+
 **Regression guard (role 4):** HR sees the cost estimate on Shifts and the print stays free of it; "Every site" for shift types; the branch chooser on the Today board; HR gets no "Clock in for"; the not-available screen.
 
 **Regression guard, keep as it works today (verified by the watch):** My shifts and My time on a phone (clear, with a TODAY marker); the phone sign-in device step; "This week" on a phone; Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.

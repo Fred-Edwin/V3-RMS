@@ -104,6 +104,17 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 **Worked well:** the cost line only for HR; "Every site" for shift types; the branch chooser; HR cannot clock someone in; the not-available screen.
 **Not covered for HR:** Edit time on a past day and any closed-period wording; editing or retiring a shift type; Start from last week across sites; Print for another site; HR's phone.
 
+### Role 5: Director (Charles Ndungu, desktop)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| E1 | **Attendance switch page (Director)** | **A real fault.** The Director is shown "Not available for your role. Attendance clock is for the Director and the System Admin": the page names the Director and refuses the Director. Cause: the back-end access table gives the Director `attendance.switch` (the access change of 21 Oct), but `frontend/lib/route-access.ts` line 158 still says "the System Admin's alone (owner, 18 Oct)". The menu has no switch link for the Director either | New |
+| E2 | Director Home | Same people-only numbers as HR (no attendance). "Needs you" lists "Joseph Maina, Chef · shift on Fri 23 Oct was closed by the system, please check" for the **Director**, while the Branch Manager's own Home did not list it (A5): the routing is inconsistent, and the line calls Joseph "Chef", not the Pastry head | New |
+| E3 | Shifts (Director) | Full editing tools (cell picker, Start from last week, Copy day, Print, cost line). This **matches the access change of 21 Oct** (the Director reads and writes everything); my plan wrongly assumed read-only, and the how-it-works file was corrected | Not a fault |
+| E4 | Today board (Director) | Same as HR (branch chooser, Late/Not in, department rows); the drawer has Edit this day's clock times and "Wait, Faith has told me", and no action on lateness. The branch chooser did not switch to Nyeri Town when clicked once by the script (not confirmed as a fault) | Same as D5 |
+
+**Not covered for the Director:** Shift types (same page as HR, "Every site" available), the employee Time tab (same as HR), the Director's phone.
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.
