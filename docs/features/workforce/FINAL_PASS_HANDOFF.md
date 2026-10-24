@@ -1,0 +1,41 @@
+# Workforce final pass: orchestrator handoff (the current one; read this first)
+
+**Written 24 Oct 2026.** It replaces the state in `ORCHESTRATOR_HANDOFF.md` (20 Oct), whose sections 1, 2 and 7 still apply (the owner, the standing rules, the routine). Everything below is what a new orchestrator session needs to continue without asking the owner to repeat anything.
+
+## 1. The owner and how to work with them
+- Edwinfred Kamau, **not a developer**. Plain, short sentences; tables; exact commands in code blocks; ready-to-paste prompts. **Speed matters a lot**; do not over-check, do not ask what you can decide, give a recommendation with every question.
+- Pastes each session's report into the orchestrator chat. Reads the files you copy to **`~/Projects/owner-review/`** (a fixed folder, because files live on branches and Yazi on `main` does not show them). Refresh it at every hand-off.
+- Standing rules: Paper is the design truth (a demonstration, production is the goal); **designs are approved before builds**; a design agent **reads the approved designs first**; plain words; no he, she, her, his; role alone or name plus role, never a bare name; no call cap; Edit and Write tools only; delete as you go (list Deleted and Kept); one session per lane (`pgrep -fa claude`); never write to the owner's main database (the Postgres MCP is read-only and points at it); **nothing is merged to `main`, pushed to production or deployed without the owner's word; the whole Workforce feature ships once, when ready (owner, 24 Oct)**.
+
+## 2. Where things live
+- **The stack branch `feat/workforce-stack-complete`** (pushed to GitHub) holds everything. **The orchestrator merges in the lane 1 worktree** (`/home/fred/Projects/V3-RMS-lanes/lane-1`; no build session runs there). The owner's checkout `~/Projects/V3-RMS` is on `main` with their own uncommitted files: never stash, reset or commit there.
+- Docs: `docs/features/workforce/FINAL_PASS.md` (the plan, order of 10 sections, lane map), **`final-pass/SECTION_FLOW.md`** (the six-step flow for every section and a status table), **`final-pass/LESSONS.md`**, `final-pass/design-notes-*`, `final-pass/<n>-...` per section, `TESTING.md` (database tests on a clean prepared database), `docs/sessions/final-pass-*.md` (briefs).
+- Memory: `/home/fred/.claude/projects/-home-fred-Projects-V3-RMS/memory/` (dash, not slash).
+
+## 3. State (24 Oct 2026)
+- **Section 1 People:** all batches merged (Batch 1, Access change, 2A shell, 2B People screens, 3 live-walk fixes, 4 desktop "My ..." screens, close-out). **The People demo video is still being recorded in lane 6** (`docs/sessions/final-pass-1-people-demo.md`: one running person, ten chapters); the owner watches it as the sign-off. Then People is closed.
+- **Section 2 Schedule:** orient and watch done (lane 4, `walk/workforce-2-schedule`, merged). **Decisions made. The plan is `final-pass/2-schedule-plan.md`** (verticals V0 to V5); scope `2-schedule-scope.md`; decisions `2-schedule-decisions.md`; the detail `2-schedule-change-log.md` and `2-schedule-walk-feedback.md`. **Nothing of Schedule is built yet.** Briefs written: V0 (`docs/sessions/final-pass-2-v0-quick-fixes.md`, lane 2) and V1 design (`final-pass-2-v1-design.md`, lane 3).
+- **Open, waiting on the owner:** the **per-branch feature switch** proposal (a general mechanism for every feature with the Attendance switch as the first user; defaults for already-live Inventory features must be ON; discussed 24 Oct, parked); the **glossary** (`docs/GLOSSARY.md`; needs the owner's definitions of "staff" and "floor staff"); the owner's thought of reverting the **Inventory** feature (meaning not yet given; demos must show no Central Store or Inventory screens).
+- Parked: the ship checklist (annual leave 21 days, photo storage key per environment, the Swahili word list reviewed, the "ZZ Pay2" test branch's attendance switch, Dockerfile fonts and logo, migration rehearsal on a restored production copy, the Accountant hand-checks the first payroll month, run the database tests on a prepared database, PR plan, Nyeri Town switch-on with rollback); the legacy admin pages and the over-limit folders (section 10); the eight stale database tests to flip are listed in `SECTION_FLOW.md`.
+
+## 4. The Schedule plan in five lines
+1. Six verticals, each in **one lane from design to front end**, with a hand-off file and starter prompt between stages (design, back end, front end); the owner clears the context and pastes the starter prompt.
+2. **V0** quick fixes (36 items, no design) lane 2; **V1** Time tab on the employee file and board states, lane 3; **V2** fast planner in full and past days, lane 4; **V3** lateness actions including "Mark absent" and "Wait", lane 2; **V4** shift-end and overtime flow (reads **Orders only**), lane 3; **V5** Homes and clock card, lane 4. The step table is in the plan file.
+3. Three lanes at a time (2, 3, 4); **only one design is open at any step**; each vertical gets its own Paper page; each lane has its own clean test database.
+4. The orchestrator merges each vertical when it finishes, in size order, and runs the gates once on the merged stack. Then a Schedule close-out, then the demo video.
+5. Owner decisions that shaped it: planner in full (no gaps), "Mark absent" and "Wait" kept, open items from Orders only, the Accountant reads timesheets (section 3), heads clock others in but not themselves, hide the Central Store where there are no shifts, the System Admin acts as a user in Schedule, the purpose line on every page, no automatic deductions ever.
+
+## 5. The orchestrator's routine (updated)
+After each report: verify the lane (`git status`, branch) and push the branch; merge into the stack in lane 1 (`git merge --no-edit origin/<branch>`); resolve conflicts keeping both sides (the nav files, the access table, `API_CONTRACT.md`, status docs); **run `rm -rf frontend/.next/types` before the front-end type check** (stale generated types fail it); then `tsc --noEmit` both sides, the front-end tests, the back-end non-database tests, the layering and size guards; push; copy the owner-facing files to `~/Projects/owner-review/`; update `SECTION_FLOW.md`'s status table and `PROJECT_STATUS.md`; write the next brief; give the owner the commands and the prompt (a lane command that begins `git fetch -q origin; git checkout -q --detach origin/feat/workforce-stack-complete`; close any old session in that lane first).
+
+## 6. Gotchas learned in the final pass
+- Edit needs a Read first, except for a file you wrote in the same session. zsh `grep --include` fails. Background shell jobs with `&` can finish before their log files fill: wait on a "done" line.
+- The demo seed (lane 6 and the owner's watches) replaces the old test logins, so **database tests need the clean prepared database** (`TESTING.md`); never run them on a demo-seeded lane.
+- Two sessions on one lane overwrite each other; the background-sessions screen shows what is working; kill by exact process id, never `pkill -f`.
+- Paper tools may disconnect in the orchestrator session; design sessions have their own.
+- The watch loop (one browser page, announce the plan, wait for "go", ask "what should be corrected?", record the owner's words) found most real problems in People; reuse it for each section's watch.
+
+## 7. Starter prompt for the next orchestrator session
+```
+You are the orchestrator for the Wendo RMS Workforce final pass, continuing a session that was cleared. The owner is not a developer: plain words, tables, exact commands and ready-to-paste prompts; speed matters. Read, in this order and only these: docs/features/workforce/FINAL_PASS_HANDOFF.md (all of it), then docs/features/workforce/final-pass/SECTION_FLOW.md, then docs/features/workforce/final-pass/2-schedule-plan.md, then the memory index MEMORY.md. Work in /home/fred/Projects/V3-RMS-lanes/lane-1 on feat/workforce-stack-complete (git fetch and pull first). Check the real state before speaking: git log --oneline -8, `pgrep -fa claude` per lane, and the status table in SECTION_FLOW.md. Reply in a few lines: where we are (People closed or waiting for the video; which Schedule verticals are running or done), and what you will do next. Wait for the owner to paste the next report or say go. Follow the routine in the handoff exactly.
+```

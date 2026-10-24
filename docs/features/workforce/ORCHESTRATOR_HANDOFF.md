@@ -1,5 +1,7 @@
 # Workforce orchestrator handoff (read this first in a new orchestrator session)
 
+> **SUPERSEDED for the current state (24 Oct 2026): read `FINAL_PASS_HANDOFF.md` first.** Sections 1, 2 and 7 below still apply; sections 3 to 6 and 10 are out of date (the stack top is now `feat/workforce-stack-complete`; all segments are built; the final pass is running).
+
 **Written:** 20 Oct 2026, at the end of the first long orchestration session. It carries everything a fresh orchestrator needs: who the owner is, how we work, what is done, what is next, and the gotchas learned the hard way. Keep this file updated at the end of each session (it lives on the stack branches, see "Where things live").
 
 ## 1. The project and your role
