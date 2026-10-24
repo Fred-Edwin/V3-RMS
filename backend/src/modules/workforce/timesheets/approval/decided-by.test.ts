@@ -10,9 +10,9 @@ const names = (id: string | null) => (id === 'm1' ? faith : null);
 
 describe('"Decided by" wording', () => {
   it('words each case as the document does', () => {
-    expect(decidedText(decidedLines([day('2026-09-01')], [], names))).toBe('Matches the rota, approved by the system');
+    expect(decidedText(decidedLines([day('2026-09-01')], [], names))).toBe('Matches the shift, approved by the system');
     const lines = decidedLines([day('2026-09-01')], [item('2026-09-12', { status: 'APPROVED_PART', decidedById: 'm1', needsMinutes: 35, authorisedMinutes: 20 })], names);
-    expect(decidedText(lines)).toBe('Matches the rota, approved by the system; Overtime approved in part (20 min of 35 min) by Faith Njeri, Branch Manager');
+    expect(decidedText(lines)).toBe('Matches the shift, approved by the system; Overtime approved in part (20 min of 35 min) by Faith Njeri, Branch Manager');
     expect(decidedText(decidedLines([], [item('2026-09-12', { status: 'APPROVED', decidedById: 'm1', authorisedMinutes: 35 })], names))).toBe('Overtime approved by Faith Njeri, Branch Manager');
     expect(decidedText(decidedLines([], [item('2026-09-12', { status: 'DECLINED', decidedById: 'm1' })], names))).toBe('Overtime not approved by Faith Njeri, Branch Manager');
     expect(decidedText(decidedLines([], [item('2026-09-12', { status: 'AUTO_AUTHORISED', needsMinutes: 0, autoMinutes: 20, authorisedMinutes: 20 })], names))).toBe('Service tail within the allowance');

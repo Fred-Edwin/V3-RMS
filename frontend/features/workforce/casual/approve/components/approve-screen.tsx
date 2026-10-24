@@ -16,9 +16,11 @@ export function ApproveScreen() {
   const waiting = useRemote(casualReads.waiting, 'waiting', permissions.ready && permissions.can('casual.approve'));
 
   let body: React.ReactNode;
-  if (!permissions.ready || waiting.status === 'loading') body = <ListSkeleton rows={3} columns={['fill', 60]} label="Opening casual pay" />;
+  if (permissions.failed) body = <ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={permissions.retry} />;
+  else if (!permissions.ready) body = <ListSkeleton rows={3} columns={['fill', 60]} label="Opening casual pay" />;
   else if (!permissions.can('casual.approve')) body = <EmptyState kind="nothingYet" title="You do not approve casual pay" line="Casual pay sheets appear here for the Branch Manager and the Director." />;
-  else if (waiting.status === 'error') body = <ErrorBlock title="Casual pay did not load" line="Nothing was changed." onRetry={waiting.reload} />;
+  else if (waiting.status === 'loading') body = <ListSkeleton rows={3} columns={['fill', 60]} label="Opening casual pay" />;
+  else if (waiting.status === 'error') body = <ErrorBlock title="We could not load this" line={waiting.error.message} reference={waiting.error.code} onRetry={waiting.reload} />;
   else {
     const { toApprove, unsigned } = waiting.data;
     const newestFirst = [...toApprove].sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));

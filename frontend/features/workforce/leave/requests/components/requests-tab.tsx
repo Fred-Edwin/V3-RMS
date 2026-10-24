@@ -24,7 +24,7 @@ const COPY: TableCopy = {
 
 const ROTA_WORD: Record<string, { text: string; tone: 'warning' | 'muted' | 'success' | 'error' }> = {
   CLASH: { text: 'Clash', tone: 'warning' },
-  NOT_PLANNED: { text: 'Rota not planned', tone: 'muted' },
+  NOT_PLANNED: { text: 'Shifts not planned', tone: 'muted' },
   OK: { text: 'Enough people', tone: 'muted' },
 };
 
@@ -84,7 +84,7 @@ export function RequestsTab({ site, siteLabel }: { site: string | undefined; sit
         ),
       },
       { id: 'dates', header: 'DATES', width: '180px', cell: (r) => <span className="whitespace-nowrap font-wds-mono text-[12px] leading-4 text-wds-text-ink">{`${rangeShort(r.application.start, r.application.end)} · ${r.application.days} d`}</span> },
-      { id: 'rota', header: 'ROTA', width: '104px', cell: (r) => { const w = rotaWord(r); return <StatusText tone={w.tone === 'muted' ? 'muted' : w.tone}>{w.text}</StatusText>; } },
+      { id: 'rota', header: 'SHIFTS', width: '104px', cell: (r) => { const w = rotaWord(r); return <StatusText tone={w.tone === 'muted' ? 'muted' : w.tone}>{w.text}</StatusText>; } },
     ],
     [siteLabel]
   );
@@ -128,7 +128,7 @@ export function RequestsTab({ site, siteLabel }: { site: string | undefined; sit
           openId ? (
             <RequestDetail key={openId} id={openId} onChanged={() => setRefresh((n) => n + 1)} />
           ) : (
-            <p className="m-0 p-6 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Choose a request to see the rota.</p>
+            <p className="m-0 p-6 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">Choose a request to see the shifts.</p>
           )
         }
       />

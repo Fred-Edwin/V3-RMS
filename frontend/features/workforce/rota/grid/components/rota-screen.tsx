@@ -7,12 +7,13 @@ import { Picker } from '@/components/ui2/picker';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/cn';
 
-import { DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, PeriodStepper, ShiftLegend, WorkforceFrame } from '../../../_shared';
+import { DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, PeriodStepper, ShiftLegend, WorkforceFrame, purposeOf } from '../../../_shared';
+import { RefusalScreen } from '../../../refusal';
 import { CopyDayDialog } from '../../dialogs/copy-day-dialog';
 import { CopyWeekDialog } from '../../dialogs/copy-week-dialog';
 import { PendingDialogs } from '../../dialogs/pending-dialogs';
 import { RotaPhone } from '../../phone/components/rota-phone';
-import { GRID_NOTE, GRID_NOTE_READ_ONLY, GRID_NOTE_SITES, LEFT_NOTE, LEFT_NOTE_SITES, NO_ACCESS, NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
+import { GRID_NOTE, GRID_NOTE_READ_ONLY, GRID_NOTE_SITES, LEFT_NOTE, LEFT_NOTE_SITES, NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
 import { weekLabel } from '../../_shared/lib/rota-dates';
 import { timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, listedDepartments, peopleIn, warningsIn } from '../../_shared/lib/week-view';
@@ -26,13 +27,13 @@ import { RotaTopActions } from './rota-top-actions';
 import { WarningsList } from './warnings-list';
 
 const TEMPLATES_HREF = '/app/workforce/schedule/templates';
+const SHIFTS_HREF = '/app/workforce/schedule/rota';
 
-/** The shifts used by the people in view, one per colour, for the legend over the grid. */
+/** The branch's shifts, one per colour, for the legend over the grid: every active shift, whether or not it is used yet this week. */
 function legendOf(week: WeekView, people: ReturnType<typeof peopleIn>) {
-  const used = new Set(people.flatMap((p) => Object.values(p.cells).flatMap((day) => day.map((s) => s.templateId))));
   const seen = new Set<string>();
   const items = week.templates
-    .filter((t) => used.has(t.id))
+    .filter((t) => t.isActive)
     .flatMap((t) => {
       const tone = toneOfColour(t.colour);
       if (seen.has(tone)) return [];
@@ -54,23 +55,26 @@ export function RotaScreen() {
   const canWrite = data?.can.write ?? false;
 
   const frame = (body: React.ReactNode, actions?: React.ReactNode) => (
-    <WorkforceFrame breadcrumb={{ section: 'Schedule', screen: 'Rota' }} phoneTitle="Rota" label="Rota" actions={actions}>
+    <WorkforceFrame breadcrumb={{ section: 'Schedule', screen: 'Shifts' }} phoneTitle="Shifts" label="Shifts" actions={actions}>
       {body}
     </WorkforceFrame>
   );
 
-  if (!s.perms.ready && !s.perms.failed) return frame(<ListSkeleton rows={6} label="Loading the rota" className="m-8" />);
-  if (s.perms.failed || !s.canRead) return frame(<EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" />);
+  if (!s.perms.ready && !s.perms.failed) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
+  if (s.perms.failed) return frame(<ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={s.perms.retry} className="m-8" />);
+  // A page this role may not use is always the one "Not available for your role" screen, never a message of its own.
+  if (!s.canRead) return <RefusalScreen from={SHIFTS_HREF} />;
   if (week.status === 'error' && !data) {
     const refused = week.error.status === 403 || week.error.status === 404;
-    return frame(
-      refused ? <EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" /> : <ErrorBlock title="Could not load the rota" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />
-    );
+    if (refused) return <RefusalScreen from={SHIFTS_HREF} />;
+    return frame(<ErrorBlock title="We could not load this" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />);
   }
-  if (!data) return frame(<ListSkeleton rows={6} label="Loading the rota" className="m-8" />);
+  if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 
   const people = peopleIn(data, departmentId);
-  const warnings = warningsIn(data, departmentId);
+  // Nobody has a shift yet: the thin-cover warnings would only say "every day is thin", so the week reads "Not started" instead.
+  const started = people.some((p) => Object.keys(p.cells).length > 0);
+  const warnings = started ? warningsIn(data, departmentId) : [];
   const departmentName = departmentId === ALL_DEPARTMENTS ? 'All departments' : (data.departments.find((d) => d.id === departmentId)?.name ?? '');
   const printHref = `/app/workforce/schedule/rota/print?week=${s.weekStart}${s.siteId ? `&site=${s.siteId}` : ''}${departmentId !== ALL_DEPARTMENTS ? `&dept=${departmentId}` : ''}`;
 
@@ -86,7 +90,8 @@ export function RotaScreen() {
   return frame(
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
-        title={`Rota · ${s.siteName || 'Site'}`}
+        title={`Shifts · ${s.siteName || 'Site'}`}
+        purpose={purposeOf('/app/workforce/schedule/rota')}
         subtitle={
           <PeriodStepper label={weekLabel(data.weekStart)} previousLabel="Previous week" nextLabel="Next week" onPrevious={() => s.stepWeek(-1)} onNext={() => s.stepWeek(1)} previousDisabled={s.previousDisabled} nextDisabled={s.nextDisabled} />
         }

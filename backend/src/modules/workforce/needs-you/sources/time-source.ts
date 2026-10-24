@@ -12,7 +12,7 @@ const who = (p: Person): string => `${p.name}, ${roleLabel(p.user?.role ?? null)
 const WHAT: Record<string, string> = {
   CLOCK_TIME_WRONG: 'a clock time is wrong',
   WORKED_NOT_RECORDED: 'worked a shift that is not recorded',
-  ROTA_WRONG: 'the rota is wrong',
+  ROTA_WRONG: 'the shifts are wrong',
   OVERTIME_MISSING: 'overtime is missing',
   PAY_OTHER: 'a question about pay',
   CLOCKED_OUT_BY_MISTAKE: 'clocked out by mistake',

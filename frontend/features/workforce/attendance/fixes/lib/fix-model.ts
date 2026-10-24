@@ -83,7 +83,7 @@ export function workedChangeWords(before: DayNumbers | null, after: DayNumbers |
 /** The clock events of one shift, for the table: label, recorded time, source. */
 export function eventRows(history: DayHistory, entryId: string | null): { id: string; label: string; recorded: string; type: 'IN' | 'OUT'; source: string; auto: boolean }[] {
   const events = entryId === null ? history.unscheduled : (history.entries.find((e) => e.entryId === entryId)?.events ?? []);
-  return countingEvents(events).map((e) => ({
+  const rows = countingEvents(events).map((e) => ({
     id: e.id,
     label: e.type === 'IN' ? 'Clock in' : 'Clock out',
     recorded: hmOf(e.countsAt ?? e.recordedAt),
@@ -91,4 +91,6 @@ export function eventRows(history: DayHistory, entryId: string | null): { id: st
     source: SOURCE_WORDS[e.source] ?? e.source,
     auto: e.source === 'SYSTEM',
   }));
+  // Clock in is always listed before clock out; two events of one kind keep their order.
+  return [...rows].sort((a, b) => Number(a.type === 'OUT') - Number(b.type === 'OUT'));
 }

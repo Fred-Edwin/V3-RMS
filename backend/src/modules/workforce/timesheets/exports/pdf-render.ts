@@ -173,7 +173,7 @@ function rulesAndSignature(doc: PDFKit.PDFDocument, model: ExportModel, top: num
   const columns: [string, string[]][] = [
     ['RULES USED FOR THIS MONTH · OVERTIME', ruleLines(model.rules, 'OVERTIME')],
     ['LATENESS', ruleLines(model.rules, 'LATENESS')],
-    ['ABSENCE', ['A day on the rota with no clock and no approved leave', 'is recorded as absent and unpaid by the Rules.']],
+    ['ABSENCE', ['A day with a shift and no clock and no approved leave', 'is recorded as absent and unpaid by the Rules.']],
   ];
   columns.forEach(([title, lines], i) => {
     put(doc, title, X + i * colW + 12, top + 9, { font: 'Times-Bold', size: 7.5, color: PALETTE.navy, width: colW - 20, spacing: 0.8 });

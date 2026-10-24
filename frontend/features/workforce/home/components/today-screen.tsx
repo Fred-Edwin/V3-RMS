@@ -3,10 +3,12 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { TopbarBell } from '@/components/app/shell/menu/topbar-bell';
 import { useAuthStore } from '@/store/authStore';
 
-import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, useRemote, useWorkforcePermissions } from '../../_shared';
+import { ChoiceChips, EmptyState, ErrorBlock, ListSkeleton, PageHeader, PeriodStepper, WorkforceFrame, WorkforceKpiStrip, purposeOf, useRemote, useWorkforcePermissions } from '../../_shared';
 import { attendanceReads, kpiCells, liveLine, useBoard } from '../../attendance';
+import { useOpenNotifications, useUnreadStore } from '../../notifications';
 import { addDays, nairobiToday } from '../../rota';
 import { LiveBoard } from './live-board';
 
@@ -27,6 +29,8 @@ export function TodayScreen() {
   });
   const [siteId, setSiteId] = React.useState<string | undefined>(undefined);
   const user = useAuthStore((s) => s.user);
+  const unread = useUnreadStore((s) => s.unread);
+  const openNotifications = useOpenNotifications();
   const wide = permissions.scopeOf('today.read') === 'all';
   const sites = useRemote(() => attendanceReads.switches(), 'today-sites', permissions.ready && wide);
   // A company-wide role with no branch of their own starts on the first branch that uses the new clock.
@@ -44,17 +48,22 @@ export function TodayScreen() {
     <EmptyState kind="nothingYet" title="This branch still uses the old clock" line="The Today board appears here once the Director switches the new clock on for this branch." />
   ) : board.data ? (
     <>
-      <WorkforceKpiStrip aria-label="The branch on this day" cells={kpiCells(board.data)} />
+      <WorkforceKpiStrip aria-label="The branch on this day" cells={kpiCells(board.data, undefined, date < today)} />
       <LiveBoard board={board.data} reload={board.reload} everyone initialReview={review && reviewEmployee ? { employeeId: reviewEmployee, entryId: review, date: params.get('date') ?? date } : undefined} />
     </>
   ) : null;
 
   const siteName = sites.data?.find((s) => s.organizationId === chosen)?.organizationName ?? user?.organizationName ?? 'the branch';
+  // A department head sees their own team: the page is "Barista team today", under Department, not the branch's Today board.
+  const isHead = permissions.scopeOf('today.read') === 'dept';
+  const teamName = board.data?.departments[0]?.name;
+  const pageName = isHead ? 'Team today' : 'Today board';
   return (
-    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Today board' }} phoneTitle="Today board" label="Today board" className="px-4 py-6 lg:px-8 lg:py-7">
+    <WorkforceFrame breadcrumb={{ section: isHead ? 'Department' : 'Workforce', screen: pageName }} phoneTitle={pageName} label={pageName} actions={<TopbarBell href="/app/workforce/notifications" unread={unread} onClick={openNotifications} />} className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
         <PageHeader
-          title={`Today at ${siteName}`}
+          title={isHead ? (teamName ? `${teamName} team today` : 'Team today') : `Today at ${siteName}`}
+          purpose={purposeOf('/app/workforce/today')}
           subtitle={board.data?.enabled ? liveLine(board.data, date === today) : undefined}
           actions={<PeriodStepper label={longDay(date)} previousLabel="Previous day" nextLabel="Next day" onPrevious={() => setDate(addDays(date, -1))} onNext={() => setDate(addDays(date, 1))} nextDisabled={date >= today} />}
         />

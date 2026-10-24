@@ -34,9 +34,10 @@ const Padlock = () => (
  * for (from the access table, through the server) and where to go instead, a primary and a secondary button, and the reference.
  * Nothing is changed by arriving here. If the server cannot say, the plain line shows and the way out still works.
  */
-export function RefusalScreen() {
+export function RefusalScreen({ from: fromPath }: { from?: string } = {}) {
   const params = useSearchParams();
-  const from = safeFrom(params.get('from'));
+  // A screen that finds out it may not be used (the server said no) shows this very screen in place, naming its own address.
+  const from = safeFrom(fromPath ?? params.get('from'));
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
   const unread = useUnreadStore((s) => s.unread);

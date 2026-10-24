@@ -12,7 +12,7 @@ const CLAUSE: Record<RuleGroupCode, string> = {
   CONDUCT: 'the ladder, the names and the letters are fixed; durations are set here',
   STATUTORY: 'set and confirmed by the Accountant',
   HOLIDAYS: 'Wendo is open every day of the year, so a holiday only changes pay',
-  WEEK_AND_BREAKS: 'two settings every rota and timesheet share',
+  WEEK_AND_BREAKS: 'two settings every week of shifts and timesheet share',
 };
 
 const LEAVE_LINE = 'Every change makes a new version from the date you choose. Past leave is never re-counted, and the change is in the audit log.';

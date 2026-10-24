@@ -65,7 +65,7 @@ export function CancelApprovedDialog({ open, onOpenChange, detail, onCancelled, 
         </div>
       }
       pinLabel="Your PIN, to cancel the signed slip"
-      caption={`The days go back to the balance, the leave slip is marked cancelled and the rota days stay empty. ${toldLine(detail, '')}`}
+      caption={`The days go back to the balance, the leave slip is marked cancelled and the shift days stay empty. ${toldLine(detail, '')}`}
       onSubmit={submit}
       submitting={busy}
       error={error}

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { weekdayName } from '../../_shared/lib/rota-dates';
+import { dayInWords, weekdayName } from '../../_shared/lib/rota-dates';
 import type { RotaWarning } from '../../_shared/types/rota-types';
 
 /**
@@ -16,7 +16,7 @@ export const WarningsList = React.forwardRef<HTMLElement, { warnings: readonly R
         {warnings.map((w, i) => (
           <li key={`${w.code}${w.employeeId ?? w.departmentId ?? ''}${w.date ?? i}`} className="flex items-baseline gap-2.5 border-b border-wds-neutral-100 px-3.5 py-2.5 last:border-b-0">
             <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 bg-wds-caramel-600" />
-            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{w.message}</span>
+            <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{w.date ? w.message.replace(w.date, dayInWords(w.date)) : w.message}</span>
             {w.date ? <span className="ml-auto shrink-0 font-wds-mono text-[11px] leading-[14px] text-wds-text-secondary">{weekdayName(w.date).slice(0, 3)}</span> : null}
           </li>
         ))}

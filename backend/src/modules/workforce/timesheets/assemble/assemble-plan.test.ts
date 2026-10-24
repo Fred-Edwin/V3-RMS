@@ -12,7 +12,7 @@ const RULES: AttendanceRuleSet = { attendance: RULE_DEFAULTS.ATTENDANCE, latenes
 const PLAN_RULES: PlanRules = { graceMinutes: 5, makeUpSameDay: false, serviceTailMinutes: 15, weeklyCapMinutes: 120, branchBudgetMinutesPerPeriod: null };
 const MONDAY = parseNairobiDate('2026-10-05');
 const TODAY = parseNairobiDate('2026-10-12');
-const person: PersonRow = { id: 'p1', name: 'Amina Hassan', userId: 'u1', siteId: 's1', departmentId: 'd1', departmentName: 'Service', tracksTime: true };
+const person: PersonRow = { id: 'p1', name: 'Amina Hassan', userId: 'u1', siteId: 's1', departmentId: 'd1', departmentName: 'Service', positionName: 'Waiter', tracksTime: true };
 
 let seq = 0;
 const stamp = (date: NairobiDate, clock: string) => instantAt(date, parseClockTime(clock));

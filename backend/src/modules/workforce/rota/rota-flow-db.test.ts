@@ -166,10 +166,11 @@ describe.skipIf(!enabled)('Rota flows in the database', () => {
     m.registerLeaveLookup(null);
   });
 
-  it('today and tomorrow need a reason; past days are read-only; far weeks are refused', async () => {
+  it('the reason for today and tomorrow is optional and kept when given; past days are read-only; far weeks are refused', async () => {
     const p = people[0] as { id: string };
     const tomorrow = m.time.addDays(today(), 1);
-    await expect(m.cellsService.setCells(townManager, { changes: [{ employeeId: p.id, date: tomorrow, templateIds: [morning] }] } as never)).rejects.toMatchObject({ statusCode: 409, code: 'REASON_REQUIRED' });
+    await m.cellsService.setCells(townManager, { changes: [{ employeeId: p.id, date: tomorrow, templateIds: [morning] }] } as never);
+    await m.cellsService.setCells(townManager, { changes: [{ employeeId: p.id, date: tomorrow, templateIds: [] }] } as never);
     await m.cellsService.setCells(townManager, { changes: [{ employeeId: p.id, date: tomorrow, templateIds: [morning] }], reason: 'Cover for a sick colleague' } as never);
     const entry = (await m.auditRepository.listEntries(companyId, 0n, 100000)).filter((e) => e.action === 'rota.cells_changed').pop();
     expect(entry?.reason).toBe('Cover for a sick colleague');

@@ -34,6 +34,7 @@ export function ShiftChip({
   onSelect,
   disabled = false,
   ariaLabel,
+  title,
   className,
 }: {
   tone: ShiftChipTone;
@@ -48,6 +49,8 @@ export function ShiftChip({
   onSelect?: (opener: HTMLElement) => void;
   disabled?: boolean;
   ariaLabel?: string;
+  /** The hover tooltip: the shift's name when the chip shows its timings. */
+  title?: string;
   className?: string;
 }) {
   const paint = SHIFT_PAINT[tone];
@@ -61,11 +64,11 @@ export function ShiftChip({
     className
   );
   const chip = onSelect ? (
-    <button type="button" onClick={(e) => onSelect(e.currentTarget)} disabled={disabled} aria-pressed={chosen} aria-label={ariaLabel} className={cn(box, MOTION, FOCUS_RING, PRESSED, 'disabled:pointer-events-none disabled:opacity-60', onHover('brightness-[0.97]'))}>
+    <button type="button" onClick={(e) => onSelect(e.currentTarget)} disabled={disabled} aria-pressed={chosen} aria-label={ariaLabel} title={title} className={cn(box, MOTION, FOCUS_RING, PRESSED, 'disabled:pointer-events-none disabled:opacity-60', onHover('brightness-[0.97]'))}>
       {label}
     </button>
   ) : (
-    <span aria-label={ariaLabel} className={box}>
+    <span aria-label={ariaLabel} title={title} className={box}>
       {label}
     </span>
   );
@@ -108,7 +111,7 @@ export function ShiftLegend({ items, className }: { items: ReadonlyArray<{ tone:
 export function ShiftSwatchPicker({
   value,
   onChange,
-  label = 'Colour on the rota',
+  label = 'Colour on the grid',
   names,
   disabled = false,
 }: {
@@ -161,6 +164,8 @@ export interface ShiftGridCell {
   changedFrom?: string;
   chosen?: boolean;
   ariaLabel?: string;
+  /** The hover tooltip (the shift's name when the cell shows timings). */
+  title?: string;
   /** Only when the viewer may edit this cell. Receives the chip, so a popover can anchor to it. */
   onSelect?: (opener: HTMLElement) => void;
 }
@@ -264,7 +269,7 @@ export function ShiftGrid({
                         </span>
                       )
                     ) : c ? (
-                      <ShiftChip tone={c.tone} label={c.label} long={c.long} flagged={c.flagged} changedFrom={c.changedFrom} chosen={c.chosen} ariaLabel={c.ariaLabel ?? `${r.name}, ${d}, ${c.label}`} onSelect={c.onSelect} />
+                      <ShiftChip tone={c.tone} label={c.label} long={c.long} flagged={c.flagged} changedFrom={c.changedFrom} chosen={c.chosen} ariaLabel={c.ariaLabel ?? `${r.name}, ${d}, ${c.label}`} title={c.title} onSelect={c.onSelect} />
                     ) : (
                       <span aria-label={`${r.name}, ${d}, no shift`} className="font-wds-sans text-[13px] leading-4 text-wds-neutral-400">
                         —

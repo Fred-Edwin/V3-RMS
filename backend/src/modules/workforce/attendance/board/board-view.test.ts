@@ -9,7 +9,7 @@ const DAY = parseNairobiDate('2026-10-12');
 const at = (clock: string) => instantAt(DAY, parseClockTime(clock));
 const NOW = at('06:42');
 
-const person = (id: string, name: string, departmentId: string, departmentName: string): PersonRow => ({ id, name, userId: `u-${id}`, siteId: 's1', departmentId, departmentName, tracksTime: true });
+const person = (id: string, name: string, departmentId: string, departmentName: string): PersonRow => ({ id, name, userId: `u-${id}`, siteId: 's1', departmentId, departmentName, positionName: 'Barista', tracksTime: true });
 const entry = (employeeId: string, start = '06:00', end = '14:00'): EntryRow => ({ id: `e-${employeeId}`, employeeId, date: DAY, templateName: 'Morning', colour: 'BLUE', startTime: start, endTime: end, unpaidBreakMinutes: 0 });
 let seq = 0;
 const clockIn = (employeeId: string, clock: string, extra: Partial<EventRow> = {}): EventRow => {

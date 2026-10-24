@@ -68,7 +68,8 @@ export function departmentStatus(week: WeekView, department: GridDepartment): De
   return { text: `${mine.length} need a look`, tone: 'warning' };
 }
 
-export const allStatus = (week: WeekView): DepartmentStatus => (week.warnings.length === 0 ? { text: 'Complete', tone: 'success' } : { text: `${week.warnings.length} need a look`, tone: 'warning' });
+export const allStatus = (week: WeekView): DepartmentStatus =>
+  week.people.every((p) => Object.keys(p.cells).length === 0) ? { text: 'Not started', tone: 'warning' } : week.warnings.length === 0 ? { text: 'Complete', tone: 'success' } : { text: `${week.warnings.length} need a look`, tone: 'warning' };
 
 export interface WeekNumbers {
   shifts: number;
@@ -83,11 +84,13 @@ export function weekNumbers(week: WeekView, departmentId: string): WeekNumbers {
   const people = peopleIn(week, departmentId);
   const warnings = warningsIn(week, departmentId);
   const shifts = people.reduce((sum, p) => sum + Object.values(p.cells).reduce((n, day) => n + day.length, 0), 0);
+  // A week nobody has started is "Not started", not a pile of thin days.
+  const started = shifts > 0;
   return {
     shifts,
     people: people.filter((p) => Object.keys(p.cells).length > 0).length,
-    needsLook: warnings.length,
-    lookPhrase: warnings.length === 0 ? 'nothing to check' : warningPhrase(warnings),
+    needsLook: started ? warnings.length : 0,
+    lookPhrase: !started ? 'Not started' : warnings.length === 0 ? 'nothing to check' : warningPhrase(warnings),
     plannedMinutes: people.reduce((sum, p) => sum + p.plannedMinutes, 0),
     onLeave: people.filter((p) => p.leaveDates.some((d) => week.days.some((day) => day.date === d))).length,
   };
@@ -102,12 +105,15 @@ export interface FooterRow {
 export function footerRow(week: WeekView, departmentId: string, warnings: readonly RotaWarning[]): FooterRow {
   const all = departmentId === ALL_DEPARTMENTS;
   const needs = all ? null : (week.days.map((d) => d.byDepartment[departmentId]?.needs ?? null).find((n) => n !== null) ?? null);
-  const thin = new Set(warnings.filter((w) => w.code === 'THIN_COVERAGE' && w.date).map((w) => w.date));
+  const thin = new Map<string, RotaWarning[]>();
+  for (const w of warnings) if (w.code === 'THIN_COVERAGE' && w.date) thin.set(w.date, [...(thin.get(w.date) ?? []), w]);
   return {
     label: needs === null ? 'ON' : `ON, NEEDS ${needs}`,
     cells: week.days.map((d) => {
       const n = all ? d.people : (d.byDepartment[departmentId]?.people ?? 0);
-      if (thin.has(d.date)) return { text: `${n} thin`, tone: 'warning' as const };
+      const thinHere = thin.get(d.date);
+      // "thin" counts only the department that is thin: on the all-departments view that is the sum of what each thin department has.
+      if (thinHere) return { text: `${all ? thinHere.reduce((sum, w) => sum + Number(w.detail.has ?? 0), 0) : n} thin`, tone: 'warning' as const };
       return { text: String(n), tone: n === 0 ? ('faint' as const) : ('default' as const) };
     }),
   };

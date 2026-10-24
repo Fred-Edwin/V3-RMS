@@ -12,7 +12,7 @@ import { needLookAction, needLookTitle, type NeedAction } from '../lib/person-vi
 /** "Planned 14:00 to 22:00 · clocked 13:58 to 22:35." from the last-7-days row of the same date, when it is among them. */
 export function evidenceLine(day: LastDay | undefined): string | null {
   if (!day) return null;
-  const planned = day.plannedStart && day.plannedEnd ? `Planned ${day.plannedStart} to ${day.plannedEnd}` : 'Not on the rota';
+  const planned = day.plannedStart && day.plannedEnd ? `Planned ${day.plannedStart} to ${day.plannedEnd}` : 'No shift planned';
   const clocked = day.clockIn ? `clocked ${hmOf(day.clockIn)} to ${day.clockOut ? hmOf(day.clockOut) : 'not yet'}` : 'no clock';
   return `${planned} · ${clocked}.`;
 }

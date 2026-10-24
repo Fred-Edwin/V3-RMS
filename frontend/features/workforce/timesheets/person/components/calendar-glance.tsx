@@ -18,10 +18,10 @@ const SWATCH: Record<GlanceKind, string> = {
   REST: 'border border-transparent bg-wds-neutral-100 text-wds-neutral-500',
 };
 
-const WORDS: Record<GlanceKind, string> = { WORKED: 'worked, on the rota', LATE: 'late', OVERTIME_TO_DECIDE: 'overtime to decide', NEEDS_LOOK: 'needs a look', ABSENT: 'absent', REST: 'rest day' };
+const WORDS: Record<GlanceKind, string> = { WORKED: 'worked, as planned', LATE: 'late', OVERTIME_TO_DECIDE: 'overtime to decide', NEEDS_LOOK: 'needs a look', ABSENT: 'absent', REST: 'rest day' };
 
 export const GLANCE_LEGEND: { kind: GlanceKind; label: string }[] = [
-  { kind: 'WORKED', label: 'Worked, matches the rota' },
+  { kind: 'WORKED', label: 'Worked, matches the shift' },
   { kind: 'LATE', label: 'Late' },
   { kind: 'OVERTIME_TO_DECIDE', label: 'Overtime to decide' },
   { kind: 'REST', label: 'Rest day' },

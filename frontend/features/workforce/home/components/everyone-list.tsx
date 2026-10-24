@@ -24,7 +24,7 @@ const STATE_WORDS: Record<BoardPerson['state'], { tone: StatusTagTone; label: st
 export function EveryoneList({ board, onOpen }: { board: Board; onOpen: (employeeId: string) => void }) {
   const rows = board.people.filter((p) => p.shifts.length > 0);
   return (
-    <section aria-label="Everyone on the rota today" className="flex flex-col">
+    <section aria-label="Everyone on shift today" className="flex flex-col">
       <h2 className="m-0 flex h-9 items-center justify-between border-b border-wds-text-ink font-wds-mono text-[10px] font-normal leading-3 tracking-[0.06em] text-wds-text-secondary">
         <span>EVERYONE TODAY · {rows.length}</span>
       </h2>

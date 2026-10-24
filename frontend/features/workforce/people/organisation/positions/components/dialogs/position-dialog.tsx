@@ -129,7 +129,7 @@ export function PositionDialog({ position, departments, onClose, done }: { posit
         value={form.tracksTime ? 'yes' : 'no'}
         onChange={(v) => set('tracksTime', v === 'yes')}
         options={[
-          { value: 'yes', title: 'Yes', description: 'Rota, timesheet, lateness, overtime' },
+          { value: 'yes', title: 'Yes', description: 'Shifts, timesheet, lateness, overtime' },
           { value: 'no', title: 'No', description: 'Managers and head office' },
         ]}
       />

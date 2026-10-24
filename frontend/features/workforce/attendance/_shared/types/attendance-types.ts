@@ -116,6 +116,9 @@ export interface BoardPerson {
   name: string;
   departmentId: string | null;
   departmentName: string | null;
+  positionName: string | null;
+  /** True for the head of the person's department; the person label then reads "Barista · Head". */
+  isHead: boolean;
   state: BoardState | 'NO_SHIFT';
   shifts: BoardShift[];
 }

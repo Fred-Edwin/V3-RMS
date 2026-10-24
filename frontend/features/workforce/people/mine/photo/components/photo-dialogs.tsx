@@ -66,7 +66,7 @@ export function PhotoDialogs({ name, onClose, done }: { name: string; onClose: (
       open
       onOpenChange={(o) => !o && onClose()}
       title="Add your photo"
-      description="Your team sees it on the rota and your shift card. You can change it any time."
+      description="Your team sees it on Shifts and your shift card. You can change it any time."
       width={480}
       footer={
         <>

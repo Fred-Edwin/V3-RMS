@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { FOCUS_RING, MOTION, PRESSED, STILL_LOADING_AFTER_MS, onHover } from '../../lib/style/interaction';
+import { FOCUS_RING, MOTION, PRESSED, STILL_LOADING_AFTER_MS, STUCK_AFTER_MS, onHover } from '../../lib/style/interaction';
 import { STATES_FIXED, formatReference } from '../../lib/copy/states-copy';
 
 /**
@@ -51,6 +51,20 @@ export function ListSkeleton({
   className?: string;
 }) {
   const late = useStillLoading(true);
+  const stuck = useStillLoading(true, STUCK_AFTER_MS);
+  // A short code to quote when asking for help: nothing is stored under it, it only marks this moment on this screen.
+  const reference = React.useRef(Math.random().toString(36).slice(2, 6).toUpperCase());
+  if (stuck) {
+    return (
+      <ErrorBlock
+        title={STATES_FIXED.couldNotLoad}
+        line={STATES_FIXED.couldNotLoadLine}
+        reference={reference.current}
+        onRetry={() => window.location.reload()}
+        className={className}
+      />
+    );
+  }
   return (
     <div className={cn('flex flex-col gap-2.5', className)}>
       <div role="status" aria-busy="true" aria-label={label} className="flex flex-col border border-wds-border bg-wds-surface">

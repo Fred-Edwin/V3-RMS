@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, EMPTY_REASON, FormField, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EMPTY_REASON, FormField, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
 import { hmOf, minutesBetween } from '../../_shared/lib/nairobi-clock';
 import { attendanceWrites } from '../../_shared/services/attendance-services';
 import { CLOCK_FOR_REASONS, bodyOf, changeProblem } from '../lib/fix-model';
@@ -52,7 +52,7 @@ export function ClockForDialog({
       busy={action.busy}
       width={560}
       title={`Clock in for ${name}`}
-      description={`${shiftLine} · ${department}`}
+      description={`${DIALOG_LEADS.clockFor(first)} ${shiftLine} · ${department}`}
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={action.busy}>

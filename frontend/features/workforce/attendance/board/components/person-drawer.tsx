@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { ActionCards, Callout, DrawerSection, WorkforceDrawer, initialsOf, type ActionCardItem } from '../../../_shared';
+import { ActionCards, Callout, DrawerSection, WorkforceDrawer, initialsOf, positionWords, type ActionCardItem } from '../../../_shared';
 import { addDays, nairobiToday } from '../../../rota';
 import { hmOf, minutesBetween } from '../../_shared/lib/nairobi-clock';
 import type { Board, BoardPerson, BoardShift } from '../../_shared/types/attendance-types';
@@ -22,9 +22,13 @@ export interface DrawerActions {
   review?: (shift: BoardShift) => void;
 }
 
+/** "WED 28 OCT", the section heading when the board shows a day that has passed. */
+const dayCaption = (date: string): string =>
+  new Date(`${date}T12:00:00+03:00`).toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi', weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '').toUpperCase();
+
 function statusOf(shift: BoardShift | null, person: BoardPerson): { tone: 'error' | 'warning' | 'success' | 'neutral'; title: string; body: string } {
   const first = person.name.split(/\s+/)[0] ?? person.name;
-  if (!shift) return { tone: 'neutral', title: 'No shift today', body: `${first} is not on the rota for this day.` };
+  if (!shift) return { tone: 'neutral', title: 'No shift', body: `${first} has no shift on this day.` };
   const start = `${shift.startTime}`;
   switch (shift.state) {
     case 'NOT_IN':
@@ -77,20 +81,19 @@ export function PersonDrawer({
   const minutesAgo = shift ? Math.max(0, minutesBetween(`${board.date}T${shift.startTime}:00+03:00`, Date.now())) : 0;
 
   return (
-    <WorkforceDrawer open onOpenChange={(o) => !o && onClose()} title={person.name} subtitle={person.departmentName ?? 'No department'} initials={initialsOf(person.name)}>
+    <WorkforceDrawer open onOpenChange={(o) => !o && onClose()} title={person.name} subtitle={positionWords(person.positionName, person.isHead) ?? person.departmentName ?? 'No department'} initials={initialsOf(person.name)}>
       <div className="flex flex-col gap-[18px] px-7 py-[22px]">
         <Callout tone={status.tone === 'neutral' ? 'neutral' : status.tone} title={status.title}>
           {status.body}
           {shift?.state === 'NOT_IN' && board.date === nairobiToday() ? ` That was ${minutesAgo} minutes ago.` : ''}
         </Callout>
-        <DrawerSection caption="TODAY">
+        <DrawerSection caption={board.date === nairobiToday() ? 'TODAY' : dayCaption(board.date)}>
           <dl className="m-0 flex flex-col gap-2">
             <Row label="Shift" value={shift ? `${shift.templateName} ${shift.startTime} to ${shift.endTime}` : 'None'} />
             <Row label="Clocked in" value={shift?.clockedInAt ? hmOf(shift.clockedInAt) : 'Not yet'} />
             <Row label="Clocked out" value={shift?.clockedOutAt ? hmOf(shift.clockedOutAt) : '—'} />
             {shift?.recordedForBy ? <Row label="Clock-in entered by" value="A manager, not their phone" /> : null}
             {canReadTime ? <Row label="Late in the last 30 days" value={lateness.status === 'ready' ? (lateDays ? `${lateDays.lateDays} ${lateDays.lateDays === 1 ? 'day' : 'days'}, ${lateDays.minutesAfterGrace} min past grace` : 'Not late') : '…'} /> : null}
-            <Row label="Leave" value="Arrives with Leave" />
           </dl>
         </DrawerSection>
         {rows.length > 0 ? (

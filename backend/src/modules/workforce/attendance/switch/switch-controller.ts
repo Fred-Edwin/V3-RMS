@@ -1,11 +1,13 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { verifySignerPin } from '../../_shared/pin/signer-pin';
 import { ok, subjectOf } from '../../rota/rota-http';
 import { gridScope } from '../../rota/rota-scope';
 import { getSwitch, listSwitches, setSwitch } from './switch-service';
 
 const getQuery = z.object({ siteId: z.string().uuid().optional() }).strict();
-const setBody = z.object({ siteId: z.string().uuid(), enabled: z.boolean() }).strict();
+/** Switching a branch on or off is a signed act: the caller's own PIN goes through the shared PIN door (pauses after wrong tries, never a lockout). */
+const setBody = z.object({ siteId: z.string().uuid(), enabled: z.boolean(), pin: z.string().regex(/^\d{4}$/, 'The PIN is 4 digits') }).strict();
 
 export const switchController = {
   /** Anyone who reads the Today board may see whether the new clock is on for their branch. */
@@ -19,6 +21,8 @@ export const switchController = {
   },
   set: async (req: Request, res: Response): Promise<void> => {
     const body = setBody.parse(req.body);
-    ok(res, await setSwitch(subjectOf(req), body.siteId, body.enabled));
+    const subject = subjectOf(req);
+    await verifySignerPin(subject.id, body.pin);
+    ok(res, await setSwitch(subject, body.siteId, body.enabled));
   },
 };

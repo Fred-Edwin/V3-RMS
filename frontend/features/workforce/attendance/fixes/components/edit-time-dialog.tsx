@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { Callout, ChoiceChips, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
+import { Callout, ChoiceChips, DIALOG_LEADS, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, TimeField, reasonText, useAction, type ReasonValue } from '../../../_shared';
 import { longDayWords } from '../../_shared/lib/nairobi-clock';
 import { attendanceWrites } from '../../_shared/services/attendance-services';
 import type { DayHistory, FixView } from '../../_shared/types/attendance-types';
@@ -74,7 +74,7 @@ export function EditTimeDialog({
       busy={action.busy}
       width={640}
       title={`Edit time · ${history.name}`}
-      description={`${longDayWords(history.date)}${entry ? ` · ${entry.templateName} ${entry.startTime} to ${entry.endTime}` : ''}`}
+      description={`${DIALOG_LEADS.editTime(history.name.split(/\s+/)[0] ?? history.name)} ${longDayWords(history.date)}${entry ? ` · ${entry.templateName} ${entry.startTime} to ${entry.endTime}` : ''}`}
       footer={
         <>
           <button type="button" onClick={() => setShowHistory((s) => !s)} className="mr-auto font-wds-sans text-[13px] leading-4 text-wds-primary underline-offset-2 hover:underline">
@@ -118,8 +118,8 @@ export function EditTimeDialog({
               <span role="cell" className="flex grow basis-0 items-center justify-between gap-2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
                 {row.source}
                 <span className="flex gap-3">
-                  <button type="button" onClick={() => setChange({ action: 'EDIT', eventId: row.id, hm: row.recorded })} className="min-h-8 text-wds-primary hover:underline">Edit</button>
-                  <button type="button" onClick={() => setChange({ action: 'VOID', eventId: row.id })} className="min-h-8 text-wds-primary hover:underline">Remove</button>
+                  <button type="button" onClick={() => setChange({ action: 'EDIT', eventId: row.id, hm: row.recorded })} className="min-h-8 text-wds-warning-fg underline underline-offset-2">Edit</button>
+                  <button type="button" onClick={() => setChange({ action: 'VOID', eventId: row.id })} className="min-h-8 text-wds-warning-fg underline underline-offset-2">Remove</button>
                 </span>
               </span>
             </div>
@@ -153,7 +153,7 @@ export function EditTimeDialog({
       {previewError ? <Callout tone="error" size="sm">{previewError}</Callout> : null}
       <ReasonChips legend="Reason, required" legendStyle="sentence" options={[...FIX_REASONS]} value={reason} onChange={setReason} disabled={action.busy} />
       <Callout size="sm" bullet>
-        The old value stays visible in the history. {history.name.split(' ')[0]} is told. Any time past the shift end goes to overtime approval. After a pay period closes only HR can change this, with a reason.
+        The old value stays visible in the history. {history.name.split(' ')[0]} is told. After a pay period closes only HR can change this, with a reason.
       </Callout>
       {showHistory ? <HistoryList history={history} entryId={entryId} /> : null}
       {action.error ? <Callout tone="error" role="alert" size="sm">{action.error}</Callout> : null}

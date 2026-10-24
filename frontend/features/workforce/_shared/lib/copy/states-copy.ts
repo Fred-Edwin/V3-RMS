@@ -40,6 +40,8 @@ export interface ScreenStatesCopy {
   notApplicable?: boolean;
 }
 
+import { NEXT_STEP_LINES } from './page-copy';
+
 export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
   waitingForYou: {
     screen: 'Needs you',
@@ -48,20 +50,20 @@ export const STATES_COPY: Record<WorkforceScreenKey, ScreenStatesCopy> = {
     error: 'We could not load your list. Your answers are safe.',
   },
   rota: {
-    screen: 'Rota',
-    nothingYet: 'No rota for {range} yet. Start from last week or from a template.',
+    screen: 'Shifts',
+    nothingYet: NEXT_STEP_LINES.noShiftsYet,
     nothingFound: 'No shift matches "{term}". Clear the filter.',
-    error: 'We could not load the rota. Nothing was changed.',
+    error: 'We could not load the shifts. Nothing was changed.',
   },
   todayBoard: {
     screen: 'Today board',
-    nothingYet: 'Nobody is rostered today. Add a shift from the rota.',
-    nothingFound: 'Nobody late right now. Everyone on the rota is in.',
+    nothingYet: NEXT_STEP_LINES.noOneToday,
+    nothingFound: 'Nobody late right now. Everyone on shift is in.',
     error: 'We could not refresh the board. The times shown may be old.',
   },
   timesheets: {
     screen: 'Timesheets',
-    nothingYet: 'No timesheet month is open yet. One opens when the first rota is set.',
+    nothingYet: 'No timesheet month is open yet. One opens when the first shifts are set.',
     nothingFound: 'No person matches "{term}". Clear the search.',
     error: 'We could not load the period. Nothing was changed.',
   },
@@ -150,6 +152,8 @@ export function statesCopy(
 /** Fixed lines from the States kit that are not per screen. */
 export const STATES_FIXED = {
   stillLoading: 'Still loading. Your work is safe.',
+  couldNotLoad: 'We could not load this',
+  couldNotLoadLine: NEXT_STEP_LINES.couldNotLoad,
   tryAgain: 'Try again',
   referencePrefix: 'Reference',
   offlineStrip: 'No signal.',

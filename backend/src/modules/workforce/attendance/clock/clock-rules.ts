@@ -42,7 +42,7 @@ export function trustedMoment(serverNow: Date, deviceAt: Date | undefined, sentA
  */
 export function chooseEntryToClockIn(days: readonly EntryDay[], entryId: string | undefined): EntryDay {
   const pool = entryId ? days.filter((d) => d.entryId === entryId) : days;
-  if (pool.length === 0) throw new ConflictError('You have no shift on the rota for that time.', 'NOT_ROSTERED');
+  if (pool.length === 0) throw new ConflictError('You have no shift planned for that time.', 'NOT_ROSTERED');
   if (days.some((d) => d.state === 'ON_SHIFT' || d.state === 'PROMPT_DUE' || d.state === 'STAYING_ON')) {
     throw new ConflictError('You are already clocked in.', 'CLOCK_ALREADY_IN');
   }

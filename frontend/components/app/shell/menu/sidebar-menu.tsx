@@ -106,7 +106,8 @@ function FeatureRow({ item, open, activeKey, activeSubKey, onToggle, onNavigate 
       </button>
       <div id={listId} hidden={!open} className={cn('relative flex-col gap-0.5 pt-0.5', open ? 'flex' : 'hidden')}>
         {subs.map((sub, i) => (
-          <React.Fragment key={sub.key}>
+          // Two inventory features can share a sub key ("history") once a group merges them, so the list key adds the position.
+          <React.Fragment key={`${sub.key}-${i}`}>
             {sub.section && sub.section !== subs[i - 1]?.section ? <Caption text={sub.section} /> : null}
             <SubRow sub={sub} active={here && sub.key === activeSubKey} last={subs[i + 1]?.section !== sub.section || !subs[i + 1]} onNavigate={onNavigate} />
           </React.Fragment>

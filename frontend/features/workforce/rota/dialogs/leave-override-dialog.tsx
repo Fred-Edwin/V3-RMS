@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, reasonText, type ReasonValue } from '../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EMPTY_REASON, KitDialog, ReasonChips, reasonText, type ReasonValue } from '../../_shared';
 import { LEAVE_OVERRIDE_REASONS } from '../_shared/lib/rota-copy';
 import { reasonProblem } from '../_shared/lib/rota-edits';
 import { shortDay, weekdayName } from '../_shared/lib/rota-dates';
@@ -46,7 +46,7 @@ export function LeaveOverrideDialog({
       busy={busy}
       width={600}
       title={leaveHeadline(cells)}
-      description={`Approved leave covers ${Array.from(new Set(cells.map((c) => shortDay(c.date)))).join(', ')}.`}
+      description={DIALOG_LEADS.leaveOverride(Array.from(new Set(cells.map((c) => shortDay(c.date)))).join(', '))}
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onCancel} disabled={busy}>

@@ -11,18 +11,20 @@ import { formatApiErrorMessage } from '@/types/api';
 import { useAuthStore } from '@/store/authStore';
 
 import { useOrgOverview } from '../../../people';
-import { Callout, DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, useWorkforcePermissions } from '../../../_shared';
+import { Callout, DialogButton, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, purposeOf, useWorkforcePermissions } from '../../../_shared';
 import { useTemplates } from '../../_shared/hooks/use-rota-data';
 import { mondayOf, nairobiToday, weekShortRange } from '../../_shared/lib/rota-dates';
 import { breakWords, hoursUnit, timeRangeMono, toneOfColour, usedByWords } from '../../_shared/lib/shift-look';
 import { rotaWrites } from '../../_shared/services/rota-services';
 import type { TemplateView } from '../../_shared/types/rota-types';
+import { RefusalScreen } from '../../../refusal';
+import { firstSite, rememberSite, rememberedSite } from '../../_shared/lib/last-site';
 import { mayEdit, retiredWords, templateCounts, templateRows } from '../lib/template-rows';
 import { TemplateDialog } from './template-dialog';
 
 const COPY: TableCopy = {
   emptyTitle: 'No shifts yet',
-  emptyDescription: 'Add the first shift and it appears in every rota cell.',
+  emptyDescription: 'Add the first shift and it appears in every Shifts cell.',
   filteredEmptyTitle: 'No shift matches',
   filteredEmptyDescription: 'Try a different name, or clear the filters.',
   errorTitle: 'The shifts did not load',
@@ -39,9 +41,11 @@ export function TemplatesScreen() {
   const writesAllSites = perms.scopeOf('rota.template_write') === 'all';
   const readsAllSites = perms.scopeOf('rota.read') === 'all';
   const overview = useOrgOverview(false, perms.ready);
-  const sites = overview.data?.organizations ?? [];
+  // The Central Store has no shifts, so it is not offered; the screen opens on the branch looked at last, else the first branch.
+  const sites = (overview.data?.organizations ?? []).filter((s) => s.type === 'BRANCH');
   const [siteChoice, setSiteChoice] = React.useState<string | null>(null);
-  const siteId = readsAllSites ? (siteChoice ?? sites.find((s) => s.type === 'BRANCH')?.id ?? sites[0]?.id) : (user?.organizationId ?? undefined);
+  const [remembered] = React.useState(rememberedSite);
+  const siteId = readsAllSites ? (siteChoice ?? firstSite(sites, remembered)) : (user?.organizationId ?? undefined);
   const site = sites.find((s) => s.id === siteId);
   const siteName = site?.name ?? user?.organizationName ?? 'this site';
   const templates = useTemplates(readsAllSites ? siteId : undefined, THIS_WEEK, true, perms.ready && perms.can('rota.read') && (!readsAllSites || siteId !== undefined));
@@ -118,8 +122,9 @@ export function TemplatesScreen() {
   );
 
   if (!perms.ready && !perms.failed) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
-  if (perms.failed || !perms.can('rota.read')) return frame(<EmptyState kind="nothingYet" title="You can't open the shifts" line="Ask HR if you need to see or add shifts." className="m-8" />);
-  if (templates.status === 'error' && !data) return frame(<ErrorBlock title="Could not load the shifts" line={templates.error.message} reference={templates.error.code} onRetry={templates.reload} className="m-8" />);
+  if (perms.failed) return frame(<ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={perms.retry} className="m-8" />);
+  if (!perms.can('rota.read')) return <RefusalScreen from="/app/workforce/schedule/templates" />;
+  if (templates.status === 'error' && !data) return frame(<ErrorBlock title="We could not load this" line={templates.error.message} reference={templates.error.code} onRetry={templates.reload} className="m-8" />);
   if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 
   const active = data.filter((t) => t.isActive);
@@ -131,22 +136,23 @@ export function TemplatesScreen() {
     <div className="flex flex-col gap-5 px-8 pb-10 pt-7">
       <PageHeader
         title="Shift templates"
-        subtitle="The shifts you can put on a rota. Break and paid hours live here, so every rota and payslip counts them the same way."
+        purpose={purposeOf('/app/workforce/schedule/templates')}
+        subtitle="Break and paid hours live here, so every week and payslip counts them the same way."
         // The desktop top bar carries this button from 1024 px; below that the page does.
         actions={canWrite ? <DialogButton kind="primary" size="lg" className="lg:hidden" onClick={() => setEditing('new')}>Add shift</DialogButton> : undefined}
       />
       {readsAllSites ? (
         <div className="flex items-center gap-3">
           <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">SITE</span>
-          <Picker aria-label="Site" value={siteId ?? ''} onValueChange={setSiteChoice} chips={false} className="h-8 w-[200px]" options={sites.map((s) => ({ value: s.id, label: s.name }))} />
+          <Picker aria-label="Site" value={siteId ?? ''} onValueChange={(id) => { rememberSite(id); setSiteChoice(id); }} chips={false} className="h-8 w-[200px]" options={sites.map((s) => ({ value: s.id, label: s.name }))} />
         </div>
       ) : null}
       <WorkforceKpiStrip
         aria-label="Shifts at a glance"
         cells={[
           { key: 'use', label: 'IN USE', value: String(active.length), detail: `${companyWide} company-wide, ${active.length - companyWide} for ${siteName}` },
-          { key: 'week', label: "SHIFTS ON THIS WEEK'S ROTA", value: String(data.reduce((n, t) => n + t.thisWeek, 0)), detail: `${siteName}, ${weekShortRange(THIS_WEEK)}` },
-          { key: 'retired', label: 'RETIRED', value: String(data.length - active.length), detail: 'kept so old rotas still read correctly' },
+          { key: 'week', label: "SHIFTS PLANNED THIS WEEK", value: String(data.reduce((n, t) => n + t.thisWeek, 0)), detail: `${siteName}, ${weekShortRange(THIS_WEEK)}` },
+          { key: 'retired', label: 'RETIRED', value: String(data.length - active.length), detail: 'kept so past weeks still read correctly' },
         ]}
       />
       {notice ? (

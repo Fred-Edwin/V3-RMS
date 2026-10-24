@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, DialogButton, FormField, KitDialog } from '../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, FormField, KitDialog } from '../../_shared';
 import { Picker } from '@/components/ui2/picker';
 import { copyDayChanges } from '../_shared/lib/rota-edits';
 import { isPastDay, longDay } from '../_shared/lib/rota-dates';
@@ -37,7 +37,7 @@ export function CopyDayDialog({
       onOpenChange={(o) => !o && onClose()}
       width={480}
       title="Copy a day"
-      description={`Copies one day's shifts onto another for ${title}. Days that already have a shift are kept.`}
+      description={DIALOG_LEADS.copyDay(title)}
       footer={
         <>
           <DialogButton kind="cancel" size="lg" onClick={onClose}>

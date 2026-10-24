@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Callout, ChangeDialog, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, StatusTag, WorkforceFrame, useAction, useRemote } from '../../../_shared';
+import { Callout, DIALOG_LEADS, DialogButton, EmptyState, ErrorBlock, ListSkeleton, PageHeader, StatusTag, WorkforceFrame, WorkforcePinDialog, purposeOf, useAction, useRemote } from '../../../_shared';
 import { attendanceReads, attendanceWrites } from '../../_shared/services/attendance-services';
 import type { SwitchView } from '../../_shared/types/attendance-types';
 import { forgetAttendanceOn } from '../hooks/use-attendance-on';
@@ -24,19 +24,19 @@ export function SwitchScreen() {
     list.reload();
   });
 
-  const confirm = (): void => {
+  const confirm = (pin: string): void => {
     if (!asking) return;
     const turnOn = !asking.enabled;
     void action.run(async () => {
-      const result = await attendanceWrites.setSwitch(asking.organizationId, turnOn);
+      const result = await attendanceWrites.setSwitch(asking.organizationId, turnOn, pin);
       return result;
     }, SWITCH_COPY.done(asking.organizationName, turnOn));
   };
 
   return (
-    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Attendance clock' }} phoneTitle="Attendance clock" label="Attendance clock by branch" className="px-4 py-6 lg:px-8 lg:py-7">
+    <WorkforceFrame breadcrumb={{ section: 'Workforce', screen: 'Attendance switch' }} phoneTitle="Attendance switch" label="Attendance switch by branch" className="px-4 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5">
-        <PageHeader title="Attendance clock" subtitle={SWITCH_COPY.subtitle} />
+        <PageHeader title="Attendance switch" purpose={purposeOf('/app/workforce/attendance/switch')} subtitle={SWITCH_COPY.subtitle} />
         {message ? (
           <Callout tone="success" role="status" size="sm">
             {message}
@@ -64,20 +64,27 @@ export function SwitchScreen() {
       </div>
 
       {asking ? (
-        <ChangeDialog
+        <WorkforcePinDialog
           open
           onOpenChange={(o) => !o && !action.busy && setAsking(null)}
           title={asking.enabled ? `Switch the new clock off for ${asking.organizationName}?` : `Switch the new clock on for ${asking.organizationName}?`}
-          description={asking.enabled ? SWITCH_COPY.offDescription : SWITCH_COPY.onDescription}
-          summaryCaption={`WHAT CHANGES AT ${asking.organizationName.toUpperCase()}`}
-          summaryLines={switchLines(asking)}
+          description={asking.enabled ? DIALOG_LEADS.switchOff(asking.organizationName) : DIALOG_LEADS.switchOn(asking.organizationName)}
+          summary={
+            <ul className="m-0 flex list-none flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 p-3.5">
+              {switchLines(asking).map((line) => (
+                <li key={line} className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          }
+          pinLabel={SWITCH_COPY.pinLabel}
+          caption={SWITCH_COPY.pinCaption}
           confirmLabel={asking.enabled ? 'Switch off' : 'Switch on'}
-          onConfirm={confirm}
-          busy={action.busy}
-          destructive={asking.enabled}
-        >
-          {action.error ? <Callout tone="error" role="alert" size="sm" title={SWITCH_COPY.refused}>{action.error}</Callout> : null}
-        </ChangeDialog>
+          onSubmit={confirm}
+          submitting={action.busy}
+          error={action.error ?? undefined}
+        />
       ) : null}
     </WorkforceFrame>
   );

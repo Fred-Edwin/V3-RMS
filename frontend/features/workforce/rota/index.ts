@@ -7,7 +7,7 @@ export { TemplatesScreen } from './templates/components/templates-screen';
 export { PrintRoute } from './print/components/print-route';
 export { useMyShifts } from './_shared/hooks/use-rota-data';
 export { weekPlan, type WeekPlanDay } from './_shared/lib/my-week';
-export { addDays, mondayOf, nairobiToday } from './_shared/lib/rota-dates';
+export { addDays, dayInWords, mondayOf, nairobiToday } from './_shared/lib/rota-dates';
 export { toneOfColour } from './_shared/lib/shift-look';
 // Rules (1B): the Week and breaks tab lists the shift templates' unpaid breaks, read only.
 export { rotaReads } from './_shared/services/rota-services';

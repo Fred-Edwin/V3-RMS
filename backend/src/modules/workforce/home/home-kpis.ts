@@ -85,7 +85,8 @@ const BUILDERS: Record<HomeAudience, (f: HomeFacts) => HomeKpi[]> = {
     card('unread', 'New notices', f.unreadNotifications, 'waiting for you'),
   ],
   STAFF: (f) => [
-    card('leave-left', 'Leave days left', f.ownLeaveDaysLeft ?? '–', 'this year', { href: '/app/workforce/my-leave' }),
+    // The real balance, or "Not set" with the reason (no balance has been opened for the year yet), never a dash.
+    card('leave-left', 'Leave days left', f.ownLeaveDaysLeft ?? 'Not set', f.ownLeaveDaysLeft === null ? 'HR has not set your balance yet' : 'this year', { href: '/app/workforce/my-leave' }),
     card('leave-asked', 'Leave asked', f.ownLeaveWaiting, 'waiting for an answer', { href: '/app/workforce/my-leave' }),
     card('unread', 'New notices', f.unreadNotifications, 'waiting for you'),
   ],

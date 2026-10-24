@@ -48,7 +48,7 @@ export const AUDIT_TITLES = {
   'rota.template_updated': 'Shift changed',
   'rota.template_retired': 'Shift retired',
   'rota.template_restored': 'Shift restored',
-  'rota.cells_changed': 'Rota changed',
+  'rota.cells_changed': 'Shifts changed',
   'rota.week_copied': 'Week copied',
   'rota.legacy_carried': 'Old shifts carried over',
   'attendance.clocked_in': 'Clocked in',

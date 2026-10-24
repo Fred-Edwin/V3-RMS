@@ -188,7 +188,7 @@ export function resultWords(key: DayResultKey, lateMinutes: number, overtimeMinu
     case 'REST':
       return 'Rest day';
     case 'ON_ROTA':
-      return 'On the rota';
+      return 'On a shift';
     case 'LATE':
       return `Late ${lateMinutes} min, recorded`;
     case 'LEFT_EARLY':

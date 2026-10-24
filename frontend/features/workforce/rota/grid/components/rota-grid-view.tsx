@@ -2,11 +2,11 @@
 
 import * as React from 'react';
 
-import { ShiftGrid, type ShiftGridRow } from '../../../_shared';
+import { ShiftGrid, positionWords, type ShiftGridRow } from '../../../_shared';
 import { cellChangeFor } from '../lib/grid-keys';
 import { dragDates } from '../../_shared/lib/rota-edits';
 import { columnHead, longDay, weekLabel } from '../../_shared/lib/rota-dates';
-import { cellNameOf, hoursNumber, templateFits, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
+import { cellLabelOf, hoursNumber, templateFits, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, cellWarnings, footerRow, personNote } from '../../_shared/lib/week-view';
 import type { GridPerson, RotaWarning, TemplateView, WeekView } from '../../_shared/types/rota-types';
 import { CellPopover } from './cell-popover';
@@ -132,7 +132,7 @@ export function RotaGridView({
   const rows: ShiftGridRow[] = people.map((person) => {
     const note = personNote(person, warnings);
     const isHead = headNameOf(person.departmentId) === person.name;
-    const role = isHead ? 'Head' : (person.positionName ?? '');
+    const role = positionWords(person.positionName, isHead) ?? '';
     const sub = note ?? (departmentId === ALL_DEPARTMENTS ? Array.from(new Set([departmentName(person.departmentId), role].filter(Boolean))).join(' · ') : role);
     return {
       id: person.employeeId,
@@ -152,7 +152,8 @@ export function RotaGridView({
         if (first) {
           return {
             tone: toneOfColour(first.colour),
-            label: cellNameOf(first) + (shifts.length > 1 ? ` +${shifts.length - 1}` : ''),
+            label: cellLabelOf(first) + (shifts.length > 1 ? ` +${shifts.length - 1}` : ''),
+            title: `${first.name} ${timeRangeWords(first)}`,
             flagged: warned.length > 0 || shifts.length > 1,
             chosen,
             ariaLabel: [`${spoken}, ${first.name} ${timeRangeWords(first)}`, ...warned.map((w) => w.message)].join('. '),
@@ -171,13 +172,14 @@ export function RotaGridView({
 
   return (
     <div onPointerDown={startDrag} onPointerOver={overCell} onKeyDown={onKeyDown} className="select-none">
-      <ShiftGrid label={`${title} rota, ${weekLabel(week.weekStart)}`} days={week.days.map((d) => columnHead(d.date))} rows={rows} footer={footer} className="max-w-full" />
+      <ShiftGrid label={`${title} shifts, ${weekLabel(week.weekStart)}`} days={week.days.map((d) => columnHead(d.date))} rows={rows} footer={footer} className="max-w-full" />
       {opened ? (
         <CellPopover
           opener={opened.opener}
           title={opened.person.name}
           subtitle={`${longDay(opened.date)} · ${opened.person.positionName ?? departmentName(opened.person.departmentId)}`}
           options={options}
+          onLeaveNote={opened.person.leaveDates.includes(opened.date) ? `${opened.person.name.split(' ')[0]} is on approved leave this day. A shift here asks you to say why.` : undefined}
           currentIds={(opened.person.cells[opened.date] ?? []).map((s) => s.templateId)}
           onPick={pick}
           onClose={() => setOpened(null)}

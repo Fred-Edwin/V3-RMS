@@ -82,7 +82,7 @@ export function EstimatePanel({ monthLabel, estimate, ready, computedAt }: { mon
         {off.length > 0 ? <p className="m-0 border-t border-wds-neutral-100 px-3.5 py-2.5 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{rows.length} {rows.length === 1 ? 'site' : 'sites'}, {off.length} not on the new system.</p> : null}
       </Panel>
       <Callout tone="warning" title="An estimate, not the payroll">
-        It uses the rota and the clock-ins to today and assumes the rest of the month follows the rota. Nothing is paid until the Branch Managers approve the timesheets.
+        It uses the shifts and the clock-ins to today and assumes the rest of the month follows the shifts. Nothing is paid until the Branch Managers approve the timesheets.
         {e.toDecideOvertime.minutes > 0 ? ` Overtime still to decide (${hoursOf(e.toDecideOvertime.minutes)}) could add about KES ${kes(e.toDecideOvertime.value)}.` : ''}
         {e.missingProfiles > 0 ? ` ${people(e.missingProfiles)} ${e.missingProfiles === 1 ? 'has' : 'have'} no pay profile and ${e.missingProfiles === 1 ? 'is' : 'are'} not included.` : ''}
       </Callout>

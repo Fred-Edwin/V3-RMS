@@ -46,6 +46,8 @@ export const monthName = (date: string): string => MONTHS[parts(date).m - 1] ?? 
 export const columnHead = (date: string): string => `${weekdayName(date).slice(0, 3).toUpperCase()} ${dayOfMonth(date)}`;
 /** "Tue 13", inside a sentence. */
 export const shortDay = (date: string): string => `${weekdayName(date).slice(0, 3)} ${dayOfMonth(date)}`;
+/** "Wed 28 Oct", a date in words for a notice or a warning. */
+export const dayInWords = (date: string): string => `${weekdayName(date).slice(0, 3)} ${dayOfMonth(date)} ${monthName(date).slice(0, 3)}`;
 /** "Saturday 17 October". */
 export const longDay = (date: string): string => `${weekdayName(date)} ${dayOfMonth(date)} ${monthName(date)}`;
 

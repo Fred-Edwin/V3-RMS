@@ -19,14 +19,22 @@ import { nextInGroup } from '../../lib/data/roving';
  * Every word comes in as a prop; none of these holds a role name.
  */
 
+/** The purpose line on a screen that has no `PageHeader` (the phone screens, the printed page). */
+export function PurposeLine({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn('m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary', className)}>{children}</p>;
+}
+
 export function PageHeader({
   title,
+  purpose,
   subtitle,
   actions,
   size = 'md',
   className,
 }: {
   title: string;
+  /** The page's purpose line from `page-copy.ts`: one muted sentence under the title (what the page is for, then the first thing to do). */
+  purpose?: string;
   subtitle?: React.ReactNode;
   /** Buttons at the right. Pass only the ones the viewer may use; the brown one comes last. */
   actions?: React.ReactNode;
@@ -44,6 +52,7 @@ export function PageHeader({
         >
           {title}
         </h1>
+        {purpose ? <p className="m-0 font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{purpose}</p> : null}
         {subtitle ? (
           <div className={cn('m-0 font-wds-sans text-wds-text-secondary', size === 'lg' ? 'text-[13px] leading-[18px]' : 'text-[14px] leading-[18px]')}>{subtitle}</div>
         ) : null}

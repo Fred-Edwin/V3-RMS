@@ -8,13 +8,16 @@ import { employeesService } from '../people/employees/employees-service';
 import { readScopeOf } from '../people/people-access';
 import { resolveActor } from '../people/people-context';
 import { PAY_CHANGE_MONTH_DAYS } from '../people/people.constants';
-import { homeAudienceOf } from './home-audience';
+import { homeAudienceOf, latestFor, needsYouRowsFor } from './home-audience';
 import { kpisFor } from './home-kpis';
 import { homeRepository } from './home-repository';
 import { emptyFacts, type HomeAudience, type HomeFacts, type HomeNeedsYou, type HomeView } from './home-types';
 
 /** How many Needs you rows the Home table shows before "See all". */
 export const HOME_ROWS = 5;
+/** Latest shows five rows; a few more are read so that a line left out for this role does not leave a gap. */
+const LATEST_ROWS = 5;
+const LATEST_FETCH = 15;
 const SOON_DAYS = 30;
 
 /** The words for the payroll month's state, as the Payroll page says them. */
@@ -95,7 +98,8 @@ export async function collectFacts(subject: AccessSubject, audience: HomeAudienc
 
 async function needsYouOf(subject: AccessSubject, now: Date): Promise<HomeNeedsYou | null> {
   if (!workforceCan(subject, 'needs_you.read')) return null;
-  const { rows } = await allRowsFor(subject, now);
+  const { rows: all } = await allRowsFor(subject, now);
+  const rows = needsYouRowsFor(subject, all);
   const { summary, kinds } = summariseForHome(rows, now, HOME_ROWS);
   return { total: rows.length, overdue: rows.filter((r) => r.overdue).length, kinds, rows: summary };
 }
@@ -105,13 +109,13 @@ export async function homeView(subject: AccessSubject, now: Date = new Date()): 
   const [facts, needsYou, latest] = await Promise.all([
     collectFacts(subject, audience, now),
     needsYouOf(subject, now),
-    notificationRepository.list(subject.id, { unreadOnly: false }, 1, 5),
+    notificationRepository.list(subject.id, { unreadOnly: false }, 1, LATEST_FETCH),
   ]);
   return {
     audience,
     kpis: kpisFor(audience, facts),
     needsYou,
-    latest: latest.items.map((n) => ({ id: n.id, title: n.title, body: n.body, tone: n.tone, href: n.href, createdAt: n.createdAt, read: n.read })),
+    latest: latestFor(subject, latest.items, LATEST_ROWS).map((n) => ({ id: n.id, title: n.title, body: n.body, tone: n.tone, href: n.href, createdAt: n.createdAt, read: n.read })),
     unread: facts.unreadNotifications,
   };
 }

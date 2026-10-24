@@ -39,7 +39,7 @@ export function EndHeadDialog({
       summaryCaption="WHAT CHANGES"
       summaryLines={[
         which === 'ACTING' ? `Approvals go back to the head of ${departmentName}.` : `Approvals for ${departmentName} go to the Branch Manager until a new head is named.`,
-        `${first} no longer sees Team today, Rota or Casuals for ${departmentName}.`,
+        `${first} no longer sees Team today, Shifts or Casuals for ${departmentName}.`,
         `${first} and the Branch Manager are told. This is written to the audit log with your name and the time.`,
       ]}
       confirmLabel={`End ${role}`}

@@ -1,4 +1,6 @@
-import { scopeOf, workforceCan, type AccessSubject } from '../_shared/workforce-access';
+import { scopeOf, workforceCan, type AccessSubject, type Capability } from '../_shared/workforce-access';
+import type { NeedsYouRow } from '../needs-you/needs-you-types';
+import type { StoredNotification } from '../notifications/notification-types';
 import type { HomeAudience } from './home-types';
 
 const isHead = (subject: AccessSubject): boolean => subject.isDepartmentHead === true || subject.role === 'DEPARTMENT_HEAD' || (subject.headOfDepartmentIds?.length ?? 0) > 0;
@@ -22,4 +24,22 @@ export function homeAudienceOf(subject: AccessSubject): HomeAudience {
   if (scopeOf(subject, 'needs_you.read') === 'unit') return subject.role === 'STORE_MANAGER' ? 'STORE_MANAGER' : 'BRANCH_MANAGER';
   if (isHead(subject)) return 'HEAD';
   return 'STAFF';
+}
+
+/**
+ * What a Home card shows only to the people it concerns. A head or a waiter is told "Payroll paid" by the notifier (their payslip is
+ * ready), but Home's Latest is for what they can act on or read, so that line stays in the Inbox only.
+ */
+const LATEST_NEEDS: Readonly<Record<string, Capability>> = { 'payroll.month_paid': 'payroll.read' };
+
+export function latestFor(subject: AccessSubject, items: readonly StoredNotification[], limit: number): StoredNotification[] {
+  return items.filter((n) => LATEST_NEEDS[n.kind] === undefined || workforceCan(subject, LATEST_NEEDS[n.kind] as Capability)).slice(0, limit);
+}
+
+/** The Needs you kinds the System Admin may see: the admin decides security alerts, nothing of pay or time. */
+const ADMIN_KINDS: ReadonlySet<string> = new Set(['security']);
+
+/** Needs you lists only what the role can decide: for the System Admin that is security alerts, not a pay change or a closed shift. */
+export function needsYouRowsFor<T extends Pick<NeedsYouRow, 'kind'>>(subject: AccessSubject, rows: readonly T[]): T[] {
+  return homeAudienceOf(subject) === 'SYSTEM_ADMIN' ? rows.filter((r) => ADMIN_KINDS.has(r.kind)) : [...rows];
 }

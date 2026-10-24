@@ -24,7 +24,7 @@ export function SaveStatusText({ status }: { status: SaveStatus }) {
   );
 }
 
-/** The top bar's right side on the Rota: the status, Print, and "Start from last week" (only for someone who may change the rota). */
+/** The top bar's right side on Shifts: the status, Print, and "Start from last week" (only for someone who may change the shifts). */
 export function RotaTopActions({ status, printHref, onStartFromLastWeek }: { status: SaveStatus; printHref: string; onStartFromLastWeek?: () => void }) {
   return (
     <div className="flex items-center gap-4">

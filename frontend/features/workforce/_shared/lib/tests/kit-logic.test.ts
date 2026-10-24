@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { avatarTone, initialsOf } from '../style/avatar';
-import { UNDO_WINDOW_MS } from '../style/interaction';
+import { STILL_LOADING_AFTER_MS, STUCK_AFTER_MS, UNDO_WINDOW_MS } from '../style/interaction';
+import { STATES_FIXED } from '../copy/states-copy';
 import {
   NOTIFICATION_KIND_LABEL,
   NOTIFICATION_KIND_TONE,
@@ -120,7 +121,7 @@ describe('undo window (30 seconds)', () => {
 // Paper, add it here AND to STATES_COPY; this list is what fails the build when a key goes missing.
 const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string]> = [
   ['waitingForYou', 'Needs you'],
-  ['rota', 'Rota'],
+  ['rota', 'Shifts'],
   ['todayBoard', 'Today board'],
   ['timesheets', 'Timesheets'],
   ['myTime', 'My time and My requests'],
@@ -135,6 +136,14 @@ const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string
   ['securityAlerts', 'Security alerts'],
   ['phones', 'Phones'],
 ];
+
+describe('loading never lasts forever', () => {
+  it('"Still loading" comes first, then the bars give way to "We could not load this" a few seconds later', () => {
+    expect(STUCK_AFTER_MS).toBeGreaterThan(STILL_LOADING_AFTER_MS);
+    expect(STUCK_AFTER_MS - STILL_LOADING_AFTER_MS).toBeLessThanOrEqual(10_000);
+    expect(STATES_FIXED.couldNotLoad).toBe('We could not load this');
+  });
+});
 
 describe('per-screen copy table (States kit)', () => {
   it('has a row for every screen in the Paper table, under the Paper name', () => {
@@ -167,7 +176,7 @@ describe('per-screen copy table (States kit)', () => {
   it('fills the term and range holes, and leaves a missing value visible', () => {
     expect(statesCopy('waitingForYou', 'nothingFound', { term: 'Overtime' })).toBe('No request matches "Overtime". Clear the filter.');
     expect(statesCopy('waitingForYou', 'nothingYet')).toBe('Nothing needs you. New requests show here, in the bell and as badges on the menu.');
-    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No rota for 19 to 25 Oct yet. Start from last week or from a template.');
+    expect(statesCopy('rota', 'nothingYet', { range: '19 to 25 Oct' })).toBe('No shifts for 19 to 25 Oct yet. Click a day to pick one, or use Start from last week.');
     expect(fillCopy('No shift matches "{term}".')).toBe('No shift matches "{term}".');
   });
   it('formats the support reference', () => {

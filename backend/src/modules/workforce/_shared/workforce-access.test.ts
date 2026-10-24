@@ -525,3 +525,26 @@ describe('Rules permissions table (1B, section 14)', () => {
     expect(CAPABILITIES).not.toContain('rules.edit.leave');
   });
 });
+
+/**
+ * The page gate (`frontend/lib/route-access-workforce.ts`) and the menu follow this table. These two lists are asserted again, word for
+ * word, in `frontend/lib/route-access.workforce.test.ts`: change the table, the gate and the menu in the same change.
+ */
+describe('the table and the page gate agree', () => {
+  const ROLES: UserRole[] = ['WAITER', 'CHEF', 'BARISTA', 'MANAGER', 'STORE_MANAGER', 'HR_MANAGER', 'ACCOUNTANT', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_ATTENDANT'];
+  const holders = (capability: Capability): UserRole[] => ROLES.filter((role) => scopeOf(subject(role), capability) !== null && scopeOf(subject(role), capability) !== 'own').sort();
+
+  it('the attendance switch is held by the Director and the System Admin, and by no one else', () => {
+    expect(holders('attendance.switch')).toEqual(['DIRECTOR', 'SYSTEM_ADMIN']);
+  });
+
+  it('Shifts are read beyond "own" by HR, the managers and the Director, not by the Accountant or the floor staff', () => {
+    expect(holders('rota.read')).toEqual(['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
+  });
+
+  it('a department head may clock someone in for their own department, and a manager for their site (never themselves: personInScope refuses)', () => {
+    expect(scopeOf(subject('CHEF', { isDepartmentHead: true, departmentTag: 'KITCHEN' }), 'today.act')).toBe('dept');
+    expect(scopeOf(subject('WAITER'), 'today.act')).toBeNull();
+    expect(scopeOf(subject('MANAGER'), 'today.act')).toBe('unit');
+  });
+});

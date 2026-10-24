@@ -19,12 +19,15 @@ export const switchRepository = {
   isEnabled: async (siteId: string, db: Db = prisma): Promise<boolean> =>
     (await db.attendanceSiteSwitch.findUnique({ where: { siteId }, select: { enabled: true } }))?.enabled === true,
 
-  /** Every active site (or just the ones named) with its switch row, for the lists that show the whole company at once. */
+  /**
+   * Every active branch (or just the ones named) with its switch row, for the lists that show the whole company at once. The Central
+   * Store is left out: it has no shifts and no clock, so there is nothing to switch. Branches come in the order they were opened.
+   */
   sitesWithSwitch: async (siteIds: readonly string[] | null, db: Db = prisma) => {
     const sites = await db.site.findMany({
-      where: { isActive: true, ...(siteIds ? { id: { in: [...siteIds] } } : {}) },
+      where: { isActive: true, isHub: false, ...(siteIds ? { id: { in: [...siteIds] } } : {}) },
       select: { id: true, name: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
     });
     const rows = await db.attendanceSiteSwitch.findMany({ where: { siteId: { in: sites.map((s) => s.id) } } });
     return sites.map((site) => ({ site, row: rows.find((r) => r.siteId === site.id) ?? null }));

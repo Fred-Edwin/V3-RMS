@@ -27,7 +27,7 @@ const PROBLEM_NOTES: Partial<Record<string, string>> = {
 
 /** One day as a row: the clock range, the hours, and a red bar with the question when something looks wrong. */
 export function dayLine(day: MyDay): DayLine {
-  const range = day.clockIn ? `${hmOf(day.clockIn)} → ${day.clockOut ? hmOf(day.clockOut) : '…'}` : day.scheduledMinutes > 0 ? 'No clock recorded' : 'Not on the rota';
+  const range = day.clockIn ? `${hmOf(day.clockIn)} → ${day.clockOut ? hmOf(day.clockOut) : '…'}` : day.scheduledMinutes > 0 ? 'No clock recorded' : 'No shift planned';
   const reason = day.reasons.find((r) => PROBLEM_NOTES[r] !== undefined);
   const waiting = day.requests.some((r) => r.state === 'WAITING');
   const base = { key: day.id, date: day.shiftDate, day: dayShort(day.shiftDate), range, hours: hm(day.workedMinutes) };

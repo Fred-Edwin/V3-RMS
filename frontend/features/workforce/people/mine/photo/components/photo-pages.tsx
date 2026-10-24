@@ -51,7 +51,7 @@ export function PhotoPages({ name, onClose, done }: { name: string; onClose: () 
     );
   }
   return (
-    <OwnPage kicker="MY FILE" title="Add your photo" subtitle="Your team sees it on the rota and your shift card. You can change it any time." onBack={onClose} backLabel="Close">
+    <OwnPage kicker="MY FILE" title="Add your photo" subtitle="Your team sees it on Shifts and your shift card. You can change it any time." onBack={onClose} backLabel="Close">
       <PhotoCard name={name} title="Pick a photo of your face" line="A clear photo, with your face in the middle." plus />
       {gallery}
       <OwnInfoNote>

@@ -187,7 +187,7 @@ export interface PrintedRota {
     id: string | null;
     name: string;
     headName: string | null;
-    people: { name: string; positionName: string | null; plannedMinutes: number; days: Record<string, PrintCell[]> }[];
+    people: { name: string; positionName: string | null; plannedMinutes: number; days: Record<string, PrintCell[]>; leaveDates: string[] }[];
     perDay: Record<string, number>;
   }[];
 }

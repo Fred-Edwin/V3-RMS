@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { HEAD_EXTRAS } from '../_shared/access/workforce-grants';
 import { ROLE_GRANTS, scopeOf, workforceCan, type AccessSubject, type Capability } from '../_shared/workforce-access';
 import { homeAudienceOf } from './home-audience';
 
@@ -22,7 +23,7 @@ const PAGE_CAPABILITIES: ReadonlyArray<{ prefix: string; label: string; capabili
   { prefix: '/app/workforce/today', label: 'Today board', capabilities: ['today.read'] },
   { prefix: '/app/workforce/schedule', label: 'Shifts', capabilities: ['rota.read'] },
   { prefix: '/app/workforce/casuals', label: 'Casual pay', capabilities: ['casual.read', 'casual.record'] },
-  { prefix: '/app/workforce/attendance/switch', label: 'Attendance clock', capabilities: ['attendance.switch'] },
+  { prefix: '/app/workforce/attendance/switch', label: 'Attendance switch', capabilities: ['attendance.switch'] },
   { prefix: '/app/workforce/payslips', label: 'Payslips', capabilities: ['payslip.read_any'] },
   { prefix: '/app/workforce/my-', label: 'This page', capabilities: ['me.file'] },
 ];
@@ -37,6 +38,8 @@ const ROLE_WORDS: Record<string, string> = {
 };
 /** The only pages the System Admin really has a screen for: the table grants the admin more, but People and Pay are blocked for the role. */
 const ADMIN_PAGES: readonly string[] = ['/app/workforce/rules', '/app/workforce/security', '/app/workforce/audit-log', '/app/workforce/attendance/switch'];
+/** The pages a department head opens for their own team (the Today board is their Team today). */
+const HEAD_PAGES: readonly string[] = ['/app/workforce/today', '/app/workforce/schedule'];
 const ORDER = ['HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN'] as const;
 
 export interface PageFor {
@@ -78,6 +81,11 @@ export function pageFor(path: string, subject: AccessSubject, now: Date = new Da
   if (!hit) return { page: 'This page', forWords: null, roles: [], reference, instead, homeLabel };
   // `me.file` is every person's own page: say so instead of listing roles.
   if (hit.capabilities.includes('me.file')) return { page: hit.label, forWords: 'the person it belongs to', roles: [], reference, instead, homeLabel };
-  const roles = ORDER.filter((role) => (role !== 'SYSTEM_ADMIN' || ADMIN_PAGES.includes(hit.prefix)) && hit.capabilities.some((c) => ROLE_GRANTS[role]?.[c] !== undefined));
-  return { page: hit.label, forWords: roles.length ? join(roles.map((r) => ROLE_WORDS[r] ?? r)) : null, roles: [...roles], reference, instead, homeLabel };
+  // A grant at scope "own" is the person's own row (the Accountant reads their own shifts), not the page: it does not make the role an audience.
+  const opens = (role: (typeof ORDER)[number]): boolean => hit.capabilities.some((c) => ROLE_GRANTS[role]?.[c] !== undefined && ROLE_GRANTS[role]?.[c] !== 'own');
+  const roles = ORDER.filter((role) => (role !== 'SYSTEM_ADMIN' || ADMIN_PAGES.includes(hit.prefix)) && opens(role));
+  // A department head opens the page for their own team, under the name Team today.
+  const headsToo = hit.capabilities.some((c) => HEAD_EXTRAS[c] !== undefined && HEAD_EXTRAS[c] !== 'own') && HEAD_PAGES.includes(hit.prefix);
+  const words = [...roles.map((r) => ROLE_WORDS[r] ?? r), ...(headsToo ? ['department heads for their own team (under Team today)'] : [])];
+  return { page: hit.label, forWords: words.length ? join(words) : null, roles: [...roles], reference, instead, homeLabel };
 }

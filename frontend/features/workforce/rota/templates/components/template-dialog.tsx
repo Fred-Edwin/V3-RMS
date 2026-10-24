@@ -9,6 +9,7 @@ import {
   AddChip,
   Callout,
   ChoiceChips,
+  DIALOG_LEADS,
   DialogButton,
   EMPTY_REASON,
   FIELD_CLASS,
@@ -115,10 +116,10 @@ export function TemplateDialog({
       busy={busy}
       width={600}
       title={editing ? `Edit ${template.name}` : 'Add a shift'}
-      description="It appears in every rota cell for the departments you pick."
+      description={editing ? DIALOG_LEADS.templateEdit : DIALOG_LEADS.template}
       footer={
         <>
-          <span className="mr-auto max-w-[260px] font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Changes apply to future shifts only. Past rotas stay as they were.</span>
+          <span className="mr-auto max-w-[260px] font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Changes apply to future shifts only. Past weeks stay as they were.</span>
           <DialogButton kind="cancel" size="lg" onClick={onClose} disabled={busy}>
             Cancel
           </DialogButton>
@@ -146,7 +147,7 @@ export function TemplateDialog({
       />
       <div className="flex flex-col gap-2.5">
         <span aria-hidden className="font-wds-sans text-[13px] font-medium leading-4 text-wds-text-ink">
-          Colour on the rota
+          Colour on the grid
         </span>
         <ShiftSwatchPicker value={form.tone} onChange={(tone) => set({ tone })} />
       </div>
@@ -176,12 +177,12 @@ export function TemplateDialog({
       </fieldset>
       {moves ? (
         <Callout tone="neutral" bullet size="sm">
-          A change to the times moves shifts from today on and tells each person. If past days used the old times, this becomes a new version and the old one is retired, so past rotas keep what was worked.
+          A change to the times moves shifts from today on and tells each person. If past days used the old times, this becomes a new version and the old one is retired, so past weeks keep what was worked.
         </Callout>
       ) : null}
       {editing && !template.retiredAt ? (
         <div className="flex items-center justify-between gap-4 border-t border-wds-border pt-4">
-          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Retiring hides this shift from the picker. It is refused while upcoming shifts still use it, and past rotas keep it.</span>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Retiring hides this shift from the picker. It is refused while upcoming shifts still use it, and past weeks keep it.</span>
           <DialogButton kind="cancel" disabled={busy} onClick={() => void retire(template)}>
             Retire this shift
           </DialogButton>

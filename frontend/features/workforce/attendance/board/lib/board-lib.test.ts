@@ -22,7 +22,7 @@ const shift = (over: Partial<BoardShift> = {}): BoardShift => ({
 });
 const person = (employeeId: string, name: string, dept: string, over: Partial<BoardShift> = {}): BoardPerson => {
   const s = shift({ entryId: `e-${employeeId}`, ...over });
-  return { employeeId, name, departmentId: dept === 'Service' ? 'd1' : 'd2', departmentName: dept, state: s.state, shifts: [s] };
+  return { employeeId, name, departmentId: dept === 'Service' ? 'd1' : 'd2', departmentName: dept, positionName: null, isHead: false, state: s.state, shifts: [s] };
 };
 const board: Board = {
   enabled: true,
@@ -70,13 +70,18 @@ describe('the Today board words', () => {
     expect(rows[1]?.note).toEqual({ text: 'No head assigned', tone: 'error' });
   });
 
-  it('the four numbers: on leave is a dash until the Leave slice, and the cells act only when asked to', () => {
+  it('the numbers: on leave shows only when the server has it, and the cells act only when asked to', () => {
     const cells = kpiCells(board);
-    expect(cells.map((c) => c.value)).toEqual(['1 of 4', '1', '1', '—']);
+    expect(cells.map((c) => c.value)).toEqual(['1 of 4', '1', '1']);
     expect(cells[1]).toMatchObject({ actionable: false });
     const go = { late: () => undefined, notIn: () => undefined };
     expect(kpiCells(board, go)[1]).toMatchObject({ actionable: true });
-    expect(cells[3]?.detail).toBe('arrives with Leave');
+    expect(cells.some((c) => /arrives with/i.test(c.detail ?? ''))).toBe(false);
+  });
+
+  it('a day that has passed drops "now" and "today" from the labels', () => {
+    const labels = kpiCells(board, undefined, true).map((c) => c.label);
+    expect(labels.join(' ')).not.toMatch(/NOW|TODAY/);
   });
 
   it('the line under the title says what started, or that the day has passed', () => {

@@ -22,6 +22,13 @@ export function highlightParts(text: string, query: string | undefined): LabelPa
   return parts;
 }
 
+/** The position as the label reads it: a department head reads "Barista · Head", everyone else just the position. Null when there is neither. */
+export function positionWords(position: string | null | undefined, isHead: boolean): string | null {
+  const name = typeof position === 'string' && position.trim() !== '' ? position.trim() : null;
+  if (!isHead) return name;
+  return name ? `${name} · Head` : 'Head';
+}
+
 /** "position · site" for the grey second line; a missing half is left out, both missing gives null. */
 export function labelDetail(position: string | null | undefined, site: string | null | undefined): string | null {
   const bits = [position, site].filter((b): b is string => typeof b === 'string' && b.trim() !== '');

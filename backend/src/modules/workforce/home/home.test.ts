@@ -3,7 +3,8 @@ import type { UserRole } from '@prisma/client';
 import type { AccessSubject } from '../_shared/workforce-access';
 import { groupCounts, groupOf, isOverdue, orderForHome, summariseForHome } from '../needs-you/needs-you-groups';
 import type { NeedsYouRow } from '../needs-you/needs-you-types';
-import { homeAudienceOf } from './home-audience';
+import type { StoredNotification } from '../notifications/notification-types';
+import { homeAudienceOf, latestFor, needsYouRowsFor } from './home-audience';
 import { kpisFor } from './home-kpis';
 import { HOME_AUDIENCES, emptyFacts } from './home-types';
 
@@ -137,5 +138,24 @@ describe('Needs you grouping and order', () => {
   it('counts per group in first-seen order', () => {
     const counts = groupCounts([row('a', 'leave', 'x'), row('b', 'pay-change', 'x'), row('c', 'leave', 'x')]);
     expect(counts.map((g) => [g.key, g.count])).toEqual([['leave', 2], ['pay-changes', 1]]);
+  });
+});
+
+describe('Home shows what concerns the role', () => {
+  const note = (id: string, kind: string): StoredNotification => ({ id, kind, tone: 'information', area: 'PAY', title: kind, body: '', href: null, createdAt: '2026-10-24T08:00:00.000Z', read: false });
+  const items = [note('1', 'payroll.month_paid'), note('2', 'leave.head_told'), note('3', 'rota.shifts_changed')];
+  it('Latest leaves "Payroll paid" out for a head and a waiter', () => {
+    expect(latestFor(subject('CHEF', { headOfDepartmentIds: ['d1'] }), items, 5).map((n) => n.id)).toEqual(['2', '3']);
+    expect(latestFor(subject('WAITER'), items, 5).map((n) => n.id)).toEqual(['2', '3']);
+  });
+  it('Latest keeps it for HR and the Accountant, and fills the limit after leaving a line out', () => {
+    expect(latestFor(subject('HR_MANAGER'), items, 5)).toHaveLength(3);
+    expect(latestFor(subject('ACCOUNTANT'), items, 5)).toHaveLength(3);
+    expect(latestFor(subject('WAITER'), items, 1).map((n) => n.id)).toEqual(['2']);
+  });
+  it('the System Admin\'s Needs you lists only what the admin can decide; other roles keep every row', () => {
+    const rows = [{ kind: 'pay-change' }, { kind: 'shift-closed' }, { kind: 'security' }];
+    expect(needsYouRowsFor(subject('SYSTEM_ADMIN', { siteId: null }), rows)).toEqual([{ kind: 'security' }]);
+    expect(needsYouRowsFor(subject('DIRECTOR'), rows)).toHaveLength(3);
   });
 });

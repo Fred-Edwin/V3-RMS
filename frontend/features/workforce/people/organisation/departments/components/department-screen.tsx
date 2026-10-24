@@ -62,7 +62,7 @@ export function DepartmentScreen({ id }: { id: string }) {
     const positionOf = (employeeId: string): string | null => d.peoplePage.items.find((p) => p.employeeId === employeeId)?.positionName ?? null;
     return (
       <>
-        {!d.isActive ? <Callout tone="warning" size="sm" title="Retired">This department is retired. It is off the rota and the hiring form until it is brought back.</Callout> : null}
+        {!d.isActive ? <Callout tone="warning" size="sm" title="Retired">This department is retired. It is off Shifts and the hiring form until it is brought back.</Callout> : null}
         <WorkforceKpiStrip aria-label={`${d.name} numbers`} cells={departmentKpis(d)} />
         <div className="grid grid-cols-[minmax(0,1fr)_356px] items-start gap-6 max-lg:grid-cols-1">
           <PeoplePanel department={d} />

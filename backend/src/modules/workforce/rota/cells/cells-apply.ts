@@ -7,7 +7,7 @@ import { resolveActor } from '../../people/people-context';
 import { getEffectiveRuleGroup } from '../../rules/rules-service';
 import { changeBatcher } from '../changes/change-batcher';
 import { AUDIT_CELL_LIST_LIMIT, MAX_WEEKS_AHEAD } from '../rota.constants';
-import { isPastDay, requireReasonWhenNeeded, weekStartOf } from '../rota-days';
+import { isPastDay, reasonOfChange, weekStartOf } from '../rota-days';
 import { assertCanWriteFor, gridScope } from '../rota-scope';
 import type { CellChange } from '../rota.types';
 import { templateFits } from '../templates/template-rules';
@@ -53,7 +53,7 @@ export async function applyCellChanges(subject: AccessSubject, request: ApplyReq
     if (!person) throw new NotFoundError('Person not found');
     if (person.siteId !== siteId) throw new NotFoundError('Person not found');
     assertCanWriteFor(subject, person);
-    if (!person.tracksTime) throw new ValidationError(`${person.name} does not clock in, so has no rota`, 'EMPLOYEE_NOT_ON_ROTA');
+    if (!person.tracksTime) throw new ValidationError(`${person.name} does not clock in, so has no shifts`, 'EMPLOYEE_NOT_ON_ROTA');
   }
 
   const templateIds = [...new Set(request.changes.flatMap((c) => c.templateIds))];
@@ -77,8 +77,7 @@ export async function applyCellChanges(subject: AccessSubject, request: ApplyReq
     const rows = await cellsRepository.entriesFor(tx, [...people.keys()], toDateColumn(first), toDateColumn(last));
     const existing: PlanEntry[] = rows.map((r) => ({ id: r.id, employeeId: r.employeeId, date: fromDateColumn(r.date), templateId: r.templateId }));
     const plan = planCells(request.changes, existing);
-    const touched = plan.changed.map((c) => c.date as NairobiDate);
-    const reason = plan.changed.length > 0 ? requireReasonWhenNeeded(touched, today, request.reason) : null;
+    const reason = plan.changed.length > 0 ? reasonOfChange(request.reason) : null;
     const leaveDays = plan.changed.filter((c) => c.to.length > 0 && leave.get(c.employeeId)?.has(c.date));
     const overrideReason = request.overrideReason?.trim() || null;
     if (leaveDays.length > 0 && !overrideReason) {
