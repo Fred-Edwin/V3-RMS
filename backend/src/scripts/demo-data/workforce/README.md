@@ -41,6 +41,9 @@ pnpm demo:seed --wipe     # empties it and stops
 ## What is seeded (stage one: written straight to the database)
 Company, two branches and the Central Store; 26 people with logins, positions, departments, department heads, reporting lines, bank-only pay profiles with approved pay history, KRA/NSSF/SHA numbers, active contracts and photos; shift templates; a rota and clock events for 1 Aug to 20 Oct 2026 (a few late arrivals, eight overtime days to decide, four absences, one open shift on 20 Oct); the attendance switch on for both branches. "Today" in the demo is 21 Oct 2026.
 
+## What is seeded for the Schedule walk (`schedule.ts`, runs last; needs the API)
+A full plan from 21 Oct to the end of next week (Monday to Sunday, the real "today" in Nairobi), an empty week after that for "Start from last week", a Mid-day shift, minimum cover set by each Branch Manager, Cynthia Muthoni on approved leave the Tuesday and Wednesday of next week (Barista Town is one short that Wednesday), and clock events up to now: one late at each branch, one not in, a "Cover shift" for Naomi Jepkorir that ends about 25 minutes after the seed (so her end-of-shift question is about to come), a shift the phone closed yesterday, and a clock-out to put right two days ago. The live items depend on the minute you seed, so seed again with `--reset` before a walk. Run the seed with `API=http://localhost:4104` on lane 4.
+
 ## What is seeded (stage two: the flows, driven through the real API)
 `flows.ts` and `flows-people.ts` sign in as the demo people and use the app's own routes, with the PIN, so every rule and audit entry applies. **The API on port 4106 must be running** (and Redis on 6406) when you seed; set `API=` to use another address.
 - **Rules:** annual leave 21 days (sick 14, emergency 3); tax tables and overtime rates, confirmed by the Accountant.
