@@ -155,7 +155,21 @@ P1, P2 and P3 stay proposals until the owner confirms them as a whole; the four 
 
 New work items: **W14** cells show timings (S); **W15** optional reason on shift edits, dialog change (S); **W16** retire the closed-by-phone notice and dialog with the shift-end work (part of W5, W6, W10); **W17** lateness actions, P1 (L, design needed); **W18** past and today styling, P2 (M, design needed); **W19** fast planner, P3 (L, design needed).
 
-## J. Corrections confirmed by the owner from the watch (roles 1 and 2, 24 Oct 2026)
+## K. Proposal: a purpose line on every page (owner asked, 24 Oct 2026; not yet decided)
+
+The owner wants each screen to tell the person, in plain words, what the page is for and how to use it, without crowding the design, and thinks this spans the whole system.
+
+**P4. One rule, one place, rolled out in steps.**
+- **A purpose line under every page title:** one sentence, 90 characters at most, in plain words, saying what the page is for and the first thing to do. Examples: Shifts: "Plan who works when. Click a day to pick a shift; changes save as you go." Today board: "See who is in, late or missing today. Open a person to act." My shifts: "Your planned shifts for the next two weeks." Edit time: "Fix a clock time. A reason is kept with the old value."
+- **A help dot for the complex screens only** (planner, Today board, Edit time, Payroll review): a small "?" that opens three short steps. Never on simple screens; closed by default; remembered per person.
+- **First line of every dialog says what will happen** ("This copies the week of 26 Oct into 2 Nov. Nothing is overwritten.").
+- **Empty and error states say the next step** (extends the states kit).
+- **One copy table** per feature (`page-copy`, keyed by route) so the words live in one file, with a test that fails on a missing line, a line over 90 characters, or banned words ("rota", "slice", "arrives with", he, she, her, his).
+- **Where it goes:** the rule is added to `UI_BUILD_RULES.md` so every new or rebuilt screen carries it. **Now:** the Schedule screens, because they are being redesigned anyway (cost: one line per page, drawn in Paper with the redesigned frames). **Later:** each feature gets its lines in its own redo; no separate system-wide pass.
+- Needs a Paper design for the placement (a muted line under the title, a small "?"). Size S per feature, M for the Schedule pilot (about 20 pages and dialogs).
+**W48** (Schedule pilot of P4) and **W49** (add the rule to `UI_BUILD_RULES.md`).
+
+## J. Corrections confirmed by the owner from the watch (roles 1 to 3, 24 Oct 2026)
 
 The owner agreed with all agent findings below. The references A and B point to the numbered tables in `2-schedule-walk-feedback.md`, which hold the detail. More roles add rows after each "next".
 
@@ -184,7 +198,20 @@ The owner agreed with all agent findings below. The references A and B point to 
 | W40 | "Not available" text names the right roles per page (no Accountant on Shifts; heads for the grid) | B12 | S | no |
 | W41 | Head Home, staff Home, clock card and This week card redesign | B1 to B3, D1 to D4 | L | yes (W1 to W4) |
 
-**Regression guard, keep as it works today (verified by the watch):** Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
+From role 3, staff member on a phone (owner agreed with all findings C1 to C10, 24 Oct 2026; the shift-end moment was not walked, see the feedback file):
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W42 | "Leave days left" shows a **dash**; show the real balance, or "Not set" with a reason | C2 | S | no |
+| W43 | The menu **drawer closes** after a row is chosen; the footer shows position and site ("Waiter · Nyeri Town") | C5 | S | no |
+| W44 | **My shifts** (was My rota): header "My shifts · 24 Oct to 6 Nov"; days not yet planned read "Not planned yet", not "Day off"; the TODAY marker is kept and is the model for the Shifts grid (P2) | C6 | S | no |
+| W45 | **A day off or no shift today:** the Home keeps a small card ("No shift today. Next shift: Monday 26 Oct, 06:00 to 14:00") so the page never looks empty or broken | C9 | S | yes (part of the staff Home redesign) |
+| W46 | The phone sign-in skips the PIN step after "Trust this device"; confirm it is intended | A18, C10 | S | decision |
+| W47 | The "Not available" text on the Today board and Shifts names department heads and points them to Team today (extends W40) | B12, C8 | S | no |
+
+W20 (naming), W23 (person label) and W24 (Latest shows only what concerns the role) also cover the role 3 findings C4, C5 and the footer.
+
+**Regression guard, keep as it works today (verified by the watch):** My shifts and My time on a phone (clear, with a TODAY marker); the phone sign-in device step; "This week" on a phone; Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
 
 ## H. Findings from the watch (merged into section J after each role)
 

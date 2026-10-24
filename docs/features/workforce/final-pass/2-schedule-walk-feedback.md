@@ -13,6 +13,9 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 | 5 | Branch Manager | Editing a shift, reason | "When editing shifts, the reason should be optional." | A change to today or tomorrow currently needs a reason (rota backend decision R3). This reverses that rule for shift edits. The leave override reason is a different dialog and was not mentioned. | Agreed: optional |
 | 6 | Branch Manager | Setting shifts for the branch | "A way for the branch manager to set the shifts for the branch quickly and easily because the current workflow has too many steps, too many tabs... optimize the user flow for creating and setting the shifts, only for setting the shifts so as to enable them to make quick fixes or edit the shifts table as well as create the shifts for the entire branch for an entire week or an entire month." | Setting a week today takes: Shifts, a cell, a shift, repeat for every cell; "Start from last week" copies only the week before; Shift types sits on another page. Proposal: change log, item P3. | Proposal pending |
 
+| 7 | Staff and head screens (all) | Pages across the system | "We need to include some copy in these screens that informs the user of the purpose of the page or how they should use the page. Keep it simple, clear, and intuitive, and ensure it does not mess up the design. But this might span not only these screens but all across the system." | Some pages have a subtitle (Shifts types, My team), most do not. Proposal in the change log, section K (P4). | Proposal pending |
+| 8 | Staff member on a phone | All findings C1 to C10 | "I agree with the observations. Let's proceed." | Folded into the change log section J (W42 to W47). | Agreed |
+
 ## Part 2: what the agent saw and the owner did not mention
 
 ### Role 1: Branch Manager, Nyeri Town (Faith Wambui)
