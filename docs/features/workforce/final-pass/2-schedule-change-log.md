@@ -103,6 +103,55 @@ Raised as questions only; nothing is removed until the owner decides.
 3. Keep the end-of-shift list of open items for all three jobs (now central), but keep it to one line per item.
 4. Plan to remove the per-branch switch and the old-clock bridge once every branch is live.
 
+## I. From the Branch Manager watch (24 Oct 2026)
+
+Decisions (owner, in the Branch Manager part of the watch):
+
+| # | Decision | Status |
+|---|---|---|
+| D17 | Cells on the Shifts grid show the **timings** (06–14), not the shift names. The name stays in the tooltip, the picker and the legend. Reverses the 18 Oct decision to show names | Agreed |
+| D18 | The **reason is optional** when editing a shift, including for today and tomorrow. The dialog stays as a light "who is told" confirmation, with Save always enabled. Reverses rota backend decision R3. The leave-override reason is a separate question (see Q8) | Agreed |
+| D19 | The "Closed by the phone at 22:00" notice and its dialog are **retired** once the new shift-end flow exists, because the system clocks people out at the scheduled end. What remains is the "Needs an owner" and "Unaccounted" lists (section C) and a small check for an approved overtime that ran past its approved end | Agreed in principle, to confirm |
+
+Proposals the owner asked for (not yet agreed):
+
+**P1. Actions on late and not-in staff, consequential to the timesheet.** Each late row on the Today board and each late day on the timesheet gets the same actions:
+- **Excuse**, with one reason chip (transport, unwell, permission given, work reason, other). The late minutes are marked excused on the timesheet.
+- **Counts**, the default: the late minutes stay as late minutes on the timesheet. What Payroll does with them is set by the Lateness rule that the Director owns; this change adds no new deduction.
+- **Make up the time**: the person works the minutes back; the Branch Manager records when, and the minutes are cleared when done.
+- **Note for conduct**: after a set number of lates in 30 days (a number in Rules, suggest 3) the row shows "3rd late in 30 days" with a button that starts a Conduct note. Never automatic.
+- For **not in**: Clock in for them (exists), **Mark absent** (with leave, sick, unpaid or no reason), **Wait**.
+The person is told what was decided and by whom. Every decision is audited. Undecided late minutes count until decided; the Branch Manager can decide any time before approving the month, and an undecided item shows as "To decide" on the timesheet. Needs a Paper design. Size L (design, back end for lateness decisions and make-up, the timesheet reading them).
+
+**P2. Showing days that have passed on the Shifts grid.**
+- A **Today** column: amber top rule and the label TODAY, light tint.
+- **Past columns** muted: grey tint, lighter ink, a small lock on hover with "Past days are read-only"; the picker will not open.
+- Future columns normal.
+- Optional second step: a small dot under each past shift for what happened (green worked, amber late, red absent), from the clock data.
+Needs a small Paper design. Size M.
+
+**P3. Setting shifts fast, for a week or a month.** A "Plan shifts" mode on the Shifts page, no other page needed:
+- A **palette** of shifts on the left (Morning, Mid-day, Afternoon, Day off, plus Add shift in place). Pick one, then click or drag over any cells. Letter keys still work.
+- **Row actions:** "Repeat this person's week for the next N weeks"; "Set this person's pattern" (for example 5 on 2 off, Morning).
+- **Column actions:** "Everyone on Morning on Monday"; the existing Copy day.
+- **Saved week patterns** for the branch ("Normal week", "Festive week"): save a week as a pattern, apply it to one week or to a whole month in two clicks, with a preview of clashes (leave, loans) before anything is written.
+- A **month view** (people by days, 28 to 31 columns) to paint and to apply patterns.
+- **Fill the gaps:** on a thin day, a list of who is free (not on leave, under contract hours) with one-click add.
+- **Undo** the last bulk change for ten minutes.
+- "Shift types" becomes a pop-over inside the palette; the separate page stays for deeper edits.
+Needs a Paper design. Back end: saved week patterns, month reads, bulk apply with preview, undo; the standing-pattern endpoint already exists and has no screen. Size L.
+
+Open questions from this part:
+
+| # | Question | My suggestion |
+|---|---|---|
+| Q8 | Does the leave-override reason stay required (it overrides approved leave)? | Yes, required; it is a different act from a normal edit |
+| Q9 | Should "Counts" be the default for late minutes, with Excuse needing a reason chip? | Yes |
+| Q10 | Should past columns show what happened (the dots)? | Yes, as a second step |
+| Q11 | Saved week patterns: per branch, or company-wide too? | Per branch first |
+
+New work items: **W14** cells show timings (S); **W15** optional reason on shift edits, dialog change (S); **W16** retire the closed-by-phone notice and dialog with the shift-end work (part of W5, W6, W10); **W17** lateness actions, P1 (L, design needed); **W18** past and today styling, P2 (M, design needed); **W19** fast planner, P3 (L, design needed).
+
 ## H. Findings from the watch (to be added after the watch)
 
 Left empty on purpose. The watch writes into `2-schedule-walk-feedback.md`; the orchestrator merges both into the Decide step.
