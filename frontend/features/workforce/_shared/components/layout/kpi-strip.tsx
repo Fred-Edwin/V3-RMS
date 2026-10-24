@@ -23,8 +23,12 @@ export interface WorkforceKpiCell {
   actionable?: boolean;
   /** Makes the actionable cell a button. */
   onSelect?: () => void;
-  /** `success` is the green "done" cell (a month approved): green fill, green top edge, green words. */
-  tone?: 'success';
+  /**
+   * `success` is the green "done" cell (a month approved): green fill, green top edge, green words.
+   * `warning` and `error` (the past-day board, Schedule V1) colour the top edge and the number only; the cell is not a button.
+   * `muted` is "Not tracked": a grey number, no edge.
+   */
+  tone?: 'success' | 'warning' | 'error' | 'muted';
 }
 
 export interface WorkforceKpiStripProps {
@@ -49,7 +53,15 @@ function Cell({ cell, last }: { cell: WorkforceKpiCell; last: boolean }) {
       <span
         className={cn(
           'font-wds-sans text-[30px] font-semibold leading-[34px] tracking-[-0.025em]',
-          cell.tone === 'success' ? 'text-wds-success-fg' : cell.actionable ? 'text-wds-warning-fg' : 'text-wds-text-ink'
+          cell.tone === 'success'
+            ? 'text-wds-success-fg'
+            : cell.tone === 'error'
+              ? 'text-wds-error-fg'
+              : cell.tone === 'warning' || cell.actionable
+                ? 'text-wds-warning-fg'
+                : cell.tone === 'muted'
+                  ? 'text-wds-text-faint'
+                  : 'text-wds-text-ink'
         )}
       >
         {cell.value}
@@ -62,7 +74,15 @@ function Cell({ cell, last }: { cell: WorkforceKpiCell; last: boolean }) {
 
   const base = cn(
     'flex min-w-0 flex-1 flex-col gap-1.5 border-t-2 px-5 py-4 text-left',
-    cell.tone === 'success' ? 'border-t-wds-success-fg bg-wds-success-bg' : cell.actionable ? 'border-t-wds-warning-fg bg-wds-caramel-100' : 'border-t-transparent',
+    cell.tone === 'success'
+      ? 'border-t-wds-success-fg bg-wds-success-bg'
+      : cell.tone === 'error'
+        ? 'border-t-wds-error-fg'
+        : cell.tone === 'warning'
+          ? 'border-t-wds-warning-fg'
+          : cell.actionable
+            ? 'border-t-wds-warning-fg bg-wds-caramel-100'
+            : 'border-t-transparent',
     !last && 'border-r border-r-wds-border'
   );
 

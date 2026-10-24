@@ -25,6 +25,7 @@ On a phone the same data draws the phone Home (Paper 1.9 to 1.11): the dark top 
 | Landing after sign-in | `frontend/lib/role-home.ts` (every human role lands here; the display roles land on `/app/kitchen` and `/app/barista`) |
 | Phone action cards for staff and heads | `cards/` (card registry, `phone-cards-defs`, `rota-data`, `attendance-data`) drawn by `components/phone-cards.tsx` and `home-stack.tsx` |
 | Today page | `components/today-screen.tsx`, `live-board`, `live-team-card`, `everyone-list`, `branch-board` at `/app/workforce/today` |
+| Today page states (Schedule V1, Paper frames 2.1 to 2.4) | Clock off: `clock-off-card.tsx` (tiles read "Not tracked / clock is off", On leave real; the brown "Open Attendance switch" button only when `board.clock.canSwitch`; "Open Shifts" and "Open Leave" only with `rota.read` and `leave.read`). Past day: `past-day-parts.tsx` (date picker, "Back to today", exceptions with Edit time, "Fixed after the day", By department), no "Clock in for them" (`board.actions`). Phone (under 768 px): `phone-board.tsx` (2 x 2 cards, stacked "Needs a look", 44 px buttons). All words from `attendance/board/lib/board-view.ts` |
 | Greeting words | `lib/greeting.ts` (Nairobi time) |
 
 ## How the pieces fit

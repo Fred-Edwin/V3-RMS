@@ -155,6 +155,67 @@ export interface Board {
   departments: BoardDepartment[];
   people: BoardPerson[];
   attention: BoardAttention[];
+  /** The day is before today: nothing can be clocked, only read and fixed (B1, Schedule V1). */
+  readOnly: boolean;
+  actions: { clockFor: boolean; fixTime: boolean };
+  // The server's `siteName` is `organizationName` on the wire (wire-names), like every other site field.
+  clock: { on: boolean; organizationName: string | null; canSwitch: boolean; whoCanSwitch: string[] };
+  /** The wording of a past day (tag, line, tile names: WORKED, LATE, ABSENT, ON LEAVE); null on a live day. */
+  pastDay: { tag: string; line: string; tiles: { onShift: string; late: string; notIn: string; onLeave: string } } | null;
+  /** Past day only: people whose clock time was changed after the day ended, with how many changes (a count; the server sends no sentence). */
+  fixedAfterTheDay: { employeeId: string; name: string; changes: number }[];
+}
+
+export type TimeFilter = 'all' | 'late' | 'overtime' | 'absent';
+export type TimeRowKind = 'WORKED' | 'ON_SHIFT' | 'ABSENT' | 'NOT_IN' | 'UPCOMING' | 'DAY_OFF' | 'ON_LEAVE';
+
+export interface TimeRow {
+  date: string;
+  kind: TimeRowKind;
+  shifts: { templateName: string; startTime: string; endTime: string }[];
+  clockedInAt: string | null;
+  clockedOutAt: string | null;
+  workedMinutes: number;
+  late: boolean;
+  minutesLate: number;
+  minutesAfterGrace: number;
+  overtimeApprovedMinutes: number;
+  soFarMinutes: number | null;
+  edited: boolean;
+  autoClosed: boolean;
+}
+
+/** T1 `GET /time/month`: a person's month, one page of days, the five figures and the chip counts. */
+export interface TimeMonth {
+  employeeId: string;
+  name: string;
+  positionName: string | null;
+  organizationId: string;
+  /** The branch's name; null if it could not be read. (`siteName` on the server, `organizationName` on the wire.) */
+  organizationName: string | null;
+  month: string;
+  clocks: boolean;
+  clockOn: boolean;
+  emptyReason: 'DOES_NOT_CLOCK' | 'CLOCK_OFF' | null;
+  canEditTime: boolean;
+  summary: { daysWorked: number; rosteredDays: number; workedMinutes: number; lateDays: number; lateMinutes: number; overtimeApprovedMinutes: number; absentDays: number };
+  last30: { from: string; to: string; lateDays: number; lateMinutes: number };
+  counts: Record<TimeFilter, number>;
+  filter: TimeFilter;
+  page: number;
+  pageSize: number;
+  total: number;
+  rows: TimeRow[];
+}
+
+/** T2 `GET /time/tiles`: the Overview tiles. */
+export interface TimeTiles {
+  employeeId: string;
+  clocks: boolean;
+  clockOn: boolean;
+  onTime: { tracked: boolean; onTime: number; worked: number; from: string; to: string };
+  overtime: { tracked: boolean; month: string; approvedMinutes: number };
+  leaveLeft: { state: 'NOT_SET' };
 }
 
 export interface ClockForBody {

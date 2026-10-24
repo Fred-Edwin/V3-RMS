@@ -53,6 +53,18 @@ describe('tabs follow what is locked', () => {
   });
 });
 
+describe('the Time tab follows timesheet.read', () => {
+  it('opens Time for a reader with timesheet.read', () => {
+    expect(tabsFor(joy(), { time: true }).find((t) => t.value === 'time')).toEqual({ value: 'time', label: 'Time' });
+  });
+  it('leaves Time out for a viewer without it (a department head), never greyed', () => {
+    expect(tabsFor(joy(), { time: false }).map((t) => t.value)).not.toContain('time');
+  });
+  it('keeps Leave waiting either way', () => {
+    expect(tabsFor(joy(), { time: true }).find((t) => t.value === 'leave')?.disabled).toBe(true);
+  });
+});
+
 describe('the header', () => {
   it('writes the line and the tags as Paper does', () => {
     expect(headerLine(joy())).toBe('Barista · Barista department · Nyeri Town · reports to Victor Maina · 0712 345 678');

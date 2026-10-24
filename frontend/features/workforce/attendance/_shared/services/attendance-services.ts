@@ -15,6 +15,9 @@ import type {
   StayOnBody,
   SwitchView,
   TapBody,
+  TimeFilter,
+  TimeMonth,
+  TimeTiles,
 } from '../types/attendance-types';
 
 /** Every Attendance endpoint (C1 to C5, B1 B2, F1 to F3, L1, S1 to S3), one function each. Screens never build a path. */
@@ -37,6 +40,11 @@ export const attendanceReads = {
   /** L1 */
   lateness: (from: string, to: string, employeeId?: string, siteId?: string): Promise<LatenessReport> =>
     apiClient.get(`${BASE}/lateness${query({ from, to, employeeId, siteId, includeOnTime: undefined })}`, token()),
+  /** T1 (Schedule V1): one person's month of days. */
+  timeMonth: (employeeId: string, month: string, filter: TimeFilter, page: number, pageSize: number): Promise<TimeMonth> =>
+    apiClient.get(`${BASE}/time/month${query({ employeeId, month, filter, page: String(page), pageSize: String(pageSize) })}`, token()),
+  /** T2 (Schedule V1): the Overview tiles. */
+  timeTiles: (employeeId: string): Promise<TimeTiles> => apiClient.get(`${BASE}/time/tiles${query({ employeeId })}`, token()),
   /** S1 */
   switchOf: (siteId?: string): Promise<SwitchView> => apiClient.get(`${BASE}/switch${query({ siteId })}`, token()),
   /** S3 */

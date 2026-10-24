@@ -26,7 +26,8 @@ export function PageHeader({
   size = 'md',
   className,
 }: {
-  title: string;
+  /** Words; a node only where a tag sits beside the title (the Today board on a past day). */
+  title: React.ReactNode;
   subtitle?: React.ReactNode;
   /** Buttons at the right. Pass only the ones the viewer may use; the brown one comes last. */
   actions?: React.ReactNode;
