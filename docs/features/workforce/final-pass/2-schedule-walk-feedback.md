@@ -86,6 +86,22 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 
 **Not seen by me in role 3 (owner chose to skip the wait, 24 Oct):** the 10-minute heads-up, the shift-end question (Finish now, Stay on and its reasons, the list of open items), Clock out and the two-minute Undo, an offline tap. By the design (Paper Chapter 6 steps 1 to 6) and the front-end README these screens exist, but they are replaced by the new shift-end flow in the change log (section B), so they will be walked after the rebuild.
 
+### Role 4: HR (Mercy Akinyi, HR Manager, desktop)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| D1 | HR Home | All about people (49 active staff, probation, blocks payroll, no head, pay changes); **nothing about shifts or attendance** (no late or not-in count, no thin days, no "Today" summary, no unaccounted items) | New |
+| D2 | Menu | A top "Home" row and "Workforce / Overview" both open the same page; the Time group has Shifts, Today board, Timesheets, Leave | New (small) |
+| D3 | Shifts (HR) | Opens on **Nyeri Highway**, not an all-sites view, with a sites list (Highway, Town, Central Store 6 people) and a department filter; cost shows ("KES 108,231 est. cost") as it should for HR; the title still says "Rota · Nyeri Highway"; sites are alphabetical (Paper lists Town first); a person's label is **cut off** ("Housekeeping · Housekee…"); some hired people show 0 hours | Partly (row 1, 3) |
+| D4 | Shift types (HR) | A site chooser sits at the top; "Every site" is available (correct); the page still says "rota" | Partly |
+| D5 | Today board (HR) | Branch chooser (Central Store, Nyeri Highway, Nyeri Town); Highway shows "No head assigned" for Housekeeping and Pastry; HR's drawer has only "Edit this day's clock times" (no Clock in for, as the access table says) and **no action on lateness**; the drawer says "Late in the last 30 days: **Not late**" while the same drawer says "Late 9 min" today | New |
+| D6 | Switch page address (HR) | The not-available screen works, but its text says the attendance clock is for "**the Director** and the System Admin" (it is the System Admin only since 18 Oct); the page is titled "Attendance clock" | New |
+| D7 | Employee file | The **Time** and **Leave** tabs are greyed although both have data; the Overview tiles "On time", "Overtime", "Leave left" show a dash and "not available yet" | Predicted (row 12) |
+| D8 | Today board (Central Store) | Central Store appears as a "Branch" in the chooser | New (small) |
+
+**Worked well:** the cost line only for HR; "Every site" for shift types; the branch chooser; HR cannot clock someone in; the not-available screen.
+**Not covered for HR:** Edit time on a past day and any closed-period wording; editing or retiring a shift type; Start from last week across sites; Print for another site; HR's phone.
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.
