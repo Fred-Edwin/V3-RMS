@@ -145,10 +145,12 @@ Open questions from this part:
 
 | # | Question | My suggestion |
 |---|---|---|
-| Q8 | Does the leave-override reason stay required (it overrides approved leave)? | Yes, required; it is a different act from a normal edit |
-| Q9 | Should "Counts" be the default for late minutes, with Excuse needing a reason chip? | Yes |
-| Q10 | Should past columns show what happened (the dots)? | Yes, as a second step |
-| Q11 | Saved week patterns: per branch, or company-wide too? | Per branch first |
+| Q8 | ~~Does the leave-override reason stay required?~~ | **Decided (owner, 24 Oct): yes, required**; it is a different act from a normal edit |
+| Q9 | ~~Should "Counts" be the default for late minutes, with Excuse needing a reason chip?~~ | **Decided: yes** |
+| Q10 | ~~Should past columns show what happened (the dots)?~~ | **Decided: yes, as a second step** |
+| Q11 | ~~Saved week patterns: per branch, or company-wide too?~~ | **Decided: per branch first** |
+
+P1, P2 and P3 stay proposals until the owner confirms them as a whole; the four answers above settle their open details.
 
 New work items: **W14** cells show timings (S); **W15** optional reason on shift edits, dialog change (S); **W16** retire the closed-by-phone notice and dialog with the shift-end work (part of W5, W6, W10); **W17** lateness actions, P1 (L, design needed); **W18** past and today styling, P2 (M, design needed); **W19** fast planner, P3 (L, design needed).
 
