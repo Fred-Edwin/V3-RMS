@@ -22,6 +22,8 @@ Status words: **Agreed** = the owner said yes. **Proposed** = my suggestion, not
 | D12 | Unaccounted orders are visible to the **staff member responsible, the Branch Manager, the Director and the Accountant** | Agreed |
 | D13 | Approved overtime records the **hours worked and the orders completed** (waiters, chefs, baristas) | Agreed |
 | D14 | The whole shift-end, handover and overtime work goes into the batch with its own design and build, **not built before the watch** | Agreed |
+| D15 | An item still open **30 minutes after** the person was clocked out, with nobody taking it, becomes **Unaccounted** | Agreed (owner, 24 Oct) |
+| D16 | A hand-over needs the receiving person to **tap to accept**; until then the item shows under both names | Agreed (owner, 24 Oct) |
 
 ## B. The new shift-end flow (plain words)
 
@@ -37,7 +39,7 @@ Status words: **Agreed** = the owner said yes. **Proposed** = my suggestion, not
 
 **Why orders can still be left even with automatic hand-over:** the system cannot choose an owner. Handing over is a choice by the person. Orders are left behind when the person taps nothing, the person they chose is not on shift or never opens it, a table is closed but never marked paid, or a ticket is stuck by a fault.
 
-**Proposed rule (to confirm):** an item that is still open **30 minutes after** the person was clocked out, with nobody taking it, becomes **Unaccounted**.
+**Rule (agreed, D15):** an item that is still open **30 minutes after** the person was clocked out, with nobody taking it, becomes **Unaccounted**. A hand-over counts as taken only once the receiving person has tapped to accept (D16).
 
 | Who | What they see | Why |
 |---|---|---|
@@ -85,8 +87,8 @@ Nothing is ever deducted by the system (D11). A repeated pattern for one person 
 
 | # | Question | My suggestion |
 |---|---|---|
-| Q1 | How long before an item becomes Unaccounted? | 30 minutes after clock-out |
-| Q2 | Does a hand-over need the receiving person to accept? | A tap to accept; until then the item shows under both names |
+| Q1 | ~~How long before an item becomes Unaccounted?~~ | **Decided, D15: 30 minutes after clock-out** |
+| Q2 | ~~Does a hand-over need the receiving person to accept?~~ | **Decided, D16: a tap to accept; until then the item shows under both names** |
 | Q3 | Can a person be handed items if they are not clocked in? | Only if they are on the next shift, and they see the items when they clock in |
 | Q4 | Who may set the Accountant's reconciliation status? | The Accountant only; the Director reads |
 | Q5 | Do staff without a phone (no clock on a phone) follow the same flow? | The Branch Manager records overtime and hand-over for them |
