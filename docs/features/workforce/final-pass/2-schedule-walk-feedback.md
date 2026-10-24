@@ -132,6 +132,20 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 **Worked well:** the switch screen and both dialogs; the purpose line on the switch page; the security numbers on Home.
 **Not covered for the System Admin:** a real switch on or off; the refusal when someone is still clocked in on the old clock; Act as another user; the employee file (the admin has none).
 
+### Role 7: the refused role, Accountant (Anne Muthoni, desktop)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| G1 | Home and menu | Home is all about pay (blocks payroll, payroll month, pay changes, 49 on the payroll). The menu has **no Time group** (no Shifts, Today board, Timesheets, Leave), and "My account" has only My file and My payslips (no My shifts or My time) | New |
+| G2 | Shifts address | Not the "Not available" screen: a small in-page message, **"You can't open the rota. Ask HR if you need to plan or read a team's week."** The page gate let her in and the server refused (403). Old style, and the word "rota" | New |
+| G3 | Today board and switch addresses | The proper **"Not available for your role"** screen with who the page is for and a reference code | Works as designed |
+| G4 | Shift templates address | She **can open it**: an empty page for Central Store ("0 company-wide, 0 for Central Store", "put on a rota"), no Add or Edit buttons. Either a purposeless page for her or a read view nobody asked for | New |
+| G5 | **My time address** | The server answers **403**, and the page stays on grey loading blocks with "Still loading. Your work is safe." **forever**, with no error and no way out | New |
+| G6 | Timesheets address | No menu link, but the page opens (on Central Store) and says "This branch still uses the old clock. Timesheets start when it is switched on", so she cannot reach the Town or Highway sheets from there | New |
+
+**Worked well:** the Today board and switch refusals; no editing controls anywhere; the Home is focused on her work.
+**Not covered:** her phone view; Payroll and Rules (outside this section).
+
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
 2. About 13 people hired by the people flow had no shifts at all (0 hours). They now have a plan like everyone else. Re-seeded again.

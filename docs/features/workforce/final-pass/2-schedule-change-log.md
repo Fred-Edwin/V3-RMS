@@ -240,6 +240,16 @@ From role 6, System Admin (owner agreed with findings F1 to F5, 24 Oct 2026; the
 | W61 | **Switch screen polish:** title and breadcrumb "Attendance switch" under Company; plain dates ("1 Aug 2026"); hide or explain Central Store (no shifts); ask the admin's PIN to switch a branch on or off; the dialog says "shifts" not "rota" and describes the new shift-end flow; say what happens to anyone clocked in when switching off | F2, F3 | S to M | no (words and a PIN step) |
 | W62 | The admin's Home "Needs you" lists pay and closed-shift items the admin cannot act on: show only what the role can decide | F1 | S | no |
 
+From role 7, the refused role, Accountant (awaiting the owner's confirmation):
+
+| # | Correction | From | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| W63 | **One refusal pattern:** a page a role may not use answers with the "Not available for your role" screen (page gate matches the server), never an in-page "You can't open the rota"; the Accountant's Shifts and Shift templates addresses join the rule; no "rota" in any refusal text | G2, G4 | S | no |
+| W64 | **A failed or refused request never leaves "Still loading" on screen:** after a few seconds a 403 or error shows the states kit message (a refusal says who the page is for; an error says "We could not load this" with a reference and Try again). My time for a person who does not clock says "You do not clock in" | G5 | S to M | no (states kit exists) |
+| W65 | **Accountant and Timesheets:** decide whether the Accountant reads timesheets from the menu (a Time group with Timesheets, and a site chooser); today the page opens only by address and only on Central Store | G1, G6 | M | decision |
+
+**Regression guard (role 7):** the Today board and switch refusals; no edit controls for the Accountant.
+
 **Regression guard (role 4):** HR sees the cost estimate on Shifts and the print stays free of it; "Every site" for shift types; the branch chooser on the Today board; HR gets no "Clock in for"; the not-available screen.
 
 **Regression guard, keep as it works today (verified by the watch):** My shifts and My time on a phone (clear, with a TODAY marker); the phone sign-in device step; "This week" on a phone; Today board numbers and department rows; "Clock in for" dialog (first name, required reason, muted button, nothing saved on Cancel); Edit time preview, reason and See history; leave warning dialog with "they" and a required reason; the next-two-days reason dialog (becomes optional, D18); "Keep editing" saves nothing; Start from last week preview with clashes; shift types table (search, chips, pager); a head sees only their department; My team shows no pay or IDs; "Write report" in amber underline; the phone day view's tap targets; the "Not available for your role" screen; no "he" or "she" in the product text. Builders must not lose these.
