@@ -38,9 +38,31 @@ Written during the watch (step 2), lane 4, 24 Oct 2026, Saturday, about 09:00 to
 | A17 | Console, every page | Error: two sidebar menu children share one key (`sidebar-menu.tsx`, FeatureRow, "history"); harmless today, a risk later | New |
 | A18 | Sign-in | On a new device the "Confirm this device" step is shown; after "Trust this device" the PIN step did not appear and the page went straight to the app | Observed |
 
+**Unexplained change in the lane data (24 Oct, 09:40 Nairobi):** the audit log holds `rota.cells_changed` by Faith Wambui: Ann Wangui, Saturday 24 Oct, from "Day off" to "Morning", reason "Cover for a gap". The agent did not choose a reason or press Save in any dialog, and cannot tell whether this came from a stray click of its own or from a click in the shared window. It was left as is (a further edit would add another audit row). It is the only unexpected write.
+
 **Worked well, no change needed:** the Today board numbers and department rows; "Clock in for Victor" (first name, required reason, button muted until a reason is chosen, nothing saved on Cancel); Edit time preview and history; the leave warning; the reason dialog for a change to tomorrow ("Cynthia is told", "Keep editing" saves nothing); Start from last week preview with clashes (Susan Wafula on approved leave); the shift types table (search, chips, numbered pager, rows per page); no "he" or "she" seen.
 
 **Not covered for this role:** Copy day dialog; drag-fill and keyboard letters on the grid; Add shift saved; Edit and Retire a shift; the printed page's real print; Home phone widths (the Branch Manager has no phone design yet).
+
+### Role 2: Department head, Nyeri Town (Victor Mutua, Barista head)
+
+| # | Where | What I saw | Predicted before? |
+|---|---|---|---|
+| B1 | Head Home (desktop and phone) | The page is mostly personal: five number cards, the large **clock card** (03:53:23, a full-width Clock in button, about 245 px high on desktop and 370 px on a phone), a "This week" card, then Latest. On the phone the clock sits **below five number cards**, so the head must scroll to reach it | Owner raised (D1 to D4) |
+| B2 | Head Home, "This week" card | Seven tiny bars spread across the full page width, mostly empty space; "24 h 0 m so far of 40 h 0 m planned"; days M T W T F S S | Owner raised (D4) |
+| B3 | Head Home, what is missing for the head's role | No thin-day warning, no overtime requests, no items needing an owner, no probation report card (only the count "1 report due"), no requisitions, no team shifts for the week | Owner raised (D1) |
+| B4 | Head Home, team card | Lists only Victor himself as "Not in", by bare name | Predicted (row 3) |
+| B5 | Head Home, Latest | "Payroll paid, The August 2026 payroll was marked as paid" and "Your leave balance changed" show to a head; "Someone in your department will be on leave. **The rota** shows the days" has no name | New |
+| B6 | Menu, My account | Rows named **"My rota"**, "My time", "My requests" (the naming table says Shifts); a "Barista" row with 6 waiting beside "Department" | Predicted (row 1) |
+| B7 | Sign-in, device step | The head's line reads "Victor Mutua, Barista · Nyeri Town" (no "head") | New |
+| B8 | Team today (head) | Page title is **"Today at Nyeri Town"** with breadcrumb "Workforce / Today board" although the menu says "Team today" under "Department"; the head sees **"Clock in for Victor"**, even for himself (Paper's note says only the Branch Manager clocks someone in, because a head decides nothing) | New |
+| B9 | Shifts (head) | Title "Rota · Nyeri Town" for a head; a department list with a useless "All departments" row; "Start from last week" offered. No Shift types link (correct) | Partly (row 1) |
+| B10 | My team | Counts "On shift 4" and shows Victor (not in) and Lilian (shift not started) as "On shift": "On shift" here means rostered today, not clocked in, so it disagrees with Team today | Predicted (row 11) |
+| B11 | Phone Shifts view | Close to Paper step 9. Title "Rota" and "Barista rota"; two back-pointing arrows at the top (back and previous week); shows only "Has 4" with no "needs" number; today not marked apart from the selected day; cell names, not timings | Partly |
+| B12 | Blocked address (Shift types) | The "Not available for your role" screen works, with a reference. Its text lists "the Accountant" as a Shifts user (the Accountant sees only their own shifts) and does not mention department heads | Predicted, mostly works |
+
+**Worked well:** the head sees only the Barista team on every page; no pay or IDs shown on My team; "Write report" in amber underline for the probation case; the phone day view's tap targets; the not-available screen.
+**Not covered for this role:** a saved shift change by a head; the clock itself (not tapped on purpose); My file, My time, My requests.
 
 ### Sample-data problems the agent caused and fixed during the walk (so the owner knows what was re-seeded)
 1. Later shifts (10:00 and 14:00) showed as clocked in at 09:00. Fixed in `schedule.ts`, re-seeded.
