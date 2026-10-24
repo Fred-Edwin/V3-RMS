@@ -25,7 +25,7 @@ This replaces the four-step loop in `FINAL_PASS.md` for sections 2 to 10. It com
 | # | Section | Orient | Watch | Decide | Design | Build | Close-out and video |
 |---|---|---|---|---|---|---|---|
 | 1 | People | n/a | done | done | done | done | close-out running, video recording |
-| 2 | Schedule (Shifts, then Attendance) | next | | | | | |
+| 2 | Schedule (Shifts, then Attendance) | done | in progress | in progress | | | V0 and V1 built and merged on the stack (24 Oct, pushed). Next: V2 design (lane 4, brief `docs/sessions/final-pass-2-v2-design.md`), then V3 design (lane 2) |
 | 3 | Timesheets | | | | | | |
 | 4 | Rules | | | | | | |
 | 5 | Payroll | | | | | | |
