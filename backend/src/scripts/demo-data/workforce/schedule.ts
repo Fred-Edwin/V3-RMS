@@ -120,6 +120,7 @@ export async function seedSchedule(world: World): Promise<void> {
     const jitter = Math.floor(rnd(s.i * 131 + dayNo(s.day)) * 6) - 3;
     if (s.day === today) {
       if (s === notInTown) { noteOf.set(s.email, 'not in'); continue; }
+      if (s.start - 15 > nowMin) continue; // the clock opens 15 minutes before the shift: a later shift has no events yet
       const inAt = s === lateTown ? Math.min(s.start + 22, nowMin - 1) : s === lateHighway ? Math.min(s.start + 9, nowMin - 1) : Math.min(s.start + jitter, nowMin - 1);
       if (s === lateTown) noteOf.set(s.email, 'late today');
       if (s === lateHighway) noteOf.set(s.email, 'late today');
