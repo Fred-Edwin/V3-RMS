@@ -8,11 +8,12 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/cn';
 
 import { DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, PeriodStepper, ShiftLegend, WorkforceFrame } from '../../../_shared';
+import { RefusalScreen } from '../../../refusal';
 import { CopyDayDialog } from '../../dialogs/copy-day-dialog';
 import { CopyWeekDialog } from '../../dialogs/copy-week-dialog';
 import { PendingDialogs } from '../../dialogs/pending-dialogs';
 import { RotaPhone } from '../../phone/components/rota-phone';
-import { GRID_NOTE, GRID_NOTE_READ_ONLY, GRID_NOTE_SITES, LEFT_NOTE, LEFT_NOTE_SITES, NO_ACCESS, NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
+import { GRID_NOTE, GRID_NOTE_READ_ONLY, GRID_NOTE_SITES, LEFT_NOTE, LEFT_NOTE_SITES, NO_ONE_ON_ROTA } from '../../_shared/lib/rota-copy';
 import { weekLabel } from '../../_shared/lib/rota-dates';
 import { timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
 import { ALL_DEPARTMENTS, listedDepartments, peopleIn, warningsIn } from '../../_shared/lib/week-view';
@@ -26,6 +27,7 @@ import { RotaTopActions } from './rota-top-actions';
 import { WarningsList } from './warnings-list';
 
 const TEMPLATES_HREF = '/app/workforce/schedule/templates';
+const SHIFTS_HREF = '/app/workforce/schedule/rota';
 
 /** The branch's shifts, one per colour, for the legend over the grid: every active shift, whether or not it is used yet this week. */
 function legendOf(week: WeekView, people: ReturnType<typeof peopleIn>) {
@@ -59,12 +61,13 @@ export function RotaScreen() {
   );
 
   if (!s.perms.ready && !s.perms.failed) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
-  if (s.perms.failed || !s.canRead) return frame(<EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" />);
+  if (s.perms.failed) return frame(<ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={s.perms.retry} className="m-8" />);
+  // A page this role may not use is always the one "Not available for your role" screen, never a message of its own.
+  if (!s.canRead) return <RefusalScreen from={SHIFTS_HREF} />;
   if (week.status === 'error' && !data) {
     const refused = week.error.status === 403 || week.error.status === 404;
-    return frame(
-      refused ? <EmptyState kind="nothingYet" title={NO_ACCESS.title} line={NO_ACCESS.body} className="m-8" /> : <ErrorBlock title="Could not load the shifts" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />
-    );
+    if (refused) return <RefusalScreen from={SHIFTS_HREF} />;
+    return frame(<ErrorBlock title="We could not load this" line={week.error.message} reference={week.error.code} onRetry={week.reload} className="m-8" />);
   }
   if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 

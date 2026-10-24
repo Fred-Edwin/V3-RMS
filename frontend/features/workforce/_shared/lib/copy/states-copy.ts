@@ -150,6 +150,8 @@ export function statesCopy(
 /** Fixed lines from the States kit that are not per screen. */
 export const STATES_FIXED = {
   stillLoading: 'Still loading. Your work is safe.',
+  couldNotLoad: 'We could not load this',
+  couldNotLoadLine: 'It is taking longer than it should. Nothing was changed. Try again, and quote the reference if it keeps happening.',
   tryAgain: 'Try again',
   referencePrefix: 'Reference',
   offlineStrip: 'No signal.',

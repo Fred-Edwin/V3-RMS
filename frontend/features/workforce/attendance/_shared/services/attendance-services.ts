@@ -60,5 +60,6 @@ export const attendanceWrites = {
   /** F3 */
   applyFix: (body: FixBody): Promise<FixResult> => apiClient.post(`${BASE}/fixes`, body, token()),
   /** S2 */
-  setSwitch: (siteId: string, enabled: boolean): Promise<SwitchView> => apiClient.put(`${BASE}/switch`, { siteId, enabled }, token()),
+  /** Signed with the caller's own PIN. */
+  setSwitch: (siteId: string, enabled: boolean, pin: string): Promise<SwitchView> => apiClient.put(`${BASE}/switch`, { siteId, enabled, pin }, token()),
 };

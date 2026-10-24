@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { avatarTone, initialsOf } from '../style/avatar';
-import { UNDO_WINDOW_MS } from '../style/interaction';
+import { STILL_LOADING_AFTER_MS, STUCK_AFTER_MS, UNDO_WINDOW_MS } from '../style/interaction';
+import { STATES_FIXED } from '../copy/states-copy';
 import {
   NOTIFICATION_KIND_LABEL,
   NOTIFICATION_KIND_TONE,
@@ -135,6 +136,14 @@ const PAPER_SCREENS: Array<[key: (typeof SCREEN_KEYS)[number], paperName: string
   ['securityAlerts', 'Security alerts'],
   ['phones', 'Phones'],
 ];
+
+describe('loading never lasts forever', () => {
+  it('"Still loading" comes first, then the bars give way to "We could not load this" a few seconds later', () => {
+    expect(STUCK_AFTER_MS).toBeGreaterThan(STILL_LOADING_AFTER_MS);
+    expect(STUCK_AFTER_MS - STILL_LOADING_AFTER_MS).toBeLessThanOrEqual(10_000);
+    expect(STATES_FIXED.couldNotLoad).toBe('We could not load this');
+  });
+});
 
 describe('per-screen copy table (States kit)', () => {
   it('has a row for every screen in the Paper table, under the Paper name', () => {

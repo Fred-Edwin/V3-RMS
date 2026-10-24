@@ -4,7 +4,8 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 
-import { DOC_COLOURS, DocumentCanvas, EmptyState, ErrorBlock, ListSkeleton, SHIFT_PAINT, WorkforceDocument, useWorkforcePermissions } from '../../../_shared';
+import { DOC_COLOURS, DocumentCanvas, ErrorBlock, ListSkeleton, SHIFT_PAINT, WorkforceDocument, useWorkforcePermissions } from '../../../_shared';
+import { RefusalScreen } from '../../../refusal';
 import { usePrintedRota } from '../../_shared/hooks/use-rota-data';
 import { columnHead, printedDay, printedStamp, weekLongRange } from '../../_shared/lib/rota-dates';
 import { hoursNumber, timeRangeWords, toneOfColour } from '../../_shared/lib/shift-look';
@@ -76,8 +77,9 @@ export function PrintScreen({ weekStart, siteId, departmentId }: { weekStart: st
   const perms = useWorkforcePermissions();
   const rota = usePrintedRota(weekStart, siteId, departmentId, perms.ready && perms.can('rota.read'));
   if (!perms.ready && !perms.failed) return <ListSkeleton rows={6} label="Preparing the shifts" className="m-8" />;
-  if (perms.failed || !perms.can('rota.read')) return <EmptyState kind="nothingYet" title="You can't print these shifts" line="Ask HR if you need a printed copy." className="m-8" />;
-  if (rota.status === 'error' && !rota.data) return <ErrorBlock title="Could not prepare the shifts" line={rota.error.message} reference={rota.error.code} onRetry={rota.reload} className="m-8" />;
+  if (perms.failed) return <ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={perms.retry} className="m-8" />;
+  if (!perms.can('rota.read')) return <RefusalScreen from="/app/workforce/schedule/rota/print" />;
+  if (rota.status === 'error' && !rota.data) return <ErrorBlock title="We could not load this" line={rota.error.message} reference={rota.error.code} onRetry={rota.reload} className="m-8" />;
   const data = rota.data;
   if (!data) return <ListSkeleton rows={6} label="Preparing the shifts" className="m-8" />;
   const number = rotaNumber(data.weekStart);

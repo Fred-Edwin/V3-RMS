@@ -24,10 +24,15 @@ export const workforcePathAccess = (pathname: string, role: AppRole, isDepartmen
     return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
 
-  // The Rota (slice 2): a department head plans their own team on a phone, so the Rota pages (the grid and its printed page) open for a
-  // head as well as the five desktop roles. Shift templates stay with the desktop roles. The API decides what each person can do.
+  // Shifts (slice 2): a department head plans their own team on a phone, so the Shifts pages (the grid and its printed page) open for a
+  // head as well as HR, the Branch and Store Managers and the Director. Shift templates stay with those four. The Accountant reads no
+  // one's shifts (the table gives only `rota.read` at scope "own": their own shifts are under My shifts), so both addresses answer
+  // "Not available for your role", like every other page a role may not use. The API decides what each person can do.
+  if (under('/app/workforce/schedule/templates')) {
+    return role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
+  }
   if (under('/app/workforce/schedule/rota')) {
-    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+    return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
 
   // People, batch 2B: a head's probation report and My team (read only). Heads, and the roles that already see their people.
@@ -36,12 +41,14 @@ export const workforcePathAccess = (pathname: string, role: AppRole, isDepartmen
   }
 
   // Attendance (slice 3). The Today board is for the roles that read it (and a department head, for their own people); the per-site
-  // switch is the System Admin's alone (owner, 18 Oct 2026). Both pages show nothing for a branch whose new clock is off.
+  // switch is for the Director and the System Admin: the access table gives both `attendance.switch` (owner, 21 Oct 2026, which replaced
+  // the 18 Oct "System Admin alone"). Both pages show nothing for a branch whose new clock is off. Keep this list equal to the roles whose
+  // row holds `attendance.switch` in `workforce-grants.ts` (the pair of tests `route-access.workforce.test.ts` and `workforce-access.test.ts`).
   if (under('/app/workforce/today')) {
     return isDepartmentHead || role === 'HR_MANAGER' || role === 'MANAGER' || role === 'STORE_MANAGER' || role === 'DIRECTOR';
   }
   if (pathname === '/app/workforce/attendance/switch') {
-    return role === 'SYSTEM_ADMIN';
+    return role === 'SYSTEM_ADMIN' || role === 'DIRECTOR';
   }
 
   // Timesheets and Requests (slice 4a, Segment 1A): the roles that read timesheets (the managers, HR, the Director, the Accountant to read).

@@ -11,12 +11,13 @@ import { formatApiErrorMessage } from '@/types/api';
 import { useAuthStore } from '@/store/authStore';
 
 import { useOrgOverview } from '../../../people';
-import { Callout, DialogButton, EmptyState, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, useWorkforcePermissions } from '../../../_shared';
+import { Callout, DialogButton, ErrorBlock, FOCUS_RING, ListSkeleton, PageHeader, SHIFT_PAINT, WorkforceFrame, WorkforceKpiStrip, useWorkforcePermissions } from '../../../_shared';
 import { useTemplates } from '../../_shared/hooks/use-rota-data';
 import { mondayOf, nairobiToday, weekShortRange } from '../../_shared/lib/rota-dates';
 import { breakWords, hoursUnit, timeRangeMono, toneOfColour, usedByWords } from '../../_shared/lib/shift-look';
 import { rotaWrites } from '../../_shared/services/rota-services';
 import type { TemplateView } from '../../_shared/types/rota-types';
+import { RefusalScreen } from '../../../refusal';
 import { firstSite, rememberSite, rememberedSite } from '../../_shared/lib/last-site';
 import { mayEdit, retiredWords, templateCounts, templateRows } from '../lib/template-rows';
 import { TemplateDialog } from './template-dialog';
@@ -121,8 +122,9 @@ export function TemplatesScreen() {
   );
 
   if (!perms.ready && !perms.failed) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
-  if (perms.failed || !perms.can('rota.read')) return frame(<EmptyState kind="nothingYet" title="You can't open the shifts" line="Ask HR if you need to see or add shifts." className="m-8" />);
-  if (templates.status === 'error' && !data) return frame(<ErrorBlock title="Could not load the shifts" line={templates.error.message} reference={templates.error.code} onRetry={templates.reload} className="m-8" />);
+  if (perms.failed) return frame(<ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={perms.retry} className="m-8" />);
+  if (!perms.can('rota.read')) return <RefusalScreen from="/app/workforce/schedule/templates" />;
+  if (templates.status === 'error' && !data) return frame(<ErrorBlock title="We could not load this" line={templates.error.message} reference={templates.error.code} onRetry={templates.reload} className="m-8" />);
   if (!data) return frame(<ListSkeleton rows={6} label="Loading the shifts" className="m-8" />);
 
   const active = data.filter((t) => t.isActive);

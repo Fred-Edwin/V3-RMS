@@ -40,6 +40,17 @@ title + description card) → shared in `shell-states.tsx`.
 - Standalone task views (a phone-only back-chevron screen) stay outside the group.
 - Every nav item uses `next/link` `<Link>`, never a plain `<a href>` (a plain anchor
   forces a full reload and defeats the persistent shell).
+- **When an access decision changes, change the page gate and the menu in the same
+  change, with a test** (owner decision, 24 Oct 2026, after the Director could not open
+  the attendance switch the access table already gave them). The access table (back end)
+  says who may do what; `lib/route-access*.ts` says who may open a page; the menu row in
+  `nav-table.ts` says who sees the link. Moving one without the other leaves a person
+  with a link that bounces, or a page nobody can open. The test lists the roles once in
+  the back end's access test and once in the front end's gate test, word for word, so a
+  change to one fails until the other follows.
+- **One refusal pattern.** A page a role may not use answers with the "Not available for
+  your role" screen (the gate redirects to it; it says who the page is for and gives a
+  reference). A page never shows its own "you can't open this" message in place of it.
 
 ## 4. Tables and list screens (checked before "done")
 

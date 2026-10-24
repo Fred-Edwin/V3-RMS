@@ -24,8 +24,10 @@ export function MyTimeScreen() {
   const at = period ? periods.findIndex((p) => p.id === period.id) : -1;
 
   let body: React.ReactNode;
-  if (!permissions.ready || time.status === 'loading') body = <ListSkeleton rows={5} columns={[44, 'fill', 60]} label="Loading your time" />;
+  if (permissions.failed) body = <ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={permissions.retry} />;
+  else if (!permissions.ready) body = <ListSkeleton rows={5} columns={[44, 'fill', 60]} label="Loading your time" />;
   else if (!permissions.can('time.own')) body = <EmptyState kind="nothingYet" title="You do not clock in" line="Your time appears here when you are on the clock." />;
+  else if (time.status === 'loading') body = <ListSkeleton rows={5} columns={[44, 'fill', 60]} label="Loading your time" />;
   else if (time.status === 'error' && !data) body = <ErrorBlock title="Your time did not load" line={time.error.message} onRetry={time.reload} />;
   else if (!data?.enabled || !period) body = <EmptyState kind="nothingYet" title="Your branch still uses the old clock" line="My time appears here once your branch switches to the new clock." />;
   else {

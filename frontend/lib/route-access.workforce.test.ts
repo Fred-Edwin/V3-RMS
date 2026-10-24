@@ -58,25 +58,29 @@ describe('route gate: /app/workforce (Chapter 1 frame)', () => {
     for (const role of ['HR_MANAGER', 'WAITER', 'STORE_ATTENDANT', 'SYSTEM_ADMIN'] as AppRole[]) expect(isAllowedPath('/app/workforce/my-phones', role, false), role).toBe(true);
   });
 
-  it('opens the Today board for the roles that read it and a head, and the switch for the System Admin only', () => {
+  it('opens the Today board for the roles that read it and a head, and the switch for the roles whose row holds attendance.switch', () => {
     const READS: AppRole[] = ['HR_MANAGER', 'MANAGER', 'STORE_MANAGER', 'DIRECTOR'];
+    // The same pair as `attendance.switch` in the back end's access table (`workforce-access.test.ts` asserts it there): the page gate
+    // and the table are changed together, never one without the other (docs/UI_BUILD_RULES.md).
+    const SWITCH: AppRole[] = ['DIRECTOR', 'SYSTEM_ADMIN'];
     for (const role of ALL) {
       expect(isAllowedPath('/app/workforce/today', role, false), `${role} on today`).toBe(READS.includes(role));
       expect(isAllowedPath('/app/workforce/today', role, true), `head ${role} on today`).toBe(true);
-      expect(isAllowedPath('/app/workforce/attendance/switch', role, false), `${role} on the switch`).toBe(role === 'SYSTEM_ADMIN');
-      expect(isAllowedPath('/app/workforce/attendance/switch', role, true), `head ${role} on the switch`).toBe(role === 'SYSTEM_ADMIN');
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, false), `${role} on the switch`).toBe(SWITCH.includes(role));
+      expect(isAllowedPath('/app/workforce/attendance/switch', role, true), `head ${role} on the switch`).toBe(SWITCH.includes(role));
     }
   });
 
-  it('opens the Rota pages for the desktop roles and for a department head, and shift templates for the desktop roles only', () => {
+  it('opens the Shifts pages for HR, the managers, the Director and a department head, and shift templates for the four desktop roles; the Accountant gets the refusal screen on both', () => {
+    const SHIFTS: AppRole[] = WORKFORCE_DESKTOP.filter((role) => role !== 'ACCOUNTANT');
     for (const path of ['/app/workforce/schedule/rota', '/app/workforce/schedule/rota/print']) {
       for (const role of ALL) {
-        expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(WORKFORCE_DESKTOP.includes(role));
+        expect(isAllowedPath(path, role, false), `${role} on ${path}`).toBe(SHIFTS.includes(role));
         expect(isAllowedPath(path, role, true), `head ${role} on ${path}`).toBe(true);
       }
     }
     for (const role of ALL) {
-      expect(isAllowedPath('/app/workforce/schedule/templates', role, true), `head ${role} on templates`).toBe(WORKFORCE_DESKTOP.includes(role));
+      expect(isAllowedPath('/app/workforce/schedule/templates', role, true), `head ${role} on templates`).toBe(SHIFTS.includes(role));
     }
     expect(isAllowedPath('/app/workforce/schedule/rotax', 'WAITER', true)).toBe(false);
   });

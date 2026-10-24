@@ -1,3 +1,4 @@
+import { dayInWords } from '../../../rota';
 import { dateOf } from '../../_shared/lib/nairobi-clock';
 import type { SwitchView } from '../../_shared/types/attendance-types';
 
@@ -6,7 +7,9 @@ export const SWITCH_COPY = {
   onDescription: 'Staff at this branch will clock in on their phones, against their shifts.',
   offDescription: 'Staff at this branch go back to the old clock.',
   refused: 'The switch was not changed',
-  since: (site: SwitchView): string => (site.enabled && site.enabledAt ? `On since ${dateOf(site.enabledAt)}` : 'Using the old clock'),
+  since: (site: SwitchView): string => (site.enabled && site.enabledAt ? `On since ${dayInWords(dateOf(site.enabledAt))}` : 'Using the old clock'),
+  pinLabel: 'Your PIN, to switch',
+  pinCaption: 'The change is signed with your PIN and written to the audit log with your name and the time.',
   done: (name: string, on: boolean): string => `${name} ${on ? 'now uses the new clock' : 'is back on the old clock'}. It is written to the audit log.`,
 } as const;
 
@@ -15,15 +18,13 @@ export function switchLines(site: SwitchView): string[] {
   return site.enabled
     ? [
         'The old clock works again at once for this branch.',
-        'Clock times taken today on the new clock are copied to the old clock, so nobody loses the day.',
+        'Anyone clocked in on the new clock stays clocked in: their clock times are copied to the old clock, so they clock out there and nobody loses the day.',
         'Past days stay where they were recorded.',
-        'It is written to the audit log with your name.',
       ]
     : [
         'The old clock stops answering for this branch. Anyone who taps it is told to use the new clock.',
         'Staff clock in on their phones against their shifts, with two minutes to undo and a question at the end of the shift.',
-        'You cannot switch on while someone is clocked in on the old clock today; wait until they clock out.',
+        'You cannot switch on while someone is clocked in on the old clock; wait until they clock out. Anyone clocked in is never cut off.',
         'Finished old-clock records from today are carried across. Past days stay where they were recorded.',
-        'It is written to the audit log with your name.',
       ];
 }

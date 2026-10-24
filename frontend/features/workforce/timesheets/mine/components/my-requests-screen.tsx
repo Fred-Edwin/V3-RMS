@@ -18,8 +18,10 @@ export function MyRequestsScreen() {
   const rest = requests.filter((r) => r.state !== 'WAITING');
 
   let body: React.ReactNode;
-  if (!permissions.ready || mine.status === 'loading') body = <ListSkeleton rows={3} columns={['fill', 90]} label="Loading your requests" />;
+  if (permissions.failed) body = <ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={permissions.retry} />;
+  else if (!permissions.ready) body = <ListSkeleton rows={3} columns={['fill', 90]} label="Loading your requests" />;
   else if (!permissions.can('time.own')) body = <EmptyState kind="nothingYet" title="You do not clock in" line="Requests appear here when you are on the clock." />;
+  else if (mine.status === 'loading') body = <ListSkeleton rows={3} columns={['fill', 90]} label="Loading your requests" />;
   else if (mine.status === 'error' && !mine.data) body = <ErrorBlock title="Your requests did not load" line={mine.error.message} onRetry={mine.reload} />;
   else if (requests.length === 0) body = <EmptyState kind="nothingYet" title="No requests yet" line="If a time looks wrong, report it from My time." action={{ label: 'Report a problem', onClick: () => router.push('/app/workforce/my-time/report') }} />;
   else {

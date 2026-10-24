@@ -30,6 +30,7 @@ vi.mock('./fixes/fixes-service', () => ({ applyFix: answer, previewFix: answer }
 vi.mock('./fixes/history-service', () => ({ dayHistory: answer }));
 vi.mock('./lateness/lateness-service', () => ({ latenessReport: answer }));
 vi.mock('./switch/switch-service', () => ({ getSwitch: answer, setSwitch: answer, listSwitches: answer }));
+vi.mock('../_shared/pin/signer-pin', () => ({ verifySignerPin: async (_userId: string, pin: string) => (pin === '4321' ? { method: 'PIN', signedAt: new Date() } : Promise.reject(Object.assign(new Error('That PIN is not right. Try again.'), { statusCode: 403, code: 'PIN_INVALID' }))) }));
 
 import router from './attendance-routes';
 
@@ -60,7 +61,7 @@ const cases: Case[] = [
   { method: 'post', path: `${A}/fixes`, body: fix, capability: 'time.fix', status: 201 },
   { method: 'get', path: `${A}/lateness?from=2026-10-01&to=2026-10-12`, capability: 'timesheet.read', status: 200 },
   { method: 'get', path: `${A}/switch?siteId=${id}`, capability: 'today.read', status: 200 },
-  { method: 'put', path: `${A}/switch`, body: { siteId: id, enabled: true }, capability: 'attendance.switch', status: 200 },
+  { method: 'put', path: `${A}/switch`, body: { siteId: id, enabled: true, pin: '4321' }, capability: 'attendance.switch', status: 200 },
   { method: 'get', path: `${A}/switch/sites`, capability: 'today.read', status: 200 },
 ];
 // A role that holds the capability and one that does not.
@@ -114,7 +115,7 @@ describe('Attendance routes', () => {
     expect((await request(app).get(`${A}/board`).set('x-test-user', head)).status).toBe(200);
     expect((await request(app).post(`${A}/clock-for`).set('x-test-user', head).send({ employeeId: id, type: 'IN', at, reason: 'Phone battery died' })).status).toBe(201);
     expect((await request(app).post(`${A}/fixes`).set('x-test-user', head).send(fix)).status).toBe(403);
-    expect((await request(app).put(`${A}/switch`).set('x-test-user', head).send({ siteId: id, enabled: true })).status).toBe(403);
+    expect((await request(app).put(`${A}/switch`).set('x-test-user', head).send({ siteId: id, enabled: true, pin: '4321' })).status).toBe(403);
   });
 
   it('the Accountant reads time and lateness but cannot see the board or act on it; the Store Attendant clocks like staff', async () => {
@@ -128,6 +129,13 @@ describe('Attendance routes', () => {
     const admin = as('SYSTEM_ADMIN');
     expect((await request(app).post(`${A}/clock-in`).set('x-test-user', admin).send(tap)).status).toBe(403);
     expect((await request(app).post(`${A}/fixes`).set('x-test-user', admin).send(fix)).status).toBe(201);
-    expect((await request(app).put(`${A}/switch`).set('x-test-user', admin).send({ siteId: id, enabled: false })).status).toBe(200);
+    expect((await request(app).put(`${A}/switch`).set('x-test-user', admin).send({ siteId: id, enabled: false, pin: '4321' })).status).toBe(200);
+  });
+
+  it('the switch is signed with the caller\'s own PIN: no PIN is refused, a wrong PIN is refused, and the Director may switch like the System Admin', async () => {
+    const director = as('DIRECTOR');
+    expect((await request(app).put(`${A}/switch`).set('x-test-user', director).send({ siteId: id, enabled: true })).status).toBe(400);
+    expect((await request(app).put(`${A}/switch`).set('x-test-user', director).send({ siteId: id, enabled: true, pin: '0000' })).status).toBe(403);
+    expect((await request(app).put(`${A}/switch`).set('x-test-user', director).send({ siteId: id, enabled: true, pin: '4321' })).status).toBe(200);
   });
 });

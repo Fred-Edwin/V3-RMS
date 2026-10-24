@@ -73,7 +73,7 @@ export const WORKFORCE_ROWS: readonly NavRow[] = [
   // legacy admin and analytics rows by `menu.ts`.
   { key: 'wf-security', label: 'Security alerts', group: 'feature:company', icon: ico.shield, newHref: '/app/workforce/security', roles: [SYSTEM_ADMIN], badge: 'workforce-security', match: ['/app/workforce/security'] },
   { key: 'wf-audit-log', label: 'Audit log', group: 'feature:company', icon: AuditLogIcon, newHref: '/app/workforce/audit-log', roles: [...WF_DESKTOP, SYSTEM_ADMIN], needsAttendance: true, match: ['/app/workforce/audit-log'] },
-  { key: 'wf-attendance-switch', label: 'Attendance switch', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN] },
+  { key: 'wf-attendance-switch', label: 'Attendance switch', group: 'feature:company', icon: ico.timesheets, newHref: '/app/workforce/attendance/switch', roles: [SYSTEM_ADMIN, DIRECTOR] },
   { key: 'wf-rules-admin', label: 'Rules', group: 'feature:company', icon: ico.rules, newHref: '/app/workforce/rules', roles: [SYSTEM_ADMIN], match: ['/app/workforce/rules'] },
 
   // ── Personal items: open from the name at the bottom of the menu (Paper 2.x), for every person with a file ──────────────────────

@@ -36,5 +36,8 @@ export const TAP_TARGET = 'min-h-[44px] min-w-[44px]';
 /** The only waiting time the kit owns: the "Still loading" line (States kit). */
 export const STILL_LOADING_AFTER_MS = 8000;
 
+/** A few seconds after "Still loading": the bars give way to "We could not load this" with a reference and Try again. Loading never lasts forever. */
+export const STUCK_AFTER_MS = 14_000;
+
 /** Undo window for an answered row (rule 03). */
 export const UNDO_WINDOW_MS = 30_000;

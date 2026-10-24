@@ -39,7 +39,6 @@ export const LEFT_NOTE = 'Changes save as you go and staff are told. Warnings ne
 export const LEFT_NOTE_SITES = 'HR builds any site. Each Branch Manager still sees only their own shifts.';
 
 export const NO_ONE_ON_ROTA = { title: 'No one has shifts here yet', body: 'People who clock in appear here once they are hired into a department.' };
-export const NO_ACCESS = { title: "You can't open Shifts", body: 'Ask HR if you need to plan or read a team’s week.' };
 
 export const COPY_NOTE = 'Clashes are shown, never copied. Staff are told about their new shifts a few minutes after you finish.';
 export const COPY_REASON_NOTE = 'Some of these days are today or tomorrow, so the copy needs a reason.';

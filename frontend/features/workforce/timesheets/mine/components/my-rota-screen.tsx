@@ -12,8 +12,10 @@ export function MyRotaScreen() {
   const data = rota.data;
 
   let body: React.ReactNode;
-  if (!permissions.ready || rota.status === 'loading') body = <ListSkeleton rows={6} columns={[56, 'fill']} label="Loading your shifts" />;
+  if (permissions.failed) body = <ErrorBlock title="We could not load this" line="Your permissions did not load. Nothing was changed." onRetry={permissions.retry} />;
+  else if (!permissions.ready) body = <ListSkeleton rows={6} columns={[56, 'fill']} label="Loading your shifts" />;
   else if (!permissions.can('time.own')) body = <EmptyState kind="nothingYet" title="You do not clock in" line="Your shifts appear here when you are on the clock." />;
+  else if (rota.status === 'loading') body = <ListSkeleton rows={6} columns={[56, 'fill']} label="Loading your shifts" />;
   else if (rota.status === 'error' && !data) body = <ErrorBlock title="Your shifts did not load" line={rota.error.message} onRetry={rota.reload} />;
   else if (!data?.enabled) body = <EmptyState kind="nothingYet" title="No shifts yet" line="Your shifts appear here once your branch plans them." />;
   else {
