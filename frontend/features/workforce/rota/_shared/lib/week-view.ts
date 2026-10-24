@@ -68,7 +68,8 @@ export function departmentStatus(week: WeekView, department: GridDepartment): De
   return { text: `${mine.length} need a look`, tone: 'warning' };
 }
 
-export const allStatus = (week: WeekView): DepartmentStatus => (week.warnings.length === 0 ? { text: 'Complete', tone: 'success' } : { text: `${week.warnings.length} need a look`, tone: 'warning' });
+export const allStatus = (week: WeekView): DepartmentStatus =>
+  week.people.every((p) => Object.keys(p.cells).length === 0) ? { text: 'Not started', tone: 'warning' } : week.warnings.length === 0 ? { text: 'Complete', tone: 'success' } : { text: `${week.warnings.length} need a look`, tone: 'warning' };
 
 export interface WeekNumbers {
   shifts: number;

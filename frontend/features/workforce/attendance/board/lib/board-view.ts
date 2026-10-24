@@ -120,7 +120,7 @@ export function kpiCells(board: Board, go?: { late: () => void; notIn: () => voi
   const firstStart = board.people.flatMap((p) => p.shifts).filter((s) => s.state === 'NOT_IN' || s.state === 'MISSED').map((s) => s.startTime).sort()[0];
   const cells: WorkforceKpiCell[] = [
     past
-      ? { key: 'on-shift', label: 'WORKED A SHIFT', value: `${onShift.count} of ${onShift.expected}`, detail: 'people who had a shift' }
+      ? { key: 'on-shift', label: 'WORKED A SHIFT', value: `${board.people.filter((p) => p.shifts.some((s) => s.clockedInAt)).length} of ${onShift.expected}`, detail: 'clocked in, of those with a shift' }
       : { key: 'on-shift', label: 'ON SHIFT NOW', value: `${onShift.count} of ${onShift.expected}`, detail: board.asOf ? `expected by ${board.asOf}` : 'expected so far' },
     { key: 'late', label: past ? 'LATE' : 'LATE TODAY', value: String(late.count), detail: late.count > 0 ? `${late.minutesPastGrace} min past grace in all` : 'nobody late', actionable: late.count > 0 && !!go, onSelect: late.count > 0 ? go?.late : undefined },
     { key: 'not-in', label: past ? 'NEVER CLOCKED IN' : 'NOT IN YET', value: String(notIn.count), detail: notIn.count > 0 ? `due ${firstStart ?? 'earlier'}, no clock-in` : 'everyone due was in', actionable: notIn.count > 0 && !!go, onSelect: notIn.count > 0 ? go?.notIn : undefined },
