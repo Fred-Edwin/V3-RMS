@@ -35,6 +35,13 @@ This replaces the four-step loop in `FINAL_PASS.md` for sections 2 to 10. It com
 | 9 | Shared parts (and Act as another user) | | | | | | |
 | 10 | Whole feature | | | | | | |
 
+## Carried into later sections (owner-approved 24 Oct 2026)
+Eight database tests assert rules the owner changed after the test was written. **Flip each assertion to the current rule (never delete it), in the build step of the section that owns the file**, and prove it on the clean prepared database (`TESTING.md`):
+- Section 3 Timesheets: `timesheets-flow-db.test.ts`, 5 tests (about lines 182 and 314: the Director is no longer refused a day decision or an export; the later tests depend on that decision).
+- Section 5 Payroll: `payroll-flow-db.test.ts` (5b) and `payroll-part2-db.test.ts` (8): a payroll export is no longer refused for the Director and System Admin.
+- Section 6 Payslips: `payslips-flow-db.test.ts` (wrong codes): the System Admin now gets `payslip.three_wrong_codes_admin`, so the count of the plain message kind changes.
+- People (done 24 Oct): `org-departments-flow-db.test.ts`, an empty new department has no gap.
+
 ## Parked, to discuss while Schedule's first session runs
 - **Feature switch per branch** (a general mechanism for every feature, with the Attendance switch as its first user): see the orchestrator's proposal in the conversation of 24 Oct 2026; decide scope after the owner answers.
 - **Glossary** (`docs/GLOSSARY.md`): needs the owner's definitions of "staff" and "floor staff".

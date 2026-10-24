@@ -92,7 +92,7 @@ describe.skipIf(!enabled)('Departments and positions in the database', () => {
     const view = await m.departmentsService.create(hr, { siteId: town.siteId, name: `ZZ Bakery ${tag}`, description: 'Breads', positionIds: [town.waiter] });
     dept = view.id;
     made.departments.push(dept);
-    expect(view).toMatchObject({ inventoryTag: null, isActive: true, hasGap: true, people: 0, head: null, can: { edit: true, assignHead: true } });
+    expect(view).toMatchObject({ inventoryTag: null, isActive: true, hasGap: false, people: 0, head: null, can: { edit: true, assignHead: true } });
     expect(view.positions.map((p) => p.id)).toEqual([town.waiter]);
     await expect(m.departmentsService.create(hr, { siteId: town.siteId, name: `zz bakery ${tag.toUpperCase()}`, positionIds: [] })).rejects.toMatchObject({ statusCode: 409, code: 'DEPARTMENT_NAME_TAKEN' });
     await expect(m.departmentsService.create(townManager, { siteId: town.siteId, name: `ZZ Other ${tag}`, positionIds: [] })).rejects.toMatchObject({ statusCode: 403 });
