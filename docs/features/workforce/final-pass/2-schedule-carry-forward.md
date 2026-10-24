@@ -95,6 +95,19 @@ Roles: **BM** Branch Manager (Nyeri Town), **Head** department head, **Staff** s
 | 24 | Employee file, Time tab | | | | yes | yes | | |
 | 25 | Blocked addresses ("Not available for your role") | | yes | yes | | | | yes |
 
+## F. Owner feedback after reading part A (24 Oct 2026, in the owner's words, then my reading)
+
+| # | Owner said | My reading | Size | Needs a Paper design? |
+|---|---|---|---|---|
+| F1 | "The copy from last week needs to be improved." | The "Start from last week" dialog (Ch 5 step 3): its wording and what it shows need a better design. Not yet said what is wrong; ask during the watch. | S to M | yes |
+| F2 | "Redesign the department head's homepage, containing many different elements and reflecting all aspects of their role." | A new head Home (desktop and phone) covering their own clock and week, their team today (who is in, late, not in), their team's shifts, probation reports, requests and notices, and requisitions. This replaces the round 1 frames 1.6 and 1.10 for heads. The exact list of elements is for the design step. | L | yes |
+| F3 | "Redesign the homepage for staff members who are not department heads." | A new staff Home (desktop and phone): clock, this week, notices, my file, my leave, my payslips. Replaces frames 1.7 and 1.11 for staff. | L | yes |
+| F4 | "The large clock where they clock in and out takes too much vertical space." | Shrink the Chapter 6 clock card (the big 00:12:00 timer and the progress bar) so the rest of Home is visible without scrolling. Applies to heads and staff. | M | yes |
+| F5 | "Redesign the This week card." | The grey bars card under the clock (Ch 6 step 1) needs a new design. | S to M | yes |
+| F6 | "Any improvement to ensure excellent designs." | Open permission to improve the designs I find weak while redrawing. Paper stays the source: every change is drawn and approved before building. | n/a | yes |
+
+These six go to the Decide step as one design group ("Staff and head Home, clock card, This week, Start from last week"). Rows 5 and 12 above (phone standard, Time tab) fold into F2 to F4. Nothing was drawn or changed in this session.
+
 ## E. Where predicted problems are most likely (to watch first)
 1. The word **Rota** still on screens (row 1).
 2. The **Time tab** still greyed or empty (row 12).
